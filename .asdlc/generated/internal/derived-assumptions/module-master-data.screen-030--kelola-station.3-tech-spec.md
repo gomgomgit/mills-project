@@ -23,3 +23,10 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (StationS
 - DELETE error_codes[0], description, business_logic[4], data_operations, edge_case_handling, business_rules_applied[2] ← guard 18 tabel RECORD_TABLES dalam transaksi + lockForUpdate.
 - ⚠ error_code STATION_HAS_MACHINERY dipertahankan sebagai label kondisi, tetapi dicatat bahwa body aktual hanya { message } (exception tanpa HasErrorCode → ApiExceptionHandler::codeFor() mengembalikan null untuk 409); test_scenarios baru memakai expected_error_code null.
 - unit_test_cases (+4), test_scenarios (+1), implementation_notes (+1) ← tes baru StationServiceTest/KelolaStationTest.
+
+## v4 — 2026-10-05
+
+Sumber: perbaikan lanjutan audit 2026-10-05 (belum di-commit), code is truth (StationHasMachineryException.php, KelolaStationTest API).
+- endpoints[4] DELETE error_codes[0].condition: catatan 'body tanpa code' diganti — body kini { message, code: STATION_HAS_MACHINERY } untuk kedua kasus.
+- edge_case_handling (record stasiun) menyebut STATION_HAS_MACHINERY; implementation_notes[terakhir] dikoreksi + (1) REVISI baru; test_scenarios (record stasiun) expected_error_code null → STATION_HAS_MACHINERY.
+- ⚠ Kasus guard record stasiun memakai kode yang sama (STATION_HAS_MACHINERY), bukan kode baru — keputusan agen konservatif (satu kelas exception, spec error_codes[0] sudah menggabungkan kedua kasus).

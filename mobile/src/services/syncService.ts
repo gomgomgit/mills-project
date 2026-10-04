@@ -95,6 +95,12 @@ export interface SyncSummary {
   items: SyncItemResult[]
   syncedCount: number
   failedCount: number
+  /**
+   * true bila batch dihentikan karena server menolak SESI (401 — akun
+   * dinonaktifkan / token dicabut). Record sisanya tidak dikirim dan tetap
+   * 'saved' tanpa sync_error; interceptor apiClient sudah mengarahkan ke Login.
+   */
+  sessionExpired?: boolean
 }
 
 /**
@@ -558,8 +564,11 @@ async function failure(table: string, id: string, label: string, error: unknown)
   const reason = extractErrorMessage(error)
   const status = (error as NormalizedApiError)?.status
   // Gagal jaringan bukan "ditolak" — jangan tandai record dengan alasan
-  // offline yang akan basi begitu perangkat online lagi.
-  if (status !== undefined) {
+  // offline yang akan basi begitu perangkat online lagi. 401 juga bukan
+  // penolakan RECORD (audit 2026-10-05): sesinya yang ditolak, dan record
+  // ini harus terkirim normal setelah login ulang — tanpa "Gagal sinkron:
+  // Unauthenticated" yang menempel di Data Preview.
+  if (status !== undefined && status !== 401) {
     await rememberSyncError(table, id, reason)
   }
   return { id, label, ok: false, reason, status }
@@ -599,6 +608,26 @@ async function resolveRecordContext(
   return { productionLineId: productionLineId ?? fallbackProductionLineId ?? null, stationName }
 }
 
+/**
+ * Status satu batch sinkronisasi manual (audit 2026-10-05). Begitu server
+ * menjawab 401 — atau sesi lokal sudah dibersihkan interceptor apiClient
+ * (token berubah sejak batch dimulai) — sisa batch DIHENTIKAN: tanpa ini
+ * setiap record sisa tetap dikirim tanpa token, masing-masing 401, dan
+ * masing-masing tercatat sync_error "Unauthenticated" yang muncul di Data
+ * Preview setelah login ulang.
+ */
+interface SyncBatch {
+  startToken: string | null | undefined
+  sessionExpired?: boolean
+}
+
+function sessionStillValid(batch: SyncBatch): boolean {
+  if (!batch.sessionExpired && useAuthStore().token !== batch.startToken) {
+    batch.sessionExpired = true
+  }
+  return !batch.sessionExpired
+}
+
 const NO_LINE_REASON =
   'Production Line record ini tidak diketahui — pilih Production Line di Station List lalu sinkronkan lagi.'
 
@@ -613,16 +642,26 @@ async function syncTable<T extends { id: string; station_id?: string | null }>(
   fallbackProductionLineId: string | null | undefined,
   labelOf: (row: T) => string,
   push: (productionLineId: string, row: T) => Promise<SyncItemResult>,
+  batch: SyncBatch,
 ): Promise<SyncItemResult[]> {
   const results: SyncItemResult[] = []
 
   for (const row of rows) {
+    if (!sessionStillValid(batch)) {
+      break
+    }
+
     const { productionLineId, stationName } = await resolveRecordContext(table, row.station_id, fallbackProductionLineId)
     const result = productionLineId
       ? await push(productionLineId, row)
       : await localFailure(table, row.id, labelOf(row), NO_LINE_REASON)
 
     results.push({ ...result, stationName, productionLineId })
+
+    if (result.status === 401) {
+      batch.sessionExpired = true
+      break
+    }
   }
 
   return results
@@ -632,7 +671,12 @@ async function syncUniformStation(
   config: StationPushConfig,
   fallbackProductionLineId: string | null | undefined,
   userId: string,
+  batch: SyncBatch,
 ): Promise<SyncItemResult[]> {
+  if (!sessionStillValid(batch)) {
+    return []
+  }
+
   const rows = await pendingRows<Record<string, unknown> & { id: string; station_id?: string | null }>(config.table, userId)
 
   return syncTable(
@@ -641,6 +685,7 @@ async function syncUniformStation(
     fallbackProductionLineId,
     (row) => (row[config.idColumn] as string) ?? row.id,
     (productionLineId, row) => pushUniformRow(config, productionLineId, row),
+    batch,
   )
 }
 
@@ -787,6 +832,8 @@ export async function syncAllRecords(fallbackProductionLineId: string | null | u
     throw new Error('Tidak dapat sinkronisasi: user tidak diketahui.')
   }
 
+  const batch: SyncBatch = { startToken: authStore.token, sessionExpired: false }
+
   const gradingRows = await pendingRows<LocalGradingRow & { station_id?: string | null }>('grading_record', userId)
   if (gradingRows.length > 0) {
     // Best-effort: segarkan master Quality Parameter (id server) sebelum
@@ -807,6 +854,7 @@ export async function syncAllRecords(fallbackProductionLineId: string | null | u
       fallbackProductionLineId,
       (row) => row.wb_card_number ?? row.id,
       pushWeighbridgeRow,
+      batch,
     ),
     grading: await syncTable(
       'grading_record',
@@ -814,6 +862,7 @@ export async function syncAllRecords(fallbackProductionLineId: string | null | u
       fallbackProductionLineId,
       (row) => row.grading_number ?? row.id,
       pushGradingRow,
+      batch,
     ),
     cagesTrack: await syncTable(
       'cages_track_record',
@@ -821,11 +870,12 @@ export async function syncAllRecords(fallbackProductionLineId: string | null | u
       fallbackProductionLineId,
       (row) => row.cages_track_number ?? row.id,
       pushCagesTrackRow,
+      batch,
     ),
   }
 
   for (const config of STATION_PUSH_CONFIGS) {
-    byStation[config.key] = await syncUniformStation(config, fallbackProductionLineId, userId)
+    byStation[config.key] = await syncUniformStation(config, fallbackProductionLineId, userId, batch)
   }
 
   const items = Object.values(byStation).flat()
@@ -835,6 +885,7 @@ export async function syncAllRecords(fallbackProductionLineId: string | null | u
     items,
     syncedCount: items.filter((item) => item.ok).length,
     failedCount: items.filter((item) => !item.ok).length,
+    sessionExpired: batch.sessionExpired,
   }
 }
 

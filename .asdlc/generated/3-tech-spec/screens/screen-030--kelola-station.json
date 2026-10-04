@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -277,7 +277,7 @@
               {
                 "http_code": 409,
                 "error_code": "STATION_HAS_MACHINERY",
-                "condition": "Station masih memiliki record stasiun di salah satu dari 18 tabel record (pesan: 'Station tidak dapat dihapus karena masih memiliki N record stasiun[, N Machinery Group][, N Machinery]. Hapus atau pindahkan data tersebut terlebih dahulu.') atau masih memiliki Machinery Group/Machinery terkait (pesan default 'Station tidak dapat dihapus karena masih memiliki Machinery Group atau Machinery terkait.'). Catatan: StationHasMachineryException adalah HttpException(409) tanpa HasErrorCode, sehingga body aktual hanya { message } — field `code` TIDAK dikirim; STATION_HAS_MACHINERY adalah label kondisi, bukan nilai body"
+                "condition": "Station masih memiliki record stasiun di salah satu dari 18 tabel record (pesan: 'Station tidak dapat dihapus karena masih memiliki N record stasiun[, N Machinery Group][, N Machinery]. Hapus atau pindahkan data tersebut terlebih dahulu.') atau masih memiliki Machinery Group/Machinery terkait (pesan default 'Station tidak dapat dihapus karena masih memiliki Machinery Group atau Machinery terkait.'). Body: { message, code: 'STATION_HAS_MACHINERY' } — StationHasMachineryException mengimplementasikan HasErrorCode sejak 2026-10-05 (sebelumnya code tidak dikirim), untuk kedua kasus"
               },
               {
                 "http_code": 404,
@@ -385,7 +385,7 @@
         },
         {
           "condition": "Station masih memiliki record stasiun (salah satu dari 18 tabel record) saat dihapus",
-          "handling": "Return 409 (StationHasMachineryException) dengan message 'Station tidak dapat dihapus karena masih memiliki N record stasiun[, N Machinery Group][, N Machinery]. Hapus atau pindahkan data tersebut terlebih dahulu.'; Livewire menutup dialog konfirmasi dan menampilkan deleteErrorMessage, baris tetap ada (bukan 500)"
+          "handling": "Return 409 STATION_HAS_MACHINERY (StationHasMachineryException) dengan message 'Station tidak dapat dihapus karena masih memiliki N record stasiun[, N Machinery Group][, N Machinery]. Hapus atau pindahkan data tersebut terlebih dahulu.'; Livewire menutup dialog konfirmasi dan menampilkan deleteErrorMessage, baris tetap ada (bukan 500)"
         },
         {
           "condition": "Query param business_unit_id / production_line_id bukan UUID",
@@ -545,7 +545,8 @@
     "Field `type` (enum weighbridge/grading/cages-track/other) DIPERTAHANKAN dari entity-catalog v1-v3 meski tidak ada di ERD literal — krusial bagi mobile app (screen-006/007-009) yang sudah diimplementasikan dan bergantung padanya. Form Kelola Station merender ini sebagai dropdown, bukan field baru.",
     "409 STATION_HAS_MACHINERY memeriksa DUA entity anak (machinery-group DAN machinery langsung) karena keduanya punya FK station_id langsung per entity-catalog v4",
     "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): spec ver 1 tertinggal dari skema — Station kini wajib production_line_id (milik BU yang sama) dan type divalidasi terhadap master station_types (bukan enum 4 nilai). Temuan audit #7: KelolaStation memakai StationService::typeOptions() (seluruh tipe aktif, urut sort_order, menyertakan tipe station yang sedang diedit) dan typeLabels() (label master, menggantikan ucfirst(slug)); aturan satu station per tipe per line (kecuali Other) di StationService::duplicateTypeMessage(), dipakai service (API) dan Livewire. Temuan #10: list menampilkan kolom Production Line, diurutkan per line, filter Production Line (Livewire saja) bergantung filter BU. #11: code UniqueCaseInsensitive. #12: successMessage. #15: empty state khusus saat terfilter. Combobox BU → Production Line di form memakai x-searchable-select yang diperbaiki untuk opsi bergantung (wire:ignore pada listbox, opsi via data-ss-options, aset dimuat sekali oleh layout).",
-    "REVISI (2026-10-05, audit-fix — kode adalah acuan): #1 delete-guard kini juga menghitung record stasiun di 18 tabel StationService::RECORD_TABLES (FK station_id restrictOnDelete) di dalam transaksi + lockForUpdate; ada record → 409 StationHasMachineryException dengan pesan menyebut jumlah (bukan lagi 500 QueryException). #7 GET /api/stations menerima query param production_line_id; filter business_unit_id/production_line_id yang bukan UUID diabaikan (Str::isUuid). Body 409 hanya { message } (exception tanpa HasErrorCode)."
+    "REVISI (2026-10-05, audit-fix — kode adalah acuan): #1 delete-guard kini juga menghitung record stasiun di 18 tabel StationService::RECORD_TABLES (FK station_id restrictOnDelete) di dalam transaksi + lockForUpdate; ada record → 409 StationHasMachineryException dengan pesan menyebut jumlah (bukan lagi 500 QueryException). #7 GET /api/stations menerima query param production_line_id; filter business_unit_id/production_line_id yang bukan UUID diabaikan (Str::isUuid). Body 409 kini { message, code: STATION_HAS_MACHINERY } (HasErrorCode, lihat catatan berikutnya).",
+    "REVISI (2026-10-05, perbaikan lanjutan — kode adalah acuan): StationHasMachineryException implements HasErrorCode (errorCode() = 'STATION_HAS_MACHINERY') sehingga ApiExceptionHandler::codeFor() mengirim code pada body 409 DELETE /api/stations/:id — untuk guard Machinery Group/Machinery maupun guard record stasiun; pesan tidak berubah. Konsisten dengan BusinessUnitHasStationsException/ProductionLineHasStationsException (screen-029/036). Tes: KelolaStationTest (API) assertJsonPath('code', 'STATION_HAS_MACHINERY') pada ketiga kasus 409."
   ],
   "test_scenarios": [
     {
@@ -806,7 +807,7 @@
             "id": "<station-id-with-cpo-dispatch-record>"
           },
           "expected_status": 409,
-          "expected_error_code": null
+          "expected_error_code": "STATION_HAS_MACHINERY"
         }
       ],
       "component_test": {

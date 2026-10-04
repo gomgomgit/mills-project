@@ -24,3 +24,8 @@ Sumber: audit-fix 2026-10-04, code is truth (BusinessUnitService.php, KelolaBusi
 - api_contracts[0].edge_case_handling[1], [6], (+1) = penjaga hapus, logo palsu, kode beda huruf ← kode.
 - api_contracts[0].unit_test_cases[12] = 409 dengan pesan merinci, user tetap punya BU ← MasterDataDeleteGuardTest.
 - implementation_notes (+) = REVISI audit-fix.
+
+## v8 — 2026-10-05
+
+Sumber: perbaikan lanjutan audit 2026-10-05 (belum di-commit), code is truth (BusinessUnitHasStationsException.php, KelolaBusinessUnitTest API).
+- implementation_notes (+1): body 409 kini benar-benar membawa code BUSINESS_UNIT_HAS_STATIONS (spec sudah menyatakannya; kode menyusul).

@@ -145,6 +145,19 @@ describe('syncAfterSave()', () => {
     expect(run).not.toHaveBeenCalledWith(expect.stringContaining("status = 'synced'"), expect.anything())
   })
 
+  // Audit 2026-10-05: 401 = SESI yang ditolak (akun dinonaktifkan), bukan
+  // record. Interceptor apiClient membawa ke Login; record terkirim normal
+  // setelah login ulang — jangan dilaporkan sebagai penolakan dan jangan
+  // tinggalkan sync_error "Unauthenticated" di record.
+  it('stays silent on a 401 and does not remember it as the record\'s sync_error', async () => {
+    mockLocalReads({ immediateSync: true })
+    vi.mocked(apiClient.post).mockRejectedValue({ status: 401, message: 'Unauthenticated.' })
+
+    expect(await syncAfterSave('threshing_record', 'local-1')).toEqual({ synced: false, rejection: null })
+    expect(run).not.toHaveBeenCalledWith(expect.stringContaining('sync_error = ?'), expect.anything())
+    expect(run).not.toHaveBeenCalledWith(expect.stringContaining("status = 'synced'"), expect.anything())
+  })
+
   it('stays silent on a 5xx — a server fault may well succeed on the next sync', async () => {
     mockLocalReads({ immediateSync: true })
     vi.mocked(apiClient.post).mockRejectedValue({ status: 503, message: 'Server sedang sibuk.' })

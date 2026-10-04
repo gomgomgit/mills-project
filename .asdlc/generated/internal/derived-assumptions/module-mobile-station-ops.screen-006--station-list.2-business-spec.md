@@ -28,3 +28,8 @@
 
 Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/services/apiClient.ts, mobile/tests/e2e/sync-and-verification.spec.ts).
 - edge_cases ← append: sinkron ditolak 401 → Login dengan pesan, record lokal tetap 'Tersimpan'.
+
+## v10 — 2026-10-05
+
+Sumber: perbaikan lanjutan audit 2026-10-05 (belum di-commit), code is truth (syncService.ts).
+- edge_cases[3] += sinkronisasi berhenti pada penolakan sesi pertama; tidak ada record yang ditandai 'Gagal sinkron' karena penolakan sesi ← perilaku kode baru.

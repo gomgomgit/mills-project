@@ -39,8 +39,9 @@
  * Response shape note: shared_decisions.error_format is
  * `{ "message": ..., "errors": {...} }` — ApiExceptionHandler only adds
  * `errors` for 422 ValidationException responses; 404
- * (ModelNotFoundException) and 409 (BusinessUnitHasStationsException, a
- * plain HttpException) render as `{ "message": ... }` only.
+ * (ModelNotFoundException) and 409 (BusinessUnitHasStationsException)
+ * render without `errors`; 409 carries `code: BUSINESS_UNIT_HAS_STATIONS`
+ * (HasErrorCode, audit 2026-10-05).
  *
  * CRITICAL environment constraint: this environment has no PHP `gd`
  * extension installed, so `UploadedFile::fake()->image(...)` throws
@@ -150,6 +151,7 @@ it('Hapus Business Unit ditolak: returns 409 BUSINESS_UNIT_HAS_STATIONS and keep
     $response = $this->actingAs($this->admin, 'web')->deleteJson("/api/business-units/{$businessUnit->id}");
 
     $response->assertStatus(409);
+    $response->assertJsonPath('code', 'BUSINESS_UNIT_HAS_STATIONS');
     $response->assertJsonStructure(['message']);
     $response->assertJsonMissing(['errors']);
     expect($response->json('message'))->toContain('Station');

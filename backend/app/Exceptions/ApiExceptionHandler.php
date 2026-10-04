@@ -30,10 +30,12 @@ use Throwable;
  *
  *   1. The exception opts in by implementing App\Exceptions\HasErrorCode
  *      (PeriodOverlapException, PeriodClosedImmutableException,
- *      PeriodAlreadyClosedException, PeriodNotClosedException) — its
+ *      PeriodAlreadyClosedException, PeriodNotClosedException; sejak
+ *      2026-10-05 juga delete-guard StationHasMachineryException,
+ *      BusinessUnitHasStationsException, ProductionLineHasStationsException) — its
  *      errorCode() is emitted verbatim. Every pre-existing exception in
  *      this namespace (ExportFailedException,
- *      ProductionLineHasStationsException, ...) does NOT implement it and
+ *      CompanyHasBusinessUnitsException, ...) does NOT implement it and
  *      therefore renders exactly as it did before.
  *   2. Four framework-level codes this handler derives itself from the
  *      condition it is already branching on: VALIDATION_ERROR (422

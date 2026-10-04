@@ -121,6 +121,7 @@ it('Hapus ditolak: returns 409 PRODUCTION_LINE_HAS_STATIONS and keeps the row wh
     $response = $this->actingAs($this->admin, 'web')->deleteJson("/api/production-lines/{$productionLine->id}");
 
     $response->assertStatus(409);
+    $response->assertJsonPath('code', 'PRODUCTION_LINE_HAS_STATIONS');
     $response->assertJsonStructure(['message']);
     $response->assertJsonMissing(['deleted' => true]);
     expect(ProductionLine::find($productionLine->id))->not->toBeNull();

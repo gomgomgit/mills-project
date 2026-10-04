@@ -21,8 +21,8 @@
  * Response shape note: shared_decisions.error_format is
  * `{ "message": ..., "errors": {...} }` — ApiExceptionHandler only adds
  * `errors` for 422 ValidationException responses; 404 (ModelNotFoundException)
- * and 409 (StationHasMachineryException, a plain HttpException) render as
- * `{ "message": ... }` only.
+ * and 409 (StationHasMachineryException) render without `errors`; 409
+ * carries `code: STATION_HAS_MACHINERY` (HasErrorCode, audit 2026-10-05).
  *
  * CRITICAL divergence from KelolaCompanyTest.php/KelolaBusinessUnitTest.php:
  * Station has no logo field at all — no multipart/file-upload tests here.
@@ -139,6 +139,7 @@ it('Hapus Station ditolak: returns 409 STATION_HAS_MACHINERY and keeps the row w
     $response = $this->actingAs($this->admin, 'web')->deleteJson("/api/stations/{$station->id}");
 
     $response->assertStatus(409);
+    $response->assertJsonPath('code', 'STATION_HAS_MACHINERY');
     $response->assertJsonStructure(['message']);
     $response->assertJsonMissing(['deleted' => true]);
     expect(Station::find($station->id))->not->toBeNull();
@@ -152,6 +153,7 @@ it('Hapus Station ditolak: returns 409 STATION_HAS_MACHINERY and keeps the row w
     $response = $this->actingAs($this->admin, 'web')->deleteJson("/api/stations/{$station->id}");
 
     $response->assertStatus(409);
+    $response->assertJsonPath('code', 'STATION_HAS_MACHINERY');
     $response->assertJsonStructure(['message']);
     expect(Station::find($station->id))->not->toBeNull();
 });
@@ -165,6 +167,7 @@ it('Hapus Station ditolak: returns 409 (not 500) and keeps the row when it has s
     $response = $this->actingAs($this->admin, 'web')->deleteJson("/api/stations/{$station->id}");
 
     $response->assertStatus(409);
+    $response->assertJsonPath('code', 'STATION_HAS_MACHINERY');
     expect($response->json('message'))->toContain('record stasiun');
     expect(Station::find($station->id))->not->toBeNull();
 });

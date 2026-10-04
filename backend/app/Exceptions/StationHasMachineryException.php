@@ -23,11 +23,20 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * validation failure) — ApiExceptionHandler's HttpExceptionInterface
  * fallback branch already renders any status code generically as
  * { "message": ... } with no `errors` key, which covers 409 here.
+ *
+ * Sejak audit 2026-10-05 mengimplementasikan HasErrorCode sehingga respons
+ * 409 membawa `code: STATION_HAS_MACHINERY` (sebelumnya hanya `message`,
+ * padahal spec menamai kode ini).
  */
-class StationHasMachineryException extends HttpException
+class StationHasMachineryException extends HttpException implements HasErrorCode
 {
     public function __construct(string $message = 'Station tidak dapat dihapus karena masih memiliki Machinery Group atau Machinery terkait.')
     {
         parent::__construct(409, $message);
+    }
+
+    public function errorCode(): string
+    {
+        return 'STATION_HAS_MACHINERY';
     }
 }

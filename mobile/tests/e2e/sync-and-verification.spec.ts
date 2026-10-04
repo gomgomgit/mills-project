@@ -1,4 +1,4 @@
-import { test, expect, type Page, type ConsoleMessage, type Response } from '@playwright/test'
+import { test, expect, type Page, type ConsoleMessage, type Response, type Request } from '@playwright/test'
 import { execSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -468,20 +468,40 @@ test.describe('Sesi ditolak server & Checked by SPV (audit 2026-10-05)', () => {
     await page.route('**/api/threshing-records', (route) =>
       route.request().method() === 'POST' ? route.abort() : route.continue(),
     )
-    const id = await newThreshingRecord(page, `TH-401-${Date.now()}`)
-    await page.getByTestId('save-button').click()
-    await page.waitForURL('**/stations/threshing/monitor')
-    expect((await localRow(page, 'threshing_record', id))?.status).toBe('saved')
+    // Audit 2026-10-05 (lanjutan): ≥2 record tersimpan — dulu setiap record
+    // sisa batch tetap dikirim, masing-masing 401, dan masing-masing
+    // tercatat "Gagal sinkron: Unauthenticated" di Data Preview.
+    const ids: string[] = []
+    for (let n = 0; n < 3; n++) {
+      const recordId = await newThreshingRecord(page, `TH-401-${n}-${Date.now()}`)
+      await page.getByTestId('save-button').click()
+      await page.waitForURL('**/stations/threshing/monitor')
+      expect((await localRow(page, 'threshing_record', recordId))?.status).toBe('saved')
+      ids.push(recordId)
+    }
+    const id = ids[0]
     await page.unroute('**/api/threshing-records')
 
     await chooseLine(page, 0)
     setUserActive(OPERATOR.username, false)
 
+    const recordPosts: string[] = []
+    const countPost = (request: Request) => {
+      if (request.method() === 'POST' && /\/api\/[a-z-]+-records$/.test(request.url())) recordPosts.push(request.url())
+    }
+    page.on('request', countPost)
     const rejected = page.waitForResponse((r) => r.url().endsWith('/api/threshing-records') && r.request().method() === 'POST')
     await page.getByTestId('sync-button').click()
     expect((await rejected).status()).toBe(401)
 
     await page.waitForURL(/\/login/)
+    // Batch berhenti di 401 pertama: tidak ada record lain yang dikirim.
+    await page.waitForTimeout(1_000)
+    page.off('request', countPost)
+    expect(recordPosts).toHaveLength(1)
+    for (const recordId of ids) {
+      expect(await localRow(page, 'threshing_record', recordId)).toMatchObject({ status: 'saved', sync_error: null })
+    }
     await expect(page.getByTestId('session-revoked-banner')).toHaveText(
       'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.',
     )
@@ -504,13 +524,21 @@ test.describe('Sesi ditolak server & Checked by SPV (audit 2026-10-05)', () => {
     expect(await page.evaluate(() => localStorage.getItem('msl_auth_token'))).toBeTruthy()
 
     await page.goto('/stations/threshing/preview')
-    await expect(page.getByTestId(`record-item-${id}`)).toContainText('Tersimpan')
+    for (const recordId of ids) {
+      const item = page.getByTestId(`record-item-${recordId}`)
+      await expect(item).toContainText('Tersimpan')
+      // Tidak ada sisa "Gagal sinkron: Unauthenticated" di record mana pun.
+      await expect(item.getByTestId('sync-failure-hint')).toHaveCount(0)
+    }
+    await expect(page.getByText('Gagal sinkron')).toHaveCount(0)
 
     await chooseLine(page, 0)
     const pushed = page.waitForResponse((r) => r.url().endsWith('/api/threshing-records') && r.request().method() === 'POST')
     await page.getByTestId('sync-button').click()
     expect((await pushed).status()).toBe(201)
-    await expect.poll(async () => (await localRow(page, 'threshing_record', id))?.status).toBe('synced')
+    for (const recordId of ids) {
+      await expect.poll(async () => (await localRow(page, 'threshing_record', recordId))?.status).toBe('synced')
+    }
     g.assertClean()
   })
 

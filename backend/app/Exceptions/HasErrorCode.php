@@ -15,7 +15,7 @@ namespace App\Exceptions;
  *
  * Deliberately an OPT-IN interface rather than a new base class: every
  * pre-existing exception in this namespace (ExportFailedException,
- * ProductionLineHasStationsException, ...) keeps rendering exactly as
+ * CompanyHasBusinessUnitsException, ...) keeps rendering exactly as
  * before — ApiExceptionHandler only emits `code` for exceptions that
  * implement this, plus the four framework-level codes it derives itself
  * (VALIDATION_ERROR / UNAUTHENTICATED / FORBIDDEN / NOT_FOUND). The

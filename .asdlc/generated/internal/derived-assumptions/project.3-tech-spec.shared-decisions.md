@@ -51,3 +51,10 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (EnsureUs
 - error_format.notes += verifikasi 404/403 via abort → NOT_FOUND/FORBIDDEN; 409 hapus Station ber-record (StationHasMachineryException); SESSION_REVOKED_MESSAGE mobile.
 - other_decisions += filter baca bukan-UUID diabaikan; peta label enum tunggal (Display/ExportValue/optionLabel.ts).
 - ⚠ 'handler hanya berjalan sekali per sesi' ← disimpulkan dari pemeriksaan Authorization = token sesi saat ini (bukan flag eksplisit).
+
+## v10 — 2026-10-05
+
+Sumber: perbaikan lanjutan audit 2026-10-05 (belum di-commit), code is truth (mobile syncService.ts/writeThroughSync.ts; backend StationHasMachineryException/BusinessUnitHasStationsException/ProductionLineHasStationsException).
+- auth.notes += SINKRON BERHENTI DI 401 PERTAMA (manual + write-through, tanpa sync_error).
+- error_format.notes += 3 delete-guard 409 kini membawa code (HasErrorCode); kasus 'record stasiun' Station juga STATION_HAS_MACHINERY.
+- ⚠ 'Delete-guard lain (Company/Corporate/MachineryGroup) belum membawa code' — dicatat agen sebagai sisa inkonsistensi, tidak diubah (di luar cakupan perintah).

@@ -532,7 +532,9 @@ async function onSync() {
     syncErrorMessage.value = err instanceof Error ? err.message : 'Sinkronisasi gagal — kesalahan tidak diketahui.'
   } finally {
     syncing.value = false
-    syncDialogOpen.value = true
+    // Sesi ditolak server (401) — interceptor apiClient sudah membawa ke
+    // Login; jangan buka dialog hasil yang tidak lengkap di belakangnya.
+    syncDialogOpen.value = !syncSummary.value?.sessionExpired
   }
 }
 

@@ -15,3 +15,8 @@ Sumber: audit-fix 2026-10-04, code is truth (ProductionLineService.php, StationS
 - api_contracts[0].unit_test_cases[7..8] (diubah) + (1 baru) = line+station kosong terhapus; ditolak bila data menempel; kode beda huruf ← MasterDataDeleteGuardTest/MasterDataValidationAuditTest ⚠ ditulis sebagai kasus unit walau tesnya Feature/Livewire.
 - test_scenarios[2..3].component_test (+ scenario_ref [3]) = skenario hapus berhasil/ditolak baru ← tes Livewire yang diubah.
 - implementation_notes (+) = REVISI audit-fix (juga menandai catatan 'belum ada Browser test' usang).
+
+## v6 — 2026-10-05
+
+Sumber: perbaikan lanjutan audit 2026-10-05 (belum di-commit), code is truth (ProductionLineHasStationsException.php, KelolaProductionLineTest API).
+- implementation_notes (+1): body 409 kini benar-benar membawa code PRODUCTION_LINE_HAS_STATIONS (spec sudah menyatakannya; kode menyusul).

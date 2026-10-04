@@ -86,7 +86,11 @@ export async function syncAfterSave(localTable: string, recordId: string): Promi
       return { synced: true, rejection: null }
     }
 
-    const rejected = result?.status !== undefined && result.status >= 400 && result.status < 500
+    // 401 = SESI ditolak (akun dinonaktifkan / token dicabut), bukan record
+    // (audit 2026-10-05): interceptor apiClient sudah membawa ke Login, dan
+    // record ini terkirim normal setelah login ulang — bukan "penolakan".
+    const rejected =
+      result?.status !== undefined && result.status >= 400 && result.status < 500 && result.status !== 401
 
     return { synced: false, rejection: rejected ? (result?.reason ?? null) : null }
   } catch {

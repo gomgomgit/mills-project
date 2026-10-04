@@ -60,3 +60,11 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/s
 - implementation_notes ← append: 401 saat sinkron ditangani interceptor apiClient; supervisorOnlyDetailColumns Sterilizer.
 - test_scenarios ← append 'Pilih Stasiun — Sinkronisasi Ditolak karena Sesi Tidak Berlaku'.
 - ⚠ 401 susulan dalam batch yang sama (request tanpa token setelah expireSession) diasumsikan tetap ditangkap per record oleh syncService dan tidak memicu handler lagi — disimpulkan dari kode, tidak diuji khusus di layar ini.
+
+## v13 — 2026-10-05
+
+Sumber: perbaikan lanjutan audit 2026-10-05 (belum di-commit), code is truth (mobile syncService.ts, writeThroughSync.ts, StationListView.vue, syncService.sqljs.spec.ts, e2e sync-and-verification.spec.ts).
+- business_logic[8] += 401 menghentikan batch (status 401 ATAU token sesi berubah sejak batch dimulai), tanpa sync_error ← SyncBatch di syncTable/syncUniformStation, failure().
+- edge_case_handling (+1) 401 di tengah batch / write-through; unit_test_cases (+2); implementation_notes[12] dikoreksi + (1) REVISI baru; test_scenarios[2] action/assert (3 record, tepat 1 POST, tanpa 'Gagal sinkron').
+- ⚠ Item ber-401 tetap masuk SyncSummary.items (ok:false, status 401) dan failedCount — keputusan agen; dialog hasil tidak dibuka bila sessionExpired (keputusan agen, konservatif: navigasi ke Login sudah berjalan).
+- ⚠ Write-through: 401 tidak dilaporkan sebagai rejection (dialog 'Tersimpan, tetapi ditolak server' tidak muncul) — disimpulkan agen dari 'sesi, bukan record yang ditolak'.

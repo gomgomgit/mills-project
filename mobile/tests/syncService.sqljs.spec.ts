@@ -24,7 +24,7 @@ vi.mock('@/services/apiClient', () => ({ default: { get: vi.fn(), post: vi.fn(),
 import apiClient from '@/services/apiClient'
 import { query, run, resetSqlJsDb } from './support/sqlJsLocalDb'
 import { initLocalSchema, seedGradingParametersIfNeeded } from '@/services/localSchema'
-import { syncAllRecords } from '@/services/syncService'
+import { pushSavedRecordNow, syncAllRecords } from '@/services/syncService'
 import { fetchAndCacheGradingParameters } from '@/services/gradingParameterSync'
 import { pullVerificationStatus, resetVerificationPullSupport } from '@/services/recordVerificationApi'
 import { getWeighbridgeRecordOptions } from '@/services/gradingRecordRepo'
@@ -322,5 +322,90 @@ describe('Audit 2026-10-05 #4b — Sterilizer "Checked by SPV" hanya dikirim ole
 
     const [body] = postedTo('/api/sterilizer-records')
     expect((body.details as Record<string, unknown>[])[0]).toHaveProperty('checked_by_spv', 1)
+  })
+})
+
+describe('Audit 2026-10-05 — 401 di tengah batch menghentikan sinkronisasi', () => {
+  async function pressingRecord(id: string) {
+    await run(
+      `INSERT INTO pressing_record (id, station_id, presser_id, date, status, created_by, created_at, updated_at)
+       VALUES (?, NULL, ?, '2026-10-05', 'saved', ?, ?, ?)`,
+      [id, `PR-${id}`, USER, NOW, NOW],
+    )
+  }
+
+  async function allRows() {
+    return [
+      ...(await query<{ id: string; status: string; sync_error: string | null }>(`SELECT id, status, sync_error FROM threshing_record ORDER BY id`)),
+      ...(await query<{ id: string; status: string; sync_error: string | null }>(`SELECT id, status, sync_error FROM pressing_record ORDER BY id`)),
+    ]
+  }
+
+  it('berhenti pada 401 pertama: sisa record tidak dikirim, semua tetap saved tanpa sync_error', async () => {
+    await threshingRecord('a', null)
+    await threshingRecord('b', null)
+    await threshingRecord('c', null)
+    await pressingRecord('p')
+    vi.mocked(apiClient.post).mockRejectedValue({ status: 401, message: 'Unauthenticated.' })
+
+    const summary = await syncAllRecords('line-1')
+
+    expect(apiClient.post).toHaveBeenCalledTimes(1)
+    expect(summary.sessionExpired).toBe(true)
+    expect(summary.syncedCount).toBe(0)
+    expect(await allRows()).toEqual([
+      { id: 'a', status: 'saved', sync_error: null },
+      { id: 'b', status: 'saved', sync_error: null },
+      { id: 'c', status: 'saved', sync_error: null },
+      { id: 'p', status: 'saved', sync_error: null },
+    ])
+  })
+
+  it('berhenti juga bila sesi lokal sudah dibersihkan interceptor (token berubah) di tengah batch', async () => {
+    const auth = useAuthStore()
+    auth.token = 'token-lama'
+    await threshingRecord('a', null)
+    await threshingRecord('b', null)
+    await pressingRecord('p')
+    let calls = 0
+    vi.mocked(apiClient.post).mockImplementation(async () => {
+      calls++
+      if (calls === 1) return { data: { id: 'server-a' } }
+      // Seperti interceptor apiClient: sesi dibersihkan lalu 401.
+      auth.token = null
+      throw { status: 401, message: 'Unauthenticated.' }
+    })
+
+    const summary = await syncAllRecords('line-1')
+
+    expect(apiClient.post).toHaveBeenCalledTimes(2)
+    expect(summary.sessionExpired).toBe(true)
+    expect(await allRows()).toEqual([
+      { id: 'a', status: 'synced', sync_error: null },
+      { id: 'b', status: 'saved', sync_error: null },
+      { id: 'p', status: 'saved', sync_error: null },
+    ])
+  })
+
+  it('write-through (pushSavedRecordNow): 401 tidak menulis sync_error', async () => {
+    await threshingRecord('w', null)
+    vi.mocked(apiClient.post).mockRejectedValue({ status: 401, message: 'Unauthenticated.' })
+
+    const result = await pushSavedRecordNow('threshing_record', 'w', 'line-1')
+
+    expect(result).toMatchObject({ ok: false, status: 401 })
+    expect(await query(`SELECT status, sync_error FROM threshing_record`)).toEqual([{ status: 'saved', sync_error: null }])
+  })
+
+  it('422 tetap dicatat sebagai sync_error dan batch tetap berlanjut', async () => {
+    await threshingRecord('a', null)
+    await threshingRecord('b', null)
+    vi.mocked(apiClient.post).mockRejectedValueOnce({ status: 422, message: 'Periode sudah ditutup.' })
+
+    const summary = await syncAllRecords('line-1')
+
+    expect(apiClient.post).toHaveBeenCalledTimes(2)
+    expect(summary.sessionExpired).toBe(false)
+    expect((await allRows()).map((row) => row.sync_error).filter(Boolean)).toEqual(['Periode sudah ditutup.'])
   })
 })

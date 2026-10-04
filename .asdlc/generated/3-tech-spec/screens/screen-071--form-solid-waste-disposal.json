@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-04"
   },
   "id": "screen-071--form-solid-waste-disposal",
   "name": "Form Solid Waste Disposal",
@@ -19,6 +19,11 @@
       "actor_id": "actor-supervisor",
       "can_access": true,
       "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Akses form seperti Operator/Supervisor (isi, Simpan, Pause, Clear, Back) ditambah checkbox Acknowledged By (dirender hanya untuk mill_management); checkbox Checked By tidak dirender. Route hanya mensyaratkan login (tanpa pembatasan role); akses mobile Mill Management sesuai keputusan produk 2026-09-14."
     }
   ],
   "api_contracts": [
@@ -34,8 +39,8 @@
         "5. On Tambah baris Log Kejadian: tambah 1 baris baru (tanpa id) ke tabel, seluruh field kosong — TIDAK ADA batasan jumlah baris (event-log unbounded), TIDAK ADA konsep N-kolom/checklist seperti Cages Track",
         "6. On isi field baris (Tanggal Kejadian, Shift, dll): update field baris tersebut secara reaktif; Net Weight (MT) dihitung otomatis = Gross Weight - Tare Weight setiap kali salah satu berubah",
         "7. On Hapus baris Log Kejadian: hapus baris dari form state; jika baris punya id (sudah tersimpan sebelumnya), tandai untuk DELETE saat Simpan/Pause berikutnya",
-        "8. Checked By hanya dapat diisi/diedit jika role user saat ini = supervisor; disabled untuk role lain",
-        "9. Acknowledged By hanya dapat diisi/diedit jika role user saat ini = mill_management; disabled untuk role lain",
+        "8. Checked By hanya dirender (v-if=\"isSupervisor\") dan dapat diisi/diedit jika role user saat ini = supervisor; untuk role lain checkbox TIDAK ditampilkan sama sekali (bukan disabled) — konvensi form stasiun 2026-09-14, diseragamkan 2026-10-04",
+        "9. Acknowledged By hanya dirender (v-if=\"isMillManagement\") dan dapat diisi/diedit jika role user saat ini = mill_management; untuk role lain checkbox TIDAK ditampilkan sama sekali (bukan disabled) — konvensi form stasiun 2026-09-14, diseragamkan 2026-10-04",
         "10. On Simpan: validasi field wajib (Solid Waste Disp. ID) dan minimal 1 baris Log Kejadian valid (Tanggal Kejadian terisi) → jika lengkap: UPDATE solid_waste_disposal_record (semua field header, status=saved) → upsert solid_waste_disposal_detail (baris tanpa id: INSERT baru dengan Net Weight terhitung; baris dengan id: UPDATE; baris ditandai dihapus: DELETE) → navigasi ke Monitor Solid Waste Disposal",
         "11. On Pause: UPDATE solid_waste_disposal_record (field form apa adanya, status=draft_paused, TANPA validasi field wajib), solid_waste_disposal_detail rows di-upsert/delete apa adanya juga → navigasi ke Monitor",
         "12. On Clear: tampilkan dialog konfirmasi → jika dikonfirmasi: DELETE seluruh solid_waste_disposal_detail milik record lalu DELETE solid_waste_disposal_record → navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
@@ -91,11 +96,11 @@
         },
         {
           "condition": "Operator mencoba mengisi/mengedit Checked By",
-          "handling": "Field disabled/read-only untuk role selain supervisor"
+          "handling": "Checkbox Checked By tidak dirender untuk role selain supervisor (disembunyikan, bukan disabled)"
         },
         {
           "condition": "Non-mill_management mencoba mengisi/mengedit Acknowledged By",
-          "handling": "Field disabled/read-only untuk role selain mill_management"
+          "handling": "Checkbox Acknowledged By tidak dirender untuk role selain mill_management (disembunyikan, bukan disabled)"
         },
         {
           "condition": "User menghapus baris Log Kejadian yang sudah ada (punya id)",
@@ -153,9 +158,9 @@
           "expect": "row removed from local rows array; its id appended to the pending-deletion list"
         },
         {
-          "description": "disables the Checked By field for a non-supervisor user",
+          "description": "does not render the Checked By checkbox for a non-supervisor user",
           "given": "current user role = 'operator'",
-          "expect": "Checked By field rendered disabled/read-only"
+          "expect": "Checked By checkbox not rendered (count 0)"
         },
         {
           "description": "enables the Checked By field for a supervisor user",
@@ -163,9 +168,9 @@
           "expect": "Checked By field rendered enabled/editable"
         },
         {
-          "description": "disables the Acknowledged By field for a non-mill_management user",
-          "given": "current user role = 'operator' or 'supervisor'",
-          "expect": "Acknowledged By field rendered disabled/read-only"
+          "description": "renders the Acknowledged By checkbox (and not Checked By) only for a mill_management user",
+          "given": "current user role = 'mill_management' (and, as contrast, 'operator' or 'supervisor')",
+          "expect": "mill_management: Acknowledged By rendered, Checked By not rendered; operator/supervisor: Acknowledged By not rendered"
         },
         {
           "description": "returns validation errors and does not save when Solid Waste Disp. ID is empty on Simpan",
@@ -236,7 +241,7 @@
       "component_test": {
         "component": "FormSolidWasteDisposalView",
         "action": "fill Solid Waste Disp. ID, add a detail row with event_date, click Simpan as an operator user",
-        "assert": "record saved with status=saved, Checked By/Acknowledged By remain empty/disabled for operator"
+        "assert": "record saved with status=saved; Checked By/Acknowledged By remain empty and their checkboxes are not rendered for operator"
       },
       "browser_test": {
         "route": "/stations/solid-waste-disposal/form/:id",
@@ -311,12 +316,12 @@
       "component_test": {
         "component": "FormSolidWasteDisposalView",
         "action": "render the form for an operator user",
-        "assert": "Checked By field rendered disabled"
+        "assert": "Checked By checkbox not rendered"
       },
       "browser_test": {
         "route": "/stations/solid-waste-disposal/form/:id",
         "action": "buka Form Solid Waste Disposal sebagai Operator",
-        "assert": "field Checked By tidak dapat diisi/diedit"
+        "assert": "checkbox Checked By tidak ditampilkan (count 0) untuk Operator"
       }
     },
     {

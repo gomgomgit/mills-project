@@ -16,3 +16,13 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - edge_case usecase-141: penolakan write-through 4xx kini ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' lalu navigasi ke Monitor; offline/5xx tetap diam (redaksi dipilih agen, diverifikasi terhadap writeThroughSync.ts + Form*View.vue).
 - implementation_notes[0]: 'sync manual terpisah' diganti — record 'saved' dikirim lewat sinkron manual Station List (STATION_PUSH_CONFIGS) dan write-through syncAfterSave() bila immediate_sync_enabled aktif.
 - Catatan REVISI kunci periode: frasa 'kegagalannya diam' diganti dengan pembedaan offline/5xx (diam) vs 4xx (dialog).
+
+## v4 — 2026-10-04
+
+Penyeragaman checkbox verifikasi (keputusan user 2026-10-04).
+- business_logic #8/#9: Checked By hanya dirender untuk supervisor (v-if="isSupervisor"), Acknowledged By hanya untuk mill_management (v-if="isMillManagement"); peran lain tidak melihat checkbox sama sekali (sebelumnya: tampil tapi disabled).
+- edge_case_handling (Checked By / Acknowledged By oleh peran lain): "disabled/read-only" → "tidak dirender (disembunyikan, bukan disabled)".
+- unit_test_cases: kasus "disables Checked By/Acknowledged By" diganti "not rendered"; kasus Acknowledged By kini memeriksa render untuk mill_management (Checked By tidak dirender).
+- test_scenarios: assert operator "remain empty/disabled" → checkbox tidak dirender; skenario "Checked By Khusus Supervisor" → checkbox tidak ditampilkan (count 0).
+- Selaras konvensi 2026-09-14 form stasiun lain; kode dan test sudah diubah lebih dulu.
+- actor_permissions: ditambah entri actor-mill-management (can_access true; akses form seperti Operator/Supervisor + checkbox Acknowledged By, tanpa Checked By) — sinkronisasi dokumentasi, bukan perubahan akses: route hanya mensyaratkan login (router.beforeEach), tanpa pembatasan role.

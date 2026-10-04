@@ -557,7 +557,7 @@ describe('LaporanStorageTankView — test_scenarios / component_test (tech spec 
       // Kelengkapan, stok awal/akhir beserta tanggal pembacaannya,
       // pergerakan bersih, rekap per tangki, keempat kartu mutu, suhu
       // rata-rata, tren harian, dan rekap harian.
-      expect(text(wrapper, 'coverage-percent')).toBe('1,25%')
+      expect(text(wrapper, 'coverage-percent')).toBe('1,3%')
       expect(text(wrapper, 'stock-opening-mt')).toBe('1.200,0')
       expect(text(wrapper, 'opening-at')).toContain('01 Sep 2026')
       expect(text(wrapper, 'stock-closing-mt')).toBe('1.500,0')
@@ -628,7 +628,7 @@ describe('LaporanStorageTankView — test_scenarios / component_test (tech spec 
       businessUnitId: 'bu-2',
       productionLineId: 'pl-1',
     })
-    expect(text(wrapper, 'coverage-percent')).toBe('1,25%')
+    expect(text(wrapper, 'coverage-percent')).toBe('1,3%')
     expect(text(wrapper, 'stock-opening-mt')).toBe('1.200,0')
     expect(text(wrapper, 'stock-closing-mt')).toBe('1.500,0')
     expect(text(wrapper, 'stock-movement-mt')).toBe('+280,5')
@@ -906,13 +906,14 @@ describe('LaporanStorageTankView — test_scenarios / component_test (tech spec 
   })
 
   // Scenario 14: "pencatatan sangat tidak lengkap"
-  it('kelengkapan sangat rendah — kartunya dirender DI ATAS seluruh blok angka, coverage_percent dua desimal apa adanya', async () => {
+  it('kelengkapan sangat rendah — kartunya dirender DI ATAS seluruh blok angka, coverage_percent 1 desimal seperti laporan web', async () => {
     const wrapper = await mountView()
     await selectPeriod(wrapper, 'per-1')
 
-    // Dua desimal apa adanya: 1,25 dan 1,3 menceritakan hal yang berbeda.
-    expect(text(wrapper, 'coverage-percent')).toBe('1,25%')
-    expect(text(wrapper, 'coverage-percent')).not.toBe('1,3%')
+    // Persen 1 desimal di semua laporan, sama dengan web (temuan audit
+    // 2026-10-04 #10): 1,25 dari server tampil 1,3%, bukan 1,25%.
+    expect(text(wrapper, 'coverage-percent')).toBe('1,3%')
+    expect(text(wrapper, 'coverage-percent')).not.toBe('1,25%')
     expect(text(wrapper, 'coverage-slots')).toContain('3')
     expect(text(wrapper, 'coverage-slots')).toContain('240')
 
@@ -1053,7 +1054,7 @@ describe('LaporanStorageTankView — test_scenarios / component_test (tech spec 
   })
 
   // Scenario 19: "periode tertutup"
-  it('periode tertutup — laporan tetap penuh, penanda Ditutup terender, tombol Ekspor tetap aktif', async () => {
+  it('periode tertutup — laporan tetap penuh, penanda Tertutup terender (label sama dengan web), tombol Ekspor tetap aktif', async () => {
     repoMocks.fetchPeriods.mockResolvedValue([PERIOD_CLOSED])
     repoMocks.fetchSummary.mockResolvedValue(
       makeSummary({
@@ -1071,7 +1072,7 @@ describe('LaporanStorageTankView — test_scenarios / component_test (tech spec 
     const wrapper = await mountView()
     await selectPeriod(wrapper, 'per-3')
 
-    expect(text(wrapper, 'period-status-badge')).toContain('Ditutup')
+    expect(text(wrapper, 'period-status-badge')).toContain('Tertutup')
 
     // Seluruh bagian tetap penuh.
     expect(text(wrapper, 'stock-opening-mt')).toBe('1.200,0')
@@ -1162,7 +1163,7 @@ describe('LaporanStorageTankView — test_scenarios / component_test (tech spec 
     expect(text(wrapper, 'stock-opening-mt')).toBe('1.200,0')
     expect(text(wrapper, 'stock-closing-mt')).toBe('1.500,0')
     expect(text(wrapper, 'stock-movement-mt')).toBe('+280,5')
-    expect(text(wrapper, 'coverage-percent')).toBe('1,25%')
+    expect(text(wrapper, 'coverage-percent')).toBe('1,3%')
     expect(text(wrapper, 'metric-ffa-avg')).toBe('4,05')
     expect(text(wrapper, 'metric-temperature-avg')).toBe('52,0')
 
@@ -1173,7 +1174,7 @@ describe('LaporanStorageTankView — test_scenarios / component_test (tech spec 
     expect(html).not.toContain('260,5') // jumlah by_tank[].movement_mt
     expect(html).not.toContain('55,4') // rata-rata ketiga suhu posisi
     expect(html).not.toContain('0,625') // 100 × 3 / 480
-    expect(html).not.toContain('1,3%') // coverage_percent dibulatkan ulang
+    expect(html).not.toContain('0,6%') // 100 × 3 / 480 dibulatkan 1 desimal
   })
 
   // Scenario 23: "periode yang tidak mencakup Storage Tank tidak ditawarkan"
@@ -1777,5 +1778,75 @@ describe('LaporanStorageTankView — Production Line wajib (screen-139)', () => 
     expect(exists(wrapper, 'no-mill-for-account')).toBe(true)
     expect(exists(wrapper, 'production-line-select')).toBe(false)
     expect(exists(wrapper, 'production-line-unavailable')).toBe(false)
+  })
+})
+
+/*
+ * Temuan audit 2026-10-04 #3/#9/#10 — kelengkapan periode yang masih
+ * berjalan. Server menghentikan penyebut di HARI INI (days_counted) dan
+ * menandai period_running; layar harus memakai days_counted pada rumus
+ * "× N hari", menampilkan catatan "sampai hari ini", dan menampilkan "-"
+ * (bukan "0,0%") bila penyebutnya 0 — sama dengan laporan web.
+ */
+describe('LaporanStorageTankView — kelengkapan periode berjalan (temuan audit 2026-10-04)', () => {
+  function coverageOf(overrides: Record<string, unknown>): Record<string, unknown> {
+    return {
+      filled_slots: 96,
+      expected_slots: 192,
+      coverage_percent: 50,
+      tank_count: 2,
+      slots_per_tank_per_day: 24,
+      days_in_period: 9,
+      days_counted: 4,
+      period_running: true,
+      ...overrides,
+    }
+  }
+
+  it('periode masih berjalan — rumus memakai days_counted, catatan "sampai hari ini" tampil', async () => {
+    repoMocks.fetchSummary.mockResolvedValue(makeSummary({ coverage: coverageOf({}) }))
+
+    const wrapper = await mountView()
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(text(wrapper, 'coverage-percent')).toBe('50,0%')
+    expect(text(wrapper, 'coverage-slots')).toContain('96 dari 192 slot waktu terisi')
+    const formula = text(wrapper, 'coverage-formula').replace(/\s+/g, ' ')
+    expect(formula).toContain('× 4 hari (sampai hari ini) ×')
+    expect(formula).not.toContain('9 hari')
+    const note = text(wrapper, 'period-running-note').replace(/\s+/g, ' ')
+    expect(note).toBe('Dihitung sampai hari ini, periode masih berjalan (4 dari 9 hari periode sudah lewat).')
+  })
+
+  it('periode sudah selesai — tanpa catatan dan tanpa "(sampai hari ini)"', async () => {
+    repoMocks.fetchSummary.mockResolvedValue(
+      makeSummary({ coverage: coverageOf({ expected_slots: 432, days_counted: 9, period_running: false }) }),
+    )
+
+    const wrapper = await mountView()
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(exists(wrapper, 'period-running-note')).toBe(false)
+    const formula = text(wrapper, 'coverage-formula').replace(/\s+/g, ' ')
+    expect(formula).toContain('× 9 hari ×')
+    expect(formula).not.toContain('sampai hari ini')
+  })
+
+  it('penyebut 0 (periode belum mulai) — persen "-" BUKAN "0,0%", dan keterangan belum ada slot', async () => {
+    repoMocks.fetchSummary.mockResolvedValue(
+      makeSummary({
+        has_data: false,
+        coverage: coverageOf({ filled_slots: 0, expected_slots: 0, coverage_percent: 0, days_counted: 0 }),
+      }),
+    )
+
+    const wrapper = await mountView()
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(text(wrapper, 'coverage-percent')).toBe('-')
+    expect(text(wrapper, 'coverage-percent')).not.toContain('0,0')
+    expect(exists(wrapper, 'coverage-slots')).toBe(false)
+    expect(text(wrapper, 'coverage-no-expected')).toBe('belum ada slot yang diharapkan')
+    expect(text(wrapper, 'period-running-note').replace(/\s+/g, ' ')).toContain('(0 dari 9 hari periode sudah lewat)')
   })
 })

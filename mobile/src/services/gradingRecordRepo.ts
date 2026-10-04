@@ -645,11 +645,21 @@ export async function getDraftWithDetails(recordId: string): Promise<GradingDraf
  * No" dropdown. Deliberately NOT scoped to `created_by` — see this file's
  * "entity-catalog v2 rewrite" update note above.
  */
-export async function getWeighbridgeRecordOptions(): Promise<WeighbridgeRecordOption[]> {
+export async function getWeighbridgeRecordOptions(includeId?: string | null): Promise<WeighbridgeRecordOption[]> {
+  // Audit 2026-10-04: hanya record Weighbridge yang SUDAH disimpan/
+  // tersinkron DAN punya No. WB Card. Draft kosong sisa "New Data" yang
+  // ditinggalkan dulu muncul sebagai "(Tanpa WB Card No) <uuid>" — tidak
+  // berarti bagi operator, dan Grading yang menautkannya tidak akan pernah
+  // bisa tersinkron (Weighbridge draft tidak pernah dikirim ke server).
+  // `includeId` menjaga pilihan yang SUDAH tersimpan di draft Grading tetap
+  // tampil walaupun tidak lagi lolos filter ini.
   return query<WeighbridgeRecordOption>(
     `SELECT id, wb_card_number, record_datetime, vehicle_number, estate_supplier, division
      FROM weighbridge_record
+     WHERE (status IN ('saved', 'synced') AND TRIM(COALESCE(wb_card_number, '')) <> '')
+        OR id = ?
      ORDER BY record_datetime DESC`,
+    [includeId ?? null],
   )
 }
 

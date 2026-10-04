@@ -566,7 +566,10 @@ describe('LaporanCagesTrackView — test_scenarios / component_test (tech spec s
 
     expect(text(wrapper, 'kpi-total-cages-tipped')).toBe('0')
     expect(text(wrapper, 'kpi-total-cages-out')).toBe('0')
-    expect(text(wrapper, 'kpi-avg-cages-per-day')).toBe('0')
+    // Penyebut 0 hari → keterangan, BUKAN "0 lori/hari" (temuan audit 2026-10-04 #9).
+    expect(text(wrapper, 'kpi-avg-cages-per-day')).toBe('tidak tersedia')
+    expect(text(wrapper, 'kpi-avg-per-day-empty')).toContain('Belum ada hari ber-record')
+    expect(exists(wrapper, 'days-with-records')).toBe(false)
 
     // null dirender sebagai keterangan, BUKAN angka.
     expect(text(wrapper, 'kpi-peak-hour')).toBe('tidak tersedia')
@@ -764,7 +767,7 @@ describe('LaporanCagesTrackView — test_scenarios / component_test (tech spec s
   })
 
   // Scenario 15: "periode tertutup"
-  it('periode tertutup — laporan tetap penuh, penanda Ditutup terender, tombol Ekspor tetap aktif', async () => {
+  it('periode tertutup — laporan tetap penuh, penanda Tertutup terender (label sama dengan web), tombol Ekspor tetap aktif', async () => {
     repoMocks.fetchPeriods.mockResolvedValue([PERIOD_CLOSED])
     repoMocks.fetchSummary.mockResolvedValue(
       makeSummary({
@@ -782,7 +785,7 @@ describe('LaporanCagesTrackView — test_scenarios / component_test (tech spec s
     const wrapper = await mountView()
     await selectPeriod(wrapper, 'per-3')
 
-    expect(text(wrapper, 'period-status-badge')).toBe('Ditutup')
+    expect(text(wrapper, 'period-status-badge')).toBe('Tertutup')
     expect(text(wrapper, 'kpi-total-cages-tipped')).toBe('1.284')
     expect(exists(wrapper, 'hourly-distribution')).toBe(true)
     expect(exists(wrapper, 'daily-trend')).toBe(true)

@@ -39,26 +39,33 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div v-if="open" class="confirm-dialog-overlay" @click.self="emit('cancel')">
-    <div class="confirm-dialog" role="alertdialog" aria-modal="true" :aria-label="title">
-      <h2 class="confirm-dialog-title">{{ title }}</h2>
-      <p class="confirm-dialog-message">{{ message }}</p>
+  <!--
+    Teleport ke <body> (audit 2026-10-04): backdrop menutup seluruh
+    viewport termasuk header, konsisten dengan SyncResultDialog.vue (z-index
+    sama, 1200 — di atas jam/bubble mengambang dan panel Mills AI 1101).
+  -->
+  <Teleport to="body">
+    <div v-if="open" class="confirm-dialog-overlay" data-testid="confirm-dialog-overlay" @click.self="emit('cancel')">
+      <div class="confirm-dialog" role="alertdialog" aria-modal="true" :aria-label="title">
+        <h2 class="confirm-dialog-title">{{ title }}</h2>
+        <p class="confirm-dialog-message">{{ message }}</p>
 
-      <div class="confirm-dialog-actions">
-        <button
-          v-if="cancelLabel"
-          type="button"
-          class="confirm-dialog-button confirm-dialog-button--cancel"
-          @click="emit('cancel')"
-        >
-          {{ cancelLabel }}
-        </button>
-        <button type="button" class="confirm-dialog-button confirm-dialog-button--confirm" @click="emit('confirm')">
-          {{ confirmLabel }}
-        </button>
+        <div class="confirm-dialog-actions">
+          <button
+            v-if="cancelLabel"
+            type="button"
+            class="confirm-dialog-button confirm-dialog-button--cancel"
+            @click="emit('cancel')"
+          >
+            {{ cancelLabel }}
+          </button>
+          <button type="button" class="confirm-dialog-button confirm-dialog-button--confirm" @click="emit('confirm')">
+            {{ confirmLabel }}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <style scoped>

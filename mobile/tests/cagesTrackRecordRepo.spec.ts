@@ -283,7 +283,10 @@ describe('cagesTrackRecordRepo', () => {
       // at draft creation" rule. Indeksnya bergeser satu sejak station_id
       // masuk di posisi 2 (2026-10-02); asersi posisional memang begitu, dan
       // itulah sebabnya ia dikomentari dengan nama kolomnya, bukan angkanya saja.
-      expect(params[3]).toBe(params[4])
+      // Sejak 2026-10-04 tippler_start_time (index 3) adalah jam LOKAL tanpa
+      // sufiks zona (src/utils/localDate.ts), bukan ISO UTC seperti
+      // created_at/updated_at — jadi bentuknya diasersi, bukan kesamaannya.
+      expect(params[3]).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/)
       expect(params[4]).toBe(params[5])
     })
   })

@@ -215,15 +215,15 @@ test.describe('Form Grading (screen-011)', () => {
     await page.waitForURL(/\/stations\/grading\/form\/(.+)/)
     const recordId = page.url().split('/').pop() as string
 
-    await page.getByLabel('Grading No').fill('GR-E2E-001')
+    await page.getByLabel('No. Grading').fill('GR-E2E-001')
 
     await typeAndSelectSearchableOption(page, 'wb-card-no-select', 'WB-GR-00', 'WB-GR-001')
     // WB Card No selection auto-fills these three fields.
-    await expect(page.getByLabel('License Plate No')).toHaveValue('B 1234 GR')
+    await expect(page.getByLabel('No. Polisi')).toHaveValue('B 1234 GR')
     await expect(page.getByLabel('Estate')).toHaveValue('Estate Grading A')
     await expect(page.getByLabel('Divisi')).toHaveValue('Divisi 1')
 
-    await page.getByLabel('Vehicle Code').fill('VC-E2E-001')
+    await page.getByLabel('Kode Kendaraan').fill('VC-E2E-001')
     await page.getByLabel('Netto (kg)').fill('1000')
     await page.getByLabel('Quantity (bunch)').fill('50')
 
@@ -277,9 +277,9 @@ test.describe('Form Grading (screen-011)', () => {
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/grading\/form\/(.+)/)
 
-    await page.getByLabel('Grading No').fill('GR-E2E-002')
+    await page.getByLabel('No. Grading').fill('GR-E2E-002')
     await typeAndSelectSearchableOption(page, 'wb-card-no-select', 'WB-GR-00', 'WB-GR-002')
-    await page.getByLabel('Vehicle Code').fill('VC-E2E-002')
+    await page.getByLabel('Kode Kendaraan').fill('VC-E2E-002')
     await page.getByLabel('Estate').fill('Estate C')
     await page.getByLabel('Netto (kg)').fill('500')
     await page.getByLabel('Quantity (bunch)').fill('20')
@@ -299,7 +299,7 @@ test.describe('Form Grading (screen-011)', () => {
 
     // Fill partially — leave WB Card No/Estate/Netto/Quantity (all
     // required) and Vehicle Code (optional) empty, and add no detail row at all.
-    await page.getByLabel('Grading No').fill('GR-PAUSE-01')
+    await page.getByLabel('No. Grading').fill('GR-PAUSE-01')
 
     // Pause has NO required-field/detail-row validation — if it were
     // blocked, the navigation below would never happen and this
@@ -332,14 +332,14 @@ test.describe('Form Grading (screen-011)', () => {
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/grading\/form\/(.+)/)
 
-    await page.getByLabel('Grading No').fill('GR-KEEP')
+    await page.getByLabel('No. Grading').fill('GR-KEEP')
     await page.getByTestId('clear-button').click()
     await expect(page.getByRole('alertdialog')).toBeVisible()
     await page.getByRole('button', { name: 'Batal' }).click()
 
     await expect(page.getByRole('alertdialog')).toBeHidden()
     await expect(page).toHaveURL(/\/stations\/grading\/form\//)
-    await expect(page.getByLabel('Grading No')).toHaveValue('GR-KEEP')
+    await expect(page.getByLabel('No. Grading')).toHaveValue('GR-KEEP')
   })
 
   // Scenario 7: "Back Dengan Perubahan Belum Tersimpan"
@@ -348,7 +348,7 @@ test.describe('Form Grading (screen-011)', () => {
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/grading\/form\/(.+)/)
 
-    await page.getByLabel('Grading No').fill('GR-DIRTY')
+    await page.getByLabel('No. Grading').fill('GR-DIRTY')
     await page.getByTestId('back-button').click()
 
     await expect(page.getByRole('alertdialog')).toBeVisible()

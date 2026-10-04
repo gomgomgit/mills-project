@@ -97,6 +97,7 @@
  *     loaded-draft snapshot) shows ConfirmDialog.vue before leaving; if not
  *     dirty, navigates directly to `monitor-weighbridge`.
  */
+import { nowLocalDateTimeString, parseStoredDateTime } from '@/utils/localDate'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -155,7 +156,7 @@ const BASE_REQUIRED_FIELDS: (keyof FormState)[] = [
 const REQUIRED_FIELD_LABELS: Record<string, string> = {
   wb_card_number: 'WB Card Number/ID',
   vehicle_number: 'No. Kendaraan',
-  driver_name: 'Nama Supir',
+  driver_name: 'Nama Sopir',
   estate_supplier: 'Estate/Supplier Asal',
   gross_weight: 'Berat Masuk (Gross)',
   destination: 'Tujuan Muatan',
@@ -246,12 +247,14 @@ const netWeight = computed<number | null>(() => {
   return form.gross_weight - (form.tare_weight ?? 0)
 })
 
+// Jam LOKAL tanpa sufiks zona (konvensi src/utils/localDate.ts), bukan
+// `toISOString()` UTC — syncService menambahkan offset perangkat saat kirim.
 function nowIso(): string {
-  return new Date().toISOString()
+  return nowLocalDateTimeString()
 }
 
 function formatDateID(iso: string): string {
-  const date = new Date(iso)
+  const date = parseStoredDateTime(iso) ?? new Date(NaN)
 
   if (!iso || Number.isNaN(date.getTime())) {
     return ''
@@ -261,7 +264,7 @@ function formatDateID(iso: string): string {
 }
 
 function formatTimeID(iso: string): string {
-  const date = new Date(iso)
+  const date = parseStoredDateTime(iso) ?? new Date(NaN)
 
   if (!iso || Number.isNaN(date.getTime())) {
     return ''
@@ -671,7 +674,7 @@ function goToMonitorWeighbridge(): void {
         />
         <FormField
           v-model="form.driver_name"
-          label="Nama Supir"
+          label="Nama Sopir"
           required
           :error="errors.driver_name"
           :disabled="actionInProgress"

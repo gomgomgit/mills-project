@@ -1018,7 +1018,7 @@ describe('LaporanClarificationView — test_scenarios / component_test (tech spe
   })
 
   // Scenario 17: "periode tertutup"
-  it('periode tertutup — laporan tetap penuh, penanda Ditutup terender, tombol Ekspor tetap aktif', async () => {
+  it('periode tertutup — laporan tetap penuh, penanda Tertutup terender (label sama dengan web), tombol Ekspor tetap aktif', async () => {
     repoMocks.fetchPeriods.mockResolvedValue([PERIOD_CLOSED])
     repoMocks.fetchSummary.mockResolvedValue(
       makeSummary({
@@ -1036,7 +1036,7 @@ describe('LaporanClarificationView — test_scenarios / component_test (tech spe
     const wrapper = await mountView()
     await selectPeriod(wrapper, 'per-3')
 
-    expect(text(wrapper, 'period-status-badge')).toContain('Ditutup')
+    expect(text(wrapper, 'period-status-badge')).toContain('Tertutup')
 
     // Seluruh bagian tetap penuh.
     expect(text(wrapper, 'production-total')).toBe('128,5')
@@ -1696,5 +1696,75 @@ describe('LaporanClarificationView — Production Line wajib (screen-138)', () =
     expect(exists(wrapper, 'no-mill-for-account')).toBe(true)
     expect(exists(wrapper, 'production-line-select')).toBe(false)
     expect(exists(wrapper, 'production-line-unavailable')).toBe(false)
+  })
+})
+
+/*
+ * Temuan audit 2026-10-04 #3/#9/#10 — kelengkapan periode yang masih
+ * berjalan. Server menghentikan penyebut di HARI INI (days_counted) dan
+ * menandai period_running; layar harus memakai days_counted pada rumus
+ * "× N hari", menampilkan catatan "sampai hari ini", dan menampilkan "-"
+ * (bukan "0,0%") bila penyebutnya 0 — sama dengan laporan web.
+ */
+describe('LaporanClarificationView — kelengkapan periode berjalan (temuan audit 2026-10-04)', () => {
+  function coverageOf(overrides: Record<string, unknown>): Record<string, unknown> {
+    return {
+      filled_slots: 96,
+      expected_slots: 192,
+      coverage_percent: 50,
+      unit_count: 2,
+      slots_per_unit_per_day: 24,
+      days_in_period: 9,
+      days_counted: 4,
+      period_running: true,
+      ...overrides,
+    }
+  }
+
+  it('periode masih berjalan — rumus memakai days_counted, catatan "sampai hari ini" tampil', async () => {
+    repoMocks.fetchSummary.mockResolvedValue(makeSummary({ coverage: coverageOf({}) }))
+
+    const wrapper = await mountView()
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(text(wrapper, 'coverage-percent')).toBe('50,0%')
+    expect(text(wrapper, 'coverage-slots')).toContain('96 dari 192 slot waktu terisi')
+    const formula = text(wrapper, 'coverage-formula').replace(/\s+/g, ' ')
+    expect(formula).toContain('× 4 hari (sampai hari ini) ×')
+    expect(formula).not.toContain('9 hari')
+    const note = text(wrapper, 'period-running-note').replace(/\s+/g, ' ')
+    expect(note).toBe('Dihitung sampai hari ini, periode masih berjalan (4 dari 9 hari periode sudah lewat).')
+  })
+
+  it('periode sudah selesai — tanpa catatan dan tanpa "(sampai hari ini)"', async () => {
+    repoMocks.fetchSummary.mockResolvedValue(
+      makeSummary({ coverage: coverageOf({ expected_slots: 432, days_counted: 9, period_running: false }) }),
+    )
+
+    const wrapper = await mountView()
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(exists(wrapper, 'period-running-note')).toBe(false)
+    const formula = text(wrapper, 'coverage-formula').replace(/\s+/g, ' ')
+    expect(formula).toContain('× 9 hari ×')
+    expect(formula).not.toContain('sampai hari ini')
+  })
+
+  it('penyebut 0 (periode belum mulai) — persen "-" BUKAN "0,0%", dan keterangan belum ada slot', async () => {
+    repoMocks.fetchSummary.mockResolvedValue(
+      makeSummary({
+        has_data: false,
+        coverage: coverageOf({ filled_slots: 0, expected_slots: 0, coverage_percent: 0, days_counted: 0 }),
+      }),
+    )
+
+    const wrapper = await mountView()
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(text(wrapper, 'coverage-percent')).toBe('-')
+    expect(text(wrapper, 'coverage-percent')).not.toContain('0,0')
+    expect(exists(wrapper, 'coverage-slots')).toBe(false)
+    expect(text(wrapper, 'coverage-no-expected')).toBe('belum ada slot yang diharapkan')
+    expect(text(wrapper, 'period-running-note').replace(/\s+/g, ' ')).toContain('(0 dari 9 hari periode sudah lewat)')
   })
 })

@@ -1,5 +1,5 @@
 import apiClient, { type NormalizedApiError } from '@/services/apiClient'
-import { run } from '@/services/localDb'
+import { query, run } from '@/services/localDb'
 
 /**
  * recordVerificationApi — the mobile side of the direct approve/un-approve
@@ -39,9 +39,12 @@ export interface VerifiableRecord {
 }
 
 export function isNetworkError(error: unknown): boolean {
-  // apiClient's normalizer omits `status` only when no response came back
-  // at all — i.e. offline / unreachable server.
-  return typeof error === 'object' && error !== null && (error as NormalizedApiError).status === undefined
+  // apiClient's normalizer sets `network: true` only when the request went
+  // out and no response came back at all — offline / unreachable server.
+  // Audit 2026-10-04: this used to be "no `status`", which also matched a
+  // plain thrown Error, so any non-HTTP failure was misreported to the user
+  // as "butuh koneksi internet" while the device was online.
+  return typeof error === 'object' && error !== null && (error as NormalizedApiError).network === true
 }
 
 /**
@@ -73,8 +76,12 @@ export async function setVerification(
     throw new Error('Record ini belum tersinkron ke server, jadi belum bisa diverifikasi.')
   }
 
+  // `/api` prefix wajib — sama seperti setiap repo lain (VITE_API_BASE_URL
+  // adalah origin server, bukan origin + /api). Tanpa prefix ini request
+  // jatuh ke route web yang tidak ber-CORS → browser memblokirnya → UI
+  // salah menampilkan "butuh koneksi" padahal online (audit 2026-10-04).
   const response = await apiClient.patch<VerificationResponse>(
-    `/records/${stationType}/${serverId}/verification`,
+    `/api/records/${stationType}/${serverId}/verification`,
     { level, value },
   )
 
@@ -95,4 +102,83 @@ export async function setVerification(
   )
 
   return response.data
+}
+
+/**
+ * Tarik status verifikasi TERBARU dari server untuk record milik user ini
+ * yang sudah tersinkron (audit 2026-10-04, SEDANG): tanpa ini operator
+ * terus melihat "Belum diperiksa" setelah Supervisor memverifikasi lewat web,
+ * karena sync aplikasi ini hanya satu arah (push).
+ *
+ * Endpoint: GET /api/records/{stationType}/verification?ids[]=<server_id>…
+ * → { data: [{ id, checked_by, checked_by_name, acknowledged_by,
+ * acknowledged_by_name }] } — pasangan baca dari PATCH di atas, dijaga
+ * auth:web,sanctum untuk ke-4 peran. Endpoint GET /api/<station>-records/{id}
+ * yang ada hanya `auth:web` + tanpa operator, jadi tidak bisa dipakai dari
+ * mobile (token Sanctum → 401).
+ *
+ * BEST-EFFORT, SENYAP: offline, endpoint belum tersedia, atau error apa pun
+ * → data lokal dibiarkan apa adanya dan fungsi mengembalikan 0. Data
+ * Preview tidak boleh gagal dimuat karena ini.
+ *
+ * @returns jumlah record lokal yang statusnya berubah
+ */
+/**
+ * Server tanpa endpoint baca ini (404/405) → berhenti mencoba sampai app
+ * dimuat ulang, supaya setiap pembukaan Data Preview tidak menghasilkan 404
+ * baru. Diekspor hanya untuk test.
+ */
+let pullUnsupported = false
+export function resetVerificationPullSupport(): void {
+  pullUnsupported = false
+}
+
+export async function pullVerificationStatus(
+  stationType: string,
+  localTable: string,
+  userId: string | null | undefined,
+  options: { timeoutMs?: number; limit?: number } = {},
+): Promise<number> {
+  if (!userId || pullUnsupported) return 0
+
+  try {
+    const rows = await query<{ id: string; server_id: string; checked_by: string | null; acknowledged_by: string | null }>(
+      `SELECT id, server_id, checked_by, acknowledged_by FROM ${localTable}
+       WHERE created_by = ? AND status = 'synced' AND server_id IS NOT NULL
+       ORDER BY updated_at DESC LIMIT ?`,
+      [userId, options.limit ?? 100],
+    )
+
+    if (rows.length === 0) return 0
+
+    const response = await apiClient.get<{ data?: VerificationResponse[] }>(
+      `/api/records/${stationType}/verification`,
+      { params: { ids: rows.map((row) => row.server_id) }, timeout: options.timeoutMs ?? 5000 },
+    )
+
+    const byServerId = new Map((response.data?.data ?? []).map((item) => [item.id, item]))
+    let changed = 0
+
+    for (const row of rows) {
+      const remote = byServerId.get(row.server_id)
+      if (!remote) continue
+      if (remote.checked_by === row.checked_by && remote.acknowledged_by === row.acknowledged_by) continue
+
+      await run(
+        `UPDATE ${localTable}
+         SET checked_by = ?, checked_by_name = ?, acknowledged_by = ?, acknowledged_by_name = ?
+         WHERE id = ?`,
+        [remote.checked_by, remote.checked_by_name, remote.acknowledged_by, remote.acknowledged_by_name, row.id],
+      )
+      changed += 1
+    }
+
+    return changed
+  } catch (error) {
+    const status = (error as NormalizedApiError | null)?.status
+    if (status === 404 || status === 405) {
+      pullUnsupported = true
+    }
+    return 0
+  }
 }

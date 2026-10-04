@@ -1,5 +1,6 @@
 import { query, run } from '@/services/localDb'
 import { resolveActiveStationId } from '@/services/activeStation'
+import { todayLocalDateString } from '@/utils/localDate'
 
 /**
  * boilerRoomRecordRepo — screen-068--monitor-boiler-room /
@@ -290,7 +291,7 @@ export async function createDraft(userId: string): Promise<string> {
   await run(
     `INSERT INTO boiler_room_record (id, status, created_by, station_id, date, created_at, updated_at)
      VALUES (?, 'draft_ongoing', ?, ?, ?, ?, ?)`,
-    [id, userId, stationId, timestamp, timestamp, timestamp],
+    [id, userId, stationId, todayLocalDateString(), timestamp, timestamp],
   )
 
   return id

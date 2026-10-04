@@ -52,6 +52,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useFloatingClockStore } from '@/stores/floatingClock'
 import { useAiAssistantStore } from '@/stores/aiAssistant'
 import { stationRepo, type StationSlot, type StationType } from '@/services/stationRepo'
+import { productionLineRepo } from '@/services/productionLineRepo'
+import { seedDefaultStationsIfNeeded } from '@/services/localSchema'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -149,9 +151,48 @@ async function loadStations(): Promise<StationSlot[]> {
   return stationRepo.getActiveAndPlaceholderStations(businessUnitId)
 }
 
+/**
+ * Audit 2026-10-04 — sesudah login, layar ini kosong sampai pengguna
+ * membuka Daftar Stasiun sekali (cache `station` lokal masih kosong).
+ * Bila cache lokal KOSONG, isi sendiri dengan jalur yang sama seperti
+ * StationListView.loadProductionLinesAndStations(): ambil Production Line
+ * dari server → simpan stasiun line yang diingat (atau line pertama; TIDAK
+ * diingat sebagai pilihan pengguna) → baca ulang lokal. Offline / tanpa
+ * line → seed 18 stasiun bawaan, persis cadangan Daftar Stasiun.
+ *
+ * Jaringan HANYA disentuh saat cache kosong — perangkat yang sudah punya
+ * cache tetap nol pemanggilan jaringan, seperti sebelumnya.
+ */
+async function bootstrapStationsWhenEmpty(): Promise<StationSlot[]> {
+  const businessUnitId = authStore.currentUser?.business_unit_id
+
+  if (!businessUnitId) {
+    return []
+  }
+
+  const lines = await productionLineRepo.fetchCurrentProductionLines().catch(() => [])
+
+  if (lines.length > 0) {
+    const rememberedId = readActiveProductionLineId()
+    const line = lines.find((candidate) => candidate.id === rememberedId) ?? lines[0]
+
+    await productionLineRepo.fetchAndCacheStationsForProductionLine(line.id, businessUnitId).catch(() => {})
+
+    return stationRepo.getActiveAndPlaceholderStationsForProductionLine(line.id)
+  }
+
+  await seedDefaultStationsIfNeeded(businessUnitId).catch(() => {})
+
+  return stationRepo.getActiveAndPlaceholderStations(businessUnitId)
+}
+
 onMounted(async () => {
   try {
     stations.value = await loadStations()
+
+    if (stations.value.length === 0) {
+      stations.value = await bootstrapStationsWhenEmpty()
+    }
   } catch {
     // Pembacaan tabel lokal gagal. Tidak ada pesan kesalahan teknis di
     // layar ini — hasilnya daftar kosong, yang sudah punya penanganannya
@@ -179,7 +220,10 @@ function onTileTap(station: StationSlot) {
     return
   }
 
-  infoMessage.value = `Laporan ${station.name} belum tersedia.`
+  // "di aplikasi mobile" — beberapa stasiun (mis. Weighbridge) SUDAH punya
+  // laporan di web; yang belum ada adalah layar laporan mobile-nya. Pesan
+  // lama "belum tersedia." menyiratkan laporannya tidak ada sama sekali.
+  infoMessage.value = `Laporan ${station.name} belum tersedia di aplikasi mobile.`
 }
 
 /**
@@ -427,8 +471,8 @@ async function onLogout() {
         Daftar Stasiun memang belum punya data stasiun di perangkatnya.
       -->
       <p v-if="!loading && stations.length === 0" class="no-stations" data-testid="no-stations">
-        Belum ada stasiun tersimpan di perangkat ini. Buka layar Daftar Stasiun lebih dulu agar
-        daftar stasiun tersimpan, lalu kembali ke sini.
+        Belum ada stasiun tersimpan di perangkat ini dan daftar stasiun belum bisa diambil dari
+        server. Pastikan perangkat online, lalu buka layar Daftar Stasiun atau kembali ke sini.
       </p>
 
       <div class="station-grid" role="list" aria-label="Daftar stasiun untuk laporan" data-testid="station-grid">

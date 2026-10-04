@@ -101,6 +101,7 @@
  *     is never faked) to await the component's real async
  *     `getDraftById()`/`saveDraft()`/etc. promise chains.
  */
+import { nowLocalDateTimeString } from '@/utils/localDate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import FormWeighbridgeView from '@/views/FormWeighbridgeView.vue'
@@ -205,7 +206,7 @@ function setCurrentUser(role: 'operator' | 'supervisor' = 'operator'): void {
 async function fillBaseRequiredFields(wrapper: VueWrapper): Promise<void> {
   await wrapper.find('#field-wb-card-number-id').setValue('WB-1001')
   await wrapper.find('#field-no-kendaraan').setValue('B 1234 CD')
-  await wrapper.find('#field-nama-supir').setValue('Budi')
+  await wrapper.find('#field-nama-sopir').setValue('Budi')
   await wrapper.find('#field-estate-supplier-asal').setValue('Estate A')
   await wrapper.find('#field-berat-masuk-gross-kg').setValue('15000')
 }
@@ -215,6 +216,9 @@ function typeTab(wrapper: VueWrapper, type: 'receive' | 'dispatch') {
 }
 
 const T0 = '2026-08-18T08:00:00.000Z'
+// Since 2026-10-04 the form stores record_datetime as LOCAL wall-clock time
+// without a zone suffix (src/utils/localDate.ts), not UTC ISO.
+const T0_LOCAL = nowLocalDateTimeString(new Date(T0))
 
 describe('FormWeighbridgeView', () => {
   beforeEach(() => {
@@ -431,7 +435,7 @@ describe('FormWeighbridgeView', () => {
     const wrapper = mount(FormWeighbridgeView)
     await flushPromises()
 
-    // Fill everything except driver_name (Nama Supir), left empty.
+    // Fill everything except driver_name (Nama Sopir), left empty.
     await wrapper.find('#field-wb-card-number-id').setValue('WB-1001')
     await wrapper.find('#field-no-kendaraan').setValue('B 1234 CD')
     await wrapper.find('#field-estate-supplier-asal').setValue('Estate A')
@@ -440,7 +444,7 @@ describe('FormWeighbridgeView', () => {
     await wrapper.find('[data-testid="save-button"]').trigger('click')
     await flushPromises()
 
-    const errorEl = wrapper.find('#field-nama-supir-error')
+    const errorEl = wrapper.find('#field-nama-sopir-error')
     expect(errorEl.exists()).toBe(true)
     expect(errorEl.text()).toContain('wajib diisi')
 
@@ -490,7 +494,7 @@ describe('FormWeighbridgeView', () => {
 
     expect(saveDraftMock).toHaveBeenCalledWith(
       'draft-1',
-      expect.objectContaining({ weighbridge_type: 'dispatch', record_datetime: T0 }),
+      expect.objectContaining({ weighbridge_type: 'dispatch', record_datetime: T0_LOCAL }),
       'operator',
     )
     expect(pushMock).toHaveBeenCalledWith({ name: 'monitor-weighbridge' })
@@ -514,7 +518,7 @@ describe('FormWeighbridgeView', () => {
 
     expect(saveDraftMock).toHaveBeenCalledWith(
       'draft-1',
-      expect.objectContaining({ weighbridge_type: 'receive', record_datetime: T0, destination: '' }),
+      expect.objectContaining({ weighbridge_type: 'receive', record_datetime: T0_LOCAL, destination: '' }),
       'operator',
     )
     expect(pushMock).toHaveBeenCalledWith({ name: 'monitor-weighbridge' })
@@ -647,7 +651,7 @@ describe('FormWeighbridgeView', () => {
       {
         wb_card_number: 'WB-1001',
         weighbridge_type: 'dispatch',
-        record_datetime: T0,
+        record_datetime: T0_LOCAL,
         vehicle_number: 'B 1234 CD',
         driver_name: 'Budi',
         estate_supplier: 'Estate A',
@@ -780,7 +784,7 @@ describe('FormWeighbridgeView — component_test scenarios', () => {
 
     expect(saveDraftMock).toHaveBeenCalledWith(
       'draft-1',
-      expect.objectContaining({ record_datetime: T0, destination: 'PKS Tujuan' }),
+      expect.objectContaining({ record_datetime: T0_LOCAL, destination: 'PKS Tujuan' }),
       'operator',
     )
     expect(pushMock).toHaveBeenCalledWith({ name: 'monitor-weighbridge' })

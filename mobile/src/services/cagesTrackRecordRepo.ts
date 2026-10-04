@@ -1,5 +1,6 @@
 import { query, run } from '@/services/localDb'
 import { resolveActiveStationId } from '@/services/activeStation'
+import { nowLocalDateTimeString } from '@/utils/localDate'
 
 /**
  * cagesTrackRecordRepo — screen-009--monitor-cages-track /
@@ -462,7 +463,7 @@ export async function createDraft(userId: string): Promise<string> {
   await run(
     `INSERT INTO cages_track_record (id, status, created_by, station_id, tippler_start_time, created_at, updated_at)
      VALUES (?, 'draft_ongoing', ?, ?, ?, ?, ?)`,
-    [id, userId, stationId, timestamp, timestamp, timestamp],
+    [id, userId, stationId, nowLocalDateTimeString(), timestamp, timestamp],
   )
 
   return id

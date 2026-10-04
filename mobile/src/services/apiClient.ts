@@ -19,6 +19,13 @@ export interface NormalizedApiError {
   message: string
   errors?: Record<string, string[]>
   status?: number
+  /**
+   * true ONLY when the request went out but no response came back at all
+   * (offline / server unreachable / CORS-blocked). Lets callers tell a real
+   * connectivity failure apart from any other error that also lacks a
+   * `status` (a thrown Error, a request-setup failure).
+   */
+  network?: boolean
 }
 
 interface ApiErrorBody {
@@ -66,6 +73,7 @@ function normalizeError(error: AxiosError<ApiErrorBody>): NormalizedApiError {
     // SQLite persistence where applicable rather than surfacing a hard error.
     return {
       message: 'Tidak dapat terhubung ke server. Data akan disimpan secara lokal.',
+      network: true,
     }
   }
 

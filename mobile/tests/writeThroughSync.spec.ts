@@ -35,11 +35,24 @@ function signIn() {
   }
 }
 
+/** Projects `row` onto the column list of a `SELECT a, b, c FROM ...` statement. */
+function pickSelectedColumns(sql: string, row: Record<string, unknown>): Record<string, unknown> {
+  const match = /SELECT\s+([\s\S]+?)\s+FROM/i.exec(sql)
+  if (!match || match[1].trim() === '*') return row
+  const columns = match[1].split(',').map((c) => c.trim().split(/\s+/).pop() as string)
+  return Object.fromEntries(columns.filter((c) => c in row).map((c) => [c, row[c]]))
+}
+
 /** Local reads the push path makes, in order: the record, its station, its details. */
 function mockLocalReads({ immediateSync = true, hasRecord = true, productionLine = 'pl-1' as string | null } = {}) {
   vi.mocked(query).mockImplementation(async (sql: string) => {
     if (sql.includes('FROM mill_setting')) {
-      return [{ id: 'ms-1', business_unit_id: BUSINESS_UNIT_ID, app_name: null, logo: null, home_page_image: null, jumlah_cages: null, immediate_sync_enabled: immediateSync ? 1 : 0 }] as never
+      // Column-faithful: return ONLY the columns the SELECT actually names,
+      // like real SQLite would. The previous version returned the full row
+      // regardless of the SQL text, which hid a SELECT that omitted
+      // immediate_sync_enabled (audit 2026-10-04 — write-through never ran).
+      const fullRow = { id: 'ms-1', business_unit_id: BUSINESS_UNIT_ID, app_name: null, logo: null, home_page_image: null, jumlah_cages: null, immediate_sync_enabled: immediateSync ? 1 : 0 }
+      return [pickSelectedColumns(sql, fullRow)] as never
     }
     if (sql.includes('FROM threshing_record')) {
       return (hasRecord
@@ -92,7 +105,7 @@ describe('syncAfterSave()', () => {
       expect.objectContaining({ production_line_id: 'pl-1', thresher_id: 'TH-001' }),
     )
     expect(run).toHaveBeenCalledWith(
-      `UPDATE threshing_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      `UPDATE threshing_record SET status = 'synced', server_id = ?, sync_error = NULL WHERE id = ?`,
       ['server-1', 'local-1'],
     )
   })

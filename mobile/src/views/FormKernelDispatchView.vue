@@ -415,15 +415,28 @@ function goToMonitor() {
   <main class="form-kd-view">
     <header class="app-header">
       <div class="app-header-brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M8 12l3 3 5-6" />
+        </svg>
         <span class="brand-name">Mills Smart Log</span>
       </div>
       <button
         type="button"
         class="hamburger-button"
+        :aria-label="isNavMenuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'"
         data-testid="hamburger-button"
         @click="toggleNavMenu"
       >
-        &#9776;
+        <svg v-if="!isNavMenuOpen" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+        <svg v-else viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
       </button>
       <div v-if="isNavMenuOpen" class="nav-menu" data-testid="nav-menu">
         <button type="button" class="nav-menu-item" @click="goToChangePassword">Ganti Password</button>
@@ -493,7 +506,7 @@ function goToMonitor() {
           />
           Acknowledged By (Mill Management)
         </label>
-        <FormField v-model="form.note" label="Note" />
+        <FormField id="field-note" v-model="form.note" label="Catatan" />
       </section>
 
       <section class="form-section">
@@ -577,7 +590,7 @@ function goToMonitor() {
           <button type="button" class="action-button action-button--secondary" data-testid="back-button" :disabled="actionInProgress" @click="onBackClick">
             Back
           </button>
-          <button type="button" class="action-button action-button--secondary" data-testid="pause-button" :disabled="actionInProgress" @click="onPause">
+          <button type="button" class="action-button action-button--warning" data-testid="pause-button" :disabled="actionInProgress" @click="onPause">
             Pause
           </button>
           <button type="button" class="action-button action-button--secondary" data-testid="clear-button" :disabled="actionInProgress" @click="onClearClick">
@@ -622,7 +635,9 @@ function goToMonitor() {
 .form-kd-view { min-height: 100vh; display: flex; flex-direction: column; gap: 16px; padding: 0 16px 20px; background: #ffffff; font-family: 'Inter', sans-serif; box-sizing: border-box; }
 .app-header { position: relative; display: flex; align-items: center; justify-content: space-between; min-height: 64px; margin: 0 -16px; padding: 0 16px; background: #ffffff; }
 .brand-name { font-size: 16px; font-weight: 700; color: #1f2937; }
-.hamburger-button { border: none; background: transparent; font-size: 20px; cursor: pointer; }
+.app-header-brand { display: flex; align-items: center; gap: 10px; }
+.brand-icon { color: #249360; flex-shrink: 0; }
+.hamburger-button { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: none; border-radius: 8px; background-color: transparent; color: #1f2937; cursor: pointer; }
 .nav-menu { position: absolute; top: 64px; right: 0; z-index: 10; display: flex; flex-direction: column; min-width: 180px; padding: 6px; border-radius: 12px; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.06); border: 1px solid #f7f7f7; }
 .nav-menu-item { min-height: 44px; padding: 0 12px; border: none; border-radius: 8px; background: transparent; font-size: 14px; font-weight: 500; text-align: left; cursor: pointer; }
 .form-kd-header { display: flex; flex-direction: column; gap: 6px; }
@@ -646,6 +661,7 @@ function goToMonitor() {
 .action-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .action-button { min-height: 44px; border-radius: 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; box-sizing: border-box; }
 .action-button--secondary { border: 1px solid #e5e7eb; background: #ffffff; color: #1f2937; }
+.action-button--warning { border: none; background: #d97706; color: #ffffff; }
 .action-button--primary { border: none; background: #249360; color: #ffffff; font-size: 16px; }
 .action-button:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>

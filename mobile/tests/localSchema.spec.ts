@@ -153,6 +153,8 @@ describe('localSchema — initLocalSchema() weighbridge_record v5 migration', ()
       // added 2026-09-14 by migrateRecordTablesForVerifierNames()
       { name: 'checked_by_name' },
       { name: 'acknowledged_by_name' },
+      // added 2026-10-04 by migrateRecordTablesForSyncError()
+      { name: 'sync_error' },
     ] as never)
 
     await initLocalSchema()
@@ -224,6 +226,8 @@ describe('localSchema — initLocalSchema() grading_record/grading_detail v2 mig
       // added 2026-09-14 by migrateRecordTablesForVerifierNames()
       { name: 'checked_by_name' },
       { name: 'acknowledged_by_name' },
+      // added 2026-10-04 by migrateRecordTablesForSyncError()
+      { name: 'sync_error' },
     ] as never)
 
     await initLocalSchema()
@@ -293,6 +297,8 @@ describe('localSchema — initLocalSchema() cages_track_record/cages_tipped_time
       // added 2026-09-14 by migrateRecordTablesForVerifierNames()
       { name: 'checked_by_name' },
       { name: 'acknowledged_by_name' },
+      // added 2026-10-04 by migrateRecordTablesForSyncError()
+      { name: 'sync_error' },
     ] as never)
 
     await initLocalSchema()

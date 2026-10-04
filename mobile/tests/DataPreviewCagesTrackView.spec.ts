@@ -584,7 +584,8 @@ describe('DataPreviewCagesTrackView', () => {
       // datetime-local inputs normalize away a trailing :00 seconds
       // component (default step is whole minutes) — this is browser/jsdom
       // input behavior, not a component bug.
-      ['#field-tanggal', '2026-08-17T07:00'],
+      // Tanggal is a date-only field since 2026-10-04 (src/utils/localDate.ts).
+      ['#field-tanggal', '2026-08-17'],
       ['#field-tippler-start-time', '2026-08-17T07:00'],
       ['#field-tippler-stop-time', '2026-08-17T11:00'],
       ['#field-cages-out', '20'],

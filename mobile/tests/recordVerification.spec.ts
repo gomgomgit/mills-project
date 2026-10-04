@@ -61,7 +61,7 @@ describe('recordVerificationApi.setVerification()', () => {
 
     await setVerification('cages-track', 'cages_track_record', SYNCED_RECORD, 'checked', true)
 
-    expect(apiClient.patch).toHaveBeenCalledWith('/records/cages-track/server-1/verification', {
+    expect(apiClient.patch).toHaveBeenCalledWith('/api/records/cages-track/server-1/verification', {
       level: 'checked',
       value: true,
     })
@@ -87,9 +87,12 @@ describe('recordVerificationApi.setVerification()', () => {
   it('serverIdOf()/isNetworkError() classify the two blocking conditions', () => {
     expect(serverIdOf({ id: 'a', server_id: null })).toBeNull()
     expect(serverIdOf({ id: 'a', server_id: 's' })).toBe('s')
-    // apiClient's normalizer omits `status` only when no response arrived
-    expect(isNetworkError({ message: 'Tidak dapat terhubung ke server.' })).toBe(true)
+    // apiClient's normalizer flags `network: true` only when no response arrived
+    expect(isNetworkError({ message: 'Tidak dapat terhubung ke server.', network: true })).toBe(true)
     expect(isNetworkError({ message: 'Forbidden', status: 403 })).toBe(false)
+    // A plain thrown Error (no status, no network flag) is NOT a connectivity failure.
+    expect(isNetworkError(new Error('boom'))).toBe(false)
+    expect(isNetworkError({ message: 'x' })).toBe(false)
   })
 })
 
@@ -140,7 +143,7 @@ describe('RecordVerificationActions — role rule mirrors the backend', () => {
   })
 
   it('surfaces an offline failure instead of pretending it was saved', async () => {
-    vi.mocked(apiClient.patch).mockRejectedValue({ message: 'Tidak dapat terhubung ke server.' })
+    vi.mocked(apiClient.patch).mockRejectedValue({ message: 'Tidak dapat terhubung ke server.', network: true })
 
     const w = mountWith('supervisor')
     await w.find('[data-testid="toggle-checked-button"]').trigger('click')
@@ -148,6 +151,18 @@ describe('RecordVerificationActions — role rule mirrors the backend', () => {
 
     expect(w.find('[data-testid="verification-message"]').text()).toMatch(/butuh koneksi/i)
     expect(w.emitted('updated')).toBeUndefined()
+  })
+
+  it('does not claim "butuh koneksi" for a non-network failure (e.g. a thrown Error)', async () => {
+    vi.mocked(apiClient.patch).mockRejectedValue(new Error('Gagal memproses respons.'))
+
+    const w = mountWith('supervisor')
+    await w.find('[data-testid="toggle-checked-button"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+
+    const msg = w.find('[data-testid="verification-message"]').text()
+    expect(msg).not.toMatch(/butuh koneksi/i)
+    expect(msg).toBe('Gagal memproses respons.')
   })
 
   it('shows the period-lock (422 PERIOD_CLOSED) message verbatim as an error and leaves the local row untouched', async () => {

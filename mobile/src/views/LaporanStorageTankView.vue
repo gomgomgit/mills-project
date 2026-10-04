@@ -714,6 +714,22 @@ async function onExport(): Promise<void> {
 /* ------------------------------------------------------------------ */
 
 const coverage = computed(() => summary.value?.coverage ?? null)
+
+/**
+ * Penyebut kelengkapan BERHENTI DI HARI INI untuk periode yang masih
+ * berjalan (temuan audit 2026-10-04 #3): server mengirim days_counted di
+ * samping days_in_period, dan expected_slots sudah memakai days_counted.
+ * Rumus "× N hari" karenanya memakai days_counted — memakai days_in_period
+ * akan membuat rumusnya tidak cocok dengan expected_slots yang tampil.
+ * Penyebut 0 (belum ada unit tercatat / periode belum mulai) → "-", bukan
+ * "0,0%": null bukan 0 (#9). Persen 1 desimal di semua laporan (#10).
+ * Semuanya sama dengan laporan web.
+ */
+const coverageDaysCounted = computed(() => coverage.value?.days_counted ?? coverage.value?.days_in_period ?? 0)
+const coverageHasExpected = computed(() => (coverage.value?.expected_slots ?? 0) > 0)
+const coveragePercentText = computed(() =>
+  coverageHasExpected.value ? `${formatNumber(coverage.value?.coverage_percent, 1)}%` : NOT_AVAILABLE,
+)
 const stock = computed(() => summary.value?.stock ?? null)
 const metrics = computed(() => summary.value?.metrics ?? null)
 const daily = computed<StorageTankReportDailyRow[]>(() => summary.value?.daily ?? [])
@@ -1035,7 +1051,7 @@ function formatDayAxis(value: string | null | undefined): string {
 const PERIOD_STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
   open: 'Terbuka',
-  closed: 'Ditutup',
+  closed: 'Tertutup',
 }
 
 function periodStatusLabel(status: string | null | undefined): string {
@@ -1283,7 +1299,7 @@ function onBack(): void {
              PERBANDINGAN DUA PEMBACAAN, sehingga kelengkapanlah yang
              menentukan seberapa jauh kedua pembacaan itu mewakili
              ujung-ujung periodenya. coverage_percent datang dari server apa
-             adanya, dengan dua desimalnya. -->
+             adanya, ditampilkan 1 desimal seperti laporan web (temuan audit 2026-10-04 #10). -->
         <section v-if="coverage" class="detail-section coverage-card" data-testid="coverage-card">
           <h2 class="section-title">Kelengkapan Pencatatan</h2>
           <p class="section-note">
@@ -1292,15 +1308,20 @@ function onBack(): void {
           </p>
           <div class="metric-figure">
             <span class="metric-value" data-testid="coverage-percent">
-              {{ formatNumber(coverage.coverage_percent, 2) }}%
+              {{ coveragePercentText }}
             </span>
           </div>
-          <span class="metric-note" data-testid="coverage-slots">
+          <span v-if="coverageHasExpected" class="metric-note" data-testid="coverage-slots">
             {{ formatCount(coverage.filled_slots) }} dari {{ formatCount(coverage.expected_slots) }} slot waktu terisi
+          </span>
+          <span v-else class="metric-note" data-testid="coverage-no-expected">belum ada slot yang diharapkan</span>
+          <span v-if="coverage.period_running" class="metric-note" data-testid="period-running-note">
+            Dihitung sampai hari ini, periode masih berjalan ({{ formatCount(coverageDaysCounted) }} dari
+            {{ formatCount(coverage.days_in_period) }} hari periode sudah lewat).
           </span>
           <span class="metric-note" data-testid="coverage-formula">
             Slot yang diharapkan = {{ formatCount(coverage.tank_count) }} tangki &times;
-            {{ formatCount(coverage.days_in_period) }} hari &times;
+            {{ formatCount(coverageDaysCounted) }} hari{{ coverage.period_running ? ' (sampai hari ini)' : '' }} &times;
             {{ formatCount(coverage.slots_per_tank_per_day) }} slot.
           </span>
           <span class="metric-note">

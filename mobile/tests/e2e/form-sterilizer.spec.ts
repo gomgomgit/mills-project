@@ -34,7 +34,12 @@ function row(page: Page, index: number) {
 }
 
 /** Fills one complete cycle row (every column but Duration, which is derived). */
-async function fillCompleteRow(page: Page, index: number, values: { no: string; close: string; open: string }): Promise<void> {
+async function fillCompleteRow(
+  page: Page,
+  index: number,
+  values: { no: string; close: string; open: string },
+  options: { checkSpv?: boolean } = {},
+): Promise<void> {
   const r = row(page, index)
   const textInputs = r.locator('input[type="text"]:not([disabled])')
   const timeInputs = r.locator('input[type="time"]')
@@ -50,7 +55,11 @@ async function fillCompleteRow(page: Page, index: number, values: { no: string; 
   await timeInputs.nth(7).fill(values.open) // Open Door Time
   await r.locator('input[type="number"]').fill('10') // Number of Cages
   await textInputs.nth(1).fill('Lengkap') // Cages Status
-  await page.getByTestId(`detail-checked-by-spv-${index}`).check()
+  // "Checked by SPV" hanya berupa checkbox untuk Supervisor (keputusan
+  // pengguna 2026-10-04); peran lain melihatnya sebagai teks.
+  if (options.checkSpv) {
+    await page.getByTestId(`detail-checked-by-spv-${index}`).check()
+  }
   await textInputs.nth(2).fill('Normal') // Remarks
 }
 
@@ -89,7 +98,7 @@ test.describe('Form Sterilizer (screen-122)', () => {
     await page.getByTestId('checked-by-checkbox').check()
 
     await page.getByTestId('add-row-button').click()
-    await fillCompleteRow(page, 0, { no: '2', close: '09:00', open: '10:15' })
+    await fillCompleteRow(page, 0, { no: '2', close: '09:00', open: '10:15' }, { checkSpv: true })
 
     await page.getByTestId('save-button').click()
     await page.waitForURL('**/stations/sterilizer/monitor')
@@ -195,7 +204,7 @@ test.describe('Form Sterilizer (screen-122)', () => {
     const recordId = await openNewDraft(page)
 
     await page.locator('#sterilizer_id').fill('STR-E2E-RESUME')
-    await page.getByLabel('Note').fill('Catatan draft')
+    await page.getByLabel('Catatan').fill('Catatan draft')
     await page.getByTestId('add-row-button').click()
     await fillCompleteRow(page, 0, { no: '3', close: '07:00', open: '08:10' })
     await page.getByTestId('pause-button').click()
@@ -205,14 +214,39 @@ test.describe('Form Sterilizer (screen-122)', () => {
     await page.waitForURL(new RegExp(`/stations/sterilizer/form/${recordId}$`))
 
     await expect(page.locator('#sterilizer_id')).toHaveValue('STR-E2E-RESUME')
-    await expect(page.getByLabel('Note')).toHaveValue('Catatan draft')
+    await expect(page.getByLabel('Catatan')).toHaveValue('Catatan draft')
     const r = row(page, 0)
     await expect(r.locator('input[type="text"]').nth(0)).toHaveValue('3')
     await expect(page.getByTestId('detail-close-door-time-0')).toHaveValue('07:00')
     await expect(page.getByTestId('detail-open-door-time-0')).toHaveValue('08:10')
     await expect(page.getByTestId('detail-duration-minutes-0')).toHaveValue('70')
     await expect(r.locator('input[type="number"]')).toHaveValue('10')
+    // Operator: nilai "Checked by SPV" tampil sebagai teks, bukan input.
+    await expect(page.getByTestId('detail-checked-by-spv-0')).toHaveCount(0)
+    await expect(page.getByTestId('detail-checked-by-spv-text-0')).toHaveText('—')
+  })
+
+  test('Checked by SPV — hanya Supervisor yang dapat mengubah, Operator melihat teks', async ({ page }) => {
+    // Operator: tidak ada checkbox sama sekali di baris siklus.
+    await openNewDraft(page)
+    await page.getByTestId('add-row-button').click()
+    await expect(page.getByTestId('detail-checked-by-spv-0')).toHaveCount(0)
+    await expect(page.locator('[data-testid="detail-row-0"] input[type="checkbox"]')).toHaveCount(0)
+    await expect(page.getByTestId('detail-checked-by-spv-text-0')).toHaveText('—')
+
+    // Supervisor: checkbox ada, bisa dicentang, dan nilainya tersimpan.
+    await login(page, USERS.supervisor)
+    const recordId = await openNewDraft(page)
+    await page.locator('#sterilizer_id').fill('STR-E2E-SPVROW')
+    await page.getByTestId('add-row-button').click()
+    await fillCompleteRow(page, 0, { no: '4', close: '07:00', open: '08:00' }, { checkSpv: true })
     await expect(page.getByTestId('detail-checked-by-spv-0')).toBeChecked()
+    await page.getByTestId('pause-button').click()
+    await page.waitForURL('**/stations/sterilizer/monitor')
+    await page.getByTestId(`draft-item-${recordId}`).click()
+    await expect(page.getByTestId('detail-checked-by-spv-0')).toBeChecked()
+    await page.getByTestId('detail-checked-by-spv-0').uncheck()
+    await expect(page.getByTestId('detail-checked-by-spv-0')).not.toBeChecked()
   })
 
   test('Input Data Sterilizer — Back Dengan Perubahan Belum Tersimpan', async ({ page }) => {

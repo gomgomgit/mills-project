@@ -149,6 +149,15 @@ export interface ClarificationReportCoverage {
   unit_count: number
   slots_per_unit_per_day: number
   days_in_period: number
+  /**
+   * Hari yang dipakai penyebut expected_slots — sama dengan days_in_period
+   * untuk periode yang sudah selesai, berhenti di HARI INI (WIB) untuk
+   * periode yang masih berjalan, 0 untuk periode yang belum mulai (temuan
+   * audit 2026-10-04 #3, App\Support\ReportPeriodDays).
+   */
+  days_counted: number
+  /** true bila tanggal akhir periode masih setelah hari ini. */
+  period_running: boolean
 }
 
 /**
@@ -372,6 +381,8 @@ const EMPTY_COVERAGE: ClarificationReportCoverage = {
   unit_count: 0,
   slots_per_unit_per_day: 0,
   days_in_period: 0,
+  days_counted: 0,
+  period_running: false,
 }
 
 const EMPTY_TOTAL: ClarificationReportTotal = {

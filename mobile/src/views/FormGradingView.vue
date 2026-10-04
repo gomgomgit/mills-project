@@ -136,7 +136,7 @@ const REQUIRED_FIELDS: (keyof GradingHeaderFormData)[] = [
 ]
 
 const REQUIRED_FIELD_LABELS: Record<string, string> = {
-  grading_number: 'Grading No',
+  grading_number: 'No. Grading',
   weighbridge_record_id: 'WB Card No',
   estate_supplier: 'Estate',
   netto: 'Netto',
@@ -345,7 +345,7 @@ async function loadDraft(): Promise<void> {
 // option, and nothing crashes.
 async function loadWbOptions(): Promise<void> {
   try {
-    wbOptions.value = await gradingRecordRepo.getWeighbridgeRecordOptions()
+    wbOptions.value = await gradingRecordRepo.getWeighbridgeRecordOptions(form.weighbridge_record_id || null)
   } catch (err) {
     wbOptionsError.value = err instanceof Error ? err.message : 'Gagal memuat daftar WB Card No.'
   }
@@ -360,7 +360,9 @@ async function loadParameterOptions(): Promise<void> {
 }
 
 onMounted(async () => {
-  await Promise.all([loadDraft(), loadWbOptions(), loadParameterOptions()])
+  // WB options AFTER the draft: the draft's own selected WB record must stay
+  // in the list even when it no longer passes the saved/synced filter.
+  await Promise.all([loadDraft().then(loadWbOptions), loadParameterOptions()])
 })
 
 function wbOptionLabel(option: WeighbridgeRecordOption): string {
@@ -762,7 +764,8 @@ function goToMonitorGrading(): void {
 
         <FormField
           v-model="form.grading_number"
-          label="Grading No"
+          id="field-grading-no"
+          label="No. Grading"
           required
           :error="errors.grading_number"
           :disabled="actionInProgress"
@@ -795,10 +798,11 @@ function goToMonitorGrading(): void {
           </p>
         </div>
 
-        <FormField v-model="form.license_plate_no" label="License Plate No" :disabled="actionInProgress" />
+        <FormField id="field-license-plate-no" v-model="form.license_plate_no" label="No. Polisi" :disabled="actionInProgress" />
         <FormField
           v-model="form.vehicle_code"
-          label="Vehicle Code"
+          id="field-vehicle-code"
+          label="Kode Kendaraan"
           :error="errors.vehicle_code"
           :disabled="actionInProgress"
         />
@@ -836,7 +840,7 @@ function goToMonitorGrading(): void {
           :error="errors.quantity"
           :disabled="actionInProgress"
         />
-        <FormField v-model="form.note" label="Note" :disabled="actionInProgress" />
+        <FormField id="field-note" v-model="form.note" label="Catatan" :disabled="actionInProgress" />
       </section>
 
       <section class="form-section" aria-label="Grading Detail">

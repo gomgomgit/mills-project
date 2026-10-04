@@ -1321,3 +1321,42 @@ describe('storageTankReportRepo — production_line_id (konteks yang dipilih, bu
     })
   })
 })
+
+/*
+ * Temuan audit 2026-10-04 #3 — /summary kini mengirim coverage.days_counted
+ * dan coverage.period_running. Repo meneruskannya apa adanya, dan blok
+ * coverage bawaan (blok absen) membawa keduanya dengan nilai yang aman:
+ * 0 hari, periode tidak berjalan — bukan undefined yang membuat layar
+ * menulis "undefined hari".
+ */
+describe('storageTankReportRepo — days_counted / period_running (temuan audit 2026-10-04)', () => {
+  it('meneruskan days_counted dan period_running dari /api/storage-tank-reports/summary apa adanya', async () => {
+    apiGetMock.mockResolvedValueOnce({
+      data: {
+        coverage: {
+          filled_slots: 96,
+          expected_slots: 192,
+          coverage_percent: 50,
+          days_in_period: 9,
+          days_counted: 4,
+          period_running: true,
+        },
+      },
+    })
+
+    const summary = await fetchSummary('per-1')
+
+    expect(summary.coverage.days_counted).toBe(4)
+    expect(summary.coverage.days_in_period).toBe(9)
+    expect(summary.coverage.period_running).toBe(true)
+  })
+
+  it('blok coverage absen — bawaan membawa days_counted 0 dan period_running false', async () => {
+    apiGetMock.mockResolvedValueOnce({ data: {} })
+
+    const bare = await fetchSummary('per-9')
+
+    expect(bare.coverage.days_counted).toBe(0)
+    expect(bare.coverage.period_running).toBe(false)
+  })
+})

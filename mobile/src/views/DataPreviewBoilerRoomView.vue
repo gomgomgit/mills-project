@@ -69,6 +69,9 @@ import boilerRoomRecordRepo, {
 } from '@/services/boilerRoomRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
+import SyncFailureHint from '@/components/SyncFailureHint.vue'
+import { pullVerificationStatus } from '@/services/recordVerificationApi'
+import { toDateInputValue } from '@/utils/localDate'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
 
@@ -124,6 +127,9 @@ async function loadList(): Promise<void> {
 
   try {
     allRecords.value = await boilerRoomRecordRepo.getAllRecords(userId)
+    // Best-effort: segarkan status verifikasi dari server di latar belakang
+    // (audit 2026-10-04) — tidak menunda tampilan daftar.
+    void pullVerificationStatus('boiler-room', 'boiler_room_record', userId)
   } catch (err) {
     listError.value = err instanceof Error ? err.message : 'Gagal memuat daftar data boiler room lokal.'
   } finally {
@@ -195,6 +201,19 @@ const detailLoadErrorMessage = ref<string | null>(null)
 const detailRecord = ref<BoilerRoomRecord | null>(null)
 const detailRows = ref<BoilerRoomDetailRow[]>([])
 
+/**
+ * Audit 2026-10-04 — tarik status verifikasi terbaru dari server (Supervisor/
+ * Mill Management bisa memverifikasi lewat web) lalu muat ulang record ini
+ * bila ada yang berubah. Senyap bila offline / endpoint tidak tersedia.
+ */
+function refreshVerificationInBackground(recordId: string): void {
+  void pullVerificationStatus('boiler-room', 'boiler_room_record', currentUserId()).then(async (changed) => {
+    if (changed === 0 || detailRecord.value?.id !== recordId) return
+    const fresh = await boilerRoomRecordRepo.getDraftWithDetails(recordId)
+    if (fresh && detailRecord.value?.id === recordId) detailRecord.value = fresh.record
+  })
+}
+
 async function loadDetail(recordId: string): Promise<void> {
   detailLoading.value = true
   detailLoadErrorMessage.value = null
@@ -211,6 +230,7 @@ async function loadDetail(recordId: string): Promise<void> {
     }
 
     detailRecord.value = draft.record
+    refreshVerificationInBackground(recordId)
     detailRows.value = draft.details
   } catch (err) {
     detailLoadErrorMessage.value = err instanceof Error ? err.message : 'Gagal memuat data boiler room.'
@@ -443,7 +463,10 @@ function goToMonitorBoilerRoom(): void {
               :data-testid="`record-item-${item.id}`"
               @click="onItemClick(item)"
             >
-              <span class="record-item-label">{{ recordLabel(item) }}</span>
+              <span class="record-item-text">
+                <span class="record-item-label">{{ recordLabel(item) }}</span>
+                <SyncFailureHint :record="item" compact />
+              </span>
               <StatusBadge :status="listBadgeInfo(item).status" :label="listBadgeInfo(item).label" />
             </button>
           </li>
@@ -467,8 +490,9 @@ function goToMonitorBoilerRoom(): void {
       </p>
 
       <div v-else-if="detailRecord" class="preview-body">
+        <SyncFailureHint :record="detailRecord" />
         <FormField :model-value="detailRecord.boiler_room_id" label="Boiler Room ID" disabled />
-        <FormField :model-value="detailRecord.date" label="Tanggal" type="datetime-local" disabled />
+        <FormField :model-value="toDateInputValue(detailRecord.date)" label="Tanggal" type="date" disabled />
         <FormField :model-value="inputtedByDisplay" label="Inputted By" disabled />
         <RecordVerificationStatus
           label="Checked By"
@@ -537,6 +561,12 @@ function goToMonitorBoilerRoom(): void {
 </template>
 
 <style scoped>
+.record-item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .data-preview-boiler-room-view {
   min-height: 100vh;
   display: flex;
@@ -689,7 +719,9 @@ function goToMonitorBoilerRoom(): void {
 
 .filter-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, 1fr): tanpa ini lebar intrinsik <input type="date">/text
+     memaksa kolom melebar dan halaman bergeser horizontal di 390px. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -697,6 +729,7 @@ function goToMonitorBoilerRoom(): void {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .filter-label {
@@ -706,6 +739,8 @@ function goToMonitorBoilerRoom(): void {
 }
 
 .filter-input {
+  width: 100%;
+  min-width: 0;
   min-height: 44px;
   padding: 0 12px;
   border: 1px solid #e5e7eb;

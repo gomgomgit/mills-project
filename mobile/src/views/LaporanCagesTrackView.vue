@@ -770,7 +770,7 @@ function formatDayAxis(value: string | null | undefined): string {
 const PERIOD_STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
   open: 'Terbuka',
-  closed: 'Ditutup',
+  closed: 'Tertutup',
 }
 
 function periodStatusLabel(status: string | null | undefined): string {
@@ -1040,13 +1040,25 @@ function onBack(): void {
 
           <div class="metric-card">
             <span class="metric-label">Rata-rata per Hari</span>
-            <div class="metric-figure">
+            <!-- Penyebut 0 hari → "tidak tersedia", bukan "0 lori/hari":
+                 null bukan 0 (temuan audit 2026-10-04 #9, sama dengan web). -->
+            <template v-if="!kpi?.days_with_records">
+              <div class="metric-figure">
+                <span class="metric-value metric-value--na" data-testid="kpi-avg-cages-per-day">
+                  {{ NOT_AVAILABLE }}
+                </span>
+              </div>
+              <span class="metric-note" data-testid="kpi-avg-per-day-empty">
+                Belum ada hari ber-record untuk dijadikan pembagi.
+              </span>
+            </template>
+            <div v-else class="metric-figure">
               <span class="metric-value" data-testid="kpi-avg-cages-per-day">
                 {{ formatDecimal(kpi?.avg_cages_per_day) }}
               </span>
               <span class="metric-unit">lori/hari</span>
             </div>
-            <span class="metric-note" data-testid="days-with-records">
+            <span v-if="kpi?.days_with_records" class="metric-note" data-testid="days-with-records">
               Dari {{ formatCount(kpi?.days_with_records) }} hari yang punya record — hari tanpa rincian per jam
               tetap ikut sebagai pembagi.
             </span>

@@ -1,6 +1,8 @@
 import apiClient, { type NormalizedApiError } from '@/services/apiClient'
 import { query, run } from '@/services/localDb'
 import { useAuthStore } from '@/stores/auth'
+import { fetchAndCacheGradingParameters, resolveServerGradingParameterIds } from '@/services/gradingParameterSync'
+import { toLocalDateString, toOffsetDateTime } from '@/utils/localDate'
 
 /**
  * syncService — TEMPORARY/pragmatic bridge (2026-08-20) so records entered
@@ -74,6 +76,10 @@ export interface SyncItemResult {
    * no" (will be refused again on every retry) from "could not reach it".
    */
   status?: number
+  /** Nama stasiun record ini (mis. "Threshing") — ditampilkan di dialog hasil sync. */
+  stationName?: string
+  /** Production Line tempat record ini dikirim (null bila tidak terselesaikan). */
+  productionLineId?: string | null
 }
 
 export interface SyncSummary {
@@ -474,7 +480,9 @@ async function pushUniformRow(
     const response = await apiClient.post(config.endpoint, {
       production_line_id: productionLineId,
       [config.idPayloadKey]: row[config.idColumn],
-      date: row.date,
+      // Selalu tanggal LOKAL 'YYYY-MM-DD' — termasuk record lama yang masih
+      // menyimpan ISO UTC (lihat src/utils/localDate.ts).
+      date: toLocalDateString(row.date as string | null),
       note: row.note,
       checked: Boolean(row.checked_by),
       acknowledged: Boolean(row.acknowledged_by),
@@ -482,217 +490,330 @@ async function pushUniformRow(
     })
 
     const serverId = response.data?.id as string
-    await run(`UPDATE ${config.table} SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, id])
+    await markSynced(config.table, id, serverId)
 
     return { id, label, ok: true }
   } catch (error) {
-    return { id, label, ok: false, reason: extractErrorMessage(error), status: (error as NormalizedApiError)?.status }
+    return failure(config.table, id, label, error)
   }
+}
+
+/** Local rows of one station that still wait for a push. */
+async function pendingRows<T>(table: string, userId: string): Promise<T[]> {
+  return query<T>(`SELECT * FROM ${table} WHERE status = 'saved' AND created_by = ?`, [userId])
+}
+
+/** Static station names, used when the record's own station row is not cached. */
+const STATION_NAME_BY_TABLE: Record<string, string> = {
+  weighbridge_record: 'Weighbridge',
+  grading_record: 'Grading',
+  cages_track_record: 'Cages Track',
+  sterilizer_record: 'Sterilizer',
+  threshing_record: 'Threshing',
+  pressing_record: 'Pressing',
+  depricarping_record: 'Depricarping',
+  kernel_plant_record: 'Kernel Plant',
+  clarification_record: 'Clarification',
+  boiler_room_record: 'Boiler Room',
+  effluent_plant_record: 'Effluent Plant',
+  engine_room_record: 'Engine Room',
+  process_water_record: 'Process Water',
+  storage_tank_record: 'Storage Tank',
+  solid_waste_disposal_record: 'Solid Waste Disposal',
+  kernel_dispatch_record: 'Kernel Dispatch',
+  cpo_dispatch_record: 'CPO Dispatch',
+  process_quality_control_record: 'Process Quality Control',
+}
+
+async function markSynced(table: string, id: string, serverId: string): Promise<void> {
+  await run(`UPDATE ${table} SET status = 'synced', server_id = ?, sync_error = NULL WHERE id = ?`, [serverId, id])
+}
+
+/**
+ * Simpan alasan gagal sync terakhir di record (audit 2026-10-04) supaya
+ * Data Preview bisa menampilkan "Gagal sinkron: <alasan>". Best-effort:
+ * kegagalan menulis catatan ini tidak boleh mengubah hasil sync.
+ */
+async function rememberSyncError(table: string, id: string, reason: string): Promise<void> {
+  try {
+    await run(`UPDATE ${table} SET sync_error = ? WHERE id = ?`, [reason, id])
+  } catch {
+    // Kolom belum ada (skema lama) — abaikan, hasil sync tetap dilaporkan.
+  }
+}
+
+async function failure(table: string, id: string, label: string, error: unknown): Promise<SyncItemResult> {
+  const reason = extractErrorMessage(error)
+  const status = (error as NormalizedApiError)?.status
+  // Gagal jaringan bukan "ditolak" — jangan tandai record dengan alasan
+  // offline yang akan basi begitu perangkat online lagi.
+  if (status !== undefined) {
+    await rememberSyncError(table, id, reason)
+  }
+  return { id, label, ok: false, reason, status }
+}
+
+async function localFailure(table: string, id: string, label: string, reason: string): Promise<SyncItemResult> {
+  await rememberSyncError(table, id, reason)
+  return { id, label, ok: false, reason }
+}
+
+/**
+ * Production Line untuk SATU record (audit 2026-10-04, KRITIS): diturunkan
+ * dari stasiun tempat record itu DIBUAT (`station_id` → `station.
+ * production_line_id`), sama seperti pushSavedRecordNow. Line yang sedang
+ * dipilih di Station List hanya dipakai sebagai cadangan bila record tidak
+ * punya station_id (record lama) atau stasiunnya tidak punya line di cache.
+ * Sebelumnya setiap record memakai line yang SEDANG dipilih, sehingga data
+ * Line 1 bisa tercatat sebagai Line 2.
+ */
+async function resolveRecordContext(
+  table: string,
+  stationId: string | null | undefined,
+  fallbackProductionLineId: string | null | undefined,
+): Promise<{ productionLineId: string | null; stationName: string }> {
+  let productionLineId: string | null = null
+  let stationName = STATION_NAME_BY_TABLE[table] ?? table
+
+  if (stationId) {
+    const rows = await query<{ production_line_id: string | null; name: string | null }>(
+      `SELECT production_line_id, name FROM station WHERE id = ?`,
+      [stationId],
+    )
+    productionLineId = rows[0]?.production_line_id ?? null
+    if (rows[0]?.name) stationName = rows[0].name
+  }
+
+  return { productionLineId: productionLineId ?? fallbackProductionLineId ?? null, stationName }
+}
+
+const NO_LINE_REASON =
+  'Production Line record ini tidak diketahui — pilih Production Line di Station List lalu sinkronkan lagi.'
+
+/**
+ * Push every pending row of one table, each to ITS OWN production line.
+ * `push` does the station-specific payload; this wrapper owns line
+ * resolution and the station name on the result.
+ */
+async function syncTable<T extends { id: string; station_id?: string | null }>(
+  table: string,
+  rows: T[],
+  fallbackProductionLineId: string | null | undefined,
+  labelOf: (row: T) => string,
+  push: (productionLineId: string, row: T) => Promise<SyncItemResult>,
+): Promise<SyncItemResult[]> {
+  const results: SyncItemResult[] = []
+
+  for (const row of rows) {
+    const { productionLineId, stationName } = await resolveRecordContext(table, row.station_id, fallbackProductionLineId)
+    const result = productionLineId
+      ? await push(productionLineId, row)
+      : await localFailure(table, row.id, labelOf(row), NO_LINE_REASON)
+
+    results.push({ ...result, stationName, productionLineId })
+  }
+
+  return results
 }
 
 async function syncUniformStation(
   config: StationPushConfig,
-  productionLineId: string,
+  fallbackProductionLineId: string | null | undefined,
   userId: string,
 ): Promise<SyncItemResult[]> {
-  const rows = await query<Record<string, unknown>>(
-    `SELECT * FROM ${config.table} WHERE status = 'saved' AND created_by = ?`,
-    [userId],
+  const rows = await pendingRows<Record<string, unknown> & { id: string; station_id?: string | null }>(config.table, userId)
+
+  return syncTable(
+    config.table,
+    rows,
+    fallbackProductionLineId,
+    (row) => (row[config.idColumn] as string) ?? row.id,
+    (productionLineId, row) => pushUniformRow(config, productionLineId, row),
   )
-
-  const results: SyncItemResult[] = []
-  for (const row of rows) {
-    results.push(await pushUniformRow(config, productionLineId, row))
-  }
-
-  return results
 }
 
-async function syncWeighbridgeRecords(productionLineId: string, userId: string): Promise<SyncItemResult[]> {
-  const rows = await query<LocalWeighbridgeRow>(
-    `SELECT * FROM weighbridge_record WHERE status = 'saved' AND created_by = ?`,
-    [userId],
-  )
+async function pushWeighbridgeRow(productionLineId: string, row: LocalWeighbridgeRow): Promise<SyncItemResult> {
+  const label = row.wb_card_number ?? row.id
 
-  const results: SyncItemResult[] = []
+  try {
+    const response = await apiClient.post('/api/weighbridge-records', {
+      production_line_id: productionLineId,
+      wb_card_number: row.wb_card_number,
+      weighbridge_type: row.weighbridge_type,
+      // Jam lokal + offset eksplisit perangkat (mis. +07:00) — server tidak
+      // perlu menebak zona waktunya. Lihat src/utils/localDate.ts.
+      record_datetime: toOffsetDateTime(row.record_datetime),
+      vehicle_number: row.vehicle_number,
+      driver_name: row.driver_name,
+      estate_supplier: row.estate_supplier,
+      destination: row.destination,
+      division: row.division,
+      block: row.block,
+      gross_weight: row.gross_weight,
+      tare_weight: row.tare_weight,
+      quantity: row.quantity,
+      checked: Boolean(row.checked_by),
+      acknowledged: Boolean(row.acknowledged_by),
+    })
 
-  for (const row of rows) {
-    const label = row.wb_card_number ?? row.id
-    try {
-      const response = await apiClient.post('/api/weighbridge-records', {
-        production_line_id: productionLineId,
-        wb_card_number: row.wb_card_number,
-        weighbridge_type: row.weighbridge_type,
-        record_datetime: row.record_datetime,
-        vehicle_number: row.vehicle_number,
-        driver_name: row.driver_name,
-        estate_supplier: row.estate_supplier,
-        destination: row.destination,
-        division: row.division,
-        block: row.block,
-        gross_weight: row.gross_weight,
-        tare_weight: row.tare_weight,
-        quantity: row.quantity,
-        checked: Boolean(row.checked_by),
-        acknowledged: Boolean(row.acknowledged_by),
-      })
-
-      const serverId = response.data?.id as string
-      await run(`UPDATE weighbridge_record SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, row.id])
-      results.push({ id: row.id, label, ok: true })
-    } catch (error) {
-      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error), status: (error as NormalizedApiError)?.status })
-    }
+    await markSynced('weighbridge_record', row.id, response.data?.id as string)
+    return { id: row.id, label, ok: true }
+  } catch (error) {
+    return failure('weighbridge_record', row.id, label, error)
   }
-
-  return results
 }
 
-async function syncGradingRecords(productionLineId: string, userId: string): Promise<SyncItemResult[]> {
-  const rows = await query<LocalGradingRow>(
-    `SELECT * FROM grading_record WHERE status = 'saved' AND created_by = ?`,
-    [userId],
-  )
+async function pushGradingRow(productionLineId: string, row: LocalGradingRow): Promise<SyncItemResult> {
+  const label = row.grading_number ?? row.id
 
-  const results: SyncItemResult[] = []
+  let weighbridgeServerId: string | null = null
 
-  for (const row of rows) {
-    const label = row.grading_number ?? row.id
-
-    let weighbridgeServerId: string | null = null
-
-    if (row.weighbridge_record_id) {
-      const parent = await query<{ server_id: string | null }>(
-        `SELECT server_id FROM weighbridge_record WHERE id = ?`,
-        [row.weighbridge_record_id],
-      )
-      weighbridgeServerId = parent[0]?.server_id ?? null
-    }
-
-    if (!weighbridgeServerId) {
-      results.push({
-        id: row.id,
-        label,
-        ok: false,
-        reason: 'Weighbridge terkait belum tersinkron — sinkronkan Weighbridge-nya dahulu.',
-      })
-      continue
-    }
-
-    const details = await query<LocalGradingDetailRow>(
-      `SELECT grading_parameter_id, quantity FROM grading_detail WHERE grading_record_id = ?`,
-      [row.id],
+  if (row.weighbridge_record_id) {
+    const parent = await query<{ server_id: string | null }>(
+      `SELECT server_id FROM weighbridge_record WHERE id = ?`,
+      [row.weighbridge_record_id],
     )
-
-    try {
-      const response = await apiClient.post('/api/grading-records', {
-        production_line_id: productionLineId,
-        grading_number: row.grading_number,
-        date: row.date,
-        weighbridge_record_id: weighbridgeServerId,
-        license_plate_no: row.license_plate_no,
-        vehicle_code: row.vehicle_code,
-        estate_supplier: row.estate_supplier,
-        division: row.division,
-        netto: row.netto,
-        quantity: row.quantity,
-        note: row.note,
-        checked: Boolean(row.checked_by),
-        acknowledged: Boolean(row.acknowledged_by),
-        details: details.map((detail) => ({
-          grading_parameter_id: detail.grading_parameter_id,
-          quantity: detail.quantity,
-        })),
-      })
-
-      const serverId = response.data?.id as string
-      await run(`UPDATE grading_record SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, row.id])
-      results.push({ id: row.id, label, ok: true })
-    } catch (error) {
-      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error), status: (error as NormalizedApiError)?.status })
-    }
+    weighbridgeServerId = parent[0]?.server_id ?? null
   }
 
-  return results
-}
+  if (!weighbridgeServerId) {
+    return localFailure('grading_record', row.id, label, 'Weighbridge terkait belum tersinkron — sinkronkan Weighbridge-nya dahulu.')
+  }
 
-async function syncCagesTrackRecords(productionLineId: string, userId: string): Promise<SyncItemResult[]> {
-  const rows = await query<LocalCagesTrackRow>(
-    `SELECT * FROM cages_track_record WHERE status = 'saved' AND created_by = ?`,
-    [userId],
+  const details = await query<LocalGradingDetailRow>(
+    `SELECT grading_parameter_id, quantity FROM grading_detail WHERE grading_record_id = ?`,
+    [row.id],
   )
 
-  const results: SyncItemResult[] = []
-
-  for (const row of rows) {
-    const label = row.cages_track_number ?? row.id
-
-    const details = await query<LocalCagesTippedTimeRow>(
-      `SELECT tipped_hour, checked_cage_numbers FROM cages_tipped_time WHERE cages_track_record_id = ?`,
-      [row.id],
-    )
-
-    try {
-      const response = await apiClient.post('/api/cages-track-records', {
-        production_line_id: productionLineId,
-        cages_track_number: row.cages_track_number,
-        date: row.date,
-        tippler_start_time: row.tippler_start_time,
-        tippler_stop_time: row.tippler_stop_time,
-        cages_out: row.cages_out,
-        cages_tipped: row.cages_tipped,
-        note: row.note,
-        checked: Boolean(row.checked_by),
-        acknowledged: Boolean(row.acknowledged_by),
-        details: details.map((detail) => ({
-          tipped_hour: detail.tipped_hour,
-          checked_cage_numbers: (detail.checked_cage_numbers ?? '')
-            .split(',')
-            .map((value) => value.trim())
-            .filter((value) => value !== ''),
-        })),
-      })
-
-      const serverId = response.data?.id as string
-      await run(`UPDATE cages_track_record SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, row.id])
-      results.push({ id: row.id, label, ok: true })
-    } catch (error) {
-      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error), status: (error as NormalizedApiError)?.status })
-    }
+  // Id parameter buatan (`default-grading-parameter-N`) tidak dikenal server
+  // dan dulu membuat POST ini 500 (audit 2026-10-04). Petakan ke id server
+  // lewat nama; bila belum bisa, tolak di perangkat — jangan kirim id palsu.
+  const resolution = await resolveServerGradingParameterIds(details.map((detail) => detail.grading_parameter_id))
+  if (!resolution.ok) {
+    return localFailure('grading_record', row.id, label, resolution.reason)
   }
 
-  return results
+  try {
+    const response = await apiClient.post('/api/grading-records', {
+      production_line_id: productionLineId,
+      grading_number: row.grading_number,
+      date: toLocalDateString(row.date),
+      weighbridge_record_id: weighbridgeServerId,
+      license_plate_no: row.license_plate_no,
+      vehicle_code: row.vehicle_code,
+      estate_supplier: row.estate_supplier,
+      division: row.division,
+      netto: row.netto,
+      quantity: row.quantity,
+      note: row.note,
+      checked: Boolean(row.checked_by),
+      acknowledged: Boolean(row.acknowledged_by),
+      details: details.map((detail) => ({
+        grading_parameter_id: detail.grading_parameter_id
+          ? (resolution.ids.get(detail.grading_parameter_id) ?? detail.grading_parameter_id)
+          : null,
+        quantity: detail.quantity,
+      })),
+    })
+
+    await markSynced('grading_record', row.id, response.data?.id as string)
+    return { id: row.id, label, ok: true }
+  } catch (error) {
+    return failure('grading_record', row.id, label, error)
+  }
+}
+
+async function pushCagesTrackRow(productionLineId: string, row: LocalCagesTrackRow): Promise<SyncItemResult> {
+  const label = row.cages_track_number ?? row.id
+
+  const details = await query<LocalCagesTippedTimeRow>(
+    `SELECT tipped_hour, checked_cage_numbers FROM cages_tipped_time WHERE cages_track_record_id = ?`,
+    [row.id],
+  )
+
+  try {
+    const response = await apiClient.post('/api/cages-track-records', {
+      production_line_id: productionLineId,
+      cages_track_number: row.cages_track_number,
+      date: toLocalDateString(row.date),
+      tippler_start_time: toOffsetDateTime(row.tippler_start_time),
+      tippler_stop_time: toOffsetDateTime(row.tippler_stop_time),
+      cages_out: row.cages_out,
+      cages_tipped: row.cages_tipped,
+      note: row.note,
+      checked: Boolean(row.checked_by),
+      acknowledged: Boolean(row.acknowledged_by),
+      details: details.map((detail) => ({
+        tipped_hour: detail.tipped_hour,
+        checked_cage_numbers: (detail.checked_cage_numbers ?? '')
+          .split(',')
+          .map((value) => value.trim())
+          .filter((value) => value !== ''),
+      })),
+    })
+
+    await markSynced('cages_track_record', row.id, response.data?.id as string)
+    return { id: row.id, label, ok: true }
+  } catch (error) {
+    return failure('cages_track_record', row.id, label, error)
+  }
 }
 
 /**
- * Runs all 7 record types' sync in order (Weighbridge, then Grading — see
- * this file's doc comment for why order matters —, then Cages Track,
- * Threshing, Pressing, Depricarping, Kernel Plant — the latter 4 have no
- * cross-reference dependency on each other or on the original 3, so their
- * relative order doesn't matter). `productionLineId` is the Production
- * Line selected on Station List's picker step (StationListView.vue's own
- * local state, unlike `userId` — read from the auth store since it IS a
- * property of the logged-in user).
+ * Runs every station's sync in order (Weighbridge, then Grading — see this
+ * file's doc comment for why order matters —, then the rest).
+ *
+ * `fallbackProductionLineId` is the Production Line selected on Station
+ * List. Since 2026-10-04 it is ONLY a fallback: each record is pushed to the
+ * line of the station it was created on (see resolveRecordContext()).
  */
-export async function syncAllRecords(productionLineId: string | null | undefined): Promise<SyncSummary> {
+export async function syncAllRecords(fallbackProductionLineId: string | null | undefined): Promise<SyncSummary> {
   const authStore = useAuthStore()
   const userId = authStore.currentUser?.id
 
-  if (!productionLineId || !userId) {
-    throw new Error('Tidak dapat sinkronisasi: production line atau user tidak diketahui.')
+  if (!userId) {
+    throw new Error('Tidak dapat sinkronisasi: user tidak diketahui.')
+  }
+
+  const gradingRows = await pendingRows<LocalGradingRow & { station_id?: string | null }>('grading_record', userId)
+  if (gradingRows.length > 0) {
+    // Best-effort: segarkan master Quality Parameter (id server) sebelum
+    // menyusun payload Grading. Offline / endpoint belum ada → lanjut;
+    // pushGradingRow menolak di perangkat bila id masih tidak terpetakan.
+    try {
+      await fetchAndCacheGradingParameters()
+    } catch {
+      // abaikan
+    }
   }
 
   const byStation: Record<string, SyncItemResult[]> = {
     // Bespoke payloads — see each function for why it is not config-driven.
-    weighbridge: await syncWeighbridgeRecords(productionLineId, userId),
-    grading: await syncGradingRecords(productionLineId, userId),
-    cagesTrack: await syncCagesTrackRecords(productionLineId, userId),
+    weighbridge: await syncTable(
+      'weighbridge_record',
+      await pendingRows<LocalWeighbridgeRow & { station_id?: string | null }>('weighbridge_record', userId),
+      fallbackProductionLineId,
+      (row) => row.wb_card_number ?? row.id,
+      pushWeighbridgeRow,
+    ),
+    grading: await syncTable(
+      'grading_record',
+      gradingRows,
+      fallbackProductionLineId,
+      (row) => row.grading_number ?? row.id,
+      pushGradingRow,
+    ),
+    cagesTrack: await syncTable(
+      'cages_track_record',
+      await pendingRows<LocalCagesTrackRow & { station_id?: string | null }>('cages_track_record', userId),
+      fallbackProductionLineId,
+      (row) => row.cages_track_number ?? row.id,
+      pushCagesTrackRow,
+    ),
   }
 
-  // The other 15, including the 11 that had no sync path at all before
-  // 2026-09-14 and whose records could never leave the device.
   for (const config of STATION_PUSH_CONFIGS) {
-    byStation[config.key] = await syncUniformStation(config, productionLineId, userId)
+    byStation[config.key] = await syncUniformStation(config, fallbackProductionLineId, userId)
   }
 
   const items = Object.values(byStation).flat()

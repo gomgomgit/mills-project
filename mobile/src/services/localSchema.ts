@@ -1,4 +1,5 @@
 import { query, run } from '@/services/localDb'
+import { toLocalDateString, toLocalDateTimeString } from '@/utils/localDate'
 
 /**
  * localSchema — authoritative local SQLite DDL (schema definition +
@@ -1293,6 +1294,8 @@ export async function initLocalSchema(): Promise<void> {
   await migrateRecordTablesForSync()
   await migrateRecordTablesForVerifierNames()
   await migrateMillSettingForImmediateSync()
+  await migrateRecordTablesForSyncError()
+  await normalizeLegacyUtcDates()
   await dedupeStationRows()
 }
 
@@ -1520,6 +1523,81 @@ async function migrateRecordTablesForVerifierNames(): Promise<void> {
   await addMissingColumns('clarification_record', VERIFIER_NAME_COLUMNS)
   await addMissingColumns('process_quality_control_record', VERIFIER_NAME_COLUMNS)
   await addMissingColumns('sterilizer_record', VERIFIER_NAME_COLUMNS)
+}
+
+/** The 18 local record (header) tables, in station-grid order. */
+export const RECORD_TABLES = [
+  'weighbridge_record',
+  'grading_record',
+  'cages_track_record',
+  'sterilizer_record',
+  'threshing_record',
+  'pressing_record',
+  'depricarping_record',
+  'kernel_plant_record',
+  'clarification_record',
+  'boiler_room_record',
+  'effluent_plant_record',
+  'engine_room_record',
+  'process_water_record',
+  'storage_tank_record',
+  'solid_waste_disposal_record',
+  'kernel_dispatch_record',
+  'cpo_dispatch_record',
+  'process_quality_control_record',
+] as const
+
+/**
+ * `sync_error` (audit 2026-10-04) — alasan penolakan sinkronisasi TERAKHIR
+ * untuk record ini, ditulis syncService saat push gagal dan dikosongkan saat
+ * berhasil. Data Preview menampilkannya sebagai "Gagal sinkron: <alasan>"
+ * supaya record yang ditolak tidak lagi tampak "Tersimpan" tanpa petunjuk.
+ */
+async function migrateRecordTablesForSyncError(): Promise<void> {
+  for (const table of RECORD_TABLES) {
+    await addMissingColumns(table, [{ name: 'sync_error', type: 'TEXT' }])
+  }
+}
+
+const ZONED_SUFFIX = /(Z|[+-]\d{2}:\d{2})$/
+
+/**
+ * Data lama (sebelum 2026-10-04) menyimpan `date` draft sebagai ISO UTC
+ * ('2026-10-03T18:30:00.000Z') dan record_datetime/tippler_start_time
+ * Weighbridge/Cages Track juga UTC. Antara 00:00–06:59 WIB itu tanggal
+ * kemarin. Konversi sekali ke konvensi lokal src/utils/localDate.ts:
+ * kolom tanggal → 'YYYY-MM-DD', kolom datetime → jam lokal tanpa sufiks.
+ * Hanya nilai yang BERSUFIKS zona (Z / ±hh:mm) yang disentuh — nilai lokal
+ * yang sudah benar dibiarkan. Idempoten.
+ */
+async function normalizeLegacyUtcDates(): Promise<void> {
+  const targets: Array<{ table: string; column: string; kind: 'date' | 'datetime' }> = [
+    ...RECORD_TABLES.filter((table) => table !== 'weighbridge_record').map((table) => ({
+      table,
+      column: 'date',
+      kind: 'date' as const,
+    })),
+    { table: 'weighbridge_record', column: 'record_datetime', kind: 'datetime' },
+    { table: 'cages_track_record', column: 'tippler_start_time', kind: 'datetime' },
+    { table: 'cages_track_record', column: 'tippler_stop_time', kind: 'datetime' },
+  ]
+
+  for (const { table, column, kind } of targets) {
+    const columns = await query<{ name: string }>(`PRAGMA table_info(${table})`)
+    if (!columns.some((c) => c.name === column)) continue
+
+    const rows = await query<{ id: string; value: string }>(
+      `SELECT id, ${column} AS value FROM ${table} WHERE ${column} LIKE '%T%'`,
+    )
+
+    for (const row of rows) {
+      if (!ZONED_SUFFIX.test(row.value)) continue
+      const normalized = kind === 'date' ? toLocalDateString(row.value) : toLocalDateTimeString(row.value)
+      if (normalized && normalized !== row.value) {
+        await run(`UPDATE ${table} SET ${column} = ? WHERE id = ?`, [normalized, row.id])
+      }
+    }
+  }
 }
 
 async function migrateRecordTablesForSync(): Promise<void> {
@@ -1807,6 +1885,18 @@ const DEFAULT_GRADING_PARAMETERS: Array<{ name: string; uom: 'kg' | 'bunch' }> =
  * rather than waiting for login.
  */
 export async function seedGradingParametersIfNeeded(): Promise<void> {
+  // Master dari server sudah tersimpan (gradingParameterSync.ts) → jangan
+  // tanam lagi id buatan `default-grading-parameter-N`: id itu tidak dikenal
+  // server dan dulu membuat setiap sinkronisasi Grading gagal 500
+  // (audit 2026-10-04). Seed ini hanya cadangan untuk perangkat yang belum
+  // pernah online.
+  const serverRows = await query<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM grading_parameter WHERE id NOT LIKE 'default-grading-parameter-%'`,
+  )
+  if ((serverRows?.[0]?.n ?? 0) > 0) {
+    return
+  }
+
   const now = new Date().toISOString()
 
   for (const [index, parameter] of DEFAULT_GRADING_PARAMETERS.entries()) {

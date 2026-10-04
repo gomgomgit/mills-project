@@ -30,6 +30,9 @@ import sterilizerRecordRepo, {
   type SterilizerRecord,
 } from '@/services/sterilizerRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
+import SyncFailureHint from '@/components/SyncFailureHint.vue'
+import { pullVerificationStatus } from '@/services/recordVerificationApi'
+import { toDateInputValue } from '@/utils/localDate'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
 
@@ -82,6 +85,9 @@ async function loadList(): Promise<void> {
 
   try {
     allRecords.value = await sterilizerRecordRepo.getAllRecords(userId)
+    // Best-effort: segarkan status verifikasi dari server di latar belakang
+    // (audit 2026-10-04) — tidak menunda tampilan daftar.
+    void pullVerificationStatus('sterilizer', 'sterilizer_record', userId)
   } catch (err) {
     listError.value = err instanceof Error ? err.message : 'Gagal memuat daftar data sterilizer lokal.'
   } finally {
@@ -151,6 +157,19 @@ const detailLoadErrorMessage = ref<string | null>(null)
 const detailRecord = ref<SterilizerRecord | null>(null)
 const detailRows = ref<SterilizerDetailRow[]>([])
 
+/**
+ * Audit 2026-10-04 — tarik status verifikasi terbaru dari server (Supervisor/
+ * Mill Management bisa memverifikasi lewat web) lalu muat ulang record ini
+ * bila ada yang berubah. Senyap bila offline / endpoint tidak tersedia.
+ */
+function refreshVerificationInBackground(recordId: string): void {
+  void pullVerificationStatus('sterilizer', 'sterilizer_record', currentUserId()).then(async (changed) => {
+    if (changed === 0 || detailRecord.value?.id !== recordId) return
+    const fresh = await sterilizerRecordRepo.getDraftWithDetails(recordId)
+    if (fresh && detailRecord.value?.id === recordId) detailRecord.value = fresh.record
+  })
+}
+
 async function loadDetail(recordId: string): Promise<void> {
   detailLoading.value = true
   detailLoadErrorMessage.value = null
@@ -167,6 +186,7 @@ async function loadDetail(recordId: string): Promise<void> {
     }
 
     detailRecord.value = draft.record
+    refreshVerificationInBackground(recordId)
     detailRows.value = draft.details
   } catch (err) {
     detailLoadErrorMessage.value = err instanceof Error ? err.message : 'Gagal memuat data sterilizer.'
@@ -307,7 +327,10 @@ function goToMonitor() {
       <ul v-else class="record-list" role="list" data-testid="record-list">
         <li v-for="item in filteredRecords" :key="item.id" role="listitem">
           <button type="button" class="record-item" :data-testid="`record-item-${item.id}`" @click="onItemClick(item)">
-            <span class="record-item-label">{{ recordLabel(item) }}</span>
+            <span class="record-item-text">
+              <span class="record-item-label">{{ recordLabel(item) }}</span>
+              <SyncFailureHint :record="item" compact />
+            </span>
             <StatusBadge :status="listBadgeInfo(item).status" :label="listBadgeInfo(item).label" />
           </button>
         </li>
@@ -323,10 +346,11 @@ function goToMonitor() {
       <p v-else-if="detailLoadErrorMessage" class="status-text status-text--error" role="alert">{{ detailLoadErrorMessage }}</p>
 
       <div v-else-if="detailRecord" class="detail-body">
+        <SyncFailureHint :record="detailRecord" />
         <section class="detail-section">
           <h2 class="section-title">Identitas Sterilizer</h2>
           <p data-testid="detail-sterilizer-id"><strong>Sterilizer ID:</strong> {{ detailRecord.sterilizer_id || '-' }}</p>
-          <p><strong>Tanggal:</strong> {{ detailRecord.date || '-' }}</p>
+          <p><strong>Tanggal:</strong> {{ toDateInputValue(detailRecord.date) || '-' }}</p>
           <p v-if="detailBadgeInfo">
             <strong>Status:</strong>
             <StatusBadge :status="detailBadgeInfo.status" :label="detailBadgeInfo.label" />
@@ -379,7 +403,7 @@ function goToMonitor() {
           :verifier-name="detailRecord.acknowledged_by_name"
           pending-label="Belum dikonfirmasi Mill Management"
         />
-          <p><strong>Note:</strong> {{ detailRecord.note || '-' }}</p>
+          <p><strong>Catatan:</strong> {{ detailRecord.note || '-' }}</p>
         </section>
       </div>
     </template>
@@ -400,6 +424,12 @@ function goToMonitor() {
 </template>
 
 <style scoped>
+.record-item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .preview-ster-view { min-height: 100vh; display: flex; flex-direction: column; gap: 16px; padding: 0 16px 20px; background: #ffffff; font-family: 'Inter', sans-serif; box-sizing: border-box; }
 .app-header { position: relative; display: flex; align-items: center; justify-content: space-between; min-height: 64px; margin: 0 -16px; padding: 0 16px; background: #ffffff; }
 .brand-name { font-size: 16px; font-weight: 700; color: #1f2937; }

@@ -430,7 +430,7 @@ describe('gradingRecordRepo', () => {
   // screen-011--form-grading — FormGradingView.vue's "WB Card No" dropdown
   // reference list.
   describe('getWeighbridgeRecordOptions()', () => {
-    it('returns ALL local weighbridge_record rows regardless of status, ordered by record_datetime DESC, NOT scoped to created_by', async () => {
+    it('returns saved/synced weighbridge_record rows with a WB Card number, ordered by record_datetime DESC, NOT scoped to created_by', async () => {
       const rows: WeighbridgeRecordOption[] = [
         {
           id: 'wb-1',
@@ -459,9 +459,12 @@ describe('gradingRecordRepo', () => {
       expect(sql).toContain('FROM weighbridge_record')
       expect(sql).toContain('ORDER BY record_datetime DESC')
       expect(sql).not.toContain('created_by')
-      // Deliberately no WHERE param at all — every local row is returned,
-      // regardless of which device user created it.
-      expect(params).toBeUndefined()
+      // Audit 2026-10-04: only saved/synced rows WITH a WB Card number (the
+      // filtering itself is proven against real SQLite in
+      // gradingRecordRepo.sqljs.spec.ts); the only param is the optional
+      // "keep this already-selected id" escape hatch.
+      expect(sql).toContain("status IN ('saved', 'synced')")
+      expect(params).toEqual([null])
     })
 
     it('returns an empty array (no crash) when there is no local weighbridge_record data at all', async () => {

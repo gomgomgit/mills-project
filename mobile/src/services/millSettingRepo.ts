@@ -54,7 +54,10 @@ function toMillSetting(row: MillSettingRow): MillSetting {
  */
 export async function getMillSetting(businessUnitId: string): Promise<MillSetting | null> {
   const rows = await query<MillSettingRow>(
-    `SELECT id, business_unit_id, app_name, logo, home_page_image, jumlah_cages
+    // immediate_sync_enabled WAJIB ikut di-SELECT — sebelumnya terlewat,
+    // sehingga toMillSetting() selalu membaca undefined → false dan
+    // write-through tidak pernah aktif (audit 2026-10-04).
+    `SELECT id, business_unit_id, app_name, logo, home_page_image, jumlah_cages, immediate_sync_enabled
      FROM mill_setting WHERE business_unit_id = ?`,
     [businessUnitId],
   )

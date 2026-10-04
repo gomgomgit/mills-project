@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import apiClient from '@/services/apiClient'
 import { tokenStorage } from '@/services/tokenStorage'
 import { fetchAndCacheMillSetting } from '@/services/localSchema'
+import { fetchAndCacheGradingParameters } from '@/services/gradingParameterSync'
 
 /**
  * OFFLINE_GRACE_PERIOD_MS — screen-002--login-mobile / "Token Sesi Lokal
@@ -126,6 +127,17 @@ export const useAuthStore = defineStore('auth', {
         } catch {
           // Offline or request failed — non-fatal, login already succeeded.
         }
+      }
+
+      // Master Quality Parameter Grading dari server (2026-10-04): tanpa ini
+      // Form Grading di perangkat baru menampilkan parameter bawaan ber-id
+      // palsu sampai sinkron pertama. Sama seperti mill-setting: best-effort,
+      // gagal/offline tidak menggagalkan login — sinkron Grading tetap
+      // mengambil ulang master ini sebelum mengirim.
+      try {
+        await fetchAndCacheGradingParameters()
+      } catch {
+        // Offline or request failed — non-fatal, login already succeeded.
       }
     },
 

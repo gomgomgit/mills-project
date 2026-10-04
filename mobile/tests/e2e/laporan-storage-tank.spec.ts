@@ -782,7 +782,7 @@ test.describe('Laporan Storage Tank Mobile (screen-139)', () => {
       await expect(page.getByTestId('period-meta')).toContainText('Periode September 2026')
 
       // Kelengkapan pencatatan — dibaca lebih dulu.
-      await expect(page.getByTestId('coverage-percent')).toHaveText('1,25%')
+      await expect(page.getByTestId('coverage-percent')).toHaveText('1,3%')
       await expect(page.getByTestId('coverage-slots')).toContainText('3 dari 240 slot waktu terisi')
 
       // Stok awal / akhir beserta TANGGAL PEMBACAANNYA, lalu pergerakan.
@@ -865,7 +865,7 @@ test.describe('Laporan Storage Tank Mobile (screen-139)', () => {
 
     await pickPeriod(page, 'per-1')
 
-    await expect(page.getByTestId('coverage-percent')).toHaveText('1,25%')
+    await expect(page.getByTestId('coverage-percent')).toHaveText('1,3%')
     await expect(page.getByTestId('stock-opening-mt')).toHaveText('1.200,0')
     await expect(page.getByTestId('stock-closing-mt')).toHaveText('1.500,0')
     await expect(page.getByTestId('stock-movement-mt')).toHaveText('+280,5')
@@ -1273,7 +1273,7 @@ test.describe('Laporan Storage Tank Mobile (screen-139)', () => {
 
     await pickPeriod(page, 'per-1')
 
-    await expect(page.getByTestId('coverage-percent')).toHaveText('1,25%')
+    await expect(page.getByTestId('coverage-percent')).toHaveText('1,3%')
     await expect(page.getByTestId('coverage-slots')).toContainText('6 dari 480 slot waktu terisi')
 
     // Posisi di layar, bukan sekadar urutan DOM: kartu kelengkapan berada
@@ -1412,7 +1412,7 @@ test.describe('Laporan Storage Tank Mobile (screen-139)', () => {
   })
 
   // Scenario 19: "periode tertutup"
-  test('periode tertutup — laporan penuh, status Ditutup terbaca, dan unduhan CSV tetap berjalan', async ({
+  test('periode tertutup — laporan penuh, status Tertutup terbaca, dan unduhan CSV tetap berjalan', async ({
     page,
   }) => {
     await login(page, USERS.operator)
@@ -1433,7 +1433,7 @@ test.describe('Laporan Storage Tank Mobile (screen-139)', () => {
 
     await pickPeriod(page, 'per-3')
 
-    await expect(page.getByTestId('period-status-badge')).toContainText('Ditutup')
+    await expect(page.getByTestId('period-status-badge')).toContainText('Tertutup')
     await expect(page.getByTestId('stock-opening-mt')).toHaveText('1.200,0')
     await expect(page.getByTestId('stock-movement-mt')).toHaveText('+280,5')
     await expect(page.getByTestId('by-tank-card')).toBeVisible()
@@ -1560,7 +1560,7 @@ test.describe('Laporan Storage Tank Mobile (screen-139)', () => {
     await expect(page.getByTestId('stock-opening-mt')).toHaveText('1.200,0')
     await expect(page.getByTestId('stock-closing-mt')).toHaveText('1.500,0')
     await expect(page.getByTestId('stock-movement-mt')).toHaveText('+280,5')
-    await expect(page.getByTestId('coverage-percent')).toHaveText('1,25%')
+    await expect(page.getByTestId('coverage-percent')).toHaveText('1,3%')
     await expect(page.getByTestId('metric-ffa-max')).toHaveText('4,40')
   })
 

@@ -38,34 +38,48 @@ function failedItems(summary: SyncSummary) {
 </script>
 
 <template>
-  <div v-if="open" class="sync-dialog-overlay" @click.self="emit('close')">
-    <div class="sync-dialog" role="alertdialog" aria-modal="true" aria-label="Hasil Sinkronisasi">
-      <h2 class="sync-dialog-title">
-        {{ errorMessage ? 'Sinkronisasi Gagal' : 'Sinkronisasi Selesai' }}
-      </h2>
+  <!--
+    Teleport ke <body> + z-index sama dengan ConfirmDialog.vue (audit
+    2026-10-04): backdrop harus menutup SELURUH viewport termasuk header,
+    dan berada di atas jam/bubble mengambang (z 1000/999) — tidak boleh
+    bergantung pada konteks tumpukan/containing block induknya di layar.
+  -->
+  <Teleport to="body">
+    <div v-if="open" class="sync-dialog-overlay" data-testid="sync-dialog-overlay" @click.self="emit('close')">
+      <div class="sync-dialog" role="alertdialog" aria-modal="true" aria-label="Hasil Sinkronisasi">
+        <h2 class="sync-dialog-title">
+          {{ errorMessage ? 'Sinkronisasi Gagal' : 'Sinkronisasi Selesai' }}
+        </h2>
 
-      <p v-if="errorMessage" class="sync-dialog-message sync-dialog-message--error" data-testid="sync-dialog-message">
-        {{ errorMessage }}
-      </p>
-
-      <template v-else-if="summary">
-        <p class="sync-dialog-message" data-testid="sync-dialog-message">
-          {{ summary.syncedCount }} data berhasil disinkronkan{{ summary.failedCount > 0 ? `, ${summary.failedCount} gagal.` : '.' }}
+        <p v-if="errorMessage" class="sync-dialog-message sync-dialog-message--error" data-testid="sync-dialog-message">
+          {{ errorMessage }}
         </p>
 
-        <ul v-if="failedItems(summary).length > 0" class="sync-dialog-failed-list" data-testid="sync-dialog-failed-list">
-          <li v-for="item in failedItems(summary)" :key="item.id" class="sync-dialog-failed-item">
-            <span class="sync-dialog-failed-label">{{ item.label }}</span>
-            <span class="sync-dialog-failed-reason">{{ item.reason }}</span>
-          </li>
-        </ul>
-      </template>
+        <template v-else-if="summary">
+          <p class="sync-dialog-message" data-testid="sync-dialog-message">
+            {{ summary.syncedCount }} data berhasil disinkronkan{{ summary.failedCount > 0 ? `, ${summary.failedCount} gagal.` : '.' }}
+          </p>
 
-      <button type="button" class="sync-dialog-button" data-testid="sync-dialog-close" @click="emit('close')">
-        Tutup
-      </button>
+          <ul v-if="failedItems(summary).length > 0" class="sync-dialog-failed-list" data-testid="sync-dialog-failed-list">
+            <li
+              v-for="item in failedItems(summary)"
+              :key="item.id"
+              class="sync-dialog-failed-item"
+              data-testid="sync-dialog-failed-item"
+            >
+              <span v-if="item.stationName" class="sync-dialog-failed-station">{{ item.stationName }}</span>
+              <span class="sync-dialog-failed-label">{{ item.label }}</span>
+              <span class="sync-dialog-failed-reason">{{ item.reason }}</span>
+            </li>
+          </ul>
+        </template>
+
+        <button type="button" class="sync-dialog-button" data-testid="sync-dialog-close" @click="emit('close')">
+          Tutup
+        </button>
+      </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -77,7 +91,7 @@ function failedItems(summary: SyncSummary) {
   justify-content: center;
   padding: 20px;
   background-color: rgba(17, 24, 39, 0.5);
-  z-index: 1000;
+  z-index: 1200;
   box-sizing: border-box;
 }
 
@@ -129,8 +143,18 @@ function failedItems(summary: SyncSummary) {
   background-color: #fef2f2;
 }
 
+.sync-dialog-failed-station {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
 .sync-dialog-failed-label {
   display: block;
+  overflow-wrap: anywhere;
   font-size: 13px;
   font-weight: 600;
   color: #1f2937;
@@ -138,6 +162,7 @@ function failedItems(summary: SyncSummary) {
 
 .sync-dialog-failed-reason {
   display: block;
+  overflow-wrap: anywhere;
   font-size: 13px;
   color: #dc2626;
 }

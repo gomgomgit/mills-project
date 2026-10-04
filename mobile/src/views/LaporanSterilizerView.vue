@@ -719,7 +719,7 @@ function formatShortDate(value: string | null | undefined): string {
 const PERIOD_STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
   open: 'Terbuka',
-  closed: 'Ditutup',
+  closed: 'Tertutup',
 }
 
 function periodStatusLabel(status: string | null | undefined): string {

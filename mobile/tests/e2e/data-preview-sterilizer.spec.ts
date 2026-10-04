@@ -174,7 +174,7 @@ test.describe('Data Preview Sterilizer (screen-123)', () => {
 
     await expect(page.getByTestId('detail-sterilizer-id')).toContainText('STR-PREVIEW-1')
     await expect(page.getByText(`Tanggal: ${today}`)).toBeVisible()
-    await expect(page.getByText('Note: Catatan e2e')).toBeVisible()
+    await expect(page.getByText('Catatan: Catatan e2e')).toBeVisible()
     await expect(page.getByTestId('verify-status-checked-by')).toContainText('Oleh Supervisor Satu')
     await expect(page.getByTestId('verify-status-acknowledged-by')).toContainText('Belum dikonfirmasi Mill Management')
 

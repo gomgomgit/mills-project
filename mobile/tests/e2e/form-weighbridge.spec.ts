@@ -35,7 +35,7 @@ import { login, getAuthUserId } from './helpers'
 async function fillBaseRequiredFields(page: Page): Promise<void> {
   await page.getByLabel('WB Card Number/ID').fill('WB-001')
   await page.getByLabel('No. Kendaraan').fill('B 1234 CD')
-  await page.getByLabel('Nama Supir').fill('Budi Santoso')
+  await page.getByLabel('Nama Sopir').fill('Budi Santoso')
   await page.getByLabel('Estate/Supplier Asal').fill('Estate A')
   await page.getByLabel('Berat Masuk (Gross)').fill('15000')
 }
@@ -280,7 +280,7 @@ test.describe('Form Weighbridge (screen-010)', () => {
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/weighbridge\/form\/(.+)/)
 
-    // Fill partially — leave a required field (Nama Supir) empty.
+    // Fill partially — leave a required field (Nama Sopir) empty.
     await page.getByLabel('WB Card Number/ID').fill('WB-PAUSE-01')
     await page.getByLabel('No. Kendaraan').fill('B 9999 ZZ')
 

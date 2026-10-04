@@ -804,7 +804,7 @@ test.describe('Laporan Sterilizer Mobile (screen-135)', () => {
   })
 
   // Scenario: "Periode tertutup"
-  test('Periode tertutup — badge "Ditutup", laporan tetap penuh, ekspor tetap mengunduh CSV', async ({ page }) => {
+  test('Periode tertutup — badge "Tertutup", laporan tetap penuh, ekspor tetap mengunduh CSV', async ({ page }) => {
     await login(page)
     await stubApi(page, {
       periods: [PERIOD_CLOSED],
@@ -823,7 +823,7 @@ test.describe('Laporan Sterilizer Mobile (screen-135)', () => {
 
     await pickPeriod(page, 'per-3')
 
-    await expect(page.getByTestId('period-status-badge')).toHaveText('Ditutup')
+    await expect(page.getByTestId('period-status-badge')).toHaveText('Tertutup')
     await expect(page.getByTestId('kpi-total-cycles')).toHaveText('1.234')
     await expect(page.getByTestId('daily-trend')).toBeVisible()
     await expect(page.getByTestId('by-unit')).toBeVisible()

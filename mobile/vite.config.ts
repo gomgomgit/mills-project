@@ -42,5 +42,9 @@ export default defineConfig({
     // up too and fails trying to run test.describe() outside Playwright's
     // runner. Excluded here; run them via `npm run test:e2e` instead.
     exclude: ['**/node_modules/**', 'tests/e2e/**'],
+    // Dialog modal (ConfirmDialog/SyncResultDialog) di-<Teleport> ke <body>;
+    // setup ini men-stub Teleport agar isinya tetap ada di dalam wrapper
+    // spec layar. Lihat tests/setup/teleportStub.ts.
+    setupFiles: ['tests/setup/teleportStub.ts'],
   },
 })

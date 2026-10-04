@@ -47,8 +47,15 @@ describe('syncService — syncAllRecords()', () => {
     vi.mocked(run).mockResolvedValue({ changes: 1 })
   })
 
-  it('throws when no productionLineId is given', async () => {
-    await expect(syncAllRecords(null)).rejects.toThrow('Tidak dapat sinkronisasi')
+  // Sejak 2026-10-04 line yang dipilih hanya CADANGAN — setiap record
+  // memakai line stasiunnya sendiri — jadi tanpa pilihan pun sync tetap
+  // berjalan; record tanpa line yang bisa diketahui gagal per-record.
+  it('does not throw without a selected productionLineId — it is only a fallback now', async () => {
+    vi.mocked(query).mockResolvedValue([])
+
+    const summary = await syncAllRecords(null)
+
+    expect(summary.items).toEqual([])
     expect(apiClient.post).not.toHaveBeenCalled()
   })
 
@@ -116,10 +123,10 @@ describe('syncService — syncAllRecords()', () => {
     expect(payload).not.toHaveProperty('station_id')
 
     expect(run).toHaveBeenCalledWith(
-      `UPDATE weighbridge_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      `UPDATE weighbridge_record SET status = 'synced', server_id = ?, sync_error = NULL WHERE id = ?`,
       ['server-wb-1', 'local-wb-1'],
     )
-    expect(summary.byStation.weighbridge).toEqual([{ id: 'local-wb-1', label: 'WB-001', ok: true }])
+    expect(summary.byStation.weighbridge).toMatchObject([{ id: 'local-wb-1', label: 'WB-001', ok: true }])
     expect(summary.syncedCount).toBe(1)
     expect(summary.failedCount).toBe(0)
   })
@@ -135,7 +142,7 @@ describe('syncService — syncAllRecords()', () => {
 
     const summary = await syncAllRecords(PRODUCTION_LINE_ID)
 
-    expect(summary.byStation.weighbridge).toEqual([
+    expect(summary.byStation.weighbridge).toMatchObject([
       { id: 'local-wb-1', label: 'WB-001', ok: false, reason: 'WB Card Number wajib diisi.' },
     ])
     expect(summary.failedCount).toBe(1)
@@ -190,7 +197,7 @@ describe('syncService — syncAllRecords()', () => {
         details: [{ grading_parameter_id: 'param-1', quantity: 100 }],
       }),
     )
-    expect(summary.byStation.grading).toEqual([{ id: 'local-gr-1', label: 'GR-001', ok: true }])
+    expect(summary.byStation.grading).toMatchObject([{ id: 'local-gr-1', label: 'GR-001', ok: true }])
   })
 
   it('fails a Grading record without POSTing when its parent Weighbridge record has not been synced', async () => {
@@ -209,7 +216,7 @@ describe('syncService — syncAllRecords()', () => {
 
     const summary = await syncAllRecords(PRODUCTION_LINE_ID)
 
-    expect(summary.byStation.grading).toEqual([
+    expect(summary.byStation.grading).toMatchObject([
       {
         id: 'local-gr-1',
         label: 'GR-001',
@@ -293,10 +300,10 @@ describe('syncService — syncAllRecords()', () => {
       }),
     )
     expect(run).toHaveBeenCalledWith(
-      `UPDATE threshing_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      `UPDATE threshing_record SET status = 'synced', server_id = ?, sync_error = NULL WHERE id = ?`,
       ['server-th-1', 'local-th-1'],
     )
-    expect(summary.byStation.threshing).toEqual([{ id: 'local-th-1', label: 'TH-001', ok: true }])
+    expect(summary.byStation.threshing).toMatchObject([{ id: 'local-th-1', label: 'TH-001', ok: true }])
   })
 
   it('syncs a saved Pressing record with its detail rows, then marks it synced with the server id', async () => {
@@ -331,10 +338,10 @@ describe('syncService — syncAllRecords()', () => {
       }),
     )
     expect(run).toHaveBeenCalledWith(
-      `UPDATE pressing_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      `UPDATE pressing_record SET status = 'synced', server_id = ?, sync_error = NULL WHERE id = ?`,
       ['server-pr-1', 'local-pr-1'],
     )
-    expect(summary.byStation.pressing).toEqual([{ id: 'local-pr-1', label: 'PR-001', ok: true }])
+    expect(summary.byStation.pressing).toMatchObject([{ id: 'local-pr-1', label: 'PR-001', ok: true }])
   })
 
   it('syncs a saved Depricarping record with its detail rows (downtime_minutes/findings), then marks it synced', async () => {
@@ -369,10 +376,10 @@ describe('syncService — syncAllRecords()', () => {
       }),
     )
     expect(run).toHaveBeenCalledWith(
-      `UPDATE depricarping_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      `UPDATE depricarping_record SET status = 'synced', server_id = ?, sync_error = NULL WHERE id = ?`,
       ['server-dp-1', 'local-dp-1'],
     )
-    expect(summary.byStation.depricarping).toEqual([{ id: 'local-dp-1', label: 'DP-001', ok: true }])
+    expect(summary.byStation.depricarping).toMatchObject([{ id: 'local-dp-1', label: 'DP-001', ok: true }])
   })
 
   it('syncs a saved Kernel Plant record with its detail rows, then marks it synced with the server id', async () => {
@@ -406,10 +413,10 @@ describe('syncService — syncAllRecords()', () => {
       }),
     )
     expect(run).toHaveBeenCalledWith(
-      `UPDATE kernel_plant_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      `UPDATE kernel_plant_record SET status = 'synced', server_id = ?, sync_error = NULL WHERE id = ?`,
       ['server-kp-1', 'local-kp-1'],
     )
-    expect(summary.byStation.kernelPlant).toEqual([{ id: 'local-kp-1', label: 'KP-001', ok: true }])
+    expect(summary.byStation.kernelPlant).toMatchObject([{ id: 'local-kp-1', label: 'KP-001', ok: true }])
   })
 
   it('reports a failed Pressing record with the API error message, and does not update local status', async () => {
@@ -423,7 +430,7 @@ describe('syncService — syncAllRecords()', () => {
 
     const summary = await syncAllRecords(PRODUCTION_LINE_ID)
 
-    expect(summary.byStation.pressing).toEqual([
+    expect(summary.byStation.pressing).toMatchObject([
       { id: 'local-pr-1', label: 'PR-001', ok: false, reason: 'Presser ID wajib diisi.' },
     ])
     expect(summary.failedCount).toBe(1)
@@ -456,19 +463,25 @@ describe('syncService — syncAllRecords()', () => {
     const summary = await syncAllRecords(PRODUCTION_LINE_ID)
 
     expect(apiClient.post).toHaveBeenCalledTimes(2)
-    expect(summary.byStation.threshing).toEqual([
+    expect(summary.byStation.threshing).toMatchObject([
       { id: 'local-th-locked', label: 'TH-LOCKED', ok: false, reason: periodClosedMessage, status: 422 },
       { id: 'local-th-open', label: 'TH-OPEN', ok: true },
     ])
     expect(summary.syncedCount).toBe(1)
     expect(summary.failedCount).toBe(1)
 
-    // Only the accepted row is flipped to 'synced'; the locked one stays 'saved'.
-    expect(run).toHaveBeenCalledTimes(1)
+    // Only the accepted row is flipped to 'synced'; the locked one stays
+    // 'saved' — it only gets its rejection reason remembered (2026-10-04) so
+    // Data Preview can show "Gagal sinkron: <alasan>".
+    expect(run).toHaveBeenCalledTimes(2)
     expect(run).toHaveBeenCalledWith(
-      `UPDATE threshing_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      `UPDATE threshing_record SET status = 'synced', server_id = ?, sync_error = NULL WHERE id = ?`,
       ['server-th-open', 'local-th-open'],
     )
-    expect(run).not.toHaveBeenCalledWith(expect.any(String), expect.arrayContaining(['local-th-locked']))
+    expect(run).toHaveBeenCalledWith(`UPDATE threshing_record SET sync_error = ? WHERE id = ?`, [
+      periodClosedMessage,
+      'local-th-locked',
+    ])
+    expect(run).not.toHaveBeenCalledWith(expect.stringContaining("status = 'synced'"), expect.arrayContaining(['local-th-locked']))
   })
 })

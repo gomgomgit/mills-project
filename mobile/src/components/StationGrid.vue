@@ -263,7 +263,7 @@ function showInfoMessage(message: string) {
     </p>
 
     <template v-if="activeStations.length > 0">
-      <p class="section-title">Stasiun MVP Aktif</p>
+      <p class="section-title">Stasiun Aktif</p>
       <div class="station-grid" role="list" aria-label="Daftar stasiun aktif">
         <button
           v-for="station in activeStations"

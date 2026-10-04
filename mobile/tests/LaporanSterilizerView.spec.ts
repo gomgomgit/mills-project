@@ -765,7 +765,7 @@ describe('LaporanSterilizerView — unit_test_cases (tech spec screen-135)', () 
     const wrapper = await mountView()
     await selectPeriod(wrapper, 'per-3')
 
-    expect(text(wrapper, 'period-status-badge')).toBe('Ditutup')
+    expect(text(wrapper, 'period-status-badge')).toBe('Tertutup')
 
     const exportButton = wrapper.get('[data-testid="export-button"]')
     expect(exportButton.attributes('disabled')).toBeUndefined()
@@ -1276,7 +1276,7 @@ describe('LaporanSterilizerView — test_scenarios / component_test (tech spec s
     const wrapper = await mountView()
     await selectPeriod(wrapper, 'per-3')
 
-    expect(text(wrapper, 'period-status-badge')).toBe('Ditutup')
+    expect(text(wrapper, 'period-status-badge')).toBe('Tertutup')
     expect(exists(wrapper, 'kpi-total-cycles')).toBe(true)
     expect(exists(wrapper, 'daily-trend')).toBe(true)
     expect(exists(wrapper, 'duration-distribution')).toBe(true)

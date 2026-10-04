@@ -1183,7 +1183,7 @@ test.describe('Laporan Clarification Mobile (screen-138)', () => {
   })
 
   // Scenario 17: "periode tertutup"
-  test('periode tertutup — laporan penuh, status Ditutup terbaca, dan unduhan CSV tetap berjalan', async ({ page }) => {
+  test('periode tertutup — laporan penuh, status Tertutup terbaca, dan unduhan CSV tetap berjalan', async ({ page }) => {
     await login(page, USERS.operator)
     const api = await stubApi(page, {
       periods: [PERIOD_CLOSED],
@@ -1202,7 +1202,7 @@ test.describe('Laporan Clarification Mobile (screen-138)', () => {
 
     await pickPeriod(page, 'per-3')
 
-    await expect(page.getByTestId('period-status-badge')).toContainText('Ditutup')
+    await expect(page.getByTestId('period-status-badge')).toContainText('Tertutup')
     await expect(page.getByTestId('production-total')).toHaveText('128,5')
     await expect(page.getByTestId('by-unit-card')).toBeVisible()
 

@@ -883,7 +883,7 @@ test.describe('Laporan Cages & Tracks Mobile (screen-136)', () => {
   })
 
   // Scenario 15: "periode tertutup"
-  test('periode tertutup — laporan penuh, status Ditutup terbaca, unduhan CSV tetap berjalan', async ({ page }) => {
+  test('periode tertutup — laporan penuh, status Tertutup terbaca, unduhan CSV tetap berjalan', async ({ page }) => {
     await login(page)
     await stubApi(page, {
       periods: [PERIOD_CLOSED],
@@ -902,7 +902,7 @@ test.describe('Laporan Cages & Tracks Mobile (screen-136)', () => {
 
     await pickPeriod(page, 'per-3')
 
-    await expect(page.getByTestId('period-status-badge')).toHaveText('Ditutup')
+    await expect(page.getByTestId('period-status-badge')).toHaveText('Tertutup')
     await expect(page.getByTestId('kpi-total-cages-tipped')).toHaveText('1.284')
     await expect(page.getByTestId('hourly-distribution')).toBeVisible()
     await expect(page.getByTestId('daily-trend')).toBeVisible()

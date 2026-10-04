@@ -756,7 +756,7 @@ function goToMonitorStorageTank(): void {
           <label for="acknowledged-by-toggle">Saya menyetujui data ini (Acknowledged By)</label>
         </div>
 
-        <FormField v-model="form.note" label="Note" :disabled="actionInProgress" />
+        <FormField id="field-note" v-model="form.note" label="Catatan" :disabled="actionInProgress" />
       </section>
 
       <section class="form-section" aria-label="Storage Tank Detail">

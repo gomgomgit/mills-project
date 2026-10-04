@@ -1035,7 +1035,7 @@ test.describe('Laporan Boiler Room Mobile (screen-137)', () => {
   })
 
   // Scenario 15: "periode tertutup"
-  test('periode tertutup — laporan penuh, status Ditutup terbaca, unduhan CSV tetap berjalan', async ({ page }) => {
+  test('periode tertutup — laporan penuh, status Tertutup terbaca, unduhan CSV tetap berjalan', async ({ page }) => {
     await login(page)
     await stubApi(page, {
       periods: [PERIOD_CLOSED],
@@ -1054,7 +1054,7 @@ test.describe('Laporan Boiler Room Mobile (screen-137)', () => {
 
     await pickPeriod(page, 'per-3')
 
-    await expect(page.getByTestId('period-status-badge')).toHaveText('Ditutup')
+    await expect(page.getByTestId('period-status-badge')).toHaveText('Tertutup')
     await expect(page.getByTestId('coverage-percent')).toHaveText('6,3%')
     await expect(page.locator('[data-testid="metric-cards"] .metric-card')).toHaveCount(9)
     await expect(page.getByTestId('by-unit-card')).toBeVisible()

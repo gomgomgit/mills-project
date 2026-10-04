@@ -241,7 +241,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
 
     // Ditekan pun hanya mengisi pesan — tidak berpindah rute.
     await tile.trigger('click')
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Threshing belum tersedia.')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Threshing belum tersedia di aplikasi mobile.')
     expect(pushMock).not.toHaveBeenCalled()
     expect(wrapper.find('[data-testid="station-tile-threshing"]').exists()).toBe(true)
   })
@@ -377,6 +377,43 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
   })
 
+  // Audit 2026-10-04 — login baru, cache `station` lokal masih kosong: layar
+  // ini dulu kosong sampai Daftar Stasiun dibuka sekali. Sekarang ia mengisi
+  // cache-nya sendiri dari server (jalur yang sama dengan Daftar Stasiun).
+  it('cache stasiun kosong — mengambil Production Line + stasiun dari server sendiri, tanpa harus membuka Daftar Stasiun', async () => {
+    apiClientGetMock.mockImplementation(async (url: string) => {
+      if (url === '/api/production-lines/current') return { data: { data: [{ id: 'pl-1', name: 'Line 1', code: 'L1' }] } }
+      if (url === '/api/production-lines/current/stations') return { data: { data: [] } }
+      throw new Error(`unexpected ${url}`)
+    })
+    localDbRunMock.mockResolvedValue({ changes: 1 })
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue(THREE_STATIONS)
+
+    const wrapper = await mountWithStations([])
+
+    expect(apiClientGetMock).toHaveBeenCalledWith('/api/production-lines/current')
+    expect(apiClientGetMock).toHaveBeenCalledWith('/api/production-lines/current/stations', {
+      params: { production_line_id: 'pl-1' },
+    })
+    expect(getActiveAndPlaceholderStationsForProductionLineMock).toHaveBeenCalledWith('pl-1')
+    expect(wrapper.findAll('[data-testid^="station-tile-"]')).toHaveLength(3)
+    expect(wrapper.find('[data-testid="no-stations"]').exists()).toBe(false)
+    // Line yang dipilih otomatis BUKAN pilihan pengguna — tidak diingat.
+    expect(window.localStorage.getItem('msl_production_line_user-1')).toBeNull()
+  })
+
+  it('cache stasiun kosong dan offline — jatuh ke 18 stasiun bawaan, sama seperti Daftar Stasiun', async () => {
+    apiClientGetMock.mockRejectedValue({ message: 'offline', network: true })
+    localDbRunMock.mockResolvedValue({ changes: 1 })
+    getActiveAndPlaceholderStationsMock.mockResolvedValueOnce([]).mockResolvedValueOnce(THREE_STATIONS)
+
+    const wrapper = mount(ReportingPilihStasiunView)
+    await flushPromises()
+
+    expect(localDbRunMock).toHaveBeenCalledWith('DELETE FROM station WHERE business_unit_id = ?', ['bu-1'])
+    expect(wrapper.findAll('[data-testid^="station-tile-"]')).toHaveLength(3)
+  })
+
   // Pembacaan tabel lokal yang gagal berakhir sama dengan daftar kosong —
   // tidak ada pesan SQLite yang dilempar ke operator di lantai pabrik.
   it('memperlakukan kegagalan pembacaan tabel lokal sebagai daftar kosong, tanpa pesan teknis', async () => {
@@ -412,7 +449,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     await wrapper.get('[data-testid="station-tile-threshing"]').trigger('click')
 
     const infoMessage = wrapper.get('[data-testid="info-message"]')
-    expect(infoMessage.text()).toBe('Laporan Threshing belum tersedia.')
+    expect(infoMessage.text()).toBe('Laporan Threshing belum tersedia di aplikasi mobile.')
     expect(infoMessage.attributes('role')).toBe('status')
     expect(pushMock).not.toHaveBeenCalled()
 
@@ -440,14 +477,14 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     await threshing.trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.findAll('[data-testid="info-message"]')).toHaveLength(1)
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Threshing belum tersedia.')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Threshing belum tersedia di aplikasi mobile.')
 
     await wrapper.get('[data-testid="station-tile-pressing"]').trigger('click')
     await wrapper.vm.$nextTick()
 
     const infoMessages = wrapper.findAll('[data-testid="info-message"]')
     expect(infoMessages).toHaveLength(1)
-    expect(infoMessages[0].text()).toBe('Laporan Pressing belum tersedia.')
+    expect(infoMessages[0].text()).toBe('Laporan Pressing belum tersedia di aplikasi mobile.')
     expect(pushMock).not.toHaveBeenCalled()
   })
 
@@ -595,7 +632,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     await wrapper.get('[data-testid="station-tile-threshing"]').trigger('click')
 
     expect(wrapper.get('[data-testid="station-tile-threshing"]').text()).toContain('Belum tersedia')
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Threshing belum tersedia.')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Threshing belum tersedia di aplikasi mobile.')
     expect(wrapper.text()).not.toMatch(/not available|no stations|loading\b/i)
   })
 })

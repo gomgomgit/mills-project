@@ -331,4 +331,48 @@ describe('FormSterilizerView', () => {
     expect((wrapper.get('[data-testid="checked-by-checkbox"]').element as HTMLInputElement).disabled).toBe(false)
     expect(wrapper.find('[data-testid="acknowledged-by-checkbox"]').exists()).toBe(false)
   })
+
+  // Keputusan pengguna 2026-10-04 — "Checked by SPV" per baris siklus hanya
+  // dapat diubah Supervisor; peran lain melihat nilainya sebagai teks.
+  it.each(['operator', 'mill_management', 'admin'])(
+    'Checked by SPV per baris tampil sebagai teks (bukan input) untuk peran %s',
+    async (role) => {
+      useAuthStoreMock.mockReturnValue({
+        currentUser: { id: 'user-1', username: `${role}01`, name: 'Pengguna', role },
+        logout: vi.fn().mockResolvedValue(undefined),
+      })
+      getDraftWithDetailsMock.mockResolvedValueOnce({
+        record: makeDraftRecord(),
+        details: [makeDetailRow({ checked_by_spv: true }), makeDetailRow({ id: 'detail-2', checked_by_spv: false })],
+      })
+
+      const wrapper = mount(FormSterilizerView)
+      await flushPromises()
+
+      expect(wrapper.find('[data-testid="detail-checked-by-spv-0"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="detail-row-0"] input[type="checkbox"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="detail-checked-by-spv-text-0"]').text()).toBe('Ya')
+      expect(wrapper.get('[data-testid="detail-checked-by-spv-text-1"]').text()).toBe('—')
+    },
+  )
+
+  it('Checked by SPV per baris adalah checkbox yang bisa diubah oleh Supervisor', async () => {
+    useAuthStoreMock.mockReturnValue({
+      currentUser: { id: 'user-1', username: 'sup01', name: 'Supervisor Satu', role: 'supervisor' },
+      logout: vi.fn().mockResolvedValue(undefined),
+    })
+    getDraftWithDetailsMock.mockResolvedValueOnce({
+      record: makeDraftRecord(),
+      details: [makeDetailRow({ checked_by_spv: false })],
+    })
+
+    const wrapper = mount(FormSterilizerView)
+    await flushPromises()
+
+    const box = wrapper.get('[data-testid="detail-checked-by-spv-0"]')
+    expect((box.element as HTMLInputElement).disabled).toBe(false)
+    await box.setValue(true)
+    expect((box.element as HTMLInputElement).checked).toBe(true)
+    expect(wrapper.find('[data-testid="detail-checked-by-spv-text-0"]').exists()).toBe(false)
+  })
 })

@@ -1,5 +1,6 @@
 import { query, run } from '@/services/localDb'
 import { resolveActiveStationId } from '@/services/activeStation'
+import { todayLocalDateString } from '@/utils/localDate'
 
 /**
  * threshingRecordRepo — screen-037--monitor-threshing /
@@ -250,7 +251,7 @@ export async function createDraft(userId: string): Promise<string> {
   await run(
     `INSERT INTO threshing_record (id, status, created_by, station_id, date, created_at, updated_at)
      VALUES (?, 'draft_ongoing', ?, ?, ?, ?, ?)`,
-    [id, userId, stationId, timestamp, timestamp, timestamp],
+    [id, userId, stationId, todayLocalDateString(), timestamp, timestamp],
   )
 
   return id

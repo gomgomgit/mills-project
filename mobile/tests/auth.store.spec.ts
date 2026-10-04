@@ -128,3 +128,32 @@ describe('auth store — restoreSession() ("Token Sesi Lokal Kadaluarsa")', () =
     expect(store.sessionExpiredOffline).toBe(false)
   });
 })
+
+// login() — master Quality Parameter Grading ikut diambil saat login
+// (2026-10-04). Tanpa ini Form Grading di perangkat baru menampilkan parameter
+// bawaan ber-id palsu sampai sinkron pertama. Best-effort: gagal tidak
+// menggagalkan login.
+describe('auth store — login() memuat master Grading', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('memanggil fetchAndCacheGradingParameters setelah login berhasil, dan login tetap berhasil bila gagal', async () => {
+    const gradingSync = await import('@/services/gradingParameterSync')
+    const localSchema = await import('@/services/localSchema')
+    const fetchGrading = vi.spyOn(gradingSync, 'fetchAndCacheGradingParameters').mockRejectedValue(new Error('offline'))
+    vi.spyOn(localSchema, 'fetchAndCacheMillSetting').mockResolvedValue(undefined as never)
+
+    const apiClient = (await import('@/services/apiClient')).default
+    vi.mocked(apiClient.post).mockResolvedValue({
+      data: { token: 't-1', user: STORED_USER, business_unit: STORED_BUSINESS_UNIT },
+    } as never)
+
+    const store = useAuthStore()
+    await store.login({ username: 'operator01', password: 'Passw0rd!' } as never)
+
+    expect(fetchGrading).toHaveBeenCalledTimes(1)
+    expect(store.isAuthenticated).toBe(true)
+  })
+})

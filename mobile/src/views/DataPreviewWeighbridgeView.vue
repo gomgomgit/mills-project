@@ -104,6 +104,9 @@ import { useAiAssistantStore } from '@/stores/aiAssistant'
 import weighbridgeRecordRepo, { type WeighbridgeRecord } from '@/services/weighbridgeRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
+import SyncFailureHint from '@/components/SyncFailureHint.vue'
+import { pullVerificationStatus } from '@/services/recordVerificationApi'
+import { toDateTimeLocalInputValue } from '@/utils/localDate'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
 
@@ -168,6 +171,9 @@ async function loadList(): Promise<void> {
 
   try {
     allRecords.value = await weighbridgeRecordRepo.getAllRecords(userId)
+    // Best-effort: segarkan status verifikasi dari server di latar belakang
+    // (audit 2026-10-04) — tidak menunda tampilan daftar.
+    void pullVerificationStatus('weighbridge', 'weighbridge_record', userId)
   } catch (err) {
     listError.value = err instanceof Error ? err.message : 'Gagal memuat daftar data timbangan lokal.'
   } finally {
@@ -246,6 +252,19 @@ const detailNotFound = ref(false)
 const detailLoadErrorMessage = ref<string | null>(null)
 const detailRecord = ref<WeighbridgeRecord | null>(null)
 
+/**
+ * Audit 2026-10-04 — tarik status verifikasi terbaru dari server (Supervisor/
+ * Mill Management bisa memverifikasi lewat web) lalu muat ulang record ini
+ * bila ada yang berubah. Senyap bila offline / endpoint tidak tersedia.
+ */
+function refreshVerificationInBackground(recordId: string): void {
+  void pullVerificationStatus('weighbridge', 'weighbridge_record', currentUserId()).then(async (changed) => {
+    if (changed === 0 || detailRecord.value?.id !== recordId) return
+    const fresh = await weighbridgeRecordRepo.getDraftById(recordId)
+    if (fresh && detailRecord.value?.id === recordId) detailRecord.value = fresh
+  })
+}
+
 // business_logic step 1 (detail mode) — load the record read-only by id
 // via getDraftById() (see this file's header comment).
 async function loadDetail(recordId: string): Promise<void> {
@@ -263,6 +282,7 @@ async function loadDetail(recordId: string): Promise<void> {
     }
 
     detailRecord.value = found
+    refreshVerificationInBackground(recordId)
   } catch (err) {
     detailLoadErrorMessage.value = err instanceof Error ? err.message : 'Gagal memuat data timbangan.'
   } finally {
@@ -516,7 +536,10 @@ function goToMonitorWeighbridge(): void {
               :data-testid="`record-item-${item.id}`"
               @click="onItemClick(item)"
             >
-              <span class="record-item-label">{{ recordLabel(item) }}</span>
+              <span class="record-item-text">
+                <span class="record-item-label">{{ recordLabel(item) }}</span>
+                <SyncFailureHint :record="item" compact />
+              </span>
               <StatusBadge :status="listBadgeInfo(item).status" :label="listBadgeInfo(item).label" />
             </button>
           </li>
@@ -540,10 +563,11 @@ function goToMonitorWeighbridge(): void {
       </p>
 
       <div v-else-if="detailRecord" class="preview-body">
+        <SyncFailureHint :record="detailRecord" />
         <FormField :model-value="detailTypeLabel" label="Tipe Weighbridge" disabled data-testid="detail-weighbridge-type" />
         <FormField :model-value="detailRecord.wb_card_number" label="No. WB Card" disabled />
         <FormField
-          :model-value="detailRecord.record_datetime"
+          :model-value="toDateTimeLocalInputValue(detailRecord.record_datetime)"
           :label="detailDatetimeLabel"
           type="datetime-local"
           disabled
@@ -598,6 +622,12 @@ function goToMonitorWeighbridge(): void {
 </template>
 
 <style scoped>
+.record-item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .data-preview-weighbridge-view {
   min-height: 100vh;
   display: flex;
@@ -750,7 +780,9 @@ function goToMonitorWeighbridge(): void {
 
 .filter-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, 1fr): tanpa ini lebar intrinsik <input type="date">/text
+     memaksa kolom melebar dan halaman bergeser horizontal di 390px. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -758,6 +790,7 @@ function goToMonitorWeighbridge(): void {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
 }
 
 .filter-label {
@@ -767,6 +800,8 @@ function goToMonitorWeighbridge(): void {
 }
 
 .filter-input {
+  width: 100%;
+  min-width: 0;
   min-height: 44px;
   padding: 0 12px;
   border: 1px solid #e5e7eb;

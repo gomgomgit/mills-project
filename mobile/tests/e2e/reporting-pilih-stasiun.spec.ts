@@ -157,7 +157,7 @@ test.describe('Reporting — Pilih Stasiun Mobile (screen-141)', () => {
     // pernah muncul.
     await unavailable.click({ force: true })
 
-    await expect(page.getByTestId('info-message')).toContainText(`Laporan ${stationName} belum tersedia.`)
+    await expect(page.getByTestId('info-message')).toContainText(`Laporan ${stationName} belum tersedia di aplikasi mobile.`)
     await expect(page).toHaveURL(/\/reports$/)
     await expect(unavailable).toBeVisible()
     await expect(unavailable).toContainText('Belum tersedia')
@@ -177,7 +177,7 @@ test.describe('Reporting — Pilih Stasiun Mobile (screen-141)', () => {
     await unavailable.click({ force: true })
 
     await expect(page.getByTestId('info-message')).toHaveCount(1)
-    await expect(page.getByTestId('info-message')).toContainText(`Laporan ${stationName} belum tersedia.`)
+    await expect(page.getByTestId('info-message')).toContainText(`Laporan ${stationName} belum tersedia di aplikasi mobile.`)
     await expect(page).toHaveURL(/\/reports$/)
   })
 
@@ -185,7 +185,10 @@ test.describe('Reporting — Pilih Stasiun Mobile (screen-141)', () => {
   // tersimpan". Tanpa satu pun manipulasi database: layar Daftar Stasiun
   // sengaja TIDAK dibuka, sehingga tabel `station` lokal memang masih
   // kosong — persis keadaan pengguna yang baru masuk.
-  test('Belum ada stasiun tersimpan — menampilkan arahan membuka Daftar Stasiun', async ({ page }) => {
+  test('Belum ada stasiun tersimpan — layar mengambil daftar stasiunnya sendiri (audit 2026-10-04)', async ({ page }) => {
+    // Dulu layar ini kosong sampai Daftar Stasiun dibuka sekali. Sekarang,
+    // bila cache lokal kosong, ia mengambil Production Line + stasiun dari
+    // server sendiri — tanpa membuka Daftar Stasiun.
     await login(page)
 
     await page.getByTestId('menu-card-dashboard-reporting').click()
@@ -193,10 +196,24 @@ test.describe('Reporting — Pilih Stasiun Mobile (screen-141)', () => {
     await page.getByTestId('menu-card-reporting').click()
     await page.waitForURL('**/reports')
 
-    await expect(page.getByTestId('no-stations')).toBeVisible()
-    await expect(page.getByTestId('no-stations')).toContainText('Daftar Stasiun')
-    await expect(page.locator('[data-testid^="station-tile-"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid^="station-tile-"]').first()).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('no-stations')).toHaveCount(0)
     await expect(page.getByText(/gagal|error|kesalahan|sqlite/i)).toHaveCount(0)
+  })
+
+  test('Belum ada stasiun tersimpan dan server tak terjangkau — arahan, bukan pesan teknis', async ({ page }) => {
+    await login(page)
+    await page.route('**/api/production-lines/**', (route) => route.abort())
+    await page.route('**/api/production-lines/current', (route) => route.abort())
+
+    await page.getByTestId('menu-card-dashboard-reporting').click()
+    await page.waitForURL('**/dashboard-reporting')
+    await page.getByTestId('menu-card-reporting').click()
+    await page.waitForURL('**/reports')
+
+    // Cadangan sama dengan Daftar Stasiun: 18 stasiun bawaan lokal.
+    await expect(page.locator('[data-testid^="station-tile-"]')).toHaveCount(18, { timeout: 15_000 })
+    await expect(page.getByText(/sqlite/i)).toHaveCount(0)
   })
 
   // Scenario: "Pilih Stasiun untuk Laporan (Mobile) — Perangkat offline"
@@ -224,7 +241,7 @@ test.describe('Reporting — Pilih Stasiun Mobile (screen-141)', () => {
     // Interaksinya pun tidak butuh jaringan.
     const unavailable = page.locator('[data-testid^="station-tile-"][aria-disabled="true"]').first()
     await unavailable.click({ force: true })
-    await expect(page.getByTestId('info-message')).toContainText('belum tersedia.')
+    await expect(page.getByTestId('info-message')).toContainText('belum tersedia di aplikasi mobile.')
     await expect(page).toHaveURL(/\/reports$/)
 
     await context.setOffline(false)

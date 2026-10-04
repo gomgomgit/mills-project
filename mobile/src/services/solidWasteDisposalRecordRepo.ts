@@ -1,5 +1,6 @@
 import { query, run } from '@/services/localDb'
 import { resolveActiveStationId } from '@/services/activeStation'
+import { todayLocalDateString } from '@/utils/localDate'
 
 /**
  * solidWasteDisposalRecordRepo — screen-061--monitor-solid-waste-disposal /
@@ -176,20 +177,6 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
-// Tanggal LOKAL perangkat, bukan UTC. `toISOString()` memakai UTC, jadi
-// draft yang dibuat 00:00–06:59 WIB mendapat tanggal KEMARIN: tidak masuk
-// hitungan "Hari Ini" di Monitor, tersembunyi oleh filter bawaan Data
-// Preview (yang sudah memakai tanggal lokal), dan terkirim ke server dengan
-// tanggal salah — sehingga juga dinilai kunci periode pada hari yang salah.
-// Ditemukan 2026-10-03 oleh e2e monitor-sterilizer.
-function todayDateString(): string {
-  const today = new Date()
-  const yyyy = today.getFullYear()
-  const mm = String(today.getMonth() + 1).padStart(2, '0')
-  const dd = String(today.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
-}
-
 function generateId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
@@ -224,7 +211,7 @@ export async function createDraft(userId: string): Promise<string> {
   await run(
     `INSERT INTO solid_waste_disposal_record (id, status, created_by, station_id, date, created_at, updated_at)
      VALUES (?, 'draft_ongoing', ?, ?, ?, ?, ?)`,
-    [id, userId, stationId, todayDateString(), timestamp, timestamp],
+    [id, userId, stationId, todayLocalDateString(), timestamp, timestamp],
   )
 
   return id

@@ -590,4 +590,35 @@ test.describe('Reporting — Pilih Stasiun Mobile (screen-141): membawa Producti
     expect(page.url()).not.toContain('production_line_id')
     await expect(page.getByTestId('laporan-sterilizer-mobile')).toBeVisible()
   })
+
+  // Audit 2026-10-05: setelah ruang aman elemen mengambang (floatingSafeArea),
+  // bubble Mills AI di 390x844 hanya boleh menimpa tile SELAMA menggulir —
+  // di ujung gulir setiap tile (termasuk baris terakhir) harus bebas.
+  test('390x844 — di ujung gulir tidak ada tile yang tertutup bubble Mills AI / jam mengambang', async ({ page }) => {
+    const problems: string[] = []
+    page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))
+    page.on('console', (m) => m.type() === 'error' && problems.push(`console.error: ${m.text()}`))
+    page.on('response', (r) => r.status() >= 400 && problems.push(`HTTP ${r.status()} ${r.url()}`))
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await login(page)
+    await seedLocalStations(page)
+    await goToReports(page)
+    await expect(page.getByRole('button', { name: 'Buka Mills AI' })).toBeVisible()
+
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+
+    const covered = await page.evaluate(() => {
+      const floating = ['[aria-label="Buka Mills AI"]', '.floating-clock']
+        .map((selector) => document.querySelector(selector)?.getBoundingClientRect())
+        .filter((r): r is DOMRect => Boolean(r))
+      const hit = (a: DOMRect, b: DOMRect) => !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom)
+      return [...document.querySelectorAll('[data-testid^="station-tile-"]')]
+        .filter((tile) => floating.some((f) => hit(tile.getBoundingClientRect(), f)))
+        .map((tile) => tile.getAttribute('data-testid'))
+    })
+
+    expect(covered).toEqual([])
+    expect(problems, problems.join('\n')).toEqual([])
+  })
 })

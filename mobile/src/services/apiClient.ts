@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import { SESSION_REVOKED_MESSAGE } from '@/services/errorHandler'
 
 /**
  * apiClient — shared Axios instance for all mobile -> backend API calls
@@ -51,9 +52,70 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config
 })
 
+/**
+ * Penanganan 401 terpusat (audit 2026-10-05). Sebelumnya tidak ada: akun
+ * yang dinonaktifkan Admin (token Sanctum-nya dicabut server, lihat
+ * UserService::setStatus()) atau token yang dicabut tetap TAMPAK login di
+ * aplikasi, dan sinkronisasi hanya gagal per record tanpa penjelasan.
+ *
+ * Sekarang setiap 401 dari request BERSESI:
+ *   1. membersihkan sesi lokal (token/user/business unit) lewat
+ *      authStore.expireSession() — TIDAK memanggil POST /api/logout (token
+ *      sudah tidak berlaku) dan TIDAK menyentuh data lokal SQLite: draft &
+ *      record yang belum tersinkron tetap ada dan muncul lagi setelah login
+ *      ulang dengan akun yang sama;
+ *   2. memanggil handler navigasi yang didaftarkan main.ts (ke Login), di
+ *      mana LoginForm menampilkan SESSION_REVOKED_MESSAGE.
+ *
+ * Tidak dipicu untuk:
+ *   - POST /api/login (401 = kredensial salah, ditangani LoginForm) dan
+ *     POST /api/logout (logout() sudah membersihkan sesinya sendiri);
+ *   - kegagalan jaringan / offline (tidak ada respons sama sekali);
+ *   - request yang tidak membawa token sesi SAAT INI (mis. request lama
+ *     yang tertunda dari sesi sebelum login ulang) — supaya 401 basi tidak
+ *     membuang sesi baru yang sah.
+ */
+export { SESSION_REVOKED_MESSAGE }
+
+const SESSION_EXEMPT_URLS = ['/api/login', '/api/logout']
+
+type UnauthorizedHandler = () => void
+let unauthorizedHandler: UnauthorizedHandler | null = null
+
+/** Didaftarkan sekali oleh main.ts (navigasi ke Login); null untuk melepas. */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler
+}
+
+function handleUnauthorized(error: AxiosError<ApiErrorBody>): void {
+  if (error.response?.status !== 401) {
+    return
+  }
+
+  const url = error.config?.url ?? ''
+  if (SESSION_EXEMPT_URLS.some((exempt) => url === exempt || url.endsWith(exempt))) {
+    return
+  }
+
+  const authStore = useAuthStore()
+  const sentAuthorization = error.config?.headers?.Authorization
+  if (!authStore.token || sentAuthorization !== `Bearer ${authStore.token}`) {
+    // Bukan sesi aktif yang ditolak (sudah dibersihkan oleh 401 lain dalam
+    // batch yang sama, atau request basi dari sesi sebelumnya).
+    return
+  }
+
+  authStore.expireSession()
+  unauthorizedHandler?.()
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ApiErrorBody>) => Promise.reject(normalizeError(error)),
+  (error: AxiosError<ApiErrorBody>) => {
+    handleUnauthorized(error)
+
+    return Promise.reject(normalizeError(error))
+  },
 )
 
 function normalizeError(error: AxiosError<ApiErrorBody>): NormalizedApiError {

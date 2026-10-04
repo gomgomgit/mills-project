@@ -270,3 +270,29 @@ describe('LoginForm — POST /api/login (mobile, device_name)', () => {
     expect(tokenStorage.setToken).not.toHaveBeenCalled()
   })
 })
+
+describe('LoginForm — sesi ditolak server (audit 2026-10-05 #3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
+  })
+
+  it('menampilkan pesan "Sesi berakhir atau akun dinonaktifkan" saat sessionRevoked', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const { useAuthStore } = await import('@/stores/auth')
+    useAuthStore().sessionRevoked = true
+
+    const wrapper = mount(LoginForm, { global: { plugins: [pinia] } })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="session-revoked-banner"]').text()).toBe(
+      'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.',
+    )
+  })
+
+  it('tidak menampilkan pesan itu pada login biasa', async () => {
+    const wrapper = await mountLoginForm()
+    expect(wrapper.find('[data-testid="session-revoked-banner"]').exists()).toBe(false)
+  })
+})

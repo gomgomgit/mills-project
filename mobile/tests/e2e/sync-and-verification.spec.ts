@@ -430,3 +430,131 @@ test.describe('Mobile Data Preview / Grading / Reporting UX (audit 2026-10-04)',
     g.assertClean()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Audit 2026-10-05 — penanganan 401 global dan "Checked by SPV" Sterilizer.
+// ---------------------------------------------------------------------------
+
+/**
+ * Mengaktifkan/menonaktifkan akun lewat UserService::setStatus() yang ASLI
+ * (jalur yang sama dengan tombol Nonaktifkan Admin — termasuk pencabutan
+ * token Sanctum). Fixture beforeAll mengembalikan akun ke aktif setiap run.
+ */
+function setUserActive(username: string, active: boolean) {
+  const php =
+    `$u = App\\Models\\User::where('username', '${username}')->firstOrFail(); ` +
+    `app(App\\Services\\UserService::class)->setStatus((string) $u->id, ${active ? 'true' : 'false'}, 'e2e-admin');`
+  execSync(`php artisan tinker --execute="${php.replace(/"/g, '\\"').replace(/\$/g, '\\$')}"`, {
+    cwd: BACKEND_DIR,
+    encoding: 'utf8',
+    timeout: 60_000,
+  })
+}
+
+test.describe('Sesi ditolak server & Checked by SPV (audit 2026-10-05)', () => {
+  test.afterEach(() => {
+    // Apa pun hasil tesnya, akun fixture kembali aktif.
+    setUserActive(OPERATOR.username, true)
+  })
+
+  test('#3 akun dinonaktifkan: sinkron -> Login dengan pesan; draft lokal tetap ada setelah login ulang', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    // 401 dari sinkron memang diprovokasi; push write-through dibatalkan
+    // (seperti offline) agar record tetap lokal.
+    const g = guard(page, [{ status: 401, url: /\/api\// }], { allowAbortedRequests: true })
+    await login(page, OPERATOR)
+    await chooseLine(page, 0)
+
+    await page.route('**/api/threshing-records', (route) =>
+      route.request().method() === 'POST' ? route.abort() : route.continue(),
+    )
+    const id = await newThreshingRecord(page, `TH-401-${Date.now()}`)
+    await page.getByTestId('save-button').click()
+    await page.waitForURL('**/stations/threshing/monitor')
+    expect((await localRow(page, 'threshing_record', id))?.status).toBe('saved')
+    await page.unroute('**/api/threshing-records')
+
+    await chooseLine(page, 0)
+    setUserActive(OPERATOR.username, false)
+
+    const rejected = page.waitForResponse((r) => r.url().endsWith('/api/threshing-records') && r.request().method() === 'POST')
+    await page.getByTestId('sync-button').click()
+    expect((await rejected).status()).toBe(401)
+
+    await page.waitForURL(/\/login/)
+    await expect(page.getByTestId('session-revoked-banner')).toHaveText(
+      'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.',
+    )
+    // Sesi lokal bersih; data lokal TIDAK.
+    expect(await page.evaluate(() => localStorage.getItem('msl_auth_token'))).toBeNull()
+    expect((await localRow(page, 'threshing_record', id))?.status).toBe('saved')
+
+    // Rute terlindungi kini kembali ke Login (bukan tampak masih login).
+    await page.goto('/stations')
+    await page.waitForURL(/\/login/)
+
+    // Akun diaktifkan lagi oleh Admin -> login ulang -> draft masih ada dan
+    // dapat disinkronkan.
+    setUserActive(OPERATOR.username, true)
+    await page.locator('#username').fill(OPERATOR.username)
+    await page.locator('#password').fill(OPERATOR.password)
+    await page.getByRole('button', { name: 'Login' }).click()
+    // redirect dari penjagaan rute membawa pengguna kembali ke /stations.
+    await page.waitForURL((url) => url.pathname === '/stations')
+    expect(await page.evaluate(() => localStorage.getItem('msl_auth_token'))).toBeTruthy()
+
+    await page.goto('/stations/threshing/preview')
+    await expect(page.getByTestId(`record-item-${id}`)).toContainText('Tersimpan')
+
+    await chooseLine(page, 0)
+    const pushed = page.waitForResponse((r) => r.url().endsWith('/api/threshing-records') && r.request().method() === 'POST')
+    await page.getByTestId('sync-button').click()
+    expect((await pushed).status()).toBe(201)
+    await expect.poll(async () => (await localRow(page, 'threshing_record', id))?.status).toBe('synced')
+    g.assertClean()
+  })
+
+  test('#3 login dengan password salah TIDAK memunculkan pesan sesi berakhir', async ({ page }) => {
+    const g = guard(page, [{ status: 401, url: /\/api\/login$/ }])
+    await page.goto('/login')
+    await page.locator('#username').fill(OPERATOR.username)
+    await page.locator('#password').fill('SalahSekali1!')
+    await page.getByRole('button', { name: 'Login' }).click()
+    await expect(page.getByRole('alert')).toBeVisible()
+    await expect(page.getByTestId('session-revoked-banner')).toHaveCount(0)
+    g.assertClean()
+  })
+
+  async function saveSterilizer(page: Page): Promise<Record<string, unknown>> {
+    await page.goto('/stations/sterilizer/monitor')
+    await page.getByTestId('new-data-button').click()
+    await page.waitForURL(/\/stations\/sterilizer\/form\/[^/]+$/)
+    await page.locator('#sterilizer_id').fill(`ST-SPV-${Date.now()}`)
+    await page.getByTestId('add-row-button').click()
+    await page.getByTestId('detail-close-door-time-0').fill('07:00')
+    const pushed = page.waitForRequest((r) => r.url().endsWith('/api/sterilizer-records') && r.method() === 'POST')
+    await page.getByTestId('save-button').click()
+    const body = (await pushed).postDataJSON() as { details: Record<string, unknown>[] }
+    await page.waitForURL('**/stations/sterilizer/monitor')
+    return body.details[0]
+  }
+
+  test('#4b Operator: payload Sterilizer tidak membawa checked_by_spv', async ({ page }) => {
+    const g = guard(page)
+    await login(page, OPERATOR)
+    await chooseLine(page, 0)
+    const detail = await saveSterilizer(page)
+    expect(detail).not.toHaveProperty('checked_by_spv')
+    expect(detail.close_door_time).toBe('07:00')
+    g.assertClean()
+  })
+
+  test('#4b Supervisor: payload Sterilizer tetap membawa checked_by_spv', async ({ page }) => {
+    const g = guard(page)
+    await login(page, SUPERVISOR)
+    await chooseLine(page, 0)
+    const detail = await saveSterilizer(page)
+    expect(detail).toHaveProperty('checked_by_spv')
+    g.assertClean()
+  })
+})

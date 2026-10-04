@@ -264,3 +264,23 @@ describe('DataPreviewEffluentPlantView — detail mode', () => {
     expect(pushMock).not.toHaveBeenCalledWith({ name: 'monitor-effluent-plant' })
   })
 })
+
+describe('DataPreviewEffluentPlantView — label pilihan (audit 2026-10-05)', () => {
+  it('menampilkan label pilihan seperti Detail web (Display::OPTION_LABELS), bukan nilai mentah', async () => {
+    routeState.params = { id: 'rec-1' }
+    const details = makeAllDetailRows()
+    details[0] = { ...details[0], biogas_flare_status: 'fault', dosing_pump_1_status: 'run', sludge_dewatering_status: 'stop' }
+    getDraftWithDetailsMock.mockResolvedValue({ record: makeRecord(), details })
+
+    const wrapper = mount(DataPreviewEffluentPlantView)
+    await flushPromises()
+
+    const text = wrapper.find('[data-testid="effluent-plant-detail-row-detail-0"]').text()
+    expect(text).toContain('Biogas Flare Status: Fault')
+    expect(text).toContain('Dosing Pump 1 Status: Run')
+    expect(text).toContain('Sludge Dewatering Status: Stop')
+    expect(text).not.toContain('Biogas Flare Status: fault')
+    // Baris tanpa nilai tetap "-".
+    expect(wrapper.find('[data-testid="effluent-plant-detail-row-detail-1"]').text()).toContain('Biogas Flare Status: -')
+  })
+})

@@ -47,6 +47,12 @@ interface AuthState {
    * a generic "please log in".
    */
   sessionExpiredOffline: boolean
+  /**
+   * true ketika server menolak token sesi ini (401 — akun dinonaktifkan /
+   * token dicabut), diset oleh expireSession() dari interceptor apiClient.
+   * LoginForm menampilkan SESSION_REVOKED_MESSAGE selama ini true.
+   */
+  sessionRevoked: boolean
 }
 
 /**
@@ -66,6 +72,7 @@ export const useAuthStore = defineStore('auth', {
     businessUnit: null,
     initialized: false,
     sessionExpiredOffline: false,
+    sessionRevoked: false,
   }),
 
   getters: {
@@ -94,6 +101,7 @@ export const useAuthStore = defineStore('auth', {
       this.businessUnit = businessUnit ?? null
       this.initialized = true
       this.sessionExpiredOffline = false
+      this.sessionRevoked = false
 
       const issuedAt = Date.now()
       tokenStorage.setToken(token)
@@ -153,8 +161,25 @@ export const useAuthStore = defineStore('auth', {
         this.user = null
         this.token = null
         this.businessUnit = null
+        this.sessionRevoked = false
         tokenStorage.clear()
       }
+    },
+
+    /**
+     * Audit 2026-10-05: server menolak token sesi ini (401). Hanya
+     * membersihkan state sesi + tokenStorage — TANPA POST /api/logout (token
+     * sudah tidak berlaku) dan TANPA menyentuh database lokal: draft/record
+     * yang belum tersinkron tetap tersimpan dan muncul kembali setelah login
+     * ulang dengan akun yang sama. Idempoten.
+     */
+    expireSession(): void {
+      this.user = null
+      this.token = null
+      this.businessUnit = null
+      this.initialized = true
+      this.sessionRevoked = true
+      tokenStorage.clear()
     },
 
     /**

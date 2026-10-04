@@ -59,6 +59,7 @@
  * Search filter: case-insensitive substring match against
  * `effluent_plant_id`.
  */
+import { optionLabel } from '@/utils/optionLabel'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -528,7 +529,7 @@ function goToMonitorEffluentPlant(): void {
                 <span>Anaerobic Pond 2 Temp: {{ row.anaerobic_pond_2_temp_c ?? '-' }}</span>
                 <span>Cooling Pond pH: {{ row.cooling_pond_ph ?? '-' }}</span>
                 <span>Cooling Pond Temp: {{ row.cooling_pond_temp_c ?? '-' }}</span>
-                <span>Biogas Flare Status: {{ row.biogas_flare_status ?? '-' }}</span>
+                <span>Biogas Flare Status: {{ optionLabel(row.biogas_flare_status) }}</span>
                 <span>Biogas Flow Rate: {{ row.biogas_flow_rate_m3h ?? '-' }}</span>
                 <span>Raw POME Feed Rate: {{ row.raw_pome_feed_rate_m3h ?? '-' }}</span>
                 <span>Effluent Discharge Flow Rate: {{ row.effluent_discharge_flow_rate_m3h ?? '-' }}</span>
@@ -536,9 +537,9 @@ function goToMonitorEffluentPlant(): void {
                 <span>Final Discharge BOD: {{ row.final_discharge_bod_mgl_lab ?? '-' }}</span>
                 <span>Final Discharge COD: {{ row.final_discharge_cod_mgl_lab ?? '-' }}</span>
                 <span>Final Discharge TSS: {{ row.final_discharge_tss_mgl_lab ?? '-' }}</span>
-                <span>Dosing Pump 1 Status: {{ row.dosing_pump_1_status ?? '-' }}</span>
+                <span>Dosing Pump 1 Status: {{ optionLabel(row.dosing_pump_1_status) }}</span>
                 <span>Chemical Consumed: {{ row.chemical_consumed_kgl ?? '-' }}</span>
-                <span>Sludge Dewatering Status: {{ row.sludge_dewatering_status ?? '-' }}</span>
+                <span>Sludge Dewatering Status: {{ optionLabel(row.sludge_dewatering_status) }}</span>
                 <span>Remarks/Maintenance Actions: {{ row.remarks_maintenance_actions ?? '-' }}</span>
                 <span>Findings: {{ row.findings ?? '-' }}</span>
               </div>

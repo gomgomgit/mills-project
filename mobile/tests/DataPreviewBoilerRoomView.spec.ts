@@ -260,3 +260,23 @@ describe('DataPreviewBoilerRoomView — detail mode', () => {
     expect(pushMock).not.toHaveBeenCalledWith({ name: 'monitor-boiler-room' })
   })
 })
+
+describe('DataPreviewBoilerRoomView — label pilihan (audit 2026-10-05)', () => {
+  it('menampilkan label pilihan seperti Detail web (Display::OPTION_LABELS), bukan nilai mentah', async () => {
+    routeState.params = { id: 'rec-1' }
+    const details = makeAllDetailRows()
+    details[0] = { ...details[0], blowdown_executed: 'y', sootblowing_executed: 'n' }
+    getDraftWithDetailsMock.mockResolvedValue({ record: makeRecord(), details })
+
+    const wrapper = mount(DataPreviewBoilerRoomView)
+    await flushPromises()
+
+    const text = wrapper.find('[data-testid="boiler-room-detail-row-detail-0"]').text()
+    expect(text).toContain('Blowdown Executed: Ya')
+    expect(text).toContain('Sootblowing Executed: Tidak')
+    expect(text).not.toContain('Blowdown Executed: y')
+    expect(text).not.toContain('Sootblowing Executed: n')
+    // Baris tanpa nilai tetap "-".
+    expect(wrapper.find('[data-testid="boiler-room-detail-row-detail-1"]').text()).toContain('Blowdown Executed: -')
+  })
+})

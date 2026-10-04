@@ -381,15 +381,18 @@ const THIRTY_DAYS = Array.from({ length: 30 }, (_, index) => ({
 const METRIC_TESTIDS = ['ffa', 'moisture', 'impurities', 'dobi']
 
 /**
- * Isi CSV — dibentuk SERVER. Keduapuluh dua kolomnya persis
- * StorageTankReportService::EXPORT_HEADER: EMPAT kolom konteks record
- * (Tanggal, Tangki, Status, Catatan) yang diulang pada setiap baris, lalu
- * Slot Waktu, lalu ketujuh belas kolom pengukuran dengan label yang sama
- * dengan layar Detail. Dua baris di bawah sengaja berbagi keempat kolom
- * konteks yang sama dan hanya berbeda slot waktunya — itulah bentuk "satu
- * baris per detail, konteks diulang".
+ * Isi CSV — dibentuk SERVER. Kedua puluh lima kolomnya persis
+ * StorageTankReportService::EXPORT_HEADER: TIGA kolom konteks ekspor
+ * (Periode, Mill, Production Line — sejak temuan audit 2026-10-04 #8b, sama
+ * dengan ekspor Laporan Weighbridge), lalu EMPAT kolom konteks record
+ * (Tanggal, Tangki, Status, Catatan) — ketujuhnya diulang pada setiap baris
+ * (EXPORT_CONTEXT_COLUMN_COUNT = 7) — lalu Slot Waktu, lalu ketujuh belas
+ * kolom pengukuran dengan label yang sama dengan layar Detail. Dua baris di
+ * bawah sengaja berbagi ketujuh kolom konteks yang sama dan hanya berbeda
+ * slot waktunya — itulah bentuk "satu baris per detail, konteks diulang".
  */
 const CSV_HEADER =
+  'Periode,Mill,Production Line,' +
   'Tanggal,Tangki,Status,Catatan,Slot Waktu,Kedalaman Sounding CPO (mm),' +
   'Kedalaman Water Dip Bottom (mm),Kedalaman Minyak Bersih (mm),Suhu Minyak Atas (C),' +
   'Suhu Minyak Tengah (C),Suhu Minyak Bawah (C),Suhu Rata-rata (C),Volume Terhitung (m3),' +
@@ -398,8 +401,10 @@ const CSV_HEADER =
 
 const CSV_BODY =
   `${CSV_HEADER}\n` +
+  'Periode September 2026,Mill Utara,Line 1,' +
   '2026-09-01,ST-1,synced,catatan harian,06:00,3200,120,3080,50.0,55.0,61.0,52.0,720.0,660.0,' +
   '4.05,0.19,0.02,2.9,open,baik,Budi,ada endapan di dasar\n' +
+  'Periode September 2026,Mill Utara,Line 1,' +
   '2026-09-01,ST-1,synced,catatan harian,12:00,3180,118,3062,50.5,55.5,61.5,52.5,715.0,655.0,' +
   '4.10,0.20,0.02,2.8,open,baik,Budi,\n'
 
@@ -1938,7 +1943,7 @@ test.describe('Laporan Storage Tank Mobile (screen-139)', () => {
   })
 
   // Scenario 33: "mengunduh rincian pembacaan per slot waktu sebagai CSV"
-  test('Ekspor CSV — berkas terunduh, satu baris per slot dengan tepat empat kolom konteks yang diulang', async ({
+  test('Ekspor CSV — berkas terunduh, satu baris per slot dengan tujuh kolom konteks (3 ekspor + 4 record) yang diulang', async ({
     page,
   }) => {
     await login(page, USERS.operator)
@@ -1972,8 +1977,19 @@ test.describe('Laporan Storage Tank Mobile (screen-139)', () => {
     const lines = csv.trim().split('\n')
     const header = lines[0].split(',')
 
-    // TEPAT EMPAT kolom konteks, dalam urutannya, lalu slot waktu.
-    expect(header.slice(0, 5)).toEqual(['Tanggal', 'Tangki', 'Status', 'Catatan', 'Slot Waktu'])
+    // Tiga kolom konteks ekspor, lalu empat kolom konteks record, dalam
+    // urutannya, lalu slot waktu — persis EXPORT_HEADER server.
+    expect(header.slice(0, 8)).toEqual([
+      'Periode',
+      'Mill',
+      'Production Line',
+      'Tanggal',
+      'Tangki',
+      'Status',
+      'Catatan',
+      'Slot Waktu',
+    ])
+    expect(header).toHaveLength(25)
 
     // Label kolom pengukuran mengikuti label layar Detail, verbatim —
     // termasuk kolom teks dan enum yang tidak punya kartu di laporan.
@@ -1984,16 +2000,17 @@ test.describe('Laporan Storage Tank Mobile (screen-139)', () => {
     expect(csv).toContain('Temuan')
     expect(csv).toContain('ada endapan di dasar')
 
-    // Satu baris per detail, dengan keempat kolom konteks DIULANG pada
+    // Satu baris per detail, dengan ketujuh kolom konteks DIULANG pada
     // setiap baris dan hanya slot waktunya yang berbeda.
     expect(lines).toHaveLength(3)
 
     const rowA = lines[1].split(',')
     const rowB = lines[2].split(',')
 
-    expect(rowA.slice(0, 4)).toEqual(rowB.slice(0, 4))
-    expect(rowA[4]).toBe('06:00')
-    expect(rowB[4]).toBe('12:00')
+    expect(rowA.slice(0, 7)).toEqual(rowB.slice(0, 7))
+    expect(rowA.slice(0, 3)).toEqual(['Periode September 2026', 'Mill Utara', 'Line 1'])
+    expect(rowA[7]).toBe('06:00')
+    expect(rowB[7]).toBe('12:00')
 
     // Isinya dibentuk SERVER, bukan disusun ulang dari angka yang sedang
     // tampil di layar.

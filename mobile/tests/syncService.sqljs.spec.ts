@@ -283,3 +283,44 @@ describe('#7 — Grading WB Card dropdown', () => {
     ])
   })
 })
+
+describe('Audit 2026-10-05 #4b — Sterilizer "Checked by SPV" hanya dikirim oleh Supervisor', () => {
+  async function sterilizerRecordWithCheckedRow() {
+    await station('st-ster', 'sterilizer', 'line-1', 'Sterilizer')
+    await run(
+      `INSERT INTO sterilizer_record (id, station_id, sterilizer_id, date, status, created_by, created_at, updated_at)
+       VALUES ('ster-1', 'st-ster', 'ST-1', '2026-10-04', 'saved', ?, ?, ?)`,
+      [USER, NOW, NOW],
+    )
+    // Nilai 1 di lokal (mis. record lama/impor) — operator tetap tidak boleh
+    // mengirimnya ke server.
+    await run(
+      `INSERT INTO sterilizer_detail (id, sterilizer_record_id, sterilizer_no, close_door_time, checked_by_spv, remarks, created_at, updated_at)
+       VALUES ('ster-d1', 'ster-1', '1', '07:00', 1, 'ok', ?, ?)`,
+      [NOW, NOW],
+    )
+  }
+
+  it('Operator: field checked_by_spv TIDAK ada di payload detail (bukan false, tidak dikirim sama sekali)', async () => {
+    await sterilizerRecordWithCheckedRow()
+
+    await syncAllRecords('line-1')
+
+    const [body] = postedTo('/api/sterilizer-records')
+    const details = body.details as Record<string, unknown>[]
+    expect(details).toHaveLength(1)
+    expect(details[0]).not.toHaveProperty('checked_by_spv')
+    // Kolom lain tetap terkirim.
+    expect(details[0]).toMatchObject({ sterilizer_no: '1', close_door_time: '07:00', remarks: 'ok' })
+  })
+
+  it('Supervisor: checked_by_spv tetap dikirim apa adanya', async () => {
+    useAuthStore().user = { id: USER, username: 'spv', name: 'Spv', role: 'supervisor', business_unit_id: 'bu-1' }
+    await sterilizerRecordWithCheckedRow()
+
+    await syncAllRecords('line-1')
+
+    const [body] = postedTo('/api/sterilizer-records')
+    expect((body.details as Record<string, unknown>[])[0]).toHaveProperty('checked_by_spv', 1)
+  })
+})

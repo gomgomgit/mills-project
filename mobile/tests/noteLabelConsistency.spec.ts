@@ -1,8 +1,10 @@
 /**
  * noteLabelConsistency.spec.ts — kolom catatan di SEMUA form stasiun dan
- * detail Data Preview harus berlabel "Catatan" (audit 2026-10-04: Grading
- * sudah "Catatan" sementara 16 form stasiun lain masih "Note" berbahasa
- * Inggris, dan 4 detail Data Preview menulis "Note:").
+ * detail Data Preview harus berlabel "Catatan" (audit 2026-10-04: KETUJUH
+ * BELAS form stasiun yang punya kolom catatan — termasuk Grading; Weighbridge
+ * tidak punya kolom ini — masih berlabel "Note" berbahasa Inggris, sementara
+ * 13 detail Data Preview sudah "Catatan" dan 4 sisanya — CPO Dispatch,
+ * Kernel Dispatch, Solid Waste Disposal, Sterilizer — menulis "Note:").
  *
  * Sengaja membaca sumber SFC (bukan mount 36 layar satu per satu): yang
  * diuji adalah teks label yang dirender apa adanya dari template, dan id

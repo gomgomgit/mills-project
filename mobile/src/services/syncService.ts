@@ -115,6 +115,13 @@ interface StationPushConfig {
   detailTable: string
   detailFk: string
   detailColumns: string[]
+  /**
+   * Kolom detail yang HANYA boleh dikirim Supervisor (audit 2026-10-05):
+   * untuk peran lain kolom ini dihapus dari payload — bukan dikirim false —
+   * supaya sinkron operator tidak pernah menimpa nilai milik Supervisor.
+   * Server menegakkan aturan yang sama.
+   */
+  supervisorOnlyDetailColumns?: string[]
   detailOrderBy: string
 }
 
@@ -341,6 +348,7 @@ const STATION_PUSH_CONFIGS: StationPushConfig[] = [
     detailTable: 'sterilizer_detail',
     detailFk: 'sterilizer_record_id',
     detailColumns: ['sterilizer_no', 'close_door_time', 'peak_1_time', 'exhaust_1_time', 'peak_2_time', 'exhaust_2_time', 'peak_3_time', 'exhaust_3_time', 'open_door_time', 'duration_minutes', 'number_of_cages', 'cages_status', 'checked_by_spv', 'remarks'],
+    supervisorOnlyDetailColumns: ['checked_by_spv'],
     detailOrderBy: 'sterilizer_no',
   },
   {
@@ -471,8 +479,12 @@ async function pushUniformRow(
   const id = String(row.id)
   const label = (row[config.idColumn] as string) ?? id
 
+  const isSupervisor = useAuthStore().user?.role === 'supervisor'
+  const columns = isSupervisor
+    ? config.detailColumns
+    : config.detailColumns.filter((column) => !config.supervisorOnlyDetailColumns?.includes(column))
   const details = await query<Record<string, unknown>>(
-    `SELECT ${config.detailColumns.join(', ')} FROM ${config.detailTable} WHERE ${config.detailFk} = ? ORDER BY ${config.detailOrderBy}`,
+    `SELECT ${columns.join(', ')} FROM ${config.detailTable} WHERE ${config.detailFk} = ? ORDER BY ${config.detailOrderBy}`,
     [id],
   )
 

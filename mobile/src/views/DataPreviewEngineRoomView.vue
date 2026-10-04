@@ -58,6 +58,7 @@
  * Search filter: case-insensitive substring match against
  * `engine_room_id`.
  */
+import { optionLabel } from '@/utils/optionLabel'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -527,12 +528,12 @@ function goToMonitorEngineRoom(): void {
                 <span>Steam Turbine RPM: {{ row.steam_turbine_rpm ?? '-' }}</span>
                 <span>Steam Turbine Alternator Bearing Temp 1 (°C): {{ row.steam_turbine_alternator_bearing_temp_1_c ?? '-' }}</span>
                 <span>Steam Turbine Alternator Bearing Temp 2 (°C): {{ row.steam_turbine_alternator_bearing_temp_2_c ?? '-' }}</span>
-                <span>Diesel Gen 1 Status: {{ row.diesel_gen_1_status ?? '-' }}</span>
+                <span>Diesel Gen 1 Status: {{ optionLabel(row.diesel_gen_1_status) }}</span>
                 <span>Diesel Gen 1 Load (kW): {{ row.diesel_gen_1_load_kw ?? '-' }}</span>
                 <span>Diesel Gen 1 Amperage (A): {{ row.diesel_gen_1_amperage_a ?? '-' }}</span>
                 <span>Diesel Gen 1 Jacket Water Temp (°C): {{ row.diesel_gen_1_jacket_water_temp_c ?? '-' }}</span>
                 <span>Diesel Gen 1 Lube Oil Pressure (bar): {{ row.diesel_gen_1_lube_oil_pressure_bar ?? '-' }}</span>
-                <span>Diesel Gen 2 Status: {{ row.diesel_gen_2_status ?? '-' }}</span>
+                <span>Diesel Gen 2 Status: {{ optionLabel(row.diesel_gen_2_status) }}</span>
                 <span>Diesel Gen 2 Load (kW): {{ row.diesel_gen_2_load_kw ?? '-' }}</span>
                 <span>Diesel Gen 2 Amperage (A): {{ row.diesel_gen_2_amperage_a ?? '-' }}</span>
                 <span>Diesel Gen 2 Jacket Water Temp (°C): {{ row.diesel_gen_2_jacket_water_temp_c ?? '-' }}</span>

@@ -16,6 +16,13 @@ import type { NormalizedApiError } from '@/services/apiClient'
  * since no toast library is part of the current stack — see setup_notes.
  */
 
+/**
+ * Pesan di layar Login setelah server menolak sesi (401 dari request
+ * bersesi — akun dinonaktifkan / token dicabut). Audit 2026-10-05; lihat
+ * penanganan 401 terpusat di apiClient.ts.
+ */
+export const SESSION_REVOKED_MESSAGE = 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'
+
 export type ShowErrorFn = (error: NormalizedApiError) => string
 
 export const ERROR_MESSAGE_MAP: Record<number, string> = {

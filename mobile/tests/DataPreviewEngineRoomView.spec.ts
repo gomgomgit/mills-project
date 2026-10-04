@@ -272,3 +272,22 @@ describe('DataPreviewEngineRoomView — detail mode', () => {
     expect(pushMock).not.toHaveBeenCalledWith({ name: 'monitor-engine-room' })
   })
 })
+
+describe('DataPreviewEngineRoomView — label pilihan (audit 2026-10-05)', () => {
+  it('menampilkan label pilihan seperti Detail web (Display::OPTION_LABELS), bukan nilai mentah', async () => {
+    routeState.params = { id: 'rec-1' }
+    const details = makeAllDetailRows()
+    details[0] = { ...details[0], diesel_gen_1_status: 'standby', diesel_gen_2_status: 'off' }
+    getDraftWithDetailsMock.mockResolvedValue({ record: makeRecord(), details })
+
+    const wrapper = mount(DataPreviewEngineRoomView)
+    await flushPromises()
+
+    const text = wrapper.find('[data-testid="engine-room-detail-row-detail-0"]').text()
+    expect(text).toContain('Diesel Gen 1 Status: Standby')
+    expect(text).toContain('Diesel Gen 2 Status: Off')
+    expect(text).not.toContain('Diesel Gen 1 Status: standby')
+    // Baris tanpa nilai tetap "-".
+    expect(wrapper.find('[data-testid="engine-room-detail-row-detail-1"]').text()).toContain('Diesel Gen 1 Status: -')
+  })
+})

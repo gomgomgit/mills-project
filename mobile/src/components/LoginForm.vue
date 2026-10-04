@@ -23,7 +23,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { type NormalizedApiError } from '@/services/apiClient'
-import { toDisplayMessage } from '@/services/errorHandler'
+import { SESSION_REVOKED_MESSAGE, toDisplayMessage } from '@/services/errorHandler'
 import { useAuthStore } from '@/stores/auth'
 import { useConnectivityGuard } from '@/composables/useConnectivityGuard'
 
@@ -116,6 +116,17 @@ async function onSubmit() {
 
 <template>
   <form class="login-form" novalidate @submit.prevent="onSubmit">
+    <!-- Audit 2026-10-05: server menolak sesi (401 — akun dinonaktifkan /
+         token dicabut). Diset interceptor apiClient lewat expireSession(). -->
+    <div
+      v-if="authStore.sessionRevoked && status !== 'error'"
+      class="banner banner-info"
+      role="status"
+      data-testid="session-revoked-banner"
+    >
+      {{ SESSION_REVOKED_MESSAGE }}
+    </div>
+
     <div v-if="authStore.sessionExpiredOffline" class="banner banner-info">
       Sesi lokal Anda telah kedaluwarsa. Silakan login kembali secara online.
     </div>

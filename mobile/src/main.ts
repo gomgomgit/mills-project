@@ -5,6 +5,7 @@ import App from './App.vue'
 import router from './router'
 import { initLocalSchema, seedGradingParametersIfNeeded } from '@/services/localSchema'
 import { query, run } from '@/services/localDb'
+import { setUnauthorizedHandler } from '@/services/apiClient'
 
 // Registers the <jeep-sqlite> custom element — @capacitor-community/sqlite's
 // web-platform companion. Without this, SQLiteConnection.open() has no
@@ -70,6 +71,19 @@ async function bootstrap(): Promise<void> {
   const app = createApp(App)
   app.use(createPinia())
   app.use(router)
+
+  // Audit 2026-10-05: 401 dari request bersesi (akun dinonaktifkan / token
+  // dicabut) -> sesi lokal sudah dibersihkan interceptor apiClient; di sini
+  // hanya navigasi ke Login (pesan ditampilkan LoginForm). Halaman asal
+  // disimpan di `redirect` seperti penjagaan rute biasa.
+  setUnauthorizedHandler(() => {
+    const current = router.currentRoute.value
+    if (current.name === 'login') {
+      return
+    }
+    void router.replace({ name: 'login', query: { redirect: current.fullPath } })
+  })
+
   app.mount('#app')
 }
 

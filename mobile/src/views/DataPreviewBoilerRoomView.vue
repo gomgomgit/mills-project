@@ -58,6 +58,7 @@
  * Search filter: case-insensitive substring match against
  * `boiler_room_id`.
  */
+import { optionLabel } from '@/utils/optionLabel'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -533,8 +534,8 @@ function goToMonitorBoilerRoom(): void {
                 <span>SA Fan Load: {{ row.sa_fan_load ?? '-' }}</span>
                 <span>Exhaust Gas Temp (°C): {{ row.exhaust_gas_temp_c ?? '-' }}</span>
                 <span>Dust Collector Differential Pressure (mmH2O): {{ row.dust_collector_differential_pressure_mmh2o ?? '-' }}</span>
-                <span>Blowdown Executed: {{ row.blowdown_executed ?? '-' }}</span>
-                <span>Sootblowing Executed: {{ row.sootblowing_executed ?? '-' }}</span>
+                <span>Blowdown Executed: {{ optionLabel(row.blowdown_executed) }}</span>
+                <span>Sootblowing Executed: {{ optionLabel(row.sootblowing_executed) }}</span>
                 <span>Findings: {{ row.findings ?? '-' }}</span>
               </div>
             </li>

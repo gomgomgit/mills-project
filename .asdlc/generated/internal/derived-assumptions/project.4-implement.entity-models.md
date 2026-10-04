@@ -8,3 +8,9 @@
 - entity-models.user_auth_password_column: User model override getAuthPasswordName()/getAuthPassword() agar Laravel auth memakai kolom `password_hash` (bukan konvensi default `password`) ← konsekuensi dari penamaan field di entity-catalog, ditangani secara eksplisit oleh agent
 - entity-models.unique_constraints_as_db_index: constraint uniqueness dari entity-catalog (corporate.name, company.name per-corporate, business-unit.code, user.username) diimplementasikan sebagai unique index di migration, bukan hanya validasi level aplikasi ← keputusan implementasi agent
 - entity-models.machinery_table_name: `Machinery` model set `$table = 'machinery'` eksplisit karena "machinery" adalah uncountable noun yang bisa salah diinfer Eloquent menjadi "machineries" ← detail teknis agent
+
+## v7 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (migrasi 2026_10_05_000001, Models/User.php).
+- files_generated += migrasi sessions_revoked_at.
+- setup_notes += catatan kolom sessions_revoked_at.

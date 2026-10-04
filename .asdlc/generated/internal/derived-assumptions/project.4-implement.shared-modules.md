@@ -18,3 +18,10 @@ Sumber: audit-fix 2026-10-04, code is truth (bootstrap/app.php, AppServiceProvid
 - fe_files_generated += mobile/src/utils/localDate.ts, utils/floatingSafeArea.ts, tests/setup/teleportStub.ts ← berkas baru lintas-layar (keputusan agen)
 - setup_notes += REVISI 2026-10-04 (auth-middleware EnsureUserIsActive + Sanctum nonaktif, error-handler QueryException, timezone, utilitas baru, env e2e) ← kode
 - setup_notes += catatan bahwa deskripsi DB_* MySQL usang, DB aktual PostgreSQL ← arch-spec + .env.example (DB_CONNECTION=pgsql); deskripsi env var lama sengaja tidak ditulis ulang
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (EnsureUserIsActive.php, AppServiceProvider.php, Display.php, ExportValue.php, ScopesToActorMill.php, mobile apiClient.ts/auth.ts/errorHandler.ts/main.ts/utils/optionLabel.ts).
+- fe_files_generated += mobile/src/utils/optionLabel.ts.
+- setup_notes += REVISI 2026-10-05 (revoke sesi, label opsi, filter bukan-UUID, 401 terpusat mobile).
+- ⚠ ScopesToActorMill.php tidak ditambahkan ke files_generated (tidak pernah tercantum sebelumnya; di luar modul shared).

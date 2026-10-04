@@ -1,5 +1,5 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -47,7 +47,7 @@
         "13. On Back: jika form dirty: tampilkan dialog konfirmasi → jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
         "14. On tap breadcrumb segment → navigasi ke route terkait",
         "15. On tap hamburger → buka menu navigasi (Ganti Password, Logout)",
-        "16. Checked by SPV per baris (keputusan pengguna 2026-10-04): checkbox (data-testid detail-checked-by-spv-{index}) hanya dirender v-if=\"isSupervisor\"; peran lain (operator, mill_management, admin) melihat <span> teks 'Ya' bila true atau '—' bila false (data-testid detail-checked-by-spv-text-{index}) — bukan input nonaktif. Nilai checked_by_spv baris tetap dibawa apa adanya di state/penyimpanan lokal (repo tidak men-strip per peran); server SterilizerRecordService::upsertDetails() menegakkan aturan yang sama: dari aktor non-Supervisor nilai kiriman DIABAIKAN (baris lama mempertahankan nilai tersimpan, baris baru selalu false), bukan ditolak"
+        "16. Checked by SPV per baris (keputusan pengguna 2026-10-04): checkbox (data-testid detail-checked-by-spv-{index}) hanya dirender v-if=\"isSupervisor\"; peran lain (operator, mill_management, admin) melihat <span> teks 'Ya' bila true atau '—' bila false (data-testid detail-checked-by-spv-text-{index}) — bukan input nonaktif. Nilai checked_by_spv baris tetap dibawa apa adanya di state/penyimpanan lokal (repo tidak men-strip per peran), TETAPI sejak 2026-10-05 payload sinkron (syncService pushUniformRow, sinkron manual maupun write-through) hanya menyertakan checked_by_spv bila useAuthStore().user.role === 'supervisor' (STATION_PUSH_CONFIGS sterilizer.supervisorOnlyDetailColumns = ['checked_by_spv']; Admin/Mill Management diperlakukan non-Supervisor) — kolom dihapus dari SELECT detail, bukan dikirim false. Server SterilizerRecordService::upsertDetails() menegakkan aturan yang sama: dari aktor non-Supervisor nilai kiriman DIABAIKAN, bukan ditolak — baris ber-id mempertahankan nilai tersimpan; baris TANPA id dicocokkan ke baris tersimpan yang belum diklaim lewat spvMatchKey(sterilizer_no, close_door_time HH:MM) dan mewarisi checked_by_spv-nya (tiap baris tersimpan diklaim paling banyak sekali); baris yang benar-benar baru selalu false"
       ],
       "data_operations": [
         {
@@ -129,7 +129,7 @@
         },
         {
           "condition": "Peran selain Supervisor membuka draft yang barisnya punya Checked by SPV",
-          "handling": "Checkbox tidak dirender; nilai tampil sebagai teks 'Ya'/'—' dan tidak dapat diubah. Bila payload dari aktor non-Supervisor tetap membawa checked_by_spv, server mengabaikannya (baris lama mempertahankan nilai tersimpan, baris baru = false) — simpan tidak ditolak."
+          "handling": "Checkbox tidak dirender; nilai tampil sebagai teks 'Ya'/'—' dan tidak dapat diubah. Payload sinkron dari peran non-Supervisor tidak membawa checked_by_spv sama sekali. Bila payload dari aktor non-Supervisor tetap membawa checked_by_spv (mis. klien API lain), server mengabaikannya — baris ber-id mempertahankan nilai tersimpan, baris tanpa id mewarisi nilai baris tersimpan dengan sterilizer_no + close_door_time sama, baris baru = false — simpan tidak ditolak."
         },
         {
           "condition": "Draft baru dibuat antara 00:00–06:59 WIB, atau data lama masih menyimpan `date` sebagai ISO UTC",
@@ -268,7 +268,8 @@
     "BERBEDA dari CPO Dispatch/Kernel Dispatch: TIDAK ADA kolom event_date per baris — seluruh baris siklus memakai Date milik header (satu Sterilizer Record = satu tanggal, banyak siklus dalam tanggal itu). checked_by_spv adalah checkbox boolean sederhana per baris, BUKAN referensi nama Supervisor (berbeda dari header checked_by yang merupakan FK user)",
     "Ini adalah stasiun TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01)",
     "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec): FormSterilizerView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('sterilizer_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/sterilizer-records, create). Kegagalan offline/5xx diam; penolakan 4xx (mis. 422 PERIOD_CLOSED) sejak perbaikan 2026-10-03 ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' sebelum navigasi ke Monitor Sterilizer. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('sterilizer', mill, date) berjalan di SterilizerRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142. Skenario ini teruji end-to-end di backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali') memakai POST /api/sterilizer-records.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) 'Checked by SPV' per baris kini HANYA Supervisor (keputusan pengguna 2026-10-04): FormSterilizerView merender checkbox v-if=\"isSupervisor\", peran lain melihat teks 'Ya'/'—' (span.spv-check-text); SterilizerRecordService::upsertDetails() mengabaikan nilai dari aktor non-Supervisor (baris lama dipertahankan, baris baru false). (2) sterilizerRecordRepo.createDraft() memakai todayLocalDateString() bersama dari src/utils/localDate.ts (helper lokal todayDateString() dihapus); localSchema.normalizeLegacyUtcDates() memigrasi baris lama; payload `date` sinkron selalu tanggal lokal. (3) Label kolom catatan 'Note' → 'Catatan' dengan id eksplisit 'field-note' (noteLabelConsistency.spec.ts). (4) Write-through syncAfterSave('sterilizer_record') kini benar-benar berjalan saat immediate_sync_enabled aktif (perbaikan SELECT millSettingRepo); penolakan server juga disimpan sebagai `sync_error`; sinkron memakai Production Line stasiun record. (5) ConfirmDialog di-teleport ke <body> (z-index 1200). (6) Kosmetik header: ikon brand SVG + ikon hamburger/tutup SVG dengan aria-label, tombol Pause bergaya warning (oranye)."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) 'Checked by SPV' per baris kini HANYA Supervisor (keputusan pengguna 2026-10-04): FormSterilizerView merender checkbox v-if=\"isSupervisor\", peran lain melihat teks 'Ya'/'—' (span.spv-check-text); SterilizerRecordService::upsertDetails() mengabaikan nilai dari aktor non-Supervisor (baris lama dipertahankan, baris baru false). (2) sterilizerRecordRepo.createDraft() memakai todayLocalDateString() bersama dari src/utils/localDate.ts (helper lokal todayDateString() dihapus); localSchema.normalizeLegacyUtcDates() memigrasi baris lama; payload `date` sinkron selalu tanggal lokal. (3) Label kolom catatan 'Note' → 'Catatan' dengan id eksplisit 'field-note' (noteLabelConsistency.spec.ts). (4) Write-through syncAfterSave('sterilizer_record') kini benar-benar berjalan saat immediate_sync_enabled aktif (perbaikan SELECT millSettingRepo); penolakan server juga disimpan sebagai `sync_error`; sinkron memakai Production Line stasiun record. (5) ConfirmDialog di-teleport ke <body> (z-index 1200). (6) Kosmetik header: ikon brand SVG + ikon hamburger/tutup SVG dengan aria-label, tombol Pause bergaya warning (oranye).",
+    "REVISI (2026-10-05, audit-fix #4/#4b, commit 30b7f27 + f79b1fe — kode adalah acuan): (1) mobile syncService.ts: StationPushConfig.supervisorOnlyDetailColumns; Sterilizer ['checked_by_spv'] tidak di-SELECT/dikirim bila role ≠ 'supervisor' (field absen dari payload). (2) backend SterilizerRecordService::upsertDetails(): untuk aktor non-Supervisor pada record yang sudah ada, baris tersimpan yang id-nya tidak dikirim menjadi kandidat 'claimable'; baris kiriman tanpa id mewarisi checked_by_spv kandidat pertama dengan kunci spvMatchKey() = trim(sterilizer_no) + '|' + 5 karakter pertama close_door_time (TIME tersimpan bisa '07:00:00'), kandidat dihapus setelah diklaim; tanpa kecocokan → false. Sebelumnya baris tanpa id (gaya sinkron mobile / klien yang mengganti semua baris) selalu dianggap baru → false sehingga centang SPV hilang (temuan audit #4). Jalur web (Livewire FormSterilizer, Mill Management) memakai service yang sama."
   ],
   "test_scenarios": [
     {
@@ -449,6 +450,78 @@
         "route": "/stations/sterilizer/form/:id",
         "action": "sebagai Operator tambah baris; lalu login Supervisor, buat draft, tambah baris, centang Checked by SPV, Pause, buka lagi dan lepas centang",
         "assert": "Operator: tidak ada checkbox di baris, teks '—'; Supervisor: checkbox ada, nilai tercentang tersimpan setelah Pause dan dapat dilepas"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Checked by SPV Tidak Dikirim/Tidak Tertimpa oleh Non-Supervisor",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/sterilizer-records"
+          },
+          "request_example": {
+            "_actor": "supervisor",
+            "sterilizer_id": "STR-SPV-05",
+            "date": "2026-10-03",
+            "details": [
+              {
+                "sterilizer_no": "1",
+                "close_door_time": "07:00",
+                "open_door_time": "08:00",
+                "checked_by_spv": true
+              },
+              {
+                "sterilizer_no": "2",
+                "close_door_time": "09:00",
+                "open_door_time": "10:00",
+                "checked_by_spv": false
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/sterilizer-records/{id}"
+          },
+          "request_example": {
+            "_actor": "operator",
+            "_note": "baris tanpa id; baris 2 mencoba checked_by_spv=true",
+            "sterilizer_id": "STR-SPV-05",
+            "date": "2026-10-03",
+            "details": [
+              {
+                "sterilizer_no": "1",
+                "close_door_time": "07:00",
+                "open_door_time": "08:00"
+              },
+              {
+                "sterilizer_no": "2",
+                "close_door_time": "09:00",
+                "open_door_time": "10:30",
+                "checked_by_spv": true
+              }
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "syncService (sql.js)",
+        "action": "sinkronkan record Sterilizer lokal yang barisnya checked_by_spv = 1, sekali sebagai Operator dan sekali sebagai Supervisor",
+        "assert": "Operator: detail payload tidak memiliki properti checked_by_spv (kolom lain tetap terkirim); Supervisor: checked_by_spv = 1 terkirim"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "login Operator, buat Sterilizer, tambah baris close 07:00, Simpan (write-through); ulangi sebagai Supervisor",
+        "assert": "POST /api/sterilizer-records dari Operator: details[0] tanpa checked_by_spv; dari Supervisor: details[0] membawa checked_by_spv; setelah PATCH Operator di API, nilai tersimpan tetap [true, false]"
       }
     }
   ]

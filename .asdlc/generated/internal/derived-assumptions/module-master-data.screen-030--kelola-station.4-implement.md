@@ -26,3 +26,11 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD KelolaStation.php, St
 - implementation_notes[1] = is_active hanya dilarang untuk Other ← validate() after().
 - implementation_notes (+) = REVISI audit-fix.
 - known_issues (+) = delete() tidak memeriksa record stasiun (FK restrictOnDelete → error DB tak tertangkap di confirmDelete) dan filter production_line_id tidak ada di API ⚠ INFERENSI dari kode (delete() + migrasi restrictOnDelete + catch di confirmDelete), tidak dibuktikan lewat run.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (StationService.php, Api/StationController.php, tes terkait).
+- known_issues ← dikosongkan: kedua isu (guard record → 500, filter line API) sudah diperbaiki.
+- test_files_generated / fe_test_files_generated ← + AuditFix20261005Test.php, audit-fix-20261005.spec.ts (#1, #7).
+- test_results unit/integration/component ← dijalankan ulang 2026-10-05: StationServiceTest 53, Api/KelolaStationTest 36, Livewire KelolaStationTest+AuditTest 35, semua lulus.
+- ⚠ test_results.browser 13 (kelola-station.spec.ts 11 + audit #1/#7) ← berdasarkan klaim commit 'e2e-web 554 lulus', tidak dijalankan ulang oleh agen.

@@ -36,3 +36,10 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff mobile/src/views/FormSteri
 - fe_test_files_generated (+) = noteLabelConsistency, DialogTeleport, localDate.sqljs, writeThroughSync, millSettingRepo.sqljs, syncService.sqljs (*.spec.ts) ← cakupan generik lintas stasiun (⚠ inferensi); FormSterilizerView.spec.ts & e2e/form-sterilizer.spec.ts sudah terdaftar (isi berubah: test SPV per peran)
 - implementation_notes[3] = checked_by_spv kini role-gated (checkbox hanya Supervisor, peran lain span teks Ya/—) — sebelumnya "never role-gated" ← diff template
 - implementation_notes (append) = REVISI 2026-10-04 audit-fix (SPV hanya Supervisor UI+server, date lokal bersama, Catatan, write-through/sync_error/line, teleport, kosmetik header + Pause warning); test_results tidak diubah ← diff kode
+
+## v7 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/services/syncService.ts, backend/app/Services/SterilizerRecordService.php).
+- test_files_generated ← + backend/tests/Feature/AuditFix20261005Test.php.
+- fe_test_files_generated ← + mobile/tests/e2e/sync-and-verification.spec.ts.
+- implementation_notes ← append rincian mobile + backend + uji.

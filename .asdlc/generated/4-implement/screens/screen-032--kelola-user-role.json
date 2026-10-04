@@ -1,5 +1,5 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -15,14 +15,19 @@
     "backend/routes/api.php",
     "backend/routes/web.php",
     "backend/app/Support/PasswordPolicy.php",
-    "backend/app/Enums/UserRole.php"
+    "backend/app/Enums/UserRole.php",
+    "backend/database/migrations/2026_10_05_000001_add_sessions_revoked_at_to_users_table.php",
+    "backend/app/Models/User.php",
+    "backend/app/Http/Middleware/EnsureUserIsActive.php",
+    "backend/app/Providers/AppServiceProvider.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/UserServiceTest.php",
     "backend/tests/Feature/Api/KelolaUserRoleTest.php",
     "backend/tests/Feature/Livewire/KelolaUserRoleTest.php",
     "backend/tests/Feature/Livewire/KelolaUserRoleAuditTest.php",
-    "backend/tests/Feature/WebAccessTest.php"
+    "backend/tests/Feature/WebAccessTest.php",
+    "backend/tests/Feature/AuditFix20261005Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/UserManagement/KelolaUserRole.php",
@@ -32,7 +37,8 @@
   "fe_test_files_generated": [
     "e2e-web/tests/kelola-user-role.spec.ts",
     "e2e-web/tests/support/paged-table.ts",
-    "e2e-web/tests/audit-web-admin.spec.ts"
+    "e2e-web/tests/audit-web-admin.spec.ts",
+    "e2e-web/tests/audit-fix-20261005.spec.ts"
   ],
   "implementation_notes": [
     "First-time implementation (never built before this round) — no new migration needed, the `users` table already had every field this screen manages (username, password_hash, name, role, business_unit_id, is_active) from project bootstrap",
@@ -46,30 +52,31 @@
     "REVISI v2 (2026-10-03, perbaikan spec e2e — kode aplikasi tidak diubah): e2e-web/tests/kelola-user-role.spec.ts kini memakai user fixture yang di-seed oleh backend/database/seeders/BrowserTestFixtureSeeder.php (bukan mengandalkan data yang kebetulan ada) dan mencari baris di tabel berhalaman lewat helper e2e-web/tests/support/paged-table.ts. test_results.browser tidak diubah (tidak ada hitungan per-layar yang dicatat).",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-user-role.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 7 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus.",
     "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): KelolaUserRole::rules()/messages() dihapus — validasi hanya di UserService::validate() (catatan lama tentang rules() client-side tidak berlaku lagi). Password create memakai App\\Support\\PasswordPolicy::rule() (dulu hanya min:6 → user yang tak bisa login). Edit User punya kolom opsional 'Reset Password' (UserService::update() mengganti password_hash hanya bila terisi; endpoint API PATCH /api/users/{id} tetap tidak meneruskan password) — catatan lama 'update() never touches password_hash' tidak berlaku lagi. Username: regex tanpa spasi + keunikan case-insensitive (UserService::usernameUniqueRule), ditampilkan sebagai teks di mode Edit. Nonaktifkan memakai wire:confirm; setStatus(false) mencabut token Sanctum. Pesan sukses ($successMessage, kc-alert--success) dan label role via UserRole::label(). Uji: KelolaUserRoleAuditTest.php, WebAccessTest.php (#4), e2e-web/tests/audit-web-admin.spec.ts (#3/#4)."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): KelolaUserRole::rules()/messages() dihapus — validasi hanya di UserService::validate() (catatan lama tentang rules() client-side tidak berlaku lagi). Password create memakai App\\Support\\PasswordPolicy::rule() (dulu hanya min:6 → user yang tak bisa login). Edit User punya kolom opsional 'Reset Password' (UserService::update() mengganti password_hash hanya bila terisi; endpoint API PATCH /api/users/{id} tetap tidak meneruskan password) — catatan lama 'update() never touches password_hash' tidak berlaku lagi. Username: regex tanpa spasi + keunikan case-insensitive (UserService::usernameUniqueRule), ditampilkan sebagai teks di mode Edit. Nonaktifkan memakai wire:confirm; setStatus(false) mencabut token Sanctum. Pesan sukses ($successMessage, kc-alert--success) dan label role via UserRole::label(). Uji: KelolaUserRoleAuditTest.php, WebAccessTest.php (#4), e2e-web/tests/audit-web-admin.spec.ts (#3/#4).",
+    "REVISI (2026-10-05, audit-fix f79b1fe — kode adalah acuan, temuan #8/#8b): (1) Api/UserController::update() kini meneruskan password (Reset Password) dan $request->user() ke UserService::update($id, $data, $actor) — jalur & PasswordPolicy identik dengan KelolaUserRole (yang kini juga meneruskan auth()->user()). (2) Reset password: dalam DB::transaction password_hash diganti, users.sessions_revoked_at=now() (kolom baru, migrasi 2026_10_05_000001, cast datetime di User), seluruh token Sanctum dihapus; revokeWebSessions() menghapus baris sessions bila driver database dan, bila Admin mereset password-nya sendiri, mempertahankan sesi saat ini dengan menyetel stempel EnsureUserIsActive::SESSION_AUTH_AT = sessions_revoked_at. (3) EnsureUserIsActive menyimpan stempel login sesi (listener event Login di AppServiceProvider; sesi lama tanpa stempel diberi stempel pada request pertama) dan mengeluarkan sesi yang lebih tua dari sessions_revoked_at dengan REVOKED_MESSAGE 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.' (JSON 401 / redirect login). Edit tanpa password tidak mencabut apa pun. Tes: Api/KelolaUserRoleTest (+3 reset password via API), AuditFix20261005Test #8b (7 tes), e2e audit-fix-20261005 '#8b reset password' (dua konteks browser)."
   ],
   "deferred_items": [],
   "known_issues": [],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-20T00:30:00Z",
+      "run_at": "2026-10-05T00:00:00Z",
       "passed": 13,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-20T00:30:00Z",
-      "passed": 8,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 18,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-20T00:30:00Z",
-      "passed": 7,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 13,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-10-03T00:00:00Z",
-      "passed": 7,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 8,
       "failed": 0
     }
   }

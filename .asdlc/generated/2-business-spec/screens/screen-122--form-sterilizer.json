@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -136,7 +136,7 @@
     "Duration (Minutes) dihitung otomatis = Open Door Time − Close Door Time, TIDAK PERNAH dapat diedit manual oleh user",
     "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
     "Field wajib ditandai asterisk dengan validasi inline",
-    "Checked by SPV per-baris hanya boleh diset/diubah oleh Supervisor (keputusan pengguna 2026-10-04): di form hanya Supervisor yang mendapat checkbox, peran lain melihat teks 'Ya'/'—'; server menegakkan aturan yang sama — nilai kiriman dari peran lain DIABAIKAN (bukan ditolak), baris lama mempertahankan nilai tersimpannya dan baris baru selalu false"
+    "Checked by SPV per-baris hanya boleh diset/diubah oleh Supervisor (keputusan pengguna 2026-10-04): di form hanya Supervisor yang mendapat checkbox, peran lain (Operator, Mill Management, Admin) melihat teks 'Ya'/'—'; saat sinkron, aplikasi hanya mengirim nilai Checked by SPV bila pengguna berperan Supervisor (peran lain tidak mengirim kolom itu sama sekali); server menegakkan aturan yang sama — nilai kiriman dari peran lain DIABAIKAN (bukan ditolak): baris lama mempertahankan nilai tersimpannya (dikenali lewat id baris, atau bila tanpa id lewat Sterilizer No + Close Door Time yang sama), dan baris yang benar-benar baru selalu false"
   ],
   "usecase_ids": [
     "usecase-122--form-sterilizer"
@@ -150,7 +150,8 @@
     "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
     "User menekan Clear (perlu konfirmasi sebelum hapus permanen)",
     "User menghapus baris Log Siklus yang sudah ada sebelumnya (bukan baru ditambah)",
-    "Operator/Mill Management membuka draft yang barisnya sudah dicentang Supervisor — 'Checked by SPV' tampil sebagai teks 'Ya' dan tidak dapat diubah; bila nilai dari peran non-Supervisor tetap terkirim ke server, server mengabaikannya"
+    "Operator/Mill Management membuka draft yang barisnya sudah dicentang Supervisor — 'Checked by SPV' tampil sebagai teks 'Ya' dan tidak dapat diubah; bila nilai dari peran non-Supervisor tetap terkirim ke server, server mengabaikannya",
+    "Operator/Mill Management/Admin menyimpan ulang atau menyinkronkan record yang barisnya sudah dicentang Supervisor dengan baris dikirim tanpa id (mengganti semua baris) — centang Supervisor TIDAK hilang: baris dengan Sterilizer No + Close Door Time yang sama mewarisi nilai tersimpannya; baris baru tetap tidak tercentang"
   ],
   "test_priority": "high",
   "open_questions": []

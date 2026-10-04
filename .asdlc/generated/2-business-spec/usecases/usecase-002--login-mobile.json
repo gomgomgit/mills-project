@@ -1,5 +1,5 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-14"
@@ -79,6 +79,15 @@
       "steps": [
         "Sistem meminta user re-login secara online"
       ]
+    },
+    {
+      "name": "Sesi Ditolak Server Saat Masih Login",
+      "trigger": "Setelah login, request bersesi (mis. sinkronisasi) ditolak server 401 karena akun dinonaktifkan Admin atau token dicabut",
+      "steps": [
+        "Sistem membersihkan sesi lokal (token, user, Business Unit) tanpa memanggil logout ke server dan tanpa menghapus data lokal",
+        "Sistem mengarahkan user ke layar Login (halaman asal disimpan sebagai redirect) dan menampilkan pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'",
+        "Setelah akun aktif kembali dan user login ulang, user kembali ke halaman asal; draft/record lokal yang belum tersinkron masih ada dan dapat disinkronkan"
+      ]
     }
   ],
   "postconditions": [
@@ -132,6 +141,12 @@
       "given": "User memiliki akun terdaftar dan aktif, dan device memiliki koneksi internet untuk login pertama kali",
       "when": "User memilih Business Area/Company yang tidak sesuai dengan penugasannya lalu menekan tombol Login",
       "then": "Sistem menolak login karena Business Area yang dipilih tidak sesuai dengan penugasan user"
+    },
+    {
+      "scenario": "Login Mobile — Sesi Ditolak Server",
+      "given": "User sudah login di aplikasi mobile dan memiliki record lokal berstatus Tersimpan yang belum tersinkron",
+      "when": "Admin menonaktifkan akun user (token dicabut) lalu user menekan Sinkronisasi sehingga server menolak request dengan 401",
+      "then": "Aplikasi kembali ke layar Login dengan pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.', sesi lokal terhapus tetapi record lokal tetap tersimpan; setelah akun diaktifkan dan user login ulang, record tersebut masih ada dan dapat disinkronkan. Login dengan password salah tidak memunculkan pesan sesi berakhir ini"
     }
   ],
   "related_screen_ids": [

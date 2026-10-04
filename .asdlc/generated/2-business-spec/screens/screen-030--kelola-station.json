@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -7,7 +7,7 @@
   "id": "screen-030--kelola-station",
   "name": "Kelola Station",
   "module_id": "module-master-data",
-  "description": "Layar bagi Admin untuk mengelola data master Station — stasiun produksi mill di bawah Business Unit dan Production Line (setiap Production Line memiliki set 18 tipe station kanonis dari master station_types). Admin dapat melihat daftar Station (dapat difilter per Business Unit dan per Production Line), menambah Station baru dengan memilih Business Unit, Production Line, dan tipe stasiun, mengedit data yang sudah ada, dan menghapus Station yang tidak lagi memiliki Machinery Group atau Machinery terkait.",
+  "description": "Layar bagi Admin untuk mengelola data master Station — stasiun produksi mill di bawah Business Unit dan Production Line (setiap Production Line memiliki set 18 tipe station kanonis dari master station_types). Admin dapat melihat daftar Station (dapat difilter per Business Unit dan per Production Line), menambah Station baru dengan memilih Business Unit, Production Line, dan tipe stasiun, mengedit data yang sudah ada, dan menghapus Station yang tidak lagi memiliki record stasiun, Machinery Group, atau Machinery terkait.",
   "actors": [
     "actor-admin"
   ],
@@ -45,7 +45,7 @@
     },
     {
       "action": "Hapus Station",
-      "description": "Menghapus Station, hanya diizinkan jika tidak ada Machinery Group atau Machinery yang masih terkait",
+      "description": "Menghapus Station, hanya diizinkan jika tidak ada record stasiun (di salah satu dari 18 tabel record stasiun), Machinery Group, atau Machinery yang masih terkait",
       "actor_ids": [
         "actor-admin"
       ]
@@ -54,7 +54,7 @@
   "business_rules": [
     "Kode Station harus unik jika diisi (field opsional) — perbandingan tidak peka huruf besar/kecil",
     "Tipe station harus salah satu kode di master station_types; station bertipe Other (placeholder) harus is_active=false, tipe lainnya boleh aktif",
-    "Station tidak dapat dihapus jika masih memiliki satu atau lebih Machinery Group atau Machinery terkait",
+    "Station tidak dapat dihapus jika masih memiliki satu atau lebih record stasiun (record di salah satu dari 18 stasiun, mis. Weighbridge, Sterilizer, CPO Dispatch), Machinery Group, atau Machinery terkait. Bila ada record stasiun, pesan menyebut jumlahnya: 'Station tidak dapat dihapus karena masih memiliki N record stasiun[, N Machinery Group][, N Machinery]. Hapus atau pindahkan data tersebut terlebih dahulu.'; bila hanya Machinery Group/Machinery: 'Station tidak dapat dihapus karena masih memiliki Machinery Group atau Machinery terkait.'",
     "Hanya Admin yang dapat mengakses dan mengelola data Station",
     "Station harus terkait ke tepat satu Business Unit dan satu Production Line yang sudah ada, dan Production Line tersebut harus milik Business Unit yang sama (dipilih via dropdown, bukan input bebas)",
     "Jumlah Machinery Group yang ditampilkan dihitung otomatis, bukan diisi manual",
@@ -72,7 +72,8 @@
     "Belum ada Station sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
     "Menambah/memindah station ke Production Line yang sudah memiliki station bertipe sama (selain Other) — ditolak di kolom Type: 'Production Line ini sudah memiliki station bertipe {tipe}. Satu Production Line hanya boleh memiliki satu station per tipe (kecuali Other).'",
     "Edit station bertipe non-MVP (mis. Boiler Room) — tipe terpilih tetap tampil di dropdown Type (dulu kosong karena hanya 4 tipe yang tersedia)",
-    "Filter Business Unit/Production Line tidak mencocokkan station apa pun — empty state 'Tidak ada Station yang cocok dengan filter' dengan ajakan mengubah filter; mengganti filter Business Unit mengosongkan filter Production Line"
+    "Filter Business Unit/Production Line tidak mencocokkan station apa pun — empty state 'Tidak ada Station yang cocok dengan filter' dengan ajakan mengubah filter; mengganti filter Business Unit mengosongkan filter Production Line",
+    "Percobaan menghapus Station yang sudah memiliki record stasiun (log sheet di salah satu dari 18 stasiun) — ditolak dengan pesan yang menyebut jumlah record (mis. 'Station tidak dapat dihapus karena masih memiliki 1 record stasiun. Hapus atau pindahkan data tersebut terlebih dahulu.'); dialog konfirmasi tertutup, baris tetap ada, tidak ada halaman error"
   ],
   "test_priority": "medium",
   "open_questions": []

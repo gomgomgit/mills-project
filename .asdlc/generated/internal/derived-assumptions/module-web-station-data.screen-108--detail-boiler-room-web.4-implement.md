@@ -25,3 +25,9 @@ Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/Data/DetailBoi
 - fe_test_files_generated += backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php ← file uji baru mencakup DetailBoilerRoom (dataset 18 stasiun)
 - implementation_notes += REVISI (2026-10-04, audit-fix) ← git diff DetailBoilerRoom.php / detail-boiler-room.blade.php; DetailBoilerRoomTest asersi angka kini id-ID
 - known_issues: tidak diubah ← tidak ada issue yang diperbaiki/ditambahkan oleh audit untuk layar ini
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/app/Support/Concerns/ScopesToActorMill.php, backend/tests/Feature/AuditFix20261005Test.php, e2e-web/tests/audit-fix-20261005.spec.ts, backend/app/Support/{Display,ExportValue}.php, backend/app/Services/*RecordService.php, resources/views/livewire/data/detail-*.blade.php).
+- test_files_generated / fe_test_files_generated ← + AuditFix20261005Test.php, audit-fix-20261005.spec.ts.
+- implementation_notes ← +1 catatan Display::option().

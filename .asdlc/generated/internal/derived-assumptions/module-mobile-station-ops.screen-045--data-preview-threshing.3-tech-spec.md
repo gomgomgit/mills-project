@@ -27,3 +27,8 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/DataPreviewThreshi
 - api_contracts[0].unit_test_cases += 3 (pull mirror/offline, 404 stop, SyncFailureHint) ← syncService.sqljs.spec.ts #6, SyncFailureHint.spec.ts.
 - implementation_notes += REVISI 2026-10-04 (GET endpoint, /api prefix, network flag, SyncFailureHint, Tanggal type=date via toDateInputValue, filter-row minmax).
 - test_scenarios += 2 (Status Verifikasi Ditarik dari Server; Petunjuk Gagal Sinkron). ⚠ diturunkan dari kode/e2e, bukan bdd_scenarios Phase 2.
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit f79b1fe), code is truth.
+- api_contracts GET /api/records/{stationType}/verification error_codes[404].condition: body kini amplop standar { message, code: NOT_FOUND } ← RecordVerificationStatusController abort(404) (temuan audit 2026-10-05 #11).

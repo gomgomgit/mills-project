@@ -53,3 +53,10 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/services/syncService.ts,
 - api_contracts[0].unit_test_cases += 4 ← syncService.sqljs.spec.ts (#3/#5/#9), syncService.spec.ts.
 - implementation_notes += REVISI 2026-10-04 (koreksi catatan 2026-10-03: write-through kini benar aktif via millSettingRepo SELECT fix; penolakan ditulis sync_error; dialog teleport; floating safe area; label 'Stasiun Aktif').
 - test_scenarios += 'Pilih Stasiun — Sinkronisasi per Record'. ⚠ diturunkan dari e2e sync-and-verification.spec.ts, bukan dari bdd_scenarios Phase 2.
+
+## v12 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/services/apiClient.ts, mobile/src/services/syncService.ts).
+- implementation_notes ← append: 401 saat sinkron ditangani interceptor apiClient; supervisorOnlyDetailColumns Sterilizer.
+- test_scenarios ← append 'Pilih Stasiun — Sinkronisasi Ditolak karena Sesi Tidak Berlaku'.
+- ⚠ 401 susulan dalam batch yang sama (request tanpa token setelah expireSession) diasumsikan tetap ditangkap per record oleh syncService dan tidak memicu handler lagi — disimpulkan dari kode, tidak diuji khusus di layar ini.

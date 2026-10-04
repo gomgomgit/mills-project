@@ -29,3 +29,10 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff mobile view/repo/tests + S
 - test_files_generated[+] = ReportAuditFix20261004Test.php, ExportXlsxTest.php ← mencakup ekspor/kelengkapan Storage Tank sisi server
 - implementation_notes[+1] = REVISI audit-fix ← diff
 - known_issues[+1] = stub CSV e2e masih 4 kolom konteks ← mobile/tests/e2e/laporan-storage-tank.spec.ts:393 vs EXPORT_HEADER (⚠ inferensi: dinilai tidak memerahkan test karena di-stub; tidak dijalankan)
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/tests/e2e/laporan-storage-tank.spec.ts, backend/app/Services/StorageTankReportService.php).
+- implementation_notes[10] ← koreksi 'TEPAT 4 kolom konteks' → 7 (25 kolom).
+- known_issues[5] ← DITUTUP (stub CSV 25 kolom).
+- implementation_notes ← append REVISI 2026-10-05.

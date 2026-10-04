@@ -43,3 +43,11 @@ Sumber: audit-fix 2026-10-04, code is truth (config/app.php, AppTime, EnforcesPe
 - other_decisions += EKSPOR TABEL (SheetWriter xlsx sungguhan, ExportValue vs Display) ← kode
 - other_decisions += KELENGKAPAN LAPORAN PERIODE (ReportPeriodDays, days_counted/period_running, ChartAxis) ← kode; "respons laporan membawa days_counted/period_running" digeneralisasi agen — terverifikasi di Weighbridge/StorageTank/Clarification/BoilerRoom report service
 - other_decisions += VALIDASI MASTER DATA & UNGGAHAN (UniqueCaseInsensitive, RealImage, ValidatesUploadOnSelect) ← kode
+
+## v9 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (EnsureUserIsActive.php, AppServiceProvider.php, UserService.php, ScopesToActorMill.php, Display.php, ExportValue.php, RecordVerification*Controller.php, mobile apiClient.ts/auth.ts/errorHandler.ts/main.ts/optionLabel.ts).
+- auth.notes += reset password mencabut sesi (sessions_revoked_at, REVOKED_MESSAGE) + penanganan 401 terpusat mobile.
+- error_format.notes += verifikasi 404/403 via abort → NOT_FOUND/FORBIDDEN; 409 hapus Station ber-record (StationHasMachineryException); SESSION_REVOKED_MESSAGE mobile.
+- other_decisions += filter baca bukan-UUID diabaikan; peta label enum tunggal (Display/ExportValue/optionLabel.ts).
+- ⚠ 'handler hanya berjalan sekali per sesi' ← disimpulkan dari pemeriksaan Authorization = token sesi saat ini (bukan flag eksplisit).

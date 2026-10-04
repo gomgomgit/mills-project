@@ -21,3 +21,10 @@ Sumber: audit-fix 2026-10-04, code is truth (AuthController.php, AuthService.php
 - business_logic += 8 fetch mill-setting + grading parameters best-effort; 9 token akun nonaktif ditolak/dicabut
 - edge_case_handling += akun dinonaktifkan saat login mobile → token dicabut, 401
 - implementation_notes += alasan master Grading diambil saat login (id parameter buatan lokal ditolak server)
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/services/apiClient.ts, mobile/src/stores/auth.ts, mobile/src/main.ts, mobile/src/services/errorHandler.ts, mobile/src/components/LoginForm.vue).
+- implementation_notes ← append catatan penanganan 401 terpusat (expireSession, setUnauthorizedHandler, pengecualian).
+- test_scenarios ← append 'Login Mobile — Sesi Ditolak Server'.
+- ⚠ test_scenarios[api_test].expected_error_code 'UNAUTHENTICATED' diambil dari ApiExceptionHandler (401 → UNAUTHENTICATED); e2e hanya mengasersi status 401.

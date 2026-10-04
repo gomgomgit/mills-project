@@ -17,3 +17,8 @@ Sumber: audit-fix 2026-10-04, code is truth (UserService.php, KelolaUserRole.php
 - business_rules[4] = password awal ikut aturan login ← PasswordPolicy::rule()
 - business_rules += reset password oleh Admin; penonaktifan mengakhiri sesi
 - edge_cases[0] = duplikat termasuk beda huruf; [4] = aturan password login; += username berspasi
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (UserService.php, EnsureUserIsActive.php, Api/UserController.php).
+- available_actions[2], business_rules[7] (+API), business_rules (+1), edge_cases (+2) ← reset password mencabut token & sesi web user (kecuali sesi saat ini saat reset diri sendiri), pesan REVOKED_MESSAGE.

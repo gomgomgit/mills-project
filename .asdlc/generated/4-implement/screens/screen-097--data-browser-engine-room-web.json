@@ -1,5 +1,5 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -33,7 +33,8 @@
     "backend/tests/Feature/Livewire/DataBrowserEngineRoomTest.php",
     "backend/tests/Feature/ProductionProcessActivityTest.php",
     "backend/tests/Unit/Services/ExportDetailRowsTest.php",
-    "backend/tests/Pest.php"
+    "backend/tests/Pest.php",
+    "backend/tests/Feature/AuditFix20261005Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserEngineRoom.php",
@@ -42,7 +43,8 @@
   ],
   "fe_test_files_generated": [
     "e2e-web/tests/data-browser-engine-room.spec.ts",
-    "e2e-web/tests/support/production-line-filter.ts"
+    "e2e-web/tests/support/production-line-filter.ts",
+    "e2e-web/tests/audit-fix-20261005.spec.ts"
   ],
   "implementation_notes": [
     "EngineRoomRecordService/Controller/routes/factories/models/migrations are shared infrastructure for all 3 web Engine Room screens (097/107/117), mirroring StorageTankRecordService's precedent -- reported under this screen since it is first in the implementation sequence. Models/migrations were already generated in an earlier (Phase 1/entity-catalog) pass per the task brief; this pass verified them against the service/controller code (using the migration as ground truth for the exact column list) and found them consistent, requiring no changes",
@@ -58,7 +60,8 @@
     "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau.",
     "REVISI v3 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-engine-room.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec dijalankan penuh: 5/5 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser spec tidak dapat dijalankan' dihapus.",
     "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): EngineRoomRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan, sebelumnya CSV berlabel .xlsx; csv tetap CSV); nilai sel lewat App\\Support\\ExportValue — time slot 'HH:MM', status label Indonesia; data-browser-engine-room.blade.php memakai Display::status() untuk badge. Uji: EngineRoomRecordServiceTest export (assert 'PK' + xlsxRows), ExportDetailRowsTest, helper xlsxRows/exportBodyAsCsv di tests/Pest.php. Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): EngineRoomRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan, sebelumnya CSV berlabel .xlsx; csv tetap CSV); nilai sel lewat App\\Support\\ExportValue — time slot 'HH:MM', status label Indonesia; data-browser-engine-room.blade.php memakai Display::status() untuk badge. Uji: EngineRoomRecordServiceTest export (assert 'PK' + xlsxRows), ExportDetailRowsTest, helper xlsxRows/exportBodyAsCsv di tests/Pest.php. Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah.",
+    "AUDIT-FIX 2026-10-05 (f79b1fe): ScopesToActorMill mengabaikan production_line_id/business_unit_id bukan UUID (= semua line/mill, tanpa query) — Data Browser Livewire tak lagi 500 dan API list/export tak lagi 422 di PostgreSQL. Uji: AuditFix20261005Test #6 (Livewire Supervisor+Admin; API list Supervisor + export Admin dengan business_unit_id bukan UUID; asersi binding query) dan audit-fix-20261005.spec.ts #6 (Admin, $wire.set di ke-18 Data Browser, respons /livewire/update 200, properti kembali \"\"). Ekspor: label opsi Diesel Gen di ekspor — diuji AuditFix20261005Test #5 dan audit-fix-20261005.spec.ts #5."
   ],
   "deferred_items": [
     {

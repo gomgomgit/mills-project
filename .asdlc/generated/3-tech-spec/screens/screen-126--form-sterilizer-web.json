@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -127,7 +127,7 @@
               "note": "string, optional",
               "checked": "boolean, optional",
               "acknowledged": "boolean, optional",
-              "details": "array of {id?: uuid, close_door_time: time, ..., checked_by_spv?: boolean (Supervisor-only; peran lain diabaikan, baris lama mempertahankan nilai tersimpan)}, required, min 1 item with close_door_time filled; id baris bukan-UUID -> INSERT baris baru tanpa query"
+              "details": "array of {id?: uuid, close_door_time: time, ..., checked_by_spv?: boolean (Supervisor-only; peran lain diabaikan — baris ber-id mempertahankan nilai tersimpan, baris TANPA id mewarisi checked_by_spv baris tersimpan yang belum diklaim dengan sterilizer_no + close_door_time (HH:MM) sama, selain itu false)}, required, min 1 item with close_door_time filled; id baris bukan-UUID -> INSERT baris baru tanpa query"
             }
           },
           "response": {
@@ -190,7 +190,7 @@
         "15. Simpan berhasil -> navigasi ke Detail Sterilizer (Web)",
         "16. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty",
         "17. KUNCI PERIODE (usecase-141): SEBELUM penulisan apa pun -- create: setelah validasi field & resolve station, sebelum penulisan pertama; update: setelah findOrFail + cek akses + validasi -- SterilizerRecordService memanggil EnforcesPeriodLock::assertPeriodOpenForWrite('sterilizer', station.business_unit_id, tanggal). Tanggal kejadian stasiun ini = date (tanggal header). Create: 1 cek terhadap date BARU. Update: 2 cek -- date LAMA (tersimpan) DAN date BARU (body), keduanya harus di periode Terbuka. Lolos hanya bila mill punya Periode Pelaporan yang baris period_stations untuk 'sterilizer' berstatus open DAN tanggal di start_date..end_date (inklusif); status dinilai saat request, bukan saat kejadian. Gagal -> PeriodClosedException 422 PERIOD_CLOSED, nol record maupun baris detail tersimpan/berubah",
-        "18. CHECKED BY SPV SUPERVISOR-ONLY (2026-10-04): upsertDetails($record, $details, $actor) — bila actor bukan Supervisor, nilai checked_by_spv kiriman DIABAIKAN (bukan ditolak, agar Operator/peran lain tetap bisa menyimpan): baris lama (id UUID milik record ini) mempertahankan nilai tersimpan, baris baru selalu false. Berlaku untuk API (mobile sync) dan Livewire",
+        "18. CHECKED BY SPV SUPERVISOR-ONLY (2026-10-04, diperluas 2026-10-05 temuan audit #4): upsertDetails($record, $details, $actor) — bila actor bukan Supervisor, nilai checked_by_spv kiriman DIABAIKAN (bukan ditolak, agar Operator/peran lain tetap bisa menyimpan): baris lama (id UUID milik record ini) mempertahankan nilai tersimpan; baris tanpa id (payload sinkron mobile / klien API yang mengganti semua baris, atau baris dihapus-lalu-ditambah di web) dicocokkan ke baris tersimpan yang id-nya tidak dikirim (claimable) lewat kunci spvMatchKey = trim(sterilizer_no)|HH:MM(close_door_time) — cocok: mewarisi checked_by_spv tersimpan (tiap baris tersimpan hanya diklaim sekali); tidak cocok: false. Berlaku untuk API (mobile sync) dan Livewire",
         "19. BATAS ATAS TANGGAL (2026-10-04): create dan update memanggil assertEventDateNotTooFarAhead(date, 'date', 'Tanggal') — tanggal > hari ini WIB + EVENT_DATE_MAX_DAYS_AHEAD (default 1) -> 422 per field",
         "20. UUID SEBELUM SQL (2026-10-04): id baris detail bukan-UUID diperlakukan sebagai baris baru (Str::isUuid sebelum query); FE mode edit memakai GuardsRecordIdShape — {id} bukan UUID -> notFound tanpa query"
       ],
@@ -270,7 +270,7 @@
         },
         {
           "condition": "Peran selain Supervisor (Operator via API/mobile, Mill Management, Admin) mengirim checked_by_spv=true",
-          "handling": "Nilai diabaikan diam-diam: baris baru disimpan false, baris lama mempertahankan nilai tersimpannya; simpan tetap berhasil"
+          "handling": "Nilai diabaikan diam-diam: baris lama (ber-id, atau tanpa id tapi sterilizer_no + close_door_time sama dengan baris tersimpan yang belum diklaim) mempertahankan nilai tersimpannya, baris yang benar-benar baru disimpan false; simpan tetap berhasil"
         },
         {
           "condition": "date lebih dari besok (salah ketik tahun)",
@@ -390,6 +390,21 @@
           "description": "422 VALIDATION_ERROR when date is later than tomorrow (WIB)",
           "given": "date = hari ini + 2 hari",
           "expect": "ValidationException errors.date (AuditFix20261004Test [future])"
+        },
+        {
+          "description": "[spv] Operator PATCH tanpa id detail (ganti semua baris) tidak menghapus centang SPV",
+          "given": "record dibuat Supervisor dengan baris 1 (07:00, SPV true) dan baris 2 (09:00, SPV false); Operator PATCH details tanpa id, baris 2 mengirim checked_by_spv=true",
+          "expect": "checked_by_spv tersimpan [true, false]"
+        },
+        {
+          "description": "[spv] Operator PATCH dengan id detail mengirim false tetap mempertahankan true",
+          "given": "Operator PATCH baris ber-id dengan checked_by_spv=false",
+          "expect": "baris tetap true"
+        },
+        {
+          "description": "[spv] Mill Management (Livewire) edit / tambah baris tidak bisa menyetel SPV",
+          "given": "MM mengubah detailRows.*.checked_by_spv lalu save, atau addDetailRow dengan close_door_time baru + checked_by_spv true",
+          "expect": "nilai tersimpan tidak berubah; jumlah baris SPV true tetap 1"
         }
       ]
     }
@@ -429,7 +444,8 @@
     "BERBEDA dari CPO Dispatch Web: tidak ada kolom event_date per baris (semua baris memakai Date header); 8 kolom time (close/peak1-3/exhaust1-3/open door) disimpan sebagai kolom time (HH:MM); checked_by_spv adalah checkbox boolean per baris, bukan referensi user, dan sejak 2026-10-04 SUPERVISOR-ONLY (server mengabaikan nilai dari peran lain; web merender teks Ya/Tidak untuk non-Supervisor)",
     "Ini adalah screen TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01) — setelah screen ini selesai bersama Part C, 0 placeholder tersisa di manapun dalam proyek",
     "KUNCI PERIODE (usecase-141; kode sudah ada sejak 49dc0c5, spec disinkronkan 2026-10-03): ditegakkan di SterilizerRecordService::create() (1 cek, tanggal baru) dan update() (2 cek, tanggal lama + baru) via trait App\\Support\\Concerns\\EnforcesPeriodLock; exception App\\Exceptions\\PeriodClosedException (HttpException 422, PERIOD_CLOSED). Berlaku sama untuk API (SterilizerRecordController store/update) dan Livewire FormSterilizer::save() (catch HttpException -> $generalError). Cakupan test: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist, 4 pesan, inklusif, per jenis stasiun, per mill, tanggal kosong, plus cek statis bahwa ke-18 *RecordService memanggil guard >=1x di create dan >=2x di update) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end lewat jalur stasiun INI: POST /api/sterilizer-records dan PATCH /api/sterilizer-records/{id} ditolak 422 PERIOD_CLOSED di periode tertutup, plus data mobile yang menyusul ditolak lalu diterima setelah periode dibuka kembali). Test per-layar (tests/Unit/Services/SterilizerRecordServiceTest.php, tests/Feature/Api/FormSterilizerTest.php, tests/Feature/Livewire/FormSterilizerTest.php) hanya membuka periode sebagai prasyarat (openPeriodFor()/openPeriodForStation() di tests/Pest.php); unit_test_cases kunci periode #2 (tanggal lama tertutup) dan #3 (batas inklusif via service ini) adalah spesifikasi, belum ada sebagai test khusus stasiun ini",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): SterilizerRecordService — create/update memanggil assertEventDateNotTooFarAhead (> besok -> 422 errors.date); upsertDetails() kini menerima $actor dan menegakkan checked_by_spv Supervisor-only (non-Supervisor: baris baru false, baris lama mempertahankan nilai); id baris bukan-UUID -> baris baru; ekspor .xlsx asli via SheetWriter + label/format ExportValue (relevan screen-124). ScopesToActorMill: production_line_id bukan-UUID -> 422; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL. FormSterilizer: trait GuardsRecordIdShape; view: checkbox Checked by SPV hanya untuk Supervisor, lainnya teks Ya/Tidak. Tes: tests/Feature/AuditFix20261004Test.php ([spv], [future]), tests/Feature/Livewire/RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php (cek statis view)."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): SterilizerRecordService — create/update memanggil assertEventDateNotTooFarAhead (> besok -> 422 errors.date); upsertDetails() kini menerima $actor dan menegakkan checked_by_spv Supervisor-only (non-Supervisor: baris baru false, baris lama mempertahankan nilai); id baris bukan-UUID -> baris baru; ekspor .xlsx asli via SheetWriter + label/format ExportValue (relevan screen-124). ScopesToActorMill: production_line_id bukan-UUID -> 422; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL. FormSterilizer: trait GuardsRecordIdShape; view: checkbox Checked by SPV hanya untuk Supervisor, lainnya teks Ya/Tidak. Tes: tests/Feature/AuditFix20261004Test.php ([spv], [future]), tests/Feature/Livewire/RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php (cek statis view).",
+    "REVISI (2026-10-05, audit-fix f79b1fe — temuan #4): SterilizerRecordService::upsertDetails() untuk non-Supervisor kini mewarisi checked_by_spv baris tersimpan bagi baris kiriman TANPA id, dengan kunci alami sterilizer_no + close_door_time (spvMatchKey, waktu dipotong HH:MM karena kolom TIME bisa '07:00:00'); kandidat = baris tersimpan yang id-nya tidak dikirim, tiap kandidat diklaim sekali. Sebelumnya baris tanpa id dianggap baru → false sehingga sinkron mobile (ganti semua baris) menghapus centang SPV Supervisor. Tes: tests/Feature/AuditFix20261005Test.php ([spv] x4)."
   ],
   "test_scenarios": [
     {

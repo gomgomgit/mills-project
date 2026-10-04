@@ -26,3 +26,10 @@ Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile + backend).
 - fe_files_generated += SyncFailureHint.vue, recordVerificationApi.ts, apiClient.ts, utils/localDate.ts ← diimpor/dipakai DataPreviewEffluentPlantView.vue. ⚠ recordVerificationApi.ts/apiClient.ts sudah dipakai sebelumnya tapi tak terdaftar — ditambahkan karena berubah di audit ini.
 - fe_test_files_generated += SyncFailureHint.spec.ts, syncService.sqljs.spec.ts, recordVerification.spec.ts, e2e/sync-and-verification.spec.ts. ⚠ e2e sync-and-verification tidak menguji stasiun ini secara langsung (Threshing/Weighbridge) — pola bersama.
 - implementation_notes += REVISI 2026-10-04 (pull verifikasi, /api prefix, network flag, SyncFailureHint, Tanggal type=date, filter-row).
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/views/DataPreviewEffluentPlantView.vue, mobile/src/utils/optionLabel.ts, mobile/tests/DataPreviewEffluentPlantView.spec.ts, mobile/tests/optionLabel.spec.ts, mobile/tests/e2e/data-preview-option-labels.spec.ts).
+- fe_files_generated ← + mobile/src/utils/optionLabel.ts.
+- fe_test_files_generated ← + optionLabel.spec.ts, e2e/data-preview-option-labels.spec.ts.
+- implementation_notes ← append REVISI 2026-10-05.

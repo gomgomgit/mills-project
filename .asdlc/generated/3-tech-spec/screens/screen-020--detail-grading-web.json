@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 5,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-05"
@@ -53,6 +53,9 @@
               "id": "uuid",
               "station_id": "uuid",
               "station_name": "string",
+              "business_unit_name": "string|null (dari station.businessUnit — record tidak menyimpan business_unit_id; ditambahkan 2026-10-05)",
+              "production_line_id": "uuid|null (snapshot kolom record; ditambahkan 2026-10-05)",
+              "production_line_name": "string|null (ditambahkan 2026-10-05)",
               "grading_number": "string",
               "date": "timestamp",
               "weighbridge_record_id": "uuid",
@@ -140,7 +143,7 @@
               {
                 "http_code": 403,
                 "error_code": "FORBIDDEN",
-                "condition": "peran tidak berhak: Operator ditolak guard route role:supervisor,mill_management,admin; peran yang tidak berhak atas level tsb ditolak service (Mill Management/Admin menulis acknowledged_by; Checked By tidak ada untuk Grading (RecordVerificationService::NO_CHECKED_BY_MODELS), canCheck() selalu false) — respons hanya membawa message"
+                "condition": "peran tidak berhak: Operator ditolak guard route role:supervisor,mill_management,admin; peran yang tidak berhak atas level tsb ditolak service (Mill Management/Admin menulis acknowledged_by; Checked By tidak ada untuk Grading (RecordVerificationService::NO_CHECKED_BY_MODELS), canCheck() selalu false) — abort(403) lewat ApiExceptionHandler: amplop standar { message, code: FORBIDDEN } (sejak 2026-10-05)"
               },
               {
                 "http_code": 403,
@@ -149,8 +152,8 @@
               },
               {
                 "http_code": 404,
-                "error_code": "RECORD_NOT_FOUND",
-                "condition": "stationType tidak dikenal atau id tidak ditemukan (respons hanya message)"
+                "error_code": "NOT_FOUND",
+                "condition": "stationType tidak dikenal ('Jenis stasiun tidak dikenal.') atau id tidak ditemukan ('Record tidak ditemukan.') — abort(404) lewat ApiExceptionHandler: amplop standar { message, code: NOT_FOUND } (sejak 2026-10-05; sebelumnya body hanya message)"
               },
               {
                 "http_code": 422,
@@ -328,7 +331,8 @@
     "Response resolve acknowledged_by ke nama user via join; Checked By TIDAK di-resolve/tidak diexpose sama sekali, konsisten dengan Data Preview Grading mobile (screen-014)",
     "Grid Grading Detail nama Quality Parameter di-resolve via join grading_parameter_id, sama seperti pola mobile screen-014",
     "VERIFIKASI + KUNCI PERIODE (sinkronisasi 2026-10-03, kode tidak diubah): layar Detail punya aksi approve/un-approve langsung sejak 2026-09-14 lewat trait App\\Livewire\\Data\\Concerns\\HandlesRecordVerification (DetailGrading implementasikan verificationModelClass()=GradingRecord::class + reloadRecord()), yang memanggil RecordVerificationService::setVerification() — padanan API-nya PATCH /api/records/{stationType}/{id}/verification. Grading hanya mengekspos Acknowledged By (canCheck() selalu false, NO_CHECKED_BY_MODELS). Sejak 49dc0c5 setVerification() menegakkan assertPeriodOpenForWrite() pada tanggal kejadian record (`date`); sejak fix 0594c63 HandlesRecordVerification juga menangkap HttpException sehingga 422 PERIOD_CLOSED tampil sebagai alert $verificationMessage, bukan respons mentah. Diuji di backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...', memakai DetailCagesTrack sebagai wakil trait bersama) dan backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED untuk setujui & batalkan).",
-    "AUDIT-FIX 2026-10-04 (sinkronisasi 2026-10-05, kode acuan): DetailGrading memakai trait App\\Livewire\\Data\\Concerns\\GuardsRecordIdShape (id bukan UUID -> notFound tanpa SQL); blade memakai App\\Support\\Display (label status, bulan Indonesia WIB, angka id-ID termasuk percentage grid); kalimat penolakan kunci periode untuk verifikasi memakai action 'verify'. Diuji di backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php."
+    "AUDIT-FIX 2026-10-04 (sinkronisasi 2026-10-05, kode acuan): DetailGrading memakai trait App\\Livewire\\Data\\Concerns\\GuardsRecordIdShape (id bukan UUID -> notFound tanpa SQL); blade memakai App\\Support\\Display (label status, bulan Indonesia WIB, angka id-ID termasuk percentage grid); kalimat penolakan kunci periode untuk verifikasi memakai action 'verify'. Diuji di backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php.",
+    "REVISI (2026-10-05, audit-fix f79b1fe): GradingRecordService::getDetail() (GET /api/grading-records/{id}) secara aditif menambah business_unit_name, production_line_id, production_line_name (eager-load station.businessUnit + productionLine), mengikuti WeighbridgeRecordService::toDetailRow(); dipakai Form Grading web mode edit (screen-023). Layar Detail Grading sendiri tidak berubah."
   ],
   "test_scenarios": [
     {

@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -114,7 +114,7 @@
     "Production Line (dan station Sterilizer terkait) tidak dapat diubah setelah record dibuat — pada mode edit, station asal ditampilkan sebagai teks read-only",
     "Checked By hanya dapat diisi (via checkbox) oleh user dengan role Supervisor — field disembunyikan untuk role lain",
     "Acknowledged By hanya dapat diisi (via checkbox) oleh user dengan role Mill Management — field disembunyikan untuk role lain",
-    "Checked by SPV (per baris) hanya dapat diset/diubah oleh Supervisor (keputusan user 2026-10-04) — untuk peran lain ditampilkan sebagai teks Ya/Tidak (bukan checkbox nonaktif), dan nilai yang dikirim peran lain diabaikan server: baris baru tersimpan 'Tidak', baris lama mempertahankan nilainya. Berlaku juga untuk data dari mobile"
+    "Checked by SPV (per baris) hanya dapat diset/diubah oleh Supervisor (keputusan user 2026-10-04) — untuk peran lain ditampilkan sebagai teks Ya/Tidak (bukan checkbox nonaktif), dan nilai yang dikirim peran lain diabaikan server: baris lama mempertahankan nilainya — termasuk baris yang dikirim ulang tanpa identitas baris (mis. sinkron mobile yang mengganti semua baris, atau baris dihapus lalu ditambah lagi) bila Sterilizer No + Close Door Time-nya sama dengan baris tersimpan (sejak 2026-10-05); baris yang benar-benar baru tersimpan 'Tidak'. Berlaku juga untuk data dari mobile"
   ],
   "usecase_ids": [
     "usecase-126--form-sterilizer-web"
@@ -128,7 +128,8 @@
     "Siklus melewati tengah malam (Open Door Time lebih awal dari Close Door Time) — Duration tetap dihitung benar oleh server",
     "Date diisi lebih dari besok (mis. salah ketik tahun) — Simpan ditolak dengan pesan inline 'Tanggal dd/mm/YYYY tidak masuk akal: tidak boleh melewati dd/mm/YYYY.'",
     "Mode edit dibuka dengan id berformat bukan UUID — diperlakukan sama dengan record tidak ditemukan, tanpa error sistem",
-    "Peran selain Supervisor mengirim Checked by SPV tercentang (mis. lewat mobile/API) — nilai diabaikan, simpan tetap berhasil"
+    "Peran selain Supervisor mengirim Checked by SPV tercentang (mis. lewat mobile/API) — nilai diabaikan, simpan tetap berhasil",
+    "Peran selain Supervisor menyimpan ulang log dengan baris yang diganti seluruhnya (tanpa id baris) — centang SPV yang sudah diberikan Supervisor tidak hilang: baris dengan Sterilizer No + Close Door Time yang sama mewarisi nilai tersimpannya"
   ],
   "test_priority": "high",
   "open_questions": []

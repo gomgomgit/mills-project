@@ -16,3 +16,13 @@ Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/Data/DetailGra
 - api_contracts[0].edge_case_handling += {id} bukan UUID; penolakan verifikasi berkalimat verifikasi ← kode yang sama
 - api_contracts[0].unit_test_cases += non-UUID id -> notFound tanpa query ← RecordIdShapeGuardTest
 - implementation_notes += catatan AUDIT-FIX 2026-10-04 (trait GuardsRecordIdShape, Display, action 'verify') ← kode yang sama
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit f79b1fe), code is truth.
+- api_contracts PATCH /api/records/{stationType}/{id}/verification error_codes: 404 RECORD_NOT_FOUND → NOT_FOUND (abort(404) → ApiExceptionHandler, amplop standar); 403 kini juga membawa code FORBIDDEN ← RecordVerificationController (temuan audit 2026-10-05 #11).
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (GradingRecordService.php).
+- GET /api/grading-records/{id} success_schema (+business_unit_name, production_line_id, production_line_name), implementation_notes (+1) ← getDetail() aditif.

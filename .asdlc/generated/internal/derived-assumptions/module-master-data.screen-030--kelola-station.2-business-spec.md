@@ -10,3 +10,9 @@ Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/MasterData/Kel
 - business_rules[4] = wajib BU + Production Line milik BU yang sama ← StationService::validate() after().
 - business_rules (+2) = satu station per tipe per line kecuali Other (cek hanya bila line/tipe berubah); pesan sukses ← duplicateTypeMessage(), successMessage.
 - edge_cases[1] + (3 baru) = beda huruf; tipe kembar; edit tipe non-MVP (Boiler Room) tampil; empty state terfilter + reset filter line ← kode + KelolaStationAuditTest.
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (StationService.php, Livewire/KelolaStationTest.php).
+- description, available_actions[3], business_rules[2] ← delete-guard kini juga menolak Station yang punya record stasiun di 18 tabel record; pesan menyebut jumlah record.
+- edge_cases (+1) ← hapus station dengan record stasiun: pesan ramah, dialog tertutup, baris tetap, tanpa 500.

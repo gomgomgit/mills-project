@@ -26,3 +26,14 @@ Sumber: audit-fix 2026-10-04, code is truth (app/Services/EffluentPlantRecordSer
 - api_contracts[0].business_logic += blade Display::status (JSON status tetap enum) ← blade diff + docblock Display
 - api_contracts[0].unit_test_cases += export excel xlsx sungguhan ← EffluentPlantRecordServiceTest export assert 'PK' + xlsxRows (assert jam/status di kasus uji = ⚠ ringkasan agen dari kode, tidak semuanya di-assert uji)
 - implementation_notes += REVISI 2026-10-04
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/app/Support/Concerns/ScopesToActorMill.php, backend/tests/Feature/AuditFix20261005Test.php, e2e-web/tests/audit-fix-20261005.spec.ts, backend/app/Support/{Display,ExportValue}.php, backend/app/Services/*RecordService.php, resources/views/livewire/data/detail-*.blade.php).
+- api_contracts[0].endpoints[*].request.query_params production_line_id/business_unit_id.description ← nilai bukan UUID kini diabaikan (= semua line / semua mill) tanpa query, Str::isUuid() di ScopesToActorMill.
+- api_contracts[0].edge_case_handling ← +1 kasus nilai filter bukan UUID (audit #6).
+- api_contracts[0].unit_test_cases ← +1 uji filter bukan UUID (AuditFix20261005Test #6, dataset data_browser_stations).
+- api_contracts[0].business_logic[11] ← label opsi status Effluent Plant di ekspor (audit #5).
+- implementation_notes ← +1 catatan REVISI 2026-10-05 (validasi bentuk filter, uji binding query).
+- ⚠ Daftar label Run/Stop untuk Dosing Pump 1 / Sludge Dewatering diambil dari <option> form-effluent-plant.blade.php (run/stop); Display::OPTION_LABELS juga memuat standby.
+- ⚠ Tidak ditambah test_scenarios baru: tidak ada bdd_scenario Phase 2 untuk nilai filter bukan UUID (skema: satu test_scenario per BDD); cakupan dicatat di unit_test_cases + implementation_notes.

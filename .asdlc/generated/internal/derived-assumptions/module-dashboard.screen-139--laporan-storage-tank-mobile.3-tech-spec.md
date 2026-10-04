@@ -34,3 +34,9 @@ Sumber: audit-fix 2026-10-04, code is truth (LaporanStorageTankView.vue, storage
 - api_contracts[0].unit_test_cases[+1] = repo meneruskan days_counted/period_running, default 0/false ← storageTankReportRepo.spec.ts + repo default block
 - implementation_notes[+1] = ringkasan audit-fix ← diff
 - (unit_test_cases[19] dibiarkan: repo memang tetap meneruskan 1.25 apa adanya; pembulatan 1 desimal terjadi di view)
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/app/Services/StorageTankReportService.php, mobile/tests/e2e/laporan-storage-tank.spec.ts).
+- api_contracts[0].endpoints[3].response.success_schema._note ← 25 kolom (3 konteks ekspor + 4 konteks record + slot + 17).
+- test_scenarios[32].browser_test.assert ← header 25 kolom, 7 kolom konteks diulang.

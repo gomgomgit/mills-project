@@ -21,3 +21,9 @@ Sumber: audit-fix 2026-10-04, code is truth (SterilizerRecordService.php, FormSt
 - api_contracts[0].edge_case_handling += 4 kasus; business_rules_applied += 2 aturan.
 - api_contracts[0].unit_test_cases += 4 ← tests/Feature/AuditFix20261004Test.php [spv]/[future]. ⚠ peran pembanding di uji render (Mill Management) diasumsikan dari judul uji, tidak dibaca isi ujinya.
 - implementation_notes[7] = checked_by_spv kini Supervisor-only; += REVISI audit-fix.
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (SterilizerRecordService.php, AuditFix20261005Test.php).
+- PATCH body_schema.details, business_logic[17], edge_case_handling[9], unit_test_cases (+3), implementation_notes (+1) ← spvMatchKey (sterilizer_no|HH:MM close_door_time), kandidat diklaim sekali.
+- ⚠ body_schema POST tidak diubah: pada create record belum ada ($record->exists false) sehingga pewarisan tidak berlaku.

@@ -1,5 +1,5 @@
 {
-  "ver": 19,
+  "ver": 20,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-02"
@@ -1515,6 +1515,12 @@
           "description": "Status aktif/nonaktif akun."
         },
         {
+          "name": "sessions_revoked_at",
+          "type": "timestamp",
+          "required": false,
+          "description": "timestamp(6) nullable (migrasi 2026_10_05_000001). Kapan seluruh sesi web akun ini terakhir dicabut — diisi saat Admin mereset password user (UserService::update). EnsureUserIsActive mengeluarkan sesi web yang stempel login-nya (session auth_session_started_at_ms) lebih tua dari nilai ini. Presisi mikrodetik agar login ulang di detik yang sama dengan reset tidak ikut tercabut. Null = belum pernah dicabut."
+        },
+        {
           "name": "created_at",
           "type": "timestamp",
           "required": true,
@@ -1530,7 +1536,8 @@
       "relationships": [],
       "constraints": [
         "username harus unik",
-        "role menentukan hak akses fitur dan field mana yang bisa diisi (mis. Checked By hanya role supervisor, Acknowledged By hanya role mill_management)"
+        "role menentukan hak akses fitur dan field mana yang bisa diisi (mis. Checked By hanya role supervisor, Acknowledged By hanya role mill_management)",
+        "Reset password oleh Admin (bukan reset diri sendiri) mencabut semua token Sanctum user tsb dan mengisi sessions_revoked_at = now() sehingga sesi web lamanya dikeluarkan (2026-10-05)"
       ],
       "test_fixture": {
         "id": "usr-001",
@@ -1540,6 +1547,7 @@
         "role": "operator",
         "business_unit_id": "bu-001",
         "is_active": true,
+        "sessions_revoked_at": null,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
       }

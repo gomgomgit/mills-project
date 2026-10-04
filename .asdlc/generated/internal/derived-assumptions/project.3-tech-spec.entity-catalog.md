@@ -65,3 +65,10 @@
 - Constraint "penyaringan WAJIB memakai kolom record, BUKAN join ke stations" ← bukan aturan domain, melainkan penjaga implementasi. Dimasukkan sebagai constraint karena join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot — dan itu kesalahan yang tidak terlihat sampai ada yang memeriksa angka historis.
 - `test_fixture.production_line_id = "pl-001"` di ke-18 entitas ← nilai placeholder; tidak ada preseden id line di fixture lain, jadi mengikuti pola `bu-001`/`usr-001` yang sudah dipakai katalog ini.
 - Relasi `production-line` → 18 entitas record ← tidak diminta. Ditambahkan karena tanpa itu katalog menyatakan production line hanya berelasi ke `station`, padahal kini ia induk langsung dari seluruh riwayat produksi.
+
+## v20 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/database/migrations/2026_10_05_000001_add_sessions_revoked_at_to_users_table.php, app/Models/User.php).
+- entities[user].fields += sessions_revoked_at (timestamp(6), nullable) ← migrasi 2026_10_05_000001.
+- entities[user].test_fixture += sessions_revoked_at: null ← kolom baru nullable.
+- ⚠ entities[user].constraints += aturan reset password mencabut token + sesi ← diturunkan dari UserService::update(), bukan constraint DB.

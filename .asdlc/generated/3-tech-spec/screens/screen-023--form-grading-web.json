@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-05"
@@ -193,7 +193,7 @@
         "6. Update: validate id -> 404 jika tidak ada -> validate field wajib + details sama seperti create -> 422 jika gagal",
         "7. Update: business_unit_id/production_line_id/station_id tidak diterima dari body, tidak berubah",
         "8. Dalam transaksi DB: UPDATE grading_record, lalu upsert grading_detail (baris tanpa id: INSERT; baris dengan id yang masih ada di array: UPDATE; baris yang sebelumnya ada di DB tapi tidak lagi ada di array: DELETE)",
-        "9. FE: mode create tampilkan dropdown Business Unit (dikunci ke mill aktor) yang meng-cascade dropdown Production Line; select Production Line TIDAK PERNAH disabled (sejak 2026-10-04 atribut @disabled dihapus — tanpa opsi hanya berisi placeholder 'Pilih Production Line'); mode edit GET detail untuk prefill, BU ditampilkan read-only; {id} bukan UUID -> notFound tanpa query (GuardsRecordIdShape)",
+        "9. FE: mode create tampilkan dropdown Business Unit (dikunci ke mill aktor) yang meng-cascade dropdown Production Line; select Production Line TIDAK PERNAH disabled (sejak 2026-10-04 atribut @disabled dihapus — tanpa opsi hanya berisi placeholder 'Pilih Production Line'); mode edit memanggil GradingRecordService::getDetail() (GET /api/grading-records/{id}) untuk prefill — Business Unit ditampilkan sebagai teks read-only dari business_unit_name (data-testid business-unit-readonly; sebelum 2026-10-05 keliru diisi station_name) dan Production Line sebagai teks read-only dari production_line_name (data-testid production-line-readonly, '-' bila null); {id} bukan UUID -> notFound tanpa query (GuardsRecordIdShape)",
         "10. FE: dropdown WB Card No = query WeighbridgeRecord WHERE station.business_unit_id = Business Unit terpilih, urut record_datetime terbaru dulu (query langsung di Livewire, bukan endpoint terpisah, mengikuti pola query-langsung BusinessUnit/GradingParameter)",
         "11. FE: on pilih WB Card No: auto-isi license_plate_no dari vehicle_number, estate_supplier, division dari weighbridge_record terkait; auto-fill hanya terjadi ULANG setiap kali WB Card No BERGANTI (bukan tiap render), field tetap dapat diedit manual setelahnya",
         "12. FE: dropdown Quality Parameter per baris = seluruh GradingParameter (query langsung di Livewire mount(), urut sort_order) DIKURANGI grading_parameter_id yang sudah dipilih baris LAIN pada grid yang sama, dihitung ulang reaktif tiap kali baris manapun berubah/ditambah/dihapus",
@@ -413,6 +413,11 @@
           "description": "422 VALIDATION_ERROR when date is later than tomorrow (WIB)",
           "given": "date = hari ini + 2 hari",
           "expect": "ValidationException errors.date (AuditFix20261004Test [future])"
+        },
+        {
+          "description": "edit: label Business Unit berisi nama mill (bukan nama stasiun) dan Production Line tampil",
+          "given": "record Grading dengan station milik BU 'Mill X' dan production_line 'Line A' dibuka di FormGrading mode edit",
+          "expect": "businessUnitName = nama BU, productionLineName = nama line; teks tampil di business-unit-readonly / production-line-readonly"
         }
       ]
     }
@@ -463,7 +468,8 @@
     "Detail upsert (insert/update/delete baris) dijalankan dalam DB transaction agar konsisten",
     "Acknowledged sebagai checkbox self-attestation, mengisi acknowledged_by dengan id user login; Checked By tidak diimplementasikan sama sekali di screen ini, konsisten dengan mobile screen-011 dan Detail Grading Web",
     "KUNCI PERIODE (usecase-141; kode sudah ada sejak 49dc0c5, spec disinkronkan 2026-10-03): ditegakkan di GradingRecordService::create() (1 cek, tanggal baru) dan update() (2 cek, tanggal lama + baru) via trait App\\Support\\Concerns\\EnforcesPeriodLock; exception App\\Exceptions\\PeriodClosedException (HttpException 422, PERIOD_CLOSED). Berlaku sama untuk API (GradingRecordController store/update) dan Livewire FormGrading::save() (catch HttpException -> $generalError). Cakupan test: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist, 4 pesan, inklusif, per jenis stasiun, per mill, tanggal kosong, plus cek statis bahwa ke-18 *RecordService memanggil guard >=1x di create dan >=2x di update) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end lewat jalur Sterilizer). Test per-layar (tests/Unit/Services/GradingRecordServiceTest.php, tests/Feature/Api/FormGradingTest.php, tests/Feature/Livewire/FormGradingTest.php) hanya membuka periode sebagai prasyarat (openPeriodFor()/openPeriodForStation() di tests/Pest.php); 3 unit_test_cases kunci periode di atas adalah spesifikasi, belum ada sebagai test khusus stasiun ini",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): GradingRecordService: date dinormalkan ke WIB via App\\Support\\AppTime; create/update memanggil assertEventDateNotTooFarAhead (> besok -> 422 errors.date); weighbridge_record_id 'bail' + pesan uuid; grading_parameter_id dan id baris detail dicek Str::isUuid sebelum query. Station di-resolve dari production_line_id (body_schema dikoreksi — spec lama masih menyebut business_unit_id). ScopesToActorMill: production_line_id bukan-UUID -> 422. ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422 VALIDATION_ERROR, lainnya 500 tanpa SQL. FormGrading: GuardsRecordIdShape; view: UOM/Percentage teks, select Production Line tanpa @disabled. Tes: tests/Feature/AuditFix20261004Test.php, tests/Feature/Livewire/WebFormNoDisabledFieldTest.php, tests/Feature/Livewire/RecordIdShapeGuardTest.php."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): GradingRecordService: date dinormalkan ke WIB via App\\Support\\AppTime; create/update memanggil assertEventDateNotTooFarAhead (> besok -> 422 errors.date); weighbridge_record_id 'bail' + pesan uuid; grading_parameter_id dan id baris detail dicek Str::isUuid sebelum query. Station di-resolve dari production_line_id (body_schema dikoreksi — spec lama masih menyebut business_unit_id). ScopesToActorMill: production_line_id bukan-UUID -> 422. ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422 VALIDATION_ERROR, lainnya 500 tanpa SQL. FormGrading: GuardsRecordIdShape; view: UOM/Percentage teks, select Production Line tanpa @disabled. Tes: tests/Feature/AuditFix20261004Test.php, tests/Feature/Livewire/WebFormNoDisabledFieldTest.php, tests/Feature/Livewire/RecordIdShapeGuardTest.php.",
+    "REVISI (2026-10-05, audit-fix f79b1fe — kode adalah acuan, temuan #2): FormGrading mode edit kini mengisi businessUnitName dari business_unit_name (sebelumnya station_name) dan properti baru productionLineName dari production_line_name; form-grading.blade.php menambah blok teks read-only 'Production Line' (data-testid production-line-readonly). GradingRecordService::getDetail() (respons GET /api/grading-records/{id}) secara aditif menambah business_unit_name (dari station.businessUnit), production_line_id, production_line_name (relasi productionLine). Tes: tests/Feature/Livewire/FormGradingTest.php, e2e audit-fix-20261005 #2."
   ],
   "test_scenarios": [
     {

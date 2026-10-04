@@ -1,5 +1,5 @@
 {
-  "ver": 7,
+  "ver": 8,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-05"
@@ -20,7 +20,8 @@
     "backend/database/factories/WeighbridgeRecordFactory.php",
     "backend/app/Support/Concerns/ScopesToActorMill.php",
     "backend/app/Support/SheetWriter.php",
-    "backend/app/Support/Display.php"
+    "backend/app/Support/Display.php",
+    "backend/app/Support/ExportValue.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/WeighbridgeRecordServiceTest.php",
@@ -28,7 +29,8 @@
     "backend/tests/Feature/Livewire/DataBrowserWeighbridgeTest.php",
     "backend/tests/Feature/ExportXlsxTest.php",
     "backend/tests/Feature/AuditFix20261004Test.php",
-    "backend/tests/Pest.php"
+    "backend/tests/Pest.php",
+    "backend/tests/Feature/AuditFix20261005Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserWeighbridge.php",
@@ -38,7 +40,8 @@
   ],
   "fe_test_files_generated": [
     "e2e-web/tests/data-browser-weighbridge.spec.ts",
-    "e2e-web/tests/support/production-line-filter.ts"
+    "e2e-web/tests/support/production-line-filter.ts",
+    "e2e-web/tests/audit-fix-20261005.spec.ts"
   ],
   "implementation_notes": [
     "Export excel (s.d. 2026-10-03) pakai fallback CSV dengan mimetype/ekstensi .xlsx — DIGANTIKAN 2026-10-04 oleh .xlsx sungguhan via App\\Support\\SheetWriter (lihat catatan REVISI 2026-10-04)",
@@ -53,7 +56,8 @@
     "REVISI v4 (tech-spec v3, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v3, `php artisan test` untuk berkas uji layar ini hijau.",
     "REVISI v5 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-weighbridge.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec dijalankan penuh: 2/2 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser test tidak dijalankan' dihapus.",
     "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): WeighbridgeRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan; csv tetap CSV), judul kolom = label layar Detail Weighbridge + Checked By/Acknowledged By (eager load checkedBy/acknowledgedBy), Tipe 'Receive'/'Dispatch', Tanggal & Waktu 'Y-m-d H:i', status lewat Display::status(); data-browser-weighbridge.blade.php memakai Display::status() untuk badge dan Display::number(net_weight, 2) (id-ID). Uji: ExportXlsxTest (xlsx Data Browser lewat HTTP), AuditFix20261004Test '[display] Data Browser dan Detail Weighbridge…', WeighbridgeRecordServiceTest export (helper xlsxRows/exportBodyAsCsv di tests/Pest.php). Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): WeighbridgeRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan; csv tetap CSV), judul kolom = label layar Detail Weighbridge + Checked By/Acknowledged By (eager load checkedBy/acknowledgedBy), Tipe 'Receive'/'Dispatch', Tanggal & Waktu 'Y-m-d H:i', status lewat Display::status(); data-browser-weighbridge.blade.php memakai Display::status() untuk badge dan Display::number(net_weight, 2) (id-ID). Uji: ExportXlsxTest (xlsx Data Browser lewat HTTP), AuditFix20261004Test '[display] Data Browser dan Detail Weighbridge…', WeighbridgeRecordServiceTest export (helper xlsxRows/exportBodyAsCsv di tests/Pest.php). Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah.",
+    "AUDIT-FIX 2026-10-05 (f79b1fe): ScopesToActorMill mengabaikan production_line_id/business_unit_id bukan UUID (= semua line/mill, tanpa query) — Data Browser Livewire tak lagi 500 dan API list/export tak lagi 422 di PostgreSQL. Uji: AuditFix20261005Test #6 (Livewire Supervisor+Admin; API list Supervisor + export Admin dengan business_unit_id bukan UUID; asersi binding query) dan audit-fix-20261005.spec.ts #6 (Admin, $wire.set di ke-18 Data Browser, respons /livewire/update 200, properti kembali \"\"). Ekspor WB: status lewat ExportValue::status() (judul kolom tetap label Detail berbahasa Indonesia) — dijaga uji struktural #5 \"tidak ada ekspor memakai Display::\"."
   ],
   "deferred_items": [],
   "known_issues": [

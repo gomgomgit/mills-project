@@ -36,3 +36,9 @@ Sumber: audit-fix 2026-10-04, code is truth (ReportingPilihStasiunView.vue, Repo
 - business_rules_applied[1], screen_dependencies[2].reason, implementation_notes[0] = jaringan hanya untuk bootstrap ← kode
 - implementation_notes += REVISI audit 2026-10-04
 - test_scenarios[1]/[2] asersi teks pesan baru; test_scenarios[3] komponen+browser = bootstrap online / server di-abort → 18 stasiun bawaan tanpa pesan teknis ← e2e baru
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/tests/e2e/reporting-pilih-stasiun.spec.ts, mobile/src/utils/floatingSafeArea.ts).
+- implementation_notes ← append ruang aman elemen mengambang.
+- test_scenarios ← append '390x844 ruang aman elemen mengambang'.

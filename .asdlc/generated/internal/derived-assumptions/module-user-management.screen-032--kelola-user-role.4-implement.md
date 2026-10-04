@@ -30,3 +30,10 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD UserService.php, Kelo
 - test_files_generated += KelolaUserRoleAuditTest.php, WebAccessTest.php
 - fe_test_files_generated += e2e-web/tests/audit-web-admin.spec.ts
 - implementation_notes += REVISI 2026-10-04 (rules() Livewire dihapus, PasswordPolicy, Reset Password, username case-insensitive/tanpa spasi, wire:confirm, cabut token, pesan sukses, label role)
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (lihat 3-tech-spec).
+- files_generated (+migrasi, User.php, EnsureUserIsActive.php, AppServiceProvider.php), test files (+AuditFix20261005Test, audit-fix-20261005.spec.ts), implementation_notes (+1).
+- test_results ← dijalankan ulang: UserServiceTest 13, Api/KelolaUserRoleTest 11 + AuditFix20261005 #8b 7 = 18 integration, Livewire KelolaUserRole+Audit 13.
+- ⚠ test_results.browser 8 (7 sebelumnya + 1 tes #8b) ← dari klaim commit, tidak dijalankan ulang.

@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -81,7 +81,7 @@
               {
                 "http_code": 404,
                 "error_code": "NOT_FOUND",
-                "condition": "stationType tidak dikenal — body hanya {message: 'Jenis stasiun tidak dikenal.'} (sama dengan PATCH-nya)"
+                "condition": "stationType tidak dikenal — abort(404, 'Jenis stasiun tidak dikenal.') lewat ApiExceptionHandler: amplop standar { message, code: NOT_FOUND } (sejak 2026-10-05; sebelumnya body hanya message)"
               }
             ]
           },
@@ -106,7 +106,8 @@
         "12. On tap hamburger -> buka menu navigasi (Ganti Password, Logout)",
         "13. Mode DETAIL, record tersinkron (punya server_id): aksi verifikasi RecordVerificationActions (Tandai/Batalkan sudah diperiksa — Supervisor/Admin; Tandai/Batalkan sudah dikonfirmasi — Mill Management/Admin) adalah satu-satunya tulis ke server dari layar ini: recordVerificationApi.setVerification('effluent-plant', 'effluent_plant_record', record, level, value) → PATCH /api/records/effluent-plant/{server_id}/verification {level, value}. Server (RecordVerificationService::setVerification) menilai peran + cakupan mill aktor, lalu assertPeriodOpenForWrite atas jenis stasiun & mill MILIK RECORD dan tanggal kejadian record itu sendiri (`date`) SEBELUM menulis kolom verifikasi; baris lokal (checked_by/acknowledged_by + *_name) hanya diperbarui setelah server menerima, lalu detail dimuat ulang (event 'updated').",
         "14. Pull status verifikasi (audit 2026-10-04): setiap kali list dimuat dan setiap kali detail dibuka, pullVerificationStatus('effluent-plant', 'effluent_plant_record', userId) dijalankan di latar belakang (tidak ditunggu): SELECT maks 100 record lokal milik user berstatus synced dengan server_id (ORDER BY updated_at DESC) → GET /api/records/effluent-plant/verification?ids[]=<server_id>… (timeout 5 detik) → untuk tiap record yang checked_by/acknowledged_by-nya berbeda, UPDATE lokal checked_by, checked_by_name, acknowledged_by, acknowledged_by_name. Di mode detail, bila ada yang berubah dan record yang sama masih terbuka, record dimuat ulang (getDraftWithDetails) sehingga verifikasi yang dilakukan Supervisor/Mill Management lewat web tampil tanpa sinkron ulang. Server membatasi hasil ke mill aktor (Admin semua mill); id mill lain/tidak dikenal cukup tidak muncul. Senyap: offline/galat apa pun → 0, data lokal tidak berubah; 404/405 → berhenti mencoba sampai app dimuat ulang.",
-        "15. Petunjuk gagal sinkron (audit 2026-10-04): item list dan mode detail merender SyncFailureHint — untuk record berstatus saved yang kolom lokal sync_error-nya terisi, tampil 'Gagal sinkron: <alasan>' (compact di bawah label item list; blok di atas detail). sync_error ditulis syncService saat server MENOLAK push (respons ber-status HTTP, mis. 422 PERIOD_CLOSED) dan dikosongkan (NULL) saat push berhasil; gagal jaringan tidak ditulis. Status badge tetap 'Tersimpan'."
+        "15. Petunjuk gagal sinkron (audit 2026-10-04): item list dan mode detail merender SyncFailureHint — untuk record berstatus saved yang kolom lokal sync_error-nya terisi, tampil 'Gagal sinkron: <alasan>' (compact di bawah label item list; blok di atas detail). sync_error ditulis syncService saat server MENOLAK push (respons ber-status HTTP, mis. 422 PERIOD_CLOSED) dan dikosongkan (NULL) saat push berhasil; gagal jaringan tidak ditulis. Status badge tetap 'Tersimpan'.",
+        "16. Label pilihan (audit 2026-10-05): grid detail merender biogas_flare_status, dosing_pump_1_status, sludge_dewatering_status lewat optionLabel() dari mobile/src/utils/optionLabel.ts — OPTION_LABELS cermin backend App\\Support\\Display::OPTION_LABELS (on→On, off→Off, fault→Fault, run→Run, stop→Stop, standby→Standby, y→Ya, n→Tidak); null/'' → '-', nilai tak dikenal → apa adanya. Field lain tetap `?? '-'`. Nilai tersimpan di SQLite tidak berubah (hanya tampilan)."
       ],
       "data_operations": [
         {
@@ -261,6 +262,11 @@
           "description": "SyncFailureHint shows 'Gagal sinkron: <alasan>' only for a saved record with a stored sync_error",
           "given": "record { status: 'saved', sync_error: '<alasan>' } vs record synced / sync_error kosong",
           "expect": "hint tampil hanya untuk record saved dengan sync_error terisi"
+        },
+        {
+          "description": "renders option fields with display labels (Display::OPTION_LABELS), not raw stored values",
+          "given": "detail mode; detail row 0 has biogas_flare_status='fault', dosing_pump_1_status='run', sludge_dewatering_status='stop'; another row has these fields empty",
+          "expect": "row 0 text contains 'Biogas Flare Status: Fault', 'Dosing Pump 1 Status: Run', 'Sludge Dewatering Status: Stop' and not the raw lowercase value; the empty row shows '-' for those fields"
         }
       ]
     }
@@ -285,7 +291,8 @@
     "Grid Effluent Plant Detail read-only: setiap baris tampilkan Time-Slot (format jam) dan sisa kolom bacaan/status -- render langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis); jumlah baris yang dirender sepenuhnya mengikuti `details.length` dari getDraftWithDetails()",
     "Tidak ada tabel referensi Target Operasional untuk stasiun ini",
     "Kunci periode (usecase-141): pengecualian atas 'tidak ada panggilan API' — aksi verifikasi di mode detail memanggil PATCH /api/records/effluent-plant/{id}/verification (RecordVerificationController → RecordVerificationService::setVerification, trait EnforcesPeriodLock). Tanggal yang dinilai = `date` record; jenis stasiun & mill dibaca dari stasiun milik record, bukan dari segmen URL. Penolakan 422 PERIOD_CLOSED (satu kode, empat pesan) dinormalisasi apiClient menjadi {status, message} dan ditampilkan RecordVerificationActions. Endpoint sengaja tidak ditambahkan ke `endpoints` karena kontrak ini tidak mendeklarasikan endpoint apa pun untuk disalin bentuknya.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) Layar ini tidak lagi hanya memanggil PATCH verifikasi — kini juga GET /api/records/effluent-plant/verification?ids[]=… (RecordVerificationStatusController → RecordVerificationStatusService, route auth:web,sanctum + role admin/supervisor/mill_management/operator, cakupan mill lewat ScopesToActorMill) secara best-effort lewat recordVerificationApi.pullVerificationStatus saat list dimuat dan saat detail dibuka (refreshVerificationInBackground memuat ulang record bila berubah); endpoint ini didaftarkan di `endpoints`. Catatan lama yang menyebut verifikasi sebagai satu-satunya panggilan server / endpoint sengaja tidak didaftarkan sudah tidak berlaku. (2) PATCH verifikasi kini dipanggil dengan prefix /api (sebelumnya tanpa prefix → jatuh ke route web tanpa CORS → UI salah menampilkan 'butuh koneksi'); isNetworkError() memakai flag `network: true` dari apiClient. (3) SyncFailureHint.vue ('Gagal sinkron: <alasan>' dari kolom lokal sync_error) dipasang di item list dan detail. (4) Field Tanggal di detail kini FormField type=date (sebelumnya datetime-local) dengan nilai toDateInputValue(detailRecord.date) (src/utils/localDate.ts; data lama ISO UTC dinormalisasi ke tanggal lokal oleh localSchema.normalizeLegacyUtcDates). filter-row memakai grid minmax(0,1fr) agar tidak ada geser horizontal di 390px."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) Layar ini tidak lagi hanya memanggil PATCH verifikasi — kini juga GET /api/records/effluent-plant/verification?ids[]=… (RecordVerificationStatusController → RecordVerificationStatusService, route auth:web,sanctum + role admin/supervisor/mill_management/operator, cakupan mill lewat ScopesToActorMill) secara best-effort lewat recordVerificationApi.pullVerificationStatus saat list dimuat dan saat detail dibuka (refreshVerificationInBackground memuat ulang record bila berubah); endpoint ini didaftarkan di `endpoints`. Catatan lama yang menyebut verifikasi sebagai satu-satunya panggilan server / endpoint sengaja tidak didaftarkan sudah tidak berlaku. (2) PATCH verifikasi kini dipanggil dengan prefix /api (sebelumnya tanpa prefix → jatuh ke route web tanpa CORS → UI salah menampilkan 'butuh koneksi'); isNetworkError() memakai flag `network: true` dari apiClient. (3) SyncFailureHint.vue ('Gagal sinkron: <alasan>' dari kolom lokal sync_error) dipasang di item list dan detail. (4) Field Tanggal di detail kini FormField type=date (sebelumnya datetime-local) dengan nilai toDateInputValue(detailRecord.date) (src/utils/localDate.ts; data lama ISO UTC dinormalisasi ke tanggal lokal oleh localSchema.normalizeLegacyUtcDates). filter-row memakai grid minmax(0,1fr) agar tidak ada geser horizontal di 390px.",
+    "REVISI (2026-10-05, audit-fix, commit 30b7f27 — kode adalah acuan): detail Data Preview Effluent Plant kini menampilkan label pilihan (biogas_flare_status, dosing_pump_1_status, sludge_dewatering_status) via optionLabel() di mobile/src/utils/optionLabel.ts, selaras dengan Detail web/ekspor (backend Display::OPTION_LABELS, commit f79b1fe); tests/optionLabel.spec.ts menjaga peta tetap identik dengan backend."
   ],
   "test_scenarios": [
     {
@@ -450,6 +457,21 @@
         "route": "/stations/effluent-plant/preview/:id?",
         "action": "simpan record yang ditolak server saat sinkron, buka Load Data lalu detailnya",
         "assert": "item list dan detail menampilkan 'Gagal sinkron: <alasan>', badge tetap 'Tersimpan'"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Effluent Plant Tersimpan — Label Pilihan di Detail",
+      "usecase_id": "usecase-087--data-preview-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewEffluentPlantView",
+        "action": "mount mode detail dengan baris berisi biogas_flare_status='fault', dosing_pump_1_status='run', sludge_dewatering_status='stop' dan satu baris kosong",
+        "assert": "teks baris memuat 'Biogas Flare Status: Fault', 'Dosing Pump 1 Status: Run', 'Sludge Dewatering Status: Stop', bukan nilai mentah; baris kosong menampilkan '-'"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/preview/:id",
+        "action": "seed record berstatus saved + detail (biogas_flare_status='fault', dosing_pump_1_status='run', sludge_dewatering_status='stop') langsung ke SQLite lokal lewat window.__mslTestDb, buka detail Data Preview",
+        "assert": "baris detail memuat 'Biogas Flare Status: Fault', 'Dosing Pump 1 Status: Run', 'Sludge Dewatering Status: Stop' dan tidak memuat nilai mentah; tanpa pageerror/console.error/HTTP >= 400"
       }
     }
   ]

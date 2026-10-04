@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -353,7 +353,7 @@
           },
           "response": {
             "success_schema": {
-              "_note": "StreamedResponse; kolom konteks record (tanggal, tangki, status, catatan) diulang tiap baris, lalu ketujuh belas kolom pengukuran termasuk enum katup uap dan kolom teks apa adanya"
+              "_note": "StreamedResponse; 25 kolom persis StorageTankReportService::EXPORT_HEADER: 3 kolom konteks ekspor (Periode, Mill, Production Line) + 4 kolom konteks record (Tanggal, Tangki, Status, Catatan) — ketujuhnya (EXPORT_CONTEXT_COLUMN_COUNT = 7) diulang tiap baris — lalu Slot Waktu (HH:MM), lalu ketujuh belas kolom pengukuran termasuk enum katup uap dan kolom teks apa adanya"
             },
             "error_codes": [
               {
@@ -1965,7 +1965,7 @@
       "browser_test": {
         "route": "/reports/storage-tank",
         "action": "buka sebuah periode Storage Tank lalu jalankan unduh CSV",
-        "assert": "berkas CSV terunduh, isinya satu baris per slot waktu sepanjang periode dengan kolom konteks record diulang pada setiap baris dan label kolom mengikuti label layar Detail, isinya sama persis dengan ekspor laporan versi web, dan tidak ada data stasiun yang berubah setelah ekspor"
+        "assert": "berkas CSV terunduh, header tepat 25 kolom diawali 'Periode, Mill, Production Line, Tanggal, Tangki, Status, Catatan, Slot Waktu', isinya satu baris per slot waktu sepanjang periode dengan ketujuh kolom konteks (3 ekspor + 4 record) diulang identik pada setiap baris dan hanya Slot Waktu yang berbeda, label kolom pengukuran mengikuti label layar Detail, isinya sama persis dengan ekspor laporan versi web (dibentuk server, bukan disusun ulang dari layar), dan tidak ada data stasiun yang berubah setelah ekspor"
       }
     },
     {

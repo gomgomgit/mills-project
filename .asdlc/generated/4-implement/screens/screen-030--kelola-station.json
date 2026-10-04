@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -26,7 +26,8 @@
     "backend/tests/Feature/Livewire/KelolaStationTest.php",
     "backend/database/factories/MachineryGroupFactory.php",
     "backend/database/factories/MachineryFactory.php",
-    "backend/tests/Feature/Livewire/KelolaStationAuditTest.php"
+    "backend/tests/Feature/Livewire/KelolaStationAuditTest.php",
+    "backend/tests/Feature/AuditFix20261005Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/MasterData/KelolaStation.php",
@@ -40,7 +41,8 @@
     "e2e-web/tests/kelola-station.spec.ts",
     "e2e-web/tests/support/paged-table.ts",
     "backend/database/seeders/BrowserTestFixtureSeeder.php",
-    "e2e-web/tests/searchable-select-dependent.spec.ts"
+    "e2e-web/tests/searchable-select-dependent.spec.ts",
+    "e2e-web/tests/audit-fix-20261005.spec.ts"
   ],
   "implementation_notes": [
     "First-time implementation — CRUD lengkap untuk Station dengan field ERD sejak awal, DIATAS field existing (business_unit_id, name, type, is_active) yang sudah dipakai luas oleh mobile screen 006/007-009 dan web screen 016/017/018 — field tersebut TIDAK diubah/dihapus, hanya ditambah code (opsional, unik jika diisi) dan description",
@@ -53,35 +55,31 @@
     "Independently re-verified oleh command: re-run `php artisan test` — 454/454 lulus (full suite gabungan 027+028+029+030); baca StationService.php dan MachineryGroup.php/migration placeholder penuh untuk konfirmasi delete-guard dan pola placeholder-untuk-diperluas sesuai rencana",
     "REVISI v2 (2026-10-03, perbaikan komponen bersama + e2e): komponen bersama resources/views/components/searchable-select.blade.php kini mencerminkan opsi terkininya di atribut data-ss-options dan, lewat MutationObserver di init() Alpine, membaca ulang opsi setiap kali morph Livewire menulis ulang atribut itu (elemen tetap dipertahankan, fokus dan entangle wire:model utuh). Sebelumnya opsi hanya disalin sekali saat init sehingga picker dependen memakai opsi render pertama: di Kelola Station, memilih Business Unit membuat Production Line hanya berisi placeholder, dan di mode edit menawarkan line milik mill sebelumnya. e2e-web/tests/kelola-station.spec.ts diperbaiki (selector modal .kcm-modal, fixture di backend/database/seeders/BrowserTestFixtureSeeder.php, helper tabel berhalaman e2e-web/tests/support/paged-table.ts) dan lulus 9/9 (test_results.browser diperbarui). Known issue 'browser test tidak dijalankan' dihapus.",
     "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (#7) KelolaStation tidak lagi memakai daftar 4 tipe tulis tangan — Type diisi StationService::typeOptions($includeCode) dari master station_types (aktif, urut sort_order, tipe yang sedang diedit tetap ikut) dan label tabel dari StationService::typeLabels(); validasi type Livewire kini Rule::exists('station_types','code'); aturan satu station per tipe per Production Line (kecuali Other) di StationService::duplicateTypeMessage(), dipakai service dan KelolaStation::buildValidator(), dilewati pada update bila line & tipe tidak berubah. (#10) listStations() menerima filter production_line_id, eager-load productionLine, diurutkan per nama line lalu nama; toRow() menambah production_line_name; view menambah kolom & filter Production Line (opsi 'Mill — Line' tanpa filter BU, reset saat BU berganti). (#11) code UniqueCaseInsensitive. (#12) successMessage + deleteErrorMessage dibersihkan di awal aksi baru. (#15) empty state khusus saat terfilter (isFiltered). (#8) x-searchable-select: style + ssSelect() dipindah ke components/searchable-select-assets.blade.php yang dimuat sekali oleh components/layouts/app.blade.php (script yang disisipkan morph tidak dieksekusi), x-data tidak lagi memuat opsi (dibaca dari data-ss-options), dan listbox diberi wire:ignore — menghapus pageerror Alpine dan listbox hantu saat BU diganti. RECORD_TABLES (18 tabel record) ditambahkan di StationService untuk penjaga hapus Production Line. Cakupan baru: KelolaStationAuditTest, e2e-web/tests/searchable-select-dependent.spec.ts; e2e-web/tests/kelola-station.spec.ts diperbarui."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (#7) KelolaStation tidak lagi memakai daftar 4 tipe tulis tangan — Type diisi StationService::typeOptions($includeCode) dari master station_types (aktif, urut sort_order, tipe yang sedang diedit tetap ikut) dan label tabel dari StationService::typeLabels(); validasi type Livewire kini Rule::exists('station_types','code'); aturan satu station per tipe per Production Line (kecuali Other) di StationService::duplicateTypeMessage(), dipakai service dan KelolaStation::buildValidator(), dilewati pada update bila line & tipe tidak berubah. (#10) listStations() menerima filter production_line_id, eager-load productionLine, diurutkan per nama line lalu nama; toRow() menambah production_line_name; view menambah kolom & filter Production Line (opsi 'Mill — Line' tanpa filter BU, reset saat BU berganti). (#11) code UniqueCaseInsensitive. (#12) successMessage + deleteErrorMessage dibersihkan di awal aksi baru. (#15) empty state khusus saat terfilter (isFiltered). (#8) x-searchable-select: style + ssSelect() dipindah ke components/searchable-select-assets.blade.php yang dimuat sekali oleh components/layouts/app.blade.php (script yang disisipkan morph tidak dieksekusi), x-data tidak lagi memuat opsi (dibaca dari data-ss-options), dan listbox diberi wire:ignore — menghapus pageerror Alpine dan listbox hantu saat BU diganti. RECORD_TABLES (18 tabel record) ditambahkan di StationService untuk penjaga hapus Production Line. Cakupan baru: KelolaStationAuditTest, e2e-web/tests/searchable-select-dependent.spec.ts; e2e-web/tests/kelola-station.spec.ts diperbarui.",
+    "REVISI (2026-10-05, audit-fix f79b1fe — kode adalah acuan): known issue sebelumnya diselesaikan. (#1) StationService::delete() kini berjalan di DB::transaction + lockForUpdate dan menghitung record stasiun di 18 tabel StationService::RECORD_TABLES; ada record → StationHasMachineryException(409) dengan pesan 'Station tidak dapat dihapus karena masih memiliki N record stasiun[, N Machinery Group][, N Machinery]. Hapus atau pindahkan data tersebut terlebih dahulu.' sehingga KelolaStation::confirmDelete() menampilkan deleteErrorMessage (bukan 500). (#7) Api/StationController::index() meneruskan query param production_line_id ke listStations(); filter business_unit_id/production_line_id yang bukan UUID diabaikan (Str::isUuid, cegah SQLSTATE 22P02 PostgreSQL). Tes: StationServiceTest (dataset 18 model record + cakupan RECORD_TABLES), Api/KelolaStationTest (409 + filter line + non-UUID), Livewire/KelolaStationTest (deleteErrorMessage), e2e audit-fix-20261005 #1/#7; kelola-station.spec.ts & searchable-select-dependent.spec.ts kini memilih BU fixture by name ('Mill Station Baru' / 'Mill Station Tujuan Edit') bukan berdasarkan posisi."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "StationService::delete() hanya memeriksa Machinery Group/Machinery; station yang sudah punya record stasiun (FK restrictOnDelete di 18 tabel record) akan gagal di level DB dan tidak ditangkap KelolaStation::confirmDelete() (hanya StationHasMachineryException/ModelNotFoundException) — hasilnya error 500 generik, bukan pesan penolakan ramah. Juga: filter production_line_id belum diekspos di GET /api/stations (hanya Livewire).",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-19T15:00:00Z",
-      "passed": 31,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 53,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-19T15:00:00Z",
-      "passed": 33,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 36,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-19T15:00:00Z",
-      "passed": 29,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 35,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-10-03T00:00:00Z",
-      "passed": 9,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 13,
       "failed": 0
     }
   }

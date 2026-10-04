@@ -1,5 +1,5 @@
 {
-  "ver": 62,
+  "ver": 63,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-05"
@@ -345,7 +345,7 @@
     {
       "method": "GET",
       "path": "/api/stations",
-      "description": "List Station dengan Business Unit induk dan jumlah Machinery Group terkait, dipaginasi, opsional filter per Business Unit",
+      "description": "List Station dengan Business Unit induk dan jumlah Machinery Group terkait, dipaginasi, opsional filter per Business Unit dan (sejak 2026-10-05) per production_line_id — nilai bukan UUID diabaikan (= semua line)",
       "screen_id": "screen-030--kelola-station",
       "usecase_id": "usecase-030--kelola-station",
       "auth_required": true,
@@ -389,7 +389,7 @@
     {
       "method": "DELETE",
       "path": "/api/stations/:id",
-      "description": "Menghapus Station jika tidak memiliki Machinery Group/Machinery terkait",
+      "description": "Menghapus Station jika tidak memiliki Machinery Group/Machinery terkait DAN (sejak 2026-10-05) tidak memiliki record stasiun di 18 tabel record — selain itu 409 ('Station tidak dapat dihapus karena masih memiliki N record stasiun…')",
       "screen_id": "screen-030--kelola-station",
       "usecase_id": "usecase-030--kelola-station",
       "auth_required": true,
@@ -704,7 +704,7 @@
     {
       "method": "PATCH",
       "path": "/api/users/:id",
-      "description": "Mengubah nama, role, dan Business Unit user (tidak termasuk password)",
+      "description": "Mengubah nama, role, dan Business Unit user; field `password` opsional (sejak 2026-10-05) = Reset Password oleh Admin dengan PasswordPolicy — mencabut semua token Sanctum dan sesi web user tsb (kecuali sesi saat ini bila Admin mereset password-nya sendiri); kosong/tidak dikirim = password tidak berubah",
       "screen_id": "screen-032--kelola-user-role",
       "usecase_id": "usecase-032--kelola-user-role",
       "auth_required": true,

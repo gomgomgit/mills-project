@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -58,14 +58,14 @@
                 "type": "uuid",
                 "required": false,
                 "default": "",
-                "description": "Filter business unit"
+                "description": "Filter business unit. Peran terikat mill: nilai kiriman klien dibuang (mill akun yang berlaku). Admin: kosong = semua mill; nilai BUKAN UUID diperlakukan seperti kosong (= semua mill) tanpa query — resolveReadMillId() memulangkan null dan forcedMillFilterValue() menyetel properti Livewire ke \"\" (audit 2026-10-05 #6)."
               },
               {
                 "name": "production_line_id",
                 "type": "uuid",
                 "required": false,
                 "default": "",
-                "description": "Filter Production Line. Kosong = \"Semua Line\" di dalam mill yang berlaku (default layar). Line milik mill lain DIABAIKAN diam-diam — dijepit menjadi null oleh ScopesToActorMill::clampProductionLineIdToMill(), bukan 403 dan bukan 422."
+                "description": "Filter Production Line. Kosong = \"Semua Line\" di dalam mill yang berlaku (default layar). Line milik mill lain DIABAIKAN diam-diam — dijepit menjadi null oleh ScopesToActorMill::clampProductionLineIdToMill(), bukan 403 dan bukan 422. Nilai yang BUKAN UUID (mis. \"bukan-uuid\") diperlakukan sama: \"Semua Line\", dan TANPA query — Str::isUuid() di ScopesToActorMill dicek sebelum whereKey(), karena di PostgreSQL nilai itu pada kolom uuid memicu SQLSTATE 22P02 (dulu Livewire 500 / API 422). Kini 200 (audit 2026-10-05 #6)."
               },
               {
                 "name": "page",
@@ -143,14 +143,14 @@
                 "type": "uuid",
                 "required": false,
                 "default": "",
-                "description": "Filter business unit"
+                "description": "Filter business unit. Peran terikat mill: nilai kiriman klien dibuang (mill akun yang berlaku). Admin: kosong = semua mill; nilai BUKAN UUID diperlakukan seperti kosong (= semua mill) tanpa query — resolveReadMillId() memulangkan null dan forcedMillFilterValue() menyetel properti Livewire ke \"\" (audit 2026-10-05 #6)."
               },
               {
                 "name": "production_line_id",
                 "type": "uuid",
                 "required": false,
                 "default": "",
-                "description": "Filter Production Line. Kosong = \"Semua Line\" di dalam mill yang berlaku (default layar). Line milik mill lain DIABAIKAN diam-diam — dijepit menjadi null oleh ScopesToActorMill::clampProductionLineIdToMill(), bukan 403 dan bukan 422."
+                "description": "Filter Production Line. Kosong = \"Semua Line\" di dalam mill yang berlaku (default layar). Line milik mill lain DIABAIKAN diam-diam — dijepit menjadi null oleh ScopesToActorMill::clampProductionLineIdToMill(), bukan 403 dan bukan 422. Nilai yang BUKAN UUID (mis. \"bukan-uuid\") diperlakukan sama: \"Semua Line\", dan TANPA query — Str::isUuid() di ScopesToActorMill dicek sebelum whereKey(), karena di PostgreSQL nilai itu pada kolom uuid memicu SQLSTATE 22P02 (dulu Livewire 500 / API 422). Kini 200 (audit 2026-10-05 #6)."
               },
               {
                 "name": "format",
@@ -197,7 +197,7 @@
         "8. On export: re-run query filter yang sama tanpa pagination, tulis berkas lewat App\\Support\\SheetWriter::open($format) (csv → CSV ke php://output; excel → .xlsx sungguhan, header tebal, sel angka sebagai angka, string angka berawalan nol tetap teks) → if dataset terlalu besar/error: return 422 EXPORT_FAILED",
         "9. Ekspor memakai buildFilteredQuery() yang sama sehingga filter Production Line ikut ke berkas; `Production Line` adalah kolom PERTAMA header CSV dan nilainya diulang pada setiap baris detail (satu baris per detail, konteks record diulang)",
         "10. Return file stream untuk didownload user",
-        "11. Format nilai berkas ekspor (audit 2026-10-04 #8, App\\Support\\ExportValue): Status = label Indonesia lewat ExportValue::status() (Tersimpan, Tersinkron, …); sel kosong tetap kosong (null), angka tanpa pemisah ribuan. Judul kolom dan kolom detail tidak berubah",
+        "11. Format nilai berkas ekspor (audit 2026-10-04 #8, App\\Support\\ExportValue): Status = label Indonesia lewat ExportValue::status() (Tersimpan, Tersinkron, …); sel kosong tetap kosong (null), angka tanpa pemisah ribuan. Judul kolom dan kolom detail tidak berubah Time In / Time Out ditulis lewat ExportValue::time() -> 'HH:MM' tanpa detik (audit 2026-10-05 #5).",
         "12. Tampilan tabel Livewire (bukan API): kolom Status dirender lewat App\\Support\\Display::status() (Draft/Dijeda/Tersimpan/Tersinkron; kelas CSS badge tetap memakai nilai enum asli); nilai API JSON `status` tetap enum mentah"
       ],
       "data_operations": [
@@ -259,6 +259,10 @@
         {
           "condition": "Admin belum memilih mill sama sekali",
           "handling": "Opsi Production Line mencakup seluruh mill dan setiap label diawali nama mill (\"Mill — Line 01\"); daftar recordnya pun lintas mill, dan kolom Production Line yang membuatnya tetap dapat ditafsirkan"
+        },
+        {
+          "condition": "production_line_id (atau business_unit_id untuk Admin) berisi nilai yang bukan UUID, lewat properti Livewire atau query string API list/export",
+          "handling": "DIABAIKAN DIAM-DIAM tanpa query: clampProductionLineIdToMill() memulangkan null bila !Str::isUuid() (= \"Semua Line\"), resolveReadMillId() memulangkan null (= semua mill, hanya Admin), dan forcedMillFilterValue()/forcedProductionLineFilterValue() mengembalikan properti Livewire ke \"\". Livewire & API menjawab 200 — sebelumnya PostgreSQL melempar SQLSTATE 22P02 (Livewire 500, API 422) sementara SQLite menelannya"
         }
       ],
       "business_rules_applied": [
@@ -316,6 +320,11 @@
           "description": "export format=excel returns a real xlsx file with Indonesian status labels",
           "given": "matching records with detail rows; export() called with format=excel",
           "expect": "body starts with 'PK' and its sheet rows are readable (xlsxRows); status cells carry the Indonesian label (e.g. 'Tersimpan')"
+        },
+        {
+          "description": "ignores a non-UUID production_line_id / business_unit_id without ever binding it into a query",
+          "given": "Supervisor and Admin set production_line_id = 'bukan-uuid' (Livewire) or call list/export with production_line_id=bukan-uuid&business_unit_id=bukan-uuid-juga; DB::listen collects every query binding",
+          "expect": "Livewire assertOk() and production_line_id reset to ''; API list and export answer 200; 'bukan-uuid' / 'bukan-uuid-juga' never appear among the query bindings (filter degrades to all lines / all mills)"
         }
       ]
     }
@@ -339,7 +348,8 @@
     "Filter + kolom Production Line (2026-09-28/29): properti Livewire `production_line_id` (default '' = Semua Line), direset oleh updatedBusinessUnitId(), dipaksa sehat di render() lewat forcedProductionLineFilterValue(), dan opsinya dari productionLineOptionsForReadActor(). Ketiganya LAPISAN TAMPILAN — penegakan sesungguhnya ada di ScopesToActorMill::scopeFiltersToActorMill() di dalam service, jadi melewatkan lapisan tampilan pun tidak membocorkan apa pun.",
     "`production_line_id` masuk ke `$request->only([...])` pada index() DAN export() controller API, sehingga filter yang aktif di layar benar-benar ikut ke berkas.",
     "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ekspor Excel kini .xlsx sungguhan via App\\Support\\SheetWriter (tanpa dependensi baru); status di berkas ekspor berlabel Indonesia via App\\Support\\ExportValue::status(); tabel Data Browser memakai App\\Support\\Display::status(). Kontrak list/export JSON tidak berubah."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ekspor Excel kini .xlsx sungguhan via App\\Support\\SheetWriter (tanpa dependensi baru); status di berkas ekspor berlabel Indonesia via App\\Support\\ExportValue::status(); tabel Data Browser memakai App\\Support\\Display::status(). Kontrak list/export JSON tidak berubah.",
+    "REVISI (2026-10-05, audit-fix #6 — kode acuan): filter production_line_id (dan business_unit_id untuk Admin) divalidasi bentuknya di ScopesToActorMill — nilai bukan UUID = \"Semua Line\"/\"semua mill\" tanpa query (Str::isUuid sebelum whereKey). Alasan: PostgreSQL produksi melempar SQLSTATE 22P02 untuk nilai bukan-uuid pada kolom uuid, SQLite di suite menelannya diam-diam, jadi uji memeriksa BINDING query (DB::listen). Diuji di backend/tests/Feature/AuditFix20261005Test.php (#6 Livewire + #6 API list & export) dan e2e-web/tests/audit-fix-20261005.spec.ts (#6, ke-18 Data Browser via $wire.set). Ekspor: seluruh export() memformat sel lewat ExportValue, tak boleh Display:: (uji struktural #5); Time In/Time Out HH:MM."
   ],
   "test_scenarios": [
     {

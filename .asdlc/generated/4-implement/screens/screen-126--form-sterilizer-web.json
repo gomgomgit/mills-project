@@ -1,5 +1,5 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -24,7 +24,8 @@
     "backend/tests/Unit/Services/SterilizerRecordServiceTest.php",
     "backend/tests/Feature/Api/FormSterilizerTest.php",
     "e2e-web/tests/form-sterilizer.spec.ts",
-    "backend/tests/Feature/AuditFix20261004Test.php"
+    "backend/tests/Feature/AuditFix20261004Test.php",
+    "backend/tests/Feature/AuditFix20261005Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormSterilizer.php",
@@ -55,7 +56,8 @@
     "REVISI v3 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormSterilizerTest.php kini punya 3 uji HTTP kunci periode per-stasiun, melengkapi uji end-to-end yang sudah ada di KelolaPeriodePelaporanTest.php dan menyamakan cakupan Sterilizer dengan 17 stasiun lain: (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 18 uji, semuanya hijau (test_results.integration diperbarui).",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-sterilizer.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 2 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
     "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): SterilizerRecordService — create/update memanggil assertEventDateNotTooFarAhead (> besok WIB -> 422 errors.date); upsertDetails($record, $details, ?User $actor) menegakkan checked_by_spv Supervisor-only (diabaikan, bukan ditolak); id baris bukan-UUID -> baris baru (Str::isUuid); ekspor .xlsx asli via SheetWriter + ExportValue (relevan screen-124). ScopesToActorMill: production_line_id bukan-UUID -> 422; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL. FormSterilizer: trait GuardsRecordIdShape (id bukan UUID -> notFound); view: checkbox Checked by SPV hanya untuk Supervisor, lainnya teks Ya/Tidak. Tes: tests/Feature/AuditFix20261004Test.php ([spv] 3 uji, [future]), tests/Feature/Livewire/RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php; tests/Unit/Services/SterilizerRecordServiceTest.php ikut diubah. test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini)."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): SterilizerRecordService — create/update memanggil assertEventDateNotTooFarAhead (> besok WIB -> 422 errors.date); upsertDetails($record, $details, ?User $actor) menegakkan checked_by_spv Supervisor-only (diabaikan, bukan ditolak); id baris bukan-UUID -> baris baru (Str::isUuid); ekspor .xlsx asli via SheetWriter + ExportValue (relevan screen-124). ScopesToActorMill: production_line_id bukan-UUID -> 422; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL. FormSterilizer: trait GuardsRecordIdShape (id bukan UUID -> notFound); view: checkbox Checked by SPV hanya untuk Supervisor, lainnya teks Ya/Tidak. Tes: tests/Feature/AuditFix20261004Test.php ([spv] 3 uji, [future]), tests/Feature/Livewire/RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php; tests/Unit/Services/SterilizerRecordServiceTest.php ikut diubah. test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini).",
+    "REVISI (2026-10-05, audit-fix f79b1fe — temuan #4): upsertDetails() non-Supervisor: baris tanpa id mewarisi checked_by_spv baris tersimpan yang belum diklaim dengan sterilizer_no + close_door_time (HH:MM) sama (spvMatchKey baru); baris benar-benar baru tetap false. Mencegah sinkron mobile/klien API yang mengganti semua baris menghapus centang SPV. Tes: AuditFix20261005Test [spv] (2 API + 2 Livewire)."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -70,19 +72,19 @@
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-09-01T00:00:00Z",
-      "passed": 28,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 35,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-10-03T00:00:00Z",
-      "passed": 18,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 20,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-01T00:00:00Z",
-      "passed": 11,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 16,
       "failed": 0
     },
     "browser": {

@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -93,16 +93,24 @@
         "Sistem menolak penyimpanan",
         "Sistem menampilkan pesan di kolom Type bahwa satu Production Line hanya boleh memiliki satu station per tipe (kecuali Other)"
       ]
+    },
+    {
+      "name": "Hapus Station — ditolak karena masih memiliki record stasiun",
+      "trigger": "Step 2 — Admin klik Hapus pada Station yang sudah memiliki record di salah satu dari 18 tabel record stasiun",
+      "steps": [
+        "Sistem menolak penghapusan (Station tetap ada)",
+        "Sistem menampilkan pesan 'Station tidak dapat dihapus karena masih memiliki N record stasiun[, N Machinery Group][, N Machinery]. Hapus atau pindahkan data tersebut terlebih dahulu.'"
+      ]
     }
   ],
   "postconditions": [
     "Station baru/ubahan tersimpan dan terlihat di daftar dengan Business Unit induk yang benar",
-    "Atau Station terhapus dari daftar jika tidak ada Machinery Group/Machinery terkait"
+    "Atau Station terhapus dari daftar jika tidak ada record stasiun, Machinery Group, maupun Machinery terkait"
   ],
   "business_rules": [
     "Kode Station harus unik jika diisi",
     "Station bertipe Other tidak boleh berstatus aktif; tipe lain dari master station_types boleh aktif",
-    "Station tidak dapat dihapus jika masih memiliki satu atau lebih Machinery Group atau Machinery terkait",
+    "Station tidak dapat dihapus jika masih memiliki satu atau lebih record stasiun (18 tabel record), Machinery Group, atau Machinery terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Station",
     "Station harus terkait ke tepat satu Business Unit yang sudah ada",
     "Satu Production Line hanya boleh memiliki satu station per tipe, kecuali Other"
@@ -161,6 +169,12 @@
       "given": "Production Line L sudah memiliki station bertipe Weighbridge",
       "when": "Admin menambah station Weighbridge kedua di Production Line L",
       "then": "Sistem menolak penyimpanan dengan pesan di kolom Type; menambah Weighbridge di Production Line lain atau station bertipe Other tetap diizinkan"
+    },
+    {
+      "scenario": "Kelola Station — Hapus Station — ditolak karena memiliki record stasiun",
+      "given": "Admin sudah login ke web app dan sebuah Station sudah memiliki minimal satu record stasiun (mis. record CPO Dispatch atau Sterilizer)",
+      "when": "Admin klik Hapus pada Station tersebut dan mengonfirmasi",
+      "then": "Sistem menolak penghapusan dengan pesan yang menyebut jumlah record stasiun, Station tetap ada di daftar, dan tidak muncul halaman error"
     }
   ],
   "related_screen_ids": [

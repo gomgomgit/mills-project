@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -39,7 +39,7 @@
         {
           "method": "GET",
           "path": "/api/stations",
-          "description": "List Station dengan Business Unit, Production Line, dan jumlah Machinery Group terkait, dipaginasi (urut nama Production Line lalu nama station), opsional filter per Business Unit. Filter per Production Line hanya tersedia di Livewire (StationService::listStations() parameter ke-4), tidak diekspos query param API",
+          "description": "List Station dengan Business Unit, Production Line, dan jumlah Machinery Group terkait, dipaginasi (urut nama Production Line lalu nama station), opsional filter per Business Unit dan per Production Line (production_line_id — diekspos di API sejak 2026-10-05, sama dengan filter Livewire). Nilai filter yang bukan UUID diabaikan (= tanpa filter, 200), tidak diteruskan ke query",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -49,7 +49,7 @@
                 "type": "uuid",
                 "required": false,
                 "default": "",
-                "description": "Filter Station milik satu Business Unit"
+                "description": "Filter Station milik satu Business Unit; nilai bukan UUID diabaikan (Str::isUuid) — tanpa filter, bukan 422/500"
               },
               {
                 "name": "page",
@@ -64,6 +64,13 @@
                 "required": false,
                 "default": "20",
                 "description": "Jumlah per halaman, max 100"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter Station milik satu Production Line (sama dengan filter Livewire KelolaStation); nilai bukan UUID diabaikan (Str::isUuid) — tanpa filter, bukan 422/500"
               }
             ],
             "body_schema": {}
@@ -249,7 +256,7 @@
         {
           "method": "DELETE",
           "path": "/api/stations/:id",
-          "description": "Menghapus Station jika tidak memiliki Machinery Group/Machinery terkait",
+          "description": "Menghapus Station jika tidak memiliki record stasiun (18 tabel RECORD_TABLES), Machinery Group, maupun Machinery terkait",
           "auth_required": true,
           "request": {
             "path_params": [
@@ -270,7 +277,7 @@
               {
                 "http_code": 409,
                 "error_code": "STATION_HAS_MACHINERY",
-                "condition": "Station masih memiliki satu atau lebih Machinery Group atau Machinery terkait"
+                "condition": "Station masih memiliki record stasiun di salah satu dari 18 tabel record (pesan: 'Station tidak dapat dihapus karena masih memiliki N record stasiun[, N Machinery Group][, N Machinery]. Hapus atau pindahkan data tersebut terlebih dahulu.') atau masih memiliki Machinery Group/Machinery terkait (pesan default 'Station tidak dapat dihapus karena masih memiliki Machinery Group atau Machinery terkait.'). Catatan: StationHasMachineryException adalah HttpException(409) tanpa HasErrorCode, sehingga body aktual hanya { message } — field `code` TIDAK dikirim; STATION_HAS_MACHINERY adalah label kondisi, bukan nilai body"
               },
               {
                 "http_code": 404,
@@ -291,11 +298,11 @@
         }
       ],
       "business_logic": [
-        "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by business_unit_id (dan production_line_id dari Livewire), eager-load businessUnit + productionLine, withCount machineryGroups, ORDER BY (SELECT name FROM production_lines) lalu name — tiap line punya set station yang sama sehingga tanpa urutan/kolom line daftar tampak berulang",
+        "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by business_unit_id dan production_line_id (API query param & Livewire; nilai bukan UUID diabaikan via Str::isUuid supaya PostgreSQL tidak melempar SQLSTATE 22P02), eager-load businessUnit + productionLine, withCount machineryGroups, ORDER BY (SELECT name FROM production_lines) lalu name — tiap line punya set station yang sama sehingga tanpa urutan/kolom line daftar tampak berulang",
         "2. GET /api/business-units/options: SELECT id, name dari seluruh Business Unit, urut nama, untuk dropdown form (tanpa pagination)",
         "3. POST create: validate business_unit_id & production_line_id ada → validate name required → validate type exists di station_types → validate code unik case-insensitive jika diisi → after(): is_active tidak boleh true untuk type other; production_line milik business_unit yang sama; duplicateTypeMessage(): line belum punya station bertipe sama (kecuali other) → if invalid: return 422 VALIDATION_ERROR → insert Station",
         "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validasi sama seperti create (code exclude self); duplicateTypeMessage() dilewati bila production_line_id DAN type station tidak berubah (data lama yang sudah duplikat tetap bisa diedit) → if invalid: return 422 VALIDATION_ERROR → update Station",
-        "5. DELETE: validate id exists → if not: return 404 NOT_FOUND → count MachineryGroup WHERE station_id=id + count Machinery WHERE station_id=id → if either > 0: return 409 STATION_HAS_MACHINERY → else delete Station"
+        "5. DELETE: validate id exists → if not: return 404 NOT_FOUND → DB::transaction + lockForUpdate baris Station → hitung record stasiun di 18 tabel StationService::RECORD_TABLES (WHERE station_id=id) + count MachineryGroup + count Machinery → if recordCount > 0: 409 StationHasMachineryException dengan pesan yang menyebut jumlah record (dan Machinery Group/Machinery bila ada) → elif MachineryGroup/Machinery > 0: 409 pesan default → else delete Station. Tanpa guard record, DELETE gagal di FK restrictOnDelete → 500 (temuan audit 2026-10-05 #1)"
       ],
       "data_operations": [
         {
@@ -332,6 +339,11 @@
           "entity_id": "machinery",
           "operation": "SELECT",
           "description": "COUNT Machinery WHERE station_id sebelum delete"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "COUNT record stasiun WHERE station_id di 18 tabel record (StationService::RECORD_TABLES) sebelum delete, di dalam transaksi dengan lockForUpdate pada baris Station"
         }
       ],
       "edge_case_handling": [
@@ -370,12 +382,20 @@
         {
           "condition": "Filter BU/Production Line (Livewire) tidak mencocokkan apa pun",
           "handling": "Empty state 'Tidak ada Station yang cocok dengan filter' (isFiltered), berbeda dari 'Belum ada Station'; mengganti filter BU mereset filter Production Line dan page=1"
+        },
+        {
+          "condition": "Station masih memiliki record stasiun (salah satu dari 18 tabel record) saat dihapus",
+          "handling": "Return 409 (StationHasMachineryException) dengan message 'Station tidak dapat dihapus karena masih memiliki N record stasiun[, N Machinery Group][, N Machinery]. Hapus atau pindahkan data tersebut terlebih dahulu.'; Livewire menutup dialog konfirmasi dan menampilkan deleteErrorMessage, baris tetap ada (bukan 500)"
+        },
+        {
+          "condition": "Query param business_unit_id / production_line_id bukan UUID",
+          "handling": "Diabaikan (tanpa filter), 200 — nilai tidak sampai ke query"
         }
       ],
       "business_rules_applied": [
         "Kode Station harus unik jika diisi (tidak peka huruf besar/kecil)",
         "Tipe harus ada di master station_types; is_active=true dilarang untuk tipe Other",
-        "Station tidak dapat dihapus jika masih memiliki satu atau lebih Machinery Group atau Machinery terkait",
+        "Station tidak dapat dihapus jika masih memiliki satu atau lebih record stasiun (18 tabel), Machinery Group, atau Machinery terkait",
         "Hanya Admin yang dapat mengakses dan mengelola data Station",
         "Station harus terkait ke tepat satu Business Unit yang sudah ada",
         "Satu station per tipe per Production Line (kecuali Other)"
@@ -470,6 +490,26 @@
           "description": "type options list every active station_types entry (not 4) with master labels",
           "given": "station_types berisi 18 tipe aktif",
           "expect": "typeOptions() mengembalikan seluruhnya urut sort_order dengan label nama master (mis. 'CPO Dispatch')"
+        },
+        {
+          "description": "throws StationHasMachineryException (409) when deleting a station that has station records — dataset 18 model record",
+          "given": "Station punya 1 record di salah satu dari 18 tabel record stasiun (BoilerRoom … Weighbridge)",
+          "expect": "409, message mengandung '1 record stasiun', Station tidak terhapus"
+        },
+        {
+          "description": "covers every station record table in the delete guard",
+          "given": "daftar 18 model record stasiun",
+          "expect": "tabel-tabelnya sama persis dengan StationService::RECORD_TABLES"
+        },
+        {
+          "description": "filters list by production_line_id via API query param",
+          "given": "GET /api/stations?production_line_id=L",
+          "expect": "hanya station di line L"
+        },
+        {
+          "description": "ignores non-UUID business_unit_id / production_line_id",
+          "given": "GET /api/stations?production_line_id=bukan-uuid&business_unit_id=juga-bukan",
+          "expect": "200, meta.total = jumlah seluruh station, nilai tidak muncul di bindings query"
         }
       ]
     }
@@ -504,7 +544,8 @@
     "Station TIDAK punya field logo (tidak ada di ERD maupun entity-catalog untuk Station)",
     "Field `type` (enum weighbridge/grading/cages-track/other) DIPERTAHANKAN dari entity-catalog v1-v3 meski tidak ada di ERD literal — krusial bagi mobile app (screen-006/007-009) yang sudah diimplementasikan dan bergantung padanya. Form Kelola Station merender ini sebagai dropdown, bukan field baru.",
     "409 STATION_HAS_MACHINERY memeriksa DUA entity anak (machinery-group DAN machinery langsung) karena keduanya punya FK station_id langsung per entity-catalog v4",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): spec ver 1 tertinggal dari skema — Station kini wajib production_line_id (milik BU yang sama) dan type divalidasi terhadap master station_types (bukan enum 4 nilai). Temuan audit #7: KelolaStation memakai StationService::typeOptions() (seluruh tipe aktif, urut sort_order, menyertakan tipe station yang sedang diedit) dan typeLabels() (label master, menggantikan ucfirst(slug)); aturan satu station per tipe per line (kecuali Other) di StationService::duplicateTypeMessage(), dipakai service (API) dan Livewire. Temuan #10: list menampilkan kolom Production Line, diurutkan per line, filter Production Line (Livewire saja) bergantung filter BU. #11: code UniqueCaseInsensitive. #12: successMessage. #15: empty state khusus saat terfilter. Combobox BU → Production Line di form memakai x-searchable-select yang diperbaiki untuk opsi bergantung (wire:ignore pada listbox, opsi via data-ss-options, aset dimuat sekali oleh layout)."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): spec ver 1 tertinggal dari skema — Station kini wajib production_line_id (milik BU yang sama) dan type divalidasi terhadap master station_types (bukan enum 4 nilai). Temuan audit #7: KelolaStation memakai StationService::typeOptions() (seluruh tipe aktif, urut sort_order, menyertakan tipe station yang sedang diedit) dan typeLabels() (label master, menggantikan ucfirst(slug)); aturan satu station per tipe per line (kecuali Other) di StationService::duplicateTypeMessage(), dipakai service (API) dan Livewire. Temuan #10: list menampilkan kolom Production Line, diurutkan per line, filter Production Line (Livewire saja) bergantung filter BU. #11: code UniqueCaseInsensitive. #12: successMessage. #15: empty state khusus saat terfilter. Combobox BU → Production Line di form memakai x-searchable-select yang diperbaiki untuk opsi bergantung (wire:ignore pada listbox, opsi via data-ss-options, aset dimuat sekali oleh layout).",
+    "REVISI (2026-10-05, audit-fix — kode adalah acuan): #1 delete-guard kini juga menghitung record stasiun di 18 tabel StationService::RECORD_TABLES (FK station_id restrictOnDelete) di dalam transaksi + lockForUpdate; ada record → 409 StationHasMachineryException dengan pesan menyebut jumlah (bukan lagi 500 QueryException). #7 GET /api/stations menerima query param production_line_id; filter business_unit_id/production_line_id yang bukan UUID diabaikan (Str::isUuid). Body 409 hanya { message } (exception tanpa HasErrorCode)."
   ],
   "test_scenarios": [
     {
@@ -749,6 +790,34 @@
         "route": "/master-data/stations",
         "action": "navigasi ke /master-data/stations sebagai user non-Admin",
         "assert": "browser menampilkan status akses ditolak/redirect, layar Kelola Station tidak dapat diakses"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Station — Hapus Station — ditolak karena memiliki record stasiun",
+      "usecase_id": "usecase-030--kelola-station",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/stations/:id"
+          },
+          "request_example": {
+            "id": "<station-id-with-cpo-dispatch-record>"
+          },
+          "expected_status": 409,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaStation (Livewire)",
+        "action": "askDelete pada station yang punya record Sterilizer, lalu confirmDelete",
+        "assert": "confirmingDeleteId null, deleteErrorMessage mengandung 'record stasiun', station tetap ada"
+      },
+      "browser_test": {
+        "route": "/master-data/stations",
+        "action": "klik Hapus pada Station yang sudah punya record stasiun, konfirmasi dialog",
+        "assert": "pesan ramah tampil, baris tetap ada, tanpa respons 500"
       }
     }
   ]

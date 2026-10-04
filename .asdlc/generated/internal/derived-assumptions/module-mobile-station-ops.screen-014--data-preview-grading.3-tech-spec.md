@@ -35,3 +35,8 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/DataPreviewGrading
 - api_contracts[0].unit_test_cases += 4 (pull mirror/offline, 404 stop, SyncFailureHint, filter tanggal toLocalDateString) ← syncService.sqljs.spec.ts, SyncFailureHint.spec.ts, DataPreviewGradingView.vue. ⚠ kasus filter tanggal ISO-UTC diturunkan dari kode, belum tentu ada uji spesifiknya.
 - implementation_notes += REVISI 2026-10-04.
 - test_scenarios += 2 (Status Verifikasi Ditarik dari Server; Petunjuk Gagal Sinkron). ⚠ diturunkan dari kode/e2e, bukan bdd_scenarios Phase 2.
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit f79b1fe), code is truth.
+- api_contracts GET /api/records/{stationType}/verification error_codes[404].condition: body kini amplop standar { message, code: NOT_FOUND } ← RecordVerificationStatusController abort(404) (temuan audit 2026-10-05 #11).

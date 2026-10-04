@@ -23,3 +23,11 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff ReportingPilihStasiunView.
 - implementation_notes += REVISI (2026-10-04, audit-fix)
 - Daftar berkas tidak berubah: berkas uji yang menutup perubahan (ReportingPilihStasiunView.spec.ts, e2e/reporting-pilih-stasiun.spec.ts) sudah tercatat
 - known_issues[1] (label panjang/bubble AI menutupi tile) dibiarkan — floatingSafeArea mungkin mengurangi tumpang tindih bubble tetapi tidak diverifikasi ⚠
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/tests/e2e/reporting-pilih-stasiun.spec.ts).
+- known_issues[1] ← bagian 'tertutup bubble AI' DITUTUP.
+- ⚠ known_issues[1] sisa 'label panjang terpotong' dibiarkan terbuka — tidak diverifikasi ulang terhadap kode saat ini.
+- fe_test_files_generated ← + mobile/tests/e2e/reporting-pilih-stasiun.spec.ts (sebelumnya tidak tercatat).
+- implementation_notes ← append REVISI 2026-10-05.

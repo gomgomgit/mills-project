@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -178,7 +178,8 @@
     "Verifikasi token lokal saat offline sepenuhnya di sisi client, tidak ada panggilan API — durasi validitas token offline belum ditentukan (open question di business spec)",
     "Deteksi 'tidak ada koneksi saat login pertama kali' dilakukan client-side (device belum pernah punya token tersimpan) — submit diblokir sebelum memanggil API",
     "Lupa Password membutuhkan koneksi internet, di luar scope tech spec ini (belum ada usecase terpisah)",
-    "Master Quality Parameter Grading diambil saat login (best-effort) agar Form Grading di perangkat baru tidak memakai id parameter buatan lokal (default-grading-parameter-N) yang ditolak server"
+    "Master Quality Parameter Grading diambil saat login (best-effort) agar Form Grading di perangkat baru tidak memakai id parameter buatan lokal (default-grading-parameter-N) yang ditolak server",
+    "REVISI (2026-10-05, audit-fix #3 — kode adalah acuan): penanganan 401 terpusat di mobile/src/services/apiClient.ts (response interceptor → handleUnauthorized). Setiap 401 dari request BERSESI memanggil authStore.expireSession() (stores/auth.ts: user/token/businessUnit = null, initialized = true, sessionRevoked = true, tokenStorage.clear(); TANPA POST /api/logout dan TANPA menyentuh SQLite lokal) lalu handler navigasi yang didaftarkan main.ts lewat setUnauthorizedHandler() — router.replace ke 'login' dengan query redirect = fullPath asal (tidak berbuat apa-apa bila sudah di Login). LoginForm.vue menampilkan banner data-testid='session-revoked-banner' (role=status) berisi SESSION_REVOKED_MESSAGE dari services/errorHandler.ts: 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.' selama sessionRevoked && status !== 'error'; login berhasil menghapus sessionRevoked. Dikecualikan: URL /api/login (401 = kredensial salah) dan /api/logout, kegagalan tanpa respons (offline/jaringan), status selain 401, dan request yang header Authorization-nya bukan token sesi SAAT INI (request basi dari sesi sebelumnya, atau 401 susulan dalam batch yang sama setelah sesi dibersihkan) — sehingga handler hanya berjalan sekali per sesi yang ditolak. Promise tetap ditolak dengan NormalizedApiError status 401 agar pemanggil (mis. syncService per record) tetap memproses galatnya."
   ],
   "test_scenarios": [
     {
@@ -364,6 +365,34 @@
         "route": "/login",
         "action": "select a mismatched Business Area/Company and submit otherwise valid credentials",
         "assert": "login rejected with a message about the Business Area mismatch; user remains on login screen"
+      }
+    },
+    {
+      "scenario_ref": "Login Mobile — Sesi Ditolak Server",
+      "usecase_id": "usecase-002--login-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/threshing-records"
+          },
+          "request_example": {
+            "_note": "request bersesi dengan token akun yang baru dinonaktifkan Admin"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm / apiClient",
+        "action": "(a) mount LoginForm dengan authStore.sessionRevoked = true; (b) picu 401 dari request bersesi lewat apiClient, termasuk beberapa 401 serentak; (c) picu 401 dari POST /api/login, kegagalan tanpa respons, 403/422/500, dan 401 untuk request bertoken lama",
+        "assert": "(a) banner session-revoked-banner berisi 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.' dan tidak tampil pada login biasa; (b) token/user/BU dibersihkan, sessionRevoked = true, handler dipanggil tepat sekali, tidak ada query/DELETE ke SQLite, promise tetap ditolak status 401; (c) sesi tidak disentuh; login berhasil sesudahnya menghapus sessionRevoked"
+      },
+      "browser_test": {
+        "route": "/stations",
+        "action": "login sebagai Operator, simpan record lokal (push dibatalkan), nonaktifkan akun, tekan Sinkronisasi; lalu aktifkan akun dan login ulang; terpisah: login dengan password salah",
+        "assert": "POST sinkron 401 → pindah ke /login dengan banner pesan sesi berakhir, token lokal terhapus, record lokal tetap 'saved'; rute terlindungi kembali ke Login; setelah login ulang kembali ke /stations dan record dapat disinkronkan (201 → synced); password salah tidak memunculkan banner"
       }
     }
   ]

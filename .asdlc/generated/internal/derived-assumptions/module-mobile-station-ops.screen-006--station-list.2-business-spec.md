@@ -23,3 +23,8 @@
 - station.image (foto background tile) DIGANTI TOTAL menjadi station.icon (override nama icon Lucide, opsional) — bukan foto sama sekali, murni penggantian glyph icon dari default per-tipe (Gauge/Layers/Package) ← koreksi eksplisit user di checkpoint, entity-catalog sudah diupdate ke v7 oleh coordinator sebelum instruksi ini sampai
 - Warna/shadow/radius/layout tile TIDAK berubah sama sekali dari sebelum fitur ini ada — jauh lebih kecil dampaknya dari draft v3 ← turunan langsung dari koreksi user
 - edge case baru: station.icon berisi nama tidak valid/tidak dikenal → fallback ke default icon per tipe ← turunan teknis, menggantikan edge case "gagal dimuat" yang relevan untuk foto, bukan icon
+
+## v9 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/services/apiClient.ts, mobile/tests/e2e/sync-and-verification.spec.ts).
+- edge_cases ← append: sinkron ditolak 401 → Login dengan pesan, record lokal tetap 'Tersimpan'.

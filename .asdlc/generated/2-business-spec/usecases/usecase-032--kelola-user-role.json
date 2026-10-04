@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -79,6 +79,17 @@
         "System memperbarui status is_active user tersebut tanpa form terpisah; penonaktifan mencabut token mobile dan mengakhiri sesi web user itu pada request berikutnya",
         "Daftar user diperbarui menampilkan status baru beserta pesan sukses"
       ]
+    },
+    {
+      "name": "Reset Password User",
+      "trigger": "Step 4 (Edit User) — Admin mengisi kolom opsional 'Reset Password'",
+      "steps": [
+        "System memvalidasi password baru dengan aturan yang sama dengan Login",
+        "System mengganti password user dan mencabut seluruh token mobile user itu seketika",
+        "Setiap sesi web user itu yang login sebelum reset dikeluarkan pada request berikutnya dengan pesan 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.'",
+        "Bila Admin mereset password-nya sendiri, sesi web yang sedang dipakai tetap berjalan (sesi di perangkat lain tetap dicabut)",
+        "Daftar user diperbarui dengan pesan 'User berhasil diperbarui dan password telah direset.'"
+      ]
     }
   ],
   "postconditions": [
@@ -90,7 +101,8 @@
     "Admin tidak dapat menonaktifkan akun miliknya sendiri",
     "User tidak dihapus permanen, hanya dinonaktifkan",
     "Password awal ditentukan Admin saat membuat user baru",
-    "Hanya Admin yang dapat mengakses layar ini"
+    "Hanya Admin yang dapat mengakses layar ini",
+    "Reset password oleh Admin (web maupun API) mencabut seluruh token dan sesi web user tersebut, kecuali sesi web saat ini bila Admin mereset password-nya sendiri; edit tanpa password tidak mencabut sesi"
   ],
   "related_screen_ids": [
     "screen-032--kelola-user-role"
@@ -131,6 +143,24 @@
       "given": "Ada user lain (bukan akun Admin yang login) berstatus aktif",
       "when": "Admin klik toggle Nonaktifkan pada baris user tersebut",
       "then": "Status user berubah menjadi nonaktif, daftar user diperbarui menampilkan status baru"
+    },
+    {
+      "scenario": "Kelola User & Role — Reset password user lain mengakhiri sesinya",
+      "given": "User lain sedang login di web (dan/atau aplikasi mobile)",
+      "when": "Admin mengedit user tersebut, mengisi Reset Password yang valid, lalu klik Simpan",
+      "then": "Password user diganti, token mobile-nya dicabut, dan pada request berikutnya sesi web lamanya dikeluarkan ke Login dengan pesan 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.'; login ulang dengan password baru berlaku normal"
+    },
+    {
+      "scenario": "Kelola User & Role — Admin mereset password sendiri tetap login",
+      "given": "Admin sedang login di web",
+      "when": "Admin mengedit akunnya sendiri dan mengisi Reset Password yang valid",
+      "then": "Password diganti dan sesi web saat ini tetap aktif, sedangkan sesi Admin itu di perangkat lain dicabut"
+    },
+    {
+      "scenario": "Kelola User & Role — Edit tanpa password tidak mengakhiri sesi",
+      "given": "User lain sedang login",
+      "when": "Admin mengubah nama/role user tersebut tanpa mengisi Reset Password",
+      "then": "Data user diperbarui dan sesi/token user tersebut tetap berlaku"
     }
   ]
 }

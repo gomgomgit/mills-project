@@ -1,5 +1,5 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-05"
@@ -26,7 +26,8 @@
     "backend/tests/Unit/Services/GradingRecordServiceTest.php",
     "backend/tests/Feature/Api/FormGradingTest.php",
     "e2e-web/tests/form-grading.spec.ts",
-    "backend/tests/Feature/AuditFix20261004Test.php"
+    "backend/tests/Feature/AuditFix20261004Test.php",
+    "e2e-web/tests/audit-fix-20261005.spec.ts"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormGrading.php",
@@ -59,7 +60,8 @@
     "REVISI v3 (2026-10-03, uji ditambahkan/diperbaiki — kode produksi tidak diubah): tests/Feature/Api/FormGradingTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 15 uji, semuanya hijau (test_results.integration diperbarui). Selain itu spec browser e2e-web/tests/form-grading.spec.ts diperbaiki hari ini (race pada selectLive — pilihan dropdown Livewire dibaca sebelum round-trip selesai); perbaikan hanya di spec, bukan di komponen.",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-grading.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 8 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
     "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): GradingRecordService — normalizeFormFields() menormalkan date ber-zona ke WIB (App\\Support\\AppTime); create/update memanggil assertEventDateNotTooFarAhead (> besok -> 422 errors.date); weighbridge_record_id ['bail','required','uuid','exists'] + pesan 'WB Card No yang dipilih tidak valid.'; validateDetails() cek Str::isUuid(grading_parameter_id) sebelum whereKey; upsertDetails() memperlakukan id baris bukan-UUID sebagai baris baru; ekspor tanpa kolom 'Checked By' + label status Indonesia + .xlsx asli (SheetWriter, relevan untuk screen-017). ScopesToActorMill: production_line_id bukan-UUID -> 422; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL. FormGrading: trait GuardsRecordIdShape (id bukan UUID -> notFound); view: UOM/Percentage sebagai teks, @disabled dihapus dari select Production Line. Tes: tests/Feature/AuditFix20261004Test.php ([uuid], [future]), tests/Feature/Livewire/WebFormNoDisabledFieldTest.php, RecordIdShapeGuardTest.php; tests/Unit/Services/GradingRecordServiceTest.php ikut diubah. test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini)."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): GradingRecordService — normalizeFormFields() menormalkan date ber-zona ke WIB (App\\Support\\AppTime); create/update memanggil assertEventDateNotTooFarAhead (> besok -> 422 errors.date); weighbridge_record_id ['bail','required','uuid','exists'] + pesan 'WB Card No yang dipilih tidak valid.'; validateDetails() cek Str::isUuid(grading_parameter_id) sebelum whereKey; upsertDetails() memperlakukan id baris bukan-UUID sebagai baris baru; ekspor tanpa kolom 'Checked By' + label status Indonesia + .xlsx asli (SheetWriter, relevan untuk screen-017). ScopesToActorMill: production_line_id bukan-UUID -> 422; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL. FormGrading: trait GuardsRecordIdShape (id bukan UUID -> notFound); view: UOM/Percentage sebagai teks, @disabled dihapus dari select Production Line. Tes: tests/Feature/AuditFix20261004Test.php ([uuid], [future]), tests/Feature/Livewire/WebFormNoDisabledFieldTest.php, RecordIdShapeGuardTest.php; tests/Unit/Services/GradingRecordServiceTest.php ikut diubah. test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini).",
+    "REVISI (2026-10-05, audit-fix f79b1fe — temuan #2): mode edit menampilkan Business Unit = nama mill (business_unit_name dari getDetail(), sebelumnya keliru station_name) dan Production Line sebagai teks read-only (properti baru FormGrading::$productionLineName, span fg-field__readonly data-testid production-line-readonly) — bukan input disabled. GradingRecordService::getDetail() eager-load station.businessUnit + productionLine dan menambah business_unit_name, production_line_id, production_line_name (aditif). Tes: FormGradingTest (+1), e2e audit-fix-20261005 #2."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -74,8 +76,8 @@
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-20T00:00:00Z",
-      "passed": 12,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 31,
       "failed": 0,
       "coverage": 0
     },
@@ -85,13 +87,13 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-20T00:00:00Z",
-      "passed": 13,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 19,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-10-03T00:00:00Z",
-      "passed": 8,
+      "run_at": "2026-10-05T00:00:00Z",
+      "passed": 9,
       "failed": 0
     }
   }

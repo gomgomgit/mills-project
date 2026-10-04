@@ -16,3 +16,9 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/FormSterilizerView
 - business_rules[0] = Date memakai tanggal LOKAL perangkat ← createDraft()
 - business_rules (+1) = Checked by SPV hanya Supervisor; server mengabaikan (tidak menolak) nilai dari non-Supervisor, baris lama dipertahankan, baris baru false ← SterilizerRecordService::upsertDetails() $actorIsSupervisor
 - edge_cases (+1) = non-Supervisor membuka draft dengan baris sudah dicentang → teks 'Ya', tak dapat diubah; nilai dari non-Supervisor diabaikan server ← view + service
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/services/syncService.ts, backend/app/Services/SterilizerRecordService.php).
+- business_rules[8] ← tambah: sinkron hanya kirim Checked by SPV bila Supervisor; baris tanpa id mewarisi lewat Sterilizer No + Close Door Time.
+- edge_cases ← append: penggantian semua baris oleh non-Supervisor tidak menghapus centang SPV.

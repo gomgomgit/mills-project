@@ -30,3 +30,8 @@ Sumber: audit-fix 2026-10-04, code is truth (GradingRecordService.php, FormGradi
 - api_contracts[0].business_rules_applied[3], [4] dan += 2 aturan.
 - api_contracts[0].unit_test_cases += 3 ← tests/Feature/AuditFix20261004Test.php [uuid]/[future].
 - implementation_notes[2] = UOM/Percentage teks; += REVISI audit-fix.
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (FormGrading.php, form-grading.blade.php, GradingRecordService.php).
+- business_logic[8], unit_test_cases (+1), implementation_notes (+1) ← businessUnitName dari business_unit_name (bukan station_name), productionLineName baru; getDetail() aditif.

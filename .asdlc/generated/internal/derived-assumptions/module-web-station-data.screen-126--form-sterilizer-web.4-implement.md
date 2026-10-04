@@ -32,3 +32,8 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD SterilizerRecordServi
 - fe_files_generated += GuardsRecordIdShape.php.
 - test_files_generated += AuditFix20261004Test.php; fe_test_files_generated += WebFormNoDisabledFieldTest.php, RecordIdShapeGuardTest.php.
 - implementation_notes[7] = Checked by SPV per baris kini Supervisor-only; += REVISI audit-fix.
+
+## v7 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (SterilizerRecordService.php).
+- test_files_generated (+AuditFix20261005Test), implementation_notes (+1), test_results unit 35 / integration 18+2=20 / component 14+2=16 (dijalankan ulang; +2 masing-masing dari AuditFix20261005 [spv]).

@@ -16,3 +16,8 @@ Sumber: audit-fix 2026-10-04, code is truth (form-grading.blade.php, FormGrading
 - information_displayed[10], business_rules[8], [9] = UOM/Percentage teks, bukan input nonaktif ← blade fg-computed-value.
 - business_rules[10] = BU/Production Line/station immutable.
 - edge_cases[2] = berbasis Production Line; += tanggal > besok, id bukan UUID, WB Card/Quality Parameter tidak sah.
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (Livewire/Data/FormGrading.php, form-grading.blade.php).
+- information_displayed[0], business_rules[10] ← mode edit menampilkan nama BU (mill) dan Production Line sebagai teks read-only.

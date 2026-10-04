@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -157,7 +157,7 @@
         {
           "method": "PATCH",
           "path": "/api/users/:id",
-          "description": "Mengubah nama, role, dan Business Unit user. Endpoint API tidak meneruskan password (UserController::update hanya name/role/business_unit_id); Reset Password opsional hanya tersedia lewat form Edit Livewire yang memanggil UserService::update() dengan field password",
+          "description": "Mengubah nama, role, dan Business Unit user, plus Reset Password opsional (field password; sejak 2026-10-05 diteruskan UserController::update ke UserService::update() yang sama dengan form Edit Livewire). Reset password mencabut seluruh token Sanctum user itu dan menyetel users.sessions_revoked_at sehingga sesi web yang login sebelum reset dikeluarkan EnsureUserIsActive pada request berikutnya — kecuali sesi web saat ini bila Admin mereset password-nya sendiri",
           "auth_required": true,
           "request": {
             "path_params": [
@@ -171,7 +171,8 @@
             "body_schema": {
               "name": "string, required",
               "role": "string, required, enum(operator,supervisor,mill_management,admin)",
-              "business_unit_id": "uuid, required jika role != admin, harus Business Unit yang ada"
+              "business_unit_id": "uuid, required jika role != admin, harus Business Unit yang ada",
+              "password": "string, optional — Reset Password; bila diisi divalidasi App\\Support\\PasswordPolicy (sama dengan login), kosong/tidak dikirim = password tidak berubah dan tidak ada sesi yang dicabut"
             }
           },
           "response": {
@@ -189,7 +190,7 @@
               {
                 "http_code": 422,
                 "error_code": "VALIDATION_ERROR",
-                "condition": "name kosong, role tidak valid, business_unit_id kosong padahal role!=admin atau tidak valid"
+                "condition": "name kosong, role tidak valid, business_unit_id kosong padahal role!=admin atau tidak valid, atau password diisi tetapi tidak memenuhi PasswordPolicy"
               },
               {
                 "http_code": 404,
@@ -258,8 +259,9 @@
       "business_logic": [
         "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by role/business_unit_id, eager-load businessUnit untuk business_unit_name. password_hash tidak pernah diekspos (sudah $hidden di model)",
         "2. POST create: validate username required + max 255 + tanpa spasi + unik case-insensitive (UserService::usernameUniqueRule, lower() di kedua sisi) → validate name required → validate role required (enum) → validate business_unit_id required jika role != admin, harus Business Unit yang ada → validate password required + PasswordPolicy::rule() → if invalid: return 422 VALIDATION_ERROR → hash password → insert User baru dengan is_active=true",
-        "3. PATCH update: validate id ada → if not: return 404 NOT_FOUND → validate name/role/business_unit_id (sama seperti create) → bila password tidak kosong: validate PasswordPolicy → if invalid: return 422 VALIDATION_ERROR → update name, role, business_unit_id; password_hash hanya diganti bila password diisi (Reset Password, kosong = tidak berubah). Username tidak pernah diubah",
-        "4. PATCH status: validate id ada → if not: return 404 NOT_FOUND → jika is_active=false DAN id == id user yang login: return 409 CANNOT_DEACTIVATE_SELF → else update is_active; bila dinonaktifkan: hapus seluruh token Sanctum user tsb ($user->tokens()->delete())"
+        "3. PATCH update (API & Livewire, UserService::update($id, $data, $actor)): validate id ada → if not: return 404 NOT_FOUND → validate name/role/business_unit_id (sama seperti create) → bila password tidak kosong: validate PasswordPolicy → if invalid: return 422 VALIDATION_ERROR → DB::transaction: update name, role, business_unit_id; bila password diisi (Reset Password) password_hash diganti + sessions_revoked_at=now() + hapus seluruh token Sanctum user itu → revokeWebSessions(): bila SESSION_DRIVER=database hapus baris sessions user itu; bila $actor == user (Admin mereset password sendiri) dan sesi request sedang berjalan, sesi saat ini dipertahankan (stempel auth_session_started_at_ms disetel = sessions_revoked_at, dan pada driver database baris sesi saat ini tidak dihapus). Username tidak pernah diubah. Edit tanpa password tidak mencabut apa pun",
+        "4. PATCH status: validate id ada → if not: return 404 NOT_FOUND → jika is_active=false DAN id == id user yang login: return 409 CANNOT_DEACTIVATE_SELF → else update is_active; bila dinonaktifkan: hapus seluruh token Sanctum user tsb ($user->tokens()->delete())",
+        "5. Pencabutan sesi web (middleware EnsureUserIsActive): setiap sesi web menyimpan stempel login auth_session_started_at_ms (ditulis listener event Login di AppServiceProvider; sesi lama tanpa stempel diberi stempel pada request pertama). Bila users.sessions_revoked_at tidak null dan stempel sesi lebih tua → logout + invalidate session; request JSON (non-Livewire) dijawab 401 { message }, selain itu redirect ke login dengan auth_error 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.' (EnsureUserIsActive::REVOKED_MESSAGE). Sesi yang login sesudah reset tetap berlaku"
       ],
       "data_operations": [
         {
@@ -275,12 +277,17 @@
         {
           "entity_id": "user",
           "operation": "UPDATE",
-          "description": "UPDATE name/role/business_unit_id (endpoint update), atau UPDATE is_active (endpoint status)"
+          "description": "UPDATE name/role/business_unit_id (+ password_hash & sessions_revoked_at bila Reset Password) (endpoint update), atau UPDATE is_active (endpoint status)"
         },
         {
           "entity_id": "business-unit",
           "operation": "SELECT",
           "description": "SELECT untuk validasi business_unit_id ada saat create/update; dropdown Business Unit di FE memakai endpoint publik GET /api/business-units (screen-029) yang sudah ada, tidak perlu endpoint baru"
+        },
+        {
+          "entity_id": "user",
+          "operation": "DELETE",
+          "description": "Reset Password: DELETE personal_access_tokens milik user itu ($user->tokens()->delete()); bila SESSION_DRIVER=database juga DELETE baris sessions user itu (kecuali sesi saat ini saat reset diri sendiri)"
         }
       ],
       "edge_case_handling": [
@@ -311,6 +318,18 @@
         {
           "condition": "username mengandung spasi",
           "handling": "Return 422 VALIDATION_ERROR dengan errors.username 'Username tidak boleh mengandung spasi.'"
+        },
+        {
+          "condition": "User yang password-nya direset masih memegang sesi web / token mobile lama",
+          "handling": "Token Sanctum sudah dihapus → request mobile 401; sesi web lebih tua dari sessions_revoked_at dikeluarkan EnsureUserIsActive dengan pesan REVOKED_MESSAGE (JSON 401 / redirect login)"
+        },
+        {
+          "condition": "Admin mereset password-nya sendiri (web Livewire atau API dengan sesi web)",
+          "handling": "Token Sanctum tetap dicabut; sesi web saat ini dipertahankan (stempel diperbarui), sesi Admin itu di perangkat lain tetap dikeluarkan"
+        },
+        {
+          "condition": "PATCH update tanpa password (edit biasa)",
+          "handling": "sessions_revoked_at tidak berubah, token & sesi tidak dicabut"
         }
       ],
       "business_rules_applied": [
@@ -319,7 +338,8 @@
         "Admin tidak dapat menonaktifkan akun miliknya sendiri",
         "User tidak dihapus permanen, hanya dinonaktifkan (tidak ada endpoint DELETE)",
         "Password awal ditentukan Admin saat membuat user baru",
-        "Hanya Admin yang dapat mengakses layar ini"
+        "Hanya Admin yang dapat mengakses layar ini",
+        "Reset password oleh Admin mencabut seluruh token dan sesi web user tersebut (kecuali sesi saat ini bila reset diri sendiri)"
       ],
       "unit_test_cases": [
         {
@@ -401,6 +421,31 @@
           "description": "deactivating a user revokes their Sanctum tokens",
           "given": "target user has personal access tokens; setStatus(id, false)",
           "expect": "all tokens of that user deleted; token requests with them answer 401"
+        },
+        {
+          "description": "#8b Livewire: reset password user lain mencabut token Sanctum dan sesi web lamanya",
+          "given": "user lain punya token Sanctum dan sesi web aktif; Admin menyimpan Edit dengan password baru valid",
+          "expect": "token terhapus; request web berikutnya dari sesi lama dikeluarkan ke login dengan REVOKED_MESSAGE"
+        },
+        {
+          "description": "#8b API: PATCH /api/users/{id} dengan password mencabut token dan sesi web lama user itu",
+          "given": "PATCH dengan field password valid",
+          "expect": "200; token user terhapus; sesi web lama dikeluarkan"
+        },
+        {
+          "description": "sesi yang dibuat sesudah reset tetap berlaku",
+          "given": "user login ulang dengan password baru setelah reset",
+          "expect": "sesi baru tidak dikeluarkan"
+        },
+        {
+          "description": "edit tanpa password tidak mencabut apa pun",
+          "given": "PATCH/Livewire edit tanpa password",
+          "expect": "token & sesi tetap, sessions_revoked_at null"
+        },
+        {
+          "description": "Admin mereset password sendiri (API/Livewire): token dicabut, sesi web saat ini tetap; sesi lama di perangkat lain tetap dicabut",
+          "given": "actor == user target",
+          "expect": "sesi saat ini tetap login; sesi lain dikeluarkan"
         }
       ]
     }
@@ -434,7 +479,8 @@
     "Endpoint status (PATCH /api/users/:id/status) dipisah dari update (PATCH /api/users/:id) agar toggle aktif/nonaktif dari daftar tidak perlu membuka form penuh dan tidak bisa tidak sengaja mengubah field lain",
     "Tidak ada endpoint DELETE — user tidak pernah dihapus permanen, hanya endpoint status yang mengubah is_active",
     "Validasi hanya hidup di UserService::validate() — komponen Livewire tidak lagi punya rules() sendiri; ValidationException dipetakan ke kunci form.*",
-    "Label role memakai UserRole::label() (Mill Management, bukan 'Mill management')"
+    "Label role memakai UserRole::label() (Mill Management, bukan 'Mill management')",
+    "REVISI (2026-10-05, audit-fix f79b1fe — kode adalah acuan, temuan #8/#8b): PATCH /api/users/{id} kini menerima password (Reset Password) lewat UserService::update($id, $data, $actor) yang sama dengan KelolaUserRole. Reset menyetel kolom baru users.sessions_revoked_at (migrasi 2026_10_05_000001), menghapus semua token Sanctum, dan (driver database) baris sessions; karena SESSION_DRIVER=file tidak bisa dihapus per user, EnsureUserIsActive membandingkan stempel sesi auth_session_started_at_ms (ditulis listener Login di AppServiceProvider) dengan sessions_revoked_at dan mengeluarkan sesi yang lebih tua dengan REVOKED_MESSAGE. Reset diri sendiri mempertahankan sesi saat ini."
   ],
   "test_scenarios": [
     {
@@ -645,6 +691,69 @@
         "route": "/users",
         "action": "navigasi ke /users sebagai user non-Admin",
         "assert": "browser menampilkan status akses ditolak/redirect"
+      }
+    },
+    {
+      "scenario_ref": "Kelola User & Role — Reset password user lain mengakhiri sesinya",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/users/:id"
+          },
+          "request_example": {
+            "id": "<other-user-id>",
+            "name": "Operator Satu",
+            "role": "operator",
+            "business_unit_id": "{{business_unit_id}}",
+            "password": "Baru123!"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaUserRole (Livewire)",
+        "action": "Edit user lain, isi Reset Password valid, Simpan",
+        "assert": "token Sanctum user itu terhapus, sessions_revoked_at terisi, sesi web lamanya dikeluarkan pada request berikutnya"
+      },
+      "browser_test": {
+        "route": "/users",
+        "action": "Admin (konteks browser A) mereset password user yang sedang login di konteks browser B",
+        "assert": "request berikutnya di B diarahkan ke Login dengan pesan 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.'"
+      }
+    },
+    {
+      "scenario_ref": "Kelola User & Role — Admin mereset password sendiri tetap login",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/users/:id"
+          },
+          "request_example": {
+            "id": "<own-user-id>",
+            "name": "Admin",
+            "role": "admin",
+            "password": "Baru123!"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaUserRole (Livewire)",
+        "action": "Edit akun sendiri, isi Reset Password valid, Simpan",
+        "assert": "sesi web saat ini tetap login"
+      },
+      "browser_test": {
+        "route": "/users",
+        "action": "Admin mereset password akunnya sendiri",
+        "assert": "Admin tetap di halaman /users tanpa dikeluarkan"
       }
     }
   ]

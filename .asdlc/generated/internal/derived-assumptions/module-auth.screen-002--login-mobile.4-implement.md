@@ -36,3 +36,12 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD mobile/src/stores/aut
 - fe_files_generated += mobile/src/services/gradingParameterSync.ts
 - implementation_notes += REVISI 2026-10-04 (grading params saat login, token akun nonaktif)
 - known_issues += mobile tanpa penanganan 401 global setelah token dicabut ⚠ DISIMPULKAN dari grep apiClient.ts/auth.ts (tidak ada redirect 401 global), belum diverifikasi di browser
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/services/apiClient.ts, mobile/src/stores/auth.ts, mobile/src/main.ts, mobile/src/services/errorHandler.ts, mobile/src/components/LoginForm.vue, mobile/tests/apiClient.unauthorized.spec.ts, mobile/tests/LoginForm.spec.ts).
+- known_issues[5] ← DITUTUP (penanganan 401 global kini ada).
+- fe_files_generated ← + apiClient.ts, errorHandler.ts, main.ts.
+- fe_test_files_generated ← + apiClient.unauthorized.spec.ts, e2e/sync-and-verification.spec.ts.
+- implementation_notes ← append rincian perubahan + uji.
+- test_results ← tidak diubah (angka per layar tidak tersedia; run commit 2216 vitest / 744 e2e).

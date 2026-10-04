@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -43,7 +43,8 @@
   "fe_test_files_generated": [
     "mobile/tests/ReportingPilihStasiunView.spec.ts",
     "mobile/tests/DashboardReportingView.spec.ts",
-    "mobile/tests/e2e/dashboard-reporting.spec.ts"
+    "mobile/tests/e2e/dashboard-reporting.spec.ts",
+    "mobile/tests/e2e/reporting-pilih-stasiun.spec.ts"
   ],
   "implementation_notes": [
     "NOL perubahan backend, NOL endpoint baru, NOL tambahan api-index. Daftar stasiun dibaca lewat stationRepo (lokal); sejak audit 2026-10-04 productionLineRepo (endpoint Production Line yang sudah ada) dan seedDefaultStationsIfNeeded dipakai HANYA saat cache stasiun lokal kosong.",
@@ -59,7 +60,8 @@
     "RANTAI PENUH TERBUKTI di aplikasi nyata: Home → Dashboard & Reporting → Reporting → /reports (18 tile, 17 nonaktif, 1 aktif) → ketuk tile nonaktif memunculkan 'Laporan Weighbridge belum tersedia.' tanpa berpindah → ketuk Sterilizer sampai di /reports/sterilizer.",
     "REVISI v2 (tech-spec v2, REPORT_ROUTES lima stasiun + Production Line dibawa ke layar laporan — sinkronisasi artefak, kode tidak diubah): diverifikasi 2026-10-03 terhadap delta tech-spec 1b35980. (1) REPORT_ROUTES di ReportingPilihStasiunView.vue berisi LIMA jenis — sterilizer, cages-track, boiler-room, clarification, storage-tank — ditambahkan satu baris per layar oleh 8b23ddd (136/137) dan 8658f6e (138/139); isReportAvailable() tetap HANYA `REPORT_ROUTES[station.type] != null` tanpa isActive. Catatan v1 ('18 tile, 17 nonaktif, 1 aktif') dan deferred_items 'laporan mobile untuk 17 stasiun lain' karena itu sudah usang: kini 5 tile berlaporan, 13 tanpa laporan. (2) Production Line ikut dibawa (98c812b): onTileTap() memanggil router.push({ name, query: reportQuery() }); reportQuery() membaca `msl_production_line_{userId}` dari localStorage lewat readActiveProductionLineId() — sumber yang SAMA dengan loadStations() dan kunci yang sama yang ditulis StationListView.vue — dibungkus try/catch, dan mengirim { production_line_id } hanya bila ada; tanpa ingatan query dibiarkan kosong (layar laporan tujuan yang bertanya); ingatan pengguna lain tidak terbawa karena kunci di-scope per userId; tetap nol pemanggilan jaringan. Tile tanpa laporan tetap tidak berpindah rute walau ada line aktif. Test 2026-10-03: unit 36 dan component 36 (keduanya mobile/tests/ReportingPilihStasiunView.spec.ts, mengikuti konvensi v1 yang mencatat berkas yang sama di kedua tipe) — lolos; DashboardReportingView.spec.ts 16 lolos (milik screen-134, tidak dihitung di sini); integration tetap kosong (layar tanpa backend); browser tidak dijalankan ulang.",
     "REVISI v3 (ukur ulang uji browser 2026-10-03 — kode tidak diubah): mobile/tests/e2e/reporting-pilih-stasiun.spec.ts (kini berbentuk invarian 8b23ddd dan memuat skenario Production Line 98c812b) dijalankan ulang di bawah Vite dev server dengan backend :8000 (DemoAccountSeeder) — 15 lolos, 0 gagal (total run tujuh spec laporan mobile 185/185). Kenaikan 13 → 15 mencerminkan skenario yang bertambah. Known_issue 'test_results.browser tidak diukur ulang' karena itu dihapus.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ReportingPilihStasiunView.vue — (1) bootstrapStationsWhenEmpty(): bila stations kosong sesudah pembacaan lokal, ambil fetchCurrentProductionLines() (galat → []), pakai line diingat atau lines[0], fetchAndCacheStationsForProductionLine(), baca ulang lokal; tanpa line/offline → seedDefaultStationsIfNeeded(businessUnitId) lalu getActiveAndPlaceholderStations(); tanpa business_unit_id → []. Jaringan hanya disentuh saat cache kosong. (2) Pesan tile nonaktif: 'Laporan {nama} belum tersedia di aplikasi mobile.' (3) Teks no-stations: '…daftar stasiun belum bisa diambil dari server. Pastikan perangkat online, lalu buka layar Daftar Stasiun atau kembali ke sini.' Uji baru: ReportingPilihStasiunView.spec.ts ('cache stasiun kosong — mengambil Production Line + stasiun dari server sendiri…', '…offline — jatuh ke 18 stasiun bawaan…'), e2e reporting-pilih-stasiun.spec.ts (2 skenario bootstrap online / server tak terjangkau). test_results tidak diukur ulang pada sinkronisasi ini."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ReportingPilihStasiunView.vue — (1) bootstrapStationsWhenEmpty(): bila stations kosong sesudah pembacaan lokal, ambil fetchCurrentProductionLines() (galat → []), pakai line diingat atau lines[0], fetchAndCacheStationsForProductionLine(), baca ulang lokal; tanpa line/offline → seedDefaultStationsIfNeeded(businessUnitId) lalu getActiveAndPlaceholderStations(); tanpa business_unit_id → []. Jaringan hanya disentuh saat cache kosong. (2) Pesan tile nonaktif: 'Laporan {nama} belum tersedia di aplikasi mobile.' (3) Teks no-stations: '…daftar stasiun belum bisa diambil dari server. Pastikan perangkat online, lalu buka layar Daftar Stasiun atau kembali ke sini.' Uji baru: ReportingPilihStasiunView.spec.ts ('cache stasiun kosong — mengambil Production Line + stasiun dari server sendiri…', '…offline — jatuh ke 18 stasiun bawaan…'), e2e reporting-pilih-stasiun.spec.ts (2 skenario bootstrap online / server tak terjangkau). test_results tidak diukur ulang pada sinkronisasi ini.",
+    "REVISI (2026-10-05, audit-fix, commit 30b7f27 — sinkronisasi artefak, kode adalah acuan): hanya uji baru, kode layar tidak berubah. mobile/tests/e2e/reporting-pilih-stasiun.spec.ts menambah '390x844 — di ujung gulir tidak ada tile yang tertutup bubble Mills AI / jam mengambang' (gulir ke scrollHeight, hitung irisan bounding box tiap [data-testid^=station-tile-] dengan [aria-label='Buka Mills AI'] dan .floating-clock → harus kosong; tanpa pageerror/console.error/HTTP >= 400). Berkas spec ini sebelumnya belum tercatat di fe_test_files_generated. Angka test_results tidak diubah (run commit: e2e mobile 744/744 lulus)."
   ],
   "deferred_items": [
     {
@@ -77,7 +79,7 @@
       "severity": "minor"
     },
     {
-      "description": "Label stasiun bernama panjang terpotong di tepi bawah tile — terlihat pada 'Process Quality Control' di tangkapan layar render nyata, dan sebagian tertutup bubble AI yang mengambang. Hanya masalah tampilan, tidak memengaruhi perilaku; tidak tertangkap satu pun dari 43 test karena semuanya mengasersi isi dan perilaku, bukan tata letak.",
+      "description": "SEBAGIAN DITUTUP audit-fix 2026-10-05: bagian 'tile tertutup bubble AI' selesai — dengan ruang aman elemen mengambang (App.vue + utils/floatingSafeArea.ts) di ujung gulir tidak ada tile yang tertutup bubble Mills AI / jam mengambang di 390x844, dibuktikan uji browser mobile/tests/e2e/reporting-pilih-stasiun.spec.ts ('390x844 — di ujung gulir tidak ada tile yang tertutup ...'); bubble hanya boleh menimpa tile selama menggulir. Sisa catatan lama: label stasiun bernama panjang ('Process Quality Control') pernah terlihat terpotong di tepi bawah tile — belum diverifikasi ulang terhadap kode saat ini; hanya masalah tampilan.",
       "severity": "minor"
     },
     {

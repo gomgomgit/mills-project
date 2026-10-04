@@ -48,3 +48,10 @@ Sumber: audit-fix 2026-10-04, code is truth (WeighbridgeRecordService.php, data-
 - implementation_notes[0] = catatan fallback CSV ditandai DIGANTIKAN 2026-10-04 ← SheetWriter
 - implementation_notes += REVISI (2026-10-04, audit-fix …) ← ringkasan perubahan
 - known_issues: entri "format=excel mengembalikan konten CSV …" dihapus ← diperbaiki SheetWriter; test_results tidak diubah (uji tidak dijalankan dalam sinkronisasi ini)
+
+## v8 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/app/Support/Concerns/ScopesToActorMill.php, backend/tests/Feature/AuditFix20261005Test.php, e2e-web/tests/audit-fix-20261005.spec.ts, backend/app/Support/{Display,ExportValue}.php, backend/app/Services/*RecordService.php, resources/views/livewire/data/detail-*.blade.php).
+- test_files_generated / fe_test_files_generated ← + AuditFix20261005Test.php, audit-fix-20261005.spec.ts (keduanya mencakup layar ini lewat dataset 18 Data Browser).
+- files_generated ← + ExportValue.php (ekspor kini memakai ExportValue::status()).
+- implementation_notes ← +1 catatan audit-fix 2026-10-05.

@@ -28,3 +28,8 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/DataPreviewProcess
 - implementation_notes[3] = date baru disimpan sebagai tanggal LOKAL 'YYYY-MM-DD' (bukan datetime penuh); slice(0,10) tetap aman ← processQualityControlRecordRepo.ts createDraft → todayLocalDateString, localSchema.normalizeLegacyUtcDates.
 - implementation_notes += REVISI 2026-10-04 (GET endpoint, /api prefix PATCH, network flag, SyncFailureHint, Tanggal type=date via toDateInputValue, filter-row minmax).
 - test_scenarios += 2 (Status Verifikasi Ditarik dari Server; Petunjuk Gagal Sinkron). ⚠ diturunkan dari kode/e2e, bukan dari bdd_scenarios Phase 2.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit f79b1fe), code is truth.
+- api_contracts GET /api/records/{stationType}/verification error_codes[404].condition: body kini amplop standar { message, code: NOT_FOUND } ← RecordVerificationStatusController abort(404) (temuan audit 2026-10-05 #11).

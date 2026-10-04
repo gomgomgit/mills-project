@@ -12,3 +12,10 @@ Sumber: audit-fix 2026-10-04, code is truth (routes/api.php blok "ENDPOINT BACA 
 - endpoints[135] (DELETE /api/periods/{id}).description = + 409 PERIOD_HAS_RECORDS untuk periode yang membingkai record ← PeriodService
 - endpoints += GET /api/grading-parameters (screen-011--form-grading / usecase-011--form-grading, 4 peran) ← routes/api.php; penetapan screen_id ke screen-011 adalah keputusan agen (endpoint juga dipanggil saat login mobile screen-002)
 - endpoints += GET /api/records/{stationType}/verification (screen-013--data-preview-weighbridge / usecase-013, 4 peran) ← routes/api.php; satu entri mewakili ke-18 Data Preview — screen_id perwakilan dipilih agen karena schema hanya menerima satu screen_id
+
+## v63 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (Api/StationController.php, StationService.php, Api/UserController.php, UserService.php).
+- endpoints[28] GET /api/stations: + filter production_line_id (bukan UUID diabaikan).
+- endpoints[32] DELETE /api/stations/:id: + guard record stasiun 18 tabel → 409.
+- endpoints[59] PATCH /api/users/:id: password opsional = Reset Password (PasswordPolicy, cabut token+sesi).

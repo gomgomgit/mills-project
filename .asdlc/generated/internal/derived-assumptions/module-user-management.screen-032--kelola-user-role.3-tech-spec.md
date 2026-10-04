@@ -22,3 +22,9 @@ Sumber: audit-fix 2026-10-04, code is truth (UserService.php, UserController.php
 - business_rules_applied[0] = unik case-insensitive, tanpa spasi
 - unit_test_cases[6] = PasswordPolicy; [9] = password_hash hanya berubah bila Reset Password diisi; += username beda huruf/berspasi; += cabut token ← KelolaUserRoleAuditTest, WebAccessTest
 - implementation_notes += validasi hanya di UserService; label UserRole::label()
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (UserService.php, Api/UserController.php, EnsureUserIsActive.php, AppServiceProvider.php, migrasi 2026_10_05_000001).
+- PATCH /api/users/:id description + body_schema.password + error_codes[0] ← API kini menerima password (sebelumnya hanya Livewire).
+- business_logic[2] + (+5 pencabutan sesi), data_operations, edge_case_handling (+3), business_rules_applied (+1), unit_test_cases (+5), test_scenarios (+2), implementation_notes (+1) ← sessions_revoked_at, tokens()->delete(), stempel sesi auth_session_started_at_ms.

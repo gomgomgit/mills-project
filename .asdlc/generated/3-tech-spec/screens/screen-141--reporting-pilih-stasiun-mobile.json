@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -250,7 +250,8 @@
     "Nama kunci query `production_line_id` sengaja sama persis dengan yang disisipkan screen-140 pada report_path dan dengan #[Url(as: 'production_line_id')] di sisi web — satu kosakata untuk satu konteks.",
     "PEMBETULAN artefak-vs-kode (2026-09-29): business_logic sebelumnya menyebut REPORT_ROUTES hanya berisi 'sterilizer'. Kode memuat lima jenis (sterilizer, cages-track, boiler-room, clarification, storage-tank).",
     "Cakupan uji Production Line yang nyata untuk layar ini: 6 uji komponen (mobile/tests/ReportingPilihStasiunView.spec.ts) dan 2 uji browser (mobile/tests/e2e/reporting-pilih-stasiun.spec.ts).",
-    "REVISI audit 2026-10-04: bootstrapStationsWhenEmpty() mengisi cache stasiun saat kosong (sebelumnya layar kosong sampai Daftar Stasiun dibuka sekali); pesan tile nonaktif menjadi 'Laporan {nama} belum tersedia di aplikasi mobile.'; teks no-stations meminta memastikan perangkat online."
+    "REVISI audit 2026-10-04: bootstrapStationsWhenEmpty() mengisi cache stasiun saat kosong (sebelumnya layar kosong sampai Daftar Stasiun dibuka sekali); pesan tile nonaktif menjadi 'Laporan {nama} belum tersedia di aplikasi mobile.'; teks no-stations meminta memastikan perangkat online.",
+    "REVISI (2026-10-05, audit-fix — kode adalah acuan): elemen mengambang (bubble Mills AI [aria-label 'Buka Mills AI'] dan .floating-clock) tidak boleh menutup tile secara permanen — App.vue memberi padding-bottom ruang aman (utils/floatingSafeArea.ts, sejak audit 2026-10-04) pada root layar saat bubble/jam aktif, sehingga di ujung gulir tidak ada satu pun tile station-tile-* (termasuk baris terakhir) yang beririsan dengan bounding box elemen mengambang; menimpa tile SELAMA menggulir masih diperbolehkan. Tidak ada perubahan kode layar ini; dijaga uji browser 390x844."
   ],
   "test_scenarios": [
     {
@@ -446,6 +447,21 @@
         "route": "/reports",
         "action": "buka /reports tanpa pernah memilih line, lalu tekan sebuah tile",
         "assert": "perpindahan tetap terjadi dan layar laporan tujuan yang menanyakan Production Line"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Ruang aman elemen mengambang (390x844)",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "tidak ada — tata letak hanya dapat dibuktikan di browser nyata (jsdom tidak menghitung bounding box)",
+        "assert": "tidak ada"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "viewport 390x844, login, seed stasiun lokal, buka /reports, pastikan bubble 'Buka Mills AI' tampil, gulir ke ujung halaman",
+        "assert": "tidak ada tile [data-testid^=station-tile-] yang beririsan dengan bounding box bubble Mills AI maupun .floating-clock; tanpa pageerror, console.error, atau respons HTTP >= 400"
       }
     }
   ]

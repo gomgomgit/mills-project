@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -137,7 +137,8 @@
     "mobile/vite.config.ts",
     "mobile/src/utils/localDate.ts",
     "mobile/src/utils/floatingSafeArea.ts",
-    "mobile/tests/setup/teleportStub.ts"
+    "mobile/tests/setup/teleportStub.ts",
+    "mobile/src/utils/optionLabel.ts"
   ],
   "setup_notes": [
     "Tidak ada migration password_reset_tokens/sessions table ditambahkan — tambahkan nanti jika fitur Lupa Password masuk scope",
@@ -149,6 +150,7 @@
     "Copy backend/.env.example → backend/.env dan mobile/.env.example → mobile/.env, isi nilai asli, lalu jalankan php artisan key:generate dan php artisan migrate sebelum menjalankan backend",
     "composer install / npm install belum dijalankan — dependency sudah dideklarasikan di composer.json dan package.json, hanya @capacitor/preferences yang perlu ditambahkan nanti",
     "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): auth-middleware kini juga EnsureUserIsActive (di-append ke grup 'web' DAN 'api' di bootstrap/app.php, setelah StartSession) — sesi akun yang dinonaktifkan dikeluarkan pada request berikutnya (JSON 401 / redirect Login berpesan); token Sanctum milik user nonaktif ditolak lewat Sanctum::authenticateAccessTokensUsing() di AppServiceProvider. error-handler (ApiExceptionHandler) memetakan QueryException 22P02/22007/22008 → 422 VALIDATION_ERROR dan QueryException lain → 500 generik, tidak pernah membocorkan SQL walau APP_DEBUG=true. config/app.php: timezone = env APP_TIMEZONE (Asia/Jakarta) + event_date_max_days_ahead. Utilitas lintas-layar baru di app/Support: AppTime (normalisasi datetime klien, batas tanggal kejadian), RouteAccess (sidebar mengikuti middleware role rute), PasswordPolicy, Display (format tampilan Indonesia), ExportValue + SheetWriter (ekspor CSV / .xlsx sungguhan); app/Rules: RealImage, UniqueCaseInsensitive; Livewire\\Concerns\\ValidatesUploadOnSelect. resources/views/errors/403.blade.php = halaman 403 web. FE mobile: utils/localDate.ts (tanggal lokal perangkat, bukan ISO UTC) dan utils/floatingSafeArea.ts (gelembung/jam mengambang tidak menutupi kontrol); apiClient menandai kegagalan jaringan murni dengan `network: true`; vitest setupFiles tests/setup/teleportStub.ts karena ConfirmDialog/SyncResultDialog di-<Teleport> ke <body>. Uji browser web memakai env e2e terpisah (backend/.env.e2e dari .env.e2e.example, DB mill_smart_log_e2e, port 8001) — lihat test-strategy.browser_test.",
-    "Catatan env: nilai DB_* di atas masih mendeskripsikan MySQL dari bootstrap awal; database aktual sejak 2026-09-07 adalah PostgreSQL (arch-spec) — backend/.env.example memakai DB_CONNECTION=pgsql."
+    "Catatan env: nilai DB_* di atas masih mendeskripsikan MySQL dari bootstrap awal; database aktual sejak 2026-09-07 adalah PostgreSQL (arch-spec) — backend/.env.example memakai DB_CONNECTION=pgsql.",
+    "REVISI (2026-10-05, audit-fix f79b1fe/30b7f27 — kode adalah acuan): auth-middleware EnsureUserIsActive kini juga mengeluarkan sesi web yang lebih tua dari users.sessions_revoked_at (Reset Password oleh Admin) dengan pesan REVOKED_MESSAGE 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.' (JSON 401 / redirect Login); stempel sesi auth_session_started_at_ms ditulis listener event Login di AppServiceProvider. Display::OPTION_LABELS + Display::option() dan ExportValue::option() (label enum on/off/fault, run/stop/standby, y/n). ScopesToActorMill: filter baca production_line_id / business_unit_id bukan UUID = semua line/mill tanpa query. FE mobile: api-client — interceptor 401 terpusat + setUnauthorizedHandler() (dikecualikan /api/login, /api/logout, offline/tanpa respons, request yang bukan token sesi saat ini; handler hanya sekali); auth-store — expireSession() (bersihkan token/user/BU + tokenStorage tanpa POST /api/logout dan tanpa menyentuh SQLite lokal) + state sessionRevoked; router — main.ts mendaftarkan handler navigasi ke Login (query redirect); fe-error-handler — SESSION_REVOKED_MESSAGE 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'; utils/optionLabel.ts (OPTION_LABELS + optionLabel(), cermin Display::OPTION_LABELS, dijaga tests/optionLabel.spec.ts). Uji: tests/apiClient.unauthorized.spec.ts."
   ]
 }

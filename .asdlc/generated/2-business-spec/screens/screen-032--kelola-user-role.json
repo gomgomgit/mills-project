@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -39,7 +39,7 @@
     },
     {
       "action": "Edit User",
-      "description": "Mengubah nama, role, dan Business Unit terkait user yang sudah ada; username tidak dapat diubah. Admin dapat mengisi kolom opsional 'Reset Password' untuk menyetel ulang password user (kosong = tidak diubah)",
+      "description": "Mengubah nama, role, dan Business Unit terkait user yang sudah ada; username tidak dapat diubah. Admin dapat mengisi kolom opsional 'Reset Password' untuk menyetel ulang password user (kosong = tidak diubah). Reset password mengakhiri seluruh sesi user tersebut (token mobile dicabut seketika, sesi web dikeluarkan pada request berikutnya); bila Admin mereset password-nya sendiri, sesi web yang sedang dipakai tetap berjalan",
       "actor_ids": [
         "actor-admin"
       ]
@@ -60,8 +60,9 @@
     "Password awal ditentukan langsung oleh Admin saat membuat user baru dan WAJIB memenuhi aturan password yang sama dengan Login (minimal 6 karakter, kombinasi huruf/angka serta simbol); user dapat menggantinya sendiri lewat layar Ganti Password setelah login pertama",
     "User tidak dapat dihapus secara permanen dari sistem — hanya dapat dinonaktifkan, untuk menjaga integritas referensi pada data historis",
     "Hanya Admin yang dapat mengakses dan mengelola layar ini",
-    "Admin dapat me-reset password user lewat Edit User (kolom opsional, aturan format sama dengan Login)",
-    "Menonaktifkan user langsung mengakhiri sesinya: token mobile dicabut seketika dan sesi web dikeluarkan pada request berikutnya"
+    "Admin dapat me-reset password user lewat Edit User (kolom opsional, aturan format sama dengan Login; kosong = tidak diubah). Aturan yang sama berlaku untuk reset lewat API (PATCH /api/users/{id} dengan field password)",
+    "Menonaktifkan user langsung mengakhiri sesinya: token mobile dicabut seketika dan sesi web dikeluarkan pada request berikutnya",
+    "Reset password oleh Admin mencabut seluruh sesi user tersebut: semua token mobile dicabut seketika, dan setiap sesi web yang login SEBELUM reset dikeluarkan pada request berikutnya dengan pesan 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.' Sesi yang login sesudah reset (dengan password baru) tetap berlaku. Pengecualian: Admin yang mereset password-nya sendiri tetap memegang sesi web saat ini (sesinya di perangkat lain tetap dicabut). Edit tanpa mengisi password tidak mencabut sesi apa pun"
   ],
   "usecase_ids": [
     "usecase-032--kelola-user-role"
@@ -72,7 +73,9 @@
     "Membuat/mengedit user dengan role selain Admin tanpa memilih Business Unit — validasi gagal",
     "Belum ada Business Unit sama sekali — user dengan role Admin tetap bisa dibuat, role lain tidak bisa disimpan sampai ada Business Unit yang bisa dipilih",
     "Password awal (atau Reset Password) tidak memenuhi aturan login (min 6 karakter, huruf/angka + simbol) — validasi gagal dengan pesan aturan yang sama dengan Login",
-    "Username mengandung spasi — validasi gagal 'Username tidak boleh mengandung spasi.'"
+    "Username mengandung spasi — validasi gagal 'Username tidak boleh mengandung spasi.'",
+    "User yang password-nya direset Admin masih membuka web/aplikasi mobile — pada request berikutnya dikeluarkan ke halaman Login dengan pesan 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.' (mobile: token ditolak, kembali ke Login)",
+    "Admin mereset password-nya sendiri — sesi web saat ini tetap aktif, sesi lain milik Admin itu (perangkat lain, token mobile) dicabut"
   ],
   "test_priority": "high",
   "open_questions": []

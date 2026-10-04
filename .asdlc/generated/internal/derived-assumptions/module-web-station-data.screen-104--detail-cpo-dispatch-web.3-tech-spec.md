@@ -16,3 +16,8 @@ Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/Data/DetailCpo
 - api_contracts[0].edge_case_handling += {id} bukan UUID; penolakan verifikasi berkalimat verifikasi; baris Log Kejadian di periode tertutup saat verifikasi ← kode yang sama
 - api_contracts[0].unit_test_cases += non-UUID id -> notFound tanpa query ; verifikasi ditolak oleh event_date baris ← RecordIdShapeGuardTest / AuditFix20261004Test
 - implementation_notes += catatan AUDIT-FIX 2026-10-04 (trait GuardsRecordIdShape, Display, action 'verify') ← kode yang sama
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit f79b1fe), code is truth.
+- api_contracts PATCH /api/records/{stationType}/{id}/verification error_codes: 404 RECORD_NOT_FOUND → NOT_FOUND (abort(404) → ApiExceptionHandler, amplop standar); 403 kini juga membawa code FORBIDDEN ← RecordVerificationController (temuan audit 2026-10-05 #11).

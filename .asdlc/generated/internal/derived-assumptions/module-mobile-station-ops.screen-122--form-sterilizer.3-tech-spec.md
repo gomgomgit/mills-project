@@ -39,3 +39,12 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/FormSterilizerView
 - api_contracts[0].unit_test_cases (+2) = non-Supervisor (operator/mill_management/admin) → teks Ya/—; Supervisor → checkbox dapat diubah ← mobile/tests/FormSterilizerView.spec.ts (2 test baru)
 - test_scenarios (+1) = "Checked by SPV per Baris Khusus Supervisor" ← FormSterilizerView.spec.ts + e2e 'Checked by SPV — hanya Supervisor yang dapat mengubah, Operator melihat teks'
 - implementation_notes (append) = REVISI 2026-10-04 audit-fix (SPV hanya Supervisor, date lokal bersama, Catatan, write-through/sync_error/line, teleport, kosmetik header/Pause warning) ← diff kode
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/services/syncService.ts, backend/app/Services/SterilizerRecordService.php, backend/tests/Feature/AuditFix20261005Test.php).
+- api_contracts[0].business_logic[15] ← payload hanya Supervisor; server spvMatchKey untuk baris tanpa id.
+- api_contracts[0].edge_case_handling[10].handling ← diperbarui sama.
+- implementation_notes ← append REVISI 2026-10-05.
+- test_scenarios ← append skenario Checked by SPV non-Supervisor (POST supervisor 201 lalu PATCH operator 200 → tersimpan [true,false]).
+- ⚠ Bila non-Supervisor mengubah close_door_time baris tercentang dan baris dikirim tanpa id, kunci tidak cocok → centang hilang (false) — perilaku kode, belum diputuskan produk.

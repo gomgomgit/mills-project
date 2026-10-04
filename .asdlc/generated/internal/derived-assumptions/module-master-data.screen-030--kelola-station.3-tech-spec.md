@@ -15,3 +15,11 @@ Sumber: audit-fix 2026-10-04, code is truth (StationService.php, StationControll
 - api_contracts[0].business_rules_applied[0..1] + (1) = sesuai aturan baru.
 - api_contracts[0].unit_test_cases[9] + (3 baru) ← KelolaStationAuditTest ⚠ dicatat sebagai kasus unit walau tesnya Feature/Livewire.
 - implementation_notes (+) = REVISI audit-fix (#7, #8, #10, #11, #12, #15).
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (StationService.php, Api/StationController.php, ApiExceptionHandler.php, StationHasMachineryException.php).
+- GET /api/stations query_params (+production_line_id), description, business_logic[0] ← filter line diekspos di API; nilai bukan UUID diabaikan (Str::isUuid).
+- DELETE error_codes[0], description, business_logic[4], data_operations, edge_case_handling, business_rules_applied[2] ← guard 18 tabel RECORD_TABLES dalam transaksi + lockForUpdate.
+- ⚠ error_code STATION_HAS_MACHINERY dipertahankan sebagai label kondisi, tetapi dicatat bahwa body aktual hanya { message } (exception tanpa HasErrorCode → ApiExceptionHandler::codeFor() mengembalikan null untuk 409); test_scenarios baru memakai expected_error_code null.
+- unit_test_cases (+4), test_scenarios (+1), implementation_notes (+1) ← tes baru StationServiceTest/KelolaStationTest.

@@ -27,3 +27,16 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/DataPreviewEffluen
 - api_contracts[0].unit_test_cases += 3 (pull mirror/offline, 404 stop, SyncFailureHint) ← syncService.sqljs.spec.ts #6, SyncFailureHint.spec.ts.
 - implementation_notes += REVISI 2026-10-04 (GET endpoint, /api prefix PATCH, network flag, SyncFailureHint; Field Tanggal detail type datetime-local → date via toDateInputValue; filter-row minmax(0,1fr) ← DataPreviewEffluentPlantView.vue diff).
 - test_scenarios += 2 (Status Verifikasi Ditarik dari Server; Petunjuk Gagal Sinkron). ⚠ diturunkan dari kode/e2e, bukan dari bdd_scenarios Phase 2.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit f79b1fe), code is truth.
+- api_contracts GET /api/records/{stationType}/verification error_codes[404].condition: body kini amplop standar { message, code: NOT_FOUND } ← RecordVerificationStatusController abort(404) (temuan audit 2026-10-05 #11).
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/views/DataPreviewEffluentPlantView.vue, mobile/src/utils/optionLabel.ts).
+- api_contracts[0].business_logic ← append langkah label pilihan (optionLabel).
+- api_contracts[0].unit_test_cases ← append uji label pilihan.
+- test_scenarios ← append 'Label Pilihan di Detail'.
+- implementation_notes ← append REVISI 2026-10-05.

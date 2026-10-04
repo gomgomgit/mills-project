@@ -6,3 +6,8 @@ Sumber: audit-fix 2026-10-04, code is truth (StationService::validate()/duplicat
 - main_flow[2..3] = pilih Production Line + tipe dari master; validasi satu-tipe-per-line; pesan sukses ← kode.
 - alternative_flows[4].steps[1], business_rules[1], bdd_scenarios[5].then = hanya Other yang dilarang aktif (kontradiksi: dulu "hanya WB/Grading/CT boleh aktif") ← pesan after() di StationService.
 - alternative_flows (+1), business_rules (+1), bdd_scenarios (+1) = tipe kembar dalam satu line ditolak ← duplicateTypeMessage() + KelolaStationAuditTest.
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (StationService.php).
+- alternative_flows (+1 'Hapus Station — ditolak karena masih memiliki record stasiun'), business_rules[2], postconditions[1], bdd_scenarios (+1) ← guard record stasiun.

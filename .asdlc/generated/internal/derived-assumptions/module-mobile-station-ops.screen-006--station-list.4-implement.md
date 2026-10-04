@@ -48,3 +48,10 @@ Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile + backend).
 - fe_files_generated += SyncResultDialog.vue, gradingParameterSync.ts, millSettingRepo.ts, utils/localDate.ts, utils/floatingSafeArea.ts, App.vue ← dipakai/diubah untuk alur Sinkronisasi & tampilan layar ini. ⚠ App.vue/floatingSafeArea.ts bersifat global (semua layar), dicantumkan di sini karena Station List pemilik tombol Sinkronisasi/dialog.
 - fe_test_files_generated += syncService.sqljs.spec.ts, SyncFailureHint.spec.ts, DialogTeleport.spec.ts, floatingSafeArea.spec.ts, millSettingRepo.sqljs.spec.ts, writeThroughSync.spec.ts, e2e/sync-and-verification.spec.ts.
 - implementation_notes += REVISI 2026-10-04 (line per record, sync_error, grading param resolve, write-through fix, dialog teleport, safe area, 'Stasiun Aktif').
+
+## v17 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/services/syncService.ts, mobile/src/services/apiClient.ts, mobile/tests/syncService.sqljs.spec.ts, mobile/tests/e2e/sync-and-verification.spec.ts).
+- fe_files_generated ← + apiClient.ts.
+- fe_test_files_generated ← + apiClient.unauthorized.spec.ts.
+- implementation_notes ← append catatan #3 dan #4b.

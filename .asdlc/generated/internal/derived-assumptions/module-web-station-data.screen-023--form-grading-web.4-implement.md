@@ -37,3 +37,9 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD GradingRecordService.
 - fe_files_generated += GuardsRecordIdShape.php.
 - test_files_generated += tests/Feature/AuditFix20261004Test.php; fe_test_files_generated += WebFormNoDisabledFieldTest.php, RecordIdShapeGuardTest.php.
 - implementation_notes[5] = UOM/Percentage teks; += REVISI audit-fix.
+
+## v7 — 2026-10-05
+
+Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (FormGrading.php, FormGradingTest.php).
+- implementation_notes (+1), test_files_generated (+audit-fix-20261005.spec.ts), test_results unit 31 / component 19 (dijalankan ulang).
+- ⚠ test_results.browser 9 (8 + audit #2) ← dari klaim commit.

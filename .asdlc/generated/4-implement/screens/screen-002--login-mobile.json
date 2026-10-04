@@ -1,5 +1,5 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -34,12 +34,17 @@
     "mobile/src/services/tokenStorage.ts",
     "mobile/package.json",
     "mobile/vite.config.ts",
-    "mobile/src/services/gradingParameterSync.ts"
+    "mobile/src/services/gradingParameterSync.ts",
+    "mobile/src/services/apiClient.ts",
+    "mobile/src/services/errorHandler.ts",
+    "mobile/src/main.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/LoginForm.spec.ts",
     "mobile/tests/auth.store.spec.ts",
-    "mobile/tests/e2e/login.spec.ts"
+    "mobile/tests/e2e/login.spec.ts",
+    "mobile/tests/apiClient.unauthorized.spec.ts",
+    "mobile/tests/e2e/sync-and-verification.spec.ts"
   ],
   "implementation_notes": [
     "Web-session dan mobile-token path digabung dalam satu AuthService::login() via parameter opsional $deviceName, branch web (tanpa device_name) tidak berubah sama sekali",
@@ -49,7 +54,8 @@
     "Regresi penuh setelah fix ini: 166/166 vitest (naik dari 161, +5 test baru localSchema.spec.ts) + 50/50 Playwright e2e, semua tetap hijau.",
     "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
     "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/login.spec.ts 5/5 lulus. Perbaikan spec (drift, bukan cacat aplikasi): kasus offline kini menunggu #username tampil sebelum context.setOffline(true), sehingga bootstrap halaman tidak ikut terputus.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): stores/auth.ts login() kini juga memanggil fetchAndCacheGradingParameters() (mobile/src/services/gradingParameterSync.ts → GET /api/grading-parameters, GradingParameterController/Service) setelah mill-setting, best-effort dalam try/catch. Token Sanctum akun nonaktif ditolak 401 (AppServiceProvider Sanctum::authenticateAccessTokensUsing) dan dicabut saat penonaktifan (UserService::setStatus). Uji: mobile/tests/auth.store.spec.ts (login memuat master Grading, gagal tidak menggagalkan login), backend/tests/Feature/WebAccessTest.php (#2 login mobile Operator tetap dapat token, #4 token dicabut/ditolak)."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): stores/auth.ts login() kini juga memanggil fetchAndCacheGradingParameters() (mobile/src/services/gradingParameterSync.ts → GET /api/grading-parameters, GradingParameterController/Service) setelah mill-setting, best-effort dalam try/catch. Token Sanctum akun nonaktif ditolak 401 (AppServiceProvider Sanctum::authenticateAccessTokensUsing) dan dicabut saat penonaktifan (UserService::setStatus). Uji: mobile/tests/auth.store.spec.ts (login memuat master Grading, gagal tidak menggagalkan login), backend/tests/Feature/WebAccessTest.php (#2 login mobile Operator tetap dapat token, #4 token dicabut/ditolak).",
+    "REVISI (2026-10-05, audit-fix #3, commit 30b7f27 — sinkronisasi artefak, kode adalah acuan): penanganan 401 terpusat. apiClient.ts: response interceptor memanggil handleUnauthorized() sebelum normalizeError — hanya untuk status 401, bukan URL /api/login atau /api/logout (SESSION_EXEMPT_URLS), dan hanya bila header Authorization request = 'Bearer <token sesi saat ini>' (request basi / 401 susulan dalam batch yang sama diabaikan, jadi handler berjalan sekali); lalu authStore.expireSession() dan unauthorizedHandler; export setUnauthorizedHandler() + re-export SESSION_REVOKED_MESSAGE. stores/auth.ts: state sessionRevoked baru; expireSession() membersihkan user/token/businessUnit + tokenStorage tanpa POST /api/logout dan tanpa menyentuh SQLite; login() dan logout() mereset sessionRevoked. main.ts: setUnauthorizedHandler → router.replace({name:'login', query:{redirect: fullPath}}) kecuali sudah di Login. errorHandler.ts: konstanta SESSION_REVOKED_MESSAGE 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'. LoginForm.vue: banner data-testid session-revoked-banner (role=status) saat sessionRevoked && status !== 'error'. Uji: tests/apiClient.unauthorized.spec.ts (8 kasus: bersih sesi + handler sekali + tetap reject 401; tidak menyentuh data lokal; 401 serentak sekali; /api/login, offline, 403/422/500, token lama tidak memicu; login sesudahnya menghapus tanda), tests/LoginForm.spec.ts (+2: banner tampil saat sessionRevoked, tidak tampil pada login biasa), tests/e2e/sync-and-verification.spec.ts ('#3 akun dinonaktifkan: sinkron -> Login dengan pesan; draft lokal tetap ada setelah login ulang', '#3 login dengan password salah TIDAK memunculkan pesan sesi berakhir'). Run commit: vitest 2216 lulus, vue-tsc bersih, e2e mobile 744/744. Angka test_results per layar tidak diubah."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -74,7 +80,7 @@
       "severity": "minor"
     },
     {
-      "description": "Mobile belum punya penanganan 401 global (apiClient tidak mengarahkan ke /login saat token dicabut); setelah akun dinonaktifkan, aplikasi tetap tampak login dan panggilan API (mis. sinkronisasi) hanya gagal 401 — hanya beberapa view Laporan yang mengarahkan 401 ke Login. (disimpulkan dari pembacaan kode, belum diuji di browser)",
+      "description": "DITUTUP audit-fix 2026-10-05 (commit 30b7f27): mobile kini punya penanganan 401 global di apiClient.ts — sesi dibersihkan (data lokal tetap), aplikasi ke Login dengan pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'; teruji unit (tests/apiClient.unauthorized.spec.ts, tests/LoginForm.spec.ts) dan browser (tests/e2e/sync-and-verification.spec.ts '#3 akun dinonaktifkan'). Dibiarkan sebagai catatan riwayat — tidak ada isu tersisa.",
       "severity": "minor"
     }
   ],

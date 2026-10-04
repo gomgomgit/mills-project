@@ -19,5 +19,6 @@ class DatabaseSeeder extends Seeder
         $this->call(DemoAccountSeeder::class);
         $this->call(DemoMachineryDataSeeder::class);
         $this->call(DemoOperationalDataSeeder::class);
+        $this->call(DemoReportDataSeeder::class);
     }
 }

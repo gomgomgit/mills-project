@@ -47,9 +47,10 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { pruneLaneData } from './support/backend'
 import { deletePeriodsByPrefix } from './support/periods'
 import { closeStation, createOpenPeriodViaUi, openStationRow } from './support/period-screen'
-import { laneOffset } from './support/period-lanes'
+import { laneIsoDate, laneOffset } from './support/period-lanes'
 
 const REPORT_PATH = '/reports/sterilizer'
 const PERIODS_PATH = '/master-data/periods'
@@ -108,7 +109,7 @@ let PRODUCTION_LINE_ID = ''
 const RUN_OFFSET = laneOffset(Math.floor(Date.now() / 1000) % 150000, 'sterilizer')
 
 function isoDate(dayOffset: number): string {
-  return new Date(Date.UTC(2600, 0, 1) + dayOffset * 86400000).toISOString().slice(0, 10)
+  return laneIsoDate(dayOffset)
 }
 
 /** Five-day window, slot-spaced so the run's own periods cannot overlap. */
@@ -306,6 +307,10 @@ test.describe('Laporan Sterilizer', () => {
   // seluruh suite gagal di createPeriod() sebelum satu pun asersi jalan.
   // Terbukti terjadi pada 2026-09-23: 117 periode, 116 di antaranya residu.
   test.afterAll(async ({ browser }) => {
+    // Record & periode lajur disapu LEBIH DULU: periode yang berisi record
+    // ditolak 409 PERIOD_HAS_RECORDS oleh deletePeriodsByPrefix() di bawah.
+    await pruneLaneData('laporan-sterilizer')
+
     const page = await browser.newPage()
 
     try {
@@ -323,6 +328,10 @@ test.describe('Laporan Sterilizer', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(600_000)
+
+    // Sisa run sebelumnya yang terhenti sebelum afterAll-nya (record dan
+    // periode di rentang lajur). Lihat tests/support/backend.ts.
+    await pruneLaneData('laporan-sterilizer (awal)')
 
     const page = await browser.newPage()
 

@@ -103,7 +103,7 @@ test.describe('Kelola User & Role', () => {
 
     const newName = `Nama Sesudah Edit ${Date.now()}`;
     await page.locator('#name').fill(newName);
-    await selectSearchable(page, 'role', 'Mill management');
+    await selectSearchable(page, 'role', 'Mill Management');
     await selectSearchableFirst(page, 'business_unit_id');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
@@ -157,6 +157,8 @@ test.describe('Kelola User & Role', () => {
     await gotoUsers(page);
 
     const row = await findRow(page, 'urtest-other01');
+    // Nonaktifkan kini meminta konfirmasi (audit 2026-10-04 #12).
+    page.once('dialog', (dialog) => dialog.accept());
     await row.locator('button', { hasText: 'Nonaktifkan' }).click();
 
     await expect(row.locator('.kc-badge')).toContainText('Nonaktif');

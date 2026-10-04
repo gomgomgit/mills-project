@@ -61,6 +61,7 @@
 
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { findRow } from './support/paged-table'
 
 const PRODUCTION_LINES_PATH = '/master-data/production-lines';
 
@@ -140,17 +141,34 @@ test.describe('Kelola Production Line', () => {
     await expect(page.locator('.kc-table__row', { hasText: 'PL Hapus Bersih' })).toHaveCount(0);
   });
 
-  // Scenario: "Kelola Production Line — Hapus — ditolak"
-  test('menolak penghapusan production line yang masih memiliki station terkait, baris tetap ada', async ({ page }) => {
+  // Sejak audit 2026-10-04 #5: line yang station-nya masih KOSONG (tanpa
+  // record/mesin) dihapus beserta station-nya dalam satu transaksi.
+  test('menghapus production line beserta station kosongnya', async ({ page }) => {
     await login(page, 'pltest-admin01', PASSWORD);
     await gotoProductionLines(page);
 
     const row = page.locator('.kc-table__row', { hasText: 'PL Ada Station' });
     await row.locator('button', { hasText: 'Hapus' }).click();
+    await expect(row.locator('.kc-confirm__label')).toContainText(/station-nya/);
     await row.locator('button', { hasText: 'Ya, Hapus' }).click();
 
-    await expect(page.locator('.kc-alert')).toContainText(/Station/i);
-    await expect(page.locator('.kc-table__row', { hasText: 'PL Ada Station' })).toBeVisible();
+    await expect(page.locator('[data-testid="success-message"]')).toContainText('Production Line berhasil dihapus.');
+    await expect(page.locator('.kc-table__row', { hasText: 'PL Ada Station' })).toHaveCount(0);
+  });
+
+  // Scenario: "Kelola Production Line — Hapus — ditolak" — line yang
+  // station-nya sudah punya data (fixture "PL Station Baru": station
+  // "Weighbridge Ada Machinery" ber-Machinery Group).
+  test('menolak penghapusan production line yang station-nya sudah punya data, baris tetap ada', async ({ page }) => {
+    await login(page, 'pltest-admin01', PASSWORD);
+    await gotoProductionLines(page);
+
+    const row = await findRow(page, 'PL Station Baru');
+    await row.locator('button', { hasText: 'Hapus' }).click();
+    await row.locator('button', { hasText: 'Ya, Hapus' }).click();
+
+    await expect(page.locator('.kc-alert')).toContainText(/Machinery Group/);
+    await expect(await findRow(page, 'PL Station Baru')).toBeVisible();
   });
 
   // Scenario: "Kelola Production Line — Kode duplikat"

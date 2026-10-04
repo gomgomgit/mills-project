@@ -98,9 +98,11 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { pruneLaneData } from './support/backend'
 import { deletePeriodsByPrefix } from './support/periods'
 import { closeStation, createOpenPeriodViaUi, openStationRow } from './support/period-screen'
-import { laneOffset } from './support/period-lanes'
+import { laneIsoDate, laneOffset } from './support/period-lanes'
+import { STATEFUL_REFERER } from './support/base-url'
 
 const REPORT_PATH = '/reports/cages-track'
 const PERIODS_PATH = '/master-data/periods'
@@ -164,7 +166,7 @@ const RUN_OFFSET = laneOffset((Math.floor(Date.now() / 1000) % 100000) * 25, 'ca
 const PERIOD_PREFIX = 'CagesTrack '
 
 function isoDate(dayOffset: number): string {
-  return new Date(Date.UTC(2600, 0, 1) + dayOffset * 86400000).toISOString().slice(0, 10)
+  return laneIsoDate(dayOffset)
 }
 
 /**
@@ -261,7 +263,7 @@ async function statefulHeaders(page: Page): Promise<Record<string, string>> {
   const xsrf = cookies.find((cookie) => cookie.name === 'XSRF-TOKEN')
 
   return {
-    Referer: 'http://localhost:8000/',
+    Referer: STATEFUL_REFERER,
     Accept: 'application/json',
     ...(xsrf ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrf.value) } : {}),
   }
@@ -423,7 +425,8 @@ async function createCagesTrackRecord(
       // Every checkbox is its own Livewire round trip (wire:click=
       // "toggleCage"); waiting on the computed total keeps one row's
       // requests from racing the next click.
-      await expect(page.locator(`[data-testid="detail-total-cages-${index}"]`)).toHaveValue(String(cage))
+      // <span> sejak 2026-10-04 (bukan lagi input nonaktif) — testid sama.
+      await expect(page.locator(`[data-testid="detail-total-cages-${index}"]`)).toHaveText(String(cage))
     }
   }
 
@@ -495,6 +498,10 @@ test.describe('Laporan Cages & Tracks', () => {
   // halaman 2 dan suite gagal di createPeriod() sebelum satu pun asersi
   // perilaku jalan.
   test.afterAll(async ({ browser }) => {
+    // Record & periode lajur disapu LEBIH DULU: periode yang berisi record
+    // ditolak 409 PERIOD_HAS_RECORDS oleh deletePeriodsByPrefix() di bawah.
+    await pruneLaneData('laporan-cages-track')
+
     const page = await browser.newPage()
 
     try {
@@ -511,6 +518,10 @@ test.describe('Laporan Cages & Tracks', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(900_000)
+
+    // Sisa run sebelumnya yang terhenti sebelum afterAll-nya (record dan
+    // periode di rentang lajur). Lihat tests/support/backend.ts.
+    await pruneLaneData('laporan-cages-track (awal)')
 
     const page = await browser.newPage()
 

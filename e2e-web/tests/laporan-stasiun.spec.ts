@@ -166,6 +166,28 @@ async function selectProductionLine(
   )
 }
 
+/**
+ * Memilih mill dan MENUNGGU round trip Livewire-nya selesai, sehingga daftar
+ * production line yang dibaca sesudahnya milik mill INI (2026-10-04). Versi
+ * sebelumnya menunggu waitForTimeout(500) — dan sesekali membaca opsi line
+ * mill sebelumnya, lalu selectOption() menunggu opsi yang sudah tidak ada
+ * sampai timeout 30 detik.
+ */
+async function selectMillAndSettle(page: Page, value: string): Promise<void> {
+  const select = page.locator('[data-testid="mill-select"]')
+
+  if ((await select.inputValue()) === value) {
+    return
+  }
+
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes('/livewire') && response.request().method() === 'POST'),
+    select.selectOption(value),
+  ])
+  // Respons tiba sebelum morph DOM; satu frame cukup untuk Livewire menerapkannya.
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve(null))))
+}
+
 test.describe('Laporan Stasiun (web)', () => {
   // Scenario: "success as Supervisor / Mill Management"
   test('supervisor: mill sendiri ditetapkan tanpa memilih, dan tile sterilizer membuka laporannya', async ({ page }) => {
@@ -530,9 +552,8 @@ test.describe('Laporan Stasiun (web)', () => {
      * dari ujung supaya tetap "mill terakhir" sejauh mungkin.
      */
     const hasProductionLine = async (value: string): Promise<boolean> => {
-      await page.locator('[data-testid="mill-select"]').selectOption(value)
       // Satu round trip Livewire memuat ulang daftar line-nya.
-      await page.waitForTimeout(500)
+      await selectMillAndSettle(page, value)
 
       return (
         (await page
@@ -560,7 +581,7 @@ test.describe('Laporan Stasiun (web)', () => {
 
     expect(last.value, 'butuh dua mill berbeda yang punya production line').not.toBe(first.value)
 
-    await page.locator('[data-testid="mill-select"]').selectOption(first.value)
+    await selectMillAndSettle(page, first.value)
     await selectProductionLine(page)
     await expect(page.locator('[data-testid="station-grid"]')).toBeVisible()
     await expect(page.locator(`[data-testid="station-tile-${AVAILABLE_STATION}"]`))
@@ -568,7 +589,7 @@ test.describe('Laporan Stasiun (web)', () => {
 
     // Switched: the link must follow the new mill rather than keep
     // pointing at the one chosen a moment ago.
-    await page.locator('[data-testid="mill-select"]').selectOption(last.value)
+    await selectMillAndSettle(page, last.value)
     await expect(page.locator('[data-testid="mill-current"]')).toContainText(last.label)
 
     // Line HARUS dipilih ulang: keepProductionLineValid() mengosongkan pilihan

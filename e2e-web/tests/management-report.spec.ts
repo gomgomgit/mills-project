@@ -24,6 +24,15 @@ import { login, PASSWORD } from './support/auth'
 
 const REPORT_PATH = '/reports/management';
 
+// SEJAK 2026-10-04 (temuan audit #2b) Production Line WAJIB dipilih sebelum
+// satu angka pun tampil — pilih line pertama mill akun fixture.
+async function pilihLinePertama(page: import('@playwright/test').Page): Promise<void> {
+  const select = page.locator('[data-testid="production-line-select"]')
+  const value = await select.locator('option').nth(1).getAttribute('value')
+  await select.selectOption(value ?? '')
+  await expect(page.locator('[data-testid="report-context"]')).toBeVisible()
+}
+
 // SEJAK 2026-10-03 setiap skenario MEMBUKA REPORT_PATH sesudah login. Spec ini
 // menganggap login mendarat di laporan, padahal login mendarat di /dashboard —
 // sehingga kelima skenario menunggu elemen laporan di halaman yang salah.
@@ -37,6 +46,7 @@ const REPORT_PATH = '/reports/management';
 test('berhasil: navigating to /reports/management shows the daily breakdown table and Total row', async ({ page }) => {
   await login(page, 'stest-millmgmt01');
   await page.goto(REPORT_PATH);
+  await pilihLinePertama(page);
 
   await expect(page.locator('[data-testid="report-row-total"]')).toBeVisible();
 });
@@ -45,6 +55,7 @@ test('berhasil: navigating to /reports/management shows the daily breakdown tabl
 test('filter: filling date range updates the report', async ({ page }) => {
   await login(page, 'stest-millmgmt01');
   await page.goto(REPORT_PATH);
+  await pilihLinePertama(page);
 
   await page.locator('#date_from').fill('2026-08-01');
   await page.locator('#date_to').fill('2026-08-10');
@@ -57,6 +68,7 @@ test('filter: filling date range updates the report', async ({ page }) => {
 test('empty: a filter combination with zero results shows the empty-data message', async ({ page }) => {
   await login(page, 'stest-millmgmt01');
   await page.goto(REPORT_PATH);
+  await pilihLinePertama(page);
 
   // 2000, bukan 2020-01-01: tiga skenario form-* "Tanggal Dapat Diedit Manual"
   // menyimpan record bertanggal 2020-01-01, jadi rentang itu TIDAK kosong.
@@ -71,6 +83,7 @@ test('empty: a filter combination with zero results shows the empty-data message
 test('invalid date range: entering date_from later than date_to shows a validation error', async ({ page }) => {
   await login(page, 'stest-millmgmt01');
   await page.goto(REPORT_PATH);
+  await pilihLinePertama(page);
 
   await page.locator('#date_from').fill('2026-02-10');
   await page.locator('#date_to').fill('2026-02-01');
@@ -83,6 +96,7 @@ test('invalid date range: entering date_from later than date_to shows a validati
 test('ekspor: clicking Ekspor CSV downloads a file', async ({ page }) => {
   await login(page, 'stest-millmgmt01');
   await page.goto(REPORT_PATH);
+  await pilihLinePertama(page);
 
   const downloadPromise = page.waitForEvent('download');
   await page.locator('[data-testid="report-export-csv"]').click();

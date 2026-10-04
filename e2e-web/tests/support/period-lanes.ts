@@ -42,13 +42,32 @@
  * run. Bukan "kecil kemungkinannya": mustahil secara aritmetika.
  *
  * Yang dikorbankan hanya resolusi: dua run yang offset mentahnya jatuh di
- * blok yang sama mendapat jendela yang sama. Itu tidak berbahaya — periode
- * dihapus di afterAll tiap spec, dan record stasiunnya dihapus oleh
- * globalTeardown (php artisan e2e:prune-records), jadi run berikutnya tidak
- * mewarisi apa pun di jendela itu.
+ * blok yang sama mendapat jendela yang sama. Itu tidak berbahaya — record
+ * stasiun DAN periode di jendela itu dihapus oleh globalTeardown
+ * (php artisan e2e:prune-records), jadi run berikutnya tidak mewarisi apa
+ * pun di jendela itu. (Sejak 2026-10-04 afterAll tiap spec tidak lagi BISA
+ * menghapus periodenya sendiri: periode yang sudah berisi record ditolak
+ * 409 PERIOD_HAS_RECORDS. Teardown-lah yang menyapunya.)
  *
- * SEMUA SPEC WAJIB MEMAKAI EPOCH YANG SAMA (tahun 2600, lihat isoDate di
- * masing-masing spec). Aritmetika di atas berbicara tentang nomor hari
+ * EPOCH: 1 JANUARI 1970, DI MASA LALU (sejak 2026-10-04). Semula tahun
+ * 2600: tanggal sejauh itu dijamin tidak pernah dipakai pabrik. Aturan
+ * tanggal kejadian (App\Support\AppTime::latestEventDate(), paling jauh
+ * hari ini + EVENT_DATE_MAX_DAYS_AHEAD) kini menolaknya — dan aturan itu
+ * SENGAJA tetap aktif di environment e2e, karena mematikannya berarti suite
+ * tidak lagi menguji server yang sama dengan produksi. Masa lalu tidak
+ * dibatasi aturan apa pun. Tahun 1970-2019 dipilih karena (a) suite berjalan
+ * di database-nya sendiri (mill_smart_log_e2e) yang hanya berisi data demo
+ * 2026 dan fixture 2020 ke atas (lihat FIXTURE_START di period-fixture.ts),
+ * (b) di bawah 1964 zona Asia/Jakarta punya offset historis yang ganjil
+ * (+07:07:12, +07:20, +09:00 ...), yang bisa menggeser jam Weighbridge.
+ *
+ * Supaya seluruh jendela tetap di dalam rentang itu, nomor blok dibungkus
+ * modulo LANE_BLOCKS — offset mentah spec boleh tetap sebesar apa pun.
+ * Rentangnya [LANE_RANGE_START, LANE_RANGE_END) adalah juga rentang yang
+ * disapu e2e:prune-records; keduanya WAJIB sama.
+ *
+ * SEMUA SPEC WAJIB MEMAKAI EPOCH YANG SAMA — laneIsoDate() di bawah, bukan
+ * Date.UTC sendiri. Aritmetika di atas berbicara tentang nomor hari
  * absolut; epoch yang berbeda-beda membuat nomor lajur tidak sebanding, dan
  * itulah tepatnya kekeliruan "lajur abad" yang lama.
  *
@@ -96,7 +115,33 @@ export const LANE_CYCLE = LANE_WIDTH * Object.keys(PERIOD_LANES).length
  * `lane`. Nilai kembalinya dipakai sebagai RUN_OFFSET spec itu.
  */
 export function laneOffset(rawOffset: number, lane: PeriodLane): number {
-  const block = rawOffset - (rawOffset % LANE_CYCLE)
+  const block = (Math.floor(rawOffset / LANE_CYCLE) % LANE_BLOCKS) * LANE_CYCLE
 
   return block + PERIOD_LANES[lane] * LANE_WIDTH + LANE_MARGIN
+}
+
+/** Hari ke-0 seluruh lajur. Lihat "EPOCH" di kepala berkas. */
+export const LANE_RANGE_START = '1970-01-01'
+
+/**
+ * Batas atas (eksklusif) rentang lajur. e2e:prune-records menyapu tepat
+ * [LANE_RANGE_START, LANE_RANGE_END) — ubah keduanya bersama-sama.
+ */
+export const LANE_RANGE_END = '2020-01-01'
+
+const DAY_MS = 86400000
+
+const LANE_EPOCH_MS = Date.parse(`${LANE_RANGE_START}T00:00:00Z`)
+
+/**
+ * Banyaknya blok LANE_CYCLE yang muat utuh di rentang, termasuk jendela
+ * terlebar (LANE_WIDTH) di lajur terakhir blok terakhir.
+ */
+export const LANE_BLOCKS = Math.floor(
+  (Date.parse(`${LANE_RANGE_END}T00:00:00Z`) - LANE_EPOCH_MS) / DAY_MS / LANE_CYCLE,
+)
+
+/** YYYY-MM-DD untuk hari ke-`dayOffset` sejak LANE_RANGE_START. */
+export function laneIsoDate(dayOffset: number): string {
+  return new Date(LANE_EPOCH_MS + dayOffset * DAY_MS).toISOString().slice(0, 10)
 }

@@ -3,96 +3,96 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Menghapus record stasiun bertanggal JAUH DI MASA DEPAN — data sisa
- * browser test, bukan data pabrik.
+ * Menghapus data "lajur" browser test — record stasiun dan Periode Pelaporan
+ * bertanggal 1970-01-01 s.d. 2019-12-31 — dari DATABASE E2E SAJA.
  *
  * KENAPA PERINTAH INI ADA. Aplikasi ini sengaja tidak punya jalur hapus
  * untuk record stasiun: sebuah log sheet yang sudah masuk tidak boleh
- * lenyap. Konsekuensinya, setiap browser test yang menanam record
- * meninggalkannya di database dev SELAMANYA. Penulis spec e2e sudah tahu
- * ini dan menyiasatinya dengan memberi tiap run jalur tanggalnya sendiri
- * (lihat RUN_OFFSET di e2e-web/tests/laporan-*.spec.ts: detik jam dinding
- * dikali 120 hari), sehingga run lama tidak ikut terhitung oleh run baru.
- * Yang tersisa adalah tumpukan yang tidak pernah menyusut — 841 baris saat
- * perintah ini ditulis, tersebar dari tahun 2699 sampai 9258.
+ * lenyap. Sejak 2026-10-04 periode yang sudah berisi record juga tidak bisa
+ * dihapus (409 PERIOD_HAS_RECORDS). Spec laporan e2e menanam keduanya di
+ * "lajur" tanggalnya sendiri (e2e-web/tests/support/period-lanes.ts), jadi
+ * tanpa perintah ini tidak ada jalan membersihkannya — dan daftar periode
+ * (20 baris per halaman, urut start_date DESC) akan menenggelamkan periode
+ * spec berikutnya.
  *
- * KENAPA AMBANG TAHUN, BUKAN PREFIX. Record stasiun tidak punya kolom nama
- * yang bisa diberi awalan seperti periode pelaporan (deletePeriodsByPrefix
- * di e2e-web/tests/support/periods.ts). Yang membedakan data test dari data
- * pabrik hanyalah tanggalnya, dan bedanya menganga: data sungguhan ada di
- * tahun berjalan, data test di tahun 2600 ke atas. Tidak ada pabrik yang
- * mencatat log sheet untuk abad ke-27.
+ * KENAPA RENTANG 1970-2019 (sejak 2026-10-04; semula "tahun 2600 ke atas").
+ * Aturan tanggal kejadian (App\Support\AppTime::latestEventDate()) menolak
+ * tanggal lebih dari besok, jadi lajurnya dipindah ke MASA LALU. Rentang di
+ * sini WAJIB sama dengan LANE_RANGE_START/LANE_RANGE_END di period-lanes.ts.
  *
- * TIGA PENJAGA, karena perintah ini menghapus dan tidak dapat dibatalkan:
- *   1. Menolak berjalan di environment production, tanpa kecuali — --force
- *      sekalipun tidak membukanya.
- *   2. Menolak ambang tahun di bawah MINIMUM_YEAR. Tanpa ini sebuah salah
- *      ketik seperti --year=2026 akan menghapus seluruh data pabrik.
- *   3. Tanpa --force perintah ini hanya MENGHITUNG dan tidak menghapus
- *      apa pun. Menghapus harus disengaja, bukan efek samping.
+ * KENAPA HANYA DI DATABASE E2E. Masa lalu, tidak seperti tahun 2600, bisa
+ * saja berisi data pabrik sungguhan (impor historis). Karena itu perintah
+ * ini menolak berjalan kecuali environment-nya `e2e` DAN nama database-nya
+ * berakhiran `_e2e` (backend/.env.e2e → mill_smart_log_e2e). Pengecualian
+ * satu-satunya environment `testing` (phpunit, SQLite in-memory).
  *
- * Baris detail ikut terhapus dengan sendirinya: setiap FK detail ke tabel
- * record memakai ON DELETE CASCADE (diperiksa di information_schema, bukan
- * diasumsikan).
+ * PENJAGA, karena perintah ini menghapus dan tidak dapat dibatalkan:
+ *   1. Hanya environment e2e (database *_e2e) atau testing. Production,
+ *      local, dll. ditolak — --force sekalipun tidak membukanya.
+ *   2. Tanpa --force perintah ini hanya MENGHITUNG.
+ *
+ * Baris detail ikut terhapus dengan sendirinya (FK detail → record memakai
+ * ON DELETE CASCADE), begitu juga period_stations (→ periods, CASCADE).
+ * Satu-satunya FK RESTRICT ke tabel record adalah grading_records →
+ * weighbridge_records: Grading dihapus lebih dulu, dan Weighbridge yang
+ * masih dirujuk Grading di LUAR rentang dibiarkan (dihitung sebagai
+ * "dilewati"), bukan menggagalkan seluruh transaksi.
  */
 class PruneE2eRecords extends Command
 {
-    /**
-     * Ambang paling rendah yang boleh diminta. Data pabrik sungguhan ada
-     * di tahun berjalan; jarak ratusan tahun ini yang membuat perintah
-     * ini mustahil salah sasaran.
-     */
-    private const MINIMUM_YEAR = 2400;
+    /** Awal rentang lajur (inklusif). Sama dengan LANE_RANGE_START. */
+    public const RANGE_START = '1970-01-01';
+
+    /** Akhir rentang lajur (EKSKLUSIF). Sama dengan LANE_RANGE_END. */
+    public const RANGE_END = '2020-01-01';
+
+    /** Tabel record yang tanggal kejadiannya bukan kolom `date`. */
+    private const DATE_COLUMN_OVERRIDES = [
+        'weighbridge_records' => 'record_datetime',
+    ];
 
     protected $signature = 'e2e:prune-records
-        {--year=2600 : Hapus record bertanggal 1 Januari tahun ini ke atas}
         {--force : Benar-benar menghapus; tanpa ini hanya menghitung}';
 
-    protected $description = 'Hapus record stasiun sisa browser test (bertanggal jauh di masa depan)';
+    protected $description = 'Hapus record stasiun & periode lajur browser test (1970-2019) dari database e2e';
 
     public function handle(): int
     {
-        if (app()->environment('production')) {
-            $this->error('Ditolak: perintah ini tidak pernah berjalan di production.');
+        $refusal = $this->refusal();
+
+        if ($refusal !== null) {
+            $this->error('Ditolak: '.$refusal);
 
             return self::FAILURE;
         }
 
-        $year = (int) $this->option('year');
-
-        if ($year < self::MINIMUM_YEAR) {
-            $this->error(sprintf(
-                'Ditolak: --year=%d di bawah ambang aman %d. Data pabrik sungguhan ada di tahun berjalan.',
-                $year,
-                self::MINIMUM_YEAR,
-            ));
-
-            return self::FAILURE;
-        }
-
-        $cutoff = sprintf('%04d-01-01', $year);
         $force = (bool) $this->option('force');
 
-        $total = 0;
         $affected = [];
 
-        foreach ($this->datedRecordTables() as $table) {
-            $count = DB::table($table)->whereDate('date', '>=', $cutoff)->count();
+        foreach ($this->recordTables() as $table => $column) {
+            $count = $this->recordQuery($table, $column)->count();
 
-            if ($count === 0) {
-                continue;
+            if ($count > 0) {
+                $affected[$table] = $count;
             }
-
-            $total += $count;
-            $affected[$table] = $count;
         }
 
-        if ($total === 0) {
-            $this->info(sprintf('Tidak ada record bertanggal %s ke atas. Tidak ada yang dihapus.', $cutoff));
+        $periods = $this->periodQuery()->count();
+
+        if ($periods > 0) {
+            $affected['periods'] = $periods;
+        }
+
+        $range = sprintf('%s s.d. sebelum %s', self::RANGE_START, self::RANGE_END);
+
+        if ($affected === []) {
+            $this->info(sprintf('Tidak ada record maupun periode bertanggal %s. Tidak ada yang dihapus.', $range));
 
             return self::SUCCESS;
         }
@@ -101,65 +101,139 @@ class PruneE2eRecords extends Command
             $this->line(sprintf('  %-34s %d', $table, $count));
         }
 
+        $total = array_sum($affected);
+
         if (! $force) {
             $this->warn(sprintf(
-                '%d record bertanggal %s ke atas. Jalankan ulang dengan --force untuk menghapus.',
+                '%d baris bertanggal %s. Jalankan ulang dengan --force untuk menghapus.',
                 $total,
-                $cutoff,
+                $range,
             ));
 
             return self::SUCCESS;
         }
 
         // Satu transaksi: kalau satu tabel gagal, tidak ada tabel yang
-        // setengah terhapus.
-        DB::transaction(function () use ($affected, $cutoff): void {
-            foreach (array_keys($affected) as $table) {
-                DB::table($table)->whereDate('date', '>=', $cutoff)->delete();
+        // setengah terhapus. Urutannya penting — grading sebelum
+        // weighbridge (FK RESTRICT), record sebelum periode.
+        $deleted = DB::transaction(function (): int {
+            $deleted = 0;
+
+            foreach ($this->recordTables() as $table => $column) {
+                $deleted += $this->recordQuery($table, $column)->delete();
             }
+
+            return $deleted + $this->periodQuery()->delete();
         });
 
-        $this->info(sprintf('%d record dihapus (baris detail ikut lewat ON DELETE CASCADE).', $total));
+        // Weighbridge di rentang yang MASIH tersisa = yang dirujuk grading di
+        // luar rentang (sengaja dilewati recordQuery()).
+        $skipped = Schema::hasTable('weighbridge_records')
+            ? DB::table('weighbridge_records')
+                ->where('record_datetime', '>=', self::RANGE_START)
+                ->where('record_datetime', '<', self::RANGE_END)
+                ->count()
+            : 0;
+
+        $this->info(sprintf(
+            '%d baris dihapus (baris detail & period_stations ikut lewat ON DELETE CASCADE)%s.',
+            $deleted,
+            $skipped > 0 ? sprintf('; %d weighbridge dilewati karena masih dirujuk grading di luar rentang', $skipped) : '',
+        ));
 
         return self::SUCCESS;
     }
 
-    /**
-     * Tabel *_records yang benar-benar PUNYA kolom `date`, dibaca dari
-     * skema. weighbridge_records tidak punya, dan menebak nama kolom
-     * adalah cara termudah menghapus tabel yang salah. Membaca skema juga
-     * membuat perintah ini otomatis mencakup stasiun yang ditambahkan
-     * kelak, tanpa daftar yang harus diingat untuk diperbarui.
-     *
-     * Dibaca lewat Schema builder, BUKAN information_schema: dev dan
-     * production memakai PostgreSQL sementara test berjalan di SQLite
-     * in-memory (phpunit.xml), dan kueri information_schema akan meledak
-     * di sana — sehingga penjaga-penjaga di atas justru tidak dapat diuji.
-     *
-     * @return list<string>
-     */
-    private function datedRecordTables(): array
+    /** Alasan menolak, atau null bila boleh berjalan. */
+    private function refusal(): ?string
     {
-        $tables = array_filter(
-            Schema::getTableListing(),
-            static fn (string $table): bool => str_ends_with($table, '_records'),
-        );
+        if (app()->environment('testing')) {
+            return null;
+        }
 
-        // Sebagian driver mengembalikan nama ber-prefix skema ("public.x").
+        if (! app()->environment('e2e')) {
+            return sprintf(
+                'perintah ini hanya berjalan di environment e2e (sekarang: %s). Pakai --env=e2e.',
+                app()->environment(),
+            );
+        }
+
+        $database = (string) config('database.connections.'.config('database.default').'.database');
+
+        if (! str_ends_with($database, '_e2e')) {
+            return sprintf('database "%s" bukan database e2e (harus berakhiran _e2e).', $database);
+        }
+
+        return null;
+    }
+
+    private function recordQuery(string $table, string $column): Builder
+    {
+        $query = DB::table($table)
+            ->where($column, '>=', self::RANGE_START)
+            ->where($column, '<', self::RANGE_END);
+
+        if ($table === 'weighbridge_records' && Schema::hasTable('grading_records')
+            && Schema::hasColumn('grading_records', 'weighbridge_record_id')) {
+            $query->whereNotExists(function (Builder $sub): void {
+                $sub->selectRaw('1')
+                    ->from('grading_records')
+                    ->whereColumn('grading_records.weighbridge_record_id', 'weighbridge_records.id');
+            });
+        }
+
+        return $query;
+    }
+
+    /** Periode yang SELURUH rentangnya berada di dalam rentang lajur. */
+    private function periodQuery(): Builder
+    {
+        return DB::table('periods')
+            ->where('start_date', '>=', self::RANGE_START)
+            ->where('end_date', '<', self::RANGE_END);
+    }
+
+    /**
+     * Tabel *_records beserta kolom tanggal kejadiannya, dibaca dari skema —
+     * otomatis mencakup stasiun yang ditambahkan kelak. weighbridge_records
+     * tidak punya kolom `date`; tanggalnya `record_datetime`. Weighbridge
+     * selalu diletakkan TERAKHIR (sesudah grading, yang merujuknya).
+     *
+     * Dibaca lewat Schema builder, BUKAN information_schema: test berjalan di
+     * SQLite in-memory (phpunit.xml) dan kueri information_schema akan
+     * meledak di sana.
+     *
+     * @return array<string, string>
+     */
+    private function recordTables(): array
+    {
         $tables = array_map(
             static fn (string $table): string => str_contains($table, '.')
                 ? substr($table, strrpos($table, '.') + 1)
                 : $table,
-            $tables,
+            Schema::getTableListing(),
         );
 
-        $tables = array_values(array_filter(
-            $tables,
-            static fn (string $table): bool => Schema::hasColumn($table, 'date'),
-        ));
-
+        $tables = array_filter($tables, static fn (string $table): bool => str_ends_with($table, '_records'));
         sort($tables);
 
-        return $tables;
+        $result = [];
+
+        foreach ($tables as $table) {
+            $column = self::DATE_COLUMN_OVERRIDES[$table] ?? 'date';
+
+            if (Schema::hasColumn($table, $column)) {
+                $result[$table] = $column;
+            }
+        }
+
+        // Weighbridge terakhir: grading_records merujuknya dengan FK RESTRICT.
+        if (isset($result['weighbridge_records'])) {
+            $column = $result['weighbridge_records'];
+            unset($result['weighbridge_records']);
+            $result['weighbridge_records'] = $column;
+        }
+
+        return $result;
     }
 }

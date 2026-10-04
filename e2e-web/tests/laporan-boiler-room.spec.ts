@@ -116,9 +116,11 @@
 import { readFile } from 'node:fs/promises'
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { pruneLaneData } from './support/backend'
 import { deletePeriodsByPrefix } from './support/periods'
 import { closeStation, createOpenPeriodViaUi, openStationRow } from './support/period-screen'
-import { laneOffset } from './support/period-lanes'
+import { laneIsoDate, laneOffset } from './support/period-lanes'
+import { STATEFUL_REFERER } from './support/base-url'
 
 const REPORT_PATH = '/reports/boiler-room'
 const PERIODS_PATH = '/master-data/periods'
@@ -181,7 +183,7 @@ const RUN_OFFSET = laneOffset((Math.floor(Date.now() / 1000) % 60000) * 40, 'boi
 const PERIOD_PREFIX = 'BoilerRoom '
 
 function isoDate(dayOffset: number): string {
-  return new Date(Date.UTC(2600, 0, 1) + dayOffset * 86400000).toISOString().slice(0, 10)
+  return laneIsoDate(dayOffset)
 }
 
 /**
@@ -267,7 +269,7 @@ async function statefulHeaders(page: Page): Promise<Record<string, string>> {
   const xsrf = cookies.find((cookie) => cookie.name === 'XSRF-TOKEN')
 
   return {
-    Referer: 'http://localhost:8000/',
+    Referer: STATEFUL_REFERER,
     Accept: 'application/json',
     ...(xsrf ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrf.value) } : {}),
   }
@@ -522,6 +524,10 @@ test.describe('Laporan Boiler Room', () => {
   // halaman 2 dan suite gagal di createPeriod() sebelum satu pun asersi
   // perilaku jalan.
   test.afterAll(async ({ browser }) => {
+    // Record & periode lajur disapu LEBIH DULU: periode yang berisi record
+    // ditolak 409 PERIOD_HAS_RECORDS oleh deletePeriodsByPrefix() di bawah.
+    await pruneLaneData('laporan-boiler-room')
+
     const page = await browser.newPage()
 
     try {
@@ -538,6 +544,10 @@ test.describe('Laporan Boiler Room', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(900_000)
+
+    // Sisa run sebelumnya yang terhenti sebelum afterAll-nya (record dan
+    // periode di rentang lajur). Lihat tests/support/backend.ts.
+    await pruneLaneData('laporan-boiler-room (awal)')
 
     const page = await browser.newPage()
 

@@ -146,9 +146,11 @@
 import { readFile } from 'node:fs/promises'
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { pruneLaneData } from './support/backend'
 import { deletePeriodsByPrefix } from './support/periods'
 import { closeStation, createOpenPeriodViaUi, openStationRow } from './support/period-screen'
-import { laneOffset } from './support/period-lanes'
+import { laneIsoDate, laneOffset } from './support/period-lanes'
+import { STATEFUL_REFERER } from './support/base-url'
 
 const REPORT_PATH = '/reports/storage-tank'
 const PERIODS_PATH = '/master-data/periods'
@@ -211,13 +213,15 @@ const RUN_OFFSET = laneOffset((Math.floor(Date.now() / 1000) % 20000) * 120, 'st
 const PERIOD_PREFIX = 'Storage Tank '
 
 /**
- * Year 2600, the SAME epoch every period-seeding spec uses. Separation from
+ * laneIsoDate(): ONE epoch (1970, in the past since 2026-10-04 — the server
+ * now rejects event dates later than tomorrow) for every period-seeding
+ * spec. Separation from
  * the other specs comes from laneOffset() (tests/support/period-lanes.ts),
  * not from the epoch — see the file header for why a century was never wide
  * enough to separate anything here.
  */
 function isoDate(dayOffset: number): string {
-  return new Date(Date.UTC(2600, 0, 1) + dayOffset * 86400000).toISOString().slice(0, 10)
+  return laneIsoDate(dayOffset)
 }
 
 /** The month abbreviations the screen renders — must match the blade's map. */
@@ -352,7 +356,7 @@ async function statefulHeaders(page: Page): Promise<Record<string, string>> {
   const xsrf = cookies.find((cookie) => cookie.name === 'XSRF-TOKEN')
 
   return {
-    Referer: 'http://localhost:8000/',
+    Referer: STATEFUL_REFERER,
     Accept: 'application/json',
     ...(xsrf ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrf.value) } : {}),
   }
@@ -595,6 +599,10 @@ test.describe('Laporan Storage Tank', () => {
   // perilaku jalan. Spec ini membuat 18 periode per run, jadi satu run
   // berikutnya saja sudah lebih dari cukup untuk memenuhi halaman itu.
   test.afterAll(async ({ browser }) => {
+    // Record & periode lajur disapu LEBIH DULU: periode yang berisi record
+    // ditolak 409 PERIOD_HAS_RECORDS oleh deletePeriodsByPrefix() di bawah.
+    await pruneLaneData('laporan-storage-tank')
+
     const page = await browser.newPage()
 
     try {
@@ -611,6 +619,10 @@ test.describe('Laporan Storage Tank', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(2_400_000)
+
+    // Sisa run sebelumnya yang terhenti sebelum afterAll-nya (record dan
+    // periode di rentang lajur). Lihat tests/support/backend.ts.
+    await pruneLaneData('laporan-storage-tank (awal)')
 
     const page = await browser.newPage()
 
@@ -1331,7 +1343,9 @@ test.describe('Laporan Storage Tank', () => {
     await expect(page.locator('[data-testid="coverage-card"]')).toBeVisible()
     await expect(page.locator('[data-testid="coverage-filled-slots"]')).toHaveText('3')
     await expect(page.locator('[data-testid="coverage-expected-slots"]')).toHaveText('240')
-    await expect(page.locator('[data-testid="coverage-percent"]')).toHaveText('1,25%')
+    // 3/240 = 1,25% — layar menampilkan SATU desimal sejak 2026-10-04
+    // (laporan-storage-tank.blade.php, $nilai(..., 1)), jadi "1,3%".
+    await expect(page.locator('[data-testid="coverage-percent"]')).toHaveText('1,3%')
     await expect(page.locator('[data-testid="low-coverage-emphasis"]')).toBeVisible()
 
     // PART OF THE REPORT BODY, NOT A FOOTNOTE: on this screen coverage says

@@ -76,6 +76,7 @@
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
 import { closeModal, expectNoRowOnAnyPage, expectRowCountOnAllPages, findRow } from './support/paged-table'
+import { watchProblems } from './support/page-health'
 
 const STATIONS_PATH = '/master-data/stations';
 
@@ -101,7 +102,26 @@ async function selectSearchableFirst(page, id) {
   await page.locator(`#${id}-listbox`).getByRole('option').nth(1).click();
 }
 
+// Sejak audit 2026-10-04 #7 satu Production Line hanya boleh punya SATU
+// station per tipe (kecuali Other). Skenario tambah/edit/kode-duplikat
+// yang dulu memakai Weighbridge/Grading kini memakai tipe Other (wajib
+// Nonaktif) — kalau tidak, residu run sebelumnya (station ber-timestamp di
+// line fixture yang sama) membuat run berikutnya ditolak sebagai tipe
+// kembar. Penolakan tipe kembar itu sendiri diuji di skenario tersendiri.
+async function chooseOtherInactive(page) {
+  await selectSearchable(page, 'type', 'Other');
+  await page.locator('#is_active').uncheck();
+}
+
 test.describe('Kelola Station', () => {
+  let problems: string[] = []
+  test.beforeEach(({ page }) => {
+    problems = watchProblems(page, { allowStatus: [403] })
+  })
+  test.afterEach(() => {
+    expect(problems).toEqual([])
+  })
+
   // Scenario: "Kelola Station — success"
   test('menambah station baru dengan memilih business unit dan menampilkannya di tabel', async ({ page }) => {
     await login(page, 'stest-admin01', PASSWORD);
@@ -112,7 +132,7 @@ test.describe('Kelola Station', () => {
     // Cascaded from the Business Unit just picked — wire:model.live on
     // #business_unit_id reloaded this field's options.
     await selectSearchableFirst(page, 'production_line_id');
-    await selectSearchable(page, 'type', 'Weighbridge');
+    await chooseOtherInactive(page);
 
     const uniqueSuffix = Date.now();
     const uniqueName = `Weighbridge Baru ${uniqueSuffix}`;
@@ -123,9 +143,11 @@ test.describe('Kelola Station', () => {
     const row = await findRow(page, uniqueName);
     await expect(row).toBeVisible();
     await expect(row).toContainText('Mill Station Baru');
-    await expect(row).toContainText('Weighbridge');
-    await expect(row).toContainText('Aktif');
+    await expect(row).toContainText('PL Station Baru');
+    await expect(row).toContainText('Other');
+    await expect(row).toContainText('Nonaktif');
     await expect(row).toContainText('0');
+    await expect(page.locator('[data-testid="success-message"]')).toContainText('Station berhasil ditambahkan.');
   });
 
   // Scenario: "Kelola Station — Edit Station"
@@ -140,7 +162,7 @@ test.describe('Kelola Station', () => {
     // Changing Business Unit resets production_line_id and reloads its
     // options (updatedBusinessUnitId()) — must re-pick it.
     await selectSearchableFirst(page, 'production_line_id');
-    await selectSearchable(page, 'type', 'Grading');
+    await chooseOtherInactive(page);
     const uniqueSuffix = Date.now();
     const newName = `Weighbridge Sesudah Edit ${uniqueSuffix}`;
     await page.locator('#name').fill(newName);
@@ -149,7 +171,7 @@ test.describe('Kelola Station', () => {
     const updatedRow = await findRow(page, newName);
     await expect(updatedRow).toBeVisible();
     await expect(updatedRow).toContainText('Mill Station Tujuan Edit');
-    await expect(updatedRow).toContainText('Grading');
+    await expect(updatedRow).toContainText('Other');
     await expectNoRowOnAnyPage(page, 'Weighbridge Sebelum Edit');
   });
 
@@ -186,7 +208,7 @@ test.describe('Kelola Station', () => {
     await page.locator('button', { hasText: 'Tambah Station' }).click();
     await selectSearchableFirst(page, 'business_unit_id');
     await selectSearchableFirst(page, 'production_line_id');
-    await selectSearchable(page, 'type', 'Weighbridge');
+    await chooseOtherInactive(page);
     await page.locator('#name').fill('Weighbridge Kode Duplikat');
     await page.locator('#code').fill('STA-DUP-01');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
@@ -245,14 +267,52 @@ test.describe('Kelola Station', () => {
     await expectNoRowOnAnyPage(page, 'Station Other Aktif');
   });
 
+  // Audit 2026-10-04 #7: tipe kembar dalam satu Production Line ditolak,
+  // dan pilihan Type memuat seluruh tipe station (bukan 4).
+  test('menolak station bertipe sama di Production Line yang sama', async ({ page }) => {
+    await login(page, 'stest-admin01', PASSWORD);
+    await gotoStations(page);
+
+    await page.locator('button', { hasText: 'Tambah Station' }).click();
+    await selectSearchable(page, 'business_unit_id', 'Mill Station Baru');
+    await selectSearchable(page, 'production_line_id', 'PL Station Baru');
+    await page.locator('#type').click();
+    const typeLabels = (await page.locator('#type-listbox').getByRole('option').allTextContents()).map((l) => l.trim());
+    expect(typeLabels).toEqual(expect.arrayContaining(['Boiler Room', 'CPO Dispatch', 'Sterilizer', 'Other']));
+    await page.keyboard.press('Escape');
+    await selectSearchable(page, 'type', 'Weighbridge');
+    await page.locator('#name').fill('Weighbridge Kembar');
+    await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
+
+    await expect(page.locator('.kc-form-field__error').first()).toContainText('sudah memiliki station bertipe Weighbridge');
+    await expect(page.locator('.kcm-modal')).toBeVisible();
+    await closeModal(page);
+    await expectNoRowOnAnyPage(page, 'Weighbridge Kembar');
+  });
+
+  // Audit 2026-10-04 #10: kolom Production Line + filter per line.
+  test('menampilkan kolom Production Line dan memfilter per line', async ({ page }) => {
+    await login(page, 'stest-admin01', PASSWORD);
+    await gotoStations(page);
+
+    await expect(page.locator('.kc-table__head')).toContainText('Production Line');
+    await selectSearchable(page, 'filterBusinessUnitId', 'Mill Station Baru');
+    await selectSearchable(page, 'filterProductionLineId', 'PL Station Baru');
+    const rows = page.locator('.kc-table tbody tr');
+    await expect(rows.first()).toContainText('PL Station Baru');
+    for (const text of await rows.allTextContents()) expect(text).toContain('PL Station Baru');
+  });
+
   // Scenario: "Kelola Station — Akses ditolak untuk non-Admin"
   test('menampilkan halaman akses ditolak untuk pengguna non-admin', async ({ page }) => {
     await login(page, 'stest-nonadmin01', PASSWORD);
     await page.goto(STATIONS_PATH);
 
-    // EnsureRole::forbidden() -> abort(403), Laravel's default HTML error
-    // page — no station table/controls are rendered.
+    // EnsureRole::forbidden() -> abort(403) → halaman 403 ramah di dalam
+    // shell (audit 2026-10-04 #1) — tanpa tabel/kontrol station.
     await expect(page.locator('body')).toContainText(/403/);
+    await expect(page.locator('[data-testid="forbidden-page"]')).toContainText('Akses Ditolak');
+    await expect(page.locator('[data-testid="forbidden-logout"]')).toBeVisible();
     await expect(page.locator('.kc-table')).toHaveCount(0);
   });
 

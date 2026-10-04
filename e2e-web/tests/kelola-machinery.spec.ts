@@ -68,6 +68,15 @@ async function selectSearchable(page, id, label) {
   await page.locator(`#${id}-listbox`).getByRole('option', { name: label, exact: true }).click();
 }
 
+// Label pemilih grup kini "MG-xxx — deskripsi (Station · Line)" (audit
+// 2026-10-04 #9c) — dicocokkan dari awal label, bukan persis.
+async function selectSearchableStartingWith(page, id, prefix) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}`).fill(prefix);
+  const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await page.locator(`#${id}-listbox`).getByRole('option', { name: new RegExp(`^${escaped}( |$)`) }).click();
+}
+
 async function selectSearchableFirst(page, id) {
   await page.locator(`#${id}`).click();
   await page.locator(`#${id}-listbox`).getByRole('option').nth(1).click();
@@ -97,12 +106,14 @@ test.describe('Kelola Machinery', () => {
     await gotoMachinery(page);
 
     await page.locator('button', { hasText: 'Tambah Mesin' }).click();
-    await selectSearchable(page, 'machinery_group_id', 'MG-BROWSER-BASE');
+    await selectSearchableStartingWith(page, 'machinery_group_id', 'MG-BROWSER-BASE');
 
     // Station/Production Line fields are read-only and auto-populated
     // from the selected Machinery Group — never independently typed.
-    await expect(page.locator('#station_display')).toBeDisabled();
-    await expect(page.locator('#production_line_display')).toBeDisabled();
+    // Ditampilkan sebagai teks, bukan input disabled (konvensi web, audit 2026-10-04 #15).
+    await expect(page.locator('#station_display')).not.toHaveText('-');
+    await expect(page.locator('#production_line_display')).not.toHaveText('-');
+    expect(await page.locator('#station_display').evaluate((el) => el.tagName)).toBe('P');
 
     const uniqueSuffix = Date.now();
     const uniqueCode = `EQ-BROWSER-${uniqueSuffix}`;
@@ -122,7 +133,7 @@ test.describe('Kelola Machinery', () => {
     await gotoMachinery(page);
 
     await page.locator('button', { hasText: 'Tambah Mesin' }).click();
-    await selectSearchable(page, 'machinery_group_id', 'MG-BROWSER-BASE');
+    await selectSearchableStartingWith(page, 'machinery_group_id', 'MG-BROWSER-BASE');
 
     const uniqueSuffix = Date.now();
     const uniqueCode = `EQ-BROWSER-CHILD-${uniqueSuffix}`;
@@ -176,7 +187,9 @@ test.describe('Kelola Machinery', () => {
 
     await expect(page.locator('.kc-table__row', { hasText: 'EQ-BROWSER-HAPUS' })).toHaveCount(0);
     // No 409/guard alert of any kind is ever shown for this screen.
-    await expect(page.locator('.kc-alert')).toHaveCount(0);
+    // Pesan sukses (.kc-alert--success, audit 2026-10-04 #12) boleh tampil.
+    await expect(page.locator('.kc-alert:not(.kc-alert--success)')).toHaveCount(0);
+    await expect(page.locator('[data-testid="success-message"]')).toContainText('Mesin berhasil dihapus.');
   });
 
   // Scenario: "Kelola Machinery — Kode duplikat"

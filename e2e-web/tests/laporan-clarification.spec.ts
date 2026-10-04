@@ -138,9 +138,11 @@
 import { readFile } from 'node:fs/promises'
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { pruneLaneData } from './support/backend'
 import { deletePeriodsByPrefix } from './support/periods'
 import { closeStation, createOpenPeriodViaUi, openStationRow } from './support/period-screen'
-import { laneOffset } from './support/period-lanes'
+import { laneIsoDate, laneOffset } from './support/period-lanes'
+import { STATEFUL_REFERER } from './support/base-url'
 
 const REPORT_PATH = '/reports/clarification'
 const PERIODS_PATH = '/master-data/periods'
@@ -203,13 +205,15 @@ const RUN_OFFSET = laneOffset((Math.floor(Date.now() / 1000) % 40000) * 60, 'cla
 const PERIOD_PREFIX = 'Clarification '
 
 /**
- * Year 2600, the SAME epoch every period-seeding spec uses. Separation from
+ * laneIsoDate(): ONE epoch (1970, in the past since 2026-10-04 — the server
+ * now rejects event dates later than tomorrow) for every period-seeding
+ * spec. Separation from
  * the other specs comes from laneOffset() (tests/support/period-lanes.ts),
  * not from the epoch — see the file header for why a century was never wide
  * enough to separate anything here.
  */
 function isoDate(dayOffset: number): string {
-  return new Date(Date.UTC(2600, 0, 1) + dayOffset * 86400000).toISOString().slice(0, 10)
+  return laneIsoDate(dayOffset)
 }
 
 /**
@@ -310,7 +314,7 @@ async function statefulHeaders(page: Page): Promise<Record<string, string>> {
   const xsrf = cookies.find((cookie) => cookie.name === 'XSRF-TOKEN')
 
   return {
-    Referer: 'http://localhost:8000/',
+    Referer: STATEFUL_REFERER,
     Accept: 'application/json',
     ...(xsrf ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrf.value) } : {}),
   }
@@ -566,6 +570,10 @@ test.describe('Laporan Clarification', () => {
   // perilaku jalan. Spec ini membuat 12 periode per run, jadi satu run
   // berikutnya saja sudah cukup untuk memenuhi halaman itu.
   test.afterAll(async ({ browser }) => {
+    // Record & periode lajur disapu LEBIH DULU: periode yang berisi record
+    // ditolak 409 PERIOD_HAS_RECORDS oleh deletePeriodsByPrefix() di bawah.
+    await pruneLaneData('laporan-clarification')
+
     const page = await browser.newPage()
 
     try {
@@ -582,6 +590,10 @@ test.describe('Laporan Clarification', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(1_500_000)
+
+    // Sisa run sebelumnya yang terhenti sebelum afterAll-nya (record dan
+    // periode di rentang lajur). Lihat tests/support/backend.ts.
+    await pruneLaneData('laporan-clarification (awal)')
 
     const page = await browser.newPage()
 

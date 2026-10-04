@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\PeriodStatus;
 use App\Enums\RecordStatus;
 use App\Enums\StationType;
 use App\Enums\UserRole;
@@ -31,6 +32,8 @@ use App\Models\KernelPlantDetail;
 use App\Models\KernelPlantRecord;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\PressingDetail;
 use App\Models\PressingRecord;
 use App\Models\ProcessQualityControlDetail;
@@ -38,8 +41,10 @@ use App\Models\ProcessQualityControlRecord;
 use App\Models\ProcessWaterDetail;
 use App\Models\ProcessWaterRecord;
 use App\Models\ProductionLine;
+use App\Models\SolidWasteDisposalDetail;
 use App\Models\SolidWasteDisposalRecord;
 use App\Models\Station;
+use App\Models\SterilizerDetail;
 use App\Models\SterilizerRecord;
 use App\Models\StorageTankDetail;
 use App\Models\StorageTankRecord;
@@ -47,6 +52,7 @@ use App\Models\ThreshingDetail;
 use App\Models\ThreshingRecord;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
+use App\Services\PeriodService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Seeder;
@@ -311,12 +317,20 @@ class BrowserTestFixtureSeeder extends Seeder
             $this->user($username, UserRole::Supervisor, $businessUnit, self::CHANGE_PASSWORD_PASSWORD);
         }
 
+        // audit-web-admin.spec.ts (audit 2026-10-04): Operator untuk login web
+        // terbatas (/beranda), dan satu akun yang DINONAKTIFKAN skenario
+        // "sesi akun nonaktif" — updateOrCreate memulihkan is_active=true
+        // setiap seed.
+        $this->user('webtest-operator01', UserRole::Operator, $businessUnit);
+        $this->user('webtest-deact01', UserRole::Supervisor, $businessUnit);
+
         $this->cagesFixtures($businessUnit, $mainLine);
         $this->editRecords($mainLine);
         $this->productionLineFilterFixtures($businessUnit, $mainLine);
         $this->kelolaProductionLineFixtures();
         $this->kelolaHierarchyFixtures();
         $this->machineryFixtures($businessUnit);
+        $this->periodFixtures();
 
         $this->command?->info('Browser fixture: users, "'.self::MAIN_PRODUCTION_LINE.'" and per-station "PL Tanpa ..." lines are ready.');
     }
@@ -369,6 +383,12 @@ class BrowserTestFixtureSeeder extends Seeder
         // Makes MG-BROWSER-ADA-MACHINERY refuse deletion — that refusal is
         // the whole point of the scenario that targets it.
         $this->machinery($withMachinery, 'EQ-BROWSER-DIPAKAI', 'Mesin Penahan Hapus');
+
+        // Kode yang "sudah dipakai" skenario kode duplikat kelola-machinery
+        // (2026-10-04). Selama ini hanya ada di database dev karena salah satu
+        // run lama kebetulan MEMBUATNYA; di database e2e yang baru di-reset
+        // simpan pertama lolos dan asersi "sudah digunakan" merah.
+        $this->machinery($base, 'EQ-DUP-01', 'Mesin Duplikat');
     }
 
     /**
@@ -761,6 +781,21 @@ class BrowserTestFixtureSeeder extends Seeder
                         ['kernel_dispatch_record_id' => $record->id, 'event_date' => self::FILTER_RECORD_DATE],
                         ['waybill_number' => "SJ-PL-{$suffix}", 'net_weight_mt' => 20],
                     );
+                } elseif ($stationType === 'sterilizer') {
+                    // Alasan yang sama untuk detail-sterilizer dan
+                    // detail-solid-waste-disposal.spec.ts (2026-10-04): di
+                    // database e2e yang baru di-reset, record ini satu-satunya
+                    // di Data Browser saat kedua spec itu berjalan (sebelum
+                    // form-*), dan tabel log hanya dirender bila ada detail.
+                    SterilizerDetail::updateOrCreate(
+                        ['sterilizer_record_id' => $record->id, 'sterilizer_no' => '1'],
+                        ['close_door_time' => '08:00', 'open_door_time' => '09:30', 'duration_minutes' => 90, 'number_of_cages' => 10, 'checked_by_spv' => false],
+                    );
+                } elseif ($stationType === 'solid-waste-disposal') {
+                    SolidWasteDisposalDetail::updateOrCreate(
+                        ['solid_waste_disposal_record_id' => $record->id, 'event_date' => self::FILTER_RECORD_DATE],
+                        ['vehicle_no' => "B 9{$suffix} SW", 'net_weight_mt' => 5],
+                    );
                 }
             }
         }
@@ -1021,6 +1056,90 @@ class BrowserTestFixtureSeeder extends Seeder
 
         if ($staDuplicate === null) {
             $this->namedStation($stationBaruLine, 'Weighbridge Fixture Kode')->update(['code' => 'STA-DUP-01']);
+        }
+    }
+
+    /**
+     * Mill khusus spec Periode Pelaporan (kelola-periode-pelaporan,
+     * detail-periode-pelaporan) — 2026-10-04.
+     *
+     * KENAPA MILL TERSENDIRI. Sejak PeriodService::delete() menolak periode
+     * yang sudah membingkai record (409 PERIOD_HAS_RECORDS), "BU Browser Test"
+     * tidak lagi bisa dipakai untuk periode yang ditanam lalu dihapus spec:
+     * mill itu penuh record (fixture *-BROWSER-EDIT 2026-08-05, record yang
+     * ditulis spec form-* hari ini) dan memegang periode "Prasyarat Form"
+     * 2020-01-01..hari ini+7 (tests/support/period-fixture.ts) yang juga tidak
+     * bisa dihapus — jadi periode "hari ini" panel Periode Terbuka maupun
+     * periode Agustus 2026 dialog tutup ditolak PERIOD_OVERLAP sejak run kedua.
+     *
+     * Mill ini punya tiga stasiun aktif (Sterilizer, Clarification, Effluent
+     * Plant — jenis yang dipakai kedua spec) dan TEPAT SATU record: Effluent
+     * Plant 2026-08-05 belum terverifikasi. Record itu dibingkai periode
+     * fixture PERIOD_FIXTURE_NAME yang DITANAM DI SINI, bukan oleh spec —
+     * periode berisi record tidak bisa dihapus, jadi spec yang membuatnya
+     * sendiri akan bertabrakan dengan sisanya pada run berikutnya. Setiap seed
+     * mengembalikan seluruh baris stasiunnya ke Draft (skenario dialog tutup
+     * menutup lalu membuka kembali satu stasiun).
+     *
+     * Periode "hari ini" panel tetap dibuat dan dihapus spec-nya sendiri:
+     * di luar Agustus 2026 mill ini tidak punya record, jadi hapusnya lolos.
+     */
+    public const PERIOD_FIXTURE_MILL = 'Mill Periode Uji';
+
+    public const PERIOD_FIXTURE_NAME = 'Fixture Periode Agustus 2026';
+
+    protected function periodFixtures(): void
+    {
+        $mill = $this->businessUnit(self::PERIOD_FIXTURE_MILL);
+        $line = $this->productionLine($mill, 'PL Periode Uji');
+
+        foreach ([StationType::Sterilizer, StationType::Clarification, StationType::EffluentPlant] as $type) {
+            $this->station($line, $type, active: true);
+        }
+
+        $author = User::where('username', 'eptest-supervisor01')->firstOrFail();
+        $station = Station::where('production_line_id', $line->id)
+            ->where('type', StationType::EffluentPlant)
+            ->firstOrFail();
+
+        $record = EffluentPlantRecord::updateOrCreate(
+            ['effluent_plant_id' => 'EP-PERIODE-UNVERIFIED'],
+            [
+                'station_id' => $station->id,
+                'production_line_id' => $station->production_line_id,
+                'date' => self::RECORD_DATE,
+                'status' => RecordStatus::DraftOngoing,
+                'created_by' => $author->id,
+                'checked_by' => null,
+                'acknowledged_by' => null,
+            ],
+        );
+
+        EffluentPlantDetail::updateOrCreate(
+            [$record->getForeignKey() => $record->id, 'time_slot' => '07:00'],
+            ['anaerobic_pond_1_ph' => 7.0],
+        );
+
+        $this->promoteToSaved($record);
+
+        $period = Period::where('business_unit_id', $mill->id)
+            ->where('name', self::PERIOD_FIXTURE_NAME)
+            ->first()
+            ?? Period::create([
+                'business_unit_id' => $mill->id,
+                'name' => self::PERIOD_FIXTURE_NAME,
+                'start_date' => '2026-08-01',
+                'end_date' => '2026-08-15',
+                'created_by' => $author->id,
+            ]);
+
+        $period->update(['start_date' => '2026-08-01', 'end_date' => '2026-08-15']);
+
+        foreach (app(PeriodService::class)->activeStationTypesForMill($mill->id) as $code) {
+            PeriodStation::updateOrCreate(
+                ['period_id' => $period->id, 'station_type' => $code],
+                ['status' => PeriodStatus::Draft->value, 'closed_by' => null, 'closed_at' => null],
+            );
         }
     }
 

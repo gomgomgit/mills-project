@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { APP_ORIGIN } from './tests/support/base-url'
 
 /**
  * Browser tests for the Laravel/Livewire WEB app (screens 001, 003,
@@ -24,11 +25,12 @@ import { defineConfig, devices } from '@playwright/test'
  * original .php files hardcoded 8000 and would now all fail at the first
  * navigation.
  *
- * No `webServer` block: the Laravel app needs a database seeded with this
- * suite's fixtures (php artisan db:seed --class=BrowserTestFixtureSeeder),
- * so starting it blindly from here would run tests against whatever state
- * the developer's database happened to be in. Start the app yourself, seed,
- * then run.
+ * No `webServer` block: the Laravel app needs ITS OWN database, reset and
+ * seeded with this suite's fixtures (e2e-web/scripts/prepare-db.sh →
+ * mill_smart_log_e2e, via backend/.env.e2e). Start it yourself with
+ * `php artisan serve --env=e2e --port=8001` after preparing the DB — see
+ * README.md "Running them". Since 2026-10-04 the suite never touches the
+ * dev database mill_smart_log.
  */
 export default defineConfig({
   testDir: './tests',
@@ -36,13 +38,19 @@ export default defineConfig({
   // tidak pernah menyusut: aplikasi sengaja tidak punya jalur hapus untuk
   // record stasiun, jadi setiap run menumpuk selamanya (841 baris saat
   // teardown ini ditulis). Alasan lengkap di berkas yang ditunjuk.
+  // Penjaga "server ini server e2e" + memulihkan fixture setiap run — lihat
+  // berkasnya.
+  globalSetup: './tests/support/global-setup.ts',
   globalTeardown: './tests/support/global-teardown.ts',
   fullyParallel: false,
   workers: 1,
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: process.env.E2E_WEB_BASE_URL ?? 'http://localhost:8000',
+    // 8001 = server e2e (`php artisan serve --env=e2e --port=8001`), yang
+    // memakai database-nya sendiri (mill_smart_log_e2e). JANGAN arahkan ke
+    // server dev :8000 — suite ini menulis ke database yang dilayaninya.
+    baseURL: APP_ORIGIN,
     trace: 'retain-on-failure',
   },
   projects: [

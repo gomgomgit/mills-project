@@ -139,9 +139,11 @@
 import { readFile } from 'node:fs/promises'
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { pruneLaneData } from './support/backend'
 import { deletePeriodsByPrefix } from './support/periods'
 import { closeStation, createOpenPeriodViaUi } from './support/period-screen'
-import { laneOffset } from './support/period-lanes'
+import { laneIsoDate, laneOffset } from './support/period-lanes'
+import { STATEFUL_REFERER } from './support/base-url'
 
 const REPORT_PATH = '/reports/weighbridge'
 const PERIODS_PATH = '/master-data/periods'
@@ -191,12 +193,14 @@ const RUN_OFFSET = laneOffset((Math.floor(Date.now() / 1000) % 20000) * 120, 'we
 const PERIOD_PREFIX = 'Weighbridge '
 
 /**
- * Year 2600, the SAME epoch every period-seeding spec uses. Separation from
+ * laneIsoDate(): ONE epoch (1970, in the past since 2026-10-04 — the server
+ * now rejects event dates later than tomorrow) for every period-seeding
+ * spec. Separation from
  * the other specs comes from laneOffset(), not from the epoch — a century is
  * not wide enough to separate day offsets that reach millions.
  */
 function isoDate(dayOffset: number): string {
-  return new Date(Date.UTC(2600, 0, 1) + dayOffset * 86400000).toISOString().slice(0, 10)
+  return laneIsoDate(dayOffset)
 }
 
 /** 'YYYY-MM-DDTHH:mm' for the form's datetime-local input. */
@@ -207,7 +211,7 @@ function isoDateTime(dayOffset: number, time: string): string {
 /** The month abbreviations the screen renders — must match the blade's map. */
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
-/** "01 Sep 2600" — the date label the hero and the daily recap print. */
+/** "01 Sep 1985" — the date label the hero and the daily recap print. */
 function dateLabel(dayOffset: number): string {
   const [year, month, day] = isoDate(dayOffset).split('-')
 
@@ -315,7 +319,7 @@ async function statefulHeaders(page: Page): Promise<Record<string, string>> {
   const xsrf = cookies.find((cookie) => cookie.name === 'XSRF-TOKEN')
 
   return {
-    Referer: 'http://localhost:8000/',
+    Referer: STATEFUL_REFERER,
     Accept: 'application/json',
     ...(xsrf ? { 'X-XSRF-TOKEN': decodeURIComponent(xsrf.value) } : {}),
   }
@@ -403,7 +407,7 @@ async function createPeriod(
 
 interface TripOptions {
   type: 'receive' | 'dispatch'
-  /** Day offset from the year-2600 epoch. */
+  /** Day offset from the lane epoch (laneIsoDate, 1970). */
   day: number
   /** 'HH:mm' — the ONE timestamp a trip carries. There is no second one. */
   time: string
@@ -460,11 +464,14 @@ async function createTrip(page: Page, options: TripOptions): Promise<void> {
   if (options.tare === undefined) {
     // THE UNFINISHED WEIGHING: tare left empty, so the preview stays empty and
     // net_weight is stored NULL. Never written as 0.
-    await expect(page.locator('[data-testid="net-weight-preview"]')).toHaveValue('')
+    // Sejak 2026-10-04 pratinjau ini teks (<span>), bukan input nonaktif:
+    // kosong dirender "-" (App\Support\Display::number).
+    await expect(page.locator('[data-testid="net-weight-preview"]')).toHaveText('-')
   } else {
     await page.locator('[data-testid="tare-weight-input"]').fill(String(options.tare))
+    // Teks berformat Indonesia, 2 desimal — Display::number($net, 2).
     await expect(page.locator('[data-testid="net-weight-preview"]'))
-      .toHaveValue(String(options.gross - options.tare))
+      .toHaveText((options.gross - options.tare).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
   }
 
   await page.locator('[data-testid="save-button"]').click()
@@ -578,6 +585,10 @@ test.describe('Laporan Weighbridge', () => {
   // halaman 2 dan suite gagal di createPeriod() sebelum satu pun asersi
   // perilaku jalan. Spec ini membuat 12 periode per run.
   test.afterAll(async ({ browser }) => {
+    // Record & periode lajur disapu LEBIH DULU: periode yang berisi record
+    // ditolak 409 PERIOD_HAS_RECORDS oleh deletePeriodsByPrefix() di bawah.
+    await pruneLaneData('laporan-weighbridge')
+
     const page = await browser.newPage()
 
     try {
@@ -594,6 +605,10 @@ test.describe('Laporan Weighbridge', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(2_400_000)
+
+    // Sisa run sebelumnya yang terhenti sebelum afterAll-nya (record dan
+    // periode di rentang lajur). Lihat tests/support/backend.ts.
+    await pruneLaneData('laporan-weighbridge (awal)')
 
     const page = await browser.newPage()
 
@@ -1053,7 +1068,7 @@ test.describe('Laporan Weighbridge', () => {
   // Scenario 9: "trip tersinkron terlambat dari mobile"
   //
   // EVERY trip in this spec demonstrates the rule for free: it is entered
-  // TODAY (created_at ~2026) and carries a record_datetime in year 2600 —
+  // TODAY (created_at ~2026) and carries a record_datetime in the lane years (1970-2019) —
   // centuries away from its own period by row-creation time. The figures
   // follow the WEIGHING time regardless.
   // =====================================================================
@@ -1613,7 +1628,7 @@ test.describe('Laporan Weighbridge', () => {
   test('angka mengikuti waktu penimbangan: trip yang barisnya dibuat jauh di luar periode tetap terhitung di periode waktu penimbangannya', async ({ page }) => {
     await openPeriod(page, SUPERVISOR, PERIOD_MAIN)
 
-    // Every trip here was ENTERED today and WEIGHED in year 2600 — so
+    // Every trip here was ENTERED today and WEIGHED in the lane years (1970-2019) — so
     // row-creation time is centuries outside the period it is counted in.
     await expect(page.locator('[data-testid="kpi-receive-trip-count"]')).toContainText('4')
     await expect(page.locator(`[data-testid="daily-row-${isoDate(MAIN.startDay)}"]`)).toBeVisible()

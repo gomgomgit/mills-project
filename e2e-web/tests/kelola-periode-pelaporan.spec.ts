@@ -109,6 +109,13 @@ const NON_ADMIN = 'butest-nonadmin01'
 
 const BUSINESS_UNIT = 'BU Browser Test'
 
+/**
+ * Mill skenario panel "Periode Terbuka Hari Ini" — lihat todayRange(). Ditanam
+ * BrowserTestFixtureSeeder::periodFixtures() dengan stasiun Sterilizer aktif
+ * dan tanpa record di sekitar hari ini.
+ */
+const PANEL_BUSINESS_UNIT = 'Mill Periode Uji'
+
 /** The station row nearly every scenario acts on. */
 const STATION_TYPE = 'Sterilizer'
 
@@ -194,13 +201,15 @@ function emptyMillRange(): { start: string; end: string } {
  * "Periode Terbuka Hari Ini per Mill": panel menyaring dengan tanggal server,
  * jadi periode tahun 3195 milik skenario lain tidak akan pernah muncul di sana.
  *
- * MENGAPA INI TIDAK MENABRAK LAJUR SIAPA PUN. Seluruh spec yang menanam periode
- * memakai epoch tahun 2100 (spec ini) atau 2600 (lima spec laporan, lihat
- * tests/support/period-lanes.ts), digeser maju ribuan tahun oleh RUN_OFFSET
- * masing-masing. Tidak satu pun dari mereka pernah menyentuh tahun berjalan,
- * sehingga satu periode di sekitar hari ini bebas tabrakan terhadap semuanya —
- * tanpa perlu lajur baru. Jendelanya dibuat sependek mungkin (kemarin sampai
- * besok) supaya tetap begitu.
+ * DI MILL TERSENDIRI, PANEL_BUSINESS_UNIT — BUKAN "BU Browser Test" (sejak
+ * 2026-10-04). Mill itu memegang periode "Prasyarat Form" 2020-01-01..hari
+ * ini+7 (tests/support/period-fixture.ts) yang tidak bisa dihapus karena
+ * membingkai record yang ditulis spec form-* (409 PERIOD_HAS_RECORDS),
+ * jadi periode "hari ini" di sana ditolak PERIOD_OVERLAP. "Mill Periode Uji"
+ * (BrowserTestFixtureSeeder::periodFixtures) tidak punya record di sekitar
+ * hari ini, sehingga periodenya bisa dibuat dan dihapus lagi oleh test-nya
+ * sendiri, berapa kali pun suite diulang. Jendelanya dibuat sependek mungkin
+ * (kemarin sampai besok).
  */
 function todayRange(): { start: string; end: string } {
   const iso = (dayShift: number) =>
@@ -873,7 +882,7 @@ test.describe('Kelola Periode Pelaporan — panel Periode Terbuka Hari Ini per M
     const name = uniqueName('Panel Hari Ini')
     const { start, end } = todayRange()
 
-    await createPeriod(page, { name, start, end })
+    await createPeriod(page, { name, start, end, businessUnit: PANEL_BUSINESS_UNIT })
     const { periodId } = await openStationThenBackToList(page, name)
 
     const item = page.locator(`[data-testid="open-today-item-${periodId}"]`)
@@ -900,7 +909,7 @@ test.describe('Kelola Periode Pelaporan — panel Periode Terbuka Hari Ini per M
 
     // Dibuat dan DIBIARKAN Draft — rentang yang sedang berjalan saja tidak
     // cukup, karena tidak ada stasiun yang bisa menerima input di dalamnya.
-    await createPeriod(page, { name, start, end })
+    await createPeriod(page, { name, start, end, businessUnit: PANEL_BUSINESS_UNIT })
     const periodId = await periodIdFor(page, name)
 
     await expect(page.locator(`[data-testid="open-today-item-${periodId}"]`)).toHaveCount(0)
@@ -923,7 +932,7 @@ test.describe('Kelola Periode Pelaporan — panel Periode Terbuka Hari Ini per M
     const name = uniqueName('Panel Filter')
     const { start, end } = todayRange()
 
-    await createPeriod(page, { name, start, end })
+    await createPeriod(page, { name, start, end, businessUnit: PANEL_BUSINESS_UNIT })
     const { periodId } = await openStationThenBackToList(page, name)
 
     await expect(page.locator(`[data-testid="open-today-item-${periodId}"]`)).toBeVisible()
@@ -931,7 +940,7 @@ test.describe('Kelola Periode Pelaporan — panel Periode Terbuka Hari Ini per M
 
     // Filter Business Unit berarti "saya sedang melihat mill ini", jadi panel
     // ikut menyempit.
-    await selectSearchable(page, 'filterBusinessUnitId', BUSINESS_UNIT)
+    await selectSearchable(page, 'filterBusinessUnitId', PANEL_BUSINESS_UNIT)
     await expect(page.locator(`[data-testid="open-today-item-${periodId}"]`)).toBeVisible()
     await expect(page.locator('[data-testid^="open-today-card-"]')).toHaveCount(1)
     expect(cardsBefore).toBeGreaterThan(1)

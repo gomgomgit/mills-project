@@ -74,7 +74,7 @@
 
 import { test, expect, type Locator, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
-import { deletePeriodsByPrefix } from './support/periods'
+import { deletePeriodsByPrefix, statefulHeaders } from './support/periods'
 import {
   PERIODS_PATH,
   createPeriodViaUi,
@@ -110,6 +110,16 @@ const OTHER_STATION_TYPE = 'Clarification'
  * itulah yang membuat angka per-stasiun dapat dibuktikan lewat browser.
  */
 const UNVERIFIED_STATION_TYPE = 'Effluent Plant'
+
+/**
+ * Periode fixture skenario dialog tutup — ditanam
+ * BrowserTestFixtureSeeder::periodFixtures() di "Mill Periode Uji",
+ * 2026-08-01..2026-08-15, seluruh stasiunnya Draft setiap seed. Mill itu
+ * TERSENDIRI karena "BU Browser Test" memegang periode "Prasyarat Form"
+ * 2020-01-01..hari ini+7 (tests/support/period-fixture.ts) yang menutupi
+ * Agustus 2026.
+ */
+const FIXTURE_PERIOD_NAME = 'Fixture Periode Agustus 2026'
 
 /**
  * Mill tanpa satu pun stasiun aktif, sehingga periodenya tidak mendapat baris
@@ -201,6 +211,29 @@ async function createPeriodAndOpenDetail(
   return openStationRow(page, options.name, options.stationLabel ?? STATION_TYPE)
 }
 
+/** Id periode fixture FIXTURE_PERIOD_NAME, dibaca dari GET /api/periods. */
+async function fixturePeriodId(page: Page): Promise<string> {
+  const headers = await statefulHeaders(page)
+
+  for (let pageNo = 1; pageNo <= 50; pageNo += 1) {
+    const response = await page.request.get(`/api/periods?page=${pageNo}&per_page=100`, { headers })
+    expect(response.ok(), `tidak bisa membaca daftar periode: ${response.status()}`).toBe(true)
+
+    const rows = ((await response.json()).data ?? []) as Array<{ id: string; name: string }>
+    const match = rows.find((row) => row.name === FIXTURE_PERIOD_NAME)
+
+    if (match !== undefined) {
+      return match.id
+    }
+
+    if (rows.length < 100) {
+      break
+    }
+  }
+
+  throw new Error(`periode fixture "${FIXTURE_PERIOD_NAME}" tidak ada — jalankan BrowserTestFixtureSeeder`)
+}
+
 /** Satu baris stasiun pada layar detail. */
 function stationRow(page: Page, stationId: string): Locator {
   return page.locator(`[data-testid="period-station-row-${stationId}"]`)
@@ -277,22 +310,20 @@ test.describe('Detail Periode Pelaporan', () => {
 
   // ── Scenario 13 — PINDAH dari screen-128 ──────────────────────────────
   //
-  // BERJALAN PALING AWAL karena jendelanya terkunci di Agustus 2026: ia harus
-  // mencakup 2026-08-05, tanggal record Effluent Plant belum terverifikasi
-  // milik BrowserTestFixtureSeeder. Tanggal itu menyortir DI BAWAH setiap
-  // baris lain yang dibuat spec ini, jadi barisnya hanya dapat diandalkan ada
-  // di halaman 1 selagi daftar masih pendek.
+  // Memakai periode fixture "Fixture Periode Agustus 2026" di "Mill Periode
+  // Uji": jendelanya harus mencakup 2026-08-05, tanggal record Effluent Plant
+  // belum terverifikasi milik BrowserTestFixtureSeeder::periodFixtures().
+  // Id-nya dibaca lewat API, bukan dari daftar, jadi posisinya di daftar yang
+  // dipaginasi tidak berpengaruh.
   test('dialog tutup: angka belum terverifikasi milik stasiun yang ditutup, bukan se-periode', async ({ page }) => {
-    const name = uniqueName('Belum Terverifikasi')
-
     await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
 
-    // Satu periode, seluruh mill — jadi KEDUA jenis stasiun di bawah milik
-    // periode dan rentang tanggal yang sama. Sebelum pemisahan, satu periode
-    // hanya punya satu angka dan perbandingan ini tidak dapat dibuat.
-    await createPeriod(page, { name, start: '2026-08-01', end: '2026-08-15' })
-    const periodId = await periodIdFor(page, name)
+    // Periode FIXTURE, bukan periode buatan test (sejak 2026-10-04): jendela
+    // Agustus 2026 ini membingkai record Effluent Plant belum terverifikasi,
+    // dan periode yang membingkai record tidak bisa dihapus (409
+    // PERIOD_HAS_RECORDS) — periode buatan test akan tertinggal dan menolak
+    // run berikutnya dengan PERIOD_OVERLAP. Lihat FIXTURE_PERIOD_NAME.
+    const periodId = await fixturePeriodId(page)
     await gotoPeriodDetail(page, periodId)
 
     const unverifiedId = await stationIdFor(page, periodId, UNVERIFIED_STATION_TYPE)
@@ -329,12 +360,11 @@ test.describe('Detail Periode Pelaporan', () => {
     await page.locator('[data-testid="confirm-close-button"]').click()
     await expect(page.locator(`[data-testid="station-status-badge-${unverifiedId}"]`)).toHaveText('Tertutup')
 
-    // Pembersihan: ini satu dari dua skenario yang tidak dapat memakai jendela
-    // jauh-di-masa-depan yang unik, jadi ia tidak boleh meninggalkan baris
-    // yang akan menghalangi run berikutnya. Stasiun tertutup harus dibuka
-    // kembali dulu sebelum periodenya dapat dihapus sama sekali.
+    // Stasiunnya dibuka kembali supaya periode fixture tidak tertinggal
+    // terkunci bila spec ini diulang tanpa seed; BrowserTestFixtureSeeder
+    // (globalSetup) tetap mengembalikan seluruh barisnya ke Draft setiap run.
+    // Periodenya TIDAK dihapus — lihat FIXTURE_PERIOD_NAME.
     await reopenStationHere(page, unverifiedId)
-    await deletePeriodFromDetail(page, periodId, name)
   })
 
   // ── usecase-145: halaman detail itu sendiri ───────────────────────────

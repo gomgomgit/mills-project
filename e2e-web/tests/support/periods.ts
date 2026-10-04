@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test'
+import { STATEFUL_REFERER } from './base-url'
 
 /**
  * Pembersihan Periode Pelaporan yang dibuat oleh browser test.
@@ -77,7 +78,8 @@ import type { Page } from '@playwright/test'
  * APIRequestContext milik Playwright TIDAK mengirim Referer sendiri, sehingga
  * tanpa header ini permintaan jatuh ke jalur token dan dijawab 401.
  *
- * Nilainya cukup baseURL aplikasi. Sebelum 2026-09-23 itu tidak berhasil:
+ * Nilainya cukup origin aplikasi (STATEFUL_REFERER, ./base-url — mengikuti
+ * E2E_WEB_BASE_URL, bukan lagi 'http://localhost:8000/' tertulis mati). Sebelum 2026-09-23 itu tidak berhasil:
  * SANCTUM_STATEFUL_DOMAINS di .env menimpa daftar bawaan Laravel dan
  * menghilangkan `localhost:8000`, padahal itulah APP_URL. Sanctum mengubah tiap
  * entri menjadi pola "<entri>/*", jadi entri telanjang "localhost" menghasilkan
@@ -89,7 +91,6 @@ import type { Page } from '@playwright/test'
  * Jalur stateful mengaktifkan CSRF, jadi token XSRF dibaca dari cookie dan
  * dikirim sebagai X-XSRF-TOKEN.
  */
-const STATEFUL_REFERER = 'http://localhost:8000/'
 
 /** Sama dengan Pagination::MAX_PER_PAGE di backend. */
 const MAX_PER_PAGE = 100

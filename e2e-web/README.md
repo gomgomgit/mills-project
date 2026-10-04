@@ -1,6 +1,6 @@
 # e2e-web — browser tests for the Laravel/Livewire web app
 
-317 Playwright tests across 68 spec files, covering the web screens
+557 Playwright tests across 79 spec files (2026-10-04), covering the web screens
 (login, master data, station data browsers/details/forms, dashboard,
 Mills Setting, user management).
 
@@ -25,23 +25,81 @@ Three things had to change before a single one could run:
 
 ## Running them
 
-The suite talks to a running app and a seeded database. It deliberately has
-no Playwright `webServer` block: starting the app blindly would run tests
-against whatever state your database happened to be in.
+The suite talks to a running app and a seeded database — **its own
+database**, `mill_smart_log_e2e`, never the dev database `mill_smart_log`.
+Until 2026-10-04 it ran against the dev server and left its residue there
+(faker corporates, fixture accounts, 282 Weighbridge rows dated year 7278).
+It deliberately has no Playwright `webServer` block: you start the e2e
+server yourself.
 
 ```bash
-# 1. backend, from backend/
-php artisan serve                         # note the port it picks
-php artisan db:seed --class=BrowserTestFixtureSeeder
+# 0. once: the e2e environment file + database
+cp backend/.env.e2e.example backend/.env.e2e   # then fill APP_KEY / DB_* like backend/.env
+createdb mill_smart_log_e2e                    # or: psql -c "CREATE DATABASE mill_smart_log_e2e"
 
-# 2. this suite, from e2e-web/
+# 1. reset + seed the e2e database (DESTRUCTIVE — migrate:fresh)
+cd e2e-web
+npm run db:prepare          # scripts/prepare-db.sh: refuses unless --env=e2e resolves to a *_e2e database
+
+# 2. the e2e server, in its own terminal (leave the dev server on :8000 alone)
+npm run serve               # cd ../backend && php artisan serve --env=e2e --port=8001
+
+# 3. the suite
 npm install
 npx playwright install chromium           # first time only
 npm test
-
-# if the backend is not on 8000:
-E2E_WEB_BASE_URL=http://localhost:8001 npm test
 ```
+
+What each piece does:
+
+- `backend/.env.e2e` — a copy of `.env` with `APP_ENV=e2e`,
+  `APP_URL=http://localhost:8001`, `DB_DATABASE=mill_smart_log_e2e` and
+  `SANCTUM_STATEFUL_DOMAINS` on port 8001. Laravel loads it for every
+  `--env=e2e` command. It must say `APP_ENV=e2e`: `php artisan serve` hands
+  only `APP_ENV` to its child server process, which then picks its env file
+  from that. `.env.e2e` is gitignored; `.env.e2e.example` is the committed
+  template.
+- `scripts/prepare-db.sh` — `migrate:fresh --seed` (DatabaseSeeder: grading
+  parameters, operational targets, demo accounts and the demo station data
+  the dashboards read) plus `BrowserTestFixtureSeeder`.
+- `tests/support/global-setup.ts` — before every run: refuses to start
+  unless `--env=e2e` resolves to a `*_e2e` database AND the suite's baseURL is
+  that environment's `APP_URL` (so `E2E_WEB_BASE_URL=http://localhost:8000`
+  stops the run instead of polluting the dev DB), then re-runs
+  `BrowserTestFixtureSeeder`. The seeder is idempotent and restores what the
+  specs consume (renamed `*-BROWSER-EDIT` records, deactivated accounts, the
+  period fixture), so **a second run without `db:prepare` starts from the
+  same fixture state**. `E2E_SKIP_SEED=1` skips the re-seed when iterating on
+  one spec.
+- `tests/support/global-teardown.ts` and the six `laporan-*` specs —
+  `php artisan e2e:prune-records --force --env=e2e`, which deletes station
+  records (Weighbridge included, by `record_datetime`) and Reporting Periods
+  dated 1970-01-01..2019-12-31: the "lanes" the report specs plant their data
+  in (`tests/support/period-lanes.ts`). The command refuses any environment
+  other than `e2e` with a `*_e2e` database.
+
+Overrides: `E2E_WEB_BASE_URL` (default `http://localhost:8001`) and
+`E2E_BACKEND_ENV` (default `e2e`, the `--env` every artisan call uses).
+
+### Dates: the report specs live in the past
+
+The server rejects station records dated later than tomorrow (WIB;
+`EVENT_DATE_MAX_DAYS_AHEAD`, default 1). The rule stays ON in `.env.e2e` —
+the suite should test the same server production runs. So the six
+`laporan-*` specs, which used to plant their periods and records in year
+2600+, now plant them in 1970–2019 (`laneIsoDate()` / `laneOffset()` in
+`tests/support/period-lanes.ts`), one disjoint lane per spec. A Reporting
+Period that frames station records can no longer be deleted (409
+`PERIOD_HAS_RECORDS`), so those specs sweep their lane with
+`e2e:prune-records` at the start of `beforeAll` and in `afterAll`, before the
+by-prefix period cleanup.
+
+Period specs that need a period framing records (`detail-periode-pelaporan`'s
+"dialog tutup") use the seeded period `Fixture Periode Agustus 2026` in
+`Mill Periode Uji` instead of creating and deleting one; the "Periode Terbuka
+Hari Ini" panel scenarios create their today-period in that record-free mill,
+because `BU Browser Test` holds the undeletable `Prasyarat Form …` period
+(2020-01-01..today+7, `tests/support/period-fixture.ts`).
 
 ## Fixtures
 
@@ -51,6 +109,10 @@ password `Passw0rd!`), a `PL Mill A` production line carrying an active
 station of all 18 types, a `PL Tanpa <Station>` line per family for the
 "production line without this station" scenarios, and the pre-existing
 `*-BROWSER-EDIT` records the edit flows open by name.
+
+It also creates `Mill Periode Uji` (Sterilizer, Clarification and Effluent
+Plant stations, one unverified Effluent Plant record on 2026-08-05 and the
+period `Fixture Periode Agustus 2026` around it) for the Reporting Period specs.
 
 It is idempotent and is deliberately **not** wired into `DatabaseSeeder` —
 it creates accounts with a known password, which has no business running as

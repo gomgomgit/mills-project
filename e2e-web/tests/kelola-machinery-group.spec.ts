@@ -75,6 +75,15 @@ async function selectSearchable(page, id, label) {
   await page.locator(`#${id}-listbox`).getByRole('option', { name: label, exact: true }).click();
 }
 
+// Label pemilih Station kini "Mill — Line — Station" (audit 2026-10-04
+// #9c) — dicocokkan pada akhir label.
+async function selectSearchableEndingWith(page, id, suffix) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}`).fill(suffix);
+  const escaped = suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await page.locator(`#${id}-listbox`).getByRole('option', { name: new RegExp(`(^|— )${escaped}$`) }).first().click();
+}
+
 async function selectSearchableFirst(page, id) {
   await page.locator(`#${id}`).click();
   await page.locator(`#${id}-listbox`).getByRole('option').nth(1).click();
@@ -104,12 +113,12 @@ test.describe('Kelola Machinery Group', () => {
     await gotoMachineryGroups(page);
 
     await page.locator('button', { hasText: 'Tambah Grup' }).click();
-    await selectSearchable(page, 'group_station_id', 'Mill Machinery Group Station Baru');
+    await selectSearchableEndingWith(page, 'group_station_id', 'Mill Machinery Group Station Baru');
 
     // The Production Line field is read-only and auto-populated from the
     // selected Station — never independently typed by the admin.
-    await expect(page.locator('#group_production_line_display')).toHaveValue('Mill Machinery Group PL Baru');
-    await expect(page.locator('#group_production_line_display')).toBeDisabled();
+    // Ditampilkan sebagai teks, bukan input disabled (konvensi web, audit 2026-10-04 #15).
+    await expect(page.locator('#group_production_line_display')).toHaveText('Mill Machinery Group PL Baru');
 
     const uniqueSuffix = Date.now();
     const uniqueCode = `MG-BROWSER-${uniqueSuffix}`;
@@ -132,7 +141,7 @@ test.describe('Kelola Machinery Group', () => {
     const row = await findRow(page, 'MG-BROWSER-SEBELUM-EDIT');
     await row.locator('button', { hasText: 'Edit' }).click();
 
-    await selectSearchable(page, 'group_station_id', 'Mill Machinery Group Station Tujuan Edit');
+    await selectSearchableEndingWith(page, 'group_station_id', 'Mill Machinery Group Station Tujuan Edit');
     const uniqueSuffix = Date.now();
     const newCode = `MG-BROWSER-SESUDAH-EDIT-${uniqueSuffix}`;
     await page.locator('#group_code').fill(newCode);

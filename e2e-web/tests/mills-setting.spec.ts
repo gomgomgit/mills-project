@@ -26,14 +26,58 @@
 
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { pickCombobox, watchProblems } from './support/page-health'
 
 const MILL_SETTINGS_PATH = '/mill-settings';
+
+// Pemilih Mill kini x-searchable-select (audit 2026-10-04 #15), bukan <select>.
+async function pickMill(page, label: string) {
+  await pickCombobox(page, page.locator('#selectedBusinessUnitId'), label)
+}
 
 async function gotoMillSettings(page) {
   await page.goto(MILL_SETTINGS_PATH);
 }
 
 test.describe('Mills Setting', () => {
+  let problems: string[] = []
+  test.beforeEach(({ page }) => {
+    problems = watchProblems(page)
+  })
+  test.afterEach(() => {
+    expect(problems).toEqual([])
+  })
+
+  test('Nama aplikasi kosong ditolak dengan pesan Indonesia (audit #13)', async ({ page }) => {
+    await login(page, 'stest-admin01');
+    await gotoMillSettings(page);
+    await pickMill(page, 'Mill Setting Uji');
+    await page.locator('#app_name').fill('');
+    await page.locator('button.ms-button--primary[type="submit"]').click();
+    await expect(page.getByText('Nama aplikasi wajib diisi.')).toBeVisible();
+    await expect(page.locator('.ms-alert--success')).toHaveCount(0);
+  });
+
+  test('Logo berupa file teks bernama .png ditolak saat dipilih (audit #6)', async ({ page }) => {
+    await login(page, 'stest-admin01');
+    await gotoMillSettings(page);
+    await pickMill(page, 'Mill Setting Uji');
+    await page.locator('input[type="file"][wire\\:model="logo"]').setInputFiles({
+      name: 'logo.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('ini bukan gambar'),
+    });
+    await expect(page.getByText('Logo harus berupa file gambar JPG atau PNG yang valid.')).toBeVisible();
+  });
+
+  test('Icon station dikelompokkan dengan kolom Production Line (audit #10)', async ({ page }) => {
+    await login(page, 'stest-admin01');
+    await gotoMillSettings(page);
+    await pickMill(page, 'Mill Station Icon');
+    await expect(page.locator('.ms-table__head')).toContainText('Production Line');
+    await expect(page.locator('.ms-table__row', { hasText: 'Weighbridge Icon Test' })).toContainText('PL Station Icon');
+  });
+
   // DIPERBARUI 2026-10-03. Tiga hal yang tidak pernah benar sejak spec ini
   // ditulis: (1) mill "Mill A" tidak ada di database mana pun — fixture-nya
   // kini "Mill Setting Uji" dari BrowserTestFixtureSeeder; (2) field
@@ -46,13 +90,13 @@ test.describe('Mills Setting', () => {
     await gotoMillSettings(page);
 
     const appName = `Mill Baru ${Date.now()}`;
-    await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill Setting Uji' });
+    await pickMill(page, 'Mill Setting Uji');
     await page.locator('#app_name').fill(appName);
     await page.locator('button.ms-button--primary[type="submit"]').click();
 
     await expect(page.locator('.ms-alert--success')).toBeVisible();
     await page.reload();
-    await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill Setting Uji' });
+    await pickMill(page, 'Mill Setting Uji');
     await expect(page.locator('#app_name')).toHaveValue(appName);
   });
 
@@ -68,7 +112,7 @@ test.describe('Mills Setting', () => {
     await login(page, 'stest-admin01');
     await gotoMillSettings(page);
 
-    await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill Kosong' });
+    await pickMill(page, 'Mill Kosong');
 
     // #jumlah_cages (dulu default '1') dihapus dari layar 2026-08-20 — yang
     // tersisa untuk diasersi adalah form yang tampil tanpa galat.
@@ -84,7 +128,7 @@ test.describe('Mills Setting', () => {
     await login(page, 'stest-admin01');
     await gotoMillSettings(page);
 
-    await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill A' });
+    await pickMill(page, 'Mill A');
     await page.locator('#jumlah_cages').fill('0');
     await page.locator('button[type="submit"]').click();
 
@@ -108,19 +152,21 @@ test.describe('Mills Setting', () => {
     await login(page, 'stest-admin01');
     await gotoMillSettings(page);
 
-    await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill Station Icon' });
+    await pickMill(page, 'Mill Station Icon');
     const row = page.locator('.ms-table__row', { hasText: 'Weighbridge Icon Test' });
-    await row.locator('select').selectOption('truck');
+    // Pemilih icon kini x-searchable-select per baris (audit 2026-10-04 #15).
+    const picker = row.getByRole('combobox');
+    await pickCombobox(page, picker, 'Truck');
 
     await expect(page.locator('.ms-alert--success')).toBeVisible();
-    await expect(row.locator('select')).toHaveValue('truck');
+    await expect(picker).toHaveValue('Truck');
   });
 
   test('Belum ada station: bagian icon station menampilkan pesan kosong, bukan error', async ({ page }) => {
     await login(page, 'stest-admin01');
     await gotoMillSettings(page);
 
-    await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill Kosong' });
+    await pickMill(page, 'Mill Kosong');
 
     await expect(page.locator('.ms-empty__title')).toContainText('Belum ada station terdaftar');
   });

@@ -1,6 +1,6 @@
 import { expect, type Browser, type Page } from '@playwright/test'
 import { login, PASSWORD } from './auth'
-import { deletePeriodsByPrefix, statefulHeaders } from './periods'
+import { statefulHeaders } from './periods'
 
 /**
  * Prasyarat Periode Pelaporan untuk 18 spec `form-*`.
@@ -30,15 +30,12 @@ import { deletePeriodsByPrefix, statefulHeaders } from './periods'
  * sederhana daripada mengarang periode per tanggal, dan — yang lebih penting
  * — tidak mengubah satu pun tanggal yang diasersi spec-spec itu.
  *
- * Lebarnya tidak menabrak spec lain: seluruh spec yang menanam periode di
- * mill ini memakai tanggal tahun 2100 ke atas (kelola-periode-pelaporan) atau
- * 2600 ke atas (lima spec laporan, lihat tests/support/period-lanes.ts),
- * SATU pengecualian adalah tiga skenario panel "Periode Terbuka Hari Ini"
- * yang memakai kemarin..besok di mill yang sama. Itu sebabnya periode ini
- * DIHAPUS di afterAll setiap spec, bukan ditinggalkan sebagai fixture
- * permanen: Playwright di repo ini berjalan serial (`workers: 1`,
- * `fullyParallel: false`), jadi periode ini hanya hidup selama spec yang
- * memakainya berjalan.
+ * Lebarnya tidak menabrak spec lain: kelola-periode-pelaporan menanam
+ * periodenya di "BU Browser Test" pada tahun 2100 ke atas, spec laporan-* di
+ * mill lain pada 1970-2019 (tests/support/period-lanes.ts), dan skenario
+ * yang butuh "hari ini" atau Agustus 2026 memakai "Mill Periode Uji"
+ * (BrowserTestFixtureSeeder::periodFixtures). Sejak 2026-10-04 periode ini
+ * TIDAK dihapus di afterAll — lihat removeOpenPeriodForForms().
  *
  * ── MENGAPA LEWAT API, BUKAN LEWAT UI ────────────────────────────────────
  *
@@ -118,11 +115,9 @@ export async function seedOpenPeriodForForms(browser: Browser, stationType: stri
 
   const headers = await statefulHeaders(page)
 
-  // Sisa run yang mati sebelum afterAll-nya jalan akan menolak pembuatan di
-  // bawah dengan 422 PERIOD_OVERLAP. Dibersihkan lebih dulu, memakai helper
-  // yang sama dengan spec laporan — ia juga membuka kembali stasiun yang
-  // tertutup, yang tanpa itu membuat DELETE dijawab 409.
-  await deletePeriodsByPrefix(page, [FIXTURE_PREFIX])
+  // TIDAK lagi menghapus sisa lebih dulu (2026-10-04): periode prasyarat
+  // yang sudah membingkai record ditolak 409 PERIOD_HAS_RECORDS, jadi sisanya
+  // DIPAKAI ULANG di bawah (findPeriodByPrefix) alih-alih dihapus.
 
   const units = await page.request.get('/api/periods/business-units/options', { headers })
   expect(units.ok(), `tidak bisa membaca daftar mill: ${units.status()}`).toBe(true)
@@ -133,21 +128,39 @@ export async function seedOpenPeriodForForms(browser: Browser, stationType: stri
   expect(businessUnitId, `mill "${FIXTURE_BUSINESS_UNIT}" tidak ada — jalankan BrowserTestFixtureSeeder`)
     .toBeTruthy()
 
-  const name = `${FIXTURE_PREFIX}${Date.now()}`
+  // SISA YANG TIDAK BISA DIHAPUS DIPAKAI ULANG (2026-10-04). Sejak
+  // PeriodService::delete() menolak periode yang sudah BERISI record stasiun
+  // (409 PERIOD_HAS_RECORDS), periode prasyarat yang sempat dipakai spec
+  // `form-*` untuk menyimpan record tidak pernah lagi bisa dihapus — dan
+  // record stasiun memang tidak punya jalur hapus. Membuat periode baru di
+  // sampingnya akan ditolak 422 PERIOD_OVERLAP, jadi sisanya diperluas
+  // sampai hari ini + 7 dan dipakai lagi.
+  const leftover = await findPeriodByPrefix(page, headers, FIXTURE_PREFIX, businessUnitId!)
+  const name = leftover?.name ?? `${FIXTURE_PREFIX}${Date.now()}`
 
-  const created = await page.request.post('/api/periods', {
-    headers,
-    data: {
-      business_unit_id: businessUnitId,
-      name,
-      start_date: FIXTURE_START,
-      end_date: isoDay(7),
-    },
-  })
+  const created = leftover !== undefined
+    ? await page.request.patch(`/api/periods/${leftover.id}`, {
+      headers,
+      data: {
+        business_unit_id: businessUnitId,
+        name,
+        start_date: FIXTURE_START,
+        end_date: isoDay(7),
+      },
+    })
+    : await page.request.post('/api/periods', {
+      headers,
+      data: {
+        business_unit_id: businessUnitId,
+        name,
+        start_date: FIXTURE_START,
+        end_date: isoDay(7),
+      },
+    })
 
   expect(
     created.ok(),
-    `gagal membuat periode prasyarat (${created.status()}): ${await created.text()}`,
+    `gagal menyiapkan periode prasyarat (${created.status()}): ${await created.text()}`,
   ).toBe(true)
 
   // Baris stasiunnya dibaca dari DAFTAR, bukan dari respons POST: daftar
@@ -176,18 +189,43 @@ export async function seedOpenPeriodForForms(browser: Browser, stationType: stri
 }
 
 /**
- * Menghapus periode prasyarat. Dipanggil dari afterAll dengan `page` yang
- * dikembalikan seedOpenPeriodForForms(), lalu menutup page itu.
+ * Menutup `page` milik seedOpenPeriodForForms(). Dipanggil dari afterAll.
  *
- * Membersihkan BERDASARKAN AWALAN, bukan id, supaya sisa run lain ikut
- * terbawa dan tidak pernah menjadi PERIOD_OVERLAP di run berikutnya.
+ * PERIODENYA SENGAJA TIDAK DIHAPUS (sejak 2026-10-04). Setelah spec `form-*`
+ * menyimpan record di dalamnya, PeriodService::delete() menolaknya dengan
+ * 409 PERIOD_HAS_RECORDS — dan record stasiun memang tidak punya jalur hapus.
+ * Mencoba menghapusnya di setiap afterAll hanya menghasilkan 18 peringatan
+ * 409 per run. Periode ini kini fixture yang hidup sepanjang database e2e:
+ * spec berikutnya memakainya ulang (findPeriodByPrefix), dan
+ * e2e-web/scripts/prepare-db.sh membuangnya bersama seluruh database.
  */
 export async function removeOpenPeriodForForms(page: Page): Promise<void> {
-  try {
-    await deletePeriodsByPrefix(page, [FIXTURE_PREFIX])
-  } finally {
-    await page.close()
+  await page.close()
+}
+
+async function findPeriodByPrefix(
+  page: Page,
+  headers: Record<string, string>,
+  prefix: string,
+  businessUnitId: string,
+): Promise<PeriodRow | undefined> {
+  for (let pageNo = 1; pageNo <= 50; pageNo += 1) {
+    const response = await page.request.get(`/api/periods?page=${pageNo}&per_page=100`, { headers })
+    expect(response.ok(), `tidak bisa membaca daftar periode: ${response.status()}`).toBe(true)
+
+    const rows = ((await response.json()).data ?? []) as PeriodRow[]
+    const match = rows.find((row) => row.name.startsWith(prefix) && row.business_unit_id === businessUnitId)
+
+    if (match !== undefined) {
+      return match
+    }
+
+    if (rows.length < 100) {
+      return undefined
+    }
   }
+
+  return undefined
 }
 
 async function stationRowsOf(

@@ -15,6 +15,7 @@
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
@@ -104,4 +105,49 @@ it('returns 403 FORBIDDEN for all endpoints when the authenticated user is not A
     $response = $this->actingAs($this->supervisor, 'web')->getJson('/api/users');
 
     $response->assertStatus(403);
+});
+
+// Temuan audit 2026-10-05 #8: Reset Password oleh Admin hanya ada di
+// Livewire; PATCH /api/users/{id} membuang `password`. Sekarang API memakai
+// jalur UserService::update() yang sama: PasswordPolicy, kosong = tak berubah.
+it('reset password: PATCH /api/users/{id} dengan password mengganti password (aturan PasswordPolicy yang sama dengan Livewire)', function () {
+    $oldHash = $this->supervisor->password_hash;
+
+    $this->actingAs($this->admin, 'web')->patchJson("/api/users/{$this->supervisor->id}", [
+        'name' => $this->supervisor->name,
+        'role' => 'supervisor',
+        'business_unit_id' => $this->businessUnit->id,
+        'password' => 'BaruSekali1!',
+    ])->assertOk()->assertJsonMissingPath('password_hash');
+
+    $fresh = $this->supervisor->fresh();
+    expect($fresh->password_hash)->not->toBe($oldHash);
+    expect(Hash::check('BaruSekali1!', $fresh->password_hash))->toBeTrue();
+});
+
+it('reset password: PATCH /api/users/{id} dengan password lemah → 422 errors.password, password tidak berubah', function () {
+    $oldHash = $this->supervisor->password_hash;
+
+    $this->actingAs($this->admin, 'web')->patchJson("/api/users/{$this->supervisor->id}", [
+        'name' => $this->supervisor->name,
+        'role' => 'supervisor',
+        'business_unit_id' => $this->businessUnit->id,
+        'password' => 'abc',
+    ])->assertStatus(422)->assertJsonValidationErrors(['password']);
+
+    expect($this->supervisor->fresh()->password_hash)->toBe($oldHash);
+});
+
+it('reset password: PATCH /api/users/{id} tanpa password / password kosong tidak mengubah password', function () {
+    $oldHash = $this->supervisor->password_hash;
+
+    foreach ([[], ['password' => ''], ['password' => null]] as $extra) {
+        $this->actingAs($this->admin, 'web')->patchJson("/api/users/{$this->supervisor->id}", array_merge([
+            'name' => $this->supervisor->name,
+            'role' => 'supervisor',
+            'business_unit_id' => $this->businessUnit->id,
+        ], $extra))->assertOk();
+    }
+
+    expect($this->supervisor->fresh()->password_hash)->toBe($oldHash);
 });

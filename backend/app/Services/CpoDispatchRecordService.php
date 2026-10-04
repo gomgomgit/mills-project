@@ -444,8 +444,8 @@ class CpoDispatchRecordService
                             $handle->row(array_merge($context, [
                                 optional($detail->event_date)->toDateString(),
                                 $detail->shift,
-                                $detail->time_in,
-                                $detail->time_out,
+                                ExportValue::time($detail->time_in),
+                                ExportValue::time($detail->time_out),
                                 $detail->waybill_number,
                                 $detail->tanker_plate_no,
                                 $detail->transport_company,

@@ -93,12 +93,12 @@
                                 <td>{{ \App\Support\Display::value($row['steam_turbine_rpm']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['steam_turbine_alternator_bearing_temp_1_c']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['steam_turbine_alternator_bearing_temp_2_c']) }}</td>
-                                <td>{{ \App\Support\Display::value($row['diesel_gen_1_status']) }}</td>
+                                <td>{{ \App\Support\Display::option($row['diesel_gen_1_status']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['diesel_gen_1_load_kw']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['diesel_gen_1_amperage_a']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['diesel_gen_1_jacket_water_temp_c']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['diesel_gen_1_lube_oil_pressure_bar']) }}</td>
-                                <td>{{ \App\Support\Display::value($row['diesel_gen_2_status']) }}</td>
+                                <td>{{ \App\Support\Display::option($row['diesel_gen_2_status']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['diesel_gen_2_load_kw']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['diesel_gen_2_amperage_a']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['diesel_gen_2_jacket_water_temp_c']) }}</td>

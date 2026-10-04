@@ -374,7 +374,10 @@ trait ScopesToActorMill
             return $actorMillId;
         }
 
-        return ($requestedMillId === null || $requestedMillId === '') ? null : $requestedMillId;
+        // Nilai bukan UUID (temuan audit 2026-10-05 #6) diperlakukan seperti
+        // kosong = semua mill: di PostgreSQL nilai seperti itu pada kolom uuid
+        // memicu SQLSTATE 22P02 (500 di Livewire). SQLite menerimanya diam-diam.
+        return ($requestedMillId === null || $requestedMillId === '' || ! Str::isUuid($requestedMillId)) ? null : $requestedMillId;
     }
 
     /**
@@ -448,6 +451,14 @@ trait ScopesToActorMill
     {
         if ($requestedLineId === null || $requestedLineId === '') {
             return null; // "Semua Line" — the default.
+        }
+
+        // Bukan UUID → "Semua Line", sama seperti line yang tidak dikenal —
+        // dan TANPA query: whereKey('bukan-uuid') pada kolom uuid PostgreSQL
+        // melempar SQLSTATE 22P02 (Data Browser Livewire → 500, API → 422).
+        // Temuan audit 2026-10-05 #6; SQLite di suite menelannya diam-diam.
+        if (! Str::isUuid($requestedLineId)) {
+            return null;
         }
 
         $query = ProductionLine::query()->whereKey($requestedLineId);
@@ -572,7 +583,8 @@ trait ScopesToActorMill
     protected function forcedMillFilterValue(?Authenticatable $user, string $current): string
     {
         if ($user instanceof User && $this->actorRoleValue($user) === UserRole::Admin->value) {
-            return $current;
+            // Nilai bukan UUID dibuang ke '' (= semua mill), lihat resolveReadMillId().
+            return ($current === '' || Str::isUuid($current)) ? $current : '';
         }
 
         return (string) ($user->business_unit_id ?? '');

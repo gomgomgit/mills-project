@@ -38,8 +38,10 @@ class RecordVerificationStatusController extends Controller
 
         $modelClass = $this->service->modelForStationType($stationType);
 
+        // abort() → ApiExceptionHandler: { message, code: NOT_FOUND }, amplop
+        // standar seperti endpoint lain (temuan audit 2026-10-05 #11).
         if ($modelClass === null) {
-            return response()->json(['message' => 'Jenis stasiun tidak dikenal.'], 404);
+            abort(404, 'Jenis stasiun tidak dikenal.');
         }
 
         return response()->json([

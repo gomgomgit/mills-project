@@ -146,7 +146,7 @@ class KelolaUserRole extends Component
 
         try {
             if ($this->editingId !== null) {
-                $service->update($this->editingId, $this->form);
+                $service->update($this->editingId, $this->form, auth()->user());
             } else {
                 $service->create($this->form);
             }

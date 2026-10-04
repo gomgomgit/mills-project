@@ -252,7 +252,7 @@ Route::middleware(['auth', 'role:admin'])
 // Session-guarded ('auth') + role-guarded (admin only, per
 // screen_tech_spec.actor_permissions — supervisor/mill_management/operator
 // all have can_access=false for this screen). EnsureRole::forbidden()
-// aborts(403) with Laravel's default HTML error page for any non-admin
+// aborts(403) with the app's 403 page (resources/views/errors/403.blade.php) for any non-admin
 // session before App\Livewire\MasterData\KelolaCorporate ever mounts —
 // satisfies the "non-admin sees an access-denied state, no list/controls
 // rendered" requirement at the routing layer.
@@ -265,7 +265,7 @@ Route::middleware(['auth', 'role:admin'])
 // screen_tech_spec.actor_permissions — supervisor/mill_management/operator
 // all have can_access=false for this screen). Mirrors screen-027's
 // registration pattern exactly — EnsureRole::forbidden() aborts(403) with
-// Laravel's default HTML error page for any non-admin session before
+// the app's 403 page (resources/views/errors/403.blade.php) for any non-admin session before
 // App\Livewire\MasterData\KelolaCompany ever mounts.
 Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/companies', KelolaCompany::class)
@@ -276,7 +276,7 @@ Route::middleware(['auth', 'role:admin'])
 // screen_tech_spec.actor_permissions — supervisor/mill_management/operator
 // all have can_access=false for this screen). Mirrors screen-027/028's
 // registration pattern exactly — EnsureRole::forbidden() aborts(403) with
-// Laravel's default HTML error page for any non-admin session before
+// the app's 403 page (resources/views/errors/403.blade.php) for any non-admin session before
 // App\Livewire\MasterData\KelolaBusinessUnit ever mounts.
 Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/business-units', KelolaBusinessUnit::class)
@@ -287,7 +287,7 @@ Route::middleware(['auth', 'role:admin'])
 // screen_tech_spec.actor_permissions — supervisor/mill_management/operator
 // all have can_access=false for this screen). Mirrors screen-027/028/029's
 // registration pattern exactly — EnsureRole::forbidden() aborts(403) with
-// Laravel's default HTML error page for any non-admin session before
+// the app's 403 page (resources/views/errors/403.blade.php) for any non-admin session before
 // App\Livewire\MasterData\KelolaProductionLine ever mounts. Inserted here
 // (between Business Unit and Station) to mirror the hierarchy: Business
 // Unit → Production Line → Station.
@@ -300,7 +300,7 @@ Route::middleware(['auth', 'role:admin'])
 // screen_tech_spec.actor_permissions — supervisor/mill_management/operator
 // all have can_access=false for this screen). Mirrors screen-027/028/029's
 // registration pattern exactly — EnsureRole::forbidden() aborts(403) with
-// Laravel's default HTML error page for any non-admin session before
+// the app's 403 page (resources/views/errors/403.blade.php) for any non-admin session before
 // App\Livewire\MasterData\KelolaStation ever mounts.
 Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/stations', KelolaStation::class)
@@ -328,9 +328,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 // screen_tech_spec.actor_permissions — supervisor/mill_management/
 // operator all have can_access=false for this screen). Mirrors
 // screen-027/028/029/030/033's registration pattern exactly —
-// EnsureRole::forbidden() aborts(403) with Laravel's default HTML error
-// page for any non-admin session before App\Livewire\MasterData\
-// KelolaMachinery ever mounts. This is the LAST screen of this
+// EnsureRole::forbidden() aborts(403) with the app's 403 page
+// (resources/views/errors/403.blade.php) for any non-admin session before
+// App\Livewire\MasterData\KelolaMachinery ever mounts. This is the LAST screen of this
 // master-data round.
 Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/machinery', KelolaMachinery::class)
@@ -353,9 +353,9 @@ Route::middleware(['auth', 'role:admin,mill_management'])
 // screen_tech_spec.actor_permissions — supervisor/mill_management/
 // operator all have can_access=false for this screen). Mirrors
 // screen-027/028/029/030/031/033's registration pattern exactly —
-// EnsureRole::forbidden() aborts(403) with Laravel's default HTML error
-// page for any non-admin session before App\Livewire\UserManagement\
-// KelolaUserRole ever mounts.
+// EnsureRole::forbidden() aborts(403) with the app's 403 page
+// (resources/views/errors/403.blade.php) for any non-admin session before
+// App\Livewire\UserManagement\KelolaUserRole ever mounts.
 Route::middleware(['auth', 'role:admin'])
     ->get('/users', KelolaUserRole::class)
     ->name('users.index');
@@ -740,9 +740,9 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // screen_tech_spec.actor_permissions — supervisor / mill_management /
 // operator all have can_access=false for this screen, closure actions
 // included). Mirrors screen-027/028/029/030/031/033's registration
-// pattern exactly — EnsureRole::forbidden() aborts(403) with Laravel's
-// default HTML error page for any non-admin session before
-// App\Livewire\MasterData\KelolaPeriodePelaporan ever mounts.
+// pattern exactly — EnsureRole::forbidden() aborts(403) with the app's
+// 403 page (resources/views/errors/403.blade.php) for any non-admin session
+// before App\Livewire\MasterData\KelolaPeriodePelaporan ever mounts.
 Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/periods', KelolaPeriodePelaporan::class)
     ->name('master-data.periods');

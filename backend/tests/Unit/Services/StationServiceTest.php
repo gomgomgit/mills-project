@@ -29,11 +29,29 @@
 
 use App\Enums\StationType;
 use App\Exceptions\StationHasMachineryException;
+use App\Models\BoilerRoomRecord;
 use App\Models\BusinessUnit;
+use App\Models\CagesTrackRecord;
+use App\Models\ClarificationRecord;
+use App\Models\CpoDispatchRecord;
+use App\Models\DepricarpingRecord;
+use App\Models\EffluentPlantRecord;
+use App\Models\EngineRoomRecord;
+use App\Models\GradingRecord;
+use App\Models\KernelDispatchRecord;
+use App\Models\KernelPlantRecord;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\PressingRecord;
+use App\Models\ProcessQualityControlRecord;
+use App\Models\ProcessWaterRecord;
 use App\Models\ProductionLine;
+use App\Models\SolidWasteDisposalRecord;
 use App\Models\Station;
+use App\Models\SterilizerRecord;
+use App\Models\StorageTankRecord;
+use App\Models\ThreshingRecord;
+use App\Models\WeighbridgeRecord;
 use App\Services\StationService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -512,6 +530,61 @@ it('throws a StationHasMachineryException when deleting a station that has a rel
         ->toThrow(StationHasMachineryException::class);
 
     expect(Station::find($station->id))->not->toBeNull();
+});
+
+// Delete-guard record stasiun (temuan audit 2026-10-05 #1): station yang
+// sudah punya record di SALAH SATU dari 18 tabel record dulu lolos guard
+// lalu kena FK restrictOnDelete → QueryException → 500. Sekarang 409
+// dengan pesan ramah, station tetap ada.
+dataset('station_record_models', [
+    'boiler room' => [BoilerRoomRecord::class],
+    'cages track' => [CagesTrackRecord::class],
+    'clarification' => [ClarificationRecord::class],
+    'cpo dispatch' => [CpoDispatchRecord::class],
+    'depricarping' => [DepricarpingRecord::class],
+    'effluent plant' => [EffluentPlantRecord::class],
+    'engine room' => [EngineRoomRecord::class],
+    'grading' => [GradingRecord::class],
+    'kernel dispatch' => [KernelDispatchRecord::class],
+    'kernel plant' => [KernelPlantRecord::class],
+    'pressing' => [PressingRecord::class],
+    'process quality control' => [ProcessQualityControlRecord::class],
+    'process water' => [ProcessWaterRecord::class],
+    'solid waste disposal' => [SolidWasteDisposalRecord::class],
+    'sterilizer' => [SterilizerRecord::class],
+    'storage tank' => [StorageTankRecord::class],
+    'threshing' => [ThreshingRecord::class],
+    'weighbridge' => [WeighbridgeRecord::class],
+]);
+
+it('throws a StationHasMachineryException (409) when deleting a station that has station records', function (string $model) {
+    $station = Station::factory()->create();
+    $model::factory()->create(['station_id' => $station->id, 'production_line_id' => $station->production_line_id]);
+
+    try {
+        $this->service->delete($station->id);
+        $this->fail('Expected StationHasMachineryException was not thrown.');
+    } catch (StationHasMachineryException $e) {
+        expect($e->getStatusCode())->toBe(409);
+        expect($e->getMessage())->toContain('1 record stasiun');
+    }
+
+    expect(Station::find($station->id))->not->toBeNull();
+})->with('station_record_models');
+
+// Semua 18 tabel tercakup oleh guard — daftar dataset di atas harus sama
+// dengan StationService::RECORD_TABLES (tabel record baru wajib ikut).
+it('covers every station record table in the delete guard', function () {
+    $tables = collect([
+        BoilerRoomRecord::class, CagesTrackRecord::class, ClarificationRecord::class,
+        CpoDispatchRecord::class, DepricarpingRecord::class, EffluentPlantRecord::class,
+        EngineRoomRecord::class, GradingRecord::class, KernelDispatchRecord::class,
+        KernelPlantRecord::class, PressingRecord::class, ProcessQualityControlRecord::class,
+        ProcessWaterRecord::class, SolidWasteDisposalRecord::class, SterilizerRecord::class,
+        StorageTankRecord::class, ThreshingRecord::class, WeighbridgeRecord::class,
+    ])->map(fn ($m) => (new $m)->getTable())->sort()->values()->all();
+
+    expect($tables)->toBe(collect(StationService::RECORD_TABLES)->sort()->values()->all());
 });
 
 // Happy path — delete: success, the station is actually removed when it

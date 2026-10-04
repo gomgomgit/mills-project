@@ -66,6 +66,7 @@ use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\ProductionLine;
 use App\Models\Station;
+use App\Models\SterilizerRecord;
 use App\Models\User;
 use Livewire\Livewire;
 
@@ -182,6 +183,22 @@ it('Hapus Station ditolak: shows an inline error and keeps the row when it has a
         ->call('confirmDelete')
         ->assertSet('confirmingDeleteId', null)
         ->assertSet('deleteErrorMessage', fn ($message) => ! empty($message));
+
+    expect(Station::find($station->id))->not->toBeNull();
+});
+
+// Temuan audit 2026-10-05 #1: station dengan record stasiun dulu membuat
+// confirmDelete melempar QueryException (FK) → halaman error 500.
+it('Hapus Station ditolak: shows an inline error (no 500) when the station has station records', function () {
+    $station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
+    SterilizerRecord::factory()->create(['station_id' => $station->id, 'production_line_id' => $station->production_line_id]);
+
+    Livewire::actingAs($this->admin)
+        ->test(KelolaStation::class)
+        ->call('askDelete', $station->id)
+        ->call('confirmDelete')
+        ->assertSet('confirmingDeleteId', null)
+        ->assertSet('deleteErrorMessage', fn ($message) => str_contains((string) $message, 'record stasiun'));
 
     expect(Station::find($station->id))->not->toBeNull();
 });

@@ -54,11 +54,15 @@ class StationController extends Controller
         $page = max((int) $request->query('page', Pagination::DEFAULT_PAGE), 1);
         $perPage = Pagination::resolvePerPage($request);
         $businessUnitId = $request->query('business_unit_id');
+        // Ditambahkan 2026-10-05 (temuan audit #7): filter Production Line
+        // yang sama dengan layar Livewire KelolaStation.
+        $productionLineId = $request->query('production_line_id');
 
         $result = $this->service->listStations(
             $page,
             $perPage,
-            $businessUnitId !== null ? (string) $businessUnitId : null
+            is_string($businessUnitId) ? $businessUnitId : null,
+            is_string($productionLineId) ? $productionLineId : null,
         );
 
         return response()->json($result);

@@ -309,3 +309,23 @@ it('cakupan mill: Admin tetap bisa memilih mill lain dan melihat WB Card No-nya'
             return in_array('WB-MILL-B-999', $cards, true) && ! in_array('WB-GR-001', $cards, true);
         });
 });
+
+// ─── AUDIT 2026-10-05 #2: label Business Unit mode edit ───────────────────
+// Sampai 2026-10-05 FormGrading mode edit mengisi $businessUnitName dengan
+// NAMA STASIUN (station_name) — bug yang sama dengan FormWeighbridge yang
+// sudah diperbaiki 2026-10-04. Sekarang nama mill + Production Line record.
+it('edit: label Business Unit berisi nama mill (bukan nama stasiun) dan Production Line tampil', function () {
+    $this->businessUnit->update(['name' => 'Mill Grading Label']);
+    $this->gradingStation->update(['name' => 'Stasiun Grading Label']);
+    $record = GradingRecord::factory()->forStation($this->gradingStation)->create([
+        'weighbridge_record_id' => $this->weighbridgeRecord->id,
+    ]);
+    $lineName = $record->productionLine?->name;
+    expect($lineName)->not->toBeNull();
+
+    Livewire::actingAs($this->supervisor)
+        ->test(FormGrading::class, ['id' => $record->id])
+        ->assertSet('businessUnitName', 'Mill Grading Label')
+        ->assertSet('productionLineName', $lineName)
+        ->assertSeeHtml('data-testid="production-line-readonly"');
+});

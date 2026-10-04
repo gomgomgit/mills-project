@@ -616,7 +616,8 @@ class GradingRecordService
         // diketahui, dan 403 baru muncul saat save.
         $record = $this->scopeQueryToActorMill(
             GradingRecord::with([
-                'station',
+                'station.businessUnit',
+                'productionLine',
                 'weighbridgeRecord',
                 'acknowledgedBy',
                 'gradingDetails.gradingParameter',
@@ -639,6 +640,13 @@ class GradingRecordService
             'id' => $record->id,
             'station_id' => $record->station_id,
             'station_name' => $record->station?->name,
+            // Ditambahkan 2026-10-05 (additif), mengikuti WeighbridgeRecord
+            // Service::toDetailRow(): Form Grading web mode edit menampilkan
+            // Business Unit (dari stasiun — record tak menyimpan
+            // business_unit_id) dan Production Line (kolom snapshot record).
+            'business_unit_name' => $record->station?->businessUnit?->name,
+            'production_line_id' => $record->production_line_id,
+            'production_line_name' => $record->productionLine?->name,
             'grading_number' => $record->grading_number,
             'date' => optional($record->date)->toIso8601String(),
             'weighbridge_record_id' => $record->weighbridge_record_id,

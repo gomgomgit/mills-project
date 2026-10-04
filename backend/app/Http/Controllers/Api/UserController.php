@@ -57,13 +57,19 @@ class UserController extends Controller
     /**
      * update() — PATCH /api/users/{id}. business_logic step "update":
      * validate id exists → 404 if not → validate name/role/business_unit_id
-     * → 422 if invalid → update (password_hash untouched).
+     * → 422 if invalid → update. `password` opsional = Reset Password oleh
+     * Admin (2026-10-05, temuan audit #8 — sebelumnya hanya di Livewire):
+     * jalur UserService::update() yang SAMA dengan layar KelolaUserRole,
+     * jadi aturannya identik (PasswordPolicy; kosong/tidak dikirim = tidak
+     * berubah; reset mencabut token & sesi web akun itu, kecuali sesi saat
+     * ini bila Admin mereset password-nya sendiri).
      */
     public function update(Request $request, string $id): JsonResponse
     {
         $user = $this->service->update(
             $id,
-            $request->only(['name', 'role', 'business_unit_id'])
+            $request->only(['name', 'role', 'business_unit_id', 'password']),
+            $request->user(),
         );
 
         return response()->json($user);

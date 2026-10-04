@@ -91,6 +91,40 @@ class Display
      * menjadi Ya/Tidak, kosong menjadi "-", teks lain apa adanya. String
      * numerik SENGAJA tidak diformat — kode seperti "007" harus tetap utuh.
      */
+    /**
+     * Label pilihan enum di baris detail stasiun (temuan audit 2026-10-05
+     * #5) — sama dengan label <option> di Form web/mobile; y/n Boiler Room
+     * sebagai Ya/Tidak seperti ekspor laporan Boiler Room. Dipakai layar
+     * Detail web DAN ekspor Data Browser (ExportValue::option()) supaya
+     * keduanya selalu sama.
+     */
+    public const OPTION_LABELS = [
+        // Effluent Plant: biogas_flare_status
+        'on' => 'On',
+        'off' => 'Off',
+        'fault' => 'Fault',
+        // Effluent Plant: dosing_pump_1_status / sludge_dewatering_status;
+        // Engine Room: diesel_gen_*_status (run/standby/off)
+        'run' => 'Run',
+        'stop' => 'Stop',
+        'standby' => 'Standby',
+        // Boiler Room: blowdown_executed / sootblowing_executed
+        'y' => 'Ya',
+        'n' => 'Tidak',
+    ];
+
+    /** Label pilihan enum (OPTION_LABELS); kosong → "-", tak dikenal → apa adanya. */
+    public static function option(mixed $value): string
+    {
+        $raw = $value instanceof \BackedEnum ? (string) $value->value : (string) ($value ?? '');
+
+        if ($raw === '') {
+            return '-';
+        }
+
+        return self::OPTION_LABELS[$raw] ?? $raw;
+    }
+
     public static function value(mixed $value): string
     {
         if ($value === null || $value === '') {

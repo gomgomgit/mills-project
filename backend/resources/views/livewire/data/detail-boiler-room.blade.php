@@ -87,8 +87,8 @@
                                 <td>{{ \App\Support\Display::value($row['sa_fan_load']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['exhaust_gas_temp_c']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['dust_collector_differential_pressure_mmh2o']) }}</td>
-                                <td>{{ \App\Support\Display::value($row['blowdown_executed']) }}</td>
-                                <td>{{ \App\Support\Display::value($row['sootblowing_executed']) }}</td>
+                                <td>{{ \App\Support\Display::option($row['blowdown_executed']) }}</td>
+                                <td>{{ \App\Support\Display::option($row['sootblowing_executed']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>
                         @empty

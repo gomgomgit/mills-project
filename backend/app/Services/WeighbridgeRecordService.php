@@ -11,7 +11,7 @@ use App\Models\WeighbridgeRecord;
 use App\Support\AppTime;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
-use App\Support\Display;
+use App\Support\ExportValue;
 use App\Support\Pagination;
 use App\Support\SheetWriter;
 use Illuminate\Database\Eloquent\Builder;
@@ -102,7 +102,8 @@ class WeighbridgeRecordService
                 // Judul kolom = label layar Detail Weighbridge (temuan audit
                 // 2026-10-04 #8), termasuk Checked By / Acknowledged By seperti
                 // ekspor stasiun lain. Status memakai label Indonesia
-                // (Display::status), waktu tanpa detik.
+                // (ExportValue::status — sama dengan 17 ekspor lain), waktu
+                // tanpa detik.
                 $handle->row([
                     'Production Line',
                     'No. WB Card',
@@ -144,7 +145,7 @@ class WeighbridgeRecordService
                         $record->quantity,
                         $record->checkedBy?->name,
                         $record->acknowledgedBy?->name,
-                        Display::status($record->status),
+                        ExportValue::status($record->status),
                     ]);
                 }
 

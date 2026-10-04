@@ -45,8 +45,11 @@ class RecordVerificationController extends Controller
 
         $modelClass = $this->service->modelForStationType($stationType);
 
+        // abort() alih-alih response()->json() (temuan audit 2026-10-05 #11):
+        // lewat ApiExceptionHandler supaya amplop error-nya standar —
+        // { message, code: NOT_FOUND / FORBIDDEN } — sama dengan endpoint lain.
         if ($modelClass === null) {
-            return response()->json(['message' => 'Jenis stasiun tidak dikenal.'], 404);
+            abort(404, 'Jenis stasiun tidak dikenal.');
         }
 
         try {
@@ -58,9 +61,9 @@ class RecordVerificationController extends Controller
                 $validated['value'],
             );
         } catch (UnauthorizedException $e) {
-            return response()->json(['message' => $e->getMessage()], 403);
+            abort(403, $e->getMessage());
         } catch (ModelNotFoundException) {
-            return response()->json(['message' => 'Record tidak ditemukan.'], 404);
+            abort(404, 'Record tidak ditemukan.');
         }
 
         $record = $modelClass::query()->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])->findOrFail($id);

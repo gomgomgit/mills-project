@@ -46,6 +46,19 @@ async function pickOption(page: Page, id: string, nth: number): Promise<string> 
   return label
 }
 
+// Business Unit fixture yang PASTI punya Production Line
+// (BrowserTestFixtureSeeder). Dulu BU dipilih menurut posisi (opsi ke-1/ke-2),
+// dan BU di posisi itu bergantung isi database — bila tanpa line, listbox
+// Production Line kosong dan klik opsinya menunggu sampai timeout.
+const BU_WITH_LINE_A = 'Mill Station Baru'
+const BU_WITH_LINE_B = 'Mill Station Tujuan Edit'
+
+async function pickByLabel(page: Page, id: string, label: string): Promise<void> {
+  await page.locator(`#${id}`).click()
+  await page.locator(`#${id}`).fill(label)
+  await page.locator(`#${id}-listbox`).getByRole('option', { name: label, exact: true }).click()
+}
+
 async function expectHealthyCombobox(page: Page, id: string) {
   const listbox = page.locator(`#${id}-listbox`)
   // Tertutup setelah dipilih — tidak menutupi kolom di bawahnya.
@@ -67,12 +80,12 @@ test.describe('x-searchable-select bergantung (BU → Production Line)', () => {
     await page.goto('/master-data/stations')
 
     await page.locator('button', { hasText: 'Tambah Station' }).click()
-    await pickOption(page, 'business_unit_id', 1)
+    await pickByLabel(page, 'business_unit_id', BU_WITH_LINE_A)
     await pickOption(page, 'production_line_id', 1)
     await expectHealthyCombobox(page, 'production_line_id')
 
     // Ganti BU lagi — jalur yang dulu memicu pageerror.
-    await pickOption(page, 'business_unit_id', 2)
+    await pickByLabel(page, 'business_unit_id', BU_WITH_LINE_B)
     await expect(page.locator('#production_line_id')).toHaveValue('-- Pilih Production Line --')
     await pickOption(page, 'production_line_id', 1)
     await expectHealthyCombobox(page, 'production_line_id')
@@ -91,9 +104,9 @@ test.describe('x-searchable-select bergantung (BU → Production Line)', () => {
     await login(page, 'stest-admin01', PASSWORD)
     await page.goto('/data/weighbridge')
 
-    await pickOption(page, 'business_unit_id', 1)
+    await pickByLabel(page, 'business_unit_id', BU_WITH_LINE_A)
     await pickOption(page, 'production_line_id', 1)
-    await pickOption(page, 'business_unit_id', 2)
+    await pickByLabel(page, 'business_unit_id', BU_WITH_LINE_B)
     await expect(page.locator('#production_line_id-listbox')).toBeHidden()
     await page.locator('#production_line_id').click()
     const labels = await page.locator('#production_line_id-listbox').getByRole('option').allTextContents()

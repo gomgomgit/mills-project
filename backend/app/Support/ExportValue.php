@@ -77,6 +77,17 @@ class ExportValue
         return self::VALVE_LABELS[(string) $value] ?? (string) $value;
     }
 
+    /**
+     * Label pilihan enum detail stasiun (on/off/fault, run/stop/standby,
+     * y/n) — sama dengan layar Detail (Display::OPTION_LABELS); kosong → null.
+     */
+    public static function option(mixed $value): ?string
+    {
+        $label = Display::option($value);
+
+        return $label === '-' ? null : $label;
+    }
+
     /** Boolean ya/tidak sebagaimana layar Detail ("Ya" / "Tidak"). */
     public static function yesNo(mixed $value): ?string
     {

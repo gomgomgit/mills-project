@@ -94,6 +94,9 @@ class FormGrading extends Component
 
     public ?string $businessUnitName = null;
 
+    /** Nama Production Line record (mode edit, tampil sebagai teks). */
+    public ?string $productionLineName = null;
+
     /** @var array<int, array{id: string, name: string}> */
     public array $businessUnitOptions = [];
 
@@ -165,7 +168,11 @@ class FormGrading extends Component
         }
 
         $this->form['date'] = $record['date'] ? Carbon::parse($record['date'])->format('Y-m-d') : '';
-        $this->businessUnitName = $record['station_name'] ?? null;
+        // Sampai 2026-10-05 label "Business Unit" diisi NAMA STASIUN
+        // (station_name) dan Production Line tidak tampil — bug yang sama
+        // dengan FormWeighbridge (diperbaiki 2026-10-04).
+        $this->businessUnitName = $record['business_unit_name'] ?? null;
+        $this->productionLineName = $record['production_line_name'] ?? null;
         $this->acknowledged = filled($record['acknowledged_by_name']);
 
         $this->detailRows = collect($record['details'])

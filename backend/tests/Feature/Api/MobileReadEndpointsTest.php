@@ -200,3 +200,22 @@ it('verification status: jenis stasiun tidak dikenal → 404, sama dengan PATCH-
         ->assertNotFound()
         ->assertJsonPath('message', 'Jenis stasiun tidak dikenal.');
 });
+
+// Temuan audit 2026-10-05 #11: 404 verifikasi hanya membawa `message`;
+// sekarang amplop error standar dengan `code` NOT_FOUND seperti endpoint lain.
+it('verification: 404 (jenis stasiun tak dikenal / record tak ada) membawa code NOT_FOUND', function () {
+    $this->actingAs($this->operator, 'web')
+        ->getJson(verificationStatusUrl('bukan-stasiun', [$this->record->id]))
+        ->assertNotFound()
+        ->assertExactJson(['message' => 'Jenis stasiun tidak dikenal.', 'code' => 'NOT_FOUND']);
+
+    $this->actingAs($this->supervisor, 'web')
+        ->patchJson("/api/records/bukan-stasiun/{$this->record->id}/verification", ['level' => 'checked', 'value' => true])
+        ->assertNotFound()
+        ->assertExactJson(['message' => 'Jenis stasiun tidak dikenal.', 'code' => 'NOT_FOUND']);
+
+    $this->actingAs($this->supervisor, 'web')
+        ->patchJson('/api/records/cages-track/'.Str::uuid().'/verification', ['level' => 'checked', 'value' => true])
+        ->assertNotFound()
+        ->assertExactJson(['message' => 'Record tidak ditemukan.', 'code' => 'NOT_FOUND']);
+});

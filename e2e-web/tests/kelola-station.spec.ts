@@ -80,6 +80,11 @@ import { watchProblems } from './support/page-health'
 
 const STATIONS_PATH = '/master-data/stations';
 
+// Business Unit fixture dengan minimal satu Production Line (dibuat
+// BrowserTestFixtureSeeder) — pilihan deterministik untuk skenario yang
+// tidak peduli BU mana yang dipakai.
+const FIXTURE_BU_WITH_LINE = 'Mill Station Baru';
+
 
 async function gotoStations(page) {
   await page.goto(STATIONS_PATH);
@@ -206,7 +211,11 @@ test.describe('Kelola Station', () => {
     await gotoStations(page);
 
     await page.locator('button', { hasText: 'Tambah Station' }).click();
-    await selectSearchableFirst(page, 'business_unit_id');
+    // BU fixture yang PASTI punya Production Line (BrowserTestFixtureSeeder).
+    // Dulu selectSearchableFirst() memilih BU pertama menurut abjad — BU itu
+    // tergantung isi database dan bisa tanpa line, sehingga daftar line
+    // kosong dan klik opsi line menunggu sampai timeout.
+    await selectSearchable(page, 'business_unit_id', FIXTURE_BU_WITH_LINE);
     await selectSearchableFirst(page, 'production_line_id');
     await chooseOtherInactive(page);
     await page.locator('#name').fill('Weighbridge Kode Duplikat');
@@ -250,7 +259,11 @@ test.describe('Kelola Station', () => {
     await gotoStations(page);
 
     await page.locator('button', { hasText: 'Tambah Station' }).click();
-    await selectSearchableFirst(page, 'business_unit_id');
+    // BU fixture yang PASTI punya Production Line (BrowserTestFixtureSeeder).
+    // Dulu selectSearchableFirst() memilih BU pertama menurut abjad — BU itu
+    // tergantung isi database dan bisa tanpa line, sehingga daftar line
+    // kosong dan klik opsi line menunggu sampai timeout.
+    await selectSearchable(page, 'business_unit_id', FIXTURE_BU_WITH_LINE);
     await selectSearchableFirst(page, 'production_line_id');
     await selectSearchable(page, 'type', 'Other');
     const uniqueSuffix = Date.now();

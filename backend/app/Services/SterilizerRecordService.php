@@ -258,7 +258,9 @@ class SterilizerRecordService
      * 2026-10-04). Dari peran lain nilai kiriman DIABAIKAN, bukan ditolak —
      * menolak seluruh simpan karena satu kotak centang akan membuat Operator
      * tidak bisa menyimpan log-nya sama sekali. Baris lama mempertahankan
-     * nilainya yang tersimpan; baris baru selalu false.
+     * nilainya yang tersimpan — dikenali lewat id, atau (baris tanpa id)
+     * lewat sterilizer_no + close_door_time; baris yang benar-benar baru
+     * selalu false.
      */
     protected function upsertDetails(SterilizerRecord $record, array $details, ?User $actor = null): void
     {
@@ -267,6 +269,25 @@ class SterilizerRecordService
         $validRows = collect($details)->filter(fn ($row) => filled($row['close_door_time'] ?? null));
 
         $keptIds = [];
+
+        // Baris tersimpan yang BELUM diklaim baris kiriman ber-id — dipakai
+        // untuk mewarisi checked_by_spv bila non-Supervisor mengirim baris
+        // TANPA id (payload gaya sinkron mobile / klien API yang mengganti
+        // semua baris). Sampai 2026-10-05 baris seperti itu dianggap baru →
+        // false, sehingga centang SPV Supervisor hilang (temuan audit #4).
+        // Kunci alaminya: sterilizer_no + close_door_time (satu siklus rebus).
+        $claimableSpv = collect();
+        if (! $actorIsSupervisor && $record->exists) {
+            $sentIds = $validRows->pluck('id')->filter(fn ($id) => filled($id) && Str::isUuid((string) $id))->all();
+            $claimableSpv = SterilizerDetail::where('sterilizer_record_id', $record->id)
+                ->whereNotIn('id', $sentIds)
+                ->get(['id', 'sterilizer_no', 'close_door_time', 'checked_by_spv'])
+                ->map(fn ($d) => [
+                    'key' => $this->spvMatchKey($d->sterilizer_no, $d->close_door_time),
+                    'checked_by_spv' => (bool) $d->checked_by_spv,
+                ])
+                ->values();
+        }
 
         foreach ($validRows as $row) {
             $durationMinutes = $this->computeDurationMinutes($row['close_door_time'] ?? null, $row['open_door_time'] ?? null);
@@ -296,7 +317,19 @@ class SterilizerRecordService
                 : null;
 
             if (! $actorIsSupervisor) {
-                $detailAttributes['checked_by_spv'] = $existing !== null ? (bool) $existing->checked_by_spv : false;
+                if ($existing !== null) {
+                    $detailAttributes['checked_by_spv'] = (bool) $existing->checked_by_spv;
+                } else {
+                    $key = $this->spvMatchKey($row['sterilizer_no'] ?? null, $row['close_door_time'] ?? null);
+                    $matchIndex = $claimableSpv->search(fn ($candidate) => $candidate['key'] === $key);
+                    $detailAttributes['checked_by_spv'] = $matchIndex !== false
+                        ? $claimableSpv[$matchIndex]['checked_by_spv']
+                        : false;
+
+                    if ($matchIndex !== false) {
+                        $claimableSpv->forget($matchIndex);
+                    }
+                }
             }
 
             if ($existing !== null) {
@@ -311,6 +344,15 @@ class SterilizerRecordService
         SterilizerDetail::where('sterilizer_record_id', $record->id)
             ->whereNotIn('id', $keptIds)
             ->delete();
+    }
+
+    /**
+     * Kunci pencocokan baris tanpa id ke baris tersimpan: sterilizer_no +
+     * close_door_time (HH:MM — kolom TIME tersimpan bisa "07:00:00").
+     */
+    protected function spvMatchKey(mixed $sterilizerNo, mixed $closeDoorTime): string
+    {
+        return trim((string) $sterilizerNo).'|'.substr(trim((string) $closeDoorTime), 0, 5);
     }
 
     /**

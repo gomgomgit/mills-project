@@ -42,6 +42,8 @@ class User extends Authenticatable
     protected $casts = [
         'role' => UserRole::class,
         'is_active' => 'boolean',
+        // Lihat migrasi 2026_10_05_000001 / EnsureUserIsActive.
+        'sessions_revoked_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

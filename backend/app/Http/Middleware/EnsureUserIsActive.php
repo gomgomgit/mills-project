@@ -19,6 +19,10 @@ use Symfony\Component\HttpFoundation\Response;
  *   - selain itu     → redirect ke Login dengan pesan (Livewire mengikuti
  *                      redirect ini sendiri lewat response.redirected).
  *
+ * Sejak 2026-10-05 juga mengeluarkan sesi yang dibuat SEBELUM
+ * users.sessions_revoked_at (Reset Password oleh Admin — lihat
+ * UserService::update()), dengan pesan REVOKED_MESSAGE.
+ *
  * Hanya guard 'web' (sesi) yang diperiksa di sini. Token Sanctum (mobile)
  * ditolak lewat Sanctum::authenticateAccessTokensUsing() di
  * AppServiceProvider dan dicabut saat penonaktifan (UserService::setStatus()).
@@ -26,6 +30,17 @@ use Symfony\Component\HttpFoundation\Response;
 class EnsureUserIsActive
 {
     public const MESSAGE = 'Akun Anda telah dinonaktifkan, hubungi Admin.';
+
+    public const REVOKED_MESSAGE = 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.';
+
+    /**
+     * Kunci sesi: kapan sesi ini login (milidetik epoch). Ditulis saat
+     * event Login (AppServiceProvider) dan, untuk sesi lama yang belum
+     * punya, pada request pertama yang melihatnya. Sesi yang stempelnya
+     * LEBIH TUA dari users.sessions_revoked_at dikeluarkan (Reset Password
+     * oleh Admin, 2026-10-05).
+     */
+    public const SESSION_AUTH_AT = 'auth_session_started_at_ms';
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -36,17 +51,37 @@ class EnsureUserIsActive
         $user = Auth::guard('web')->user();
 
         if ($user && ! $user->is_active) {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            return $this->logOut($request, self::MESSAGE);
+        }
 
-            if ($request->expectsJson() && ! $request->hasHeader('X-Livewire')) {
-                return response()->json(['message' => self::MESSAGE], 401);
+        if ($user) {
+            $startedAt = $request->session()->get(self::SESSION_AUTH_AT);
+
+            if ($startedAt === null) {
+                $startedAt = now()->getTimestampMs();
+                $request->session()->put(self::SESSION_AUTH_AT, $startedAt);
             }
 
-            return redirect()->route('login')->with('auth_error', self::MESSAGE);
+            $revokedAt = $user->sessions_revoked_at;
+
+            if ($revokedAt !== null && (int) $startedAt < $revokedAt->getTimestampMs()) {
+                return $this->logOut($request, self::REVOKED_MESSAGE);
+            }
         }
 
         return $next($request);
+    }
+
+    protected function logOut(Request $request, string $message): Response
+    {
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        if ($request->expectsJson() && ! $request->hasHeader('X-Livewire')) {
+            return response()->json(['message' => $message], 401);
+        }
+
+        return redirect()->route('login')->with('auth_error', $message);
     }
 }

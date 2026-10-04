@@ -85,7 +85,7 @@
                                 <td>{{ \App\Support\Display::value($row['anaerobic_pond_2_temp_c']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['cooling_pond_ph']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['cooling_pond_temp_c']) }}</td>
-                                <td>{{ \App\Support\Display::value($row['biogas_flare_status']) }}</td>
+                                <td>{{ \App\Support\Display::option($row['biogas_flare_status']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['biogas_flow_rate_m3h']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['raw_pome_feed_rate_m3h']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['effluent_discharge_flow_rate_m3h']) }}</td>
@@ -93,9 +93,9 @@
                                 <td>{{ \App\Support\Display::value($row['final_discharge_bod_mgl_lab']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['final_discharge_cod_mgl_lab']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['final_discharge_tss_mgl_lab']) }}</td>
-                                <td>{{ \App\Support\Display::value($row['dosing_pump_1_status']) }}</td>
+                                <td>{{ \App\Support\Display::option($row['dosing_pump_1_status']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['chemical_consumed_kgl']) }}</td>
-                                <td>{{ \App\Support\Display::value($row['sludge_dewatering_status']) }}</td>
+                                <td>{{ \App\Support\Display::option($row['sludge_dewatering_status']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['remarks_maintenance_actions']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>

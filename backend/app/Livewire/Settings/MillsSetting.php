@@ -220,8 +220,10 @@ class MillsSetting extends Component
 
     /**
      * File dicek SAAT DIPILIH (bukan baru saat Simpan): file yang bukan
-     * gambar sungguhan langsung ditolak dan dibuang dari form, jadi tidak
-     * ada pratinjau rusak dan tidak ada yang bisa tersimpan.
+     * gambar sungguhan langsung ditolak dengan pesan di bawah kolomnya dan
+     * pratinjaunya disembunyikan selama ada error. File-nya TIDAK dibuang
+     * dari properti (lihat ValidatesUploadOnSelect): save() memvalidasi
+     * ulang dan menolaknya lagi, jadi tidak ada yang bisa tersimpan.
      */
     public function updatedLogo(): void
     {

@@ -50,6 +50,11 @@
                         <span class="fg-field__label">Business Unit</span>
                         <span class="fg-field__readonly" data-testid="business-unit-readonly">{{ $businessUnitName ?? '-' }}</span>
                     </div>
+
+                    <div class="fg-field">
+                        <span class="fg-field__label">Production Line</span>
+                        <span class="fg-field__readonly" data-testid="production-line-readonly">{{ $productionLineName ?? '-' }}</span>
+                    </div>
                 @endif
 
                 <div class="fg-field">

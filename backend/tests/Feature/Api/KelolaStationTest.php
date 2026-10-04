@@ -38,11 +38,13 @@
 use App\Enums\StationType;
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
+use App\Models\CpoDispatchRecord;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     // Shared business unit for all beforeEach users (mirrors
@@ -151,6 +153,19 @@ it('Hapus Station ditolak: returns 409 STATION_HAS_MACHINERY and keeps the row w
 
     $response->assertStatus(409);
     $response->assertJsonStructure(['message']);
+    expect(Station::find($station->id))->not->toBeNull();
+});
+
+// Temuan audit 2026-10-05 #1: station yang sudah punya record stasiun dulu
+// menghasilkan 500 (FK restrictOnDelete); sekarang 409 + pesan, bukan 500.
+it('Hapus Station ditolak: returns 409 (not 500) and keeps the row when it has station records', function () {
+    $station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
+    CpoDispatchRecord::factory()->create(['station_id' => $station->id, 'production_line_id' => $station->production_line_id]);
+
+    $response = $this->actingAs($this->admin, 'web')->deleteJson("/api/stations/{$station->id}");
+
+    $response->assertStatus(409);
+    expect($response->json('message'))->toContain('record stasiun');
     expect(Station::find($station->id))->not->toBeNull();
 });
 
@@ -527,4 +542,36 @@ it('paginates the station list by page and per_page query params', function () {
         ],
     ]);
     expect($response->json('data'))->toHaveCount(1);
+});
+
+// Temuan audit 2026-10-05 #7: GET /api/stations mengabaikan
+// production_line_id (layar Livewire KelolaStation sudah mendukungnya).
+it('list: GET /api/stations?production_line_id= menyaring per Production Line seperti layar Livewire', function () {
+    $otherLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $inLine = Station::factory()->forBusinessUnit($this->businessUnit)->create(['production_line_id' => $this->productionLine->id, 'name' => 'Stasiun Line A']);
+    $outLine = Station::factory()->forBusinessUnit($this->businessUnit)->create(['production_line_id' => $otherLine->id, 'name' => 'Stasiun Line B']);
+
+    $response = $this->actingAs($this->admin, 'web')->getJson('/api/stations?per_page=100&production_line_id='.$this->productionLine->id);
+
+    $response->assertOk();
+    $ids = collect($response->json('data'))->pluck('id');
+    expect($ids)->toContain($inLine->id)->not->toContain($outLine->id);
+    expect(collect($response->json('data'))->pluck('production_line_id')->unique()->values()->all())->toBe([$this->productionLine->id]);
+});
+
+// Nilai filter bukan UUID diabaikan (= tanpa filter), bukan 422/500 dari
+// PostgreSQL (SQLSTATE 22P02).
+it('list: GET /api/stations dengan production_line_id / business_unit_id bukan UUID diabaikan (200)', function () {
+    Station::factory()->forBusinessUnit($this->businessUnit)->create();
+
+    $bindings = [];
+    DB::listen(function ($query) use (&$bindings) {
+        array_push($bindings, ...$query->bindings);
+    });
+
+    $this->actingAs($this->admin, 'web')->getJson('/api/stations?production_line_id=bukan-uuid&business_unit_id=juga-bukan')
+        ->assertOk()
+        ->assertJsonPath('meta.total', Station::count());
+
+    expect($bindings)->not->toContain('bukan-uuid')->not->toContain('juga-bukan');
 });

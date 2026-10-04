@@ -285,7 +285,8 @@ class StorageTankReportService
      * StorageTankRecordService::READING_FIELDS order, INCLUDING the steam
      * valve enum and the three text columns, verbatim.
      *
-     * 4 context + 1 slot + 17 readings = 22 columns.
+     * 7 context (EXPORT_CONTEXT_COLUMN_COUNT) + 1 slot + 17 readings = 25
+     * columns.
      *
      * @var array<int, string>
      */
@@ -1524,16 +1525,6 @@ class StorageTankReportService
             ->diffInDays($period->end_date->copy()->startOfDay()) + 1;
     }
 
-    /**
-     * time_slot as hour-and-minute, the way it is stored and the way the
-     * export writes it: "06:00".
-     *
-     * The column is a native TIME, so a driver may hand back "06:00:00" or
-     * "06:00"; both normalise to the same five characters here. It is NEVER
-     * turned into an integer hour and never widened into a full datetime —
-     * casting to an integer would collapse 06:00 and 06:30 into one slot and
-     * would sort 00:30 after 10:00.
-     */
     /** Backed enum atau string → teks nilai mentahnya (null tetap null). */
     protected function enumText(mixed $value): ?string
     {
@@ -1544,6 +1535,16 @@ class StorageTankReportService
         return $value instanceof \BackedEnum ? (string) $value->value : (string) $value;
     }
 
+    /**
+     * time_slot as hour-and-minute, the way it is stored and the way the
+     * export writes it: "06:00".
+     *
+     * The column is a native TIME, so a driver may hand back "06:00:00" or
+     * "06:00"; both normalise to the same five characters here. It is NEVER
+     * turned into an integer hour and never widened into a full datetime —
+     * casting to an integer would collapse 06:00 and 06:30 into one slot and
+     * would sort 00:30 after 10:00.
+     */
     protected function timeSlotValue(mixed $timeSlot): string
     {
         $value = trim((string) $timeSlot);

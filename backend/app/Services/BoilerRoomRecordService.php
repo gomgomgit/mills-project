@@ -550,8 +550,8 @@ class BoilerRoomRecordService
                                 $detail->sa_fan_load,
                                 $detail->exhaust_gas_temp_c,
                                 $detail->dust_collector_differential_pressure_mmh2o,
-                                $detail->blowdown_executed,
-                                $detail->sootblowing_executed,
+                                ExportValue::option($detail->blowdown_executed),
+                                ExportValue::option($detail->sootblowing_executed),
                                 $detail->findings,
                             ]));
                         }

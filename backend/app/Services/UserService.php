@@ -4,11 +4,13 @@ namespace App\Services;
 
 use App\Enums\UserRole;
 use App\Exceptions\CannotDeactivateSelfException;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Models\BusinessUnit;
 use App\Models\User;
 use App\Support\Pagination;
 use App\Support\PasswordPolicy;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -103,16 +105,20 @@ class UserService
      * update() — business_logic step "update": validate id exists → 404
      * if not → validate name required → validate role required →
      * validate business_unit_id required unless role=admin → 422 if any
-     * invalid → update name/role/business_unit_id. password_hash is
-     * NEVER touched here — no password field accepted by this method at
-     * all (see class docblock).
+     * invalid → update name/role/business_unit_id. `password` opsional =
+     * Reset Password oleh Admin (2026-10-04): bila diisi, divalidasi dengan
+     * PasswordPolicy lalu password_hash diganti; kosong = tidak berubah.
+     * Dipakai layar KelolaUserRole DAN PATCH /api/users/{id} (sejak
+     * 2026-10-05). Reset mencabut SEMUA token Sanctum dan sesi web akun itu
+     * (keputusan 2026-10-05) — kecuali sesi web saat ini bila $actor
+     * mereset password-nya sendiri. Lihat revokeWebSessions().
      *
      * @param  array<string, mixed>  $data
      *
      * @throws ModelNotFoundException
      * @throws ValidationException
      */
-    public function update(string $id, array $data): array
+    public function update(string $id, array $data, ?User $actor = null): array
     {
         $user = User::findOrFail($id);
 
@@ -127,14 +133,65 @@ class UserService
         ];
 
         // Reset Password oleh Admin — opsional; kosong = tidak berubah.
-        if ($attributes['password'] !== '') {
+        $passwordReset = $attributes['password'] !== '';
+
+        if ($passwordReset) {
             $changes['password_hash'] = Hash::make($attributes['password']);
+            $changes['sessions_revoked_at'] = now();
         }
 
-        $user->update($changes);
+        DB::transaction(function () use ($user, $changes, $passwordReset) {
+            $user->forceFill($changes)->save();
+
+            if ($passwordReset) {
+                $user->tokens()->delete();
+            }
+        });
+
+        if ($passwordReset) {
+            $this->revokeWebSessions($user, $actor);
+        }
+
         $user->load('businessUnit');
 
         return $this->toRow($user);
+    }
+
+    /**
+     * Sesi web akun yang password-nya direset dicabut lewat
+     * users.sessions_revoked_at (diperiksa EnsureUserIsActive pada request
+     * berikutnya) — SESSION_DRIVER=file tidak bisa dihapus per user. Bila
+     * driver-nya database, baris sesinya juga langsung dihapus.
+     *
+     * Pengecualian (keputusan 2026-10-05): Admin yang mereset password-nya
+     * SENDIRI tetap memegang sesi web saat ini — stempel sesi ini diperbarui
+     * sehingga tidak lebih tua dari waktu pencabutan. Sesinya di perangkat
+     * lain tetap tercabut.
+     */
+    protected function revokeWebSessions(User $user, ?User $actor): void
+    {
+        // Store sesi aplikasi (instance yang sama dengan sesi request web /
+        // Livewire yang sedang berjalan); tidak "started" di CLI/antrian.
+        $session = app()->bound('session') ? app('session')->driver() : null;
+
+        $keepCurrent = $actor !== null
+            && $actor->getKey() === $user->getKey()
+            && $session !== null
+            && $session->isStarted();
+
+        if (config('session.driver') === 'database') {
+            DB::table(config('session.table', 'sessions'))
+                ->where('user_id', $user->getKey())
+                ->when($keepCurrent, fn ($q) => $q->where('id', '!=', $session->getId()))
+                ->delete();
+        }
+
+        if ($keepCurrent) {
+            $session->put(
+                EnsureUserIsActive::SESSION_AUTH_AT,
+                $user->sessions_revoked_at->getTimestampMs(),
+            );
+        }
     }
 
     /**

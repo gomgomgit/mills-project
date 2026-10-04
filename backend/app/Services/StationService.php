@@ -15,6 +15,7 @@ use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -70,11 +71,14 @@ class StationService
             )
             ->orderBy('name');
 
-        if ($businessUnitId !== null && $businessUnitId !== '') {
+        // Nilai bukan UUID diabaikan (= tanpa filter), bukan diteruskan ke
+        // query: kolom uuid PostgreSQL melempar SQLSTATE 22P02 untuknya
+        // (temuan audit 2026-10-05 #6/#7).
+        if ($businessUnitId !== null && Str::isUuid($businessUnitId)) {
             $query->where('business_unit_id', $businessUnitId);
         }
 
-        if ($productionLineId !== null && $productionLineId !== '') {
+        if ($productionLineId !== null && Str::isUuid($productionLineId)) {
             $query->where('production_line_id', $productionLineId);
         }
 
@@ -277,7 +281,9 @@ class StationService
      * delete() — business_logic step "delete": validate id exists → 404
      * if not → count MachineryGroup WHERE station_id=id + count Machinery
      * WHERE station_id=id → 409 STATION_HAS_MACHINERY if EITHER count is
-     * non-zero → else delete.
+     * non-zero → else delete. Juga 409 (exception & status yang sama, pesan
+     * menyebut jumlah record) bila station masih punya record di salah satu
+     * dari 18 tabel RECORD_TABLES.
      *
      * @throws ModelNotFoundException
      * @throws StationHasMachineryException
@@ -286,14 +292,41 @@ class StationService
     {
         $station = Station::findOrFail($id);
 
-        $machineryGroupCount = MachineryGroup::where('station_id', $id)->count();
-        $machineryCount = Machinery::where('station_id', $id)->count();
+        DB::transaction(function () use ($station) {
+            Station::query()->whereKey($station->id)->lockForUpdate()->first();
 
-        if ($machineryGroupCount > 0 || $machineryCount > 0) {
-            throw new StationHasMachineryException;
-        }
+            // Record stasiun (18 tabel, FK station_id restrictOnDelete) ikut
+            // dihitung: tanpa ini station yang sudah punya record lolos guard
+            // lalu DELETE gagal di FK → 500 (temuan audit 2026-10-05 #1).
+            // Pola pesan mengikuti ProductionLineService::delete().
+            $recordCount = 0;
 
-        $station->delete();
+            foreach (self::RECORD_TABLES as $table) {
+                $recordCount += DB::table($table)->where('station_id', $station->id)->count();
+            }
+
+            $machineryGroupCount = MachineryGroup::where('station_id', $station->id)->count();
+            $machineryCount = Machinery::where('station_id', $station->id)->count();
+
+            if ($recordCount > 0) {
+                $blockers = array_filter([
+                    "{$recordCount} record stasiun",
+                    $machineryGroupCount > 0 ? "{$machineryGroupCount} Machinery Group" : null,
+                    $machineryCount > 0 ? "{$machineryCount} Machinery" : null,
+                ]);
+
+                throw new StationHasMachineryException(
+                    'Station tidak dapat dihapus karena masih memiliki '
+                    .implode(', ', $blockers).'. Hapus atau pindahkan data tersebut terlebih dahulu.'
+                );
+            }
+
+            if ($machineryGroupCount > 0 || $machineryCount > 0) {
+                throw new StationHasMachineryException;
+            }
+
+            $station->delete();
+        });
     }
 
     /**

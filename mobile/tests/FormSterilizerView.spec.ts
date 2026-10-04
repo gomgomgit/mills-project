@@ -296,11 +296,27 @@ describe('FormSterilizerView', () => {
     expect(wrapper.find('.confirm-dialog').exists()).toBe(false)
   })
 
-  it('Checked By checkbox is disabled for a non-supervisor role', async () => {
+  it('Checked By checkbox is not rendered for a non-supervisor role', async () => {
     const wrapper = mount(FormSterilizerView)
     await flushPromises()
 
-    expect((wrapper.get('[data-testid="checked-by-checkbox"]').element as HTMLInputElement).disabled).toBe(true)
+    // Sejak 2026-10-04 checkbox verifikasi hanya dirender untuk peran yang
+    // berhak, seragam dengan form stasiun lain (dulu: nonaktif untuk semua).
+    expect(wrapper.find('[data-testid="checked-by-checkbox"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="acknowledged-by-checkbox"]').exists()).toBe(false)
+  })
+
+  it('Acknowledged By checkbox is rendered (and Checked By is not) for a mill_management role', async () => {
+    useAuthStoreMock.mockReturnValue({
+      currentUser: { id: 'user-1', username: 'mm01', name: 'Mill Management Satu', role: 'mill_management' },
+      logout: vi.fn().mockResolvedValue(undefined),
+    })
+
+    const wrapper = mount(FormSterilizerView)
+    await flushPromises()
+
+    expect((wrapper.get('[data-testid="acknowledged-by-checkbox"]').element as HTMLInputElement).disabled).toBe(false)
+    expect(wrapper.find('[data-testid="checked-by-checkbox"]').exists()).toBe(false)
   })
 
   it('Checked By checkbox is enabled for a supervisor role', async () => {
@@ -313,5 +329,6 @@ describe('FormSterilizerView', () => {
     await flushPromises()
 
     expect((wrapper.get('[data-testid="checked-by-checkbox"]').element as HTMLInputElement).disabled).toBe(false)
+    expect(wrapper.find('[data-testid="acknowledged-by-checkbox"]').exists()).toBe(false)
   })
 })

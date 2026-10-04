@@ -67,9 +67,9 @@ test.describe('Form Sterilizer (screen-122)', () => {
     await page.getByTestId('add-row-button').click()
     await fillCompleteRow(page, 0, { no: '1', close: '07:00', open: '08:10' })
 
-    // Operator cannot touch the header verification fields.
-    await expect(page.getByTestId('checked-by-checkbox')).toBeDisabled()
-    await expect(page.getByTestId('acknowledged-by-checkbox')).toBeDisabled()
+    // Operator tidak melihat checkbox verifikasi header (hanya peran yang berhak).
+    await expect(page.getByTestId('checked-by-checkbox')).toHaveCount(0)
+    await expect(page.getByTestId('acknowledged-by-checkbox')).toHaveCount(0)
 
     await page.getByTestId('save-button').click()
     await page.waitForURL('**/stations/sterilizer/monitor')
@@ -85,7 +85,7 @@ test.describe('Form Sterilizer (screen-122)', () => {
 
     await page.locator('#sterilizer_id').fill('STR-E2E-SPV')
     await expect(page.getByTestId('checked-by-checkbox')).toBeEnabled()
-    await expect(page.getByTestId('acknowledged-by-checkbox')).toBeDisabled()
+    await expect(page.getByTestId('acknowledged-by-checkbox')).toHaveCount(0)
     await page.getByTestId('checked-by-checkbox').check()
 
     await page.getByTestId('add-row-button').click()
@@ -156,9 +156,8 @@ test.describe('Form Sterilizer (screen-122)', () => {
   test('Input Data Sterilizer — Checked By Khusus Supervisor', async ({ page }) => {
     await openNewDraft(page)
 
-    await expect(page.getByTestId('checked-by-checkbox')).toBeVisible()
-    await expect(page.getByTestId('checked-by-checkbox')).toBeDisabled()
-    await expect(page.getByTestId('acknowledged-by-checkbox')).toBeDisabled()
+    await expect(page.getByTestId('checked-by-checkbox')).toHaveCount(0)
+    await expect(page.getByTestId('acknowledged-by-checkbox')).toHaveCount(0)
   })
 
   test('Input Data Sterilizer — Hapus Baris Log Siklus', async ({ page }) => {

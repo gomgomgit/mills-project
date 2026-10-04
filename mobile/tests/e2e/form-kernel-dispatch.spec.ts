@@ -99,9 +99,9 @@ test.describe('Form Kernel Dispatch (screen-073)', () => {
     await page.getByTestId('add-row-button').click()
     await fillValidRow(page, 0, todayLocal())
 
-    // Operator: both verification checkboxes disabled.
-    await expect(page.getByTestId('checked-by-checkbox')).toBeDisabled()
-    await expect(page.getByTestId('acknowledged-by-checkbox')).toBeDisabled()
+    // Operator: kedua checkbox verifikasi tidak dirender (hanya peran yang berhak).
+    await expect(page.getByTestId('checked-by-checkbox')).toHaveCount(0)
+    await expect(page.getByTestId('acknowledged-by-checkbox')).toHaveCount(0)
 
     await page.getByTestId('save-button').click()
     await page.waitForURL(`**${MONITOR_PATH}`)
@@ -126,7 +126,7 @@ test.describe('Form Kernel Dispatch (screen-073)', () => {
     await page.locator(ID_FIELD).fill('KD-E2E-SPV')
     await expect(page.getByTestId('checked-by-checkbox')).toBeEnabled()
     await page.getByTestId('checked-by-checkbox').check()
-    await expect(page.getByTestId('acknowledged-by-checkbox')).toBeDisabled()
+    await expect(page.getByTestId('acknowledged-by-checkbox')).toHaveCount(0)
     await page.getByTestId('add-row-button').click()
     await fillValidRow(page, 0, todayLocal())
 
@@ -206,10 +206,8 @@ test.describe('Form Kernel Dispatch (screen-073)', () => {
     await openNewDraft(page)
 
     const checkedBy = page.getByTestId('checked-by-checkbox')
-    await expect(checkedBy).toBeVisible()
-    await expect(checkedBy).toBeDisabled()
-    await expect(checkedBy).not.toBeChecked()
-    await expect(page.getByTestId('acknowledged-by-checkbox')).toBeDisabled()
+    await expect(checkedBy).toHaveCount(0)
+    await expect(page.getByTestId('acknowledged-by-checkbox')).toHaveCount(0)
   })
 
   test('Input Data Kernel Dispatch — Tambah Baris Tidak Dibatasi', async ({ page }) => {

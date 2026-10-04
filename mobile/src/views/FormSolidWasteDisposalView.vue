@@ -460,22 +460,26 @@ function goToMonitor() {
 
       <section class="form-section">
         <h2 class="section-title">Verifikasi</h2>
+        <!-- Sejak 2026-10-04 checkbox verifikasi hanya DIRENDER untuk peran yang
+             berhak (Checked By: Supervisor, Acknowledged By: Mill Management),
+             seragam dengan konvensi 2026-09-14 di form stasiun lain —
+             sebelumnya ditampilkan nonaktif untuk semua peran. -->
         <p class="readonly-field">Inputted By: {{ authStore.currentUser?.name ?? '-' }}</p>
-        <label class="checkbox-field">
+        <label v-if="isSupervisor" class="checkbox-field">
           <input
             type="checkbox"
             :checked="!!form.checked_by"
-            :disabled="!isSupervisor"
+            :disabled="actionInProgress"
             data-testid="checked-by-checkbox"
             @change="form.checked_by = ($event.target as HTMLInputElement).checked ? (authStore.currentUser?.id ?? '') : ''"
           />
           Checked By (Supervisor)
         </label>
-        <label class="checkbox-field">
+        <label v-if="isMillManagement" class="checkbox-field">
           <input
             type="checkbox"
             :checked="!!form.acknowledged_by"
-            :disabled="!isMillManagement"
+            :disabled="actionInProgress"
             data-testid="acknowledged-by-checkbox"
             @change="form.acknowledged_by = ($event.target as HTMLInputElement).checked ? (authStore.currentUser?.id ?? '') : ''"
           />

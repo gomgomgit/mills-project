@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-011--form-grading",
   "name": "Form Grading",
@@ -25,16 +25,56 @@
     {
       "usecase_id": "usecase-011--form-grading",
       "usecase_name": "Input Data Grading",
-      "endpoints": [],
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/grading-parameters",
+          "description": "Daftar master Quality Parameter (global, tidak terikat mill) untuk menyelaraskan cache lokal mobile dengan id server — dipanggil gradingParameterSync.fetchAndCacheGradingParameters() saat login dan tepat sebelum sinkronisasi Grading. GradingParameterController@index → GradingParameterService::listForMobile().",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "uom": "string|null ('kg' | 'bunch')",
+                  "sort_order": "integer"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tanpa sesi web / token Sanctum (middleware auth:web,sanctum)"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar admin/supervisor/mill_management/operator (middleware role:admin,supervisor,mill_management,operator)"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache di server; mobile menyimpan hasilnya di tabel lokal grading_parameter (upsert per id)",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
       "business_logic": [
         "1. Load draft grading_record by id (route param) beserta seluruh grading_detail turunannya ke form state",
-        "2. Auto-set Tanggal (date) = waktu saat ini HANYA jika draft baru (date masih kosong); jika draft dilanjutkan (sudah punya nilai), pertahankan nilai date tersimpan, tidak ditimpa",
-        "3. Load daftar Weighbridge lokal (SEMUA record, status apapun, urut arrival_datetime terbaru dulu) untuk dropdown WB Card No; load daftar Grading Parameter (urut sort_order) untuk dropdown Quality Parameter tiap baris",
+        "2. Auto-set Tanggal (date) = waktu LOKAL perangkat saat ini (nowLocalDateTimeString() — 'YYYY-MM-DDTHH:mm:ss' tanpa sufiks zona, bukan toISOString() UTC) HANYA jika draft baru (date masih kosong); jika draft dilanjutkan (sudah punya nilai), pertahankan nilai date tersimpan, tidak ditimpa",
+        "3. Muat draft DULU, baru daftar Weighbridge untuk dropdown WB Card No (loadDraft().then(loadWbOptions)): gradingRecordRepo.getWeighbridgeRecordOptions(includeId = weighbridge_record_id draft) → SELECT weighbridge_record WHERE (status IN ('saved','synced') AND TRIM(COALESCE(wb_card_number,'')) <> '') OR id = includeId ORDER BY record_datetime DESC — draft Weighbridge kosong tidak ditampilkan, pilihan yang sudah tersimpan di draft Grading tetap tampil; paralel, load daftar Grading Parameter lokal (urut sort_order) untuk dropdown Quality Parameter tiap baris",
         "4. On pilih WB Card No: auto-isi license_plate_no dari weighbridge_record.vehicle_number, estate_supplier dari weighbridge_record.estate_supplier, division dari weighbridge_record.division; ketiga field tetap dapat diedit manual setelahnya, TIDAK ditimpa ulang otomatis lagi setelah auto-fill awal (hanya terjadi sekali saat WB Card No dipilih)",
         "5. On pilih Quality Parameter di suatu baris Grading Detail: uom baris di-set (snapshot, bukan live-join) dari grading_parameter.uom yang dipilih, field UOM disabled/read-only",
         "6. Opsi dropdown Quality Parameter PER BARIS = seluruh grading_parameter DIKURANGI parameter yang sudah dipilih di baris LAIN pada grid yang sama (baris itu sendiri tetap menampilkan parameter yang sedang dipilihnya sebagai opsi, agar tetap terlihat/tidak hilang dari dropdown-nya sendiri) — daftar opsi ini dihitung ulang (reaktif) setiap kali baris manapun menambah/mengubah/menghapus pilihan Quality Parameter-nya, termasuk saat baris ditambah atau dihapus",
         "7. Percentage tiap baris dihitung reaktif: qty/netto_header*100 jika uom baris='kg', qty/quantity_header*100 jika uom baris='bunch' — dihitung ulang setiap kali qty baris ITU SENDIRI berubah, atau netto/quantity header berubah (mempengaruhi SEMUA baris)",
-        "8. Render field dikelompokkan per section: Identitas Grading (Grading No, Tanggal), Referensi Weighbridge & Kendaraan (WB Card No, License Plate No, Vehicle Code), Asal Muatan (Estate, Divisi), Data Berat & Kuantitas (Netto (kg), Quantity (bunch), Note), Grading Detail (grid tambah/hapus baris)",
+        "8. Render field dikelompokkan per section: Identitas Grading (No. Grading #field-grading-no, Tanggal), Referensi Weighbridge & Kendaraan (WB Card No, No. Polisi #field-license-plate-no, Kode Kendaraan #field-vehicle-code), Asal Muatan (Estate, Divisi), Data Berat & Kuantitas (Netto (kg), Quantity (bunch), Catatan #field-note), Grading Detail (grid tambah/hapus baris)",
         "9. Render breadcrumb (Home > Production Process Activity > Grading > Form, tappable) dan header dengan hamburger",
         "10. On Tambah baris Grading Detail: tambah 1 baris kosong baru (tanpa id) ke grid",
         "11. On Hapus baris Grading Detail: hapus baris dari form state; jika baris punya id (sudah tersimpan sebelumnya), tandai untuk DELETE saat Simpan berikutnya; Quality Parameter yang dipakai baris tersebut otomatis kembali tersedia di dropdown baris lain (langkah 6 dihitung ulang)",
@@ -43,7 +83,9 @@
         "14. On Clear: tampilkan dialog konfirmasi → jika dikonfirmasi: DELETE seluruh grading_detail milik record lalu DELETE grading_record → navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
         "15. On Back: jika form dirty: tampilkan dialog konfirmasi → jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
         "16. On tap breadcrumb segment → navigasi ke route terkait",
-        "17. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+        "17. On tap hamburger → buka menu navigasi (Ganti Password, Logout)",
+        "18. (Di luar form, jalur sinkron screen-006) Master Quality Parameter: saat login (stores/auth.ts) dan tepat sebelum sinkronisasi bila ada record Grading pending (syncService.syncAllRecords), GET /api/grading-parameters (best-effort) → upsert per id ke grading_parameter lokal, baris lokal buatan 'default-grading-parameter-N' dipetakan ke baris server BERNAMA SAMA (case-insensitive): grading_detail.grading_parameter_id dipindah ke id server lalu baris buatan dihapus. localSchema.seedGradingParametersIfNeeded() tidak menanam ulang id buatan bila sudah ada baris non-buatan.",
+        "19. (Jalur sinkron) syncService.pushGradingRow: bila Weighbridge tertaut belum punya server_id → localFailure 'Weighbridge terkait belum tersinkron — sinkronkan Weighbridge-nya dahulu.'; resolveServerGradingParameterIds() memetakan id buatan yang tersisa lewat nama → bila tidak terpetakan, record DITOLAK DI PERANGKAT (localFailure, ditulis ke sync_error) dengan alasan 'Master Quality Parameter belum tersinkron dari server — data Grading ini belum bisa dikirim. Pastikan online lalu coba sinkronisasi lagi.' — id palsu TIDAK PERNAH dikirim; payload POST /api/grading-records memakai production line stasiun record dan date = toLocalDateString(date)"
       ],
       "data_operations": [
         {
@@ -59,7 +101,7 @@
         {
           "entity_id": "weighbridge-record",
           "operation": "SELECT",
-          "description": "SELECT semua record lokal (status apapun) untuk populate dropdown WB Card No"
+          "description": "SELECT record lokal berstatus saved/synced yang punya wb_card_number tidak kosong, ditambah id yang sudah terpilih di draft, urut record_datetime DESC, untuk populate dropdown WB Card No"
         },
         {
           "entity_id": "grading-parameter",
@@ -102,8 +144,8 @@
           "handling": "Tampilkan pesan error khusus, record tidak tersimpan"
         },
         {
-          "condition": "Belum ada data Weighbridge lokal sama sekali",
-          "handling": "Dropdown WB Card No kosong/menampilkan opsi 'Tidak ada data Weighbridge'"
+          "condition": "Belum ada data Weighbridge lokal berstatus Tersimpan/Tersinkron yang punya No. WB Card",
+          "handling": "Dropdown WB Card No kosong/menampilkan opsi 'Tidak ada data Weighbridge'; draft Weighbridge kosong tidak pernah ditawarkan"
         },
         {
           "condition": "User mengedit License Plate No/Estate/Divisi manual setelah auto-fill",
@@ -135,11 +177,19 @@
         },
         {
           "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
-          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Bila Weighbridge acuannya tertolak, Grading ikut gagal sinkron dengan alasan 'Weighbridge terkait belum tersinkron'. Pemulihan: Admin membuka kembali baris stasiun Grading di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED (atau 422 validasi tanggal lebih jauh dari besok — EnforcesPeriodLock::assertEventDateNotTooFarAhead pada date) baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat, alasan dari server ditampilkan di SyncResultDialog DAN disimpan di kolom lokal sync_error (tampil 'Gagal sinkron: <alasan>' di Data Preview lewat SyncFailureHint.vue; dikosongkan saat sinkron berikutnya berhasil; gagal jaringan tidak ditulis). Bila Weighbridge acuannya tertolak, Grading ikut gagal sinkron dengan alasan 'Weighbridge terkait belum tersinkron'. Pemulihan: Admin membuka kembali baris stasiun Grading di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
+        },
+        {
+          "condition": "Draft lama menautkan record Weighbridge yang kini tidak lolos filter dropdown (mis. masih draft)",
+          "handling": "getWeighbridgeRecordOptions(includeId) tetap menyertakan id tersebut sehingga pilihan tidak hilang dari dropdown"
+        },
+        {
+          "condition": "Master Quality Parameter server belum pernah tersimpan di perangkat (belum pernah online / GET /api/grading-parameters gagal) dan detail masih merujuk id buatan 'default-grading-parameter-N'",
+          "handling": "Saat sinkron, record Grading ditolak DI PERANGKAT (tanpa POST) dengan alasan 'Master Quality Parameter belum tersinkron dari server…', ditulis ke sync_error, status tetap 'saved' untuk dikirim ulang setelah online"
         }
       ],
       "business_rules_applied": [
-        "WB Card No wajib dipilih dari dropdown, bukan teks bebas",
+        "WB Card No wajib dipilih dari dropdown (bukan teks bebas) yang hanya memuat Weighbridge lokal saved/synced ber-No. WB Card, plus pilihan draft",
         "License Plate No/Estate/Divisi auto-terisi dari Weighbridge, tetap dapat diedit manual",
         "Minimal satu baris Grading Detail sebelum Simpan",
         "Setiap Quality Parameter hanya dapat dipakai di satu baris, tidak muncul lagi di dropdown baris lain setelah dipilih",
@@ -147,13 +197,14 @@
         "Percentage dihitung otomatis berdasarkan uom baris (kg terhadap Netto, bunch terhadap Quantity)",
         "Tanggal otomatis sekali saat draft baru dibuat",
         "Checked By tidak ditampilkan pada form ini",
-        "Kunci periode (usecase-141) ditegakkan di server saat sinkron dari screen-006, bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'grading' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`"
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron dari screen-006, bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'grading' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`",
+        "Id Quality Parameter buatan lokal tidak pernah dikirim ke server — dipetakan ke id server lewat nama atau record ditolak di perangkat dengan alasan jelas"
       ],
       "unit_test_cases": [
         {
           "description": "sets date to current time when draft is new (date empty)",
           "given": "loaded draft record has date = null/empty",
-          "expect": "date set to current timestamp (now) exactly once on mount"
+          "expect": "date set to current LOCAL wall-clock time ('YYYY-MM-DDTHH:mm:ss', no zone suffix) exactly once on mount"
         },
         {
           "description": "preserves stored date when resuming a paused draft",
@@ -161,9 +212,9 @@
           "expect": "date remains '2026-08-18T08:00:00', not overwritten"
         },
         {
-          "description": "populates WB Card No dropdown from all local weighbridge_record rows regardless of status",
-          "given": "weighbridgeRepo returns 3 records with mixed statuses (saved, draft_ongoing, synced)",
-          "expect": "dropdown options include all 3 records, ordered by arrival_datetime descending"
+          "description": "populates WB Card No dropdown only from saved/synced weighbridge_record rows that have a WB Card number, plus the draft's already-selected id",
+          "given": "local weighbridge_record rows: saved with card, synced with card, draft_ongoing with card, saved with empty card; Grading draft references the draft_ongoing one",
+          "expect": "options = saved-with-card, synced-with-card and the draft-referenced row, ordered by record_datetime descending; the saved-with-empty-card row is excluded"
         },
         {
           "description": "shows empty/placeholder option when no local weighbridge_record exists",
@@ -294,6 +345,21 @@
           "description": "opens navigation menu when hamburger icon is tapped",
           "given": "hamburger icon tapped",
           "expect": "navigation menu opens showing Ganti Password and Logout options"
+        },
+        {
+          "description": "maps fake local grading parameter ids to server ids by name before pushing a Grading record",
+          "given": "grading_detail references 'default-grading-parameter-1' named 'Mentah'; GET /api/grading-parameters returns {id: <uuid>, name: 'Mentah'}",
+          "expect": "POST /api/grading-records details carry the server uuid; local grading_detail is remapped and the fake grading_parameter row deleted"
+        },
+        {
+          "description": "rejects a Grading record on the device when a fake parameter id cannot be mapped",
+          "given": "master fetch fails (offline/404) and detail still references 'default-grading-parameter-1'",
+          "expect": "no POST sent; result fails with reason 'Master Quality Parameter belum tersinkron dari server…' stored in sync_error; record stays 'saved'"
+        },
+        {
+          "description": "boot-time seed does not re-insert fake parameter ids once the server master is cached",
+          "given": "grading_parameter already holds a non-'default-grading-parameter-%' row",
+          "expect": "seedGradingParametersIfNeeded() inserts nothing"
         }
       ]
     }
@@ -325,10 +391,11 @@
   "implementation_notes": [
     "Simpan/Pause/Clear bersifat lokal (SQLite); pengiriman ke server terjadi lewat mekanisme sync manual terpisah, di luar scope screen ini",
     "Opsi dropdown Quality Parameter per baris = computed reaktif atas seluruh detailRows.value (bukan hanya properti lokal baris itu) — setiap baris perlu tahu apa yang dipilih baris LAIN, sehingga computed ini harus bereaksi terhadap perubahan grading_parameter_id di baris manapun, bukan cuma baris dirinya sendiri",
-    "Cakupan dropdown WB Card No: SEMUA record weighbridge_record lokal apa pun statusnya, urut arrival_datetime terbaru dulu — asumsi agent karena tidak ada instruksi eksplisit user soal filter tanggal/status; jika salah, cukup revisi query-nya tanpa mengubah struktur field lain",
+    "Cakupan dropdown WB Card No (direvisi audit 2026-10-04): hanya weighbridge_record lokal berstatus saved/synced dengan wb_card_number tidak kosong, plus id yang sudah tersimpan di draft Grading (includeId), urut record_datetime terbaru dulu — draft Weighbridge kosong dulu muncul sebagai '(Tanpa WB Card No) <uuid>' dan Grading yang menautkannya tidak akan pernah bisa tersinkron",
     "Checked By TIDAK diimplementasikan pada form ini sama sekali (kolom checked_by di grading_record tetap ada di skema tapi tidak dibaca/ditulis dari screen ini) — mengikuti mock referensi yang tidak mencantumkannya",
     "Percentage dan UOM tidak pernah diinput manual oleh user — keduanya read-only/computed di UI, hanya qty dan quality_parameter yang benar-benar interaktif per baris",
-    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormGradingView tidak memanggil server sama sekali (stasiun ini tidak punya write-through; hanya sinkron manual dari screen-006 lewat POST /api/grading-records). Guard EnforcesPeriodLock::assertPeriodOpenForWrite('grading', mill, date) berjalan di GradingRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormGradingView tidak memanggil server sama sekali (stasiun ini tidak punya write-through; hanya sinkron manual dari screen-006 lewat POST /api/grading-records). Guard EnforcesPeriodLock::assertPeriodOpenForWrite('grading', mill, date) berjalan di GradingRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) label Indonesia 'No. Grading' / 'No. Polisi' / 'Kode Kendaraan' / 'Catatan' dengan id field-grading-no / field-license-plate-no / field-vehicle-code / field-note; (2) dropdown WB Card No difilter saved/synced + No. WB Card (getWeighbridgeRecordOptions(includeId), WB options dimuat setelah draft); (3) endpoint baru GET /api/grading-parameters (GradingParameterController@index → GradingParameterService::listForMobile, auth:web,sanctum + role admin/supervisor/mill_management/operator, master global tidak di-scope mill) dipakai services/gradingParameterSync.ts saat login dan sebelum sinkron Grading untuk memetakan id buatan 'default-grading-parameter-N' ke id server berdasarkan nama; id buatan tidak pernah dikirim — sebelumnya POST /api/grading-records gagal 500 (22P02) di PostgreSQL; localSchema.seedGradingParametersIfNeeded() kini tidak menanam ulang id buatan bila master server sudah tersimpan; (4) syncService: production line per record (stasiun record), date lokal 'YYYY-MM-DD', sync_error ditulis pada 4xx/penolakan di perangkat dan dikosongkan saat sukses (tampil 'Gagal sinkron' di Data Preview); (5) server: GradingRecordService menolak date > besok (422 per field), menormalkan date ber-zona ke WIB, dan memvalidasi grading_parameter_id/weighbridge_record_id sebagai UUID (422, bukan 500)."
   ],
   "test_scenarios": [
     {

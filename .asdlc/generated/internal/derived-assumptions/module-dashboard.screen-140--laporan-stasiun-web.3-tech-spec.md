@@ -26,3 +26,9 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (dashboard/partials/report-styles.blade.php, components/layouts/app.blade.php, Support/RouteAccess.php, tests/Feature/WebAccessTest.php).
+- actor_permissions[3].conditions = Operator boleh login web terbatas (/beranda, /settings/password) tetapi tanpa entri sidebar 'Laporan Stasiun' (RouteAccess) dan /reports → 403 (errors/403) ← WebAccessTest '#2 login web Operator…', layout RouteAccess::allows('reports.stations')
+- implementation_notes[8] = .station-grid auto-fill minmax(150px,1fr), ≤767px minmax(110px,1fr), bukan 3 kolom tetap ← report-styles diff (#10)

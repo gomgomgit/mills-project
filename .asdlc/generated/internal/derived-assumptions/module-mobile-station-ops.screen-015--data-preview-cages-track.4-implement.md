@@ -25,3 +25,12 @@ Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
 Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser 101 (hitungan seluruh suite, keliru) → 11/0 (hitungan spec layar ini).
 - Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): assert blok status verifikasi RecordVerificationStatus; cek negatif not.toHaveURL dengan glob '**/…' (digabung ke baseURL, tak pernah cocok) diganti RegExp.
+
+## v7 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile + backend).
+- files_generated += RecordVerificationStatusController.php, RecordVerificationStatusService.php, routes/api.php.
+- test_files_generated += backend/tests/Feature/Api/MobileReadEndpointsTest.php (stationType cages-track).
+- fe_files_generated += SyncFailureHint.vue, recordVerificationApi.ts, apiClient.ts, utils/localDate.ts.
+- fe_test_files_generated += SyncFailureHint.spec.ts, syncService.sqljs.spec.ts, recordVerification.spec.ts, e2e/sync-and-verification.spec.ts. ⚠ e2e ini tidak menyentuh layar Cages Track secara langsung — dicantumkan karena menguji perilaku bersama (hint/pull).
+- implementation_notes += REVISI 2026-10-04 (termasuk koreksi sumber `date`: cagesTrackRecordRepo.createDraft() → nowLocalDateTimeString()).

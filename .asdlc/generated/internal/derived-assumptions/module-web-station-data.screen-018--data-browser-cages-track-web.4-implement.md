@@ -26,3 +26,10 @@ Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/DataBrowserCagesTrackTest.php` dihapus dari `fe_test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (CagesTrackRecordService.php, data-browser-cages-track.blade.php, SheetWriter.php, ExportValue.php, Display.php, tests/Unit/Services/ExportDetailRowsTest.php, tests/Pest.php).
+- files_generated += Support/SheetWriter.php, Support/ExportValue.php, Support/Display.php ← dipakai export() dan blade
+- test_files_generated += tests/Unit/Services/ExportDetailRowsTest.php, tests/Pest.php ← ExportDetailRowsTest mencakup baris ekspor ke-18 stasiun; Pest.php memuat helper xlsxRows/exportBodyAsCsv (⚠ memasukkan berkas helper = penilaian agen)
+- implementation_notes += REVISI (2026-10-04, audit-fix …); test_results tidak diubah

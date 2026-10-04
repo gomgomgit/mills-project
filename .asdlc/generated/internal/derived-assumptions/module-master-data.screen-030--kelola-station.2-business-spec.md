@@ -1,0 +1,12 @@
+# Derived Assumptions — module-master-data.screen-030--kelola-station.2-business-spec
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/MasterData/KelolaStation.php, backend/app/Services/StationService.php, kelola-station.blade.php, KelolaStationAuditTest.php).
+- description, available_actions[0..2] = Station di bawah BU + Production Line, filter BU & Production Line ← listStations(..., $productionLineId), filterProductionLineId. (Spec ver 1 masih "3 aktif + 12 placeholder", tanpa Production Line.)
+- information_displayed (ditulis ulang) = kolom Production Line, label tipe master, urutan per line, filter line bergantung BU ('Mill — Line'), dropdown Type dari station_types, empty state terfilter, pesan sukses ← render(), filterProductionLineOptions(), typeOptions(), typeLabels(), blade.
+- business_rules[0] = kode unik case-insensitive ← UniqueCaseInsensitive.
+- business_rules[1] = type harus di station_types; Other tidak boleh aktif ← Rule::exists('station_types','code') + after().
+- business_rules[4] = wajib BU + Production Line milik BU yang sama ← StationService::validate() after().
+- business_rules (+2) = satu station per tipe per line kecuali Other (cek hanya bila line/tipe berubah); pesan sukses ← duplicateTypeMessage(), successMessage.
+- edge_cases[1] + (3 baru) = beda huruf; tipe kembar; edit tipe non-MVP (Boiler Room) tampil; empty state terfilter + reset filter line ← kode + KelolaStationAuditTest.

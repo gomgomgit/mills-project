@@ -15,3 +15,12 @@
 ## v5 — 2026-08-31 (further correction — feature relocated, not just re-numbered)
 
 - Entire "Business Unit auto-creates 15 canonical Stations" business rule removed from description/available_actions/business_rules/edge_cases ← v4's fix (above) corrected the station breakdown numbers but missed that the whole feature no longer belongs on this screen at all: `backend/app/Services/BusinessUnitService.php`'s own docblock (dated 2026-08-20) states create() "NO LONGER auto-provisions any stations — that behavior moved to ProductionLineService::create()", confirmed by `stations.production_line_id` being a NOT NULL FK (a brand-new Business Unit has zero Production Lines, so no Station can be inserted at Business-Unit-creation time) and by an existing, currently-passing test `it('does not auto-create any stations when a new business unit is created', ...)`. The code and its tests were already correct; only this screen's spec artifacts had not caught up. User confirmed this understanding directly ("berarti dipindahkan, ketika membuat production line baru otomatis terbuat juga semua stasiun untuk production line itu") before this removal was applied.
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (backend/app/Services/BusinessUnitService.php delete(), KelolaBusinessUnit.php, kelola-business-unit.blade.php, tests/Feature/Livewire/MasterDataDeleteGuardTest.php).
+- available_actions[3].description, business_rules[1], edge_cases[0] = hapus ditolak bila ada User/Production Line/Station/Periode; pesan merinci jumlah; Mill Setting tidak dihitung ← BusinessUnitService::delete() array_filter dependencies + komentar "mill_settings ... tidak dihitung".
+- business_rules[0], edge_cases[1] = kode unik tidak peka huruf ← UniqueCaseInsensitive::on('business_units','code').
+- business_rules (+2), edge_cases[4] = logo gambar sungguhan dicek saat dipilih & simpan; pesan sukses ← RealImage('Logo'), updatedLogo(), successMessage.
+- information_displayed (+) = pesan sukses BU ← save()/delete().
+- ⚠ contoh angka dalam pesan (2 User, 1 Production Line, 18 Station) adalah ilustrasi, format diambil dari kode.

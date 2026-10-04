@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-093--data-browser-kernel-dispatch-web",
   "name": "Data Browser Kernel Dispatch (Web)",
@@ -17,11 +17,16 @@
     "backend/database/factories/StationFactory.php",
     "backend/routes/api.php",
     "backend/routes/web.php",
-    "backend/app/Support/Concerns/ScopesToActorMill.php"
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php",
+    "backend/app/Support/Display.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/KernelDispatchRecordServiceTest.php",
-    "backend/tests/Feature/Api/DataBrowserKernelDispatchTest.php"
+    "backend/tests/Feature/Api/DataBrowserKernelDispatchTest.php",
+    "backend/tests/Unit/Services/ExportDetailRowsTest.php",
+    "backend/tests/Pest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserKernelDispatch.php",
@@ -44,7 +49,8 @@
     "Detail fields (21 kolom, entity-catalog kernel-dispatch-detail) lebih banyak dari Solid Waste Disposal (17 kolom): tambahan waybill_number, transporter_contractor, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent, dan security_seal_no dipecah menjadi security_seal_no_top/security_seal_no_bottom",
     "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau.",
     "REVISI v3 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-kernel-dispatch.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec yang sama juga diperbaiki dari pelanggaran strict mode di skenario empty-state (getByText('Tidak ada data') cocok ke judul DAN subtitle; kini memakai locator kelas judul empty-state). Spec dijalankan penuh: 4/4 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser test tidak dapat dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): KernelDispatchRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan, sebelumnya CSV berlabel .xlsx; csv tetap CSV); status di berkas lewat App\\Support\\ExportValue::status() (label Indonesia); data-browser-kernel-dispatch.blade.php memakai Display::status() untuk badge. Uji: KernelDispatchRecordServiceTest export (assert 'PK' + xlsxRows), ExportDetailRowsTest, helper xlsxRows/exportBodyAsCsv di tests/Pest.php. Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah."
   ],
   "deferred_items": [],
   "known_issues": [

@@ -16,3 +16,10 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: bukan entity-catalog v20 (node ini sudah clean), melainkan re-track shared-decisions pada putaran yang sama; spec layar ini sudah ditulis setelah kunci periode diimplementasikan sehingga isinya tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (PeriodService.php, PeriodHasRecordsException.php, searchable-select*.blade.php, layouts/app.blade.php).
+- api_contracts[2].business_logic[7] = delete() juga menolak periode berisi record (bukan status) ← guardAgainstFramedRecords().
+- api_contracts[0].edge_case_handling (+2) = hapus periode berisi data → 409 inline; modal Edit combobox ← kode.
+- implementation_notes (+) = REVISI audit-fix.

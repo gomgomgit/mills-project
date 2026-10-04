@@ -27,3 +27,13 @@ Bukan asumsi — dinyatakan/dipilih user pada 2026-09-30:
 - mode Rata sebagai tampilan kedua, setelah agen melaporkan bahwa daftar rata seluruh
   Machinery akan HILANG. User menjawab "b saja" atas pilihan A (terima saja) / B (tambahkan
   tombol alih tampilan rata). Seluruh aturan dan aksi ber-mode-Rata berasal dari keputusan itu.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/MasterData/KelolaMachinery.php, MachineryService.php, MachineryGroupService.php, kelola-machinery.blade.php, KelolaMachineryAuditTest.php).
+- information_displayed[1] = + kolom Business Unit di baris grup ← blade <th>Business Unit</th>, toRow business_unit_name.
+- information_displayed[4] = wadah 'Tanpa grup' saat cari hanya bila cocok, jumlah = yang cocok ← render() `$ungroupedCount = count($ungroupedRows)`.
+- information_displayed[7..8] + (3 baru) = label pemilih 'Mill — Line — Station' / 'MG-xxx — deskripsi (Station · Line)', Station/Line sebagai teks, prefill grup dari '+ Mesin', pesan sukses, error baris child di bawah kolom ← stationOptions(), machineryGroupOptions(), blade, openCreateForm($groupId), formErrorKey().
+- business_rules[0], [4] = kode unik case-insensitive ← UniqueCaseInsensitive.
+- business_rules (+3) = gambar sungguhan; pesan sukses & feedback dibersihkan; nilai turunan sebagai teks ← RealImage, clearFeedback(), .kc-form-field__static.
+- edge_cases[1], [2], [6] + (3 baru) = beda huruf; gambar palsu; error baris child; wadah tanpa grup saat cari; nama station kembar dibedakan label ← kode/tes.

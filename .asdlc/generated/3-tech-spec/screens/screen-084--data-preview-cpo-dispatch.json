@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-084--data-preview-cpo-dispatch",
   "name": "Data Preview CPO Dispatch",
@@ -25,7 +25,72 @@
     {
       "usecase_id": "usecase-081--data-preview-cpo-dispatch",
       "usecase_name": "Lihat Data CPO Dispatch Tersimpan",
-      "endpoints": [],
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/records/{stationType}/verification",
+          "description": "Tarik status verifikasi terbaru (checked_by/acknowledged_by + nama verifikator) untuk record tersinkron milik user — pasangan baca dari PATCH /api/records/{stationType}/{id}/verification; dipanggil best-effort oleh recordVerificationApi.pullVerificationStatus('cpo-dispatch', 'cpo_dispatch_record', userId) (stationType='cpo-dispatch')",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "stationType",
+                "type": "string",
+                "description": "Jenis stasiun, whitelist sama dengan PATCH (RecordVerificationService::modelForStationType) — layar ini 'cpo-dispatch'"
+              }
+            ],
+            "query_params": [
+              {
+                "name": "ids[]",
+                "type": "array<string uuid>",
+                "required": true,
+                "default": null,
+                "description": "server_id record tersinkron milik user (mobile mengirim maks 100 terbaru per updated_at); server menolak > 200 id atau id bukan UUID"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "checked_by": "uuid|null",
+                  "checked_by_name": "string|null",
+                  "acknowledged_by": "uuid|null",
+                  "acknowledged_by_name": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tanpa sesi web / token Sanctum (auth:web,sanctum)"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar admin/supervisor/mill_management/operator (operator BOLEH — membaca, bukan memverifikasi)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "ids kosong/bukan array/lebih dari 200/ada id bukan UUID ('Id record harus berupa UUID.'); atau aktor non-Admin tanpa mill (gagal-tertutup ScopesToActorMill)"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "stationType tidak dikenal — body hanya {message: 'Jenis stasiun tidak dikenal.'} (sama dengan PATCH-nya)"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
       "business_logic": [
         "1. List mode (tanpa id param): load SEMUA local cpo_dispatch_record milik current user (status apapun), set dateFilter default ke tanggal hari ini, opsional difilter lebih lanjut oleh kata kunci pencarian (cpo_dispatch_id)",
         "2. Render list: setiap item tampilkan label (cpo_dispatch_id atau fallback) + indikator status ('Pause' untuk draft_ongoing/draft_paused, 'Tersimpan' untuk saved, 'Tersinkron' untuk synced)",
@@ -39,7 +104,9 @@
         "10. On Back di mode DETAIL → navigasi kembali ke mode LIST (id param dihapus dari route)",
         "11. On tap breadcrumb segment → navigasi ke route terkait",
         "12. On tap hamburger → buka menu navigasi (Ganti Password, Logout)",
-        "13. Mode DETAIL, record tersinkron (punya server_id): aksi verifikasi RecordVerificationActions (Tandai/Batalkan sudah diperiksa — Supervisor/Admin; Tandai/Batalkan sudah dikonfirmasi — Mill Management/Admin) adalah satu-satunya tulis ke server dari layar ini: recordVerificationApi.setVerification('cpo-dispatch', 'cpo_dispatch_record', record, level, value) → PATCH /api/records/cpo-dispatch/{server_id}/verification {level, value}. Server (RecordVerificationService::setVerification) menilai peran + cakupan mill aktor, lalu assertPeriodOpenForWrite atas jenis stasiun & mill MILIK RECORD dan tanggal kejadian record itu sendiri (`date` header record) SEBELUM menulis kolom verifikasi; baris lokal (checked_by/acknowledged_by + *_name) hanya diperbarui setelah server menerima, lalu detail dimuat ulang (event 'updated')."
+        "13. Mode DETAIL, record tersinkron (punya server_id): aksi verifikasi RecordVerificationActions (Tandai/Batalkan sudah diperiksa — Supervisor/Admin; Tandai/Batalkan sudah dikonfirmasi — Mill Management/Admin) adalah satu-satunya tulis ke server dari layar ini: recordVerificationApi.setVerification('cpo-dispatch', 'cpo_dispatch_record', record, level, value) → PATCH /api/records/cpo-dispatch/{server_id}/verification {level, value}. Server (RecordVerificationService::setVerification) menilai peran + cakupan mill aktor, lalu assertPeriodOpenForWrite atas jenis stasiun & mill MILIK RECORD dan tanggal kejadian record itu sendiri (`date` header record) SEBELUM menulis kolom verifikasi; baris lokal (checked_by/acknowledged_by + *_name) hanya diperbarui setelah server menerima, lalu detail dimuat ulang (event 'updated').",
+        "14. Pull status verifikasi (audit 2026-10-04): setiap kali list dimuat dan setiap kali detail dibuka, pullVerificationStatus('cpo-dispatch', 'cpo_dispatch_record', userId) dijalankan di latar belakang (tidak ditunggu): SELECT maks 100 record lokal milik user berstatus synced dengan server_id (ORDER BY updated_at DESC) → GET /api/records/cpo-dispatch/verification?ids[]=<server_id>… (timeout 5 detik) → untuk tiap record yang checked_by/acknowledged_by-nya berbeda, UPDATE lokal checked_by, checked_by_name, acknowledged_by, acknowledged_by_name. Di mode detail, bila ada yang berubah dan record yang sama masih terbuka, record dimuat ulang (getDraftWithDetails) sehingga verifikasi yang dilakukan Supervisor/Mill Management lewat web tampil tanpa sinkron ulang. Server membatasi hasil ke mill aktor (Admin semua mill); id mill lain/tidak dikenal cukup tidak muncul. Senyap: offline/galat apa pun → 0, data lokal tidak berubah; 404/405 → berhenti mencoba sampai app dimuat ulang.",
+        "15. Petunjuk gagal sinkron (audit 2026-10-04): item list dan mode detail merender SyncFailureHint — untuk record berstatus saved yang kolom lokal sync_error-nya terisi, tampil 'Gagal sinkron: <alasan>' (compact di bawah label item list; blok di atas detail). sync_error ditulis syncService saat server MENOLAK push (respons ber-status HTTP, mis. 422 PERIOD_CLOSED) dan dikosongkan (NULL) saat push berhasil; gagal jaringan tidak ditulis. Status badge tetap 'Tersimpan'."
       ],
       "data_operations": [
         {
@@ -56,6 +123,11 @@
           "entity_id": "cpo-dispatch-detail",
           "operation": "SELECT",
           "description": "SELECT semua baris by cpo_dispatch_record_id untuk mode detail"
+        },
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "UPDATE",
+          "description": "UPDATE lokal checked_by/checked_by_name/acknowledged_by/acknowledged_by_name untuk record synced milik user yang status verifikasinya di server berbeda (pullVerificationStatus, best-effort)"
         }
       ],
       "edge_case_handling": [
@@ -73,7 +145,15 @@
         },
         {
           "condition": "Verifikasi (menyetujui maupun membatalkan) saat periode pelaporan stasiun CPO Dispatch untuk mill record tidak terbuka (belum ada periode / masih Draft / sudah ditutup) atau `date` record di luar rentang periode; atau perangkat tanpa jaringan",
-          "handling": "Server menolak 422 error_code PERIOD_CLOSED sebelum kolom apa pun berubah; status verifikasi di server dan baris lokal tidak berubah (UPDATE lokal hanya berjalan setelah respons sukses, event 'updated' tidak di-emit). RecordVerificationActions menampilkan pesan server apa adanya (verification-message, gaya error) — pesan 'di luar rentang' menyebut rentang yang berlaku. Tanpa jaringan (respons tanpa status) → pesan 'Butuh koneksi internet untuk verifikasi. Coba lagi saat online.' Pemulihan: Admin membuka kembali baris stasiun di Detail Periode Pelaporan (screen-142), lalu verifikasi diulang."
+          "handling": "Server menolak 422 error_code PERIOD_CLOSED sebelum kolom apa pun berubah; status verifikasi di server dan baris lokal tidak berubah (UPDATE lokal hanya berjalan setelah respons sukses, event 'updated' tidak di-emit). RecordVerificationActions menampilkan pesan server apa adanya (verification-message, gaya error) — pesan 'di luar rentang' menyebut rentang yang berlaku. Tanpa jaringan (galat ternormalisasi apiClient dengan flag `network: true` — sejak audit 2026-10-04 isNetworkError tidak lagi memakai 'tanpa status', sehingga Error biasa tidak salah dilaporkan sebagai offline) → pesan 'Butuh koneksi internet untuk verifikasi. Coba lagi saat online.' Pemulihan: Admin membuka kembali baris stasiun di Detail Periode Pelaporan (screen-142), lalu verifikasi diulang."
+        },
+        {
+          "condition": "Pull status verifikasi gagal (offline, timeout, server tanpa endpoint GET verifikasi, atau galat lain)",
+          "handling": "pullVerificationStatus menelan galat dan mengembalikan 0 — list/detail tetap tampil dari data lokal tanpa pesan galat; 404/405 menyetel flag pullUnsupported sehingga tidak dicoba lagi sampai app dimuat ulang"
+        },
+        {
+          "condition": "Record ditolak server saat sinkronisasi (manual dari Station List atau write-through saat Simpan), mis. 422 PERIOD_CLOSED/VALIDATION_ERROR",
+          "handling": "Record tetap 'saved' (badge 'Tersimpan') dan sync_error lokal berisi alasan → SyncFailureHint menampilkan 'Gagal sinkron: <alasan>' di item list dan detail; hilang otomatis setelah sinkron berikutnya berhasil (sync_error = NULL). Gagal karena jaringan tidak menulis sync_error"
         }
       ],
       "business_rules_applied": [
@@ -154,6 +234,21 @@
           "description": "RecordVerificationActions shows the server PERIOD_CLOSED message and leaves the verification state unchanged",
           "given": "detail record tersinkron (server_id ada, checked_by null), aktor supervisor; setVerification ditolak dengan galat ternormalisasi { status: 422, message: '<pesan PERIOD_CLOSED dari server>' }",
           "expect": "verification-message menampilkan pesan server tersebut dengan kelas error; event 'updated' tidak di-emit; tombol tetap berlabel 'Tandai sudah diperiksa' (checked_by lokal tidak berubah)"
+        },
+        {
+          "description": "pullVerificationStatus mirrors server-side verification into this user's synced local rows and is silent offline",
+          "given": "local cpo_dispatch_record synced dengan server_id; GET /api/records/cpo-dispatch/verification mengembalikan checked_by/acknowledged_by + nama yang berbeda; lalu apiClient melempar galat jaringan",
+          "expect": "baris lokal di-UPDATE dan fungsi mengembalikan jumlah yang berubah; saat offline mengembalikan 0 tanpa melempar"
+        },
+        {
+          "description": "pullVerificationStatus stops asking a server without the endpoint (404) for the rest of the session",
+          "given": "GET verifikasi ditolak 404",
+          "expect": "panggilan berikutnya tidak mengirim request lagi dan mengembalikan 0"
+        },
+        {
+          "description": "SyncFailureHint shows 'Gagal sinkron: <alasan>' only for a saved record with a stored sync_error",
+          "given": "record { status: 'saved', sync_error: '<alasan>' } vs record synced / sync_error kosong",
+          "expect": "hint tampil hanya untuk record saved dengan sync_error terisi"
         }
       ]
     }
@@ -175,7 +270,8 @@
     "Filter tanggal & search dilakukan client-side terhadap hasil query getAllRecords",
     "cpoDispatchRecordRepo.ts butuh fungsi getAllRecords(userId) dan reuse getDraftWithDetails() untuk mode detail",
     "Tabel Log Kejadian read-only: setiap baris tampil langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis). Kolom kondensat mobile: Tanggal Kejadian, Tanker Plate No, Destination/Buyer, Gross/Tare/Net Weight (analog kolom kondensat Kernel Dispatch, tanpa Remarks/Gate Status karena field tersebut tidak ada di CPO Dispatch)",
-    "Kunci periode (usecase-141): pengecualian atas 'tidak ada panggilan API' — aksi verifikasi di mode detail memanggil PATCH /api/records/cpo-dispatch/{id}/verification (RecordVerificationController → RecordVerificationService::setVerification, trait EnforcesPeriodLock). Tanggal yang dinilai = `date` header record (bukan Tanggal Kejadian per baris Log Kejadian); jenis stasiun & mill dibaca dari stasiun milik record, bukan dari segmen URL. Penolakan 422 PERIOD_CLOSED (satu kode, empat pesan) dinormalisasi apiClient menjadi {status, message} dan ditampilkan RecordVerificationActions. Endpoint sengaja tidak ditambahkan ke `endpoints` karena kontrak ini tidak mendeklarasikan endpoint apa pun untuk disalin bentuknya."
+    "Kunci periode (usecase-141): pengecualian atas 'tidak ada panggilan API' — aksi verifikasi di mode detail memanggil PATCH /api/records/cpo-dispatch/{id}/verification (RecordVerificationController → RecordVerificationService::setVerification, trait EnforcesPeriodLock). Tanggal yang dinilai = `date` header record (bukan Tanggal Kejadian per baris Log Kejadian); jenis stasiun & mill dibaca dari stasiun milik record, bukan dari segmen URL. Penolakan 422 PERIOD_CLOSED (satu kode, empat pesan) dinormalisasi apiClient menjadi {status, message} dan ditampilkan RecordVerificationActions. Endpoint sengaja tidak ditambahkan ke `endpoints` karena kontrak ini tidak mendeklarasikan endpoint apa pun untuk disalin bentuknya.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) Layar ini tidak lagi hanya memanggil PATCH verifikasi — kini juga GET /api/records/cpo-dispatch/verification?ids[]=… (RecordVerificationStatusController → RecordVerificationStatusService, route auth:web,sanctum + role admin/supervisor/mill_management/operator, cakupan mill lewat ScopesToActorMill) secara best-effort lewat recordVerificationApi.pullVerificationStatus saat list dimuat dan saat detail dibuka (refreshVerificationInBackground memuat ulang record bila berubah); endpoint ini didaftarkan di `endpoints`. Catatan lama yang menyebut verifikasi sebagai satu-satunya panggilan server / endpoint sengaja tidak didaftarkan sudah tidak berlaku. (2) PATCH verifikasi kini dipanggil dengan prefix /api (sebelumnya tanpa prefix → jatuh ke route web tanpa CORS → UI salah menampilkan 'butuh koneksi'); isNetworkError() memakai flag `network: true` dari apiClient. (3) SyncFailureHint.vue ('Gagal sinkron: <alasan>' dari kolom lokal sync_error) dipasang di item list dan detail. (4) Detail 'Tanggal:' ditampilkan lewat toDateInputValue (src/utils/localDate.ts; data lama ISO UTC dinormalisasi ke tanggal lokal oleh localSchema.normalizeLegacyUtcDates) dan label catatan detail kini 'Catatan:' (sebelumnya 'Note:'), dijaga mobile/tests/noteLabelConsistency.spec.ts."
   ],
   "test_scenarios": [
     {
@@ -266,6 +362,65 @@
         "route": "/stations/cpo-dispatch/preview/:id?",
         "action": "navigate to list mode as a user with no saved records",
         "assert": "page displays empty-state message"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data CPO Dispatch Tersimpan — Status Verifikasi Ditarik dari Server",
+      "usecase_id": "usecase-081--data-preview-cpo-dispatch",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/records/cpo-dispatch/verification"
+          },
+          "request_example": {
+            "ids": [
+              "{{synced_record.server_id}}"
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/records/cpo-dispatch/verification"
+          },
+          "request_example": {
+            "ids": [
+              "bukan-uuid"
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "DataPreviewCpoDispatchView",
+        "action": "mount list mode / open detail of a synced record while pullVerificationStatus resolves with a changed status",
+        "assert": "pullVerificationStatus dipanggil dengan ('cpo-dispatch', 'cpo_dispatch_record', userId); detail dimuat ulang dan menampilkan verifikator baru"
+      },
+      "browser_test": {
+        "route": "/stations/cpo-dispatch/preview/:id?",
+        "action": "Supervisor memverifikasi record tersinkron lewat web, lalu Operator membuka Load Data / detail record itu",
+        "assert": "request GET /api/records/cpo-dispatch/verification?ids[]=… terkirim dan status verifikasi baru tampil di detail"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data CPO Dispatch Tersimpan — Petunjuk Gagal Sinkron",
+      "usecase_id": "usecase-081--data-preview-cpo-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "SyncFailureHint",
+        "action": "render dengan record { status: 'saved', sync_error: '<alasan>' } (compact dan blok)",
+        "assert": "teks 'Gagal sinkron: <alasan>' tampil (data-testid sync-failure-hint); tidak tampil untuk record synced atau sync_error kosong"
+      },
+      "browser_test": {
+        "route": "/stations/cpo-dispatch/preview/:id?",
+        "action": "simpan record yang ditolak server saat sinkron, buka Load Data lalu detailnya",
+        "assert": "item list dan detail menampilkan 'Gagal sinkron: <alasan>', badge tetap 'Tersimpan'"
       }
     }
   ]

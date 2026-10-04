@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-125--detail-sterilizer-web",
   "name": "Detail Sterilizer (Web)",
@@ -87,6 +87,11 @@
                 "http_code": 404,
                 "error_code": "RECORD_NOT_FOUND",
                 "condition": "id tidak ditemukan"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "id bukan UUID valid — di PostgreSQL query memicu QueryException SQLSTATE 22P02 yang oleh ApiExceptionHandler (audit 2026-10-04) dipetakan ke 422 'Data yang dikirim tidak valid (format ID atau nilai tidak dikenali).' tanpa teks SQL (di SQLite tetap 404)"
               }
             ]
           },
@@ -175,7 +180,8 @@
         "4. Return full record + details array",
         "5. FE render field per section (Identitas, Log Siklus, Verifikasi) read-only",
         "6. On klik Back: navigasi client-side ke /data/sterilizer, tanpa panggilan API tambahan",
-        "VERIFIKASI (aksi approve/un-approve di layar Detail, 2026-09-14; kunci periode sejak 2026-10-02): toggleChecked()/toggleAcknowledged() (trait HandlesRecordVerification, model SterilizerRecord) -> RecordVerificationService::setVerification() dengan urutan: (a) canVerify() — aturan peran: Supervisor menulis checked_by, Mill Management menulis acknowledged_by, Admin boleh keduanya; Operator tidak pernah memverifikasi; tombol hanya dirender bila canCheck()/canAcknowledge() true, dan aturan yang sama menolak panggilan langsung; (b) findOrFail(id); (c) assertRecordWritableByActor() — cakupan mill: aktor non-Admin hanya record mill-nya sendiri (403), aktor terikat mill tanpa business_unit_id 422; (d) assertPeriodOpenForWrite(jenis stasiun & mill dibaca dari STASIUN MILIK RECORD, bukan dari URL; tanggal kejadian = kolom `date` record itu sendiri) -> 422 PERIOD_CLOSED bila tidak ada periode open untuk stasiun 'sterilizer' yang mencakup tanggal tsb (status dinilai saat request); (e) baru kemudian forceFill checked_by/acknowledged_by = id aktor (value=true) atau null (value=false) lalu reloadRecord(); pesan sukses/penolakan ditampilkan via $verificationMessage. Penolakan terjadi sebelum satu kolom pun berubah; arah pembatalan (false) ikut terkunci."
+        "VERIFIKASI (aksi approve/un-approve di layar Detail, 2026-09-14; kunci periode sejak 2026-10-02): toggleChecked()/toggleAcknowledged() (trait HandlesRecordVerification, model SterilizerRecord) -> RecordVerificationService::setVerification() dengan urutan: (a) canVerify() — aturan peran: Supervisor menulis checked_by, Mill Management menulis acknowledged_by, Admin boleh keduanya; Operator tidak pernah memverifikasi; tombol hanya dirender bila canCheck()/canAcknowledge() true, dan aturan yang sama menolak panggilan langsung; (b) findOrFail(id); (c) assertRecordWritableByActor() — cakupan mill: aktor non-Admin hanya record mill-nya sendiri (403), aktor terikat mill tanpa business_unit_id 422; (d) assertPeriodOpenForWrite(jenis stasiun & mill dibaca dari STASIUN MILIK RECORD, bukan dari URL; tanggal kejadian = kolom `date` record itu sendiri) -> 422 PERIOD_CLOSED bila tidak ada periode open untuk stasiun 'sterilizer' yang mencakup tanggal tsb (status dinilai saat request); (e) baru kemudian forceFill checked_by/acknowledged_by = id aktor (value=true) atau null (value=false) lalu reloadRecord(); pesan sukses/penolakan ditampilkan via $verificationMessage. Penolakan terjadi sebelum satu kolom pun berubah; arah pembatalan (false) ikut terkunci.",
+        "AUDIT-FIX 2026-10-04 (kode acuan): (1) DetailSterilizer::mount() memanggil GuardsRecordIdShape::isRecordIdShapeValid($id) (Str::isUuid) SEBELUM query — id bukan UUID langsung $notFound=true tanpa menyentuh SQL (di PostgreSQL = QueryException 22P02); UUID valid yang tidak dikenal tetap lewat jalur findOrFail -> notFound yang sama; (2) blade memformat tampilan lewat App\\Support\\Display: status -> Display::status() (label Indonesia), date -> Display::date() (bulan Indonesia, zona AppTime WIB), duration_minutes/number_of_cages -> Display::value() (id-ID, kosong '-'); kolom jam siklus dan checked_by_spv (Ya/Tidak) tidak berubah; nilai API/ekspor tidak berubah; (3) penolakan verifikasi oleh kunci periode memanggil assertPeriodOpenForWrite(..., 'verify') sehingga kalimatnya khusus verifikasi ('... sehingga verifikasi data bertanggal dd/mm/yyyy tidak dapat diubah ...'), aturannya tidak berubah"
       ],
       "data_operations": [
         {
@@ -215,6 +221,14 @@
         {
           "condition": "Verifikasi record milik mill lain (mis. memanggil aksi langsung dengan id record Mill B)",
           "handling": "assertRecordWritableByActor melempar CrossMillWriteDeniedException 403 (API: code FORBIDDEN) — kolom tidak berubah; di layar Detail ditangkap sebagai AuthorizationException dan tampil sebagai alert $verificationMessage (catatan: layar Detail Mill A sendiri sudah tidak memuat record Mill B)"
+        },
+        {
+          "condition": "{id} di URL bukan UUID (mis. 'abc', '123', UUID terpotong)",
+          "handling": "GuardsRecordIdShape menolak sebelum query: Livewire set notFound=true -> 'Record tidak ditemukan' + tombol Back, id tidak pernah menjadi binding SQL. API GET (tanpa guard ini) di PostgreSQL -> QueryException 22P02 -> ApiExceptionHandler 422 VALIDATION_ERROR tanpa teks SQL"
+        },
+        {
+          "condition": "Verifikasi (setujui/batalkan) ditolak kunci periode",
+          "handling": "Pesan PeriodClosedException memakai kalimat verifikasi (action 'verify'): '... sudah ditutup, sehingga verifikasi data bertanggal dd/mm/yyyy tidak dapat diubah', '... belum dibuka (masih Draft), sehingga verifikasi data ... belum dapat diubah', '... di luar periode yang terbuka ..., sehingga verifikasinya tidak dapat diubah', atau 'Belum ada Periode Pelaporan yang terbuka ..., sehingga verifikasi data ... tidak dapat diubah' — bukan kalimat jalur simpan; tampil sebagai alert $verificationMessage"
         }
       ],
       "business_rules_applied": [
@@ -258,6 +272,11 @@
           "description": "verification accepted when the station row is open and the event date is inside the period range",
           "given": "record Sterilizer mill sendiri dengan date di dalam rentang periode, baris period_stations 'sterilizer' status=open; Supervisor memanggil setVerification(level=checked, value=true)",
           "expect": "checked_by = id aktor; record di-reload dan pesan sukses ditampilkan"
+        },
+        {
+          "description": "non-UUID id renders the not-found state without querying",
+          "given": "DetailSterilizer di-mount dengan id 'abc' / '123' / '00000000-0000-0000-0000-00000000000'",
+          "expect": "notFound=true, tampil 'Record tidak ditemukan', id tsb tidak muncul di binding query mana pun"
         }
       ]
     }
@@ -292,7 +311,8 @@
     "Field grouping & urutan field di blade view mengikuti struktur mobile/src/views/DataPreviewSterilizerView.vue mode detail per arahan eksplisit: web station screens mengikuti flow/UX mobile",
     "Route /sterilizer-records/{id} didaftarkan SETELAH /sterilizer-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}",
     "BERBEDA dari Detail CPO Dispatch: details TIDAK di-sort by event_date (kolom tidak ada) melainkan by created_at (urutan insert) — karena Sterilizer Detail tidak punya kolom tanggal per baris sendiri",
-    "VERIFIKASI + KUNCI PERIODE (sinkronisasi 2026-10-03, kode tidak diubah): layar Detail punya aksi approve/un-approve langsung sejak 2026-09-14 lewat trait App\\Livewire\\Data\\Concerns\\HandlesRecordVerification (DetailSterilizer implementasikan verificationModelClass()=SterilizerRecord::class + reloadRecord()), yang memanggil RecordVerificationService::setVerification() — padanan API-nya PATCH /api/records/{stationType}/{id}/verification. Level yang diekspos: Checked By dan Acknowledged By. Sejak 49dc0c5 setVerification() menegakkan assertPeriodOpenForWrite() pada tanggal kejadian record (`date`); sejak fix 0594c63 HandlesRecordVerification juga menangkap HttpException sehingga 422 PERIOD_CLOSED tampil sebagai alert $verificationMessage, bukan respons mentah. Diuji di backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...', memakai DetailCagesTrack sebagai wakil trait bersama) dan backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED untuk setujui & batalkan)."
+    "VERIFIKASI + KUNCI PERIODE (sinkronisasi 2026-10-03, kode tidak diubah): layar Detail punya aksi approve/un-approve langsung sejak 2026-09-14 lewat trait App\\Livewire\\Data\\Concerns\\HandlesRecordVerification (DetailSterilizer implementasikan verificationModelClass()=SterilizerRecord::class + reloadRecord()), yang memanggil RecordVerificationService::setVerification() — padanan API-nya PATCH /api/records/{stationType}/{id}/verification. Level yang diekspos: Checked By dan Acknowledged By. Sejak 49dc0c5 setVerification() menegakkan assertPeriodOpenForWrite() pada tanggal kejadian record (`date`); sejak fix 0594c63 HandlesRecordVerification juga menangkap HttpException sehingga 422 PERIOD_CLOSED tampil sebagai alert $verificationMessage, bukan respons mentah. Diuji di backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...', memakai DetailCagesTrack sebagai wakil trait bersama) dan backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED untuk setujui & batalkan).",
+    "AUDIT-FIX 2026-10-04 (sinkronisasi 2026-10-05, kode acuan): DetailSterilizer memakai trait App\\Livewire\\Data\\Concerns\\GuardsRecordIdShape (id bukan UUID -> notFound tanpa SQL); blade memakai App\\Support\\Display (label status, bulan Indonesia WIB, duration/number of cages id-ID); kalimat penolakan kunci periode untuk verifikasi memakai action 'verify'. Diuji di backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php."
   ],
   "test_scenarios": [
     {

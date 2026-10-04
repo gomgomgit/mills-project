@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-17"
+    "updated_at": "2026-10-05"
   },
   "modules_implemented": [
     "db-client",
@@ -84,6 +84,14 @@
     {
       "name": "VITE_API_BASE_URL",
       "description": "(mobile) Base URL backend API yang dikonsumsi apiClient.ts"
+    },
+    {
+      "name": "APP_TIMEZONE",
+      "description": "Zona waktu aplikasi (config/app.php), default Asia/Jakarta (WIB) — kolom datetime naif berisi jam WIB; sejak 2026-10-04, sebelumnya hard-coded UTC"
+    },
+    {
+      "name": "EVENT_DATE_MAX_DAYS_AHEAD",
+      "description": "Batas atas tanggal kejadian data stasiun: maksimal N hari setelah hari ini (WIB), inklusif; default 1 (= besok). Kosong/negatif mematikan batas (hanya untuk lingkungan uji)"
     }
   ],
   "files_generated": [
@@ -100,7 +108,21 @@
     "backend/tests/TestCase.php",
     "backend/tests/Pest.php",
     "backend/phpunit.xml",
-    "backend/bootstrap/app.php"
+    "backend/bootstrap/app.php",
+    "backend/app/Http/Middleware/EnsureUserIsActive.php",
+    "backend/app/Providers/AppServiceProvider.php",
+    "backend/config/app.php",
+    "backend/app/Support/AppTime.php",
+    "backend/app/Support/RouteAccess.php",
+    "backend/app/Support/PasswordPolicy.php",
+    "backend/app/Support/Display.php",
+    "backend/app/Support/ExportValue.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Rules/RealImage.php",
+    "backend/app/Rules/UniqueCaseInsensitive.php",
+    "backend/app/Livewire/Concerns/ValidatesUploadOnSelect.php",
+    "backend/resources/views/errors/403.blade.php",
+    "backend/.env.e2e.example"
   ],
   "fe_files_generated": [
     "mobile/.env.example",
@@ -112,7 +134,10 @@
     "mobile/src/views/HomeView.vue",
     "mobile/src/services/errorHandler.ts",
     "mobile/src/vite-env.d.ts",
-    "mobile/vite.config.ts"
+    "mobile/vite.config.ts",
+    "mobile/src/utils/localDate.ts",
+    "mobile/src/utils/floatingSafeArea.ts",
+    "mobile/tests/setup/teleportStub.ts"
   ],
   "setup_notes": [
     "Tidak ada migration password_reset_tokens/sessions table ditambahkan — tambahkan nanti jika fitur Lupa Password masuk scope",
@@ -122,6 +147,8 @@
     "Tidak ada config/cors.php eksplisit, mengandalkan default Laravel HandleCors middleware",
     "fe-error-handler showError() hanya console.log + return string, belum terhubung ke UI toast/snackbar — wiring visual ditunda ke impl-2-screen",
     "Copy backend/.env.example → backend/.env dan mobile/.env.example → mobile/.env, isi nilai asli, lalu jalankan php artisan key:generate dan php artisan migrate sebelum menjalankan backend",
-    "composer install / npm install belum dijalankan — dependency sudah dideklarasikan di composer.json dan package.json, hanya @capacitor/preferences yang perlu ditambahkan nanti"
+    "composer install / npm install belum dijalankan — dependency sudah dideklarasikan di composer.json dan package.json, hanya @capacitor/preferences yang perlu ditambahkan nanti",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): auth-middleware kini juga EnsureUserIsActive (di-append ke grup 'web' DAN 'api' di bootstrap/app.php, setelah StartSession) — sesi akun yang dinonaktifkan dikeluarkan pada request berikutnya (JSON 401 / redirect Login berpesan); token Sanctum milik user nonaktif ditolak lewat Sanctum::authenticateAccessTokensUsing() di AppServiceProvider. error-handler (ApiExceptionHandler) memetakan QueryException 22P02/22007/22008 → 422 VALIDATION_ERROR dan QueryException lain → 500 generik, tidak pernah membocorkan SQL walau APP_DEBUG=true. config/app.php: timezone = env APP_TIMEZONE (Asia/Jakarta) + event_date_max_days_ahead. Utilitas lintas-layar baru di app/Support: AppTime (normalisasi datetime klien, batas tanggal kejadian), RouteAccess (sidebar mengikuti middleware role rute), PasswordPolicy, Display (format tampilan Indonesia), ExportValue + SheetWriter (ekspor CSV / .xlsx sungguhan); app/Rules: RealImage, UniqueCaseInsensitive; Livewire\\Concerns\\ValidatesUploadOnSelect. resources/views/errors/403.blade.php = halaman 403 web. FE mobile: utils/localDate.ts (tanggal lokal perangkat, bukan ISO UTC) dan utils/floatingSafeArea.ts (gelembung/jam mengambang tidak menutupi kontrol); apiClient menandai kegagalan jaringan murni dengan `network: true`; vitest setupFiles tests/setup/teleportStub.ts karena ConfirmDialog/SyncResultDialog di-<Teleport> ke <body>. Uji browser web memakai env e2e terpisah (backend/.env.e2e dari .env.e2e.example, DB mill_smart_log_e2e, port 8001) — lihat test-strategy.browser_test.",
+    "Catatan env: nilai DB_* di atas masih mendeskripsikan MySQL dari bootstrap awal; database aktual sejak 2026-09-07 adalah PostgreSQL (arch-spec) — backend/.env.example memakai DB_CONNECTION=pgsql."
   ]
 }

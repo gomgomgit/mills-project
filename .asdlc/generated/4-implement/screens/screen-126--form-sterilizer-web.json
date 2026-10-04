@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-126--form-sterilizer-web",
   "name": "Form Sterilizer (Web)",
@@ -13,21 +13,30 @@
     "backend/app/Services/SterilizerRecordService.php",
     "backend/app/Http/Controllers/Api/SterilizerRecordController.php",
     "backend/routes/api.php",
-    "backend/database/factories/StationFactory.php"
+    "backend/database/factories/StationFactory.php",
+    "backend/app/Support/AppTime.php",
+    "backend/app/Support/Concerns/EnforcesPeriodLock.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php",
+    "backend/config/app.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/SterilizerRecordServiceTest.php",
     "backend/tests/Feature/Api/FormSterilizerTest.php",
-    "e2e-web/tests/form-sterilizer.spec.ts"
+    "e2e-web/tests/form-sterilizer.spec.ts",
+    "backend/tests/Feature/AuditFix20261004Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormSterilizer.php",
     "backend/resources/views/livewire/data/form-sterilizer.blade.php",
     "backend/resources/views/data/sterilizer-form.blade.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php"
   ],
   "fe_test_files_generated": [
-    "backend/tests/Feature/Livewire/FormSterilizerTest.php"
+    "backend/tests/Feature/Livewire/FormSterilizerTest.php",
+    "backend/tests/Feature/Livewire/WebFormNoDisabledFieldTest.php",
+    "backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php"
   ],
   "implementation_notes": [
     "Satu Livewire component (FormSterilizer) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormCpoDispatch/FormKernelDispatch/FormSolidWasteDisposal/FormWeighbridge",
@@ -37,7 +46,7 @@
     "PENYESUAIAN KONVENSI WEB TERBARU (berbeda dari precedent Net Weight Form CPO Dispatch Web yang masih pakai disabled <input>): Duration (Minutes) di form-sterilizer.blade.php dirender sebagai <span class=\"sf-computed-value\"> biasa, BUKAN <input disabled> — mengikuti konvensi proyek terbaru 'no disabled/readonly inputs on web forms', field station-readonly (mode edit) tetap memakai <span class=\"sf-field__readonly\"> yang sudah menjadi konvensi sejak beberapa stasiun terakhir (Threshing/Pressing/Depricarping/Kernel Plant dst.)",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit): Date pada web default hari ini namun TETAP dapat diedit manual — TIDAK dikunci/dibekukan seperti mobile screen-122",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit): tidak ada draft/pause/Clear di web — Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
-    "Checked By DAN Acknowledged By keduanya ada di form ini sebagai checkbox self-attestation role-gated (header), konsisten dengan mobile screen-122 dan Detail Sterilizer Web (screen-125); Checked by SPV per-baris TIDAK role-gated (checkbox polos untuk siapapun yang berhak akses form)",
+    "Checked By DAN Acknowledged By keduanya ada di form ini sebagai checkbox self-attestation role-gated (header), konsisten dengan mobile screen-122 dan Detail Sterilizer Web (screen-125); Checked by SPV per-baris sejak 2026-10-04 juga role-gated: checkbox hanya dirender untuk Supervisor (FormSterilizer::isSupervisor()), peran lain melihat teks Ya/Tidak (data-testid detail-checked-by-spv-text-N), dan SterilizerRecordService::upsertDetails() mengabaikan nilai kiriman non-Supervisor (baris baru false, baris lama mempertahankan nilai tersimpan)",
     "Route web /data/sterilizer/create HARUS didaftarkan SEBELUM /data/sterilizer/{id} (screen-125) — sama pola dengan screen-022/023/024/111/113/114",
     "Ditambahkan tombol 'Tambah Data' di Data Browser (screen-124) dan tombol 'Edit' di Detail (screen-125) sebagai entry point ke screen ini",
     "Station::factory()->sterilizer() state reused (ditambahkan bersama screen-124's implementation) untuk kebutuhan test suite screen ini",
@@ -45,7 +54,8 @@
     "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): SterilizerRecordService::create() memanggil assertPeriodOpenForWrite('sterilizer', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormSterilizer::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (menguji POST/PATCH /api/sterilizer-records stasiun ini langsung: ditolak 422 PERIOD_CLOSED di periode tertutup, dan diterima lagi setelah periode dibuka kembali); test per-layar (tests/Unit/Services/SterilizerRecordServiceTest.php, tests/Feature/Api/FormSterilizerTest.php, tests/Feature/Livewire/FormSterilizerTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini).",
     "REVISI v3 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormSterilizerTest.php kini punya 3 uji HTTP kunci periode per-stasiun, melengkapi uji end-to-end yang sudah ada di KelolaPeriodePelaporanTest.php dan menyamakan cakupan Sterilizer dengan 17 stasiun lain: (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 18 uji, semuanya hijau (test_results.integration diperbarui).",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-sterilizer.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 2 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): SterilizerRecordService — create/update memanggil assertEventDateNotTooFarAhead (> besok WIB -> 422 errors.date); upsertDetails($record, $details, ?User $actor) menegakkan checked_by_spv Supervisor-only (diabaikan, bukan ditolak); id baris bukan-UUID -> baris baru (Str::isUuid); ekspor .xlsx asli via SheetWriter + ExportValue (relevan screen-124). ScopesToActorMill: production_line_id bukan-UUID -> 422; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL. FormSterilizer: trait GuardsRecordIdShape (id bukan UUID -> notFound); view: checkbox Checked by SPV hanya untuk Supervisor, lainnya teks Ya/Tidak. Tes: tests/Feature/AuditFix20261004Test.php ([spv] 3 uji, [future]), tests/Feature/Livewire/RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php; tests/Unit/Services/SterilizerRecordServiceTest.php ikut diubah. test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

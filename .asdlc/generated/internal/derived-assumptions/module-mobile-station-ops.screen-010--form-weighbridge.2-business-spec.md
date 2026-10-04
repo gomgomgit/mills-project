@@ -35,3 +35,11 @@
 
 - Tanggal & Waktu Dispatch DIUBAH dari live-ticking sampai Simpan menjadi auto-isi SEKALI saat tipe dipilih/draft dibuat, tidak dapat diedit — sama persis dengan perilaku Receive/Arrival ← instruksi eksplisit user saat REVISI checkpoint, mengoreksi asumsi agent di v5 yang mempertahankan perilaku live-ticking lama
 - Edge case "Lanjutkan Draft Paused" disederhanakan: tidak ada lagi pengecualian untuk tipe Dispatch (field tanggal tidak pernah di-reset saat draft dibuka ulang, untuk tipe manapun) ← konsekuensi langsung dari perubahan di atas
+
+## v7 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/FormWeighbridgeView.vue, mobile/src/utils/localDate.ts, mobile/src/services/syncService.ts, backend/app/Services/WeighbridgeRecordService.php).
+- information_displayed[3] = "Nama Supir" → "Nama Sopir" ← label FormField + REQUIRED_FIELD_LABELS di FormWeighbridgeView.vue.
+- business_rules += Tanggal & Waktu otomatis = jam LOKAL perangkat, dikirim dengan offset perangkat, disimpan server sebagai WIB ← nowIso() → nowLocalDateTimeString(); syncService toOffsetDateTime(); AppTime::normalizeClientDateTime.
+- business_rules += server menolak 422 tanggal > besok saat sinkron; record tetap Tersimpan + "Gagal sinkron: <alasan>" di Data Preview ← assertEventDateNotTooFarAhead('record_datetime'), syncService.failure()/sync_error. (⚠ penempatan aturan server di spec layar form adalah inferensi; form sendiri tidak memanggil server.)
+- KOREKSI (sesi lanjutan, ver tetap v7): information_displayed[3] dikembalikan ke "Tujuan Muatan — hanya muncul saat tipe Dispatch…" (patch sebelumnya salah indeks dan menimpanya) dan information_displayed[4] = "Data kendaraan (No. Kendaraan, Nama Sopir)" ← label FormField 'Nama Sopir' + field destination masih dirender saat dispatch di FormWeighbridgeView.vue.

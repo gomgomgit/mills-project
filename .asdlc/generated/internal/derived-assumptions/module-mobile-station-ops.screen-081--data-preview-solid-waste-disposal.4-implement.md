@@ -16,3 +16,12 @@ Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
 Spec e2e mobile baru + run penuh 727 lulus / 0 gagal.
 - mobile/tests/e2e/data-preview-solid-waste-disposal.spec.ts ditambahkan ke fe_test_files_generated; test_results.browser = 11 lulus / 0 gagal (run_at 2026-10-03T00:00:00Z, jumlah dari run penuh suite).
 - known_issue 'spec browser/E2E belum ada' dihapus; known_issue lain dibiarkan.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile + backend).
+- files_generated += RecordVerificationStatusController.php, RecordVerificationStatusService.php, routes/api.php ← endpoint GET verifikasi baru dipakai layar ini.
+- test_files_generated += backend/tests/Feature/Api/MobileReadEndpointsTest.php ← menguji endpoint GET verifikasi.
+- fe_files_generated += SyncFailureHint.vue, recordVerificationApi.ts, apiClient.ts, utils/localDate.ts ← diimpor/dipakai DataPreviewSolidWasteDisposalView.vue. ⚠ recordVerificationApi.ts/apiClient.ts sudah dipakai sebelumnya tapi tidak terdaftar — ditambahkan karena berubah di audit ini.
+- fe_test_files_generated += SyncFailureHint.spec.ts, syncService.sqljs.spec.ts, recordVerification.spec.ts, noteLabelConsistency.spec.ts, e2e/sync-and-verification.spec.ts. ⚠ e2e sync-and-verification tidak menguji stasiun ini secara langsung (pola #2/#9/#6 diuji di stasiun lain, komponen bersama).
+- implementation_notes += REVISI 2026-10-04 (pull verifikasi, /api prefix, network flag, SyncFailureHint, 'Tanggal:' via toDateInputValue; label 'Note:' → 'Catatan:').

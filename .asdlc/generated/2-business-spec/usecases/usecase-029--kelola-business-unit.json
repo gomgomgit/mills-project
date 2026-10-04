@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "usecase-029--kelola-business-unit",
   "name": "Kelola Business Unit",
@@ -48,18 +48,18 @@
     },
     {
       "name": "Hapus Business Unit — berhasil",
-      "trigger": "Step 2 — Admin klik Hapus pada Business Unit yang tidak memiliki Station terkait",
+      "trigger": "Step 2 — Admin klik Hapus pada Business Unit yang tidak memiliki User, Production Line, Station, maupun Periode Pelaporan terkait",
       "steps": [
         "Sistem menghapus Business Unit",
-        "Sistem memperbarui daftar"
+        "Sistem menampilkan pesan sukses 'Business Unit berhasil dihapus.' dan memperbarui daftar"
       ]
     },
     {
       "name": "Hapus Business Unit — ditolak",
-      "trigger": "Step 2 — Admin klik Hapus pada Business Unit yang masih memiliki satu atau lebih Station terkait",
+      "trigger": "Step 2 — Admin klik Hapus pada Business Unit yang masih memiliki User, Production Line, Station, atau Periode Pelaporan terkait",
       "steps": [
-        "Sistem menolak penghapusan",
-        "Sistem menampilkan pesan bahwa Business Unit masih memiliki Station terkait"
+        "Sistem menolak penghapusan; tidak ada data yang terhapus dan User tetap memiliki Business Unit-nya",
+        "Sistem menampilkan pesan yang merinci jumlah setiap ketergantungan (mis. '... masih memiliki 2 User, 1 Production Line, 18 Station. Pindahkan atau hapus data tersebut terlebih dahulu.')"
       ]
     },
     {
@@ -81,11 +81,11 @@
   ],
   "postconditions": [
     "Business Unit baru/ubahan tersimpan dan terlihat di daftar dengan Company induk yang benar",
-    "Atau Business Unit terhapus dari daftar jika tidak ada Station terkait"
+    "Atau Business Unit terhapus dari daftar jika tidak ada User, Production Line, Station, maupun Periode Pelaporan terkait"
   ],
   "business_rules": [
     "Kode Business Unit harus unik di seluruh sistem (bukan hanya dalam satu Company)",
-    "Business Unit tidak dapat dihapus jika masih memiliki satu atau lebih Station terkait",
+    "Business Unit tidak dapat dihapus jika masih memiliki User, Production Line, Station, atau Periode Pelaporan terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Business Unit",
     "Business Unit harus terkait ke tepat satu Company yang sudah ada"
   ],
@@ -105,14 +105,14 @@
     {
       "scenario": "Kelola Business Unit — Hapus Business Unit — berhasil",
       "given": "Admin sudah login ke web app dan minimal satu Company sudah ada",
-      "when": "Admin klik Hapus pada Business Unit yang tidak memiliki Station terkait",
-      "then": "Sistem menghapus Business Unit dan memperbarui daftar"
+      "when": "Admin klik Hapus pada Business Unit yang tidak memiliki User, Production Line, Station, maupun Periode Pelaporan terkait",
+      "then": "Sistem menghapus Business Unit, menampilkan pesan sukses, dan memperbarui daftar"
     },
     {
       "scenario": "Kelola Business Unit — Hapus Business Unit — ditolak",
       "given": "Admin sudah login ke web app dan minimal satu Company sudah ada",
-      "when": "Admin klik Hapus pada Business Unit yang masih memiliki satu atau lebih Station terkait",
-      "then": "Sistem menolak penghapusan dan menampilkan pesan bahwa Business Unit masih memiliki Station terkait"
+      "when": "Admin klik Hapus pada Business Unit yang masih memiliki User, Production Line, Station, atau Periode Pelaporan terkait",
+      "then": "Sistem menolak penghapusan, tidak ada data yang terhapus, dan menampilkan pesan yang merinci setiap ketergantungan beserta jumlahnya"
     },
     {
       "scenario": "Kelola Business Unit — Kode duplikat",

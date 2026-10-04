@@ -16,3 +16,13 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (app/Services/EffluentPlantRecordService.php::export(), app/Support/SheetWriter.php, app/Support/ExportValue.php, app/Support/Display.php, data-browser-effluent-plant.blade.php).
+- api_contracts[0].endpoints[1].response.success_schema.note = excel → .xlsx OOXML via SheetWriter ← export()/fileMetaFor()
+- api_contracts[0].business_logic[8] = langkah ekspor menulis via SheetWriter::open($format) ← export() closure
+- api_contracts[0].business_logic += format nilai ekspor (status Indonesia, Time Slot HH:MM tanpa detik (ExportValue::time/status); judul kolom tetap) ← export() rows
+- api_contracts[0].business_logic += blade Display::status (JSON status tetap enum) ← blade diff + docblock Display
+- api_contracts[0].unit_test_cases += export excel xlsx sungguhan ← EffluentPlantRecordServiceTest export assert 'PK' + xlsxRows (assert jam/status di kasus uji = ⚠ ringkasan agen dari kode, tidak semuanya di-assert uji)
+- implementation_notes += REVISI 2026-10-04

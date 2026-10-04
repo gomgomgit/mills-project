@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-112--form-process-water-web",
   "name": "Form Process Water (Web)",
@@ -20,7 +20,7 @@
   "information_displayed": [
     "Production Line (dropdown) — hanya pada mode buat baru, menentukan station Process Water tujuan record (1 station Process Water aktif per production line)",
     "Process Water ID",
-    "Tanggal — default hari ini, DAPAT diedit manual (berbeda dari mobile yang menguncinya)",
+    "Tanggal — default hari ini (WIB), DAPAT diedit manual (berbeda dari mobile yang menguncinya); tidak boleh melewati besok",
     "Note (input manual, opsional)",
     "Grid Process Water Detail: baris ditambahkan satu per satu (Tambah Baris), Time-Slot per baris dipilih dari dropdown (opsi = 24 slot kanonis 07:00-06:00 DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), kolom lain per baris: Shift, Inspector ID, Raw Water Flow, Clarified Water Flow, Softener Inlet pH, Softener Outlet Hardness, Alum Dosing, Polymer Dosing, Boiler Feed Tank Temp, Boiler Feed Water pH, Boiler Feed TDS, Action Taken/Status, Findings — semua kolom bacaan opsional, baris dapat dihapus",
     "Checked By — checkbox 'Tandai sudah diperiksa', hanya tampil & aktif untuk role Supervisor",
@@ -109,7 +109,7 @@
   "business_rules": [
     "Tidak ada konsep draft/pause/Clear di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
     "Field wajib ditandai asterisk merah dengan validasi inline",
-    "Tanggal default waktu saat ini saat form dibuka, TETAP DAPAT diedit manual oleh user",
+    "Tanggal default waktu saat ini (WIB, zona aplikasi) saat form dibuka, TETAP DAPAT diedit manual oleh user; tanggalnya tidak boleh melewati besok — bila lewat, Simpan ditolak dengan pesan inline di field Tanggal",
     "Grid Process Water Detail TIDAK di-pre-generate — baris ditambahkan satu per satu via 'Tambah Baris', dapat dihapus via 'Hapus', sama seperti mobile dan Form Threshing Web",
     "Time-Slot tiap baris wajib lebih lambat (index kanonis lebih besar) dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
     "Setiap kolom bacaan pada baris opsional; minimal satu baris valid (Time-Slot terpilih + minimal satu kolom bacaan terisi) harus ada sebelum Simpan",
@@ -128,7 +128,9 @@
     "User memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tidak tersedia di dropdown",
     "Production Line terpilih belum memiliki station Process Water aktif (mode buat baru) — Simpan ditolak dengan pesan error",
     "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
-    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Threshing Web)"
+    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Threshing Web)",
+    "Tanggal diisi lebih dari besok (mis. salah ketik tahun) — Simpan ditolak dengan pesan inline 'Tanggal dd/mm/YYYY tidak masuk akal: tidak boleh melewati dd/mm/YYYY.'",
+    "Mode edit dibuka dengan id berformat bukan UUID — diperlakukan sama dengan record tidak ditemukan ('Record tidak ditemukan.'), tanpa error sistem"
   ],
   "test_priority": "high",
   "open_questions": []

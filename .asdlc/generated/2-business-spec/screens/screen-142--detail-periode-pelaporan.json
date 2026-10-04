@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-02"
+    "updated_at": "2026-10-05"
   },
-  "ver": 1,
+  "ver": 2,
   "id": "screen-142--detail-periode-pelaporan",
   "name": "Detail Periode Pelaporan",
   "module_id": "module-master-data",
@@ -69,7 +69,7 @@
     },
     {
       "action": "Hapus Periode",
-      "description": "Menghapus periode induk beserta seluruh baris stasiunnya, dengan konfirmasi. Nonaktif dengan penjelasan pada title bila ada minimal satu stasiun yang sudah tertutup.",
+      "description": "Menghapus periode induk beserta seluruh baris stasiunnya, dengan konfirmasi. Nonaktif dengan penjelasan pada title bila ada minimal satu stasiun yang sudah tertutup. Ditolak (pesan inline setelah konfirmasi) bila periode sudah berisi data stasiun — record mill itu, dari jenis stasiun periode, bertanggal kejadian di dalam rentangnya",
       "actor_ids": [
         "actor-admin"
       ]
@@ -89,8 +89,9 @@
     "Penutupan dan pembukaan bersifat atomik: bila dua Admin menekan aksi yang sama pada baris stasiun yang sama hampir bersamaan, hanya satu yang berhasil dan catatan yang pertama tidak tertimpa; yang kedua diberi tahu status stasiun itu saat ini",
     "Periode induk tidak dapat diubah maupun dihapus bila ada SATU saja stasiunnya yang berstatus Tertutup — bukan bila semuanya tertutup. Menghapus periode akan ikut menghapus baris stasiunnya, sehingga satu baris tertutup pun cukup untuk membekukan periodenya",
     "Tombol Edit dan Hapus pada periode yang terbekukan ditampilkan dalam keadaan nonaktif beserta penjelasan pada atribut title, tidak disembunyikan — Admin harus bisa melihat bahwa aksi itu ada tetapi sedang terkunci, bukan mencari tombol yang hilang",
-    "Menutup stasiun menetapkan status pada baris stasiun, dan SEJAK 2026-10-02 status itu benar-benar mengikat jalur tulis: penolakan input, perubahan, dan verifikasi record stasiun pada periode tertutup sudah ditegakkan (usecase-141--kunci-input-periode-tertutup) di ke-18 *RecordService beserta RecordVerificationService, dengan 422 PERIOD_CLOSED. Sebelum tanggal itu, menutup stasiun hanya menandai status sementara data terus mengalir masuk — yang membuat kata 'tertutup' tidak berarti apa-apa.",
-    "Aksi 'Buka Stasiun' tidak membaca, memvalidasi, maupun mengubah satu pun record stasiun — berbeda dari 'Tutup Stasiun' yang menghitung record belum terverifikasi"
+    "Menutup stasiun menetapkan status pada baris stasiun, dan SEJAK 2026-10-02 status itu benar-benar mengikat jalur tulis: penolakan input, perubahan, dan verifikasi record stasiun pada periode tertutup sudah ditegakkan (usecase-141--kunci-input-periode-tertutup) di ke-18 *RecordService beserta RecordVerificationService, dengan 422 PERIOD_CLOSED. Sejak 2026-10-04 tanggal baris detail (event_date) CPO Dispatch, Kernel Dispatch, dan Solid Waste Disposal juga dikunci, dan tanggal berzona dicocokkan menurut tanggal WIB-nya. Sebelum 2026-10-02, menutup stasiun hanya menandai status sementara data terus mengalir masuk — yang membuat kata 'tertutup' tidak berarti apa-apa.",
+    "Aksi 'Buka Stasiun' tidak membaca, memvalidasi, maupun mengubah satu pun record stasiun — berbeda dari 'Tutup Stasiun' yang menghitung record belum terverifikasi",
+    "Periode yang sudah berisi data stasiun tidak dapat dihapus dari layar ini (2026-10-04) — aturan yang sama dengan layar daftar: satu record mill itu, dari jenis stasiun periode, yang tanggal kejadiannya (header atau baris detail tiga stasiun log-kejadian) di dalam rentang sudah cukup untuk menolak; pesannya menyebut jenis stasiun yang berisi data"
   ],
   "usecase_ids": [
     "usecase-145--lihat-detail-periode-pelaporan",
@@ -109,7 +110,9 @@
     "LUBANG BACKFILL YANG SUDAH DIKETAHUI: mill mendapat jenis stasiun baru SETELAH periode dibuat, dan periode itu sudah punya minimal satu stasiun tertutup → baris stasiun baru tidak bisa didaftarkan, karena pendaftarannya hanya ikut pada penyimpanan periode dan penyimpanan itu sendiri ditolak selama ada stasiun tertutup. Jalan keluar yang tersedia hari ini bersifat manual: buka kembali stasiun yang tertutup, simpan ulang periodenya, lalu tutup lagi stasiun itu. Jangan menganggap ini sudah tertangani otomatis",
     "Record belum terverifikasi berjumlah nol untuk stasiun yang akan ditutup → dialog tetap tampil dengan angka 0, tanpa rincian, dan penutupan berjalan normal",
     "Jenis stasiun yang sudah dipensiunkan dari mill atau dari master tetap memiliki baris pada periode lama → barisnya tidak pernah dihapus (catatan siapa menutup dan kapan tidak boleh hilang), tetap tampil dengan label dari kodenya bila namanya tidak lagi ada di master, dan diurutkan paling belakang",
-    "Pengguna non-Admin (Operator, Supervisor, Mill Management) membuka /master-data/periods/{id} atau menjalankan aksi per stasiun → akses ditolak, tidak ada data periode yang ditampilkan maupun diubah"
+    "Pengguna non-Admin (Operator, Supervisor, Mill Management) membuka /master-data/periods/{id} atau menjalankan aksi per stasiun → akses ditolak, tidak ada data periode yang ditampilkan maupun diubah",
+    "Menghapus periode tanpa stasiun tertutup yang sudah berisi data stasiun → ditolak setelah konfirmasi dengan pesan inline 'Periode \"<nama>\" tidak dapat dihapus karena sudah berisi data stasiun (<jenis>). Hanya periode yang belum berisi data yang dapat dihapus.'; periode tetap ada dan halaman tidak berpindah",
+    "Membuka form Edit Periode dari layar ini → combobox Business Unit tampil terisi dengan mill periode dan listbox-nya tertutup (dulu kosong dengan listbox kosong terbuka karena skrip combobox yang disisipkan morph Livewire tidak dieksekusi)"
   ],
   "test_priority": "high",
   "open_questions": [

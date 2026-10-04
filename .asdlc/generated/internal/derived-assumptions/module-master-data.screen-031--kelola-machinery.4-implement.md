@@ -25,3 +25,12 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - test_results.browser = 8 lulus/0 gagal dari e2e-full.log.counts.json — hanya spec kelola-machinery, walau test_files_generated juga mencatat kelola-machinery-group.spec.ts (mengikuti pemetaan 1 spec → 1 layar; spec grup dicatat di screen-033).
 - Known_issue 'Browser test dibuat tapi tidak dijalankan' dihapus.
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD KelolaMachinery.php, MachineryService.php, MachineryGroupService.php, kelola-machinery.blade.php, master-data/machinery.blade.php; berkas baru KelolaMachineryAuditTest.php, ImageUploadValidationTest.php).
+- files_generated (+) = app/Rules/RealImage.php, app/Rules/UniqueCaseInsensitive.php.
+- fe_files_generated (+) = app/Livewire/Concerns/ValidatesUploadOnSelect.php.
+- test_files_generated (+) = KelolaMachineryAuditTest.php, ImageUploadValidationTest.php, tests/Pest.php.
+- implementation_notes[8] = tes gambar memakai fakeRealImage().
+- implementation_notes (+) = REVISI audit-fix.

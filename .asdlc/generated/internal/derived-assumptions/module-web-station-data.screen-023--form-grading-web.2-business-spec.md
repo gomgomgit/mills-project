@@ -7,3 +7,12 @@
 - **Only Acknowledged By implemented (self-attestation checkbox, Mill Management only) — no Checked By at all** — not a new decision, carried over verbatim from mobile screen-011's existing business rule ("Checked By TIDAK ditampilkan pada form ini") and Detail Grading Web (screen-020)'s existing behavior. Diverges from screen-022 (Form Weighbridge Web), which has both Checked By and Acknowledged By — that divergence is inherited from the entities' own pre-existing business rules, not invented for this screen.
 - **UOM and Percentage on Grading Detail rows treated as a data-integrity exception to the "no disabled web inputs" convention** ← direct precedent from screen-022's Net Weight exception; these are server-computed/snapshot values, not user-editable data, same reasoning class.
 - **Business Unit immutable after create (edit mode shows it read-only)** ← mirrors screen-022's identical rule for Weighbridge; same underlying reasoning (station/mill reassignment has no UI path in this MVP).
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (form-grading.blade.php, FormGrading.php, GradingRecordService.php).
+- information_displayed[0] = BU + Production Line, station dari line, select line tidak pernah nonaktif ← blade (tanpa @disabled), resolveActiveStationForActor(production_line_id). (Spec lama masih menyebut station dari Business Unit.)
+- information_displayed[2], business_rules[2] = default WIB, tidak boleh melewati besok ← assertEventDateNotTooFarAhead.
+- information_displayed[10], business_rules[8], [9] = UOM/Percentage teks, bukan input nonaktif ← blade fg-computed-value.
+- business_rules[10] = BU/Production Line/station immutable.
+- edge_cases[2] = berbasis Production Line; += tanggal > besok, id bukan UUID, WB Card/Quality Parameter tidak sah.

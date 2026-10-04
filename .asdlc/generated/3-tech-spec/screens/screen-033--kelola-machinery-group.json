@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-01"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-033--kelola-machinery-group",
   "name": "Kelola Machinery Group",
@@ -89,6 +89,7 @@
                   "station_name": "string",
                   "production_line_id": "uuid",
                   "production_line_name": "string",
+                  "business_unit_name": "string|null (via productionLine.businessUnit)",
                   "machinery_count": "integer",
                   "has_search_match_in_machinery": "boolean",
                   "created_at": "timestamp"
@@ -131,7 +132,8 @@
                 {
                   "id": "uuid",
                   "name": "string",
-                  "production_line_id": "uuid"
+                  "production_line_id": "uuid",
+                  "label": "string — 'Mill — Line — Station'"
                 }
               ]
             },
@@ -158,7 +160,7 @@
             "query_params": [],
             "body_schema": {
               "station_id": "uuid, required, harus Station yang ada",
-              "group_code": "string, required, unik secara global",
+              "group_code": "string, required, unik secara global (tidak peka huruf besar/kecil — UniqueCaseInsensitive)",
               "description": "string, optional",
               "unit": "string, optional",
               "workshop_factor": "float, optional",
@@ -213,7 +215,7 @@
             "query_params": [],
             "body_schema": {
               "station_id": "uuid, required, harus Station yang ada",
-              "group_code": "string, required, unik secara global (kecuali dirinya sendiri)",
+              "group_code": "string, required, unik secara global kecuali dirinya sendiri (tidak peka huruf besar/kecil)",
               "description": "string, optional",
               "unit": "string, optional",
               "workshop_factor": "float, optional",
@@ -305,9 +307,9 @@
         "1. GET list: paginate PER GRUP sesuai shared-decisions.pagination (20 grup per halaman), filter opsional by station_id, eager-load Station untuk station_name dan Production Line untuk production_line_name, hitung machinery_count via COUNT machinery WHERE machinery_group_id. Machinery yang tampil karena grupnya dibuka TIDAK pernah ikut terhitung di sini — ia datang dari GET /api/machinery, permintaan yang berbeda",
         "2. GET list dengan search: sertakan grup yang group_code/description-nya cocok, ATAU yang punya minimal satu Machinery dengan equipment_code/name cocok (EXISTS subquery). has_search_match_in_machinery bernilai true hanya pada kasus kedua — itulah sinyal yang dipakai FE untuk membuka grup otomatis; tanpa sinyal ini hasil pencarian akan tersembunyi di balik grup tertutup dan sama saja dengan tidak ditemukan",
         "3. GET list meta: sertakan ungrouped_machinery_count = COUNT machinery WHERE machinery_group_id IS NULL, satu query agregat sekali per permintaan — memakai meta pada endpoint yang sudah ada alih-alih menambah endpoint penghitung tersendiri",
-        "4. GET /api/stations/options: SELECT id, name, production_line_id dari seluruh Station, urut nama, untuk dropdown form (tanpa pagination) — production_line_id disertakan agar FE dapat menampilkannya sebelum submit; server tetap menurunkannya ulang dari Station saat create/update, tidak pernah memercayai kiriman klien",
-        "5. POST create: validate station_id ada → validate group_code required + unik secara global → if invalid: return 422 VALIDATION_ERROR → salin production_line_id dari Station terpilih (Machinery Group TIDAK punya kolom business_unit_id — dibuang 2026-08-20) → insert Machinery Group baru",
-        "6. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate station_id ada → validate group_code required + unik global DENGAN MENGECUALIKAN dirinya sendiri (kode milik grup lain tetap ditolak) → if invalid: return 422 VALIDATION_ERROR → salin ulang production_line_id dari Station terpilih → update Machinery Group",
+        "4. GET /api/stations/options: SELECT id, name, production_line_id, business_unit_id (+ eager-load businessUnit:name, productionLine:name) dari seluruh Station; tiap opsi membawa label 'Mill — Line — Station' dan daftar diurutkan menurut label (natural, case-insensitive) — nama station saja tidak bisa dibedakan karena tiap line punya set nama yang sama. production_line_id disertakan agar FE dapat menampilkannya sebelum submit; server tetap menurunkannya ulang dari Station saat create/update",
+        "5. POST create: validate station_id ada → validate group_code required + unik global case-insensitive (UniqueCaseInsensitive) → if invalid: return 422 VALIDATION_ERROR → salin production_line_id dari Station terpilih (Machinery Group TIDAK punya kolom business_unit_id — dibuang 2026-08-20) → insert Machinery Group baru",
+        "6. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate station_id ada → validate group_code required + unik global case-insensitive DENGAN MENGECUALIKAN dirinya sendiri (kode milik grup lain tetap ditolak) → if invalid: return 422 VALIDATION_ERROR → salin ulang production_line_id dari Station terpilih → update Machinery Group",
         "7. DELETE: validate id exists → if not: return 404 NOT_FOUND → count Machinery WHERE machinery_group_id=id → if count > 0: return 409 MACHINERY_GROUP_HAS_MACHINERY → else delete Machinery Group. machinery_count sudah tampil di baris grup sebelum Hapus ditekan, sehingga penolakan ini tidak mengejutkan pembaca"
       ],
       "data_operations": [
@@ -345,7 +347,7 @@
       "edge_case_handling": [
         {
           "condition": "Kode grup sudah dipakai Machinery Group lain",
-          "handling": "Return 422 VALIDATION_ERROR dengan errors.group_code — berlaku pada create maupun update"
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.group_code — berlaku pada create maupun update, termasuk kode yang hanya berbeda huruf besar/kecil"
         },
         {
           "condition": "Machinery Group masih memiliki Machinery terkait saat dihapus",
@@ -433,9 +435,9 @@
           "expect": "Dipanggil dengan station_id X: tepat 2 grup"
         },
         {
-          "description": "GET /api/stations/options mengembalikan seluruh Station tanpa paginasi, tiap baris membawa production_line_id",
+          "description": "GET /api/stations/options mengembalikan seluruh Station tanpa paginasi, tiap baris membawa production_line_id dan label 'Mill — Line — Station'",
           "given": "12 Station tersebar di beberapa Production Line",
-          "expect": "12 entri, tanpa kunci meta, urut nama, dan tiap entri punya production_line_id — field itulah yang membuat penyalinan production_line_id ke grup bisa berjalan; nol entri membawa business_unit_id"
+          "expect": "12 entri, tanpa kunci meta, urut label, tiap entri punya production_line_id dan label; nol entri membawa business_unit_id"
         },
         {
           "description": "POST create menolak group_code yang kosong maupun yang sudah dipakai",
@@ -531,7 +533,8 @@
     "Komponen Livewire KelolaMachineryGroup, blade-nya, dan layout master-data/machinery-groups.blade.php sudah DIHAPUS. MachineryGroupService, MachineryGroupController, model, dan factory TETAP ADA — yang diserap adalah layarnya, bukan entitasnya.",
     "403 FORBIDDEN pada seluruh endpoint disimpulkan dari actor_permissions, sama seperti master data lainnya",
     "Livewire component memanggil Service Layer yang sama dengan REST API, konsisten dengan pola master data lainnya",
-    "production_line_id Machinery Group SELALU disalin dari Station yang dipilih (bukan dropdown/input terpisah) — pola anti-drift yang sama dipakai satu tingkat di bawahnya, di mana Machinery menyalin station_id/production_line_id dari Machinery Group"
+    "production_line_id Machinery Group SELALU disalin dari Station yang dipilih (bukan dropdown/input terpisah) — pola anti-drift yang sama dipakai satu tingkat di bawahnya, di mana Machinery menyalin station_id/production_line_id dari Machinery Group",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): salinan kontrak disamakan dengan api_contracts[1] screen-031 — stationOptions() kini berlabel 'Mill — Line — Station' dan diurut menurut label (#9c), baris daftar grup membawa business_unit_name dan layar menampilkan kolom Business Unit, group_code unik case-insensitive (UniqueCaseInsensitive, #11). Di layar Kelola Mesin: Production Line di form grup tampil sebagai teks (bukan input disabled), pesan sukses simpan/hapus grup, dan pesan error hapus lama dibersihkan saat aksi baru (#12/#15)."
   ],
   "test_scenarios": [
     {

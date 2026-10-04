@@ -18,3 +18,10 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 Spec e2e mobile baru + run penuh 727 lulus / 0 gagal.
 - mobile/tests/e2e/form-engine-room.spec.ts ditambahkan ke fe_test_files_generated; test_results.browser = 13 lulus / 0 gagal (run_at 2026-10-03T00:00:00Z, jumlah dari run penuh suite).
 - known_issue 'spec browser/E2E belum ada' dihapus; known_issue lain dibiarkan.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile/, tes baru di mobile/tests/).
+- fe_files_generated (+) = mobile/src/utils/localDate.ts, mobile/src/services/millSettingRepo.ts, mobile/src/services/syncService.ts ← dipakai jalur draft-date / write-through layar ini (⚠ inferensi: atribusi berkas bersama ke layar ini, bukan berkas milik layar)
+- fe_test_files_generated (+) = noteLabelConsistency, DialogTeleport, localDate.sqljs, writeThroughSync, millSettingRepo.sqljs, syncService.sqljs (*.spec.ts) ← tes baru/berubah yang mencakup label Catatan, ConfirmDialog, createDraft lokal & normalisasi UTC, write-through, sync_error/line per record (⚠ inferensi: cakupan generik lintas stasiun, bukan tes khusus layar)
+- implementation_notes (append) = REVISI 2026-10-04 audit-fix (label Catatan, date lokal, write-through aktif, sync_error, line per record, ConfirmDialog teleport); test_results tidak diubah ← diff kode terkait

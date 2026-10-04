@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-033--kelola-machinery-group",
   "name": "Kelola Machinery Group",
@@ -16,7 +16,8 @@
     "backend/app/Models/MachineryGroup.php",
     "backend/routes/api.php",
     "backend/routes/web.php",
-    "backend/app/Http/Controllers/Api/MachineryController.php"
+    "backend/app/Http/Controllers/Api/MachineryController.php",
+    "backend/app/Rules/UniqueCaseInsensitive.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/MachineryGroupServiceTest.php",
@@ -24,7 +25,8 @@
     "backend/tests/Feature/Livewire/KelolaMachineryGroupTest.php",
     "backend/database/factories/MachineryGroupFactory.php",
     "backend/database/factories/MachineryFactory.php",
-    "e2e-web/tests/kelola-machinery-group.spec.ts"
+    "e2e-web/tests/kelola-machinery-group.spec.ts",
+    "backend/tests/Feature/Livewire/KelolaMachineryAuditTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/MasterData/KelolaMachinery.php",
@@ -36,12 +38,13 @@
     "Memperluas (bukan membuat ulang) tabel/model machinery_groups placeholder yang dibuat screen-030 — migration baru menambah group_code (unik global)/description/unit/workshop_factor/cost_per_equipment; model diperluas dengan field + relasi machinery() baru, station()/businessUnit() tidak diubah",
     "machinery_group_id ditambahkan ke tabel machinery (sebelumnya belum ada di placeholder Machinery) via migration yang sama — TIDAK ditambahkan ke Machinery::$fillable (sengaja, itu tugas screen-031)",
     "business_unit_id SELALU diturunkan server-side dari Station terpilih, tidak pernah dibaca dari request — MachineryGroupController::FIELDS sengaja tidak menyertakan business_unit_id sehingga nilai spoofed di request body gugur sebelum sampai ke service; diverifikasi eksplisit lewat test di level service maupun HTTP",
-    "GET /api/stations/options mengembalikan {id, name, business_unit_id} per baris — dipakai FE murni untuk tampilan (selectedBusinessUnitName di Livewire), server tetap independen menurunkan ulang business_unit_id dari station_id saat submit",
+    "GET /api/stations/options mengembalikan {id, name, production_line_id, label} per baris — label 'Mill — Line — Station' (urut label) dipakai dropdown/filter Station di Kelola Mesin; server tetap menurunkan ulang production_line_id dari station_id saat submit",
     "vendor/bin/pint --test menandai beberapa isu gaya (new_with_parentheses, urutan import) yang sudah ada di semua service file sejenis (StationService.php dkk) — tidak diperbaiki karena bukan regresi baru, dan menjalankan pint sekali sempat mengubah routes/web.php jauh melebihi blok baru screen ini serta menyimpang dari 2 gaya kecil StationService.php — direvert demi konsistensi dengan gaya codebase yang sudah ada",
     "Independently re-verified oleh command: re-run `php artisan test` — 523/523 lulus (full suite gabungan 027-030+033); baca MachineryGroupService.php penuh untuk konfirmasi business_unit_id benar-benar diturunkan server-side dan tidak pernah dibaca dari $data",
     "REVISI v2 (tech-spec v3, layar DISERAP ke screen-031 'Kelola Mesin' — sinkronisasi artefak, kode layar tidak diubah dalam sinkronisasi ini): screen-033 BUKAN lagi layar mandiri sejak commit 3312973 (2026-09-30). Komponen Livewire KelolaMachineryGroup beserta blade-nya dihapus; seluruh CRUD Machinery Group kini ada di backend/app/Livewire/MasterData/KelolaMachinery.php (saveGroup/deleteGroup dst.) dan backend/resources/views/livewire/master-data/kelola-machinery.blade.php (mode Grup hierarkis dengan accordion, panel atribut grup, wadah 'Tanpa grup'). Rute web /master-data/machinery-groups (nama rute master-data.machinery-groups dipertahankan) kini Route::redirect 301 ke /master-data/machinery di dalam grup middleware auth+role:admin, sehingga non-Admin tetap 403 alih-alih dialihkan (routes/web.php ±baris 204-217, terverifikasi lewat route:list). Lima endpoint API machinery-group tetap ada di MachineryGroupController (GET/POST /api/machinery-groups, PATCH/DELETE /api/machinery-groups/{id}, GET /api/stations/options), ditambah GET /api/machinery-groups/options di MachineryController; atribusinya di api-index sudah dipindah ke screen-031. Kontrak sesuai tech-spec v3: production_line_id (bukan business_unit_id) diturunkan dari Station, stations/options mengembalikan {id, name, production_line_id}, pencarian lower()+LIKE mencakup mesin di dalam grup (EXISTS) dengan has_search_match_in_machinery, meta.ungrouped_machinery_count, 409 MACHINERY_GROUP_HAS_MACHINERY saat hapus grup berisi mesin. PERBAIKAN CONTROLLER (2026-10-03, sesi ini): MachineryGroupController::index kini meneruskan query param search ke listMachineryGroups (sebelumnya diabaikan sehingga has_search_match_in_machinery selalu false lewat HTTP), dikunci 1 test HTTP baru di tests/Feature/Api/KelolaMachineryGroupTest.php. status dibiarkan 'complete' karena skema tidak punya nilai untuk layar yang diserap; artefak ini dipertahankan sebagai catatan bagian Machinery Group dari layar gabungan, sedangkan rumah utamanya adalah artefak 4-implement screen-031.",
     "REVISI (2026-10-03): redirect 301 rute lama /master-data/machinery-groups → /master-data/machinery untuk sesi Admin kini punya test backend — backend/tests/Feature/Livewire/KelolaMachineryGroupTest.php, test 'Admin: rute lama /master-data/machinery-groups mengalihkan 301 ke Kelola Mesin' (lulus), melengkapi test 403 untuk non-Admin di file yang sama. Known issue 'redirect tanpa test backend' dihapus. Pembersihan daftar file di versi sebelumnya: 3 file Livewire/blade KelolaMachineryGroup (dihapus di 3312973) dan backend/tests/Browser/KelolaMachineryGroupTest.php (tidak pernah ada) dikeluarkan dari daftar.",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-machinery-group.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 11 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-machinery-group.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 11 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): MachineryGroupService — stationOptions() memuat businessUnit/productionLine dan mengembalikan label 'Mill — Line — Station' terurut (#9c); listMachineryGroups() eager-load productionLine.businessUnit dan toRow() menambah business_unit_name (kolom Business Unit di daftar grup); group_code memakai UniqueCaseInsensitive di service dan KelolaMachinery::buildGroupValidator() (#11). KelolaMachinery: successMessage simpan/hapus grup, clearFeedback() di openCreateGroupForm/openEditGroupForm/askDeleteGroup (#12), Production Line di form grup tampil sebagai teks (#15). Tes MachineryGroupServiceTest dan e2e kelola-machinery-group.spec.ts diperbarui; cakupan baru KelolaMachineryAuditTest (#9c label + kolom BU, #12, #15)."
   ],
   "deferred_items": [],
   "known_issues": [],

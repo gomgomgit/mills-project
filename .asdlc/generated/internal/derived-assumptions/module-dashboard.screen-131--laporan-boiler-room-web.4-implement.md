@@ -22,3 +22,11 @@ Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10
 Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - test_results.browser = 21 lulus/0 gagal dari e2e-full.log.counts.json (spec laporan-boiler-room); 1 skip dicatat di catatan.
 - Known_issue flake support/auth.ts dipertahankan — bukan 'tidak dijalankan'.
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff BoilerRoomReportService.php, laporan-boiler-room.blade.php, report-styles.blade.php, app/Support/*).
+- files_generated (+4) = Support/ReportPeriodDays.php, SheetWriter.php, ExportValue.php, Display.php ← dipakai service (Display via ExportValue::status)
+- test_files_generated (+2) = tests/Feature/ReportAuditFix20261004Test.php, tests/Feature/ExportXlsxTest.php ← keduanya memuat kasus boiler-room
+- known_issues = hapus 'format=excel menyajikan badan CSV' ← SheetWriter menulis xlsx sungguhan
+- implementation_notes (+1) = REVISI audit-fix

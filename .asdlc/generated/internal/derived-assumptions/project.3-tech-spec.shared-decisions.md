@@ -28,3 +28,18 @@
 - Lima butir `other_decisions` baru ← user menetapkan empat keputusan isolasi line, tetapi tidak meminta pencatatannya di artefak. Dicatat karena tanpa itu rumah tunggal `ScopesToActorMill` akan terbaca sebagai pilihan gaya, bukan sebagai jawaban atas enam salinan `resolveBusinessUnit()` yang menyebabkan FormSterilizer benar sementara 15 saudaranya tidak.
 - Butir "empat kebocoran yang ditutup" memuat cara pembuktiannya ← tidak diminta. Dimasukkan karena ketiganya terbukti lewat probe atau pembacaan kode, dan artefak yang hanya menyatakan "sudah ditutup" tidak memberi pembaca berikutnya cara memeriksanya lagi.
 - Butir "kunci periode tidak bertambah dimensi line" memuat konsekuensi yang tidak diminta user ← yakni bahwa Line 1 tidak dapat ditutup selama Line 2 menyisakan record belum terverifikasi. Itu akibat nyata dari keputusannya dan layak tercatat sebelum ada yang menganggapnya bug.
+
+## v8 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (config/app.php, AppTime, EnforcesPeriodLock, PeriodService, PeriodHasRecordsException, ApiExceptionHandler, EnsureUserIsActive, AppServiceProvider, UserService, PasswordPolicy, RouteAccess, GuardsRecordIdShape, SheetWriter, ExportValue, Display, ReportPeriodDays, ChartAxis, UniqueCaseInsensitive, RealImage, ValidatesUploadOnSelect, mobile utils/localDate.ts, localSchema.ts).
+- auth.notes = + akun nonaktif (EnsureUserIsActive web+api, 401/redirect berpesan; Sanctum menolak token user nonaktif; token dicabut saat nonaktif) + PasswordPolicy tunggal + RouteAccess sidebar/403 + Operator boleh login web terbatas (/beranda, /settings/password) ← kode
+- error_format.notes = + 409 PERIOD_HAS_RECORDS; QueryException 22P02/22007/22008 → 422 VALIDATION_ERROR, lainnya 500 generik tanpa teks SQL ← ApiExceptionHandler
+- naming_conventions.notes = + PERIOD_CLOSED_IMMUTABLE, PERIOD_HAS_RECORDS, VALIDATION_ERROR ← kode yang dipancarkan handler/exception
+- other_decisions[0] = ZONA WAKTU WIB (Asia/Jakarta) menggantikan "Timestamps disimpan UTC format ISO 8601"; normalisasi input ber-zona; mobile tanggal lokal ← config/app.php + AppTime + localDate.ts
+- other_decisions += BATAS ATAS TANGGAL KEJADIAN (besok WIB, EVENT_DATE_MAX_DAYS_AHEAD) ← AppTime::latestEventDate + assertEventDateNotTooFarAhead
+- other_decisions += KUNCI PERIODE PER BARIS DETAIL (CPO/Kernel Dispatch, Solid Waste) + kalimat 'verify' ← EnforcesPeriodLock
+- other_decisions += PERIODE YANG MEMBINGKAI DATA TIDAK BOLEH DIHAPUS (409) ← PeriodService/PeriodHasRecordsException
+- other_decisions += ID BUKAN-UUID = TIDAK DITEMUKAN (GuardsRecordIdShape; UUID divalidasi di service) ← kode
+- other_decisions += EKSPOR TABEL (SheetWriter xlsx sungguhan, ExportValue vs Display) ← kode
+- other_decisions += KELENGKAPAN LAPORAN PERIODE (ReportPeriodDays, days_counted/period_running, ChartAxis) ← kode; "respons laporan membawa days_counted/period_running" digeneralisasi agen — terverifikasi di Weighbridge/StorageTank/Clarification/BoilerRoom report service
+- other_decisions += VALIDASI MASTER DATA & UNGGAHAN (UniqueCaseInsensitive, RealImage, ValidatesUploadOnSelect) ← kode

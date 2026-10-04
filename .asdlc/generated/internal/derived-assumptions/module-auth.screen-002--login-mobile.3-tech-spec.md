@@ -12,3 +12,12 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (AuthController.php, AuthService.php, mobile/src/stores/auth.ts, gradingParameterSync.ts, AppServiceProvider.php, UserService.php).
+- endpoints[0].request.body_schema.business_unit_id = opsional, tidak dikirim mobile ← AuthController (drift pra-audit)
+- business_logic[4] = resolusi BU dari akun ← AuthService::login
+- business_logic += 8 fetch mill-setting + grading parameters best-effort; 9 token akun nonaktif ditolak/dicabut
+- edge_case_handling += akun dinonaktifkan saat login mobile → token dicabut, 401
+- implementation_notes += alasan master Grading diambil saat login (id parameter buatan lokal ditolak server)

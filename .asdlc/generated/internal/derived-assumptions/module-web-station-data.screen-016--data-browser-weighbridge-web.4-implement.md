@@ -39,3 +39,12 @@ Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/DataBrowserWeighbridgeTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v7 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (WeighbridgeRecordService.php, data-browser-weighbridge.blade.php, app/Support/SheetWriter.php, app/Support/Display.php, tests/Feature/ExportXlsxTest.php, tests/Feature/AuditFix20261004Test.php, tests/Pest.php).
+- files_generated += backend/app/Support/SheetWriter.php, backend/app/Support/Display.php ← dipakai export() dan blade
+- test_files_generated += tests/Feature/ExportXlsxTest.php, tests/Feature/AuditFix20261004Test.php, tests/Pest.php ← ExportXlsxTest 'ekspor Data Browser format=excel … weighbridge', AuditFix '[display] Data Browser …'; Pest.php memuat helper xlsxRows/exportBodyAsCsv yang dipakai uji export (memasukkan Pest.php = ⚠ penilaian agen)
+- implementation_notes[0] = catatan fallback CSV ditandai DIGANTIKAN 2026-10-04 ← SheetWriter
+- implementation_notes += REVISI (2026-10-04, audit-fix …) ← ringkasan perubahan
+- known_issues: entri "format=excel mengembalikan konten CSV …" dihapus ← diperbaiki SheetWriter; test_results tidak diubah (uji tidak dijalankan dalam sinkronisasi ini)

@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-078--form-boiler-room",
   "name": "Form Boiler Room",
@@ -28,7 +28,7 @@
       "endpoints": [],
       "business_logic": [
         "1. Load local boiler_room_record by id beserta seluruh boiler_room_detail rows yang ada (0..24), diurutkan berdasarkan urutan kanonis time_slot",
-        "2. Populate header form: Boiler Room ID, Note, Checked By/Acknowledged By dari record; Tanggal auto-fill sekali dengan waktu lokal saat ini HANYA jika record.date masih kosong (draft baru)",
+        "2. Populate header form: Boiler Room ID, Catatan (FormField id='field-note' label 'Catatan', kolom note), Checked By/Acknowledged By dari record; Tanggal (date) sudah diisi boilerRoomRecordRepo.createDraft() dengan tanggal LOKAL perangkat 'YYYY-MM-DD' (todayLocalDateString(), src/utils/localDate.ts — bukan ISO UTC); form hanya mengisi fallback nowLocalDateTimeString() bila record.date masih kosong; draft yang dilanjutkan mempertahankan nilai tersimpan",
         "3. On 'Tambah baris' → push satu baris kosong baru ke state lokal (belum ter-INSERT ke DB)",
         "4. On 'Hapus baris' → baris dengan id (sudah tersimpan) di-queue ke pendingDeletionIds untuk DELETE saat Simpan/Pause berikutnya; baris tanpa id (baru ditambah sesi ini) langsung dibuang dari state lokal",
         "5. availableTimeSlotOptions(index) → 24 slot kanonis DIKURANGI (slot dipakai baris lain) DAN (slot dengan index kanonis <= index slot TERTINGGI di antara baris lain yang terisi), selalu menyertakan nilai baris itu sendiri",
@@ -105,6 +105,14 @@
         {
           "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
           "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED terjadi saat record tiba di server: (a) pada sinkron manual dari Station List (screen-006) — record tetap 'saved' di perangkat dan alasan dari server ditampilkan per record di SyncResultDialog; (b) bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mengirim record ini (writeThroughSync.syncAfterSave('boiler_room_record') → syncService.pushSavedRecordNow → POST /api/boiler-room-records). REVISI 2026-10-03: penolakan 4xx (termasuk 422 PERIOD_CLOSED) pada kiriman langsung ini TIDAK lagi diam — syncAfterSave() mengembalikan {synced: false, rejection: <pesan server>}, form menampilkan ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu bernavigasi ke Monitor Boiler Room saat dialog ditutup; record tetap 'saved' di perangkat. Kegagalan karena offline/5xx tetap diam (record menunggu sinkron berikutnya). Pemulihan: Admin membuka kembali baris stasiun Boiler Room di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
+        },
+        {
+          "condition": "Draft baru dibuat antara 00:00–06:59 WIB, atau data lama masih menyimpan `date` sebagai ISO UTC",
+          "handling": "createDraft() mengisi `date` dengan todayLocalDateString() (tanggal lokal perangkat 'YYYY-MM-DD'), sehingga draft tetap bertanggal hari ini. Baris lama ber-sufiks zona (Z/±hh:mm) dinormalisasi sekali ke tanggal lokal saat initLocalSchema() (localSchema.normalizeLegacyUtcDates(), idempoten). Payload sinkron (manual maupun write-through) selalu mengirim `date` sebagai tanggal lokal 'YYYY-MM-DD' (toLocalDateString)."
+        },
+        {
+          "condition": "Server menolak record (4xx) saat write-through atau sinkron manual",
+          "handling": "syncService menulis alasan penolakan ke kolom lokal `sync_error` record (dikosongkan saat sinkron berikutnya berhasil; gagal jaringan/offline TIDAK ditulis) sehingga Data Preview menampilkan 'Gagal sinkron: <alasan>'. Write-through kini benar-benar aktif bila Mills Setting immediate_sync_enabled = true (millSettingRepo.getMillSetting() kini ikut SELECT immediate_sync_enabled — sebelumnya selalu terbaca false). Production Line kiriman diturunkan dari stasiun tempat record dibuat (station_id → station.production_line_id)."
         }
       ],
       "business_rules_applied": [
@@ -187,7 +195,8 @@
     "isRowFilled() mengecek seluruh 14 kolom non-time_slot (numerik !== null ATAU string/enum bukan null dan bukan '')",
     "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak ada CollapsibleSection/read-only reference data pada layar ini",
     "Field urutan pada grid & form mengikuti urutan kolom migration boiler_room_details persis: Steam Pressure → Steam Temp → Feed Water Temp → Feed Water Tank Level → Boiler Water Level → Water TDS → Water pH → Fuel Feed Rate → ID Fan Load → SA Fan Load → Exhaust Gas Temp → Dust Collector Differential Pressure → Blowdown Executed → Sootblowing Executed → Findings",
-    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec): FormBoilerRoomView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('boiler_room_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/boiler-room-records, create). Kegagalan offline/5xx diam; penolakan 4xx (mis. 422 PERIOD_CLOSED) sejak perbaikan 2026-10-03 ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' sebelum navigasi ke Monitor Boiler Room. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('boiler-room', mill, date) berjalan di BoilerRoomRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec): FormBoilerRoomView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('boiler_room_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/boiler-room-records, create). Kegagalan offline/5xx diam; penolakan 4xx (mis. 422 PERIOD_CLOSED) sejak perbaikan 2026-10-03 ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' sebelum navigasi ke Monitor Boiler Room. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('boiler-room', mill, date) berjalan di BoilerRoomRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) boilerRoomRecordRepo.createDraft() menyimpan `date` = todayLocalDateString() (src/utils/localDate.ts), bukan timestamp ISO UTC; localSchema.normalizeLegacyUtcDates() memigrasi baris lama; payload `date` sinkron selalu tanggal lokal. (2) Label kolom catatan 'Note' → 'Catatan' dengan id eksplisit 'field-note' (dikunci mobile/tests/noteLabelConsistency.spec.ts). (3) Write-through syncAfterSave('boiler_room_record') kini benar-benar berjalan saat immediate_sync_enabled aktif (perbaikan SELECT millSettingRepo); penolakan server juga disimpan sebagai `sync_error` pada record; sinkron memakai Production Line stasiun record itu sendiri. (4) ConfirmDialog di-teleport ke <body> (z-index 1200) dan App.vue memberi ruang aman bawah (utils/floatingSafeArea.ts) agar bubble/jam mengambang tidak menutupi tombol footer."
   ],
   "test_scenarios": [
     {

@@ -12,3 +12,9 @@
 - Seluruh jejak `station_type` (cakupan "opsional, kosong = semua jenis stasiun", keunikan nama per kombinasi mill + jenis stasiun, overlap terhadap periode wildcard) DIHAPUS dan diganti aturan per mill ← diverifikasi ke `PeriodService::validate()` dan `findOverlapping()`; artefak v1 masih menggambarkan kolom yang sudah dihapus dari database
 - 4 bdd_scenario BARU: mill tanpa stasiun aktif, simpan ulang menambahkan baris stasiun, makna filter Status Stasiun, dan membuka detail dari daftar ← turunan agen; 9 skenario lama dipertahankan seluruhnya dengan rumusan yang disesuaikan
 - alternative_flow "Memindahkan periode ke mill lain" ← turunan agen dari docblock `backfillStationRows()`
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (PeriodService::delete() guardAgainstFramedRecords(), PeriodHasRecordsException.php, AuditFix20261004Test [period-delete]).
+- main_flow[10], postconditions[4] = hapus hanya bila tak ada stasiun tertutup DAN tak ada data stasiun di rentang (kontradiksi: dulu cukup "tanpa stasiun tertutup") ← guardAgainstFramedRecords().
+- alternative_flows (+1), business_rules (+1), bdd_scenarios (+1) = penolakan hapus periode berisi data, pesan inline ← PeriodHasRecordsException via catch PeriodClosedImmutableException. ⚠ "tombol Hapus tidak dinonaktifkan" diinferensikan (is_immutable hanya dari baris closed).

@@ -17,3 +17,18 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - Error code 403 FORBIDDEN (production line milik mill lain) dan edge case-nya ditambahkan karena terbukti di ScopesToActorMill::assertMillWritable(); tidak tercantum di versi spec sebelumnya.
 - request_example test_scenarios diganti ke production_line_id; scenario_ref 'Business Unit Tanpa Station Weighbridge Aktif' sengaja TIDAK diganti agar tetap cocok dengan nama BDD Phase 2.
 - business_rules_applied 'Business Unit tidak berubah' diperluas menjadi 'Business Unit / Production Line (station)'.
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (WeighbridgeRecordService.php, FormWeighbridge.php, form-weighbridge.blade.php, EnforcesPeriodLock.php, ScopesToActorMill.php, AppTime.php, ApiExceptionHandler.php).
+- api_contracts[0].endpoints[0..1].request.body_schema.record_datetime = normalisasi zona ke WIB + batas atas besok ← normalizeFormFields() memanggil AppTime::normalizeClientDateTime; create/update memanggil assertEventDateNotTooFarAhead.
+- api_contracts[0].endpoints[0].request.body_schema.production_line_id = bukan-UUID → 422 errors.production_line_id ← ScopesToActorMill::resolveActiveStationForActor Str::isUuid.
+- api_contracts[0].endpoints[0..1].response.error_codes += 422 VALIDATION_ERROR (tanggal > besok, UUID line, QueryException 22P02/22007/22008) + 500 generik ← EnforcesPeriodLock, ApiExceptionHandler. ⚠ Penerapan 22P02 untuk PATCH {id} bukan-UUID diturunkan dari handler (PostgreSQL), tidak ada uji API khusus per layar.
+- api_contracts[0].business_logic[7] = mode edit menampilkan business_unit_name + production_line_name; line kosong → teks ← FormWeighbridge::mount, form-weighbridge.blade.php.
+- api_contracts[0].business_logic[9] = prefill setTimezone WIB ← FormWeighbridge::mount.
+- api_contracts[0].business_logic[10] = Net Weight teks read-only ← blade span net-weight-preview.
+- api_contracts[0].business_logic += 16 (batas atas tanggal), 17 (zona WIB), 18 (GuardsRecordIdShape).
+- api_contracts[0].edge_case_handling += 5 kasus (tanggal > besok, input ber-Z, id bukan UUID, line bukan UUID, line kosong → teks).
+- api_contracts[0].business_rules_applied[2] dan += 2 aturan (batas tanggal, zona WIB).
+- api_contracts[0].unit_test_cases += 3 (future, tz, uuid) ← tests/Feature/AuditFix20261004Test.php.
+- implementation_notes[2] = Net Weight teks, bukan disabled; implementation_notes += catatan REVISI audit-fix.

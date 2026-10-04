@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
-  "ver": 7,
+  "ver": 8,
   "id": "screen-010--form-weighbridge",
   "name": "Form Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -29,7 +29,7 @@
       "business_logic": [
         "1. Load draft record by id (route param) into form state",
         "2. Jika draft baru (weighbridge_type belum ada di record), set weighbridge_type='receive' sebagai default; render tombol tab Type sesuai weighbridge_type saat ini",
-        "3. Terapkan logika record_datetime: auto-set record_datetime = waktu saat ini SEKALI HANYA jika masih kosong (draft baru, atau tipe baru saja dipilih/berganti); jika sudah ada nilai tersimpan (draft dilanjutkan, atau tipe sudah pernah di-set sebelumnya), pertahankan nilai tersebut, tidak ditimpa — perilaku ini SAMA untuk weighbridge_type='receive' maupun 'dispatch'",
+        "3. Terapkan logika record_datetime: auto-set record_datetime = waktu LOKAL perangkat saat ini (nowLocalDateTimeString() dari src/utils/localDate.ts → 'YYYY-MM-DDTHH:mm:ss' tanpa sufiks zona, BUKAN toISOString() UTC) SEKALI HANYA jika masih kosong (draft baru, atau tipe baru saja dipilih/berganti); jika sudah ada nilai tersimpan (draft dilanjutkan, atau tipe sudah pernah di-set sebelumnya), pertahankan nilai tersebut, tidak ditimpa — perilaku ini SAMA untuk weighbridge_type='receive' maupun 'dispatch'. Tampilan tanggal/jam di-parse lewat parseStoredDateTime() (nilai naive dibaca sebagai jam lokal; nilai lama ber-'Z' tetap terbaca)",
         "4. On tap tab Type (ganti weighbridge_type): buang nilai record_datetime dan destination saat ini, lalu ulangi langkah 3 untuk tipe baru (auto-set record_datetime sekali untuk tipe baru); jika tipe baru = receive, sembunyikan & kosongkan field destination; jika dispatch, tampilkan field destination (wajib)",
         "5. Net Weight dihitung reaktif = Gross Weight - Tare Weight setiap kali salah satu berubah, field disabled (tidak bisa diedit manual)",
         "6. Render field dikelompokkan per section: Identitas Weighbridge (tombol tab Type, WB Card Number, field tanggal & waktu sesuai tipe, field Tujuan Muatan jika tipe dispatch), Kendaraan & Supir, Asal Muatan, Data Timbangan. Label Gross/Tare/Net Weight menampilkan '(kg)', label Kuantitas menampilkan '(tandan)'",
@@ -86,7 +86,7 @@
         },
         {
           "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
-          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pemulihan: Admin membuka kembali baris stasiun Weighbridge di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED (atau 422 validasi tanggal lebih jauh dari besok, EnforcesPeriodLock::assertEventDateNotTooFarAhead pada record_datetime) baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat, alasan dari server ditampilkan di SyncResultDialog DAN disimpan di kolom lokal sync_error (tampil 'Gagal sinkron: <alasan>' di Data Preview; dikosongkan saat sinkron berikutnya berhasil; gagal jaringan tidak ditulis). Pemulihan: Admin membuka kembali baris stasiun Weighbridge di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -114,7 +114,7 @@
         {
           "description": "auto-sets record_datetime to current time when type=receive and stored value is empty (new draft or type just switched to receive)",
           "given": "weighbridge_type='receive', record_datetime empty/null",
-          "expect": "record_datetime is set once to current system time and field becomes non-editable"
+          "expect": "record_datetime is set once to current LOCAL wall-clock time ('YYYY-MM-DDTHH:mm:ss', no zone suffix — nowLocalDateTimeString()) and field becomes non-editable"
         },
         {
           "description": "preserves stored record_datetime when type=receive and value already set",
@@ -124,7 +124,7 @@
         {
           "description": "auto-sets record_datetime to current time when type=dispatch and stored value is empty (new draft or type just switched to dispatch)",
           "given": "weighbridge_type='dispatch', record_datetime empty/null",
-          "expect": "record_datetime is set once to current system time and field becomes non-editable (same behavior as receive, no continuous ticking)"
+          "expect": "record_datetime is set once to current LOCAL wall-clock time ('YYYY-MM-DDTHH:mm:ss', no zone suffix) and field becomes non-editable (same behavior as receive, no continuous ticking)"
         },
         {
           "description": "preserves stored record_datetime when type=dispatch and value already set (draft resumed)",
@@ -222,7 +222,8 @@
     "arrival_datetime dan dispatch_datetime lama disatukan menjadi satu kolom record_datetime pada entity-catalog v5; label tampilan tetap berbeda sesuai weighbridge_type yang dipilih, namun perilaku pengisian (auto-set sekali, tidak dapat diedit) kini identik untuk kedua tipe",
     "Field Tujuan Muatan (destination) baru, hanya dirender saat weighbridge_type=dispatch, wajib diisi saat itu",
     "Label (kg) pada Gross/Tare/Net Weight dan (tandan) pada Kuantitas adalah teks statis pada label field, bukan perubahan tipe data/unit konversi — nilai tetap tersimpan sebagai angka polos di kolom yang sama",
-    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormWeighbridgeView tidak memanggil server sama sekali (stasiun ini tidak punya write-through; hanya sinkron manual dari screen-006 lewat POST /api/weighbridge-records). Guard EnforcesPeriodLock::assertPeriodOpenForWrite('weighbridge', mill, record_datetime) berjalan di WeighbridgeRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormWeighbridgeView tidak memanggil server sama sekali (stasiun ini tidak punya write-through; hanya sinkron manual dari screen-006 lewat POST /api/weighbridge-records). Guard EnforcesPeriodLock::assertPeriodOpenForWrite('weighbridge', mill, record_datetime) berjalan di WeighbridgeRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): record_datetime kini disimpan sebagai jam LOKAL perangkat tanpa sufiks zona (nowLocalDateTimeString(), src/utils/localDate.ts) — sebelumnya toISOString() UTC membuat record 00:00–06:59 WIB bertanggal kemarin. localSchema.normalizeLegacyUtcDates() memigrasi sekali nilai lama ber-'Z'/offset ke jam lokal. Sinkron manual (syncService.pushWeighbridgeRow) mengirim record_datetime lewat toOffsetDateTime() (jam lokal + offset perangkat, mis. '+07:00'); server (WeighbridgeRecordService) menolak tanggal > besok (assertEventDateNotTooFarAhead, 422 per field) dan mengonversi input ber-offset ke jam WIB (AppTime::normalizeClientDateTime). Sinkron memakai Production Line stasiun tempat record dibuat (station_id → station.production_line_id; line pilihan Station List hanya cadangan) dan menulis sync_error pada penolakan server. Label 'Nama Supir' → 'Nama Sopir' (id input field-nama-sopir); judul section tetap 'Kendaraan & Supir'. ConfirmDialog (Back/Clear) di-teleport ke <body> (z-index 1200) dan ruang aman bawah App.vue (utils/floatingSafeArea.ts) menjaga bubble/jam mengambang tidak menutupi tombol aksi."
   ],
   "test_scenarios": [
     {

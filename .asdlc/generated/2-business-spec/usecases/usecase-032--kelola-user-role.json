@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-05"
   },
   "id": "usecase-032--kelola-user-role",
   "name": "Kelola User & Role",
@@ -75,8 +75,9 @@
       "name": "Aktifkan/Nonaktifkan User Lain",
       "trigger": "Admin klik toggle status pada baris user lain (bukan akun sendiri)",
       "steps": [
-        "System langsung memperbarui status is_active user tersebut tanpa form terpisah",
-        "Daftar user diperbarui menampilkan status baru"
+        "Untuk Nonaktifkan, System meminta konfirmasi terlebih dahulu (user tidak akan bisa login dan sesinya yang berjalan diakhiri); Aktifkan langsung diproses",
+        "System memperbarui status is_active user tersebut tanpa form terpisah; penonaktifan mencabut token mobile dan mengakhiri sesi web user itu pada request berikutnya",
+        "Daftar user diperbarui menampilkan status baru beserta pesan sukses"
       ]
     }
   ],
@@ -84,7 +85,7 @@
     "User baru tersimpan dengan role dan Business Unit terkait, ATAU data user existing diperbarui, ATAU status aktif/nonaktif user berubah"
   ],
   "business_rules": [
-    "Username harus unik di seluruh sistem",
+    "Username harus unik di seluruh sistem (tidak membedakan huruf besar/kecil) dan tanpa spasi",
     "Role selain Admin wajib memiliki Business Unit terkait",
     "Admin tidak dapat menonaktifkan akun miliknya sendiri",
     "User tidak dihapus permanen, hanya dinonaktifkan",

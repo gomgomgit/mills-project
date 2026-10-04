@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-17"
+    "updated_at": "2026-10-05"
   },
   "framework": "laravel",
   "package_manager": "composer",
@@ -66,6 +66,7 @@
     "Struktur monorepo: backend/ (Laravel API+Livewire) dan mobile/ (Vue 3 + Capacitor) sebagai dua codebase terpisah dalam satu repo",
     "Setelah composer install, jalankan `php artisan key:generate` untuk APP_KEY sebelum migrate",
     "Router mobile (src/router/index.ts) belum dibuat di scaffold ini — akan dibuat oleh shared-modules FE router module",
-    "File .env backend & mobile diturunkan dari shared-modules (.env.example) di langkah berikutnya, belum termasuk di scaffold ini"
+    "File .env backend & mobile diturunkan dari shared-modules (.env.example) di langkah berikutnya, belum termasuk di scaffold ini",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): backend/config/app.php kini timezone = env('APP_TIMEZONE', 'Asia/Jakarta') (sebelumnya 'UTC') dan menambah 'event_date_max_days_ahead' = env('EVENT_DATE_MAX_DAYS_AHEAD', 1). .gitignore kini mengabaikan /backend/storage/app/private/* dan /backend/storage/app/public/* (unggahan & livewire-tmp tidak lagi ikut ter-commit) serta mengizinkan /backend/.env.e2e.example. routes/web.php punya dua rute infrastruktur baru di luar blok ASDLC: '/' (alihkan ke beranda peran / Login) dan '/beranda' (Beranda Operator, role:operator)."
   ]
 }

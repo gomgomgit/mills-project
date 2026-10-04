@@ -22,3 +22,11 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 
 Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - business_logic 12/13 dan edge_case[10]: konversi '' -> null pada steam_heating_valve_status dijelaskan sebagai efek normalisasi generik `nilai || null` di applyDetailRowChanges(), bukan penanganan khusus enum; alasan CHECK constraint lokal dihapus (tidak ada di SQLite lokal).
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/services/storageTankRecordRepo.ts, mobile/src/views/FormStorageTankView.vue, mobile/src/services/syncService.ts, mobile/src/services/millSettingRepo.ts, mobile/src/services/localSchema.ts, mobile/src/utils/localDate.ts). Patch dilakukan agen sebelumnya (terputus sebelum mencatat log); entri ini ditulis menyusul.
+- api_contracts[0].business_logic[1] = createDraft() mengisi date lokal 'YYYY-MM-DD' (todayLocalDateString); view fallback nowLocalDateTimeString() bila kosong ← diff createDraft + form.date fallback di view
+- api_contracts[0].business_logic[2] = Verifikasi berisi "Catatan" (FormField id field-note) ← diff template view
+- api_contracts[0].edge_case_handling (+2) = draft dini hari/data lama UTC dinormalisasi ke tanggal lokal; penolakan 4xx menulis sync_error lokal (dikosongkan saat berhasil, offline tidak dicatat) → Data Preview "Gagal sinkron: <alasan>"; write-through aktif sungguhan; line dari station_id record ← localSchema.normalizeLegacyUtcDates, syncService failure/markSynced, SyncFailureHint.vue, millSettingRepo SELECT
+- implementation_notes (append) = REVISI 2026-10-04 audit-fix (date lokal, Catatan, write-through aktif + sync_error, ConfirmDialog teleport/floatingSafeArea) ← diff kode terkait

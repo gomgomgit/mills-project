@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
-  "ver": 4,
+  "ver": 5,
   "id": "screen-013--data-preview-weighbridge",
   "name": "Data Preview Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -20,7 +20,9 @@
     "Untuk setiap item di list: identitas ringkas (WB Card Number atau fallback) + status (Pause untuk draft, atau status tersimpan/tersinkron)",
     "Detail read-only seluruh field record Weighbridge tersimpan (saat memilih record berstatus saved/synced), termasuk: Tipe Weighbridge (Receive/Dispatch); field tanggal & waktu berlabel sesuai tipe ('Tanggal & Waktu Arrival' untuk Receive, 'Tanggal & Waktu Dispatch' untuk Dispatch — hanya 1 field tanggal ditampilkan, bukan dua kolom terpisah); Tujuan Muatan (hanya ditampilkan jika tipe Dispatch); dan Kuantitas dengan label satuan (tandan)",
     "Breadcrumb navigasi (Home > Production Process Activity > Weighbridge > Load Data) yang dapat ditap",
-    "Header 'Mill Smart Log' + ikon hamburger menu"
+    "Header 'Mill Smart Log' + ikon hamburger menu",
+    "Petunjuk 'Gagal sinkron: <alasan>' (di bawah label item list dan di atas detail) untuk record berstatus Tersimpan yang terakhir kali DITOLAK server saat sinkronisasi; alasan = pesan penolakan terakhir, hilang otomatis setelah sinkron berhasil (audit 2026-10-04)",
+    "Status verifikasi record tersinkron (diperiksa Supervisor / dikonfirmasi Mill Management) diperbarui dari server di latar belakang setiap kali list atau detail dibuka saat online — termasuk verifikasi yang dilakukan lewat web (audit 2026-10-04)"
   ],
   "available_actions": [
     {
@@ -94,7 +96,9 @@
     "Record tidak ditemukan saat mode detail dibuka dengan id yang tidak valid",
     "List kosong (belum ada record sama sekali)",
     "Filter tidak menghasilkan record apapun — tampilkan pesan tidak ditemukan dengan opsi reset filter",
-    "Tidak ada data hari ini saat list pertama dibuka (filter default = hari ini) — tampilkan pesan tidak ditemukan dengan opsi reset filter, bukan dianggap error"
+    "Tidak ada data hari ini saat list pertama dibuka (filter default = hari ini) — tampilkan pesan tidak ditemukan dengan opsi reset filter, bukan dianggap error",
+    "Record ditolak server saat sinkronisasi (mis. periode pelaporan tertutup) — tetap berstatus Tersimpan dengan petunjuk 'Gagal sinkron: <alasan>'; kegagalan karena tidak ada jaringan tidak ditandai sebagai penolakan",
+    "Offline / server tidak dapat dijangkau saat memperbarui status verifikasi — status verifikasi lokal terakhir tetap ditampilkan tanpa pesan galat"
   ],
   "test_priority": "medium",
   "open_questions": []

@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-019--detail-weighbridge-web",
   "name": "Detail Weighbridge (Web)",
@@ -22,7 +22,7 @@
     "Asal Muatan: Estate/Supplier, Divisi, Blok",
     "Data Timbangan: Gross Weight (kg), Tare Weight (kg), Net Weight (kg), Kuantitas (tandan)",
     "Verifikasi: Checked By, Acknowledged By (nama user, atau '-' jika belum diisi)",
-    "Status record (saved/synced)",
+    "Status record dengan label Bahasa Indonesia (Tersimpan / Tersinkron; Draft / Dijeda bila ada) — bukan nilai enum mentah saved/synced",
     "Tombol Edit dan Back"
   ],
   "available_actions": [
@@ -51,7 +51,8 @@
     "Tujuan Muatan hanya ditampilkan jika tipe Dispatch; disembunyikan untuk tipe Receive",
     "Label Kuantitas menampilkan satuan (tandan)",
     "Label field berat (Gross, Tare, Net Weight) menampilkan satuan (kg)",
-    "Field dikelompokkan sesuai struktur Form Weighbridge (Identitas, Kendaraan & Supir, Asal Muatan, Data Timbangan)"
+    "Field dikelompokkan sesuai struktur Form Weighbridge (Identitas, Kendaraan & Supir, Asal Muatan, Data Timbangan)",
+    "Tampilan berbahasa Indonesia (audit 2026-10-04): status record berlabel Indonesia (Draft / Dijeda / Tersimpan / Tersinkron), Tanggal & Waktu memakai nama bulan Indonesia dalam zona WIB (mis. '04 Okt 2026 20:35'), angka berat & kuantitas berformat id-ID (titik ribuan, koma desimal, jumlah desimal apa adanya), nilai kosong tampil '-'"
   ],
   "usecase_ids": [
     "usecase-019--detail-weighbridge-web"
@@ -59,7 +60,8 @@
   "edge_cases": [
     "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
     "Checked By/Acknowledged By belum diisi — tampilkan '-'",
-    "Tujuan Muatan kosong untuk tipe Receive — field tidak ditampilkan sama sekali"
+    "Tujuan Muatan kosong untuk tipe Receive — field tidak ditampilkan sama sekali",
+    "{id} di URL bukan UUID (mis. teks 'abc', angka, atau UUID terpotong) — sejak audit 2026-10-04 diperlakukan sama persis dengan record tidak ditemukan: pesan 'Record tidak ditemukan' + tombol Back, bukan halaman error"
   ],
   "test_priority": "medium",
   "open_questions": []

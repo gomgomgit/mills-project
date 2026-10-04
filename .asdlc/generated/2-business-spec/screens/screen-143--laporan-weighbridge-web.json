@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-01"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-143--laporan-weighbridge-web",
   "name": "Laporan Weighbridge (Web)",
@@ -24,10 +24,10 @@
     "Nama mill yang berlaku, nama Production Line, rentang tanggal, dan status periode",
     "Arus masuk — jumlah trip sepanjang periode",
     "Arus masuk — total berat bersih, beserta jumlah trip yang beratnya benar-benar terisi",
-    "Arus masuk — berat bersih rata-rata per trip, dihitung hanya atas trip yang beratnya terisi",
+    "Arus masuk — berat bersih rata-rata per trip, dihitung hanya atas trip yang beratnya terisi; keterangan 'penyebutnya N trip' menambahkan ', bukan M' hanya bila jumlah trip berbobot berbeda dari jumlah seluruh trip",
     "Arus keluar — jumlah trip sepanjang periode",
     "Arus keluar — total berat bersih, beserta jumlah trip yang beratnya benar-benar terisi",
-    "Arus keluar — berat bersih rata-rata per trip, dihitung hanya atas trip yang beratnya terisi",
+    "Arus keluar — berat bersih rata-rata per trip, dihitung hanya atas trip yang beratnya terisi; keterangan 'penyebutnya N trip' menambahkan ', bukan M' hanya bila jumlah trip berbobot berbeda dari jumlah seluruh trip",
     "Rekap arus masuk per estate/supplier: jumlah trip dan total berat bersih per asal, diurutkan dari yang terbesar",
     "Rekap arus keluar per tujuan: jumlah trip dan total berat bersih per tujuan, diurutkan dari yang terbesar, dengan kelompok tersendiri bagi trip yang tujuannya belum diisi",
     "Sebaran trip per jam dalam sehari (00–23), dipisah per jenis arus — menjawab kapan timbangan paling sibuk",
@@ -38,10 +38,10 @@
     "Jumlah trip pada Production Line itu yang penanda waktunya kosong sehingga tidak dapat ditempatkan pada periode mana pun, dan karena itu TIDAK ikut terhitung di angka mana pun",
     "Rekap per hari: jumlah trip dan total berat bersih, dipisah per jenis arus",
     "Baris total periode pada rekap harian",
-    "Tren harian berat bersih, dengan arus masuk dan arus keluar sebagai dua garis terpisah pada satu grafik",
-    "Kelengkapan: berapa hari dalam periode yang memuat minimal satu trip",
+    "Tren harian berat bersih, dengan arus masuk dan arus keluar sebagai dua garis terpisah pada satu grafik; sumbu tegak dimulai dari nol dengan label angka bulat berjarak sama",
+    "Kelengkapan: berapa hari yang memuat minimal satu trip dibanding hari periode yang SUDAH lewat — untuk periode yang masih berjalan penyebutnya berhenti di hari ini, disertai keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)'; periode belum mulai → persen '—', bukan 0%",
     "Keterangan bila periode tidak memuat data",
-    "Tombol Ekspor CSV"
+    "Tombol Ekspor CSV dan Ekspor Excel (.xlsx sungguhan)"
   ],
   "available_actions": [
     {
@@ -80,7 +80,7 @@
     },
     {
       "action": "Ekspor",
-      "description": "Mengunduh rincian seluruh trip sepanjang periode sebagai CSV, satu baris per trip dengan kolom konteks diulang.",
+      "description": "Mengunduh rincian seluruh trip sepanjang periode sebagai CSV atau Excel (.xlsx sungguhan), satu baris per trip dengan kolom konteks Periode/Mill/Production Line diulang; status ditulis berlabel Indonesia, bukan nilai enum mentah.",
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
@@ -108,7 +108,8 @@
     "Rekap arus keluar per tujuan menyertakan kelompok tersendiri bagi trip yang tujuannya belum diisi. Trip itu tidak dibuang dari rekap, karena membuangnya membuat jumlah trip per tujuan tidak lagi menjumlah ke total arus keluar.",
     "TRIP BERSTATUS DRAFT IKUT TERHITUNG, dan jumlahnya ditampilkan. Keputusan ini mengikuti kelima laporan stasiun yang sudah ada — nol di antaranya menyaring status record — karena laporan yang berhitung dengan aturan berbeda antar stasiun lebih menyesatkan daripada laporan yang memasukkan data belum selesai secara terbuka. Apakah SELURUH laporan sebaiknya mengecualikan draft adalah pertanyaan lintas-laporan, dicatat pada open_questions.",
     "Laporan ini tidak menandai nilai di luar batas. Weighbridge tidak punya master target operasional, dan menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas resmi padahal bukan.",
-    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki."
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki.",
+    "KELENGKAPAN UNTUK PERIODE BERJALAN (audit 2026-10-04): persen hari bertrip dihitung terhadap hari periode yang sudah terjadi sampai hari ini (WIB); periode yang sudah selesai memakai seluruh harinya; periode belum mulai → penyebut 0 → '—', bukan 0%."
   ],
   "usecase_ids": [
     "usecase-146--laporan-weighbridge-web"
@@ -129,7 +130,9 @@
     "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
     "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
     "Mill belum punya satu pun periode yang mencakup Weighbridge — pemilih periode kosong dengan arahan menghubungi Admin.",
-    "Permintaan membawa identitas mill atau Production Line milik mill lain — server mengabaikannya dan memakai mill pada akun; bagi Admin, line yang bukan milik mill terpilih ditolak."
+    "Permintaan membawa identitas mill atau Production Line milik mill lain — server mengabaikannya dan memakai mill pada akun; bagi Admin, line yang bukan milik mill terpilih ditolak.",
+    "Periode masih berjalan — persen hari bertrip dihitung sampai hari ini dan keterangan 'sampai hari ini' ditampilkan, sehingga hari yang belum terjadi tidak menurunkan persen.",
+    "Periode belum mulai (0 hari sudah lewat) — persen hari bertrip '—', bukan 0%."
   ],
   "test_priority": "high",
   "open_questions": [

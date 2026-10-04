@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "usecase-030--kelola-station",
   "name": "Kelola Station",
@@ -28,12 +28,12 @@
     {
       "step": 3,
       "actor": "actor-admin",
-      "description": "Admin klik Tambah Station, memilih Business Unit induk dan tipe dari dropdown, mengisi nama, serta field lain jika diperlukan"
+      "description": "Admin klik Tambah Station, memilih Business Unit, Production Line (milik Business Unit tersebut), dan tipe dari dropdown (seluruh tipe master station_types), mengisi nama, serta field lain jika diperlukan"
     },
     {
       "step": 4,
       "actor": "System",
-      "description": "Sistem memvalidasi kode unik (jika diisi) dan status aktif sesuai tipe, menyimpan Station baru, dan menampilkannya di daftar"
+      "description": "Sistem memvalidasi kode unik (jika diisi, tidak peka huruf besar/kecil), status aktif sesuai tipe, dan bahwa Production Line belum punya station bertipe sama (kecuali Other), menyimpan Station baru, menampilkan pesan sukses, dan menampilkannya di daftar"
     }
   ],
   "alternative_flows": [
@@ -75,7 +75,7 @@
       "trigger": "Step 4 (atau langkah simpan pada Edit) — Admin mengaktifkan (is_active=true) Station bertipe Other",
       "steps": [
         "Sistem menolak penyimpanan",
-        "Sistem menampilkan pesan bahwa hanya tipe Weighbridge/Grading/Cages Track yang boleh aktif"
+        "Sistem menampilkan pesan 'Station dengan tipe Other tidak boleh berstatus aktif — set Status menjadi nonaktif.'"
       ]
     },
     {
@@ -85,6 +85,14 @@
         "Sistem menampilkan form tanpa opsi Business Unit yang dapat dipilih",
         "Sistem mengarahkan Admin untuk membuat Business Unit terlebih dahulu"
       ]
+    },
+    {
+      "name": "Tipe station kembar dalam satu Production Line",
+      "trigger": "Step 4 (atau simpan pada Edit yang mengubah Production Line/tipe) — Production Line sudah memiliki station bertipe sama (selain Other)",
+      "steps": [
+        "Sistem menolak penyimpanan",
+        "Sistem menampilkan pesan di kolom Type bahwa satu Production Line hanya boleh memiliki satu station per tipe (kecuali Other)"
+      ]
     }
   ],
   "postconditions": [
@@ -93,10 +101,11 @@
   ],
   "business_rules": [
     "Kode Station harus unik jika diisi",
-    "Status aktif hanya diperbolehkan untuk tipe Weighbridge, Grading, atau Cages Track",
+    "Station bertipe Other tidak boleh berstatus aktif; tipe lain dari master station_types boleh aktif",
     "Station tidak dapat dihapus jika masih memiliki satu atau lebih Machinery Group atau Machinery terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Station",
-    "Station harus terkait ke tepat satu Business Unit yang sudah ada"
+    "Station harus terkait ke tepat satu Business Unit yang sudah ada",
+    "Satu Production Line hanya boleh memiliki satu station per tipe, kecuali Other"
   ],
   "bdd_scenarios": [
     {
@@ -133,7 +142,7 @@
       "scenario": "Kelola Station — Status aktif tidak sesuai tipe",
       "given": "Admin sudah login ke web app dan sedang menambah atau mengedit Station bertipe Other",
       "when": "Admin mencoba mengaktifkan (is_active=true) Station tersebut",
-      "then": "Sistem menolak penyimpanan dan menampilkan pesan bahwa hanya tipe Weighbridge/Grading/Cages Track yang boleh aktif"
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan bahwa station bertipe Other tidak boleh berstatus aktif"
     },
     {
       "scenario": "Kelola Station — Belum ada Business Unit",
@@ -146,6 +155,12 @@
       "given": "Pengguna sudah login ke web app namun bukan berperan sebagai Admin",
       "when": "Pengguna mencoba mengakses menu Master Data > Kelola Station",
       "then": "Sistem menolak akses karena hanya Admin yang dapat mengakses dan mengelola data Station"
+    },
+    {
+      "scenario": "Kelola Station — Tipe kembar dalam satu Production Line",
+      "given": "Production Line L sudah memiliki station bertipe Weighbridge",
+      "when": "Admin menambah station Weighbridge kedua di Production Line L",
+      "then": "Sistem menolak penyimpanan dengan pesan di kolom Type; menambah Weighbridge di Production Line lain atau station bertipe Other tetap diizinkan"
     }
   ],
   "related_screen_ids": [

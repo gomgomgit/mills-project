@@ -1,14 +1,19 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-058--form-pressing-web",
   "name": "Form Pressing (Web)",
   "module_id": "module-web-station-data",
   "status": "complete",
-  "files_generated": [],
+  "files_generated": [
+    "backend/app/Support/AppTime.php",
+    "backend/app/Support/Concerns/EnforcesPeriodLock.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php"
+  ],
   "test_files_generated": [
     "backend/tests/Feature/Api/FormPressingTest.php",
     "e2e-web/tests/form-pressing.spec.ts"
@@ -16,21 +21,25 @@
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormPressing.php",
     "backend/resources/views/data/pressing-form.blade.php",
-    "backend/resources/views/livewire/data/form-pressing.blade.php"
+    "backend/resources/views/livewire/data/form-pressing.blade.php",
+    "backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php"
   ],
   "fe_test_files_generated": [
-    "backend/tests/Feature/Livewire/FormPressingTest.php"
+    "backend/tests/Feature/Livewire/FormPressingTest.php",
+    "backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php",
+    "backend/tests/Feature/Livewire/WebFormNoDisabledFieldTest.php"
   ],
   "implementation_notes": [
     "Reuses PressingRecordService::create()/update() (BE service shared with screen-050)",
     "REVISED 2026-08-24 (entity-catalog v12, correcting the original design the user explicitly rejected): the Pressing Detail grid is now DYNAMIC -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() now exist on FormPressing.php, exactly mirroring FormThreshing's just-fixed Threshing Detail grid (screen-057) and FormCagesTrack's Cages Tipped Time grid. Grid starts empty on create mode (was: built from PressingRecordService::canonicalTimeSlots() into 24 rows on mount); edit mode still loads existing rows verbatim with each row's id",
-    "All 6 reading-column inputs per row are genuinely editable number/text fields, never disabled -- unlike Form Cages Track Web's Total Cages/Cages Remain (computed, disabled as a documented uiux-spec exception), Pressing has no computed detail-grid fields, so the 'no disabled web inputs' rule applies with zero exceptions in this screen's detail grid",
+    "All 6 reading-column inputs per row are genuinely editable number/text fields, never disabled -- Pressing has no computed detail-grid fields (for comparison, Form Cages Track Web's Total Cages/Cages Remain, formerly disabled inputs, have been rendered as plain text since 2026-10-04), so the 'no disabled web inputs' rule applies with zero exceptions in this screen; enforced statically by tests/Feature/Livewire/WebFormNoDisabledFieldTest.php",
     "Target Operasional table queried directly by FormPressing::render(), never sent as part of the create/update payload",
     "Route /data/pressing/create registered BEFORE /data/pressing/{id} (screen-054) so the literal 'create' segment is not swallowed by {id}",
     "checked/acknowledged self-attestation checkboxes mirror FormThreshing's dual-checkbox pattern (both Checked By AND Acknowledged By, unlike Form Weighbridge/Grading Web which only have Acknowledged)",
     "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): PressingRecordService::create() memanggil assertPeriodOpenForWrite('pressing', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormPressing::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/PressingRecordServiceTest.php, tests/Feature/Api/FormPressingTest.php, tests/Feature/Livewire/FormPressingTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini).",
     "REVISI v4 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormPressingTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 19 uji, semuanya hijau (test_results.integration diperbarui).",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-pressing.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 7 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-pressing.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 7 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): FormPressing memakai trait App\\Livewire\\Data\\Concerns\\GuardsRecordIdShape — id edit bukan UUID langsung 'Record tidak ditemukan.' tanpa query SQL. PressingRecordService (shared dgn screen-050) create/update memanggil assertEventDateNotTooFarAhead('date') dari EnforcesPeriodLock (tanggal > besok WIB via App\\Support\\AppTime -> 422 inline errors.date) dan upsertDetails() memeriksa Str::isUuid(id baris) sebelum query; ScopesToActorMill menolak production_line_id bukan-UUID (422); ApiExceptionHandler memetakan QueryException 22P02/22007/22008 -> 422 VALIDATION_ERROR, lainnya 500 generik. View form-pressing.blade.php tidak berubah (sudah tanpa input disabled). Tes yang menutup: tests/Feature/Livewire/RecordIdShapeGuardTest.php, tests/Feature/Livewire/WebFormNoDisabledFieldTest.php; batas atas tanggal diuji lintas stasiun di tests/Feature/AuditFix20261004Test.php (bukan via Pressing). test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [],

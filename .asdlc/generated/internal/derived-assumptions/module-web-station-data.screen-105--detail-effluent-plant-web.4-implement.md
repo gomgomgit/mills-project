@@ -12,3 +12,11 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - Hitungan diambil dari e2e-full.log.counts.json (per-spec [lulus, gagal, skip]). test_results.browser = 3 lulus, 0 gagal, run_at 2026-10-03T00:00:00Z.
 - known_issue 'browser test tidak dapat dijalankan / tidak ada browser di sandbox' dihapus karena spec e2e-web kini sudah dijalankan; known_issue lain dipertahankan.
 - Path e2e-web/tests/detail-effluent-plant.spec.ts ditambahkan ke test_files_generated (daftar tempat spec browser lama backend/tests/Browser/* tercatat / default; berkas backend/tests/Browser/* itu tidak ada di repo tetapi entri lamanya dibiarkan).
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/Data/DetailEffluentPlant.php, backend/resources/views/livewire/data/detail-effluent-plant.blade.php, backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php, backend/app/Support/Display.php, backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php).
+- fe_files_generated += backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php, backend/app/Support/Display.php ← dipakai DetailEffluentPlant.php (use GuardsRecordIdShape) dan blade (\App\Support\Display::...)
+- fe_test_files_generated += backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php ← file uji baru mencakup DetailEffluentPlant (dataset 18 stasiun)
+- implementation_notes += REVISI (2026-10-04, audit-fix) ← git diff DetailEffluentPlant.php / detail-effluent-plant.blade.php; DetailEffluentPlantTest asersi angka kini id-ID
+- known_issues: tidak diubah ← tidak ada issue yang diperbaiki/ditambahkan oleh audit untuk layar ini

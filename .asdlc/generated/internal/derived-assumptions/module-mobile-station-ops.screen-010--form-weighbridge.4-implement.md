@@ -35,3 +35,12 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 
 Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 13/0 (run_at diperbarui); spec tidak diubah.
+
+## v8 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (FormWeighbridgeView.vue, utils/localDate.ts, tests baru di mobile/tests).
+- fe_files_generated += mobile/src/utils/localDate.ts ← diimpor FormWeighbridgeView.vue.
+- fe_test_files_generated += localDate.sqljs.spec.ts, syncService.sqljs.spec.ts, DialogTeleport.spec.ts ← menguji normalisasi record_datetime, payload/line/sync_error weighbridge, ConfirmDialog teleport. (⚠ DialogTeleport dimasukkan karena form memakai ConfirmDialog — cakupan tidak langsung.)
+- known_issues[2].description = assertion kini nowLocalDateTimeString(T0) ← diff FormWeighbridgeView.spec.ts.
+- implementation_notes += REVISI 2026-10-04 ← diff view + test.
+- fe_files_generated += mobile/src/services/syncService.ts ← pushWeighbridgeRow (toOffsetDateTime record_datetime, line per record, sync_error) adalah jalur kirim record layar ini. (⚠ layar tidak mengimpornya langsung; dimasukkan karena perilaku sinkron yang direvisi berada di sana.)

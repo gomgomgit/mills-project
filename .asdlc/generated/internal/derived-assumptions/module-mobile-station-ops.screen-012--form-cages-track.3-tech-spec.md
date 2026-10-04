@@ -24,3 +24,15 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 - Dikonfirmasi dari kode: form ini tidak mengimpor syncAfterSave/apiClient — stasiun ini tidak punya write-through (pushSavedRecordNow hanya mencakup 15 stasiun seragam).
 - Dikonfirmasi dari kode: form hanya membuka draft (draft_ongoing/draft_paused) — Data Preview mengarahkan record saved/synced ke layar preview, bukan form — sehingga tidak ada jalur edit/PATCH record tersinkron.
 - Kalimat edge case/aturan/catatan dirumuskan sendiri; 'pemulihan = Admin membuka kembali baris stasiun di screen-142 lalu sinkron ulang' mengikuti brief.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (FormCagesTrackView.vue, cagesTrackRecordRepo.ts, utils/localDate.ts, syncService.ts, localSchema.ts, millSettingRepo.ts, CagesTrackRecordService.php).
+- api_contracts[0].business_logic[1] = tippler_start_time diisi createDraft() nowLocalDateTimeString(); date di-auto-set jam lokal ← diff cagesTrackRecordRepo.createDraft, FormCagesTrackView populate.
+- business_logic[2] = label 'Catatan' #field-note ← diff view.
+- business_logic[11] = tippler_stop_time dibekukan jam lokal ← FormCagesTrackView.nowLocalDateTimeString (sudah ada sebelumnya).
+- business_logic += 18 jalur sinkron (line per record, date lokal, toOffsetDateTime, normalisasi WIB server, sync_error, migrasi legacy) ← syncService.pushCagesTrackRow, CagesTrackRecordService, localSchema.normalizeLegacyUtcDates.
+- edge_case_handling[10].handling += 422 tanggal > besok, sync_error/SyncFailureHint ← assertEventDateNotTooFarAhead('date'), syncService.failure.
+- business_rules_applied[0] = jam lokal ← createDraft.
+- unit_test_cases[0] = penyimpanan lokal tippler_start_time/date; += payload sinkron +07:00 & date lokal ← localDate.sqljs.spec.ts, syncService.sqljs.spec.ts #4. (⚠ contoh payload cages track disimpulkan dari pola uji weighbridge #4; uji #4 menguji tanggal uniform + weighbridge.)
+- implementation_notes += REVISI 2026-10-04 ← diff terkait.

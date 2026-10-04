@@ -24,3 +24,13 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (app/Services/WeighbridgeRecordService.php, app/Http/Controllers/Api/WeighbridgeRecordController.php, app/Support/SheetWriter.php, app/Support/Display.php, data-browser-weighbridge.blade.php, tests/Unit/Services/WeighbridgeRecordServiceTest.php).
+- api_contracts[0].endpoints[1].response.success_schema.note = excel → .xlsx OOXML sungguhan via SheetWriter ← fileMetaFor()/export() docblock + SheetWriter
+- api_contracts[0].business_logic[7] = export menulis via SheetWriter::open($format) ← export() closure
+- api_contracts[0].business_logic += 11 (judul kolom label Detail + Checked By/Acknowledged By, Tipe Receive/Dispatch, 'Y-m-d H:i', Display::status) ← export() header/rows
+- api_contracts[0].business_logic += 12 (blade memakai Display::status/Display::number id-ID; JSON status tetap enum) ← blade diff + docblock Display ("Nilai di API … tidak berubah")
+- api_contracts[0].unit_test_cases[6].expect = xlsx 'PK' + header 'No. WB Card'/'Checked By'/'Acknowledged By' + 'Tersimpan' ← WeighbridgeRecordServiceTest export
+- implementation_notes += REVISI 2026-10-04 ← ringkasan di atas

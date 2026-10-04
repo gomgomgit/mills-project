@@ -48,3 +48,12 @@ Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 11/0.
 - Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): cek negatif not.toHaveURL dengan glob '**/…' (digabung ke baseURL, tak pernah cocok) diganti RegExp.
 - known_issue '3 kegagalan e2e full-suite' (major) dihapus — terbantah oleh run penuh 0 gagal.
+
+## v9 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile + backend).
+- files_generated += RecordVerificationStatusController.php, RecordVerificationStatusService.php, routes/api.php ← endpoint GET verifikasi baru dipakai layar ini.
+- test_files_generated += backend/tests/Feature/Api/MobileReadEndpointsTest.php ← menguji endpoint GET verifikasi.
+- fe_files_generated += SyncFailureHint.vue, recordVerificationApi.ts, apiClient.ts, utils/localDate.ts ← diimpor/dipakai DataPreviewWeighbridgeView.vue. ⚠ recordVerificationApi.ts/apiClient.ts sebelumnya sudah dipakai tapi tidak terdaftar — ditambahkan karena berubah di audit ini.
+- fe_test_files_generated += SyncFailureHint.spec.ts, syncService.sqljs.spec.ts, recordVerification.spec.ts, e2e/sync-and-verification.spec.ts (#10 menguji Load Data Weighbridge 390px).
+- implementation_notes += REVISI 2026-10-04 (pull verifikasi, /api prefix, network flag, SyncFailureHint, localDate, filter-row).

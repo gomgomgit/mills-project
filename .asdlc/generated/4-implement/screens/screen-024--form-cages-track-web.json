@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-024--form-cages-track-web",
   "name": "Form Cages Track (Web)",
@@ -15,12 +15,18 @@
     "backend/app/Http/Controllers/Api/CagesTrackRecordController.php",
     "backend/app/Models/CagesTippedTime.php",
     "backend/routes/api.php",
-    "backend/database/factories/StationFactory.php"
+    "backend/database/factories/StationFactory.php",
+    "backend/app/Support/AppTime.php",
+    "backend/app/Support/Concerns/EnforcesPeriodLock.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php",
+    "backend/config/app.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/CagesTrackRecordServiceTest.php",
     "backend/tests/Feature/Api/FormCagesTrackTest.php",
-    "e2e-web/tests/form-cages-track.spec.ts"
+    "e2e-web/tests/form-cages-track.spec.ts",
+    "backend/tests/Feature/AuditFix20261004Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormCagesTrack.php",
@@ -28,10 +34,13 @@
     "backend/resources/views/data/cages-track-form.blade.php",
     "backend/routes/web.php",
     "backend/resources/views/livewire/data/data-browser-cages-track.blade.php",
-    "backend/resources/views/livewire/data/detail-cages-track.blade.php"
+    "backend/resources/views/livewire/data/detail-cages-track.blade.php",
+    "backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php"
   ],
   "fe_test_files_generated": [
-    "backend/tests/Feature/Livewire/FormCagesTrackTest.php"
+    "backend/tests/Feature/Livewire/FormCagesTrackTest.php",
+    "backend/tests/Feature/Livewire/WebFormNoDisabledFieldTest.php",
+    "backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php"
   ],
   "implementation_notes": [
     "Satu Livewire component (FormCagesTrack) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormWeighbridge/FormGrading (screen-022/023)",
@@ -40,7 +49,7 @@
     "BARU: MillSettingService::getJumlahCages(string $businessUnitId): int ditambahkan — TIDAK memanggil checkAccess() (berbeda dari getOrCreate()/getCurrent()) karena N dibutuhkan oleh ketiga actor screen ini termasuk Supervisor, yang direject checkAccess()'s Admin/Mill-Management-only rule. Auto-create default row (jumlah_cages=1) via findOrCreateRow() yang sudah ada",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit user): Tanggal/Tippler Start Time/Tippler Stop Time pada web masing-masing input type=date/datetime-local yang genuinely editable, default waktu saat ini saat form dibuka — TIDAK dikunci/dibekukan seperti mobile screen-012",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit user): tidak ada draft/pause/Clear di web — Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
-    "PENGECUALIAN dari konvensi web-form-input: Total Cages dan Cages Remain tiap baris Cages Tipped Time tetap disabled (computed server-side dari checked_cage_numbers + mill_setting.jumlah_cages), sama alasan seperti Net Weight (Form Weighbridge Web) dan UOM/Percentage (Form Grading Web)",
+    "Total Cages dan Cages Remain tiap baris Cages Tipped Time dirender sebagai TEKS (span fc-computed-value) sejak 2026-10-04 — sebelumnya input disabled yang menyalahi konvensi web-form-input; tetap computed server-side dari checked_cage_numbers + mill_setting.jumlah_cages",
     "Grid Cages Tipped Time: N (jumlah kolom checklist) diresolve via panggilan langsung MillSettingService::getJumlahCages() di Livewire (bukan endpoint REST terpisah) — dipanggil ulang tiap Business Unit berganti (mode create) atau sekali dari station record (mode edit); tombol 'Tambah baris' disabled sampai N>0",
     "Time dropdown per baris (availableHourOptions()): mengecualikan jam yang sudah dipakai baris lain DAN jam <= jam tertinggi di antara baris lain yang sudah terisi (bukan literal index array terakhir) — memastikan urutan ascending tetap benar terlepas dari baris mana yang sedang dihitung",
     "checked_cage_numbers disimpan sebagai CSV string (kolom string di CagesTippedTime model) — konversi array int <-> CSV dilakukan di CagesTrackRecordService::upsertDetails()/normalizeDetails()",
@@ -52,7 +61,8 @@
     "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): CagesTrackRecordService::create() memanggil assertPeriodOpenForWrite('cages-track', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormCagesTrack::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/CagesTrackRecordServiceTest.php, tests/Feature/Api/FormCagesTrackTest.php, tests/Feature/Livewire/FormCagesTrackTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini).",
     "REVISI v3 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormCagesTrackTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 18 uji, semuanya hijau (test_results.integration diperbarui).",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-cages-track.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 9 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): CagesTrackRecordService — normalizeFormFields() menormalkan tippler_start_time/tippler_stop_time ber-zona ke WIB (App\\Support\\AppTime); create/update memanggil assertEventDateNotTooFarAhead (> besok -> 422 errors.date); upsertDetails() memperlakukan id baris bukan-UUID sebagai baris baru (Str::isUuid); ekspor .xlsx asli via SheetWriter dan jam '07:00' (relevan screen-018). ScopesToActorMill: production_line_id bukan-UUID -> 422; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL; CagesTrackRecordController hanya docblock. FormCagesTrack: trait GuardsRecordIdShape (id bukan UUID -> notFound); view: Total Cages/Cages Remain sebagai teks. Tes: tests/Feature/Livewire/WebFormNoDisabledFieldTest.php, RecordIdShapeGuardTest.php, tests/Feature/AuditFix20261004Test.php; tests/Unit/Services/CagesTrackRecordServiceTest.php ikut diubah. test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

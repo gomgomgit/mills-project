@@ -44,3 +44,11 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 - Dikonfirmasi dari kode: form hanya membuka draft (draft_ongoing/draft_paused) — Data Preview mengarahkan record saved/synced ke layar preview, bukan form — sehingga tidak ada jalur edit/PATCH record tersinkron.
 - Kalimat edge case/aturan/catatan dirumuskan sendiri; 'pemulihan = Admin membuka kembali baris stasiun di screen-142 lalu sinkron ulang' mengikuti brief.
 - Kolom tanggal kejadian = record_datetime (dikonfirmasi di WeighbridgeRecordService).
+
+## v8 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (FormWeighbridgeView.vue, utils/localDate.ts, localSchema.ts, syncService.ts, WeighbridgeRecordService.php).
+- api_contracts[0].business_logic[2] = auto-set record_datetime pakai nowLocalDateTimeString() (lokal, tanpa sufiks), tampilan via parseStoredDateTime() ← diff FormWeighbridgeView.nowIso/formatDateID.
+- api_contracts[0].edge_case_handling[5].handling = + 422 tanggal > besok, sync_error ditulis/dikosongkan, gagal jaringan tidak ditulis ← syncService.failure()/markSynced(), assertEventDateNotTooFarAhead.
+- api_contracts[0].unit_test_cases[2,4].expect = waktu lokal 'YYYY-MM-DDTHH:mm:ss' ← FormWeighbridgeView.spec.ts T0_LOCAL.
+- implementation_notes += REVISI 2026-10-04 (jam lokal, migrasi legacy UTC, toOffsetDateTime, line per record, sync_error, Nama Sopir, ConfirmDialog teleport, floatingSafeArea) ← diff kode terkait.

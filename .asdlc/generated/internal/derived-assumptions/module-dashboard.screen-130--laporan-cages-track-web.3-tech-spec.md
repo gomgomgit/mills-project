@@ -55,3 +55,14 @@ Koreksi terhadap v1, ditemukan saat verifikasi pasca-implementasi.
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (CagesTrackReportService.php, laporan-cages-track.blade.php, Api/LaporanCagesTrackTest.php, WebAccessTest.php).
+- actor_permissions[3].conditions = Operator login web terbatas, /reports/cages-track 403 (errors/403), menu disaring RouteAccess; laporan di mobile ← WebAccessTest
+- api_contracts[0].endpoints[3].description = CSV atau .xlsx sungguhan via SheetWriter + konteks Periode/Mill/Production Line ← export()
+- api_contracts[0].endpoints[3].response.success_schema._note = daftar kolom baru (Periode, Mill, Production Line, …, Jam HH:MM, Status label Indonesia) ← header row di export()
+- api_contracts[0].unit_test_cases[53].expect = + konteks Periode/Mill/Line, Jam 06:00 bukan 06.00 ← LaporanCagesTrackTest diff
+- api_contracts[0].edge_case_handling[0].handling = + UI '–' rata-rata & meta 'Belum ada record pada periode dan line ini'; API tetap avg 0 ← blade #9 (service tidak berubah)
+- api_contracts[0].business_logic[19] = SheetWriter + konteks + status Indonesia + jam 'HH:00' ← export()
+- implementation_notes[+] = REVISI audit-fix ← ringkasan diff

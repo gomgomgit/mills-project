@@ -1,8 +1,8 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-029--kelola-business-unit",
   "name": "Kelola Business Unit",
@@ -137,7 +137,7 @@
             "query_params": [],
             "body_schema": {
               "company_id": "uuid, required, harus Company yang ada",
-              "code": "string, required, unik secara global",
+              "code": "string, required, unik secara global (tidak peka huruf besar/kecil — UniqueCaseInsensitive)",
               "name": "string, required",
               "business_unit_type_code": "string, optional",
               "short_name": "string, optional",
@@ -156,7 +156,7 @@
               "epf_employer": "string, optional",
               "socso_employer": "string, optional",
               "labor_union": "string, optional",
-              "logo": "file, optional, image jpg/png, max 2MB"
+              "logo": "file, optional, gambar JPG/PNG sungguhan (isi file diperiksa — App\\Rules\\RealImage), max 2MB"
             }
           },
           "response": {
@@ -221,7 +221,7 @@
             "query_params": [],
             "body_schema": {
               "company_id": "uuid, required, harus Company yang ada",
-              "code": "string, required, unik secara global (kecuali dirinya sendiri)",
+              "code": "string, required, unik secara global kecuali dirinya sendiri (tidak peka huruf besar/kecil)",
               "name": "string, required",
               "business_unit_type_code": "string, optional",
               "short_name": "string, optional",
@@ -240,7 +240,7 @@
               "epf_employer": "string, optional",
               "socso_employer": "string, optional",
               "labor_union": "string, optional",
-              "logo": "file, optional, image jpg/png, max 2MB"
+              "logo": "file, optional, gambar JPG/PNG sungguhan (isi file diperiksa — App\\Rules\\RealImage), max 2MB"
             }
           },
           "response": {
@@ -297,7 +297,7 @@
         {
           "method": "DELETE",
           "path": "/api/business-units/:id",
-          "description": "Menghapus Business Unit jika tidak memiliki Station terkait",
+          "description": "Menghapus Business Unit jika tidak memiliki User, Production Line, Station, maupun Periode Pelaporan terkait",
           "auth_required": true,
           "request": {
             "path_params": [
@@ -318,7 +318,7 @@
               {
                 "http_code": 409,
                 "error_code": "BUSINESS_UNIT_HAS_STATIONS",
-                "condition": "Business Unit masih memiliki satu atau lebih Station terkait"
+                "condition": "Business Unit masih memiliki User (users.business_unit_id), Production Line, Station, atau Periode Pelaporan terkait — pesan merinci jumlah tiap ketergantungan (kode error tetap BUSINESS_UNIT_HAS_STATIONS)"
               },
               {
                 "http_code": 404,
@@ -341,9 +341,9 @@
       "business_logic": [
         "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by company_id, eager-load Company untuk company_name, hitung station_count via COUNT station WHERE business_unit_id. Endpoint ini digabung dengan endpoint publik pra-login screen-001/002 (lihat implementation_notes) — tanpa query param, kembalikan bentuk lama tanpa autentikasi",
         "2. GET /api/companies/options: SELECT id, name dari seluruh Company, urut nama, untuk dropdown form (tanpa pagination)",
-        "3. POST create: validate company_id ada → validate name required → validate code required + unik GLOBAL → validate logo (jika ada) → if invalid: return 422 VALIDATION_ERROR → simpan logo jika ada → insert Business Unit baru dengan seluruh field profil (created_by = admin yang login). Tidak ada Station yang dibuat pada langkah ini — provisioning Station kini terjadi saat membuat Production Line (screen-036), bukan saat membuat Business Unit.",
-        "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate company_id ada → validate name required → validate code required + unik global (exclude self) → validate logo (jika diganti) → if invalid: return 422 VALIDATION_ERROR → update Business Unit dengan seluruh field profil",
-        "5. DELETE: validate id exists → if not: return 404 NOT_FOUND → count Station WHERE business_unit_id=id → if count > 0: return 409 BUSINESS_UNIT_HAS_STATIONS → else delete Business Unit"
+        "3. POST create: validate company_id ada → validate name required → validate code required + unik GLOBAL case-insensitive (UniqueCaseInsensitive) → validate logo (jika ada): mimes jpg/jpeg/png, max 2MB, RealImage → if invalid: return 422 VALIDATION_ERROR → simpan logo jika ada → insert Business Unit baru dengan seluruh field profil (created_by = admin yang login). Tidak ada Station yang dibuat pada langkah ini — provisioning Station kini terjadi saat membuat Production Line (screen-036), bukan saat membuat Business Unit.",
+        "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate company_id ada → validate name required → validate code required + unik global case-insensitive (exclude self) → validate logo (jika diganti, termasuk RealImage) → if invalid: return 422 VALIDATION_ERROR → update Business Unit dengan seluruh field profil",
+        "5. DELETE: validate id exists → if not: return 404 NOT_FOUND → hitung ketergantungan: User WHERE business_unit_id (nullOnDelete → user non-Admin kehilangan BU wajib), ProductionLine WHERE business_unit_id, Station WHERE business_unit_id, Period WHERE business_unit_id (ketiganya cascadeOnDelete) → jika salah satu > 0: return 409 BUSINESS_UNIT_HAS_STATIONS dengan pesan 'Business Unit tidak dapat dihapus karena masih memiliki {n} User, {n} Production Line, ... . Pindahkan atau hapus data tersebut terlebih dahulu.' (hanya yang > 0 disebut) → else delete Business Unit (mill_settings 1:1 ikut terhapus, tidak dihitung)"
       ],
       "data_operations": [
         {
@@ -369,12 +369,12 @@
         {
           "entity_id": "business-unit",
           "operation": "DELETE",
-          "description": "DELETE Business Unit jika tidak ada Station terkait"
+          "description": "DELETE Business Unit jika tidak ada User, Production Line, Station, maupun Periode terkait"
         },
         {
           "entity_id": "station",
           "operation": "SELECT",
-          "description": "COUNT Station WHERE business_unit_id sebelum delete"
+          "description": "COUNT Station WHERE business_unit_id sebelum delete (bersama COUNT User, Production Line, Period WHERE business_unit_id)"
         }
       ],
       "edge_case_handling": [
@@ -383,8 +383,8 @@
           "handling": "Return 422 VALIDATION_ERROR dengan errors.code — keunikan berlaku GLOBAL, bukan per-Company"
         },
         {
-          "condition": "Business Unit masih memiliki Station terkait saat dihapus",
-          "handling": "Return 409 BUSINESS_UNIT_HAS_STATIONS"
+          "condition": "Business Unit masih memiliki User, Production Line, Station, atau Periode Pelaporan terkait saat dihapus",
+          "handling": "Return 409 BUSINESS_UNIT_HAS_STATIONS dengan pesan yang merinci semua ketergantungan; tidak ada yang terhapus, users.business_unit_id tetap utuh. Livewire menampilkan pesan itu sebagai deleteErrorMessage"
         },
         {
           "condition": "Belum ada Company sama sekali",
@@ -403,13 +403,17 @@
           "handling": "Return 422 VALIDATION_ERROR dengan errors.name"
         },
         {
-          "condition": "Upload logo dengan format/ukuran tidak didukung",
-          "handling": "Return 422 VALIDATION_ERROR dengan errors.logo"
+          "condition": "Upload logo dengan format/ukuran tidak didukung, atau file bukan gambar sungguhan walau bernama .png/.jpg",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.logo (mimes/max/RealImage); di Livewire ditolak saat file dipilih (updatedLogo → validateUploadNow) dan lagi saat Simpan, pratinjau disembunyikan selama ada error"
+        },
+        {
+          "condition": "Kode Business Unit hanya berbeda huruf besar/kecil dari Business Unit lain",
+          "handling": "Return 422 VALIDATION_ERROR errors.code (UniqueCaseInsensitive)"
         }
       ],
       "business_rules_applied": [
         "Kode Business Unit harus unik di seluruh sistem",
-        "Business Unit tidak dapat dihapus jika masih memiliki satu atau lebih Station terkait",
+        "Business Unit tidak dapat dihapus jika masih memiliki User, Production Line, Station, atau Periode Pelaporan terkait",
         "Hanya Admin yang dapat mengakses dan mengelola data Business Unit (kecuali membaca daftar mentah via GET /api/business-units, endpoint bersama pra-login)",
         "Business Unit harus terkait ke tepat satu Company yang sudah ada"
       ],
@@ -475,9 +479,9 @@
           "expect": "update succeeds, no VALIDATION_ERROR"
         },
         {
-          "description": "returns 409 BUSINESS_UNIT_HAS_STATIONS when deleting Business Unit that still has related Station records",
-          "given": "BusinessUnitRepository.findById(id) returns existing Business Unit; StationRepository.countByBusinessUnitId(id) returns 3 (> 0)",
-          "expect": "throw ConflictException; http 409 BUSINESS_UNIT_HAS_STATIONS; Business Unit is not deleted"
+          "description": "returns 409 BUSINESS_UNIT_HAS_STATIONS when deleting Business Unit that still has related User, Production Line, Station or Period records",
+          "given": "Business Unit exists with e.g. 1 User bound (users.business_unit_id) and/or Production Line/Station/Period rows",
+          "expect": "throw BusinessUnitHasStationsException (409) whose message lists every non-zero dependency with its count; Business Unit not deleted; the User keeps its business_unit_id"
         },
         {
           "description": "returns success result with full profile when all conditions pass",
@@ -770,6 +774,7 @@
     "KOREKSI ver 3 (ditemukan saat implementasi, bukan diasumsikan di awal): GET /api/business-units TERNYATA sudah ada sebelum screen-029 — endpoint publik/tanpa auth yang dipakai screen-001/002 untuk dropdown 'Business Area' pra-login (dipanggil tanpa query param, mengharapkan {data:[{id,name}]} polos). Laravel tidak bisa mendaftarkan 2 route pada method+URI yang sama, sehingga kedua perilaku digabung dalam SATU action index(): tanpa page/per_page/company_id -> cabang lama TIDAK BERUBAH (tetap publik); dengan salah satu param tersebut -> cabang list terpaginasi screen-029 (masih publik juga, bukan hanya cabang lama). Ini PENGECUALIAN SENGAJA dari 'role:admin di semua endpoint' — store/update/destroy/companyOptions tetap admin-gated penuh. Skenario 'Akses ditolak untuk non-Admin' di bawah diuji lewat companyOptions (bukan lagi GET /api/business-units).",
     "KOREKSI ver 4 (2026-08-20, SEKARANG DIKETAHUI KELIRU — lihat KOREKSI ver 6): sempat menambahkan fitur create() otomatis membuat 15 Station kanonis untuk setiap Business Unit baru, dibungkus DB::transaction(). Riwayat dipertahankan di sini untuk jejak audit.",
     "KOREKSI ver 5 (2026-08-31, JUGA KELIRU — lihat KOREKSI ver 6): mengoreksi breakdown 15 Station kanonis KOREKSI ver 4 dari 3 aktif+12 placeholder menjadi 7 aktif+8 placeholder, tanpa menyadari bahwa fitur itu sendiri sudah tidak berlaku sejak 2026-08-20.",
-    "KOREKSI ver 6 (2026-08-31, koreksi final): ditemukan bahwa BusinessUnitService.php di codebase ACTUAL sudah tidak lagi membuat Station apapun sejak 2026-08-20 (docblock create()-nya eksplisit menyatakan ini) — tanggung jawab itu SEPENUHNYA dipindah ke ProductionLineService::create() (screen-036, Kelola Production Line), karena stations.production_line_id adalah FK NOT NULL dan Business Unit baru belum punya Production Line sama sekali. Sudah dikonfirmasi juga oleh test yang sudah ada dan lulus: does not auto-create any stations when a new business unit is created. KOREKSI ver 4 dan ver 5 di atas keduanya keliru mengasumsikan fitur ini masih ada di screen ini. Seluruh referensi ke pembuatan Station otomatis dihapus dari business_logic/data_operations/business_rules_applied/unit_test_cases pada versi ini — POST /api/business-units sekarang murni CRUD profil Business Unit, tanpa efek samping ke Station. (screen-036's spec sendiri diketahui juga masih stale pada breakdown 3+12 vs 7+8 — di luar cakupan koreksi ini.)"
+    "KOREKSI ver 6 (2026-08-31, koreksi final): ditemukan bahwa BusinessUnitService.php di codebase ACTUAL sudah tidak lagi membuat Station apapun sejak 2026-08-20 (docblock create()-nya eksplisit menyatakan ini) — tanggung jawab itu SEPENUHNYA dipindah ke ProductionLineService::create() (screen-036, Kelola Production Line), karena stations.production_line_id adalah FK NOT NULL dan Business Unit baru belum punya Production Line sama sekali. Sudah dikonfirmasi juga oleh test yang sudah ada dan lulus: does not auto-create any stations when a new business unit is created. KOREKSI ver 4 dan ver 5 di atas keduanya keliru mengasumsikan fitur ini masih ada di screen ini. Seluruh referensi ke pembuatan Station otomatis dihapus dari business_logic/data_operations/business_rules_applied/unit_test_cases pada versi ini — POST /api/business-units sekarang murni CRUD profil Business Unit, tanpa efek samping ke Station. (screen-036's spec sendiri diketahui juga masih stale pada breakdown 3+12 vs 7+8 — di luar cakupan koreksi ini.)",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): BusinessUnitService::delete() kini menolak (409 BUSINESS_UNIT_HAS_STATIONS, pesan merinci) bila ada User, Production Line, Station, atau Period terkait — dulu hanya Station, padahal users.business_unit_id nullOnDelete dan production_lines/stations/periods cascadeOnDelete sehingga data ikut hilang diam-diam (temuan audit #5). code unik case-insensitive (UniqueCaseInsensitive); logo wajib gambar sungguhan (RealImage) di service + Livewire, divalidasi saat dipilih (ValidatesUploadOnSelect); Livewire menampilkan successMessage setelah simpan/hapus."
   ]
 }

@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-030--kelola-station",
   "name": "Kelola Station",
@@ -17,29 +17,34 @@
     "backend/app/Http/Controllers/Api/StationController.php",
     "backend/app/Models/Station.php",
     "backend/routes/api.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Rules/UniqueCaseInsensitive.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/StationServiceTest.php",
     "backend/tests/Feature/Api/KelolaStationTest.php",
     "backend/tests/Feature/Livewire/KelolaStationTest.php",
     "backend/database/factories/MachineryGroupFactory.php",
-    "backend/database/factories/MachineryFactory.php"
+    "backend/database/factories/MachineryFactory.php",
+    "backend/tests/Feature/Livewire/KelolaStationAuditTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/MasterData/KelolaStation.php",
     "backend/resources/views/master-data/stations.blade.php",
     "backend/resources/views/livewire/master-data/kelola-station.blade.php",
-    "backend/resources/views/components/searchable-select.blade.php"
+    "backend/resources/views/components/searchable-select.blade.php",
+    "backend/resources/views/components/searchable-select-assets.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php"
   ],
   "fe_test_files_generated": [
     "e2e-web/tests/kelola-station.spec.ts",
     "e2e-web/tests/support/paged-table.ts",
-    "backend/database/seeders/BrowserTestFixtureSeeder.php"
+    "backend/database/seeders/BrowserTestFixtureSeeder.php",
+    "e2e-web/tests/searchable-select-dependent.spec.ts"
   ],
   "implementation_notes": [
     "First-time implementation — CRUD lengkap untuk Station dengan field ERD sejak awal, DIATAS field existing (business_unit_id, name, type, is_active) yang sudah dipakai luas oleh mobile screen 006/007-009 dan web screen 016/017/018 — field tersebut TIDAK diubah/dihapus, hanya ditambah code (opsional, unik jika diisi) dan description",
-    "is_active punya aturan cross-field: hanya boleh true jika type in (weighbridge, grading, cages-track), ditegakkan via Validator::make()->after() closure",
+    "is_active punya aturan cross-field: tidak boleh true bila type=other (tipe lain dari station_types boleh aktif), ditegakkan via Validator::make()->after() closure",
     "code nullable + Rule::unique bersama-sama — pendekatan idiomatis Laravel yang benar: unique hanya menolak duplikat nilai non-null asli, banyak baris NULL tetap boleh hidup berdampingan",
     "Dibuat placeholder minimal untuk 2 entity yang belum ada: tabel+model MachineryGroup (business_unit_id, station_id, timestamps saja) dan model Machinery (untuk delete-guard). Keduanya akan DIPERLUAS oleh screen-033 (Kelola Machinery Group) dan screen-031 (Kelola Machinery) via migration baru masing-masing, BUKAN dibuat ulang dari nol — mengikuti konvensi 'migration baru menambah kolom' yang konsisten sepanjang round ini",
     "409 STATION_HAS_MACHINERY memeriksa DUA entity anak (MachineryGroup DAN Machinery langsung)",
@@ -47,10 +52,16 @@
     "Tidak ada field logo pada Station (sesuai entity-catalog/ERD)",
     "Independently re-verified oleh command: re-run `php artisan test` — 454/454 lulus (full suite gabungan 027+028+029+030); baca StationService.php dan MachineryGroup.php/migration placeholder penuh untuk konfirmasi delete-guard dan pola placeholder-untuk-diperluas sesuai rencana",
     "REVISI v2 (2026-10-03, perbaikan komponen bersama + e2e): komponen bersama resources/views/components/searchable-select.blade.php kini mencerminkan opsi terkininya di atribut data-ss-options dan, lewat MutationObserver di init() Alpine, membaca ulang opsi setiap kali morph Livewire menulis ulang atribut itu (elemen tetap dipertahankan, fokus dan entangle wire:model utuh). Sebelumnya opsi hanya disalin sekali saat init sehingga picker dependen memakai opsi render pertama: di Kelola Station, memilih Business Unit membuat Production Line hanya berisi placeholder, dan di mode edit menawarkan line milik mill sebelumnya. e2e-web/tests/kelola-station.spec.ts diperbaiki (selector modal .kcm-modal, fixture di backend/database/seeders/BrowserTestFixtureSeeder.php, helper tabel berhalaman e2e-web/tests/support/paged-table.ts) dan lulus 9/9 (test_results.browser diperbarui). Known issue 'browser test tidak dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (#7) KelolaStation tidak lagi memakai daftar 4 tipe tulis tangan — Type diisi StationService::typeOptions($includeCode) dari master station_types (aktif, urut sort_order, tipe yang sedang diedit tetap ikut) dan label tabel dari StationService::typeLabels(); validasi type Livewire kini Rule::exists('station_types','code'); aturan satu station per tipe per Production Line (kecuali Other) di StationService::duplicateTypeMessage(), dipakai service dan KelolaStation::buildValidator(), dilewati pada update bila line & tipe tidak berubah. (#10) listStations() menerima filter production_line_id, eager-load productionLine, diurutkan per nama line lalu nama; toRow() menambah production_line_name; view menambah kolom & filter Production Line (opsi 'Mill — Line' tanpa filter BU, reset saat BU berganti). (#11) code UniqueCaseInsensitive. (#12) successMessage + deleteErrorMessage dibersihkan di awal aksi baru. (#15) empty state khusus saat terfilter (isFiltered). (#8) x-searchable-select: style + ssSelect() dipindah ke components/searchable-select-assets.blade.php yang dimuat sekali oleh components/layouts/app.blade.php (script yang disisipkan morph tidak dieksekusi), x-data tidak lagi memuat opsi (dibaca dari data-ss-options), dan listbox diberi wire:ignore — menghapus pageerror Alpine dan listbox hantu saat BU diganti. RECORD_TABLES (18 tabel record) ditambahkan di StationService untuk penjaga hapus Production Line. Cakupan baru: KelolaStationAuditTest, e2e-web/tests/searchable-select-dependent.spec.ts; e2e-web/tests/kelola-station.spec.ts diperbarui."
   ],
   "deferred_items": [],
-  "known_issues": [],
+  "known_issues": [
+    {
+      "description": "StationService::delete() hanya memeriksa Machinery Group/Machinery; station yang sudah punya record stasiun (FK restrictOnDelete di 18 tabel record) akan gagal di level DB dan tidak ditangkap KelolaStation::confirmDelete() (hanya StationHasMachineryException/ModelNotFoundException) — hasilnya error 500 generik, bukan pesan penolakan ramah. Juga: filter production_line_id belum diekspos di GET /api/stations (hanya Livewire).",
+      "severity": "minor"
+    }
+  ],
   "test_results": {
     "unit": {
       "run_at": "2026-08-19T15:00:00Z",

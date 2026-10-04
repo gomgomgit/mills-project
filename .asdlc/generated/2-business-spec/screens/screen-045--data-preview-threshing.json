@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-045--data-preview-threshing",
   "name": "Data Preview Threshing",
@@ -17,9 +17,11 @@
   ],
   "information_displayed": [
     "Mode LIST: daftar seluruh record Threshing (draft/pause dan saved/synced) milik user, dengan filter tanggal (default terisi hari ini) & pencarian (Thresher ID), masing-masing item menampilkan label + indikator status ('Pause' untuk draft_ongoing/draft_paused, 'Tersimpan' untuk saved, 'Tersinkron' untuk synced)",
-    "Mode DETAIL: seluruh field header Threshing (Thresher ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note) dan grid Threshing Detail (Time-Slot, FFB Throughput, Thresher Drum Speed, Motor Current, Unstripped Bunch Count, Empty Bunch Oil Loss, Downtime Reason) secara read-only — menampilkan persis sebanyak baris yang tersimpan pada record tersebut (bisa kurang dari 24, sesuai berapa baris yang ditambahkan user saat input), beserta tabel referensi Target Operasional read-only di bawah grid dan status badge record",
+    "Mode DETAIL: seluruh field header Threshing (Thresher ID, Tanggal (tanggal saja, tanpa jam), Inputted By, Checked By, Acknowledged By, Catatan) dan grid Threshing Detail (Time-Slot, FFB Throughput, Thresher Drum Speed, Motor Current, Unstripped Bunch Count, Empty Bunch Oil Loss, Downtime Reason) secara read-only — menampilkan persis sebanyak baris yang tersimpan pada record tersebut (bisa kurang dari 24, sesuai berapa baris yang ditambahkan user saat input), beserta tabel referensi Target Operasional read-only di bawah grid dan status badge record",
     "Breadcrumb navigasi (Home > Production Process Activity > Threshing > Load Data) yang dapat ditap",
-    "Header 'Mill Smart Log' + ikon hamburger menu"
+    "Header 'Mill Smart Log' + ikon hamburger menu",
+    "Petunjuk 'Gagal sinkron: <alasan>' (di bawah label item list dan di atas detail) untuk record berstatus Tersimpan yang terakhir kali DITOLAK server saat sinkronisasi; alasan = pesan penolakan terakhir, hilang otomatis setelah sinkron berhasil (audit 2026-10-04)",
+    "Status verifikasi record tersinkron (diperiksa Supervisor / dikonfirmasi Mill Management) diperbarui dari server di latar belakang setiap kali list atau detail dibuka saat online — termasuk verifikasi yang dilakukan lewat web (audit 2026-10-04)"
   ],
   "available_actions": [
     {
@@ -104,7 +106,9 @@
     "Record tidak ditemukan di mode detail (id tidak valid/tidak ada)",
     "List kosong (belum ada record Threshing sama sekali untuk user ini)",
     "Filter tanggal/pencarian (termasuk default hari ini) tidak menghasilkan record yang cocok",
-    "Record ditampilkan di mode DETAIL dengan grid Threshing Detail kosong (kasus tepi: record tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+    "Record ditampilkan di mode DETAIL dengan grid Threshing Detail kosong (kasus tepi: record tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error",
+    "Record ditolak server saat sinkronisasi (mis. periode pelaporan tertutup) — tetap berstatus Tersimpan dengan petunjuk 'Gagal sinkron: <alasan>'; kegagalan karena tidak ada jaringan tidak ditandai sebagai penolakan",
+    "Offline / server tidak dapat dijangkau saat memperbarui status verifikasi — status verifikasi lokal terakhir tetap ditampilkan tanpa pesan galat"
   ],
   "test_priority": "medium",
   "open_questions": []

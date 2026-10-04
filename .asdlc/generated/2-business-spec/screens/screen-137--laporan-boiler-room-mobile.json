@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-25"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-137--laporan-boiler-room-mobile",
   "name": "Laporan Boiler Room (Mobile)",
@@ -23,7 +23,7 @@
     "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Boiler Room, yaitu periode berjenis Boiler Room maupun periode yang berlaku untuk semua jenis stasiun",
     "Pemilih Mill — hanya bagi Admin, yang tidak terikat satu mill",
     "Nama mill yang sedang berlaku, sebagai keterangan bagi pengguna yang terikat satu mill",
-    "Rentang tanggal dan status periode yang sedang dilihat",
+    "Rentang tanggal dan status periode yang sedang dilihat — label status sama dengan web: Draft / Terbuka / Tertutup",
     "Tekanan uap sepanjang periode: terendah, rata-rata, tertinggi",
     "Suhu uap sepanjang periode: terendah, rata-rata, tertinggi",
     "TDS air sepanjang periode: terendah, rata-rata, tertinggi",
@@ -32,14 +32,15 @@
     "Jumlah pembacaan yang menjadi dasar setiap angka di atas, ditampilkan berdampingan dengan angkanya — masing-masing metrik punya jumlahnya sendiri",
     "Jumlah blowdown yang dilakukan sepanjang periode dan rata-rata per hari, beserta jumlah yang tidak tercatat yang dilaporkan terpisah",
     "Jumlah sootblowing yang dilakukan sepanjang periode dan rata-rata per hari, beserta jumlah yang tidak tercatat yang dilaporkan terpisah",
-    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan sepanjang periode",
+    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan. Untuk periode yang masih berjalan slot yang diharapkan dihitung hanya sampai HARI INI, dengan keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)' dan rumus 'N hari (sampai hari ini) × …'. Bila tidak ada slot yang diharapkan persentasenya tampil '-' dengan teks 'belum ada slot yang diharapkan', bukan 0,0% — sama dengan laporan web",
     "Tren harian tekanan uap rata-rata per tanggal",
     "Tren harian suhu uap rata-rata per tanggal",
     "Rekap per unit boiler: tekanan rata-rata, suhu rata-rata, jumlah blowdown, jumlah sootblowing, jumlah pembacaan",
     "Rekap harian yang dapat dibuka dan ditutup, karena pada periode sebulan daftarnya panjang di layar ponsel",
     "Keterangan ketika periode tidak memuat data sama sekali",
     "Keterangan ketika mill belum punya satu pun periode yang mencakup Boiler Room",
-    "Pesan kegagalan jaringan beserta tombol untuk mencoba lagi"
+    "Pesan kegagalan jaringan beserta tombol untuk mencoba lagi",
+    "Pemilih Production Line — angka dan ekspor hanya tampil setelah satu line berlaku (dari rute, line yang diingat, atau pilihan pengguna)"
   ],
   "available_actions": [
     {
@@ -71,7 +72,7 @@
     },
     {
       "action": "Ekspor",
-      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV, satu baris per slot dengan kolom konteks record diulang — isinya sama persis dengan ekspor dari laporan versi web.",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode (cakupan line terpilih) sebagai CSV, satu baris per slot — berkas dibentuk server dan isinya sama persis dengan ekspor CSV laporan versi web: kolom Periode, Mill, dan Production Line diulang di setiap baris, disusul kolom konteks record, status berlabel Bahasa Indonesia, slot HH:MM, blowdown/sootblowing 'Ya'/'Tidak'.",
       "actor_ids": [
         "actor-station-operator",
         "actor-supervisor",
@@ -107,7 +108,8 @@
     "Layar ini membutuhkan jaringan. Kegagalan memuat harus dinyatakan dengan jelas beserta tombol mencoba lagi, dan periode yang sudah dipilih tidak boleh hilang — tidak boleh layar kosong tanpa penjelasan, dan tidak boleh diam.",
     "Sesi yang sudah tidak berlaku mengarahkan pengguna ke layar Login, sama seperti layar mobile lain.",
     "Tata letak ponsel: satu kolom, sasaran sentuh minimal 44 piksel, dan halaman tidak pernah menggulir mendatar. Grafik dan tabel yang lebih lebar dari layar menggulir di dalam kartunya sendiri, bukan menggeser seluruh halaman.",
-    "Rekap harian dapat ditutup dan dibuka kembali agar angka utama dan grafik tetap terbaca pada layar ponsel."
+    "Rekap harian dapat ditutup dan dibuka kembali agar angka utama dan grafik tetap terbaca pada layar ponsel.",
+    "Kelengkapan pencatatan untuk periode yang MASIH BERJALAN dihitung hanya sampai hari ini (dihitung server, WIB) — ponsel hanya menampilkan days_counted dan period_running yang dikirim server, tidak menghitung ulang. Penyebut 0 ditampilkan '-' (tidak tersedia), bukan 0,0%."
   ],
   "usecase_ids": [
     "usecase-137--laporan-boiler-room-mobile"
@@ -125,7 +127,9 @@
     "Perangkat kehilangan jaringan saat memuat — pesan kegagalan beserta tombol coba lagi, tanpa kehilangan periode yang sudah dipilih.",
     "Sesi berakhir saat layar terbuka — pengguna diarahkan ke Login, sama seperti layar mobile lain.",
     "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar layar tetap terbaca di ponsel.",
-    "Rekap per unit boiler lebih lebar daripada layar ponsel — tabel menggulir mendatar di dalam kartunya sendiri, tanpa membuat seluruh halaman ikut bergeser."
+    "Rekap per unit boiler lebih lebar daripada layar ponsel — tabel menggulir mendatar di dalam kartunya sendiri, tanpa membuat seluruh halaman ikut bergeser.",
+    "Periode masih berjalan — kelengkapan dihitung sampai hari ini dan layar menyebut 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)'.",
+    "Belum ada unit boiler tercatat atau periode belum mulai sehingga slot yang diharapkan 0 — persen kelengkapan '-' dengan teks 'belum ada slot yang diharapkan', bukan '0,0%'."
   ],
   "test_priority": "high",
   "open_questions": [

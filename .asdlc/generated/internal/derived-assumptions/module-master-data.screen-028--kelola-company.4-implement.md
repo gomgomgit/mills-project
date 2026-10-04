@@ -22,3 +22,12 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/KelolaCompanyTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v7 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD KelolaCompany.php, CompanyService.php, kelola-company.blade.php, tests/*Company*, tests/Pest.php).
+- files_generated (+) = app/Rules/RealImage.php, app/Rules/UniqueCaseInsensitive.php ← dipakai CompanyService.
+- fe_files_generated (+) = app/Livewire/Concerns/ValidatesUploadOnSelect.php ← trait di KelolaCompany.
+- test_files_generated (+) = MasterDataValidationAuditTest.php, ImageUploadValidationTest.php, tests/Pest.php ← menguji KelolaCompany / helper fakeRealImage().
+- implementation_notes[4] = tes logo kini fakeRealImage() ← test diff.
+- implementation_notes (+) = REVISI audit-fix.

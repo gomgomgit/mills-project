@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-139--laporan-storage-tank-mobile",
   "name": "Laporan Storage Tank (Mobile)",
@@ -173,11 +173,13 @@
               "production_line": "{ id: uuid, name: string } | null — blok BARU (2026-09-28), ADITIF: seluruh kunci yang sudah ada tetap di tempatnya. null ketika permintaan tidak membawa production_line_id.",
               "coverage": {
                 "filled_slots": "integer",
-                "expected_slots": "integer",
+                "expected_slots": "integer — tank_count x days_counted x slots_per_tank_per_day",
                 "coverage_percent": "float",
                 "tank_count": "integer",
                 "slots_per_tank_per_day": "integer",
-                "days_in_period": "integer"
+                "days_in_period": "integer — seluruh hari periode (inklusif)",
+                "days_counted": "integer — BARU 2026-10-04 (ReportPeriodDays::counted): = days_in_period untuk periode selesai, start..hari ini (WIB) untuk periode berjalan, 0 bila belum mulai",
+                "period_running": "boolean — BARU 2026-10-04: true bila end_date setelah hari ini"
               },
               "stock": {
                 "opening_mt": "float|null",
@@ -548,6 +550,14 @@
         {
           "condition": "Stasiun sebuah record sudah dipindah ke Production Line lain",
           "handling": "Record tetap terhitung di line ASALNYA: server menyaring pada kolom record `storage_tank_records.production_line_id` (snapshot saat create), bukan pada `stations`."
+        },
+        {
+          "condition": "Periode masih berjalan (coverage.period_running = true)",
+          "handling": "Rumus kelengkapan memakai coverage.days_counted ('× N hari (sampai hari ini)'), catatan period-running-note 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat).'; fallback days_counted ?? days_in_period untuk payload lama"
+        },
+        {
+          "condition": "coverage.expected_slots = 0 (periode belum mulai / tanpa tangki)",
+          "handling": "coverage-percent '-' (NOT_AVAILABLE), coverage-slots disembunyikan, coverage-no-expected 'belum ada slot yang diharapkan' — bukan '0,0%'"
         }
       ],
       "business_rules_applied": [
@@ -792,6 +802,11 @@
           "description": "blok production_line pada respons dipetakan apa adanya, dan null ketika server tidak mengirimnya",
           "given": "respons summary dengan dan tanpa kunci production_line",
           "expect": "repo memulangkan objeknya apa adanya atau null — tanpa menebak, tanpa menghitung ulang"
+        },
+        {
+          "description": "fetchSummary meneruskan coverage.days_counted dan period_running; blok coverage bawaan membawa nilai aman",
+          "given": "payload summary dengan coverage.days_counted 4 dan period_running true; dan payload tanpa blok coverage",
+          "expect": "repo meneruskan keduanya apa adanya; blok bawaan days_counted 0, period_running false"
         }
       ]
     }
@@ -855,7 +870,8 @@
     "Kunci ingatan `msl_production_line_{userId}` adalah KUNCI YANG SAMA yang ditulis StationListView.vue dan dibaca ReportingPilihStasiunView.vue (screen-141). Line adalah satu konteks kerja yang dibagi antar layar, bukan tiga pilihan terpisah. Setiap pembacaannya dibungkus try/catch (mode privat bisa melempar).",
     "Bentuk respons options-for-report sengaja {id, name, code} — identik dengan /production-lines/current — supaya mobile cukup punya satu pemeta dan sebuah layar bisa berpindah sumber tanpa mengubah cara membaca barisnya.",
     "Uji yang menyentuh production line WAJIB window.localStorage.clear() di beforeEach: ingatan line bocor antar-uji jauh lebih halus daripada ingatan sesi.",
-    "Cakupan uji Production Line yang nyata untuk layar ini: 13 uji komponen (mobile/tests/LaporanStorageTankView.spec.ts), 7 uji repo (mobile/tests/storageTankReportRepo.spec.ts), dan 7 uji browser (mobile/tests/e2e/laporan-*.spec.ts, dijalankan terhadap Vite dev server)."
+    "Cakupan uji Production Line yang nyata untuk layar ini: 13 uji komponen (mobile/tests/LaporanStorageTankView.spec.ts), 7 uji repo (mobile/tests/storageTankReportRepo.spec.ts), dan 7 uji browser (mobile/tests/e2e/laporan-*.spec.ts, dijalankan terhadap Vite dev server).",
+    "AUDIT-FIX 2026-10-04 (kode adalah acuan): LaporanStorageTankView menampilkan coverage_percent 1 desimal (sebelumnya 2), '-' bila expected_slots 0, rumus '× days_counted hari' + catatan periode berjalan, label status periode 'Tertutup' (dulu 'Ditutup'); storageTankReportRepo menambah days_counted/period_running pada tipe & blok coverage bawaan."
   ],
   "test_scenarios": [
     {
@@ -1331,7 +1347,7 @@
       "component_test": {
         "component": "LaporanStorageTankView",
         "action": "pasang komponen dengan coverage = { filled_slots: 3, expected_slots: 240, coverage_percent: 1.25, tank_count: 2, slots_per_tank_per_day: 4, days_in_period: 30 }",
-        "assert": "kartu kelengkapan pencatatan dirender DI ATAS seluruh blok angka lain, coverage_percent dirender dari payload dengan dua desimalnya tanpa dihitung ulang, dan stok awal/akhir tetap dirender berdampingan dengan tanggal pembacaannya sehingga jarak waktu antar keduanya terbaca"
+        "assert": "kartu kelengkapan pencatatan dirender DI ATAS seluruh blok angka lain, coverage_percent dirender 1 desimal seperti laporan web ('1,3%' untuk 1.25 — bukan '1,25%', audit 2026-10-04 #10) tanpa dihitung ulang dari filled/expected, dan stok awal/akhir tetap dirender berdampingan dengan tanggal pembacaannya"
       },
       "browser_test": {
         "route": "/reports/storage-tank",
@@ -1513,7 +1529,7 @@
       "component_test": {
         "component": "LaporanStorageTankView",
         "action": "pasang komponen dengan periode terpilih yang statusnya tertutup — status itu adalah status baris period_stations Storage Tank sebagaimana dikirim server",
-        "assert": "seluruh bagian laporan tetap terender penuh, penanda status tertutup dirender (status baris Storage Tank, bukan status periode dan bukan status jenis stasiun lain di periode yang sama), dan tombol Ekspor tetap aktif"
+        "assert": "seluruh bagian laporan tetap terender penuh, penanda status tertutup dirender berlabel 'Tertutup' (sama dengan web; dulu 'Ditutup') — status baris period_stations Storage Tank, bukan status periode — dan tombol Ekspor tetap aktif"
       },
       "browser_test": {
         "route": "/reports/storage-tank",

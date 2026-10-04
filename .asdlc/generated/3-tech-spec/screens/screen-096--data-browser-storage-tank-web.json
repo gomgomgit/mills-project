@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-096--data-browser-storage-tank-web",
   "name": "Data Browser Storage Tank (Web)",
@@ -165,7 +165,7 @@
           "response": {
             "success_schema": {
               "content_type": "text/csv atau application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-              "note": "Response body adalah file stream/binary (CSV kolom: Storage Tank ID, Date, Checked By, Acknowledged By, Status), bukan JSON"
+              "note": "Response body adalah file stream/binary, bukan JSON. format=csv → text/csv; format=excel → file .xlsx SUNGGUHAN (Office Open XML, zip berawalan 'PK' berisi xl/worksheets/sheet1.xml) ditulis App\\Support\\SheetWriter — bukan lagi byte CSV bernama .xlsx. Satu baris per detail: kolom konteks Production Line, Storage Tank ID, Date, Note, Checked By, Acknowledged By, Status diulang, lalu Time-Slot + 17 kolom bacaan detail"
             },
             "error_codes": [
               {
@@ -197,7 +197,9 @@
         "8. Return list (toListRow() map: id, storage_tank_id, date, filled_slot_count, status) + pagination metadata",
         "9. On export: re-run query filter yang sama tanpa pagination (buildFilteredQuery()->with(['checkedBy:id,name','acknowledgedBy:id,name'])), enforce EXPORT_ROW_LIMIT=50000 -> if total > limit: throw ExportFailedException -> 422 EXPORT_FAILED",
         "10. Ekspor memakai buildFilteredQuery() yang sama sehingga filter Production Line ikut ke berkas; `Production Line` adalah kolom PERTAMA header CSV dan nilainya diulang pada setiap baris detail (satu baris per detail, konteks record diulang)",
-        "11. Generate CSV via streamDownload() (header: Storage Tank ID, Date, Checked By, Acknowledged By, Status), return file stream untuk didownload user"
+        "11. Tulis berkas via streamDownload() + App\\Support\\SheetWriter::open($format) (csv → CSV ke php://output; excel → .xlsx sungguhan, header tebal, sel angka sebagai angka, string angka berawalan nol tetap teks). Header: Production Line, Storage Tank ID, Date, Note, Checked By, Acknowledged By, Status, Time-Slot, lalu 17 kolom bacaan (CPO Sounding Depth (mm) … Findings); return file stream untuk didownload user",
+        "12. Format nilai berkas ekspor (audit 2026-10-04 #8, App\\Support\\ExportValue): Time-Slot lewat ExportValue::time() → 'HH:MM' (tanpa detik); Steam Heating Valve Status lewat ExportValue::valve() → label form (closed → Closed, open_1_4 → Open 1/4, open_1_2 → Open 1/2); Status = label Indonesia lewat ExportValue::status() (Tersimpan, Tersinkron, …); sel kosong tetap kosong (null), angka tanpa pemisah ribuan",
+        "13. Tampilan tabel Livewire (bukan API): kolom Status dirender lewat App\\Support\\Display::status() (Draft/Dijeda/Tersimpan/Tersinkron; kelas CSS badge tetap memakai nilai enum asli); nilai API JSON `status` tetap enum mentah"
       ],
       "data_operations": [
         {
@@ -316,6 +318,11 @@
           "description": "includes production_line_name on every list row, resolved from the record's own productionLine relation",
           "given": "listRecords() is called on a record whose production_line_id points at LINE-ALPHA",
           "expect": "the row contains production_line_name = 'LINE-ALPHA', loaded via with('productionLine:id,name') on the record query"
+        },
+        {
+          "description": "export format=excel returns a real xlsx file with Indonesian status labels, HH:MM time slots and valve labels",
+          "given": "matching records with detail rows; export() called with format=excel",
+          "expect": "body starts with 'PK' and its sheet rows are readable (xlsxRows); time slot cells read 'HH:MM', steam valve cells read 'Closed'/'Open 1/4'/'Open 1/2', status cells carry the Indonesian label (e.g. 'Tersimpan')"
         }
       ]
     }
@@ -340,7 +347,8 @@
     "Web Livewire component DataBrowserStorageTank menggunakan StorageTankRecordService langsung (bukan HTTP call ke API controller), route name 'data.storage-tank'; export dispatched sebagai link browser-navigable (bukan AJAX/blob)",
     "Filter + kolom Production Line (2026-09-28/29): properti Livewire `production_line_id` (default '' = Semua Line), direset oleh updatedBusinessUnitId(), dipaksa sehat di render() lewat forcedProductionLineFilterValue(), dan opsinya dari productionLineOptionsForReadActor(). Ketiganya LAPISAN TAMPILAN — penegakan sesungguhnya ada di ScopesToActorMill::scopeFiltersToActorMill() di dalam service, jadi melewatkan lapisan tampilan pun tidak membocorkan apa pun.",
     "`production_line_id` masuk ke `$request->only([...])` pada index() DAN export() controller API, sehingga filter yang aktif di layar benar-benar ikut ke berkas.",
-    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan."
+    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ekspor Excel kini .xlsx sungguhan via App\\Support\\SheetWriter (tanpa dependensi baru); nilai sel lewat App\\Support\\ExportValue (status berlabel Indonesia, time slot 'HH:MM', label katup uap); deskripsi header ekspor di note/business_logic[10] diperbarui sesuai kode (sebelumnya hanya 5 kolom tercatat); tabel Data Browser memakai App\\Support\\Display::status(). Kontrak list/export JSON tidak berubah."
   ],
   "test_scenarios": [
     {

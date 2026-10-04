@@ -13,3 +13,13 @@ ingin dilihat reporting nya, lalu memilih stasiun"*. Butir di bawah ini turunan 
 - `edge_cases[0]` = **belum ada stasiun tersimpan di perangkat** ← konsekuensi langsung dari memilih sumber lokal. Pengguna yang baru masuk dan belum pernah membuka Daftar Stasiun akan melihat grid kosong; karena itu diberi arahan membuka Daftar Stasiun lebih dulu. Ini harga dari keputusan sumber data, dan ditulis eksplisit agar tidak dikira cacat.
 - `test_priority` = `low` ← navigasi murni, nol data operasional, nol aturan hak akses. Sama seperti screen-134.
 - `usecase_ids` = `usecase-143--...` ← sudah terdaftar di usecase-index sejak penetapan scope; artefaknya baru ditulis pada run ini.
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/ReportingPilihStasiunView.vue, mobile/tests/ReportingPilihStasiunView.spec.ts, mobile/tests/e2e/reporting-pilih-stasiun.spec.ts).
+- information_displayed[4] = pesan 'Laporan {nama} belum tersedia di aplikasi mobile.' ← infoMessage di onTileTap
+- information_displayed[5] = keterangan kosong hanya bila cache kosong DAN server tak terjangkau (pastikan online) ← teks no-stations baru
+- available_actions[0].description = laporan tersedia: Sterilizer, Cages & Track, Boiler Room, Clarification, Storage Tank ← REPORT_ROUTES (lima entri; teks lama "hanya Sterilizer" sudah usang)
+- business_rules[1] = baca lokal; bila cache kosong bootstrap dari server (line diingat/pertama, tak diingat sbg pilihan) atau seed 18 stasiun bawaan; jaringan hanya saat cache kosong ← bootstrapStationsWhenEmpty()
+- edge_cases[0] = cache kosong → bootstrap sendiri; arahan hanya bila tetap kosong ← bootstrapStationsWhenEmpty() + tes
+- edge_cases[2] = offline: cache ada → tak berpengaruh; cache kosong → 18 stasiun bawaan ← tes 'cache stasiun kosong dan offline'

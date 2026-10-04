@@ -1,8 +1,8 @@
 {
-  "ver": 8,
+  "ver": 9,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-036--kelola-production-line",
   "name": "Kelola Production Line",
@@ -22,11 +22,15 @@
     "backend/database/migrations/2026_08_31_000022_activate_6_and_add_4_new_stations_on_existing_production_lines.php",
     "backend/database/migrations/2026_09_01_000027_activate_sterilizer_on_existing_production_lines.php",
     "backend/routes/api.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Rules/UniqueCaseInsensitive.php",
+    "backend/app/Services/StationService.php"
   ],
   "test_files_generated": [
     "backend/tests/Feature/Api/KelolaProductionLineTest.php",
-    "backend/tests/Feature/Livewire/KelolaProductionLineTest.php"
+    "backend/tests/Feature/Livewire/KelolaProductionLineTest.php",
+    "backend/tests/Feature/Livewire/MasterDataDeleteGuardTest.php",
+    "backend/tests/Feature/Livewire/MasterDataValidationAuditTest.php"
   ],
   "fe_files_generated": [
     "backend/resources/views/livewire/master-data/kelola-production-line.blade.php",
@@ -44,7 +48,8 @@
     "v5 (2026-09-02, screen-127--master-data-tree-view): filterBusinessUnitId ditambah atribut #[Url] agar klik node Business Unit di Master Data Tree View bisa membuka screen ini dengan filter sudah terisi lewat query string (?filterBusinessUnitId=<id>). mount() tidak disentuh sama sekali, jadi perilaku dropdown filter in-page saat screen ini diakses langsung (tanpa query string) tidak berubah — diverifikasi lewat full re-run suite existing sebelum menambah skenario baru untuk hydration dari query string.",
     "REVISI v6 (2026-10-03, sinkronisasi catatan uji — kode aplikasi tidak diubah): e2e-web/tests/kelola-production-line.spec.ts diperbaiki — selector modal disesuaikan ke .kcm-modal (markup modal berubah sejak commit aae110b 'web UX overhaul') dan data uji kini disediakan oleh kelolaProductionLineFixtures() di backend/database/seeders/BrowserTestFixtureSeeder.php. Spec lulus penuh 8/8. Deferred item 'Browser (Playwright) test suite untuk screen ini' dinyatakan selesai oleh spec e2e-web ini dan dihapus dari deferred_items.",
     "REVISI v7 (2026-10-03, sinkronisasi catatan uji — kode aplikasi tidak diubah): known issue tentang tests/Browser/KelolaProductionLineTest.php yang 'ada di disk tapi tidak dijalankan' dihapus — seluruh direktori backend/tests/Browser sudah dihapus pada commit 8879d8d (diverifikasi: direktori tidak ada lagi), dan uji browser layar ini kini dijalankan lewat e2e-web/tests/kelola-production-line.spec.ts (8/8, lihat REVISI v6). Entri backend/tests/Browser/KelolaProductionLineTest.php di test_files_generated dibiarkan sebagai jejak historis.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ProductionLineService::delete() kini menghapus line BESERTA station-nya dalam DB::transaction (station di-lockForUpdate) bila station kosong; ditolak ProductionLineHasStationsException (409, pesan merinci '{n} record stasiun, {n} Machinery Group, {n} Machinery') bila ada record di StationService::RECORD_TABLES (konstanta baru, 18 tabel; dicocokkan via station_id ATAU production_line_id), Machinery Group, atau Machinery. code memakai UniqueCaseInsensitive di service & KelolaProductionLine. successMessage (alert sukses) setelah simpan/hapus, dibersihkan di openCreateForm/openEditForm/askDelete. Tes Api/Livewire 'ditolak' kini menanam MachineryGroup pada station (bukan sekadar station); cakupan baru MasterDataDeleteGuardTest (line + station kosong terhapus; ditolak bila record / Machinery Group) dan MasterDataValidationAuditTest (#11 kode case-insensitive, #12 pesan sukses edit); e2e-web/tests/kelola-production-line.spec.ts diperbarui."
   ],
   "deferred_items": [],
   "known_issues": [],

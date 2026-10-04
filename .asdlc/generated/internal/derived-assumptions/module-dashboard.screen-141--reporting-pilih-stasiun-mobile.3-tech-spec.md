@@ -24,3 +24,15 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (ReportingPilihStasiunView.vue, ReportingPilihStasiunView.spec.ts, e2e/reporting-pilih-stasiun.spec.ts).
+- business_logic[3] = bootstrapStationsWhenEmpty (fetchCurrentProductionLines → fetchAndCacheStationsForProductionLine / seedDefaultStationsIfNeeded) lalu arahan bila tetap kosong ← kode
+- business_logic[9] = pesan '…belum tersedia di aplikasi mobile.' ← kode
+- business_logic[14] = nol jaringan hanya bila cache ada; line untuk query tetap dari perangkat ← kode
+- edge_case_handling[0], [4] = cache kosong → bootstrap / offline → seed 18 bawaan ← kode + tes
+- unit_test_cases[6] (nol jaringan bila cache berisi), [7] (arahan bila tetap kosong), [9]/[10]/[18] teks pesan, [17] nol apiClient bila cache berisi; += 2 kasus bootstrap online/offline ← tes baru
+- business_rules_applied[1], screen_dependencies[2].reason, implementation_notes[0] = jaringan hanya untuk bootstrap ← kode
+- implementation_notes += REVISI audit 2026-10-04
+- test_scenarios[1]/[2] asersi teks pesan baru; test_scenarios[3] komponen+browser = bootstrap online / server di-abort → 18 stasiun bawaan tanpa pesan teknis ← e2e baru

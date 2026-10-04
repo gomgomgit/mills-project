@@ -22,3 +22,10 @@ Mencatat perbaikan kode/uji 2026-10-03.
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/KelolaProductionLineTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v9 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD ProductionLineService.php, KelolaProductionLine.php, blade, tests/*ProductionLine*, e2e-web/tests/kelola-production-line.spec.ts).
+- files_generated (+) = app/Rules/UniqueCaseInsensitive.php, app/Services/StationService.php ← dipakai ProductionLineService (RECORD_TABLES).
+- test_files_generated (+) = MasterDataDeleteGuardTest.php, MasterDataValidationAuditTest.php ← menguji KelolaProductionLine.
+- implementation_notes (+) = REVISI audit-fix.

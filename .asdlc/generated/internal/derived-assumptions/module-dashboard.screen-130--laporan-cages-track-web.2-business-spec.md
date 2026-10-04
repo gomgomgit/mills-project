@@ -16,3 +16,15 @@ Seluruh butir di bawah ini turunan agent dari membaca struktur data nyatanya.
 - `actors` tanpa Operator ← konsisten dengan screen-129: Operator tidak punya UI web. Jalur mobilenya screen-136, terpisah.
 - `test_priority` = `high` ← 11 aturan (ambang 5+), tiga peran dengan perilaku cakupan mill berbeda, dan empat aturan perhitungan yang masing-masing bisa salah tanpa terlihat dari angka totalnya.
 - `usecase_ids` ← `usecase-130--...` sudah terdaftar di usecase-index sejak penetapan scope; artefaknya baru ditulis pada run ini.
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (CagesTrackReportService.php, laporan-cages-track.blade.php, LaporanCagesTrack.php, ReportAuditFix20261004Test.php, WebAccessTest.php).
+- information_displayed[15] = Tombol Ekspor CSV dan Ekspor Excel (.xlsx sungguhan) ← blade export('csv')/export('excel') + SheetWriter
+- information_displayed[+] = pemilih Production Line wajib + nama line di hero ← hero `$selectedProductionLine` (#10)
+- available_actions[3].description = CSV/xlsx, kolom Periode/Mill/Production Line, jam HH:MM (06:00), status Indonesia ← export() diff
+- available_actions[+] = Pilih Production Line ← LaporanCagesTrack production_line_id
+- business_rules[2] = Operator login web terbatas, laporan 403, menu tak tampil; laporan Operator di mobile ← WebAccessTest + RouteAccess
+- business_rules[+] = Production Line wajib, tanpa opsi semua line ← tech-spec + Livewire (sebelumnya tak tercatat di business-spec)
+- edge_cases[0] = 0 hari ber-record → rata-rata '–' + 'Belum ada hari ber-record…'; lori keluar 'Belum ada record pada periode dan line ini' bukan 'Sama banyak' ← blade #9 + test '#9 Cages & Tracks tanpa data'
+- edge_cases[8] = + kolom batang selebar label, gulir di kartu, petunjuk bila > 10 tanggal ← md-trendchart--days + scroll-hint

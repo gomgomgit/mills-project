@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-051--data-browser-depricarping-web",
   "name": "Data Browser Depricarping (Web)",
@@ -174,7 +174,8 @@
           },
           "response": {
             "success_schema": {
-              "stream": "file"
+              "stream": "file",
+              "note": "format=csv → text/csv; format=excel → file .xlsx SUNGGUHAN (Office Open XML, zip berawalan 'PK' berisi xl/worksheets/sheet1.xml) ditulis App\\Support\\SheetWriter — bukan lagi byte CSV bernama .xlsx"
             },
             "error_codes": [
               {
@@ -213,8 +214,10 @@
         "5. Build filtered query (business_unit_id via station.business_unit_id, date range on date column)",
         "6. withCount filled_slot_count: COUNT depricarping_detail rows per record WHERE minimal satu dari 8 kolom bacaan (fan_static_pressure_mmh2o, polishing_drum_speed_rpm, air_velocity_ms, fibre_moisture_percent, kernel_recovery_in_fibre_percent, nut_silo_1_temp_c, nut_silo_2_temp_c, downtime_minutes, findings) non-null — REVISI 2026-08-24: sejak depricarping_detail rows tidak lagi di-pre-generate 24 sekaligus, metrik ini bisa jadi SAMA DENGAN total baris pada record (jika semua baris yang ditambahkan sudah terisi) atau lebih kecil (jika ada baris ditambahkan tapi belum diisi bacaan apapun) — tetap dihitung dari kolom bacaan terisi, bukan sekadar COUNT(*) baris",
         "7. Paginate, return {data, meta}",
-        "8. export(): re-run filter query unpaginated → if count > EXPORT_ROW_LIMIT (50000): return 422 EXPORT_FAILED → else stream CSV/Excel body",
-        "9. Ekspor memakai buildFilteredQuery() yang sama sehingga filter Production Line ikut ke berkas; `Production Line` adalah kolom PERTAMA header CSV dan nilainya diulang pada setiap baris detail (satu baris per detail, konteks record diulang)"
+        "8. export(): re-run filter query unpaginated → if count > EXPORT_ROW_LIMIT (50000): return 422 EXPORT_FAILED → else tulis berkas lewat App\\Support\\SheetWriter::open($format) (csv → CSV ke php://output; excel → .xlsx sungguhan, header tebal, sel angka sebagai angka, string angka berawalan nol tetap teks)",
+        "9. Ekspor memakai buildFilteredQuery() yang sama sehingga filter Production Line ikut ke berkas; `Production Line` adalah kolom PERTAMA header CSV dan nilainya diulang pada setiap baris detail (satu baris per detail, konteks record diulang)",
+        "10. Format nilai berkas ekspor (audit 2026-10-04 #8, App\\Support\\ExportValue): Time Slot lewat ExportValue::time() → 'HH:MM' (tanpa detik); Status = label Indonesia lewat ExportValue::status() (Tersimpan, Tersinkron, …); sel kosong tetap kosong (null), angka tanpa pemisah ribuan. Judul kolom tidak berubah",
+        "11. Tampilan tabel Livewire (bukan API): kolom Status dirender lewat App\\Support\\Display::status() (Draft/Dijeda/Tersimpan/Tersinkron; kelas CSS badge tetap memakai nilai enum asli); nilai API JSON `status` tetap enum mentah"
       ],
       "data_operations": [
         {
@@ -317,7 +320,7 @@
         {
           "description": "returns a StreamedResponse with the correct content-type for csv and excel formats",
           "given": "format=csv or format=excel",
-          "expect": "Content-Type text/csv or application/vnd...spreadsheetml.sheet respectively"
+          "expect": "Content-Type text/csv or application/vnd...spreadsheetml.sheet respectively; the excel body is a real xlsx (starts with 'PK', sheet rows readable via xlsxRows), status cells carry the Indonesian label and time slots read 'HH:MM'"
         },
         {
           "description": "filters the list and the export by the record's own production_line_id column, not through a station join",
@@ -372,7 +375,8 @@
     "REVISI 2026-08-24 (entity-catalog v12, menggantikan desain grid statis 24 baris yang ditolak user, diterapkan di Form Depricarping screen-059/mobile screen-043): depricarping_detail rows kini secara dinamis ditambahkan satu per satu (bukan lagi 'selalu 24') di kedua entry point (web dan mobile) -- withCount() filled_slot_count logic pada layar Data Browser ini sendiri TIDAK BERUBAH sama sekali, karena sejak awal sudah menghitung baris TERISI, bukan mengasumsikan total 24 baris",
     "Filter + kolom Production Line (2026-09-28/29): properti Livewire `production_line_id` (default '' = Semua Line), direset oleh updatedBusinessUnitId(), dipaksa sehat di render() lewat forcedProductionLineFilterValue(), dan opsinya dari productionLineOptionsForReadActor(). Ketiganya LAPISAN TAMPILAN — penegakan sesungguhnya ada di ScopesToActorMill::scopeFiltersToActorMill() di dalam service, jadi melewatkan lapisan tampilan pun tidak membocorkan apa pun.",
     "`production_line_id` masuk ke `$request->only([...])` pada index() DAN export() controller API, sehingga filter yang aktif di layar benar-benar ikut ke berkas.",
-    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan."
+    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ekspor Excel kini .xlsx sungguhan via App\\Support\\SheetWriter (tanpa dependensi baru); nilai sel lewat App\\Support\\ExportValue (status berlabel Indonesia, time slot 'HH:MM'); tabel Data Browser memakai App\\Support\\Display::status(). Kontrak list/export JSON tidak berubah."
   ],
   "test_scenarios": [
     {

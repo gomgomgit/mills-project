@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-036--kelola-production-line",
   "name": "Kelola Production Line",
@@ -136,7 +136,7 @@
             "body_schema": {
               "business_unit_id": "uuid, required",
               "name": "string, required",
-              "code": "string, optional, unique jika diisi",
+              "code": "string, optional, unique jika diisi (tidak peka huruf besar/kecil — UniqueCaseInsensitive)",
               "description": "string, optional"
             }
           },
@@ -187,7 +187,7 @@
             "body_schema": {
               "business_unit_id": "uuid, required",
               "name": "string, required",
-              "code": "string, optional, unique-excluding-self jika diisi",
+              "code": "string, optional, unique-excluding-self jika diisi (tidak peka huruf besar/kecil)",
               "description": "string, optional"
             }
           },
@@ -224,7 +224,7 @@
         {
           "method": "DELETE",
           "path": "/api/production-lines/{id}",
-          "description": "Menghapus Production Line jika tidak punya Station terkait",
+          "description": "Menghapus Production Line BESERTA station-nya dalam satu transaksi, selama station-station itu kosong (tanpa record stasiun, Machinery Group, Machinery)",
           "auth_required": true,
           "request": {
             "path_params": [
@@ -250,7 +250,7 @@
               {
                 "http_code": 409,
                 "error_code": "PRODUCTION_LINE_HAS_STATIONS",
-                "condition": "masih ada Station dengan production_line_id ini"
+                "condition": "station line ini (atau line ini langsung) masih punya record stasiun di salah satu 18 tabel record, Machinery Group, atau Machinery — pesan merinci jumlahnya; tidak ada yang terhapus"
               }
             ]
           },
@@ -262,9 +262,9 @@
       ],
       "business_logic": [
         "list: paginate ProductionLine, eager-load businessUnit, withCount('stations'), filter business_unit_id jika ada → return",
-        "create: validate business_unit_id exists, name required, code unique-if-filled → 422 jika invalid → INSERT ProductionLine → foreach 18 DEFAULT_STATIONS: INSERT Station (production_line_id + business_unit_id denormalized) → semua dalam DB::transaction → return row (201)",
+        "create: validate business_unit_id exists, name required, code unique-if-filled case-insensitive (UniqueCaseInsensitive) → 422 jika invalid → INSERT ProductionLine → foreach 18 DEFAULT_STATIONS: INSERT Station (production_line_id + business_unit_id denormalized) → semua dalam DB::transaction → return row (201)",
         "update: findOrFail id (404 jika tidak ada) → validasi sama seperti create (code unique excluding self) → UPDATE, TIDAK menyentuh station → return row",
-        "delete: findOrFail id (404) → COUNT Station WHERE production_line_id=id → jika >0 throw 409 PRODUCTION_LINE_HAS_STATIONS → else DELETE"
+        "delete: findOrFail id (404) → DB::transaction: SELECT station ids WHERE production_line_id=id lockForUpdate → hitung record di StationService::RECORD_TABLES (WHERE station_id IN ids OR production_line_id=id), MachineryGroup & Machinery (WHERE station_id IN ids OR production_line_id=id) → jika ada yang >0 throw 409 PRODUCTION_LINE_HAS_STATIONS dengan pesan 'Production Line tidak dapat dihapus karena station-nya masih memiliki {n} record stasiun, {n} Machinery Group, {n} Machinery. Hapus atau pindahkan data tersebut terlebih dahulu.' → else DELETE stations WHERE id IN ids lalu DELETE ProductionLine"
       ],
       "data_operations": [
         {
@@ -285,7 +285,7 @@
         {
           "entity_id": "production-line",
           "operation": "DELETE",
-          "description": "delete(), hanya jika tidak ada station terkait"
+          "description": "delete(), menghapus line beserta station-station kosongnya dalam satu transaksi"
         },
         {
           "entity_id": "station",
@@ -295,17 +295,17 @@
         {
           "entity_id": "station",
           "operation": "SELECT",
-          "description": "COUNT station WHERE production_line_id=id, dipakai delete() guard"
+          "description": "SELECT station ids WHERE production_line_id=id (lockForUpdate) + COUNT record di 18 tabel record, machinery_groups, machinery — dipakai delete() guard; lalu DELETE station kosong"
         }
       ],
       "edge_case_handling": [
         {
           "condition": "Kode duplikat saat create/update",
-          "handling": "422 VALIDATION_ERROR, errors.code"
+          "handling": "422 VALIDATION_ERROR, errors.code (termasuk kode yang hanya berbeda huruf besar/kecil)"
         },
         {
-          "condition": "Hapus Production Line yang masih punya Station",
-          "handling": "409 PRODUCTION_LINE_HAS_STATIONS, tidak menghapus apa pun"
+          "condition": "Hapus Production Line yang station-nya masih punya record stasiun / Machinery Group / Machinery",
+          "handling": "409 PRODUCTION_LINE_HAS_STATIONS dengan rincian blocker, tidak menghapus apa pun. Line dengan station kosong (mis. baru dibuat) terhapus bersama ke-18 station-nya"
         },
         {
           "condition": "Update/delete Production Line yang sudah dihapus user lain",
@@ -319,10 +319,10 @@
       "business_rules_applied": [
         "Business Unit wajib dipilih saat create/update",
         "Nama wajib diisi",
-        "Kode opsional, unik global (unique-excluding-self saat update)",
+        "Kode opsional, unik global tidak peka huruf besar/kecil (unique-excluding-self saat update)",
         "18 station kanonis diprovisikan HANYA saat create, dalam 1 transaksi dengan Production Line-nya",
         "Update tidak pernah menyentuh station yang sudah ada",
-        "Delete ditolak jika masih ada Station terkait",
+        "Delete menghapus line + station kosongnya dalam satu transaksi; ditolak bila ada record stasiun, Machinery Group, atau Machinery yang menempel",
         "Hanya Admin yang dapat mengakses seluruh endpoint CRUD ini"
       ],
       "unit_test_cases": [
@@ -362,14 +362,19 @@
           "expect": "throw ModelNotFoundException"
         },
         {
-          "description": "delete succeeds when there are no related stations",
-          "given": "ProductionLine tanpa Station terkait",
-          "expect": "ProductionLine terhapus"
+          "description": "delete removes the production line together with its empty stations",
+          "given": "ProductionLine dengan 18 Station tanpa record/Machinery Group/Machinery",
+          "expect": "ProductionLine dan ke-18 Station terhapus dalam satu transaksi"
         },
         {
-          "description": "delete throws ProductionLineHasStationsException when related stations exist",
-          "given": "ProductionLine dengan >=1 Station terkait",
-          "expect": "throw ProductionLineHasStationsException, tidak menghapus apa pun"
+          "description": "delete throws ProductionLineHasStationsException when its stations still hold records, Machinery Groups or Machinery",
+          "given": "ProductionLine yang station-nya punya record stasiun atau Machinery Group",
+          "expect": "throw ProductionLineHasStationsException dengan pesan merinci blocker, tidak menghapus apa pun (line & station tetap ada)"
+        },
+        {
+          "description": "returns 422 when code differs only by letter case from an existing Production Line",
+          "given": "code 'pl-001' saat 'PL-001' sudah ada",
+          "expect": "throw ValidationException, errors.code"
         }
       ]
     }
@@ -420,7 +425,8 @@
     "Belum ada Browser test (Playwright) khusus untuk screen ini — hanya Feature/Api + Feature/Livewire, berbeda dari sebagian screen master-data lain yang juga punya Browser test; dicatat sebagai known_issue minor di 4-implement",
     "KOREKSI ver 2 (2026-08-31): DEFAULT_STATIONS diperluas dari 15 menjadi 19 entri — 6 dari 8 placeholder lama dipromosikan menjadi aktif (Clarification, Boiler→'Boiler Room', Effluent Treatment→'Effluent Plant', Engine Room, Water Treatment→'Process Water', Bulking Storage→'Storage Tank') dan 4 stasiun baru ditambahkan (Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control). Migration backfill diperlukan untuk Production Line yang sudah ada: UPDATE 6 row placeholder existing (rename+retype+aktifkan) dan INSERT 4 row baru per Production Line — mengikuti pola persis migration 2026_08_23_000014_activate_4_new_stations_on_existing_production_lines.php. Tech-spec ver 1 (2026-08-20) sebelumnya juga belum sempat diupdate untuk promosi Threshing/Pressing/Depricarping/Kernel Plant (2026-08-23) — koreksi ini menggabungkan keduanya sekaligus.",
     "KOREKSI ver 3 (2026-09-01): DEFAULT_STATIONS dikoreksi dari 19 menjadi 18 entri — placeholder 'Loading Ramp' dihapus sepenuhnya, ternyata nama duplikat untuk stasiun yang sama dengan Cages Track (sudah aktif), bukan stasiun terpisah. Migration data baru menghapus row 'Loading Ramp' (type='other') dari setiap Production Line existing. Semua referensi station_count=19 pada endpoint/test di atas dikoreksi ke 18.",
-    "KOREKSI ver 4 (2026-09-01, promosi final): Sterilizer (placeholder terakhir) dipromosikan menjadi station aktif (type=sterilizer). station_count tetap 18 (tidak berubah sejak Loading Ramp dihapus) — HANYA frasa '17 aktif + 1 placeholder' di seluruh dokumen ini (unit_test_cases, dsb.) yang dikoreksi menjadi 'semua 18 aktif, 0 placeholder'. Migration backfill baru (2026_09_01_000027) mempromosikan row 'Sterilizer' existing di setiap Production Line. tests/Feature/Api/KelolaProductionLineTest.php diperbarui: assertion is_active=false count dari 1 menjadi 0, ditambah assertion is_active=true count=18."
+    "KOREKSI ver 4 (2026-09-01, promosi final): Sterilizer (placeholder terakhir) dipromosikan menjadi station aktif (type=sterilizer). station_count tetap 18 (tidak berubah sejak Loading Ramp dihapus) — HANYA frasa '17 aktif + 1 placeholder' di seluruh dokumen ini (unit_test_cases, dsb.) yang dikoreksi menjadi 'semua 18 aktif, 0 placeholder'. Migration backfill baru (2026_09_01_000027) mempromosikan row 'Sterilizer' existing di setiap Production Line. tests/Feature/Api/KelolaProductionLineTest.php diperbarui: assertion is_active=false count dari 1 menjadi 0, ditambah assertion is_active=true count=18.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ProductionLineService::delete() tidak lagi menolak setiap line yang punya Station — line baru otomatis punya 18 station sehingga tidak pernah bisa dihapus (temuan audit #5). Kini line dihapus bersama station-nya dalam DB::transaction bila station kosong; ditolak 409 PRODUCTION_LINE_HAS_STATIONS (pesan merinci) bila ada record di StationService::RECORD_TABLES (18 tabel, via station_id ATAU production_line_id snapshot), Machinery Group, atau Machinery. code unik case-insensitive (UniqueCaseInsensitive). Livewire menampilkan successMessage setelah simpan/hapus. Catatan lama 'belum ada Browser test' sudah usang — e2e-web/tests/kelola-production-line.spec.ts ada."
   ],
   "test_scenarios": [
     {
@@ -498,8 +504,8 @@
       ],
       "component_test": {
         "component": "KelolaProductionLine",
-        "action": "klik Hapus lalu konfirmasi pada Production Line tanpa station",
-        "assert": "row hilang dari daftar"
+        "action": "klik Hapus lalu konfirmasi pada Production Line yang station-nya masih kosong",
+        "assert": "row hilang dari daftar, station-station-nya ikut terhapus, pesan sukses 'Production Line berhasil dihapus.' tampil"
       },
       "browser_test": {
         "route": "",
@@ -508,7 +514,7 @@
       }
     },
     {
-      "scenario_ref": "Hapus Production Line — ditolak karena punya Station",
+      "scenario_ref": "Hapus Production Line — ditolak karena station-nya punya data",
       "usecase_id": "usecase-036--kelola-production-line",
       "api_test": [
         {
@@ -524,8 +530,8 @@
       ],
       "component_test": {
         "component": "KelolaProductionLine",
-        "action": "klik Hapus lalu konfirmasi pada Production Line yang baru dibuat (18 station)",
-        "assert": "pesan error inline muncul, row tetap ada"
+        "action": "klik Hapus lalu konfirmasi pada Production Line yang station-nya punya record stasiun atau Machinery Group",
+        "assert": "pesan error inline merinci blocker muncul, row tetap ada, tidak ada station yang terhapus"
       },
       "browser_test": {
         "route": "",

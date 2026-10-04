@@ -13,3 +13,13 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (CorporateService.php, KelolaCorporate.php, RealImage.php, UniqueCaseInsensitive.php, ValidatesUploadOnSelect.php).
+- api_contracts[0].endpoints[1..2].request.body_schema.{corporate_code,name,website,logo} = unique case-insensitive / WEBSITE_PATTERN / RealImage ← CorporateService::validate().
+- api_contracts[0].endpoints[1..2].response.error_codes[0].condition = mencakup email/website/logo palsu ← aturan validasi baru.
+- api_contracts[0].business_logic[1..2] = urutan validasi baru ← CorporateService::validate().
+- api_contracts[0].edge_case_handling (+3) = beda huruf, format email/website, file logo palsu ← kode + ImageUploadValidationTest/MasterDataValidationAuditTest.
+- api_contracts[0].unit_test_cases (+3) = kasus di atas ⚠ diturunkan dari tes Livewire/Feature (MasterDataValidationAuditTest, ImageUploadValidationTest), bukan dari tes unit service khusus.
+- implementation_notes (+) = catatan REVISI audit-fix.

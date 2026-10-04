@@ -1,21 +1,22 @@
 {
-  "ver": 61,
+  "ver": 62,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-01"
+    "updated_at": "2026-10-05"
   },
   "endpoints": [
     {
       "method": "POST",
       "path": "/api/login",
-      "description": "Autentikasi user (Admin/Supervisor/Mill Management) dengan kredensial dan business area, membuat session web",
+      "description": "Autentikasi user web dengan kredensial dan business area, membuat session web. Admin/Supervisor/Mill Management diarahkan ke /dashboard; sejak 2026-10-04 Operator juga boleh login web dengan akses terbatas dan diarahkan ke /beranda (AuthService::redirectFor). Akun nonaktif ditolak; sesi yang dinonaktifkan di tengah jalan dikeluarkan EnsureUserIsActive.",
       "screen_id": "screen-001--login-web",
       "usecase_id": "usecase-001--login-web",
       "auth_required": false,
       "actor_ids": [
         "actor-admin",
         "actor-supervisor",
-        "actor-mill-management"
+        "actor-mill-management",
+        "actor-station-operator"
       ]
     },
     {
@@ -1679,7 +1680,7 @@
     {
       "method": "DELETE",
       "path": "/api/periods/{id}",
-      "description": "Menghapus periode yang belum tertutup",
+      "description": "Menghapus periode yang belum tertutup DAN belum membingkai record stasiun apa pun — periode yang memuat stasiun closed → 409 PERIOD_CLOSED_IMMUTABLE; periode yang rentangnya memuat record stasiun mill itu (jenis stasiun periode) → 409 PERIOD_HAS_RECORDS (2026-10-04)",
       "screen_id": "screen-128--kelola-periode-pelaporan",
       "usecase_id": "usecase-128--kelola-periode-pelaporan",
       "auth_required": true,
@@ -2093,6 +2094,34 @@
       "auth_required": true,
       "actor_ids": [
         "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/grading-parameters",
+      "description": "Master Quality Parameter Grading (global, tidak terikat mill) — { data: [{ id, name, uom, sort_order }] }. Dipakai mobile (gradingParameterSync.ts) saat login dan tepat sebelum sinkronisasi Grading untuk memetakan id parameter buatan lokal ke id server berdasarkan nama (2026-10-04)",
+      "screen_id": "screen-011--form-grading",
+      "usecase_id": "usecase-011--form-grading",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/records/{stationType}/verification",
+      "description": "Baca status verifikasi terbaru untuk beberapa record (?ids[]=<server_id>…) → { data: [{ id, checked_by, checked_by_name, acknowledged_by, acknowledged_by_name }] }; whitelist jenis stasiun sama dengan PATCH /api/records/{stationType}/{id}/verification, cakupan mill ditegakkan di RecordVerificationStatusService (id mill lain tidak muncul). Operator IKUT (membaca, bukan memverifikasi). Dipanggil Data Preview mobile (pullVerificationStatus, best-effort) untuk ke-18 stasiun (2026-10-04)",
+      "screen_id": "screen-013--data-preview-weighbridge",
+      "usecase_id": "usecase-013--data-preview-weighbridge",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-station-operator"
       ]
     }
   ]

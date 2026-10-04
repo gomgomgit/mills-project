@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-113--form-kernel-dispatch-web",
   "name": "Form Kernel Dispatch (Web)",
@@ -22,7 +22,7 @@
     "Kernel Dispatch ID",
     "Date — default hari ini, DAPAT diedit manual (berbeda dari mobile yang mengunci field ini)",
     "Note (input manual, opsional)",
-    "Log Kejadian Kernel Dispatch: tabel baris kejadian dengan kolom yang sama seperti mobile (Tanggal Kejadian, Shift, Weighbridge Ticket No, Waybill Number, Transporter/Contractor, Vehicle Plate No, Driver Name, Silo Source ID, Destination/Buyer, Gross/Tare Weight, Net Weight otomatis, Kernel Moisture, Dirt/Impurities, FFA, Broken Kernel, Security Seal No Top/Bottom, Weighbridge Operator ID, Remarks/Gate Status, Findings) — baris bisa ditambah/dihapus, tidak dibatasi jumlahnya",
+    "Log Kejadian Kernel Dispatch: tabel baris kejadian dengan kolom yang sama seperti mobile (Tanggal Kejadian, Shift, Weighbridge Ticket No, Waybill Number, Transporter/Contractor, Vehicle Plate No, Driver Name, Silo Source ID, Destination/Buyer, Gross/Tare Weight, Net Weight otomatis, Kernel Moisture, Dirt/Impurities, FFA, Broken Kernel, Security Seal No Top/Bottom, Weighbridge Operator ID, Remarks/Gate Status, Findings) — baris bisa ditambah/dihapus, tidak dibatasi jumlahnya; Net Weight per baris ditampilkan sebagai teks hasil hitung ('-' bila belum lengkap), bukan kolom input",
     "Checked By — checkbox 'Tandai sudah diperiksa', hanya tampil & aktif untuk role Supervisor",
     "Acknowledged By — checkbox 'Tandai sudah dikonfirmasi', hanya tampil & aktif untuk role Mill Management",
     "Field dikelompokkan per section: Identitas Kernel Dispatch, Log Kejadian, Verifikasi"
@@ -100,13 +100,14 @@
   "business_rules": [
     "Tidak ada konsep draft/pause/Clear di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
     "Field wajib ditandai asterisk merah dengan validasi inline",
-    "Date default hari ini saat form dibuka, TETAP DAPAT diedit manual oleh user",
+    "Date default hari ini saat form dibuka, TETAP DAPAT diedit manual oleh user; Date maupun Tanggal Kejadian setiap baris tidak boleh melewati besok (zona WIB) dan Tanggal Kejadian harus tanggal yang sah — bila dilanggar Simpan ditolak dengan pesan yang menyebut field/nomor baris",
     "Log Kejadian adalah event-log bebas, jumlah baris tidak dibatasi, sama seperti mobile",
-    "Net Weight (MT) dihitung server, tidak menerima override dari client — dikecualikan dari konvensi 'input web tidak boleh disabled' karena computed/data-integrity, sama seperti Net Weight pada Form Weighbridge Web/Form Solid Waste Disposal Web",
+    "Net Weight (MT) dihitung server, tidak menerima override dari client — di form web ditampilkan sebagai teks hasil hitung, bukan input nonaktif (tidak ada input disabled/readonly di form web), sama seperti Net Weight pada Form Weighbridge Web/Form Solid Waste Disposal Web",
     "Minimal satu baris Log Kejadian dengan Tanggal Kejadian terisi harus ada sebelum Simpan",
     "Production Line (dan station Kernel Dispatch terkait) tidak dapat diubah setelah record dibuat — pada mode edit, station asal ditampilkan sebagai teks read-only",
     "Checked By hanya dapat diisi (via checkbox) oleh user dengan role Supervisor — field disembunyikan untuk role lain",
-    "Acknowledged By hanya dapat diisi (via checkbox) oleh user dengan role Mill Management — field disembunyikan untuk role lain"
+    "Acknowledged By hanya dapat diisi (via checkbox) oleh user dengan role Mill Management — field disembunyikan untuk role lain",
+    "Kunci Periode Pelaporan berlaku untuk tanggal header DAN Tanggal Kejadian setiap baris Log Kejadian: setiap tanggal harus berada di periode yang Terbuka untuk stasiun Kernel Dispatch; pada mode edit tanggal baris yang sudah tersimpan juga diperiksa. Bila satu baris jatuh di luar periode Terbuka, Simpan ditolak dengan pesan 'Baris log bertanggal kejadian dd/mm/YYYY ditolak. ...'"
   ],
   "usecase_ids": [
     "usecase-078--form-kernel-dispatch-web"
@@ -116,7 +117,10 @@
     "Belum ada baris Log Kejadian valid saat Simpan ditekan",
     "Production Line terpilih belum memiliki station Kernel Dispatch aktif (mode buat baru) — Simpan ditolak dengan pesan error",
     "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
-    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Weighbridge/Solid Waste Disposal Web)"
+    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Weighbridge/Solid Waste Disposal Web)",
+    "Tanggal Kejadian salah satu baris berada di luar periode Terbuka (walau Date header di periode Terbuka) — Simpan ditolak dengan pesan yang menyebut tanggal baris itu, tidak ada data yang tersimpan",
+    "Date atau Tanggal Kejadian diisi lebih dari besok (mis. salah ketik tahun) — Simpan ditolak",
+    "Mode edit dibuka dengan id berformat bukan UUID — diperlakukan sama dengan record tidak ditemukan, tanpa error sistem"
   ],
   "test_priority": "high",
   "open_questions": []

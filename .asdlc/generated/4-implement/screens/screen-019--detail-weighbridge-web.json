@@ -1,8 +1,8 @@
 {
-  "ver": 7,
+  "ver": 8,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-019--detail-weighbridge-web",
   "name": "Detail Weighbridge (Web)",
@@ -17,13 +17,17 @@
     "backend/tests/Unit/Services/WeighbridgeRecordServiceTest.php",
     "backend/tests/Feature/Api/DetailWeighbridgeTest.php",
     "backend/tests/Feature/Livewire/DetailWeighbridgeTest.php",
-    "backend/tests/Feature/Livewire/DataBrowserWeighbridgeTest.php"
+    "backend/tests/Feature/Livewire/DataBrowserWeighbridgeTest.php",
+    "backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php",
+    "backend/tests/Feature/AuditFix20261004Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DetailWeighbridge.php",
     "backend/resources/views/livewire/data/detail-weighbridge.blade.php",
     "backend/resources/views/data/weighbridge-detail.blade.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php",
+    "backend/app/Support/Display.php"
   ],
   "fe_test_files_generated": [
     "e2e-web/tests/detail-weighbridge.spec.ts"
@@ -41,7 +45,8 @@
     "REVISI v4 (2026-10-03, sinkronisasi catatan uji — kode aplikasi tidak diubah): e2e-web/tests/detail-weighbridge.spec.ts diperbaiki — selector judul halaman dipersempit agar tidak melanggar strict mode Playwright (lebih dari satu elemen cocok).",
     "REVISI v5 (2026-10-03, sinkronisasi catatan uji — kode aplikasi tidak diubah): known issue 'Browser test dibuat tapi tidak dijalankan' dihapus — uji browser layar ini kini dijalankan lewat e2e-web/tests/detail-weighbridge.spec.ts dan lulus (backend/tests/Browser sudah dihapus pada commit 8879d8d). test_results.browser tidak diubah (tidak ada hitungan per-layar yang dicatat).",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/detail-weighbridge.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 2 lulus, 0 gagal; test_results.browser diperbarui.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): backend/app/Livewire/Data/DetailWeighbridge.php kini memakai trait backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php — mount() menolak {id} bukan UUID sebelum query (notFound, tanpa QueryException 22P02 di PostgreSQL). backend/resources/views/livewire/data/detail-weighbridge.blade.php memformat tampilan lewat backend/app/Support/Display.php: status label Indonesia, Tanggal & Waktu Display::dateTime (bulan Indonesia, WIB via App\\Support\\AppTime), berat/kuantitas id-ID, kosong '-'. Penolakan verifikasi oleh kunci periode kini berkalimat verifikasi (EnforcesPeriodLock action 'verify', dipanggil RecordVerificationService::setVerification). Uji baru: backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php (18 Detail + 18 Form) dan backend/tests/Feature/AuditFix20261004Test.php ([display] Detail Weighbridge; [verify-msg] PATCH weighbridge). test_results tidak diubah (suite tidak dijalankan dalam sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

@@ -40,3 +40,11 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (CagesTrackReportService.php, LaporanCagesTrackView.vue, LaporanCagesTrackView.spec.ts).
+- api_contracts[0].endpoints[3].description = CSV atau .xlsx sungguhan (SheetWriter) + konteks Periode/Mill/Production Line; mobile meminta CSV ← export(). ⚠ "mobile meminta CSV" disimpulkan dari exportCsv/nama berkas .csv
+- api_contracts[0].endpoints[3].response.success_schema._note = daftar kolom baru (Periode, Mill, Production Line, …, Jam HH:MM, Status label Indonesia) ← header row export()
+- api_contracts[0].edge_case_handling[+] = days_with_records = 0 → 'tidak tersedia' + kpi-avg-per-day-empty, days-with-records tidak dirender; server tetap avg 0 ← view diff (#9)
+- implementation_notes[+] = REVISI audit-fix ('Tertutup', avg empty, CSV) ← diff

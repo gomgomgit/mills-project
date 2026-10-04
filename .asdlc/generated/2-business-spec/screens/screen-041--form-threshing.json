@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-041--form-threshing",
   "name": "Form Threshing",
@@ -17,8 +17,8 @@
     "Tap salah satu item draft/pause di list Monitor Threshing (lanjutkan draft)"
   ],
   "information_displayed": [
-    "Identitas Threshing: Thresher ID (input manual, wajib), Tanggal (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit)",
-    "Verifikasi: Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (hanya bisa diisi Supervisor), Acknowledged By (hanya bisa diisi Mill Management), Note (input manual, opsional)",
+    "Identitas Threshing: Thresher ID (input manual, wajib), Tanggal (otomatis terisi sekali saat draft baru dibuat dengan tanggal LOKAL perangkat, tidak dapat diedit)",
+    "Verifikasi: Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (hanya bisa diisi Supervisor), Acknowledged By (hanya bisa diisi Mill Management), Catatan (input manual, opsional)",
     "Threshing Detail: grid baris time-slot yang ditambahkan satu per satu oleh user (Tambah baris), dengan kolom per baris: Time-Slot (dropdown, opsi = 24 slot kanonis jam 07:00-06:00 keesokan hari DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), FFB Throughput (MT/hour), Thresher Drum Speed (RPM), Motor Current (Amps), Unstripped Bunch Count (%), Empty Bunch Oil Loss (%), Downtime Reason (teks bebas) — semua kolom bacaan opsional per baris, baris dapat dihapus (Hapus baris)",
     "Tabel Referensi Target Operasional: read-only, ditampilkan di bawah grid Threshing Detail, kolom Parameter / Standard Operational Target / Action Plan on Deviation, diseed oleh Admin, bukan bagian dari data yang disimpan record ini",
     "Breadcrumb navigasi (Home > Production Process Activity > Threshing > Form) yang dapat ditap",
@@ -130,7 +130,7 @@
     }
   ],
   "business_rules": [
-    "Tanggal diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Tanggal diisi otomatis sekali saat draft baru dibuat memakai tanggal LOKAL perangkat (bukan UTC — draft yang dibuat 00:00–06:59 WIB tetap bertanggal hari itu), tidak dapat diedit manual",
     "Inputted By otomatis diambil dari user yang login, tidak dapat diedit manual",
     "Checked By hanya bisa diisi/diedit oleh Supervisor; Acknowledged By hanya bisa diisi/diedit oleh Mill Management (catatan: field verifikasi ini hanya dapat diisi Supervisor/Mill Management sesuai perannya masing-masing per PRD stasiun; Acknowledged By tetap khusus Mill Management meskipun kedua tombol tampil di form yang sama seperti pola stasiun lain)",
     "Grid Threshing Detail TIDAK di-pre-generate — baris ditambahkan satu per satu oleh user via 'Tambah baris' (revisi 2026-08-24 dari desain awal grid statis 24 baris, mengikuti pola persis Cages Tipped Time/Cages Track Record)",
@@ -154,7 +154,8 @@
     "Draft yang di-Pause lalu dilanjutkan — baris yang sudah ditambahkan beserta bacaan yang sudah terisi tetap utuh",
     "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
     "User menekan Clear (perlu konfirmasi sebelum hapus permanen record beserta seluruh barisnya)",
-    "User mengisi Downtime Reason tanpa mengisi kolom numerik apapun pada baris yang sama — baris tetap dianggap terisi"
+    "User mengisi Downtime Reason tanpa mengisi kolom numerik apapun pada baris yang sama — baris tetap dianggap terisi",
+    "Server menolak (422) record saat dikirim — karena periode tertutup untuk Tanggal record atau Tanggal lebih jauh dari besok — baik lewat kirim-langsung setelah Simpan (bila Mills Setting mengaktifkan sinkron langsung: dialog 'Data tersimpan di perangkat, tetapi server menolaknya: <alasan>') maupun lewat Sinkronisasi manual: record tetap Tersimpan di perangkat dan alasan tampil sebagai 'Gagal sinkron: <alasan>' di Data Preview"
   ],
   "test_priority": "high",
   "open_questions": []

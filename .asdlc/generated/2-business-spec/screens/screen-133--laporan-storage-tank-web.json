@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-25"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-133--laporan-storage-tank-web",
   "name": "Laporan Storage Tank (Web)",
@@ -20,7 +20,7 @@
   "information_displayed": [
     "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Storage Tank maupun periode yang berlaku untuk semua jenis stasiun",
     "Pemilih Mill — hanya bagi Admin",
-    "Nama mill yang berlaku, rentang tanggal, dan status periode",
+    "Nama mill yang berlaku, nama Production Line terpilih, rentang tanggal, dan status periode (nama line tampil di hero laporan, sama seperti Laporan Weighbridge)",
     "Stok awal seluruh tangki pada periode itu, beserta kapan pembacaan pertamanya diambil",
     "Stok akhir seluruh tangki, beserta kapan pembacaan terakhirnya diambil",
     "Pergerakan bersih sepanjang periode — selisih stok akhir terhadap stok awal, yang dapat bernilai negatif",
@@ -32,9 +32,10 @@
     "Suhu rata-rata minyak sepanjang periode, beserta jumlah pembacaannya",
     "Tren harian mutu minyak — FFA, kadar air, dan DOBI pada satu grafik agar arah perubahannya terbaca bersamaan",
     "Tren harian stok total seluruh tangki",
-    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan",
+    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan, persen 1 desimal; untuk periode yang masih berjalan penyebutnya hanya hari yang sudah lewat (sampai hari ini) disertai keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)'; bila belum ada slot yang diharapkan persen tampil '—' dengan keterangan 'belum ada slot yang diharapkan'",
     "Keterangan bila periode tidak memuat data",
-    "Tombol Ekspor CSV"
+    "Tombol Ekspor CSV dan Ekspor Excel (.xlsx sungguhan)",
+    "Pemilih Production Line (wajib, tanpa opsi 'semua line') — hanya line milik mill yang berlaku"
   ],
   "available_actions": [
     {
@@ -64,7 +65,7 @@
     },
     {
       "action": "Ekspor",
-      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV, satu baris per slot dengan kolom konteks record diulang.",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV atau Excel (.xlsx sungguhan), satu baris per slot. Kolom konteks Periode, Mill, dan Production Line diulang di setiap baris, diikuti konteks record (tanggal, tangki, status berlabel Indonesia, catatan); slot waktu ditulis HH:MM dan status katup pemanas uap memakai label form (mis. 'Open 1/2').",
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
@@ -88,7 +89,10 @@
     "FFA, kadar air, dan DOBI ditampilkan pada satu grafik tren yang sama, karena yang menunjukkan mutu memburuk adalah arah ketiganya bersamaan, bukan salah satunya sendirian.",
     "Laporan ini tidak menandai nilai di luar batas. Storage Tank tidak punya master target operasional, dan menurunkan ambang mutu dari data periode itu sendiri berisiko dibaca sebagai batas mutu resmi padahal bukan.",
     "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki.",
-    "DIPUTUSKAN 2026-09-25: stok diambil dari kolom BERAT TERHITUNG (MT), bukan volume (m3) maupun kedalaman sounding. Volume dan kedalaman tetap dilaporkan sebagai metrik tersendiri, tetapi seluruh angka stok awal, stok akhir, dan pergerakan memakai berat."
+    "DIPUTUSKAN 2026-09-25: stok diambil dari kolom BERAT TERHITUNG (MT), bukan volume (m3) maupun kedalaman sounding. Volume dan kedalaman tetap dilaporkan sebagai metrik tersendiri, tetapi seluruh angka stok awal, stok akhir, dan pergerakan memakai berat.",
+    "KELENGKAPAN UNTUK PERIODE BERJALAN (audit 2026-10-04): penyebut slot yang diharapkan hanya menghitung hari periode yang sudah terjadi sampai hari ini (WIB); periode yang sudah selesai memakai seluruh harinya; periode yang belum mulai menghasilkan 0 hari sehingga persen tampil '—', bukan 0%.",
+    "Persentase kelengkapan ditampilkan 1 desimal, seragam dengan laporan stasiun lain.",
+    "Ekspor memakai label yang dapat dibaca: status record berlabel Indonesia, slot HH:MM, katup pemanas uap berlabel form; sel kosong tetap kosong dan angka tanpa pemisah ribuan."
   ],
   "usecase_ids": [
     "usecase-133--laporan-storage-tank-web"
@@ -106,7 +110,9 @@
     "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
     "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
     "Mill belum punya satu pun periode yang mencakup Storage Tank — pemilih periode kosong dengan arahan menghubungi Admin.",
-    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca."
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca.",
+    "Periode masih berjalan — kelengkapan dihitung sampai hari ini dan keterangan 'sampai hari ini' ditampilkan, sehingga hari yang belum terjadi tidak menurunkan persen.",
+    "Periode belum mulai atau belum ada tangki tercatat (penyebut 0) — persen kelengkapan '—' dan 'belum ada slot yang diharapkan', bukan '0 dari 0 slot · 0,0%'."
   ],
   "test_priority": "high",
   "open_questions": [

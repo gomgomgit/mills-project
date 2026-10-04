@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-24"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-132--laporan-clarification-web",
   "name": "Laporan Clarification (Web)",
@@ -20,7 +20,7 @@
   "information_displayed": [
     "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Clarification maupun periode yang berlaku untuk semua jenis stasiun",
     "Pemilih Mill — hanya bagi Admin",
-    "Nama mill yang berlaku, rentang tanggal, dan status periode",
+    "Nama mill yang berlaku, nama Production Line terpilih (di hero, sama seperti Laporan Weighbridge), rentang tanggal, dan status periode",
     "Total produksi minyak murni sepanjang periode, diturunkan dari laju per jam",
     "Rata-rata produksi per hari",
     "Laju produksi: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
@@ -30,13 +30,14 @@
     "Suhu Tangki Minyak: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
     "Suhu Tangki Sludge: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
     "Level Buffer Tank: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
-    "Tren harian produksi minyak murni",
-    "Tren suhu antar tangki — ketiga tangki pada satu grafik agar selisihnya terbaca",
-    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan",
-    "Rekap per unit Clarification bila mill punya lebih dari satu",
+    "Tren harian produksi minyak murni — ditampilkan selebar halaman (tidak lagi berdampingan dengan rekap per unit), tiap kolom selebar labelnya; bila lebih dari 10 tanggal muncul petunjuk 'Geser mendatar untuk melihat seluruh tanggal'",
+    "Tren suhu antar tangki — ketiga tangki pada satu grafik agar selisihnya terbaca; label sumbu tegak berupa angka bulat berjarak sama (langkah 1/2/2,5/5 × 10^n); petunjuk gulir hanya muncul bila kartu lebih sempit dari grafiknya",
+    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan. Untuk periode yang masih berjalan slot yang diharapkan dihitung hanya sampai HARI INI, dengan keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)' dan rumus '× N hari (sampai hari ini)'. Bila tidak ada slot yang diharapkan persentasenya tampil '—' dengan teks 'belum ada slot yang diharapkan', bukan 0,0%",
+    "Rekap per unit Clarification bila mill punya lebih dari satu — ditampilkan selebar halaman di bawah tren produksi (satu kolom) agar 8 kolomnya tidak terpotong",
     "Rekap harian yang dapat dibuka dan ditutup",
     "Keterangan bila periode tidak memuat data",
-    "Tombol Ekspor CSV"
+    "Tombol Ekspor CSV dan Ekspor Excel (berkas .xlsx sungguhan) — hanya tampil setelah Production Line dipilih",
+    "Pemilih Production Line (wajib) — hanya line milik mill yang berlaku; sebelum line dipilih tidak ada angka yang ditampilkan"
   ],
   "available_actions": [
     {
@@ -66,7 +67,16 @@
     },
     {
       "action": "Ekspor",
-      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV, satu baris per slot dengan kolom konteks record diulang.",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode (cakupan line terpilih) sebagai CSV atau Excel (.xlsx sungguhan), satu baris per slot. Kolom Periode, Mill, dan Production Line diulang di setiap baris, disusul kolom konteks record; status berlabel Bahasa Indonesia (mis. 'Tersinkron'), slot waktu HH:MM, sel kosong tetap kosong.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan production line yang dilihat. Wajib dipilih sebelum angka dan tombol ekspor tampil; hanya line milik mill yang berlaku yang ditawarkan.",
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
@@ -88,7 +98,9 @@
     "Ketiga suhu tangki ditampilkan pada satu grafik yang sama agar selisih antar tangki terbaca — itulah yang menunjukkan apakah proses pemisahan berjalan sebagaimana mestinya, bukan nilai masing-masing tangki secara terpisah.",
     "Laporan ini tidak menandai nilai di luar batas. Clarification tidak punya master target operasional, dan menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas proses padahal bukan.",
     "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki — terlebih di sini, karena produksi diturunkan dari pembacaan yang ada, sehingga pencatatan yang bolong langsung menurunkan angka produksinya.",
-    "DIPUTUSKAN 2026-09-25: downtime TIDAK mengurangi produksi. Laju yang diinput Operator dibaca sebagai laju rata-rata sepanjang jam itu, sehingga downtime sudah tercermin di dalamnya dan mengurangkannya lagi akan menghitung ganda. Total downtime tetap ditampilkan berdampingan dengan produksi sebagai konteks, bukan sebagai pengurang."
+    "DIPUTUSKAN 2026-09-25: downtime TIDAK mengurangi produksi. Laju yang diinput Operator dibaca sebagai laju rata-rata sepanjang jam itu, sehingga downtime sudah tercermin di dalamnya dan mengurangkannya lagi akan menghitung ganda. Total downtime tetap ditampilkan berdampingan dengan produksi sebagai konteks, bukan sebagai pengurang.",
+    "Kelengkapan pencatatan untuk periode yang MASIH BERJALAN dihitung hanya sampai hari ini (zona waktu aplikasi, WIB): hari yang belum terjadi tidak mungkin tercatat. Periode yang sudah selesai memakai seluruh harinya; periode yang belum mulai menghasilkan 0 slot yang diharapkan dan tampil '—'.",
+    "Ekspor Excel adalah berkas .xlsx sungguhan yang dapat dibuka Excel (bukan CSV yang diberi nama .xlsx). Isi kolom kedua format sama: konteks Periode/Mill/Production Line di tiap baris, judul kolom dan label nilai berbahasa Indonesia, tanpa nilai enum mentah."
   ],
   "usecase_ids": [
     "usecase-132--laporan-clarification-web"
@@ -104,7 +116,9 @@
     "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
     "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
     "Mill belum punya satu pun periode yang mencakup Clarification — pemilih periode kosong dengan arahan menghubungi Admin.",
-    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca."
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca.",
+    "Periode masih berjalan — kelengkapan dihitung sampai hari ini dan layar menyebut 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)'.",
+    "Belum ada unit Clarification tercatat atau periode belum mulai sehingga slot yang diharapkan 0 — kelengkapan tampil '—' dengan teks 'belum ada slot yang diharapkan', bukan '0 dari 0 slot · 0,0%'."
   ],
   "test_priority": "high",
   "open_questions": [

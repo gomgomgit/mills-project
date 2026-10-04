@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-02"
+    "updated_at": "2026-10-05"
   },
-  "ver": 6,
+  "ver": 7,
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
   "module_id": "module-master-data",
@@ -81,7 +81,7 @@
     },
     {
       "action": "Hapus Periode",
-      "description": "Menghapus periode beserta seluruh baris stasiunnya, dengan konfirmasi inline. Ditolak bila periode punya minimal satu stasiun tertutup",
+      "description": "Menghapus periode beserta seluruh baris stasiunnya, dengan konfirmasi inline. Ditolak bila periode punya minimal satu stasiun tertutup, dan juga ditolak bila periode sudah berisi data stasiun (record mill itu, untuk jenis stasiun periode itu, yang tanggal kejadiannya jatuh dalam rentang periode). Hanya periode kosong yang dapat dihapus",
       "actor_ids": [
         "actor-admin"
       ]
@@ -115,7 +115,8 @@
     "Filter Status Stasiun bermakna 'periode ini punya minimal satu stasiun berstatus itu', bukan 'seluruh stasiunnya berstatus itu'. Dengan makna 'seluruh', periode yang stasiunnya campuran akan hilang dari semua nilai filter padahal jelas ada di daftar tanpa filter — kegagalan terburuk yang bisa dilakukan sebuah filter. Konsekuensi yang diterima: satu periode campuran dapat muncul pada lebih dari satu nilai filter",
     "Menutup, membuka, dan membuka kembali stasiun tidak tersedia di layar ini — semuanya berada di layar Detail Periode Pelaporan (screen-142), karena statusnya melekat pada jenis stasiun",
     "Penentuan apakah sebuah record berada di dalam periode memakai tanggal kejadian di pabrik, bukan tanggal data diinput maupun dikirim dari aplikasi mobile",
-    "Penolakan input, perubahan, dan verifikasi record stasiun pada periode tertutup BUKAN bagian layar ini — ia ditegakkan di lapisan layanan dan dilacak oleh usecase-141--kunci-input-periode-tertutup. SEJAK 2026-10-02 PENEGAKAN ITU SUDAH ADA: ke-18 *RecordService (create dan update) beserta RecordVerificationService menolak 422 PERIOD_CLOSED bila tidak ada periode TERBUKA untuk jenis stasiun itu yang mencakup tanggal kejadian record. Artinya menutup sebuah stasiun dari layar Detail Periode Pelaporan kini benar-benar membekukan angkanya, bukan hanya menandainya."
+    "Penolakan input, perubahan, dan verifikasi record stasiun pada periode tertutup BUKAN bagian layar ini — ia ditegakkan di lapisan layanan dan dilacak oleh usecase-141--kunci-input-periode-tertutup. SEJAK 2026-10-02 PENEGAKAN ITU SUDAH ADA: ke-18 *RecordService (create dan update) beserta RecordVerificationService menolak 422 PERIOD_CLOSED bila tidak ada periode TERBUKA untuk jenis stasiun itu yang mencakup tanggal kejadian record. Sejak 2026-10-04 tanggal kejadian baris detail (event_date) CPO Dispatch, Kernel Dispatch, dan Solid Waste Disposal juga diperiksa, tanggal berzona dikonversi ke tanggal WIB sebelum dicocokkan dengan periode, dan tanggal kejadian lebih dari besok ditolak 422 VALIDATION_ERROR. Artinya menutup sebuah stasiun dari layar Detail Periode Pelaporan benar-benar membekukan angkanya, bukan hanya menandainya.",
+    "Periode yang sudah berisi data stasiun tidak dapat dihapus (2026-10-04): bila ada SATU saja record mill itu — dari jenis stasiun yang dimiliki periode — yang tanggal kejadiannya (tanggal header record, atau event_date baris detail pada CPO Dispatch, Kernel Dispatch, Solid Waste Disposal) berada di dalam rentang periode (inklusif), penghapusan ditolak dan pesannya menyebut jenis stasiun yang berisi data. Menghapus periode berisi data akan diam-diam melepas bingkai record-record itu dari periode mana pun. Periode kosong tetap boleh dihapus. Aturan ini tidak membuat tombol Hapus nonaktif — penolakan muncul sebagai pesan inline setelah konfirmasi"
   ],
   "usecase_ids": [
     "usecase-128--kelola-periode-pelaporan"
@@ -140,7 +141,8 @@
     "Memindahkan periode ke mill lain lewat Edit → baris stasiun mill baru ditambahkan, sementara baris warisan mill sebelumnya tetap tinggal karena baris tidak pernah dihapus; hasilnya gabungan kedua inventaris — konsekuensi yang diterima dari aturan add-only, bukan kekeliruan",
     "Periode dengan status stasiun campuran → badge ringkasan berbunyi 'Campuran' dan periode itu muncul pada lebih dari satu nilai filter Status Stasiun",
     "Tidak ada periode sesuai filter → tampilkan pesan 'belum ada periode', bukan tabel kosong tanpa keterangan",
-    "Pengguna non-Admin (Operator, Supervisor, Mill Management) mencoba membuka layar ini atau menjalankan aksi tambah/ubah/hapus → akses ditolak, tidak ada data periode yang ditampilkan maupun diubah"
+    "Pengguna non-Admin (Operator, Supervisor, Mill Management) mencoba membuka layar ini atau menjalankan aksi tambah/ubah/hapus → akses ditolak, tidak ada data periode yang ditampilkan maupun diubah",
+    "Menghapus periode yang belum punya stasiun tertutup tetapi sudah membingkai record stasiun → ditolak setelah konfirmasi dengan pesan inline 'Periode \"<nama>\" tidak dapat dihapus karena sudah berisi data stasiun (<jenis stasiun>). Hanya periode yang belum berisi data yang dapat dihapus.'; periode dan baris stasiunnya tetap ada"
   ],
   "test_priority": "high",
   "open_questions": [

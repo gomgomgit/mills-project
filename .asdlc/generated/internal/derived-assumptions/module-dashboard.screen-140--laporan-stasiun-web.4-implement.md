@@ -22,3 +22,11 @@ Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10
 Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - test_results.browser = 14 lulus/0 gagal dari e2e-full.log.counts.json (spec laporan-stasiun).
 - Known_issue 'tiga skenario browser tidak dapat direproduksi' dipertahankan — soal penyemaian, bukan 'tidak dijalankan'.
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (report-styles.blade.php, layouts/app.blade.php, e2e-web/tests/laporan-stasiun.spec.ts, ReportAuditFix20261004Test.php, WebAccessTest.php).
+- implementation_notes[9] = grid auto-fill responsif (150px / 110px), bukan 3 kolom tetap ← report-styles diff
+- known_issues[8] = ditandai DITUTUP (sidebar kini menyaring menu per role via RouteAccess) — entri tidak dihapus karena patch tak bisa menghapus elemen list tanpa menulis ulang seluruh known_issues ⚠ (keputusan agen)
+- test_files_generated += backend/tests/Feature/ReportAuditFix20261004Test.php, backend/tests/Feature/WebAccessTest.php ← tes render grid auto-fill & sidebar per role
+- implementation_notes += REVISI (2026-10-04, audit-fix): grid, blok CSS tambahan, sidebar RouteAccess, selectMillAndSettle e2e

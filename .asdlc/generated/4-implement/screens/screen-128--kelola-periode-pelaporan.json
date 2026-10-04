@@ -1,8 +1,8 @@
 {
-  "ver": 9,
+  "ver": 10,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
@@ -51,7 +51,10 @@
     "backend/database/migrations/2026_09_22_000030_create_periods_table.php",
     "backend/app/Services/StationService.php",
     "backend/app/Exceptions/PeriodNotDraftException.php",
-    "backend/.env.example"
+    "backend/.env.example",
+    "backend/app/Exceptions/PeriodHasRecordsException.php",
+    "backend/app/Support/Concerns/EnforcesPeriodLock.php",
+    "backend/app/Support/AppTime.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/PeriodServiceTest.php",
@@ -59,7 +62,11 @@
     "backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php",
     "backend/tests/Feature/StationTypeCatalogTest.php",
     "e2e-web/tests/kelola-periode-pelaporan.spec.ts",
-    "e2e-web/tests/support/periods.ts"
+    "e2e-web/tests/support/periods.ts",
+    "backend/tests/Feature/AuditFix20261004Test.php",
+    "e2e-web/tests/support/period-fixture.ts",
+    "e2e-web/tests/support/period-lanes.ts",
+    "backend/database/seeders/BrowserTestFixtureSeeder.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/MasterData/KelolaPeriodePelaporan.php",
@@ -119,7 +126,8 @@
     "kc-pagination__summary pada blade ini TIDAK punya aturan CSS dan itu disengaja — induknya .kc-pagination sudah menetapkan font-size dan warnanya, jadi ia penanda semantik murni. Dinyatakan di komentar blade supaya pemeriksaan 'tiap kelas harus punya definisi' tidak membacanya sebagai kelas yang terlupakan.",
     "ANGKA TEST 2026-10-01 SETELAH PANEL: suite backend penuh 4050 lolos / 0 gagal / 4 skip (dari 4021 sebelum panel — tepat +29: 16 unit PeriodService, 7 API, 6 Livewire). Empat skip itu tetap kontrak period-lock usecase-141 dan tidak disentuh. Berkas layar ini: Api/KelolaPeriodePelaporanTest 22 lolos + 4 skip, Livewire/KelolaPeriodePelaporanTest 26 lolos, Unit/Services/PeriodServiceTest 58 lolos. Browser e2e-web/tests/kelola-periode-pelaporan.spec.ts 18 lolos + 1 skip dari 19 — 15 test lama tetap hijau, 4 test panel baru hijau di browser sungguhan.",
     "KUNCI PERIODE (usecase-141) DITEGAKKAN 2026-10-02, dan layar ini adalah tempat Admin memutuskan apakah pintunya terbuka. Penegakannya sendiri TIDAK di layar ini: trait App\\Support\\Concerns\\EnforcesPeriodLock dipakai ke-18 app/Services/*RecordService.php (create + update) dan app/Services/RecordVerificationService.php. Yang berubah bagi layar INI adalah artinya: membuat periode kini melahirkan baris stasiun berstatus Draft yang MENOLAK input sampai Admin membukanya di screen-142, sehingga mill yang periodenya belum dibuka terkunci sepenuhnya. Itu sebabnya panel 'Periode Terbuka Hari Ini per Mill' pada layar ini berpindah dari kenyamanan menjadi alat diagnosis: card redup kini berarti 'operator mill ini tidak bisa menginput apa pun hari ini', bukan sekadar catatan administratif.",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-periode-pelaporan.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 18 lulus, 0 gagal, 1 skip (scenario 6 'Belum ada Business Unit', sudah tercatat di known_issues); test_results.browser diperbarui."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-periode-pelaporan.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 18 lulus, 0 gagal, 1 skip (scenario 6 'Belum ada Business Unit', sudah tercatat di known_issues); test_results.browser diperbarui.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): PeriodService::delete() menambah guardAgainstFramedRecords() — periode yang membingkai record stasiun mill itu (tanggal header, atau event_date detail CPO Dispatch/Kernel Dispatch/Solid Waste Disposal, whereDate inklusif) ditolak backend/app/Exceptions/PeriodHasRecordsException.php (409 PERIOD_HAS_RECORDS, extends PeriodClosedImmutableException sehingga KelolaPeriodePelaporan menampilkannya inline lewat catch yang sudah ada, tanpa perubahan komponen). Zona waktu aplikasi kini Asia/Jakarta (config app.timezone), sehingga 'hari ini' panel Periode Terbuka adalah tanggal WIB (diuji [tz] di AuditFix20261004Test). EnforcesPeriodLock (dipakai service record, bukan layar ini) kini juga mengunci event_date baris detail, mengonversi tanggal berzona ke WIB lewat App\\Support\\AppTime, dan menolak tanggal kejadian lebih dari besok — karena itu test Api KelolaPeriodePelaporanTest membekukan jam (Carbon::setTestNow). Spec e2e kelola-periode-pelaporan memakai mill tersendiri 'Mill Periode Uji' (BrowserTestFixtureSeeder::periodFixtures) untuk skenario panel, karena periode 'Prasyarat Form' di 'BU Browser Test' kini tidak dapat dihapus (membingkai record spec form-*); helper e2e-web/tests/support/period-fixture.ts, period-lanes.ts, periods.ts diperbarui. Cakupan penjaga hapus: AuditFix20261004Test [period-delete] (4 test, termasuk pesan inline di layar ini)."
   ],
   "deferred_items": [
     {

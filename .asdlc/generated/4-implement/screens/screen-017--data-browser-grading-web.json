@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-017--data-browser-grading-web",
   "name": "Data Browser Grading (Web)",
@@ -14,12 +14,17 @@
     "backend/routes/api.php",
     "backend/routes/web.php",
     "backend/database/factories/GradingRecordFactory.php",
-    "backend/app/Support/Concerns/ScopesToActorMill.php"
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php",
+    "backend/app/Support/Display.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/GradingRecordServiceTest.php",
     "backend/tests/Feature/Api/DataBrowserGradingTest.php",
-    "backend/tests/Feature/Livewire/DataBrowserGradingTest.php"
+    "backend/tests/Feature/Livewire/DataBrowserGradingTest.php",
+    "backend/tests/Unit/Services/ExportDetailRowsTest.php",
+    "backend/tests/Pest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserGrading.php",
@@ -33,22 +38,19 @@
   "implementation_notes": [
     "GradingRecordService memfilter pada kolom date (whereDate()), bukan datetime seperti weighbridge",
     "Menggunakan Pagination::format() versi terkoreksi (total_pages=1 untuk hasil kosong)",
-    "Export grading resolve checked_by/acknowledged_by ke nama user via eager load",
+    "Export grading resolve acknowledged_by ke nama user via eager load (sejak 2026-10-04 kolom 'Checked By' tidak lagi diekspor — Grading tidak pernah mengumpulkannya)",
     "InvalidDateRangeException/ExportFailedException reuse langsung dari screen-016, tidak diduplikasi",
     "Full regression suite: 94/94 test backend lulus (semua 17 screen), tanpa spec_mismatch",
     "2026-08-20: screen-020--detail-grading-web's Phase 4 landed, meregistrasikan route data.grading.detail — baris tabel di layar ini sekarang clickable (guarded via Route::has(), tidak ada perubahan pada file screen-017 sendiri selain test Feature/Livewire yang diupdate untuk mencerminkan perilaku baru ini)",
     "REVISI v3 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau.",
     "REVISI v4 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-grading.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec dijalankan penuh: 2/2 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser test tidak dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): GradingRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan; csv tetap CSV), kolom 'Checked By' dihapus dari header/baris (13 kolom konteks), status lewat App\\Support\\ExportValue::status() (label Indonesia); data-browser-grading.blade.php memakai Display::status() untuk badge. Uji: GradingRecordServiceTest export (assert 'PK' + xlsxRows), ExportDetailRowsTest (13 kolom konteks), helper xlsxRows/exportBodyAsCsv di tests/Pest.php. Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah."
   ],
   "deferred_items": [],
   "known_issues": [
     {
       "description": "resources/views/data/weighbridge.blade.php tidak punya link balik ke /data/grading di sidebar (hanya satu arah) — di luar scope karena tidak boleh mengubah file screen-016",
-      "severity": "minor"
-    },
-    {
-      "description": "format=excel mengembalikan konten CSV dengan mimetype/ekstensi .xlsx (fallback pragmatis, sama seperti screen-016)",
       "severity": "minor"
     },
     {

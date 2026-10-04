@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-080--form-process-quality-control",
   "name": "Form Process Quality Control",
@@ -13,11 +13,20 @@
   "fe_files_generated": [
     "mobile/src/views/FormProcessQualityControlView.vue",
     "mobile/src/services/writeThroughSync.ts",
-    "mobile/src/components/ConfirmDialog.vue"
+    "mobile/src/components/ConfirmDialog.vue",
+    "mobile/src/utils/localDate.ts",
+    "mobile/src/services/millSettingRepo.ts",
+    "mobile/src/services/syncService.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/FormProcessQualityControlView.spec.ts",
-    "mobile/tests/e2e/form-process-quality-control.spec.ts"
+    "mobile/tests/e2e/form-process-quality-control.spec.ts",
+    "mobile/tests/noteLabelConsistency.spec.ts",
+    "mobile/tests/DialogTeleport.spec.ts",
+    "mobile/tests/localDate.sqljs.spec.ts",
+    "mobile/tests/writeThroughSync.spec.ts",
+    "mobile/tests/millSettingRepo.sqljs.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts"
   ],
   "implementation_notes": [
     "Process Quality Control Detail grid renders whatever rows exist (0..24) loaded from processQualityControlRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Clarification Detail (screen-079's mobile precedent)",
@@ -29,7 +38,8 @@
     "Field order in the grid & template mirrors the migration column order exactly: Shift -> Fruit Press Oil Loss in Sludge -> Fruit Press Oil Loss in Fibre -> Purifier & Clarification Balance Inlet Temp -> Purifier & Clarification Balance Backpressure -> Vacuum Drying Station Drier Temp -> Vacuum Drying Station Vacuum Pressure -> Decanter/Centrifuge Feed Rate -> Decanter/Centrifuge Oil Loss in Cake -> Final Storage FFA -> Final Storage Moisture Content -> Final Storage Impurities/Dirt -> Final Storage DOBI Index -> QC Inspector ID -> QC Engineering Corrective Actions -> Findings = 16 total",
     "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak): FormProcessQualityControlView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('process_quality_control_record') → pushSavedRecordNow → POST /api/process-quality-control-records bila Mills Setting immediate_sync_enabled aktif. Kegagalan offline/5xx diam; penolakan 4xx (termasuk 422 PERIOD_CLOSED) sejak 2026-10-03 ditampilkan langsung di form (lihat catatan REVISI 2026-10-03 di bawah), dan pada sinkron manual screen-006 alasannya tampil di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('process-quality-control', mill, date) di ProcessQualityControlRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik), dan mobile/tests/writeThroughSync.spec.ts (hasil {synced, rejection} write-through).",
     "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave('process_quality_control_record') mengembalikan {synced, rejection}; bila server menolak dengan 4xx (mis. 422 PERIOD_CLOSED, usecase-141) rejection berisi pesan server dan FormProcessQualityControlView membuka ConfirmDialog satu tombol (cancel-label kosong) 'Tersimpan, tetapi ditolak server' berisi pesan tersebut, lalu bernavigasi ke Monitor Process Quality Control saat ditutup (tombol 'Mengerti' maupun klik overlay). Record tetap 'saved' di SQLite lokal dan dapat dikirim ulang lewat sinkron Station List setelah masalahnya diselesaikan. Offline/5xx/fitur nonaktif tetap diam. Cakupan test: mobile/tests/writeThroughSync.spec.ts (generik, termasuk 422 PERIOD_CLOSED → rejection berisi pesan); tidak ada test komponen khusus untuk form ini — test komponen representatif ada di mobile/tests/FormThreshingView.spec.ts.",
-    "REVISI 2026-10-03 (e2e): spec Playwright mobile/tests/e2e/form-process-quality-control.spec.ts ditulis (12 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec) — known issue 'spec e2e belum ada' ditutup."
+    "REVISI 2026-10-03 (e2e): spec Playwright mobile/tests/e2e/form-process-quality-control.spec.ts ditulis (12 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec) — known issue 'spec e2e belum ada' ditutup.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) label catatan 'Note' → 'Catatan' dengan id eksplisit field-note di FormProcessQualityControlView.vue (dikunci mobile/tests/noteLabelConsistency.spec.ts). (2) processQualityControlRecordRepo.createDraft() mengisi `date` dengan tanggal LOKAL 'YYYY-MM-DD' via todayLocalDateString() (mobile/src/utils/localDate.ts), bukan ISO UTC; nilai lama bersufiks zona dinormalisasi sekali oleh localSchema.normalizeLegacyUtcDates() (mobile/tests/localDate.sqljs.spec.ts). (3) write-through kini benar-benar aktif saat immediate_sync_enabled=true — millSettingRepo.getMillSetting() sebelumnya tidak men-SELECT kolom itu (mobile/tests/millSettingRepo.sqljs.spec.ts, writeThroughSync.spec.ts). (4) syncService mengirim `date` lokal, menyimpan alasan penolakan server ke kolom sync_error (ditampilkan Data Preview sebagai 'Gagal sinkron: <alasan>'), dan sinkron memakai Production Line stasiun record (mobile/tests/syncService.sqljs.spec.ts). (5) ConfirmDialog di-teleport ke <body> (z-index 1200) (mobile/tests/DialogTeleport.spec.ts). Angka test_results tidak diubah."
   ],
   "deferred_items": [],
   "known_issues": [],

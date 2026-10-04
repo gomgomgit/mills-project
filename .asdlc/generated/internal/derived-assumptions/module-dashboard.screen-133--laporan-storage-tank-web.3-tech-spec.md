@@ -39,3 +39,15 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (StorageTankReportService.php, laporan-storage-tank.blade.php, ReportPeriodDays.php, ChartAxis.php, SheetWriter.php, ExportValue.php).
+- api_contracts[0].endpoints[2].response.success_schema.coverage = + days_counted, period_running; expected_slots pakai days_counted ← summary() 'days_counted' => $daysCounted, 'period_running' => ReportPeriodDays::isRunning
+- api_contracts[0].business_logic[16] = expected_slots = tank_count x days_counted x slots ← $expectedSlots = $tankCount * $daysCounted * ...
+- api_contracts[0].business_logic[21] = SheetWriter csv/xlsx, 7 kolom konteks, ExportValue status/time/valve ← export()/streamExportRows()
+- api_contracts[0].endpoints[3].description + response._note = CSV atau xlsx sungguhan, kolom konteks baru ← fileMetaFor + SheetWriter
+- api_contracts[0].unit_test_cases[26].expect = header berlabel Indonesia dgn Periode/Mill/Production Line, 'Tersinkron', 'Open 1/2' ← StorageTankReportServiceTest diff
+- api_contracts[0].edge_case_handling[+2] = periode berjalan; penyebut 0 ← ReportPeriodDays + blade
+- api_contracts[0].unit_test_cases[+1] = days_counted/period_running hadir di coverage ← StorageTankReportServiceTest asersi kunci 'days_counted','period_running'
+- implementation_notes[+1] = ReportPeriodDays, 1 desimal, ChartAxis, SheetWriter/ExportValue ← diff blade/service

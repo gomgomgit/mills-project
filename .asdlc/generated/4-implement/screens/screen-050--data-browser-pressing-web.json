@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-050--data-browser-pressing-web",
   "name": "Data Browser Pressing (Web)",
@@ -19,12 +19,17 @@
     "backend/database/factories/PressingRecordFactory.php",
     "backend/database/factories/PressingDetailFactory.php",
     "backend/database/factories/StationFactory.php",
-    "backend/app/Support/Concerns/ScopesToActorMill.php"
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php",
+    "backend/app/Support/Display.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/PressingRecordServiceTest.php",
     "backend/tests/Feature/Api/DataBrowserPressingTest.php",
-    "backend/tests/Feature/Livewire/DataBrowserPressingTest.php"
+    "backend/tests/Feature/Livewire/DataBrowserPressingTest.php",
+    "backend/tests/Unit/Services/ExportDetailRowsTest.php",
+    "backend/tests/Pest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserPressing.php",
@@ -42,15 +47,11 @@
     "PressingRecordServiceTest.php rewritten to mirror ThreshingRecordServiceTest.php's dynamic-row test shape (create() with 1..N rows instead of always-24, update() upsert semantics including delete-on-removal) -- 30 tests total, up from 27",
     "REVISI v3 (tech-spec v3, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v3, `php artisan test` untuk berkas uji layar ini hijau.",
     "REVISI v4 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-pressing.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec yang sama juga diperbaiki dari race href ekspor (assertion kini menunggu href ekspor terbarui setelah filter diterapkan). Spec dijalankan penuh: 6/6 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser spec tidak dapat dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): PressingRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan, sebelumnya CSV berlabel .xlsx; csv tetap CSV); nilai sel lewat App\\Support\\ExportValue — time slot 'HH:MM', status label Indonesia; data-browser-pressing.blade.php memakai Display::status() untuk badge. Uji: PressingRecordServiceTest export (assert 'PK' + xlsxRows), ExportDetailRowsTest, helper xlsxRows/exportBodyAsCsv di tests/Pest.php. Known_issue tile Pressing di Production Process Activity dihapus — resources/views/data/production-process-activity.blade.php kini menautkan data.pressing (sudah sejak sebelum audit ini). Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Production Process Activity (Web) (screen-035, out of this 6-screen task's scope) still only renders 3 active station tiles (Weighbridge/Grading/Cages Track) -- confirmed still true after this pass. It has not been updated to add a Pressing tile linking to /data/pressing. Needs a separate revision of screen-035 (shared across all 4 new-station agent runs).",
-      "severity": "major"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "2026-10-03T00:00:00Z",

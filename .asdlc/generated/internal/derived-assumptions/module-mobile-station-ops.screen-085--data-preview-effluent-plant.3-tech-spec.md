@@ -15,3 +15,15 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - implementation_notes[0] yang menyatakan "tidak ada panggilan API" diganti: data dibaca dari SQLite lokal; satu-satunya panggilan server adalah aksi verifikasi RecordVerificationActions.vue → recordVerificationApi.setVerification → PATCH /api/records/{stationType}/{server_id}/verification, hanya untuk record tersinkron (punya server id).
 - Teks catatan record belum tersinkron dikutip langsung dari RecordVerificationActions.vue (data-testid verification-not-synced); frasa "kolom verifikasi baris lokal baru diperbarui setelah server menerima" diturunkan dari recordVerificationApi.setVerification (UPDATE lokal setelah respons PATCH).
 - Catatan "Kunci periode … pengecualian atas 'tidak ada panggilan API'" dibiarkan apa adanya (masih akurat sebagai rujukan historis).
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/DataPreviewEffluentPlantView.vue, services/recordVerificationApi.ts, services/apiClient.ts, components/SyncFailureHint.vue, services/syncService.ts, backend RecordVerificationStatusController/Service, routes/api.php).
+- api_contracts[0].endpoints += GET /api/records/{stationType}/verification?ids[]= (stationType='effluent-plant'; auth:web,sanctum, role admin/supervisor/mill_management/operator, mill-scoped; 401/403/422/404) ← routes/api.php + RecordVerificationStatusController. ⚠ error_code 404 ditulis NOT_FOUND padahal controller mengembalikan {message} saja (inferensi label).
+- api_contracts[0].business_logic += step 14 (pullVerificationStatus('effluent-plant', 'effluent_plant_record') best-effort, maks 100, timeout 5 dtk, reload detail via getDraftWithDetails bila berubah) & 15 (SyncFailureHint dari sync_error) ← view loadList()/refreshVerificationInBackground(), SyncFailureHint.vue.
+- api_contracts[0].data_operations += UPDATE lokal checked_by/acknowledged_by(+name) ← pullVerificationStatus().
+- api_contracts[0].edge_case_handling[4].handling = offline kini dideteksi flag `network: true` (bukan "tanpa status") ← apiClient.normalizeError + isNetworkError().
+- api_contracts[0].edge_case_handling += pull gagal senyap (404/405 → pullUnsupported); record ditolak saat sync → hint 'Gagal sinkron' ← recordVerificationApi.ts, syncService.failure()/markSynced().
+- api_contracts[0].unit_test_cases += 3 (pull mirror/offline, 404 stop, SyncFailureHint) ← syncService.sqljs.spec.ts #6, SyncFailureHint.spec.ts.
+- implementation_notes += REVISI 2026-10-04 (GET endpoint, /api prefix PATCH, network flag, SyncFailureHint; Field Tanggal detail type datetime-local → date via toDateInputValue; filter-row minmax(0,1fr) ← DataPreviewEffluentPlantView.vue diff).
+- test_scenarios += 2 (Status Verifikasi Ditarik dari Server; Petunjuk Gagal Sinkron). ⚠ diturunkan dari kode/e2e, bukan dari bdd_scenarios Phase 2.

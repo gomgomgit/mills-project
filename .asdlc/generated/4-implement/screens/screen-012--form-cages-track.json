@@ -1,8 +1,8 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-012--form-cages-track",
   "name": "Form Cages Track",
@@ -13,12 +13,20 @@
   "fe_files_generated": [
     "mobile/src/services/cagesTrackRecordRepo.ts",
     "mobile/src/router/index.ts",
-    "mobile/src/views/FormCagesTrackView.vue"
+    "mobile/src/views/FormCagesTrackView.vue",
+    "mobile/src/utils/localDate.ts",
+    "mobile/src/services/syncService.ts",
+    "mobile/src/services/millSettingRepo.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/cagesTrackRecordRepo.spec.ts",
     "mobile/tests/FormCagesTrackView.spec.ts",
-    "mobile/tests/e2e/form-cages-track.spec.ts"
+    "mobile/tests/e2e/form-cages-track.spec.ts",
+    "mobile/tests/localDate.sqljs.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts",
+    "mobile/tests/millSettingRepo.sqljs.spec.ts",
+    "mobile/tests/noteLabelConsistency.spec.ts",
+    "mobile/tests/DialogTeleport.spec.ts"
   ],
   "implementation_notes": [
     "Full rewrite (v3) mengikuti mock referensi persis: header Tanggal & Tippler Start Time (auto sekali), Tippler Stop Time (auto SEKALI saat Simpan, TIDAK live-ticking, TIDAK dibekukan saat Pause), Cages Out/Cages Tipped manual, Cages Tipped MENGUNCI setelah baris pertama ditambahkan, Inputted By read-only dari user login, Checked By (Supervisor)/Acknowledged By (Mill Management) TETAP ADA sebagai toggle role-gated (berbeda dari Weighbridge/Grading yang menghapus Checked By total). Grid Cages Tipped Time: 1 baris = 1 slot jam + checklist N cage (N dari Cages Tipped header), Time dropdown urutan menaik tidak boleh duplikat, Total Cages/Cages Remain otomatis per baris, Hapus baris = queue-for-deletion (mirror Grading Detail).",
@@ -30,7 +38,8 @@
     "v4 (Mills Setting jumlah_cages): jumlahCagesFromMillSetting ref ditambahkan di FormCagesTrackView.vue, dimuat sekali onMounted via getJumlahCages(authStore.currentUser?.business_unit_id). cageColumns, canAddTippedTimeRow, dan cages_remain per baris sekarang semuanya diturunkan dari ref ini, bukan form.cages_tipped. Computed cagesTippedLocked dan hint header-nya DIHAPUS total — cages_tipped kini murni input manual biasa, tidak lagi memengaruhi grid, sesuai tech-spec v3.",
     "v4: dipakai authStore.currentUser?.business_unit_id, BUKAN path literal spec (cages_track_record.station_id -> station.business_unit_id) — karena station_id belum pernah diisi oleh createDraft() saat ini (perbaikan itu milik alur pembuatan draft di Monitor screen, di luar scope perubahan ini). Secara fungsional setara untuk app mobile single-business-unit-per-sesi ini, dan konsisten dengan pola yang sudah dipakai saat login (fetchAndCacheMillSetting/seedDefaultStationsIfNeeded).",
     "v4: hint baris kedua (data-testid=add-row-jumlah-cages-hint) ditambahkan di sebelah tombol Tambah baris untuk kondisi mill_setting belum tersedia/0, mengikuti pola hint UI yang sudah ada.",
-    "REVISI (tech-spec v4, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormCagesTrackView menyimpan HANYA ke SQLite lokal (tidak ada apiClient/syncAfterSave; stasiun ini tidak punya write-through) dan tidak memeriksa periode; record 'saved' dikirim lewat sinkron manual screen-006 (POST /api/cages-track-records), dan penolakan 422 PERIOD_CLOSED membuat record tetap 'saved' dengan alasan server di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('cages-track', mill, date) di CagesTrackRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik)."
+    "REVISI (tech-spec v4, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormCagesTrackView menyimpan HANYA ke SQLite lokal (tidak ada apiClient/syncAfterSave; stasiun ini tidak punya write-through) dan tidak memeriksa periode; record 'saved' dikirim lewat sinkron manual screen-006 (POST /api/cages-track-records), dan penolakan 422 PERIOD_CLOSED membuat record tetap 'saved' dengan alasan server di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('cages-track', mill, date) di CagesTrackRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik).",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): cagesTrackRecordRepo.createDraft() menyimpan tippler_start_time = nowLocalDateTimeString() (mobile/src/utils/localDate.ts, jam lokal tanpa sufiks zona; sebelumnya toISOString() UTC); FormCagesTrackView catatan berlabel 'Catatan' dengan id field-note. Di luar view: syncService.pushCagesTrackRow mengirim tippler_start/stop via toOffsetDateTime() dan date lokal, memakai production line stasiun record, menulis/mengosongkan sync_error; localSchema.normalizeLegacyUtcDates() memigrasi nilai lama; millSettingRepo kini SELECT immediate_sync_enabled (getJumlahCages tak berubah). Server: CagesTrackRecordService menormalkan tippler time ber-zona ke WIB dan menolak date > besok. known_issues dibersihkan: station_id sudah diisi createDraft() (resolveActiveStationId) dan GET /api/mill-settings/current sudah ada di routes/api.php. Cakupan baru: mobile/tests/localDate.sqljs.spec.ts (tippler_start_time lokal), syncService.sqljs.spec.ts (#4/#5/#9), millSettingRepo.sqljs.spec.ts, noteLabelConsistency.spec.ts, DialogTeleport.spec.ts; cagesTrackRecordRepo.spec.ts disesuaikan."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -40,14 +49,6 @@
     },
     {
       "description": "cagesTrackRecordRepo.ts doc comment (~baris 101, 266) masih menyebut 'header's cages_tipped' untuk cages_remain — dokumentasi basi saja, tidak fungsional, dibiarkan (di luar scope file fix v4 ini).",
-      "severity": "minor"
-    },
-    {
-      "description": "station_id masih belum pernah diisi oleh cagesTrackRecordRepo.ts's createDraft() — path literal spec (record -> station -> business_unit_id) belum tersedia; milik alur pembuatan draft di Monitor screen.",
-      "severity": "minor"
-    },
-    {
-      "description": "GET /api/mill-settings/current BELUM diimplementasikan di backend (sesuai komentar 'NOT YET implemented' di routes/api.php) — login mobile sungguhan belum bisa mengisi cache lokal mill_setting. E2E suite menyiasati dengan seed langsung via window.__mslTestDb bridge. Perlu diverifikasi ulang end-to-end setelah endpoint itu tersedia.",
       "severity": "minor"
     }
   ],

@@ -14,3 +14,15 @@ Cakupan yang user tetapkan untuk Boiler Room menyebut: *"tren tekanan & suhu uap
 - `time_slot` bertipe TIME, bukan integer jam ← berbeda dari `tipped_hour` milik Cages & Tracks. Dicatat karena pengelompokan per jam menuntut ekstraksi dan slotnya belum tentu jatuh tepat di awal jam. Konsekuensinya baru mengikat di Phase 3.
 - `test_priority` = `high` ← sama dengan screen-129/130: menyangkut cakupan mill dan hak akses lintas peran.
 - `edge_cases` (10 butir) ← seluruhnya turunan agent; empat di antaranya (metrik tak pernah diisi, perawatan tak tercatat, pencatatan tak lengkap, beberapa unit boiler) tidak punya padanan di dua laporan stasiun sebelumnya karena memang sifat stasiun ini.
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (BoilerRoomReportService.php, ReportPeriodDays.php, SheetWriter.php, ExportValue.php, laporan-boiler-room.blade.php, LaporanBoilerRoom.php).
+- information_displayed[2] = hero menyebut nama Production Line ← blade `@if ($selectedProductionLine) {{ name }}` (audit #10)
+- information_displayed[11] = kelengkapan sampai hari ini untuk periode berjalan + keterangan + '—'/'belum ada slot yang diharapkan' bila expected 0 ← ReportPeriodDays::counted(), blade period-running-note / coverage-no-expected
+- information_displayed[17] = tombol Ekspor CSV + Ekspor Excel (.xlsx sungguhan), hanya setelah line dipilih ← blade + SheetWriter
+- information_displayed (+2) = pemilih Production Line wajib; petunjuk gulir tren harian > 10 tanggal ← blade production-line-select (sudah ada sebelum audit — drift lama, ditambahkan karena kode acuan) + scroll-hint
+- available_actions[3].description = ekspor CSV/xlsx, kolom Periode/Mill/Production Line, status Indonesia, slot HH:MM, Ya/Tidak ← BoilerRoomReportService::EXPORT_HEADER / streamExportRows
+- available_actions (+1) = Pilih Production Line ← LaporanBoilerRoom::$productionLineId (drift lama)
+- business_rules (+2) = penyebut kelengkapan berhenti di hari ini (WIB); Excel = xlsx sungguhan ← ReportPeriodDays, SheetWriter
+- edge_cases (+2) = periode berjalan; expected_slots 0 → '—' ← blade, ReportAuditFix20261004Test #3/#9

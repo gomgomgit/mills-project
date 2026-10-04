@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-027--kelola-corporate",
   "name": "Kelola Corporate",
@@ -101,8 +101,8 @@
             "path_params": [],
             "query_params": [],
             "body_schema": {
-              "corporate_code": "string, required, unique",
-              "name": "string, required, unique",
+              "corporate_code": "string, required, unique (tidak peka huruf besar/kecil — UniqueCaseInsensitive)",
+              "name": "string, required, unique (tidak peka huruf besar/kecil — UniqueCaseInsensitive)",
               "short_name": "string, optional",
               "leader_name": "string, optional",
               "lawyer_name": "string, optional",
@@ -112,14 +112,14 @@
               "contact_no": "string, optional",
               "extension_no": "string, optional",
               "email": "string, optional, format email",
-              "website": "string, optional",
+              "website": "string, optional, format domain dengan/tanpa http(s):// (regex CorporateService::WEBSITE_PATTERN)",
               "map": "string, optional",
               "tax_register_no": "string, optional",
               "insurance_no": "string, optional",
               "epf_employer": "string, optional",
               "socso_employer": "string, optional",
               "labor_union": "string, optional",
-              "logo": "file, optional, image jpg/png, max 2MB"
+              "logo": "file, optional, gambar JPG/PNG sungguhan (isi file diperiksa — App\\Rules\\RealImage), max 2MB"
             }
           },
           "response": {
@@ -151,7 +151,7 @@
               {
                 "http_code": 422,
                 "error_code": "VALIDATION_ERROR",
-                "condition": "corporate_code/name kosong atau sudah dipakai Corporate lain, atau logo format/ukuran tidak valid"
+                "condition": "corporate_code/name kosong atau sudah dipakai Corporate lain (tidak peka huruf besar/kecil), email/website berformat tidak valid, atau logo bukan gambar JPG/PNG sungguhan / melebihi 2MB"
               },
               {
                 "http_code": 403,
@@ -180,8 +180,8 @@
             ],
             "query_params": [],
             "body_schema": {
-              "corporate_code": "string, required, unique (kecuali dirinya sendiri)",
-              "name": "string, required, unique (kecuali dirinya sendiri)",
+              "corporate_code": "string, required, unique kecuali dirinya sendiri (tidak peka huruf besar/kecil)",
+              "name": "string, required, unique kecuali dirinya sendiri (tidak peka huruf besar/kecil)",
               "short_name": "string, optional",
               "leader_name": "string, optional",
               "lawyer_name": "string, optional",
@@ -191,14 +191,14 @@
               "contact_no": "string, optional",
               "extension_no": "string, optional",
               "email": "string, optional, format email",
-              "website": "string, optional",
+              "website": "string, optional, format domain dengan/tanpa http(s):// (regex CorporateService::WEBSITE_PATTERN)",
               "map": "string, optional",
               "tax_register_no": "string, optional",
               "insurance_no": "string, optional",
               "epf_employer": "string, optional",
               "socso_employer": "string, optional",
               "labor_union": "string, optional",
-              "logo": "file, optional, image jpg/png, max 2MB"
+              "logo": "file, optional, gambar JPG/PNG sungguhan (isi file diperiksa — App\\Rules\\RealImage), max 2MB"
             }
           },
           "response": {
@@ -230,7 +230,7 @@
               {
                 "http_code": 422,
                 "error_code": "VALIDATION_ERROR",
-                "condition": "corporate_code/name kosong atau sudah dipakai Corporate lain, atau logo format/ukuran tidak valid"
+                "condition": "corporate_code/name kosong atau sudah dipakai Corporate lain (tidak peka huruf besar/kecil), email/website berformat tidak valid, atau logo bukan gambar JPG/PNG sungguhan / melebihi 2MB"
               },
               {
                 "http_code": 404,
@@ -295,8 +295,8 @@
       ],
       "business_logic": [
         "1. GET list: paginate sesuai shared-decisions.pagination, hitung company_count via COUNT company WHERE corporate_id",
-        "2. POST create: validate corporate_code required+unique → validate name required+unique → validate logo (jika ada) format/ukuran → if invalid: return 422 VALIDATION_ERROR → simpan logo ke Laravel Filesystem jika ada → insert Corporate baru dengan seluruh field profil",
-        "3. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate corporate_code required+unique (exclude self) → validate name required+unique (exclude self) → validate logo (jika diganti) → if invalid: return 422 VALIDATION_ERROR → update Corporate dengan seluruh field profil",
+        "2. POST create: validate corporate_code required+unique case-insensitive (lower(col)=lower(val)) → validate name required+unique case-insensitive → validate email (format email) & website (regex WEBSITE_PATTERN) bila diisi → validate logo (jika ada): file, mimes jpg/jpeg/png, max 2MB, RealImage (getimagesizefromstring atas isi file) → if invalid: return 422 VALIDATION_ERROR → simpan logo ke Laravel Filesystem jika ada → insert Corporate baru dengan seluruh field profil",
+        "3. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate corporate_code/name required+unique case-insensitive (exclude self) → validate email/website format → validate logo (jika diganti) termasuk RealImage → if invalid: return 422 VALIDATION_ERROR → update Corporate dengan seluruh field profil",
         "4. DELETE: validate id exists → if not: return 404 NOT_FOUND → count Company WHERE corporate_id=id → if count > 0: return 409 CORPORATE_HAS_COMPANIES → else delete Corporate"
       ],
       "data_operations": [
@@ -350,6 +350,18 @@
         {
           "condition": "User bukan Admin mengakses endpoint",
           "handling": "Return 403 FORBIDDEN"
+        },
+        {
+          "condition": "Kode/nama hanya berbeda huruf besar/kecil dari Corporate lain",
+          "handling": "Return 422 VALIDATION_ERROR (UniqueCaseInsensitive), pesan '.unique' yang sama"
+        },
+        {
+          "condition": "Email atau website berformat tidak valid",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.email ('Format email tidak valid.') / errors.website ('Format website tidak valid (contoh: www.contoh.co.id).')"
+        },
+        {
+          "condition": "File logo bukan gambar sungguhan walau bernama .png/.jpg",
+          "handling": "Return 422 VALIDATION_ERROR errors.logo (RealImage); di Livewire ditolak saat file dipilih (updatedLogo → validateUploadNow) dan lagi saat Simpan; pratinjau disembunyikan selama ada error"
         }
       ],
       "business_rules_applied": [
@@ -399,6 +411,21 @@
           "description": "returns success result with full profile when all conditions pass",
           "given": "CorporateRepository.existsByCode()/existsByName() (and Excluding variants) return false, logo validation passes or is omitted, CompanyRepository.countByCorporateId() returns 0 where relevant, CorporateRepository.save()/delete() persist successfully",
           "expect": "return the created/updated Corporate object with id, corporate_code, name, and all profile fields, company_count, created_at (or { deleted: true } for delete)"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when corporate_code differs only by letter case from an existing Corporate",
+          "given": "existing Corporate corporate_code 'CORP-A'; input corporate_code 'corp-a'",
+          "expect": "ValidationException errors.corporate_code; nothing inserted"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when email or website has an invalid format",
+          "given": "input email 'bukan-email' or website 'bukan website'",
+          "expect": "ValidationException errors.email / errors.website with Indonesian messages"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when the logo file is not a real image",
+          "given": "text file named logo.png uploaded as logo",
+          "expect": "ValidationException errors.logo (RealImage); no file stored"
         }
       ]
     }
@@ -419,7 +446,8 @@
     "403 FORBIDDEN pada seluruh endpoint disimpulkan dari actor_permissions (bukan tercantum literal di business spec) — role selain Admin ditolak di level middleware/policy, bukan hanya UI hidden",
     "Livewire component dapat memanggil Service Layer yang sama dengan REST API (arsitektur Layered per arch-spec) — endpoint /api/corporates di atas adalah kontrak untuk keperluan test/dokumentasi, implementasi FE boleh memanggil service langsung dari Livewire tanpa round-trip HTTP terpisah, konsisten dengan pola screen-016/017/018",
     "REWORK ver 2 (2026-08-19, adopsi ERD docs/MMS_Weighbridge_ERD_Operational_MVP_v3.1.mermaid): id tetap uuid sebagai primary key/FK (TIDAK diganti corporate_code) — lihat entity-catalog v4 derived-assumptions untuk alasan lengkap (menghindari cascading FK-type change ke Station/User yang sudah diimplementasikan). corporate_code ditambahkan sebagai field unik terpisah. 17 field profil baru (kontak/legal/kepegawaian/logo) ditambahkan, seluruhnya opsional kecuali corporate_code dan name. unit_test_cases diperluas dari 6 (ver 1) menjadi 8 untuk mencakup validasi corporate_code dan logo.",
-    "Logo disimpan di Laravel Filesystem local disk (konsisten dengan machinery.picture_url), path/URL disimpan di kolom logo, diekspos di response sebagai logo_url"
+    "Logo disimpan di Laravel Filesystem local disk (konsisten dengan machinery.picture_url), path/URL disimpan di kolom logo, diekspos di response sebagai logo_url",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): uniqueness corporate_code/name kini tidak peka huruf besar/kecil (App\\Rules\\UniqueCaseInsensitive, lower()=lower() ter-bind — aman SQLite & PostgreSQL); email divalidasi format email dan website dengan CorporateService::WEBSITE_PATTERN (skema opsional); logo wajib gambar JPG/PNG sungguhan (App\\Rules\\RealImage) baik di service (API) maupun Livewire, dan Livewire memvalidasi logo saat dipilih (Livewire\\Concerns\\ValidatesUploadOnSelect); Livewire menampilkan successMessage setelah simpan/hapus."
   ],
   "test_scenarios": [
     {

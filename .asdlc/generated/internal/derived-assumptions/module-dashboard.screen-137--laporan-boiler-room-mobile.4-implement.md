@@ -21,3 +21,10 @@ Ukur ulang uji browser Playwright mobile 2026-10-03.
 Pembersihan rujukan komponen grid yang dihapus.
 - known_issue 'galat vue-tsc PRA-ADA di CagesTippedTimeGrid.vue dan GradingDetailGrid.vue' dihapus: kedua komponen dihapus di 004aacd; vue-tsc kini 0 galat dan vite build sukses.
 - Ditambah satu catatan REVISI merujuk 004aacd; kode layar tidak berubah.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff mobile/src/views/LaporanBoilerRoomView.vue, mobile/src/services/boilerRoomReportRepo.ts, backend/app/Services/BoilerRoomReportService.php).
+- files_generated (+3) = Support/ReportPeriodDays.php, SheetWriter.php, ExportValue.php ← dipakai BoilerRoomReportService bersama
+- test_files_generated (+2) = ReportAuditFix20261004Test.php, ExportXlsxTest.php ← kasus boiler-room
+- implementation_notes (+1) = REVISI audit-fix

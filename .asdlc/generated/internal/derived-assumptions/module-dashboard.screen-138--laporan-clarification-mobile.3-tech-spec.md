@@ -23,3 +23,12 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (LaporanClarificationView.vue, clarificationReportRepo.ts, ClarificationReportService.php, mobile/tests/*Clarification*.spec.ts).
+- api_contracts[0].endpoints[2].response.success_schema.coverage = + days_counted, period_running ← service summary()
+- api_contracts[0].endpoints[3].response.success_schema._note = 15 kolom Periode/Mill/Production Line + label + HH:MM; excel = xlsx (tak dipakai mobile) ← EXPORT_HEADER, SheetWriter
+- api_contracts[0].business_logic (+1) = repo + view: days_counted/period_running, period-running-note, '-' + coverage-no-expected, label 'Tertutup' ← diff
+- api_contracts[0].unit_test_cases (+5) = repo pass-through; berjalan; selesai; penyebut 0; badge Tertutup ← LaporanClarificationView.spec.ts, clarificationReportRepo.spec.ts
+- implementation_notes (+1) = REVISI audit-fix

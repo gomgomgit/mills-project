@@ -1,12 +1,12 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-05"
   },
   "id": "usecase-036--kelola-production-line",
   "name": "Kelola Production Line",
-  "description": "Admin membuat, mengubah, dan menghapus data master Production Line — level hierarki baru antara Business Unit dan Station. Membuat Production Line otomatis memprovisikan 15 station kanonis untuknya.",
+  "description": "Admin membuat, mengubah, dan menghapus data master Production Line — level hierarki antara Business Unit dan Station. Membuat Production Line otomatis memprovisikan 18 station kanonis (semua aktif) untuknya; menghapus Production Line ikut menghapus station-station kosongnya.",
   "actors": [
     "actor-admin"
   ],
@@ -38,12 +38,12 @@
     {
       "step": 5,
       "actor": "System",
-      "description": "Memvalidasi input, menyimpan Production Line baru, lalu otomatis membuat 15 station kanonis untuknya dalam satu transaksi"
+      "description": "Memvalidasi input, menyimpan Production Line baru, lalu otomatis membuat 18 station kanonis untuknya dalam satu transaksi"
     },
     {
       "step": 6,
       "actor": "System",
-      "description": "Menutup form, menampilkan Production Line baru di daftar dengan Jumlah Station = 15"
+      "description": "Menutup form, menampilkan pesan sukses dan Production Line baru di daftar dengan Jumlah Station = 18"
     }
   ],
   "alternative_flows": [
@@ -69,8 +69,8 @@
       "trigger": "Actor menekan Hapus pada salah satu baris",
       "steps": [
         "System menampilkan konfirmasi inline",
-        "Jika dikonfirmasi dan Production Line tidak punya Station terkait, System menghapusnya dan baris hilang dari daftar",
-        "Jika Production Line masih punya Station terkait, System menolak dengan pesan error inline, baris tetap ada"
+        "Jika dikonfirmasi dan station-station Production Line tersebut masih kosong (tanpa record stasiun, Machinery Group, maupun Machinery), System menghapus Production Line beserta station-nya dalam satu transaksi, menampilkan pesan sukses, dan baris hilang dari daftar",
+        "Jika station-nya masih punya record stasiun, Machinery Group, atau Machinery, System menolak dengan pesan error inline yang merinci jumlahnya; tidak ada yang terhapus, baris tetap ada"
       ]
     },
     {
@@ -82,37 +82,37 @@
     }
   ],
   "postconditions": [
-    "Production Line baru tersimpan beserta 15 station kanonisnya (create), ATAU Production Line yang sudah ada diperbarui (edit) tanpa mengubah station-nya, ATAU Production Line dihapus (delete, hanya jika tidak punya station terkait)"
+    "Production Line baru tersimpan beserta 18 station kanonisnya (create), ATAU Production Line yang sudah ada diperbarui (edit) tanpa mengubah station-nya, ATAU Production Line dihapus beserta station kosongnya (delete, hanya jika tidak ada record stasiun/Machinery Group/Machinery yang menempel)"
   ],
   "business_rules": [
-    "Business Unit wajib dipilih; Nama wajib diisi; Kode opsional tapi unik global jika diisi",
-    "15 station kanonis diprovisikan otomatis HANYA saat create, tidak saat edit",
-    "Delete ditolak jika Production Line masih punya Station terkait"
+    "Business Unit wajib dipilih; Nama wajib diisi; Kode opsional tapi unik global (tidak peka huruf besar/kecil) jika diisi",
+    "18 station kanonis diprovisikan otomatis HANYA saat create, tidak saat edit",
+    "Delete menghapus line beserta station-nya; ditolak jika station-nya masih punya record stasiun, Machinery Group, atau Machinery"
   ],
   "bdd_scenarios": [
     {
       "scenario": "Tambah Production Line — berhasil",
       "given": "Admin sudah login dan berada di halaman Kelola Production Line",
       "when": "Admin memilih Business Unit, mengisi Nama, menekan Simpan",
-      "then": "Production Line baru tersimpan dan otomatis memiliki 15 station (3 aktif + 12 placeholder)"
+      "then": "Production Line baru tersimpan dan otomatis memiliki 18 station (semua aktif)"
     },
     {
       "scenario": "Edit Production Line — station tidak berubah",
-      "given": "Production Line dengan 15 station sudah ada",
+      "given": "Production Line dengan 18 station sudah ada",
       "when": "Admin mengubah Nama/Kode/Deskripsi lalu Simpan",
-      "then": "Data Production Line terupdate, jumlah station tetap 15"
+      "then": "Data Production Line terupdate, jumlah station tetap 18"
     },
     {
       "scenario": "Hapus Production Line — berhasil",
-      "given": "Production Line tanpa Station terkait",
+      "given": "Production Line yang station-nya masih kosong (mis. baru dibuat, 18 station tanpa data)",
       "when": "Admin menekan Hapus dan mengonfirmasi",
-      "then": "Production Line terhapus dari daftar"
+      "then": "Production Line beserta station-station-nya terhapus, baris hilang dari daftar, pesan sukses tampil"
     },
     {
-      "scenario": "Hapus Production Line — ditolak karena punya Station",
-      "given": "Production Line dengan Station terkait (mis. baru dibuat, 15 station)",
+      "scenario": "Hapus Production Line — ditolak karena station-nya punya data",
+      "given": "Production Line yang station-nya punya record stasiun atau Machinery Group/Machinery",
       "when": "Admin menekan Hapus dan mengonfirmasi",
-      "then": "Sistem menolak dengan pesan error inline, Production Line tetap ada"
+      "then": "Sistem menolak dengan pesan error inline yang merinci blocker, Production Line dan station-nya tetap ada"
     },
     {
       "scenario": "Kode Production Line duplikat",

@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-075--form-effluent-plant",
   "name": "Form Effluent Plant",
@@ -28,8 +28,8 @@
       "endpoints": [],
       "business_logic": [
         "1. Load draft effluent_plant_record by id (route param) beserta seluruh effluent_plant_detail turunannya ke form state (bisa nol baris untuk draft baru), diurutkan berdasarkan time_slot dalam urutan kanonis (07:00..06:00, BUKAN alfabetis)",
-        "2. Auto-set Tanggal (date) = waktu saat ini HANYA jika draft baru (masih kosong); jika draft dilanjutkan, pertahankan nilai tersimpan (defensive fallback, createDraft() sudah mengisinya)",
-        "3. Render field dikelompokkan per section: Identitas Effluent Plant (Effluent Plant ID, Tanggal), Verifikasi (Inputted By read-only, Checked By, Acknowledged By, Note), Effluent Plant Detail (grid dinamis)",
+        "2. Tanggal (date) diisi effluentPlantRecordRepo.createDraft() dengan tanggal LOKAL perangkat 'YYYY-MM-DD' (todayLocalDateString(), mobile/src/utils/localDate.ts — bukan ISO UTC; revisi audit-fix 2026-10-04). Saat load, view hanya mengisi fallback nowLocalDateTimeString() bila date masih kosong; jika draft dilanjutkan, pertahankan nilai tersimpan",
+        "3. Render field dikelompokkan per section: Identitas Effluent Plant (Effluent Plant ID, Tanggal), Verifikasi (Inputted By read-only, Checked By, Acknowledged By, Catatan — FormField id=\"field-note\" berlabel 'Catatan'), Effluent Plant Detail (grid dinamis)",
         "4. Render breadcrumb (Home > Production Process Activity > Effluent Plant > Form, tappable) dan header dengan hamburger",
         "5. Grid Effluent Plant Detail TIDAK di-pre-generate — dimulai kosong untuk draft baru, mengikuti pola persis Process Water Detail (screen-072)",
         "6. On Tambah baris Effluent Plant Detail: tambah 1 baris baru (tanpa id) ke grid, Time-Slot belum dipilih, seluruh kolom bacaan kosong",
@@ -130,6 +130,10 @@
         {
           "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
           "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED terjadi saat record tiba di server: (a) pada sinkron manual dari Station List (screen-006) — record tetap 'saved' di perangkat dan alasan dari server ditampilkan per record di SyncResultDialog; (b) bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mengirim record ini (writeThroughSync.syncAfterSave('effluent_plant_record') → syncService.pushSavedRecordNow → POST /api/effluent-plant-records). REVISI 2026-10-03: penolakan 4xx (termasuk 422 PERIOD_CLOSED) pada kiriman langsung ini TIDAK lagi diam — syncAfterSave() mengembalikan {synced: false, rejection: <pesan server>}, form menampilkan ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu bernavigasi ke Monitor Effluent Plant saat dialog ditutup; record tetap 'saved' di perangkat dan dapat dikirim ulang lewat sinkron manual setelah masalahnya diselesaikan. Kegagalan offline/5xx tetap diam (record menunggu sinkron berikutnya). Pemulihan: Admin membuka kembali baris stasiun Effluent Plant di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
+        },
+        {
+          "condition": "Kiriman record ini ditolak server (4xx) pada write-through atau sinkron manual (audit-fix 2026-10-04)",
+          "handling": "syncService menulis alasan penolakan ke kolom lokal sync_error pada record (kolom ditambahkan localSchema.migrateRecordTablesForSyncError) dan mengosongkannya saat kiriman berikutnya berhasil; kegagalan jaringan (tanpa status HTTP) tidak dicatat. Data Preview Effluent Plant menampilkannya sebagai 'Gagal sinkron: <alasan>' (SyncFailureHint.vue). Record tetap 'saved' dan dapat dikirim ulang."
         }
       ],
       "business_rules_applied": [
@@ -286,7 +290,8 @@
     "Constraint model server EffluentPlantRecord (minimal 1 effluent-plant-detail row exists) divalidasi di level FE + repo mobile (localDb), bukan constraint DB",
     "Breadcrumb & hamburger mengikuti pola yang sama dengan Form Process Water/Threshing/Pressing/Depricarping/Kernel Plant",
     "3 kolom enum (biogas_flare_status, dosing_pump_1_status, sludge_dewatering_status) disimpan sebagai TEXT biasa di SQLite lokal (tidak ada CHECK constraint di localSchema.ts), sehingga isu empty-string-vs-null hanya relevan pada backend (lihat screen-095/115's tech-spec) — nilai kosong tetap dikirim sebagai null agar payload sinkron (STATION_PUSH_CONFIGS / write-through, sudah aktif) konsisten dengan backend",
-    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormEffluentPlantView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('effluent_plant_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/effluent-plant-records, create). Kegagalan offline/5xx tetap diam; penolakan 4xx (mis. 422 PERIOD_CLOSED) kini ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' sebelum navigasi ke Monitor (revisi kode 2026-10-03), record tetap 'saved'. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('effluent-plant', mill, date) berjalan di EffluentPlantRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormEffluentPlantView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('effluent_plant_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/effluent-plant-records, create). Kegagalan offline/5xx tetap diam; penolakan 4xx (mis. 422 PERIOD_CLOSED) kini ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' sebelum navigasi ke Monitor (revisi kode 2026-10-03), record tetap 'saved'. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('effluent-plant', mill, date) berjalan di EffluentPlantRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): write-through syncAfterSave('effluent_plant_record') kini benar-benar aktif bila immediate_sync_enabled=true (millSettingRepo.getMillSetting() sebelumnya tidak men-SELECT kolom itu sehingga fitur selalu mati). syncService.pushUniformRow mengirim `date` selalu sebagai tanggal lokal 'YYYY-MM-DD' (toLocalDateString, juga untuk baris lama ber-ISO UTC yang dinormalisasi localSchema.normalizeLegacyUtcDates()), mencatat sync_error saat ditolak, dan pada sinkron manual memakai Production Line dari stasiun tempat record dibuat (station_id → station.production_line_id; line yang dipilih di Station List hanya cadangan). Label catatan header 'Note' → 'Catatan' (id field-note)."
   ],
   "test_scenarios": [
     {

@@ -26,3 +26,10 @@ Penyeragaman checkbox verifikasi (keputusan user 2026-10-04).
 - implementation_notes: ditambah satu catatan REVISI 2026-10-04 — checkbox header Checked By/Acknowledged By kini hanya dirender untuk peran yang berhak (v-if="isSupervisor" / v-if="isMillManagement"), bukan tampil-disabled untuk semua peran.
 - Test vitest dan e2e form ini sudah disesuaikan (toBeDisabled → toHaveCount(0); tes baru untuk mill_management); run gabungan 4 form 60/60 e2e, 57/57 vitest lulus.
 - test_results sengaja tidak diubah (jumlah spec e2e tetap).
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile/ + backend/app/Services/CpoDispatchRecordService.php, tests baru di mobile/tests/).
+- fe_files_generated (+) = mobile/src/utils/localDate.ts, mobile/src/services/millSettingRepo.ts, mobile/src/services/syncService.ts ← dipakai jalur draft-date / write-through layar ini (⚠ inferensi: atribusi berkas bersama ke layar ini)
+- fe_test_files_generated (+) = noteLabelConsistency, DialogTeleport, localDate.sqljs, writeThroughSync, millSettingRepo.sqljs, syncService.sqljs (*.spec.ts) ← tes baru/berubah yang mencakup perilaku layar ini (⚠ inferensi: cakupan generik lintas stasiun)
+- implementation_notes (append) = REVISI 2026-10-04 audit-fix (util tanggal bersama, label Catatan, header ikon/hamburger SVG ber-aria-label + Pause warning, write-through aktif, sync_error, line per record, guard event_date baris server, ConfirmDialog teleport) ← diff kode terkait

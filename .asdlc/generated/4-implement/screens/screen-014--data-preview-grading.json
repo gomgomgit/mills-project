@@ -1,24 +1,38 @@
 {
-  "ver": 7,
+  "ver": 8,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-014--data-preview-grading",
   "name": "Data Preview Grading",
   "module_id": "module-mobile-station-ops",
   "status": "complete",
-  "files_generated": [],
-  "test_files_generated": [],
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/RecordVerificationStatusController.php",
+    "backend/app/Services/RecordVerificationStatusService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/MobileReadEndpointsTest.php"
+  ],
   "fe_files_generated": [
     "mobile/src/services/gradingRecordRepo.ts",
     "mobile/src/views/DataPreviewGradingView.vue",
-    "mobile/src/router/index.ts"
+    "mobile/src/router/index.ts",
+    "mobile/src/components/SyncFailureHint.vue",
+    "mobile/src/services/recordVerificationApi.ts",
+    "mobile/src/services/apiClient.ts",
+    "mobile/src/utils/localDate.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/gradingRecordRepo.spec.ts",
     "mobile/tests/DataPreviewGradingView.spec.ts",
-    "mobile/tests/e2e/data-preview-grading.spec.ts"
+    "mobile/tests/e2e/data-preview-grading.spec.ts",
+    "mobile/tests/SyncFailureHint.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts",
+    "mobile/tests/recordVerification.spec.ts",
+    "mobile/tests/e2e/sync-and-verification.spec.ts"
   ],
   "implementation_notes": [
     "Full rewrite (v3) dari single-record read-only menjadi dual-mode list+filter+detail, mirror DataPreviewWeighbridgeView.vue v3 persis: default dateFilter hari ini (field `date`, dibangun via getFullYear/getMonth/getDate, bukan toISOString), search terhadap grading_number/license_plate_no, status label Pause/Tersimpan/Tersinkron, Reset Filter button pada empty-filter-result state.",
@@ -29,7 +43,8 @@
     "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='grading', local-table='grading_record', supports-checked=false) yang memanggil PATCH /api/records/grading/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `date` record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus.",
     "REVISI v5 (2026-10-03, sinkronisasi catatan uji — kode tidak diubah): celah 'recordVerification.spec.ts belum punya kasus PERIOD_CLOSED khusus' pada catatan REVISI kunci periode di atas kini TERTUTUP — mobile/tests/recordVerification.spec.ts menambah 'shows the period-lock (422 PERIOD_CLOSED) message verbatim as an error and leaves the local row untouched' untuk komponen bersama RecordVerificationActions yang dipasang di mode detail layar ini: pesan server 422 PERIOD_CLOSED ditampilkan apa adanya sebagai galat dan baris lokal tidak di-UPDATE. Uji hijau.",
     "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/data-preview-grading.spec.ts 11/11 lulus. Perbaikan spec (drift, bukan cacat aplikasi): mode detail kini meng-assert blok status verifikasi RecordVerificationStatus (hanya Acknowledged By, 'Belum dikonfirmasi Mill Management'; Checked By tidak dirender) alih-alih ketiadaannya; cek negatif not.toHaveURL glob '**/…' diganti RegExp.",
-    "REVISI (commit 004aacd, 2026-10-03 — pembersihan dead code): mobile/src/components/GradingDetailGrid.vue (komponen lama pre-v2 berbasis field category, tidak diimpor di mana pun) DIHAPUS bersama CagesTippedTimeGrid.vue karena error tipe lamanya membuat `vue-tsc --noEmit` (langkah pertama `npm run build`) gagal — bertentangan dengan anggapan lama bahwa error itu 'tidak mempengaruhi build'. Setelah penghapusan vue-tsc 0 error dan vite build sukses. Layar ini tidak terdampak (grid detail read-only dirender sendiri di DataPreviewGradingView.vue); known_issue dead-code terkait ditutup."
+    "REVISI (commit 004aacd, 2026-10-03 — pembersihan dead code): mobile/src/components/GradingDetailGrid.vue (komponen lama pre-v2 berbasis field category, tidak diimpor di mana pun) DIHAPUS bersama CagesTippedTimeGrid.vue karena error tipe lamanya membuat `vue-tsc --noEmit` (langkah pertama `npm run build`) gagal — bertentangan dengan anggapan lama bahwa error itu 'tidak mempengaruhi build'. Setelah penghapusan vue-tsc 0 error dan vite build sukses. Layar ini tidak terdampak (grid detail read-only dirender sendiri di DataPreviewGradingView.vue); known_issue dead-code terkait ditutup.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): DataPreviewGradingView.vue kini memanggil recordVerificationApi.pullVerificationStatus('grading', 'grading_record', userId) best-effort saat loadList() dan refreshVerificationInBackground() saat detail dibuka (memuat ulang via getDraftWithDetails bila status berubah) → GET /api/records/grading/verification?ids[]=… (baru: RecordVerificationStatusController/Service, routes/api.php, operator boleh, cakupan mill). PATCH verifikasi kini memakai prefix /api dan isNetworkError() memakai flag `network: true` dari apiClient. SyncFailureHint.vue ('Gagal sinkron: <alasan>' dari kolom lokal sync_error — termasuk penolakan di perangkat bila Weighbridge acuan belum tersinkron atau id Quality Parameter belum terpetakan) dipasang di item list (compact) dan di atas detail. Detail Tanggal lewat toDateInputValue dan filter tanggal list membandingkan toLocalDateString(item.date) (utils/localDate.ts). filter-row grid minmax(0,1fr). Uji: SyncFailureHint.spec.ts, syncService.sqljs.spec.ts (#6 pullVerificationStatus; #3 pemetaan parameter Grading), recordVerification.spec.ts, e2e sync-and-verification.spec.ts (#3 sinkron Grading), backend MobileReadEndpointsTest.php."
   ],
   "deferred_items": [],
   "known_issues": [

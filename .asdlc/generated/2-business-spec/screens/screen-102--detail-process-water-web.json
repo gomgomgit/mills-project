@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-102--detail-process-water-web",
   "name": "Detail Process Water (Web)",
@@ -20,7 +20,7 @@
     "Identitas Process Water: Process Water ID, Tanggal",
     "Verifikasi: Inputted By, Checked By, Acknowledged By, Note",
     "Grid Process Water Detail: menampilkan persis baris yang tersimpan pada record (Time-Slot, Shift, Inspector ID, Raw Water Flow, Clarified Water Flow, Softener Inlet pH, Softener Outlet Hardness, Alum Dosing, Polymer Dosing, Boiler Feed Tank Temp, Boiler Feed Water pH, Boiler Feed TDS, Action Taken/Status, Findings)",
-    "Status record (saved/synced)",
+    "Status record dengan label Bahasa Indonesia (Tersimpan / Tersinkron; Draft / Dijeda bila ada) — bukan nilai enum mentah saved/synced",
     "Tombol Back kembali ke Data Browser Process Water"
   ],
   "available_actions": [
@@ -48,7 +48,8 @@
     "Checked By DAN Acknowledged By keduanya ditampilkan apa adanya, tanpa pembatasan role untuk melihat, konsisten dengan Data Preview Process Water mobile",
     "Grid Process Water Detail ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang, dan menampilkan persis jumlah baris yang tersimpan pada record",
     "Field dikelompokkan sesuai struktur Form Process Water (Identitas, Verifikasi, Grid Detail)",
-    "Tidak ada tabel referensi target operasional pada stasiun ini"
+    "Tidak ada tabel referensi target operasional pada stasiun ini",
+    "Tampilan berbahasa Indonesia (audit 2026-10-04): status record berlabel Indonesia (Draft / Dijeda / Tersimpan / Tersinkron), Tanggal memakai nama bulan Indonesia dalam zona WIB (mis. '04 Okt 2026'), nilai bacaan numerik grid berformat id-ID (titik ribuan, koma desimal, jumlah desimal apa adanya), nilai kosong tampil '-'"
   ],
   "usecase_ids": [
     "usecase-071--detail-process-water-web"
@@ -56,7 +57,8 @@
   "edge_cases": [
     "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
     "Checked By/Acknowledged By belum diisi — tampilkan '-'",
-    "Record memiliki nol baris Process Water Detail (kasus tepi: tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+    "Record memiliki nol baris Process Water Detail (kasus tepi: tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error",
+    "{id} di URL bukan UUID (mis. teks 'abc', angka, atau UUID terpotong) — sejak audit 2026-10-04 diperlakukan sama persis dengan record tidak ditemukan: pesan 'Record tidak ditemukan' + tombol Back, bukan halaman error"
   ],
   "test_priority": "medium",
   "open_questions": []

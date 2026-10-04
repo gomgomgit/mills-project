@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-023--form-grading-web",
   "name": "Form Grading (Web)",
@@ -15,12 +15,18 @@
     "backend/routes/api.php",
     "backend/database/migrations/2026_08_20_000001_make_vehicle_code_nullable_on_grading_records_table.php",
     "backend/database/factories/StationFactory.php",
-    "backend/composer.json"
+    "backend/composer.json",
+    "backend/app/Support/AppTime.php",
+    "backend/app/Support/Concerns/EnforcesPeriodLock.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php",
+    "backend/config/app.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/GradingRecordServiceTest.php",
     "backend/tests/Feature/Api/FormGradingTest.php",
-    "e2e-web/tests/form-grading.spec.ts"
+    "e2e-web/tests/form-grading.spec.ts",
+    "backend/tests/Feature/AuditFix20261004Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormGrading.php",
@@ -28,10 +34,13 @@
     "backend/resources/views/data/grading-form.blade.php",
     "backend/routes/web.php",
     "backend/resources/views/livewire/data/data-browser-grading.blade.php",
-    "backend/resources/views/livewire/data/detail-grading.blade.php"
+    "backend/resources/views/livewire/data/detail-grading.blade.php",
+    "backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php"
   ],
   "fe_test_files_generated": [
-    "backend/tests/Feature/Livewire/FormGradingTest.php"
+    "backend/tests/Feature/Livewire/FormGradingTest.php",
+    "backend/tests/Feature/Livewire/WebFormNoDisabledFieldTest.php",
+    "backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php"
   ],
   "implementation_notes": [
     "Satu Livewire component (FormGrading) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormWeighbridge (screen-022)",
@@ -39,7 +48,7 @@
     "GradingRecord::booted()'s saving guard (menolak status=saved dengan 0 grading_detail) ditangani di create() dengan insert status=Synced dulu, lalu upsert details, baru update ke status=saved dalam 1 DB transaction",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit user): Tanggal pada web adalah input type=date yang genuinely editable, default today() saat form dibuka — TIDAK dikunci seperti mobile screen-011",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit user): tidak ada draft/pause/lock di web — Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
-    "PENGECUALIAN dari konvensi web-form-input: UOM dan Percentage tiap baris Grading Detail tetap disabled (computed/snapshot server-side), sama alasan seperti Net Weight pada Form Weighbridge Web",
+    "UOM dan Percentage tiap baris Grading Detail dirender sebagai TEKS (span fg-computed-value) sejak 2026-10-04 — sebelumnya input disabled yang menyalahi konvensi web-form-input; tetap computed/snapshot server-side",
     "WB Card No dropdown scoped ke business_unit_id terpilih (query WeighbridgeRecord whereHas station.business_unit_id), dimuat ulang tiap kali Business Unit berganti; auto-fill license_plate_no/estate_supplier/division hanya terjadi ulang saat WB Card No spesifik berganti",
     "Quality Parameter dropdown per baris dihitung reaktif (availableParameterOptions()) — mengecualikan grading_parameter_id yang dipakai baris LAIN; server re-validasi independen (tidak percaya UI saja) menolak duplikat dengan 422",
     "FALLOUT DITEMUKAN & DIPERBAIKI: grading_records.vehicle_code masih NOT NULL di database meski sudah dibuat opsional di UI mobile pada sesi sebelumnya (perubahan itu tidak pernah menyentuh skema). Migration baru dibuat untuk membuat kolom nullable; entity-catalog (v8) turut diperbarui agar konsisten. doctrine/dbal ditambahkan ke composer.json — migration pertama di proyek ini yang butuh CHANGE kolom, bukan sekadar ADD COLUMN",
@@ -49,7 +58,8 @@
     "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): GradingRecordService::create() memanggil assertPeriodOpenForWrite('grading', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormGrading::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/GradingRecordServiceTest.php, tests/Feature/Api/FormGradingTest.php, tests/Feature/Livewire/FormGradingTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini).",
     "REVISI v3 (2026-10-03, uji ditambahkan/diperbaiki — kode produksi tidak diubah): tests/Feature/Api/FormGradingTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 15 uji, semuanya hijau (test_results.integration diperbarui). Selain itu spec browser e2e-web/tests/form-grading.spec.ts diperbaiki hari ini (race pada selectLive — pilihan dropdown Livewire dibaca sebelum round-trip selesai); perbaikan hanya di spec, bukan di komponen.",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-grading.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 8 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): GradingRecordService — normalizeFormFields() menormalkan date ber-zona ke WIB (App\\Support\\AppTime); create/update memanggil assertEventDateNotTooFarAhead (> besok -> 422 errors.date); weighbridge_record_id ['bail','required','uuid','exists'] + pesan 'WB Card No yang dipilih tidak valid.'; validateDetails() cek Str::isUuid(grading_parameter_id) sebelum whereKey; upsertDetails() memperlakukan id baris bukan-UUID sebagai baris baru; ekspor tanpa kolom 'Checked By' + label status Indonesia + .xlsx asli (SheetWriter, relevan untuk screen-017). ScopesToActorMill: production_line_id bukan-UUID -> 422; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL. FormGrading: trait GuardsRecordIdShape (id bukan UUID -> notFound); view: UOM/Percentage sebagai teks, @disabled dihapus dari select Production Line. Tes: tests/Feature/AuditFix20261004Test.php ([uuid], [future]), tests/Feature/Livewire/WebFormNoDisabledFieldTest.php, RecordIdShapeGuardTest.php; tests/Unit/Services/GradingRecordServiceTest.php ikut diubah. test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

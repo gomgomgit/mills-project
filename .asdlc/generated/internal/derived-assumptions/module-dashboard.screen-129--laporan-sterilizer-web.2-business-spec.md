@@ -19,3 +19,13 @@
 - information_displayed += "Pemilih Mill — hanya tampil untuk Admin" ← konsekuensi aturan di atas
 - edge_cases += "Admin membuka laporan tanpa memilih mill → pesan yang meminta pemilihan mill terlebih dahulu" ← agen memilih pesan pemandu, bukan auto-pilih mill pertama, karena auto-pilih akan membuat Admin mengira sedang melihat data seluruh mill
 - bdd_scenarios: 13 skenario diturunkan bdd-spec-writer-agent dari usecase v1, lalu agen MENAMBAH 2 skenario Admin (belum memilih mill, dan setelah memilih mill) yang tidak ada di keluaran agent karena aturan Admin baru ditemukan sesudahnya. Total 15
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (SterilizerReportService.php, laporan-sterilizer.blade.php, LaporanSterilizer.php, layouts/app.blade.php + RouteAccess, WebAccessTest).
+- business_rules[0] = Operator login web terbatas (Beranda + Ganti Password); laporan → 403, menu tak tampil ← WebAccessTest + RouteAccess di sidebar
+- business_rules[+] = Production Line wajib, tanpa opsi semua line; sebelum dipilih tak ada angka/Ekspor; nama line di hero ← LaporanSterilizer::$productionLineId/needsProductionLineSelection + hero `$selectedProductionLine` (sudah ada di tech-spec v3, belum di business-spec)
+- available_actions[3].description = ekspor CSV / .xlsx sungguhan, konteks Periode/Mill/Production Line, judul Indonesia, status Indonesia, HH:MM, Ya/Tidak ← SheetWriter + EXPORT_HEADER + ExportValue
+- available_actions[+] = "Pilih Production Line" ← #[Url(as: 'production_line_id')]
+- information_displayed[+] = pemilih Production Line + nama line di hero ← blade hero (#10)
+- edge_cases[5] = kolom batang selebar label, gulir di kartu, petunjuk "Geser mendatar…" bila > 10 tanggal ← md-trendchart--days + `count($daily) > 10`

@@ -14,3 +14,12 @@ Ukur ulang uji browser Playwright mobile 2026-10-03.
 - Angka browser diambil dari run tujuh spec laporan mobile (Vite dev server + backend :8000, DemoAccountSeeder): 185 lolos, 0 gagal; failed = 0 dan run_at disetel 2026-10-03T00:00:00Z (jam tidak tercatat, dipakai tengah malam UTC).
 - reporting-pilih-stasiun.spec.ts: 15 lolos (naik dari 13 karena skenario bertambah).
 - Known_issue "test_results.browser tidak diukur ulang" dihapus karena pengukuran ulang kini menutupnya; known_issue lain dibiarkan apa adanya.
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff ReportingPilihStasiunView.vue + spec unit/e2e).
+- implementation_notes[0], [3] = productionLineRepo/seed dipakai hanya saat cache stasiun kosong (bukan lagi "nol jaringan mutlak") ← bootstrapStationsWhenEmpty()
+- known_issues[0] = ditandai DITUTUP (layar kosong bagi pengguna baru sudah diperbaiki bootstrap) — tidak dihapus karena patch tak bisa menghapus elemen list tanpa menulis ulang semua known_issues ⚠ (keputusan agen)
+- implementation_notes += REVISI (2026-10-04, audit-fix)
+- Daftar berkas tidak berubah: berkas uji yang menutup perubahan (ReportingPilihStasiunView.spec.ts, e2e/reporting-pilih-stasiun.spec.ts) sudah tercatat
+- known_issues[1] (label panjang/bubble AI menutupi tile) dibiarkan — floatingSafeArea mungkin mengurangi tumpang tindih bubble tetapi tidak diverifikasi ⚠

@@ -17,3 +17,11 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/DetailProcessQualityControlTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/Data/DetailProcessQualityControl.php, backend/resources/views/livewire/data/detail-process-quality-control.blade.php, backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php, backend/app/Support/Display.php, backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php).
+- fe_files_generated += backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php, backend/app/Support/Display.php ← dipakai DetailProcessQualityControl.php (use GuardsRecordIdShape) dan blade (\App\Support\Display::...)
+- fe_test_files_generated += backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php ← file uji baru mencakup DetailProcessQualityControl (dataset 18 stasiun)
+- implementation_notes += REVISI (2026-10-04, audit-fix) ← git diff DetailProcessQualityControl.php / detail-process-quality-control.blade.php; DetailProcessQualityControlTest asersi angka kini id-ID
+- known_issues: tidak diubah ← tidak ada issue yang diperbaiki/ditambahkan oleh audit untuk layar ini

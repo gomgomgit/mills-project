@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-137--laporan-boiler-room-mobile",
   "name": "Laporan Boiler Room (Mobile)",
@@ -173,11 +173,13 @@
               "production_line": "{ id: uuid, name: string } | null — blok BARU (2026-09-28), ADITIF: seluruh kunci yang sudah ada tetap di tempatnya. null ketika permintaan tidak membawa production_line_id.",
               "coverage": {
                 "filled_slots": "integer",
-                "expected_slots": "integer",
+                "expected_slots": "integer (= boiler_unit_count × days_counted × slots_per_unit_per_day)",
                 "coverage_percent": "float",
                 "boiler_unit_count": "integer",
                 "slots_per_unit_per_day": "integer",
-                "days_in_period": "integer"
+                "days_in_period": "integer",
+                "days_counted": "integer — = days_in_period untuk periode selesai, start..hari ini (WIB) untuk periode berjalan, 0 untuk periode belum mulai (App\\Support\\ReportPeriodDays::counted)",
+                "period_running": "boolean — true bila end_date periode setelah hari ini"
               },
               "metrics": {
                 "steam_pressure_bar": {
@@ -349,7 +351,7 @@
           },
           "response": {
             "success_schema": {
-              "_note": "StreamedResponse; Content-Disposition attachment. Kolom konteks record (tanggal, unit boiler, status, catatan) diulang tiap baris, lalu seluruh 15 kolom pengukuran termasuk ketiga kolom teks bebas apa adanya"
+              "_note": "StreamedResponse; Content-Disposition attachment. Mobile memakai format=csv. Kolom: Periode, Mill, Production Line (konteks ekspor, diulang tiap baris) → Tanggal, Unit Boiler, Status (label Indonesia, mis. 'Tersinkron'), Catatan (konteks record, diulang) → Slot Waktu HH:MM → 15 kolom pengukuran; blowdown/sootblowing 'Ya'/'Tidak', ketiga kolom teks bebas apa adanya. (format=excel di server kini .xlsx sungguhan via SheetWriter — tidak dipakai layar mobile)"
             },
             "error_codes": [
               {
@@ -451,7 +453,8 @@
         "summary dan export membawa `production_line_id`; /periods dan /business-units/options TIDAK PERNAH membawanya — Periode Pelaporan milik MILL (periods.business_unit_id, tanpa kolom production_line_id).",
         "Nama line yang menyertai angka diambil dari `summary.production_line.name` (jawaban SERVER) lebih dahulu, baru nama pada daftar opsi — yang ditampilkan adalah line yang benar-benar dipakai server, bukan yang dikira klien.",
         "Mengganti mill (Admin) membatalkan pilihan line DAN mengosongkan daftar opsinya: sebuah Production Line milik satu mill, jadi membiarkannya akan menampilkan angka mill baru dengan label line mill lama.",
-        "Tombol Ekspor hanya dirender ketika ada periode DAN line yang berlaku; onExport() pun berhenti lebih dulu tanpa keduanya — berkas yang mencampur line adalah bentuk kesalahan yang paling sulit dibantah setelah terkirim."
+        "Tombol Ekspor hanya dirender ketika ada periode DAN line yang berlaku; onExport() pun berhenti lebih dulu tanpa keduanya — berkas yang mencampur line adalah bentuk kesalahan yang paling sulit dibantah setelah terkirim.",
+        "KELENGKAPAN PERIODE BERJALAN (audit 2026-10-04 #3/#9/#10): BoilerRoomCoverage di boilerRoomReportRepo.ts menambah days_counted dan period_running (bawaan 0/false bila blok coverage absen), diteruskan apa adanya. LaporanBoilerRoomView: coverageDaysCounted = days_counted ?? days_in_period; rumus kelengkapan memakai days_counted + ' (sampai hari ini)' bila period_running; data-testid=\"period-running-note\" 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat).'; expected_slots 0 → coverage-percent NOT_AVAILABLE ('-') dan data-testid=\"coverage-no-expected\" 'belum ada slot yang diharapkan' menggantikan coverage-slots; persen 1 desimal. Label status periode: draft 'Draft', open 'Terbuka', closed 'Tertutup' (sama dengan web; sebelumnya 'Ditutup')."
       ],
       "data_operations": [
         {
@@ -754,6 +757,31 @@
           "description": "blok production_line pada respons dipetakan apa adanya, dan null ketika server tidak mengirimnya",
           "given": "respons summary dengan dan tanpa kunci production_line",
           "expect": "repo memulangkan objeknya apa adanya atau null — tanpa menebak, tanpa menghitung ulang"
+        },
+        {
+          "description": "repo meneruskan days_counted dan period_running dari /summary apa adanya",
+          "given": "payload coverage memuat days_counted: 4, period_running: true",
+          "expect": "hasil fetchSummary().coverage memuat kedua nilai identik; blok coverage absen → bawaan days_counted 0, period_running false"
+        },
+        {
+          "description": "periode masih berjalan — rumus memakai days_counted dan catatan 'sampai hari ini' tampil",
+          "given": "coverage { days_in_period: 9, days_counted: 4, period_running: true, expected_slots > 0 }",
+          "expect": "period-running-note terender; rumus menyebut 4 hari (sampai hari ini)"
+        },
+        {
+          "description": "periode sudah selesai — tanpa catatan dan tanpa '(sampai hari ini)'",
+          "given": "coverage { period_running: false }",
+          "expect": "period-running-note tidak ada; rumus tanpa '(sampai hari ini)'"
+        },
+        {
+          "description": "penyebut 0 — persen '-' bukan '0,0%'",
+          "given": "coverage { expected_slots: 0 }",
+          "expect": "coverage-percent = '-'; coverage-no-expected 'belum ada slot yang diharapkan' tampil; coverage-slots tidak dirender"
+        },
+        {
+          "description": "periode tertutup — badge 'Tertutup'",
+          "given": "periode berstatus closed",
+          "expect": "period-status-badge = 'Tertutup'; laporan penuh dan Ekspor tetap aktif"
         }
       ]
     }
@@ -818,7 +846,8 @@
     "Kunci ingatan `msl_production_line_{userId}` adalah KUNCI YANG SAMA yang ditulis StationListView.vue dan dibaca ReportingPilihStasiunView.vue (screen-141). Line adalah satu konteks kerja yang dibagi antar layar, bukan tiga pilihan terpisah. Setiap pembacaannya dibungkus try/catch (mode privat bisa melempar).",
     "Bentuk respons options-for-report sengaja {id, name, code} — identik dengan /production-lines/current — supaya mobile cukup punya satu pemeta dan sebuah layar bisa berpindah sumber tanpa mengubah cara membaca barisnya.",
     "Uji yang menyentuh production line WAJIB window.localStorage.clear() di beforeEach: ingatan line bocor antar-uji jauh lebih halus daripada ingatan sesi.",
-    "Cakupan uji Production Line yang nyata untuk layar ini: 13 uji komponen (mobile/tests/LaporanBoilerRoomView.spec.ts), 7 uji repo (mobile/tests/boilerRoomReportRepo.spec.ts), dan 7 uji browser (mobile/tests/e2e/laporan-*.spec.ts, dijalankan terhadap Vite dev server)."
+    "Cakupan uji Production Line yang nyata untuk layar ini: 13 uji komponen (mobile/tests/LaporanBoilerRoomView.spec.ts), 7 uji repo (mobile/tests/boilerRoomReportRepo.spec.ts), dan 7 uji browser (mobile/tests/e2e/laporan-*.spec.ts, dijalankan terhadap Vite dev server).",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): server kini menghentikan penyebut kelengkapan di hari ini (ReportPeriodDays) dan mengirim coverage.days_counted + period_running; boilerRoomReportRepo.ts menambah kedua medan pada tipe + bawaan; LaporanBoilerRoomView.vue menampilkan catatan periode berjalan, rumus '× days_counted hari (sampai hari ini)', '-' + 'belum ada slot yang diharapkan' bila expected_slots 0, dan label status 'Tertutup' (sebelumnya 'Ditutup'). Ekspor CSV dari server kini berkolom Periode/Mill/Production Line + label Indonesia + slot HH:MM + Ya/Tidak (ponsel tidak menyusunnya). Diuji di mobile/tests/LaporanBoilerRoomView.spec.ts, mobile/tests/boilerRoomReportRepo.spec.ts, mobile/tests/e2e/laporan-boiler-room.spec.ts."
   ],
   "test_scenarios": [
     {

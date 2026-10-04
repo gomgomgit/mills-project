@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-04"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-074--form-cpo-dispatch",
   "name": "Form CPO Dispatch",
@@ -15,12 +15,21 @@
     "mobile/src/views/FormCpoDispatchView.vue",
     "mobile/src/router/index.ts",
     "mobile/src/services/writeThroughSync.ts",
-    "mobile/src/components/ConfirmDialog.vue"
+    "mobile/src/components/ConfirmDialog.vue",
+    "mobile/src/utils/localDate.ts",
+    "mobile/src/services/millSettingRepo.ts",
+    "mobile/src/services/syncService.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/cpoDispatchRecordRepo.spec.ts",
     "mobile/tests/FormCpoDispatchView.spec.ts",
-    "mobile/tests/e2e/form-cpo-dispatch.spec.ts"
+    "mobile/tests/e2e/form-cpo-dispatch.spec.ts",
+    "mobile/tests/noteLabelConsistency.spec.ts",
+    "mobile/tests/DialogTeleport.spec.ts",
+    "mobile/tests/localDate.sqljs.spec.ts",
+    "mobile/tests/writeThroughSync.spec.ts",
+    "mobile/tests/millSettingRepo.sqljs.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts"
   ],
   "implementation_notes": [
     "Mirrors FormKernelDispatchView.vue's structural pattern (breadcrumb + hamburger header, sectioned form body, dirty-tracking Back confirm, Pause/Clear/Simpan footer actions) but WITHOUT the grid/N-column/time-slot-uniqueness concept — Log Kejadian is a free event log, rows added manually via 'Tambah baris' with no upper bound and no shared checkbox-column grid",
@@ -32,7 +41,8 @@
     "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormCpoDispatchView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('cpo_dispatch_record') → pushSavedRecordNow → POST /api/cpo-dispatch-records bila Mills Setting immediate_sync_enabled aktif. Penolakannya (termasuk 422 PERIOD_CLOSED) semula DIAM; sejak 2026-10-03 ditampilkan lewat ConfirmDialog — lihat catatan REVISI (2026-10-03) di bawah. Pada sinkron manual screen-006 alasan penolakan tampil per record di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('cpo-dispatch', mill, date) di CpoDispatchRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Perilaku write-through (diam saat offline/5xx, rejection saat 4xx) dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts.",
     "REVISI (2026-10-03): penolakan write-through kini ditampilkan — syncAfterSave('cpo_dispatch_record') (mobile/src/services/writeThroughSync.ts) mengembalikan {synced, rejection}; bila server menolak dengan 4xx (mis. 422 PERIOD_CLOSED) FormCpoDispatchView menampilkan ConfirmDialog satu tombol (cancel-label=\"\", mobile/src/components/ConfirmDialog.vue) 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu bernavigasi ke monitor-cpo-dispatch saat ditutup (tombol 'Mengerti' maupun klik overlay); record tetap 'saved' di SQLite dan dapat dikirim ulang lewat sinkron manual screen-006. Offline/5xx/fitur nonaktif tetap diam. Cakupan: mobile/tests/writeThroughSync.spec.ts ('reports the server message when the push is rejected with 422 PERIOD_CLOSED' + kasus diam); tidak ada component test khusus layar ini — test komponen representatif ada di mobile/tests/FormThreshingView.spec.ts ('shows the server rejection before leaving when write-through saving is refused').",
     "REVISI 2026-10-03 (e2e): spec Playwright mobile/tests/e2e/form-cpo-dispatch.spec.ts ditulis (16 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec). Penulisan spec e2e stasiun ini menemukan cacat aplikasi di repo yang dipakai form ini: todayDateString() di mobile/src/services/cpoDispatchRecordRepo.ts memakai new Date().toISOString().slice(0,10) (UTC) untuk kolom date pada createDraft, sehingga draft yang dibuat pukul 00:00–06:59 WIB mendapat tanggal kemarin — tanggal itu yang tampil dan disimpan form, hilang dari 'Hari Ini' Monitor, tersembunyi oleh filter default hari ini di Data Preview, dan terkirim ke server (write-through/sinkron) dengan tanggal kejadian yang salah sehingga dinilai kunci periode pada hari yang salah. Kini memakai tanggal lokal (getFullYear/getMonth/getDate), selaras dengan view Data Preview dan getTodaySummary (date('now','localtime')). Uji regresi: vitest 'mengisi tanggal draft dengan tanggal lokal, bukan UTC (dini hari WIB)' di mobile/tests/cpoDispatchRecordRepo.spec.ts (merah sebelum perbaikan, hijau sesudahnya) dan uji e2e 'New Data dini hari ...' di mobile/tests/e2e/monitor-cpo-dispatch.spec.ts (sebelumnya fixme, kini lulus).",
-    "REVISI 2026-10-04 (penyeragaman checkbox verifikasi, keputusan user): checkbox header Checked By dan Acknowledged By di mobile/src/views/FormCpoDispatchView.vue kini HANYA dirender untuk peran yang berhak — Checked By dengan v-if=\"isSupervisor\", Acknowledged By dengan v-if=\"isMillManagement\" — seragam dengan konvensi 2026-09-14 form stasiun lain. Sebelumnya keduanya tampil untuk semua peran dan disabled bagi peran yang tidak berhak. Test disesuaikan: vitest mobile/tests/FormCpoDispatchView.spec.ts ('... not rendered for a non-supervisor role'; baru: 'Acknowledged By checkbox is rendered (and Checked By is not) for a mill_management role') dan e2e mobile/tests/e2e/form-cpo-dispatch.spec.ts (toBeDisabled → toHaveCount(0); jumlah spec tetap 16). Hasil run gabungan 4 form (Sterilizer/CPO Dispatch/Kernel Dispatch/Solid Waste Disposal): 60/60 e2e dan 57/57 vitest lulus. Angka test_results tidak diubah."
+    "REVISI 2026-10-04 (penyeragaman checkbox verifikasi, keputusan user): checkbox header Checked By dan Acknowledged By di mobile/src/views/FormCpoDispatchView.vue kini HANYA dirender untuk peran yang berhak — Checked By dengan v-if=\"isSupervisor\", Acknowledged By dengan v-if=\"isMillManagement\" — seragam dengan konvensi 2026-09-14 form stasiun lain. Sebelumnya keduanya tampil untuk semua peran dan disabled bagi peran yang tidak berhak. Test disesuaikan: vitest mobile/tests/FormCpoDispatchView.spec.ts ('... not rendered for a non-supervisor role'; baru: 'Acknowledged By checkbox is rendered (and Checked By is not) for a mill_management role') dan e2e mobile/tests/e2e/form-cpo-dispatch.spec.ts (toBeDisabled → toHaveCount(0); jumlah spec tetap 16). Hasil run gabungan 4 form (Sterilizer/CPO Dispatch/Kernel Dispatch/Solid Waste Disposal): 60/60 e2e dan 57/57 vitest lulus. Angka test_results tidak diubah.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) helper lokal todayDateString() di cpoDispatchRecordRepo.ts dihapus; createDraft() kini memakai util bersama todayLocalDateString() (mobile/src/utils/localDate.ts) — perilaku sama (tanggal lokal), sumber tunggal; nilai lama bersufiks zona dinormalisasi localSchema.normalizeLegacyUtcDates() (mobile/tests/localDate.sqljs.spec.ts). (2) label catatan 'Note' → 'Catatan' dengan id eksplisit field-note di FormCpoDispatchView.vue (mobile/tests/noteLabelConsistency.spec.ts). (3) header: ikon brand + tombol hamburger SVG ber-aria-label 'Buka/Tutup menu navigasi' (menggantikan glyph &#9776;), tombol Pause bergaya action-button--warning. (4) write-through kini benar-benar aktif saat immediate_sync_enabled=true — millSettingRepo.getMillSetting() sebelumnya tidak men-SELECT kolom itu (mobile/tests/millSettingRepo.sqljs.spec.ts, writeThroughSync.spec.ts). (5) syncService.pushUniformRow mengirim `date` lokal, menyimpan alasan penolakan ke kolom sync_error (Data Preview: 'Gagal sinkron: <alasan>'), sinkron manual memakai Production Line stasiun record (mobile/tests/syncService.sqljs.spec.ts). (6) server: CpoDispatchRecordService kini juga menolak event_date baris di periode tertutup (assertDetailEventDatesWritable, 422 PERIOD_CLOSED) serta date/event_date > besok (assertEventDateNotTooFarAhead, 422) — ditampilkan lewat dialog penolakan yang sudah ada. (7) ConfirmDialog di-teleport ke <body> (z-index 1200) (mobile/tests/DialogTeleport.spec.ts). Angka test_results tidak diubah."
   ],
   "deferred_items": [],
   "known_issues": [

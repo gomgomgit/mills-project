@@ -25,3 +25,17 @@ Penyeragaman checkbox verifikasi (keputusan user 2026-10-04).
 - test_scenarios: assert operator "remain empty/disabled" → checkbox tidak dirender; skenario "Checked By Khusus Supervisor" → checkbox tidak ditampilkan (count 0).
 - Selaras konvensi 2026-09-14 form stasiun lain; kode dan test sudah diubah lebih dulu.
 - actor_permissions: ditambah entri actor-mill-management (can_access true; akses form seperti Operator/Supervisor + checkbox Acknowledged By, tanpa Checked By) — sinkronisasi dokumentasi, bukan perubahan akses: route hanya mensyaratkan login (router.beforeEach), tanpa pembatasan role.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/FormSterilizerView.vue, mobile/src/services/sterilizerRecordRepo.ts, backend/app/Services/SterilizerRecordService.php, mobile/src/services/syncService.ts, mobile/src/services/millSettingRepo.ts, mobile/src/services/localSchema.ts, mobile/tests/FormSterilizerView.spec.ts, mobile/tests/e2e/form-sterilizer.spec.ts).
+- actor_permissions[0..2].conditions = operator & mill_management: Checked by SPV per baris tampil teks 'Ya'/'—'; supervisor: satu-satunya yang mendapat checkbox per baris + Checked By header ← v-if="isSupervisor" pada <td> Checked by SPV
+- api_contracts[0].business_logic[1] = Date diisi createDraft() via todayLocalDateString() bersama (helper lokal todayDateString() dihapus); view fallback todayLocalDateString() ← diff sterilizerRecordRepo.ts
+- api_contracts[0].business_logic[2] = Verifikasi berisi "Catatan" (id field-note) ← diff template
+- api_contracts[0].business_logic[5] = Checked by SPV ditandai hanya Supervisor (rujuk langkah 16) ← diff template
+- api_contracts[0].business_logic (+16) = aturan render checkbox/teks per peran + server mengabaikan nilai non-Supervisor; repo lokal tidak men-strip per peran ← view, SterilizerRecordService::upsertDetails(), sterilizerRecordRepo.ts (tanpa perubahan strip)
+- api_contracts[0].edge_case_handling (+3) = Checked by SPV non-Supervisor; date lokal/normalisasi UTC; sync_error + write-through aktif + line per record ← view/service, localSchema, syncService, millSettingRepo
+- api_contracts[0].business_rules_applied (+1) = Checked by SPV hanya Supervisor (UI + server) ← view + service
+- api_contracts[0].unit_test_cases (+2) = non-Supervisor (operator/mill_management/admin) → teks Ya/—; Supervisor → checkbox dapat diubah ← mobile/tests/FormSterilizerView.spec.ts (2 test baru)
+- test_scenarios (+1) = "Checked by SPV per Baris Khusus Supervisor" ← FormSterilizerView.spec.ts + e2e 'Checked by SPV — hanya Supervisor yang dapat mengubah, Operator melihat teks'
+- implementation_notes (append) = REVISI 2026-10-04 audit-fix (SPV hanya Supervisor, date lokal bersama, Catatan, write-through/sync_error/line, teleport, kosmetik header/Pause warning) ← diff kode

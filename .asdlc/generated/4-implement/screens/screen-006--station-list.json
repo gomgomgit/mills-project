@@ -1,15 +1,21 @@
 {
-  "ver": 15,
+  "ver": 16,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-006--station-list",
   "name": "Station List",
   "module_id": "module-mobile-station-ops",
   "status": "partial",
-  "files_generated": [],
-  "test_files_generated": [],
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/GradingParameterController.php",
+    "backend/app/Services/GradingParameterService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/MobileReadEndpointsTest.php"
+  ],
   "fe_files_generated": [
     "mobile/src/services/stationRepo.ts",
     "mobile/src/components/StationGrid.vue",
@@ -22,7 +28,13 @@
     "mobile/src/services/depricarpingRecordRepo.ts",
     "mobile/src/services/kernelPlantRecordRepo.ts",
     "mobile/src/services/productionLineRepo.ts",
-    "mobile/src/services/syncService.ts"
+    "mobile/src/services/syncService.ts",
+    "mobile/src/components/SyncResultDialog.vue",
+    "mobile/src/services/gradingParameterSync.ts",
+    "mobile/src/services/millSettingRepo.ts",
+    "mobile/src/utils/localDate.ts",
+    "mobile/src/utils/floatingSafeArea.ts",
+    "mobile/src/App.vue"
   ],
   "fe_test_files_generated": [
     "mobile/tests/stationRepo.spec.ts",
@@ -30,7 +42,14 @@
     "mobile/tests/StationListView.spec.ts",
     "mobile/tests/e2e/station-list.spec.ts",
     "mobile/tests/localSchema.spec.ts",
-    "mobile/tests/syncService.spec.ts"
+    "mobile/tests/syncService.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts",
+    "mobile/tests/SyncFailureHint.spec.ts",
+    "mobile/tests/DialogTeleport.spec.ts",
+    "mobile/tests/floatingSafeArea.spec.ts",
+    "mobile/tests/millSettingRepo.sqljs.spec.ts",
+    "mobile/tests/writeThroughSync.spec.ts",
+    "mobile/tests/e2e/sync-and-verification.spec.ts"
   ],
   "implementation_notes": [
     "stationRepo.ts mengasumsikan baris station (17 aktif + 1 placeholder, sejak 2026-09-01) sudah ada di tabel lokal via sync sebelumnya",
@@ -44,7 +63,8 @@
     "v12 (2026-09-01, reorder + hide, permintaan user): stationRepo.ts getActiveAndPlaceholderStations()/getActiveAndPlaceholderStationsForProductionLine() ORDER BY CASE diperluas dari 3 tipe eksplisit (weighbridge/grading/cages-track lalu ELSE 99) menjadi 18 tipe eksplisit sesuai urutan custom: Weighbridge, Pressing, Storage Tank, Grading, Clarification, Effluent Plant, Cages Track, Engine Room, CPO Dispatch, Sterilizer, Boiler Room, Kernel Dispatch, Kernel Plant, Process Water, Threshing, Depricarping, Solid Waste Disposal, Process Quality Control — mirrors urutan yang sama di blade web (screen-035). Selain itu 8 tipe (Engine Room, Storage Tank, Effluent Plant, CPO Dispatch, Kernel Dispatch, Process Water, Solid Waste Disposal, Process Quality Control) di-hide sementara dari grid via konstanta HIDDEN_STATION_TYPES + klausa 'AND type NOT IN (...)' di kedua query — stasiun tetap is_active=true dan sepenuhnya fungsional (Monitor/Form/Data Preview, draft, sync semua tetap jalan), hanya tidak ditawarkan sebagai tile yang bisa dipilih di grid ini. Mengikuti pola 'temporarily hidden' yang sama seperti Threshing/Pressing/Depricarping/Kernel Plant di 2026-08-23 (yang lalu di-re-enable). Untuk re-enable, hapus entri dari HIDDEN_STATION_TYPES. Tidak ada perubahan pada loadDraftStatusByType()/MONITOR_ROUTE_NAMES — draft-status dan routing tetap bekerja untuk ke-8 stasiun ini seandainya diakses lewat jalur lain, hanya grid Station List yang menyaringnya.",
     "REVISI (tech-spec v10, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): tombol Sinkronisasi (StationListView → syncService.syncAllRecords) mengirim record 'saved' satu per satu (POST /api/{station}-records untuk 18 stasiun); guard EnforcesPeriodLock di {Station}RecordService::create() menolak 422 code=PERIOD_CLOSED bila periode jenis stasiun itu tidak Terbuka atau tanggal kejadian di luar rentang, dinilai saat request. Penanganan PER RECORD, bukan all-or-nothing: pushUniformRow dan sync{Weighbridge,Grading,CagesTrack}Records menangkap galat per baris → record lain tetap tersinkron; record yang ditolak tetap status 'saved' (tidak di-UPDATE) dengan SyncItemResult.reason = message dari server (apiClient.normalizeError), ditampilkan di SyncResultDialog; Grading yang Weighbridge acuannya tertolak ikut gagal dengan alasan 'Weighbridge terkait belum tersinkron'. Pemulihan: Admin membuka kembali baris stasiun di screen-142, lalu Sinkronisasi ulang. Tidak ada kode mobile khusus PERIOD_CLOSED — jalur galat generik sudah mencukupi. Cakupan: mobile/tests/syncService.spec.ts ('reports a failed Weighbridge record with the API error message, and does not update local status', 'reports a failed Pressing record ...', galat generik), mobile/tests/StationListView.spec.ts ('shows a combined success/failure summary with per-item reasons in the popup'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), backend/tests/Unit/Support/EnforcesPeriodLockTest.php. Belum ada test mobile yang memakai respons PERIOD_CLOSED secara spesifik.",
     "REVISI v14 (2026-10-03, sinkronisasi catatan uji): celah 'Belum ada test mobile yang memakai respons PERIOD_CLOSED secara spesifik' pada catatan REVISI kunci periode di atas kini TERTUTUP — mobile/tests/syncService.spec.ts menambah 'keeps a record rejected by the period lock (422 PERIOD_CLOSED) as saved while the rest of the batch still syncs' (respons 422 {code: 'PERIOD_CLOSED', message} yang dinormalisasi apiClient: record yang ditolak tetap 'saved' dengan reason = message server, record lain dalam batch tetap tersinkron). mobile/src/services/syncService.ts: SyncItemResult kini membawa `status` di jalur gagal ke-18 stasiun, sehingga hasil penolakan per record dapat dibedakan. Uji hijau.",
-    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/station-list.spec.ts 6/6 lulus. Perbaikan spec (drift, bukan cacat aplikasi): alur kini melewati pemilih Production Line dulu; kasus 'tile nonaktif' men-seed placeholder inaktif sendiri (seed default tak lagi punya placeholder); kasus override ikon memblokir request re-sync stasiun agar override lokal tidak tertimpa."
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/station-list.spec.ts 6/6 lulus. Perbaikan spec (drift, bukan cacat aplikasi): alur kini melewati pemilih Production Line dulu; kasus 'tile nonaktif' men-seed placeholder inaktif sendiri (seed default tak lagi punya placeholder); kasus override ikon memblokir request re-sync stasiun agar override lokal tidak tertimpa.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): syncService.ts direstrukturisasi — syncTable() memproses tiap record dengan production line dari stasiun tempat record dibuat (resolveRecordContext: station_id → station.production_line_id), line terpilih Station List hanya fallback (syncAllRecords tidak lagi melempar tanpa line); record tanpa line gagal di perangkat. markSynced() mengosongkan dan failure()/localFailure() menulis kolom lokal sync_error (localSchema.migrateRecordTablesForSyncError) — gagal jaringan tidak ditulis; ditampilkan di Data Preview oleh SyncFailureHint.vue. Grading: fetchAndCacheGradingParameters() (GET /api/grading-parameters baru, GradingParameterController/Service) sebelum push + resolveServerGradingParameterIds() — id palsu tidak pernah dikirim. Payload date lokal (toLocalDateString) & datetime ber-offset (toOffsetDateTime). millSettingRepo.getMillSetting() kini SELECT immediate_sync_enabled → write-through benar-benar aktif. SyncItemResult + stationName/productionLineId; SyncResultDialog menampilkan nama stasiun per item gagal dan di-Teleport ke <body> (z-index 1200); vite.config.ts setupFiles tests/setup/teleportStub.ts untuk spec layar. App.vue: ruang aman bawah (floatingSafeArea.ts) untuk bubble AI/jam mengambang. StationGrid.vue: judul seksi 'Stasiun Aktif' (sebelumnya 'Stasiun MVP Aktif'). Uji: syncService.spec.ts ('does not throw without a selected productionLineId'), syncService.sqljs.spec.ts (#3/#4/#5/#9), SyncFailureHint.spec.ts (SyncResultDialog nama stasiun), DialogTeleport.spec.ts, floatingSafeArea.spec.ts, millSettingRepo.sqljs.spec.ts, writeThroughSync.spec.ts, e2e sync-and-verification.spec.ts (#2/#3/#5/#9/#10 termasuk copy 'Stasiun Aktif'), backend MobileReadEndpointsTest.php (grading-parameters)."
   ],
   "deferred_items": [],
   "known_issues": [

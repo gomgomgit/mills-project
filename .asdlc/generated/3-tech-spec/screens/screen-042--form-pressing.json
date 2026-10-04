@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-042--form-pressing",
   "name": "Form Pressing",
@@ -28,8 +28,8 @@
       "endpoints": [],
       "business_logic": [
         "1. Load draft pressing_record by id (route param) beserta seluruh pressing_detail turunannya ke form state (bisa nol baris untuk draft baru), diurutkan berdasarkan time_slot dalam urutan kanonis (07:00..06:00, BUKAN alfabetis)",
-        "2. Auto-set Tanggal (date) = waktu saat ini HANYA jika draft baru (masih kosong); jika draft dilanjutkan, pertahankan nilai tersimpan (defensive fallback, createDraft() sudah mengisinya)",
-        "3. Render field dikelompokkan per section: Identitas Pressing (Presser ID, Tanggal), Verifikasi (Inputted By read-only, Checked By, Acknowledged By, Note), Pressing Detail (grid dinamis), Target Operasional (tabel referensi read-only, sumber data statis lihat implementation_notes)",
+        "2. Tanggal (date) diisi saat draft dibuat oleh pressingRecordRepo.createDraft() = todayLocalDateString() (src/utils/localDate.ts — tanggal LOKAL 'YYYY-MM-DD', BUKAN toISOString() UTC, sehingga draft 00:00–06:59 WIB tidak bertanggal kemarin); form hanya meng-auto-set bila masih kosong (defensive fallback), draft yang dilanjutkan mempertahankan nilai tersimpan",
+        "3. Render field dikelompokkan per section: Identitas Pressing (Presser ID, Tanggal), Verifikasi (Inputted By read-only, Checked By, Acknowledged By, Catatan #field-note), Pressing Detail (grid dinamis), Target Operasional (tabel referensi read-only, sumber data statis lihat implementation_notes)",
         "4. Render breadcrumb (Home > Production Process Activity > Pressing > Form, tappable) dan header dengan hamburger",
         "5. REVISI 2026-08-24 (dari desain awal grid statis 24 baris): grid Pressing Detail TIDAK di-pre-generate — dimulai kosong untuk draft baru, mengikuti pola persis Threshing Detail (screen-041)/Cages Tipped Time (screen-012)",
         "6. On Tambah baris Pressing Detail: tambah 1 baris baru (tanpa id) ke grid, Time-Slot belum dipilih, seluruh kolom bacaan kosong",
@@ -125,11 +125,11 @@
         },
         {
           "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
-          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED terjadi saat record tiba di server: (a) pada sinkron manual dari Station List (screen-006) — record tetap 'saved' di perangkat dan alasan dari server ditampilkan per record di SyncResultDialog; (b) bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mengirim record ini (writeThroughSync.syncAfterSave('pressing_record') → syncService.pushSavedRecordNow → POST /api/pressing-records). REVISI 2026-10-03: penolakan 4xx (mis. 422 PERIOD_CLOSED) pada kiriman langsung ini TIDAK lagi diam — syncAfterSave() mengembalikan {synced:false, rejection:<pesan server>}, form menampilkan ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu bernavigasi ke Monitor Pressing saat dialog ditutup; record tetap 'saved' di perangkat (tidak ada rollback). Kegagalan offline/5xx tetap diam — record menunggu sinkron berikutnya. Pemulihan: Admin membuka kembali baris stasiun Pressing di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang dari screen-006."
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED (atau 422 validasi tanggal lebih jauh dari besok — EnforcesPeriodLock::assertEventDateNotTooFarAhead pada date) terjadi saat record tiba di server: (a) pada sinkron manual dari Station List (screen-006) — record tetap 'saved' di perangkat, alasan server ditampilkan per record di SyncResultDialog DAN disimpan di kolom lokal sync_error (tampil 'Gagal sinkron: <alasan>' di Data Preview lewat SyncFailureHint.vue; dikosongkan saat sinkron berikutnya berhasil; gagal jaringan tidak ditulis); (b) bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mengirim record ini (writeThroughSync.syncAfterSave('pressing_record') → syncService.pushSavedRecordNow → POST /api/pressing-records). Penolakan 4xx pada kiriman langsung ini: syncAfterSave() mengembalikan {synced:false, rejection:<pesan server>}, form menampilkan ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu bernavigasi ke Monitor Pressing saat dialog ditutup; record tetap 'saved' di perangkat (tidak ada rollback). Kegagalan offline/5xx tetap diam — record menunggu sinkron berikutnya. Pemulihan: Admin membuka kembali baris stasiun Pressing di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang dari screen-006."
         }
       ],
       "business_rules_applied": [
-        "Tanggal otomatis sekali saat draft baru dibuat",
+        "Tanggal otomatis sekali saat draft baru dibuat, memakai tanggal LOKAL perangkat (todayLocalDateString), bukan UTC",
         "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
         "Grid Pressing Detail TIDAK di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris, mengikuti pola persis Threshing Detail/Cages Tipped Time",
         "Time-Slot tiap baris harus lebih lambat (index kanonis lebih besar) dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
@@ -150,9 +150,9 @@
           "expect": "form state's detail rows array is empty"
         },
         {
-          "description": "sets date to current time when draft is new (empty)",
-          "given": "loaded draft record has date = null",
-          "expect": "date set to current timestamp (now) exactly once on mount"
+          "description": "createDraft() stores the LOCAL date (draft created at 01:30 WIB is dated today, not yesterday)",
+          "given": "system time 01:30 WIB (18:30 UTC previous day); createDraft(userId) called",
+          "expect": "pressing_record.date = today's local 'YYYY-MM-DD'"
         },
         {
           "description": "preserves stored date when resuming a paused draft",
@@ -281,7 +281,8 @@
     "Constraint model server PressingRecord::booted() (minimal 1 pressing-detail row exists) sekarang benar-benar berarti apa adanya (baris hanya ada jika user menambahkannya) — validasi 'minimal 1 baris VALID (Time-Slot + kolom bacaan terisi)' pada layar ini tetap ditegakkan di level FE + repo mobile (localDb), bukan constraint DB",
     "Breadcrumb & hamburger mengikuti pola yang sama dengan Form Weighbridge/Grading/Cages Track/Threshing",
     "FormPressingView.vue: SearchableSelect.vue dipakai untuk Time-Slot per baris (menggantikan label read-only lama), mirip FormThreshingView.vue",
-    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5): FormPressingView menyimpan ke SQLite lokal; satu-satunya jalur tulis server dari form ini adalah write-through syncAfterSave('pressing_record') saat Mills Setting immediate_sync_enabled aktif (POST /api/pressing-records, create). Penolakan 4xx pada jalur ini (mis. 422 PERIOD_CLOSED) ditampilkan lewat ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu form bernavigasi ke Monitor Pressing; kegagalan offline/5xx tetap diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('pressing', mill, date) berjalan di PressingRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5): FormPressingView menyimpan ke SQLite lokal; satu-satunya jalur tulis server dari form ini adalah write-through syncAfterSave('pressing_record') saat Mills Setting immediate_sync_enabled aktif (POST /api/pressing-records, create). Penolakan 4xx pada jalur ini (mis. 422 PERIOD_CLOSED) ditampilkan lewat ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu form bernavigasi ke Monitor Pressing; kegagalan offline/5xx tetap diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('pressing', mill, date) berjalan di PressingRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) pressingRecordRepo.createDraft() menyimpan date = todayLocalDateString() (src/utils/localDate.ts) — sebelumnya ISO UTC sehingga draft 00:00–06:59 WIB bertanggal kemarin; localSchema.normalizeLegacyUtcDates() memigrasi nilai lama, dan payload sinkron selalu mengirim date = toLocalDateString(date); (2) label catatan 'Note' → 'Catatan' dengan id field-note; (3) write-through kini BENAR-BENAR aktif bila immediate_sync_enabled menyala — millSettingRepo.getMillSetting() sebelumnya tidak men-SELECT kolom immediate_sync_enabled sehingga isImmediateSyncEnabled() selalu false; (4) sinkron (manual maupun write-through) memakai production line stasiun record (bukan line yang sedang dipilih), dan kegagalan 4xx ditulis ke sync_error (tampil 'Gagal sinkron' di Data Preview), dikosongkan saat sukses; (5) server PressingRecordService menolak date > besok (422 per field) dan id detail non-UUID tidak lagi memicu error SQL; ConfirmDialog kini di-teleport ke <body> (z-index 1200)."
   ],
   "test_scenarios": [
     {

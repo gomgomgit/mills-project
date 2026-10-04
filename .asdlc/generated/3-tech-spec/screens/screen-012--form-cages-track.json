@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-012--form-cages-track",
   "name": "Form Cages Track",
@@ -28,8 +28,8 @@
       "endpoints": [],
       "business_logic": [
         "1. Load draft cages_track_record by id (route param) beserta seluruh cages_tipped_time turunannya ke form state",
-        "2. Auto-set Tanggal (date) dan Tippler Start Time = waktu saat ini HANYA jika draft baru (keduanya masih kosong); jika draft dilanjutkan (sudah punya nilai), pertahankan nilai tersimpan, tidak ditimpa",
-        "3. Render field dikelompokkan per section: Identitas Cages Track (Cages Track Number, Tanggal), Tippler & Cages (Tippler Start Time, Tippler Stop Time, Cages Out, Cages Tipped), Verifikasi (Inputted By [read-only, dari current user], Checked By, Acknowledged By, Note), Cages Tipped Time (grid)",
+        "2. Tippler Start Time diisi saat draft dibuat oleh cagesTrackRecordRepo.createDraft() = nowLocalDateTimeString() (src/utils/localDate.ts — jam LOKAL 'YYYY-MM-DDTHH:mm:ss' tanpa sufiks zona, BUKAN toISOString() UTC); Tanggal (date) di-auto-set di form = waktu LOKAL saat ini (nowLocalDateTimeString() milik view) HANYA jika masih kosong; jika draft dilanjutkan (sudah punya nilai), pertahankan nilai tersimpan, tidak ditimpa",
+        "3. Render field dikelompokkan per section: Identitas Cages Track (Cages Track Number, Tanggal), Tippler & Cages (Tippler Start Time, Tippler Stop Time, Cages Out, Cages Tipped), Verifikasi (Inputted By [read-only, dari current user], Checked By, Acknowledged By, Catatan #field-note), Cages Tipped Time (grid)",
         "4. Render breadcrumb (Home > Production Process Activity > Cages Track > Form, tappable) dan header dengan hamburger",
         "5. Load N = jumlah_cages dari local mill_setting reference table (SELECT jumlah_cages FROM mill_setting WHERE business_unit_id = ?, business_unit_id diturunkan dari station milik cages_track_record ini), dibaca sekali saat form dimuat. N menentukan jumlah kolom checklist Cage 1..N pada tiap baris grid. Tombol 'Tambah baris' DISABLED sampai N tersedia (mill_setting sudah tersinkron secara lokal, tidak null) DAN N > 0. Field Cages Tipped (header) TIDAK LAGI dipakai untuk menentukan N — tetap ada sebagai input manual terpisah dengan makna aslinya (jumlah cage yang akan di-tipping sesi ini), disimpan apa adanya tanpa memengaruhi grid",
         "6. On Tambah baris Cages Tipped Time: tambah 1 baris baru (tanpa id) ke grid, time belum dipilih, seluruh checklist Cage 1..N (N dari langkah 5) unchecked",
@@ -38,12 +38,13 @@
         "9. On Hapus baris Cages Tipped Time: hapus baris dari form state; jika baris punya id (sudah tersimpan sebelumnya), tandai untuk DELETE saat Simpan/Pause berikutnya; jam yang dipakai baris tersebut otomatis kembali tersedia di dropdown baris lain (langkah 7 dihitung ulang)",
         "10. Checked By hanya dapat diisi/diedit jika role user saat ini = supervisor; disabled untuk role lain",
         "11. Acknowledged By hanya dapat diisi/diedit jika role user saat ini = mill_management; disabled untuk role lain",
-        "12. On Simpan: validasi field wajib (Cages Track Number, Cages Out, Cages Tipped) dan minimal 1 baris Cages Tipped Time valid (Time terpilih DAN minimal 1 cage tercentang) → jika lengkap: bekukan tippler_stop_time ke waktu saat ini → UPDATE cages_track_record (semua field header, status=saved) → upsert cages_tipped_time (baris tanpa id: INSERT baru dengan total_cages/cages_remain terhitung; baris dengan id: UPDATE; baris ditandai dihapus: DELETE) → navigasi ke Monitor Cages Track",
+        "12. On Simpan: validasi field wajib (Cages Track Number, Cages Out, Cages Tipped) dan minimal 1 baris Cages Tipped Time valid (Time terpilih DAN minimal 1 cage tercentang) → jika lengkap: bekukan tippler_stop_time ke jam LOKAL saat ini (nowLocalDateTimeString(), tanpa sufiks zona) → UPDATE cages_track_record (semua field header, status=saved) → upsert cages_tipped_time (baris tanpa id: INSERT baru dengan total_cages/cages_remain terhitung; baris dengan id: UPDATE; baris ditandai dihapus: DELETE) → navigasi ke Monitor Cages Track",
         "13. On Pause: UPDATE cages_track_record (field form apa adanya, status=draft_paused, TANPA validasi field wajib, TANPA membekukan tippler_stop_time), cages_tipped_time rows di-upsert/delete apa adanya juga → navigasi ke Monitor Cages Track",
         "14. On Clear: tampilkan dialog konfirmasi → jika dikonfirmasi: DELETE seluruh cages_tipped_time milik record lalu DELETE cages_track_record → navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
         "15. On Back: jika form dirty: tampilkan dialog konfirmasi → jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
         "16. On tap breadcrumb segment → navigasi ke route terkait",
-        "17. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+        "17. On tap hamburger → buka menu navigasi (Ganti Password, Logout)",
+        "18. (Di luar form, jalur sinkron screen-006) syncService.pushCagesTrackRow mengirim POST /api/cages-track-records ke production line stasiun record (bukan line terpilih, kecuali record tanpa station_id), date = toLocalDateString(date) ('YYYY-MM-DD' lokal, termasuk baris lama ber-ISO UTC), tippler_start_time/tippler_stop_time = toOffsetDateTime() (jam lokal + offset perangkat, mis. '+07:00'); server (CagesTrackRecordService) menormalkan keduanya ke jam WIB lewat AppTime::normalizeClientDateTime. Gagal 4xx → sync_error ditulis; sukses → sync_error dikosongkan. localSchema.normalizeLegacyUtcDates() memigrasi sekali nilai lama ber-'Z' ke jam lokal."
       ],
       "data_operations": [
         {
@@ -130,11 +131,11 @@
         },
         {
           "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
-          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pemulihan: Admin membuka kembali baris stasiun Cages Track di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED (atau 422 validasi tanggal lebih jauh dari besok — EnforcesPeriodLock::assertEventDateNotTooFarAhead pada date) baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat, alasan dari server ditampilkan di SyncResultDialog DAN disimpan di kolom lokal sync_error (tampil 'Gagal sinkron: <alasan>' di Data Preview lewat SyncFailureHint.vue; dikosongkan saat sinkron berikutnya berhasil; gagal jaringan tidak ditulis). Pemulihan: Admin membuka kembali baris stasiun Cages Track di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
-        "Tanggal dan Tippler Start Time otomatis sekali saat draft baru dibuat",
+        "Tanggal dan Tippler Start Time otomatis sekali saat draft baru dibuat, memakai jam LOKAL perangkat (bukan UTC)",
         "Tippler Stop Time otomatis sekali tepat saat Simpan ditekan (bukan Pause)",
         "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
         "Jumlah kolom checklist grid Cages Tipped Time mengacu ke mill_setting.jumlah_cages, bukan Cages Tipped header",
@@ -146,9 +147,9 @@
       ],
       "unit_test_cases": [
         {
-          "description": "sets date and tippler_start_time to current time when draft is new (both empty)",
-          "given": "loaded draft record has date = null and tippler_start_time = null",
-          "expect": "both set to current timestamp (now) exactly once on mount"
+          "description": "stores tippler_start_time and date as LOCAL wall-clock values when a draft is new",
+          "given": "createDraft() at 01:30 WIB; loaded draft record has date = null",
+          "expect": "tippler_start_time = local 'YYYY-MM-DDTHH:mm:ss' without zone suffix (today, not yesterday); date set once on mount to the current local time"
         },
         {
           "description": "preserves stored date and tippler_start_time when resuming a paused draft",
@@ -274,6 +275,11 @@
           "description": "opens navigation menu when hamburger icon is tapped",
           "given": "hamburger icon tapped",
           "expect": "navigation menu opens showing Ganti Password and Logout options"
+        },
+        {
+          "description": "sends tippler times with the explicit device offset and date as a local date on sync",
+          "given": "a saved cages_track_record with tippler_start_time '2026-10-04T01:30:00' and a legacy UTC-ISO date",
+          "expect": "POST /api/cages-track-records payload has tippler_start_time '2026-10-04T01:30:00+07:00' and date 'YYYY-MM-DD' local; production_line_id = line of the record's station"
         }
       ]
     }
@@ -307,7 +313,8 @@
     "Hapus baris mengikuti pola queue-for-deletion (baris dengan id ditandai, baru DELETE eksekusi saat Simpan/Pause berikutnya) — sama seperti Grading Detail, asumsi agent dari open_question business spec",
     "Checked By/Acknowledged By TETAP ada di form ini (berbeda dari Weighbridge/Grading yang menghapusnya total) — mengikuti mock referensi yang eksplisit mencantumkan kedua field dengan role gating",
     "BARU: perlu local reference table `mill_setting` di localSchema.ts (mirroring server entity mill-setting: id, business_unit_id UNIQUE, app_name, logo, home_page_image, jumlah_cages, timestamps), mengikuti pola read-only `station` (lihat stationRepo.ts's header comment) — pre-seeded/disinkronkan oleh mekanisme sync terpisah, di luar scope screen ini untuk mengimplementasikan sync-nya, hanya membaca. BARU: perlu millSettingRepo.ts kecil, read-only, pola sama seperti stationRepo.ts, mengekspos fungsi mis. getJumlahCages(businessUnitId): Promise<number | null>. business_unit_id record ini didapat dari join station (station_id pada cages_track_record) → station.business_unit_id — bukan disimpan langsung di cages_track_record",
-    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormCagesTrackView tidak memanggil server sama sekali (stasiun ini tidak punya write-through; hanya sinkron manual dari screen-006 lewat POST /api/cages-track-records). Guard EnforcesPeriodLock::assertPeriodOpenForWrite('cages-track', mill, date) berjalan di CagesTrackRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormCagesTrackView tidak memanggil server sama sekali (stasiun ini tidak punya write-through; hanya sinkron manual dari screen-006 lewat POST /api/cages-track-records). Guard EnforcesPeriodLock::assertPeriodOpenForWrite('cages-track', mill, date) berjalan di CagesTrackRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) cagesTrackRecordRepo.createDraft() kini menyimpan tippler_start_time = nowLocalDateTimeString() (src/utils/localDate.ts) — sebelumnya toISOString() UTC sehingga record 00:00–06:59 WIB tampil/bertanggal kemarin; tippler_stop_time sudah memakai jam lokal milik view; localSchema.normalizeLegacyUtcDates() memigrasi nilai lama; (2) label catatan 'Note' → 'Catatan' dengan id field-note; (3) sinkron manual: syncService.pushCagesTrackRow mengirim tippler_start/stop lewat toOffsetDateTime() (+offset perangkat) dan date lokal, memakai production line stasiun record, dan menulis/mengosongkan sync_error (tampil 'Gagal sinkron' di Data Preview); server menormalkan jam ber-zona ke WIB (AppTime::normalizeClientDateTime) dan menolak date > besok (422 per field); id detail non-UUID tidak lagi memicu error SQL. Stasiun ini tetap tanpa write-through. millSettingRepo.getMillSetting kini juga SELECT immediate_sync_enabled (tidak memengaruhi getJumlahCages)."
   ],
   "test_scenarios": [
     {

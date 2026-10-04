@@ -23,3 +23,13 @@ Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 Pembersihan rujukan komponen grid yang dihapus.
 - known_issue dead-code GradingDetailGrid.vue dihapus: komponen itu sudah dihapus di commit 004aacd (tak diimpor, tipe pre-v2 menggagalkan vue-tsc --noEmit / npm run build).
 - Catatan historis v3 tentang GradingDetailGrid.vue dibiarkan; ditambah satu catatan REVISI merujuk 004aacd.
+
+## v8 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (FormGradingView.vue, gradingRecordRepo.ts, gradingParameterSync.ts, syncService.ts, localSchema.ts, stores/auth.ts, GradingParameter{Controller,Service}.php, tests baru).
+- files_generated += GradingParameterController.php, GradingParameterService.php ← endpoint baru yang dipakai layar ini (via gradingParameterSync).
+- test_files_generated += backend/tests/Feature/Api/MobileReadEndpointsTest.php ← blok "GET /api/grading-parameters".
+- fe_files_generated += gradingParameterSync.ts, syncService.ts, localSchema.ts ← pemetaan id parameter, pushGradingRow, seed guard. (⚠ syncService/localSchema dimasukkan karena perilaku layar yang direvisi berada di sana, bukan diimpor view.)
+- fe_test_files_generated += syncService.sqljs.spec.ts, syncService.spec.ts, auth.store.spec.ts, noteLabelConsistency.spec.ts, DialogTeleport.spec.ts ← menguji id palsu/dropdown WB, fetch master saat login, label Catatan, ConfirmDialog teleport. (⚠ DialogTeleport cakupan tidak langsung.)
+- implementation_notes[0] = asumsi lama "SEMUA record weighbridge apa pun status" diganti filter saved/synced ← getWeighbridgeRecordOptions.
+- implementation_notes += REVISI 2026-10-04 ← diff terkait.

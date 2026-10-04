@@ -1,13 +1,13 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-034--mills-setting",
   "name": "Mills Setting",
   "module_id": "module-mills-setting",
-  "description": "Layar bagi Admin dan Mill Management untuk mengatur profil aplikasi per mill (Business Unit) — nama aplikasi, logo, gambar halaman utama mobile, icon per stasiun, dan jumlah cages fisik yang dimiliki mill tersebut. Perubahan di sini memengaruhi tampilan Home mobile, Station List mobile, dan jumlah kolom checklist pada Form Cages Track.",
+  "description": "Layar bagi Admin dan Mill Management untuk mengatur profil aplikasi per mill (Business Unit) — nama aplikasi, logo, gambar halaman utama mobile, pengiriman data langsung ke server (write-through mobile), dan icon per stasiun. Perubahan di sini memengaruhi tampilan Home mobile, Station List mobile, dan apakah data yang disimpan di form mobile langsung dikirim ke server.",
   "actors": [
     "actor-admin",
     "actor-mill-management"
@@ -16,12 +16,12 @@
     "Menu sidebar 'Mills Setting'"
   ],
   "information_displayed": [
-    "Pemilih Mill/Business Unit yang sedang dikonfigurasi — khusus Admin (Mill Management otomatis terarah ke mill miliknya sendiri, tanpa pemilih)",
+    "Pemilih Mill/Business Unit yang sedang dikonfigurasi (searchable select) — khusus Admin (Mill Management otomatis terarah ke mill miliknya sendiri, tanpa pemilih)",
     "Nama aplikasi (app_name) saat ini untuk mill terpilih",
     "Logo mill saat ini (preview gambar, atau placeholder jika belum diatur)",
     "Gambar halaman utama mobile (home_page_image) saat ini (preview gambar, atau placeholder jika belum diatur)",
-    "Jumlah cages saat ini",
-    "Daftar station milik mill terpilih beserta icon Lucide yang dipakai masing-masing (default sesuai tipe stasiun, atau override jika sudah diatur)"
+    "Pilihan 'Kirim data langsung ke server saat disimpan' (immediate_sync_enabled) beserta penjelasannya",
+    "Daftar station milik mill terpilih — kolom Production Line, Nama Station, Tipe (label tipe stasiun), dan pemilih icon Lucide (searchable select; 'Default' = icon sesuai tipe), diurutkan per Production Line lalu nama"
   ],
   "available_actions": [
     {
@@ -56,8 +56,8 @@
       ]
     },
     {
-      "action": "Atur Jumlah Cages",
-      "description": "Mengatur jumlah fisik cages/lori yang dimiliki mill — menentukan jumlah kolom checklist pada grid Cages Tipped Time di Form Cages Track",
+      "action": "Atur Pengiriman Data Langsung",
+      "description": "Mengaktifkan/menonaktifkan 'Kirim data langsung ke server saat disimpan' — bila aktif, data yang disimpan di form mobile langsung dikirim ke server tanpa menunggu tombol Sinkronisasi",
       "actor_ids": [
         "actor-admin",
         "actor-mill-management"
@@ -65,7 +65,7 @@
     },
     {
       "action": "Pilih Icon Station",
-      "description": "Memilih salah satu station milik mill dan memilih icon dari daftar pilihan icon Lucide untuk station tersebut, atau mengembalikannya ke icon default sesuai tipe stasiun (Gauge=Weighbridge, Layers=Grading, Package=Cages Track)",
+      "description": "Memilih icon dari daftar icon Lucide (searchable select per baris station) untuk station tersebut, atau 'Default' untuk kembali ke icon sesuai tipe stasiun (Gauge=Weighbridge, Layers=Grading, Package=Cages Track); pilihan langsung tersimpan saat diubah",
       "actor_ids": [
         "actor-admin",
         "actor-mill-management"
@@ -82,20 +82,21 @@
   ],
   "business_rules": [
     "Setiap mill (Business Unit) memiliki tepat satu Mills Setting",
-    "Jika mill belum memiliki Mills Setting (mis. Business Unit yang dibuat sebelum fitur ini ada), sistem otomatis membuat baris default (app_name = nama Business Unit, jumlah_cages = 1, gambar kosong) saat layar ini pertama kali dibuka untuk mill tersebut — nama aplikasi tidak pernah kosong meski belum pernah diatur manual",
+    "Jika mill belum memiliki Mills Setting (mis. Business Unit yang dibuat sebelum fitur ini ada), sistem otomatis membuat baris default (app_name = nama Business Unit, gambar kosong, pengiriman langsung nonaktif) saat layar ini pertama kali dibuka untuk mill tersebut",
     "Mill Management hanya dapat mengatur mill (Business Unit) miliknya sendiri; Admin dapat mengatur mill mana pun",
-    "Jumlah cages harus lebih dari 0",
+    "Nama aplikasi wajib diisi (maks 255 karakter) — mengosongkannya ditolak dengan pesan 'Nama aplikasi wajib diisi.', bukan diam-diam mempertahankan nilai lama",
     "Icon station hanya dapat diatur untuk station yang sudah terdaftar (dari Kelola Station) pada mill terkait; dipilih dari daftar icon Lucide yang tersedia, bukan unggah gambar",
     "Jika icon station tidak diatur (kosong), station-tile memakai icon default sesuai tipe stasiun (Gauge=Weighbridge, Layers=Grading, Package=Cages Track) — sama seperti perilaku saat ini",
-    "Logo dan gambar halaman utama bersifat opsional — jika kosong, aplikasi menampilkan tampilan default tanpa gambar"
+    "Logo dan gambar halaman utama bersifat opsional — jika kosong, aplikasi menampilkan tampilan default tanpa gambar. Bila diunggah, file harus BENAR-BENAR gambar JPG/PNG (dicek dari isi file, bukan ekstensi) dan maks 2MB; diperiksa saat file dipilih dan lagi saat Simpan, tanpa pratinjau untuk file yang ditolak",
+    "Seluruh pesan validasi berbahasa Indonesia"
   ],
   "usecase_ids": [
     "usecase-034--mills-setting"
   ],
   "edge_cases": [
     "Mill belum punya Mills Setting sama sekali — sistem otomatis membuat default saat pertama diakses",
-    "Upload gambar (logo atau gambar halaman utama) dengan format atau ukuran tidak didukung — validasi gagal",
-    "Mengatur jumlah cages ke 0 atau negatif — validasi gagal",
+    "Upload gambar (logo atau gambar halaman utama) dengan format atau ukuran tidak didukung, atau file bukan gambar yang diberi nama .png/.jpg — ditolak saat dipilih, tidak pernah tersimpan",
+    "Nama aplikasi dikosongkan lalu Simpan — validasi gagal, tidak ada pesan 'berhasil disimpan'",
     "Belum ada station terdaftar untuk mill tersebut — bagian pengaturan icon station kosong dengan pesan penjelasan",
     "Mill Management mencoba mengakses/mengubah mill lain selain miliknya — ditolak"
   ],

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-141--reporting-pilih-stasiun-mobile",
   "name": "Reporting — Pilih Stasiun (Mobile)",
@@ -23,13 +23,13 @@
     "Judul layar",
     "Grid tile stasiun — nama, ikon, dan urutan sama dengan layar Daftar Stasiun",
     "Penanda 'Belum tersedia' pada stasiun yang laporan mobile-nya belum dibangun",
-    "Pesan singkat ketika pengguna menekan stasiun yang belum tersedia",
-    "Keterangan bila tidak ada satu pun stasiun tersimpan di perangkat"
+    "Pesan singkat ketika pengguna menekan stasiun yang belum tersedia: 'Laporan {nama stasiun} belum tersedia di aplikasi mobile.' (beberapa stasiun, mis. Weighbridge, sudah punya laporan di web)",
+    "Keterangan bila tidak ada satu pun stasiun tersimpan di perangkat DAN daftar stasiun tidak bisa diambil dari server: minta memastikan perangkat online, lalu membuka Daftar Stasiun atau kembali ke layar ini"
   ],
   "available_actions": [
     {
       "action": "Buka laporan stasiun",
-      "description": "Menekan tile stasiun yang laporan mobile-nya sudah ada akan membuka laporan periode stasiun itu. Saat ini hanya Sterilizer.",
+      "description": "Menekan tile stasiun yang laporan mobile-nya sudah ada akan membuka laporan periode stasiun itu. Saat ini Sterilizer, Cages & Track, Boiler Room, Clarification, dan Storage Tank.",
       "actor_ids": [
         "actor-station-operator",
         "actor-supervisor",
@@ -60,7 +60,7 @@
   ],
   "business_rules": [
     "Layar ini terbuka untuk semua peran yang dapat masuk ke aplikasi mobile. Ia tidak menampilkan data operasional apa pun — hanya nama stasiun — sehingga tidak ada yang perlu dibatasi di sini; pembatasan yang sesungguhnya ada di layar laporan tujuan.",
-    "Daftar stasiun diambil dari data yang sudah tersimpan di perangkat, bukan dari jaringan. Akibatnya layar ini terbuka penuh saat offline, dan nama, ikon, serta urutan stasiunnya dijamin sama dengan layar Daftar Stasiun — tidak ada cara kedua untuk menyebut stasiun yang sama.",
+    "Daftar stasiun diambil dari data yang sudah tersimpan di perangkat, sehingga nama, ikon, dan urutannya sama dengan layar Daftar Stasiun. Bila cache stasiun perangkat masih KOSONG (mis. tepat sesudah login), layar ini mengisinya sendiri dengan jalur yang sama seperti Daftar Stasiun: ambil Production Line dari server, simpan stasiun line yang diingat (atau line pertama, tanpa menjadikannya pilihan pengguna), lalu baca ulang dari perangkat; bila offline atau tidak ada line, isi 18 stasiun bawaan seperti cadangan Daftar Stasiun. Jaringan hanya disentuh saat cache kosong — perangkat yang sudah punya cache tetap nol pemanggilan jaringan.",
     "'Tersedia' pada layar ini berarti layar laporan MOBILE stasiun itu sudah dibangun. Ini BERBEDA dari pengertian 'aktif' pada Daftar Stasiun, yang berarti stasiunnya ada dan beroperasi di mill tersebut. Sebuah stasiun bisa aktif di mill namun laporannya belum ada.",
     "Stasiun yang laporannya belum dibangun tetap ditampilkan dalam keadaan nonaktif, tidak disembunyikan. Pengguna berhak tahu stasiun apa saja yang akan punya laporan.",
     "Menekan stasiun yang belum tersedia harus memberi pesan singkat, bukan diam — mengikuti perilaku tile nonaktif yang sudah berlaku di aplikasi mobile ini. Pada layar sentuh, diam tidak dapat dibedakan dari aplikasi yang macet.",
@@ -71,9 +71,9 @@
     "usecase-143--reporting-pilih-stasiun-mobile"
   ],
   "edge_cases": [
-    "Belum ada satu pun stasiun tersimpan di perangkat — misalnya pengguna baru masuk dan belum pernah membuka Daftar Stasiun. Tampilkan keterangan yang mengarahkan membuka Daftar Stasiun lebih dulu, bukan layar kosong tanpa penjelasan.",
+    "Belum ada satu pun stasiun tersimpan di perangkat — misalnya pengguna baru masuk dan belum pernah membuka Daftar Stasiun. Layar mengambil Production Line + stasiun dari server sendiri (atau mengisi 18 stasiun bawaan bila offline/tanpa line), sehingga grid tetap tampil tanpa harus membuka Daftar Stasiun dulu. Hanya bila tetap kosong, tampilkan keterangan untuk memastikan perangkat online lalu membuka Daftar Stasiun atau kembali ke sini — bukan layar kosong atau pesan teknis.",
     "Pengguna menekan stasiun yang belum tersedia berkali-kali — pesan yang sama muncul kembali, tidak menumpuk, dan tidak berpindah layar.",
-    "Perangkat offline — tidak berpengaruh sama sekali, karena daftar stasiun dibaca dari perangkat.",
+    "Perangkat offline — tidak berpengaruh bila cache stasiun sudah ada (dibaca dari perangkat); bila cache kosong, layar jatuh ke 18 stasiun bawaan.",
     "Sesi berakhir saat layar terbuka — penjagaan sesi global mengarahkan ke Login pada perpindahan berikutnya.",
     "Sebuah stasiun aktif di mill tetapi laporan mobile-nya belum dibangun — tile tetap tampil, dalam keadaan nonaktif. Keaktifan stasiun di mill tidak menentukan ketersediaan laporannya."
   ],

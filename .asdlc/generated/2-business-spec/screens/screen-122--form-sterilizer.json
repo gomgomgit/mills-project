@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-04"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-122--form-sterilizer",
   "name": "Form Sterilizer",
@@ -18,9 +18,9 @@
     "Tap salah satu item draft/pause di list Monitor Sterilizer (lanjutkan draft)"
   ],
   "information_displayed": [
-    "Identitas Sterilizer: Sterilizer ID (input manual, wajib), Date (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit)",
-    "Verifikasi: Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (checkbox hanya ditampilkan untuk & diisi oleh Supervisor), Acknowledged By (checkbox hanya ditampilkan untuk & diisi oleh Mill Management), Note (input manual, opsional) — peran lain tidak melihat checkbox verifikasi tersebut (disembunyikan, bukan dinonaktifkan)",
-    "Log Siklus Sterilisasi: tabel baris per-siklus dengan kolom Sterilizer No, Close Door Time, Peak 1 Time, Exhaust 1 Time, Peak 2 Time, Exhaust 2 Time, Peak 3 Time, Exhaust 3 Time, Open Door Time, Duration (Minutes, dihitung otomatis = Open Door Time − Close Door Time), Number of Cages, Cages Status, Checked by SPV (checkbox), Remarks — baris dapat ditambah dan dihapus, jumlah baris TIDAK dibatasi per hari",
+    "Identitas Sterilizer: Sterilizer ID (input manual, wajib), Date (otomatis terisi sekali saat draft baru dibuat dengan tanggal LOKAL perangkat, tidak dapat diedit)",
+    "Verifikasi: Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (checkbox hanya ditampilkan untuk & diisi oleh Supervisor), Acknowledged By (checkbox hanya ditampilkan untuk & diisi oleh Mill Management), Catatan (label 'Catatan', input manual, opsional) — peran lain tidak melihat checkbox verifikasi tersebut (disembunyikan, bukan dinonaktifkan)",
+    "Log Siklus Sterilisasi: tabel baris per-siklus dengan kolom Sterilizer No, Close Door Time, Peak 1 Time, Exhaust 1 Time, Peak 2 Time, Exhaust 2 Time, Peak 3 Time, Exhaust 3 Time, Open Door Time, Duration (Minutes, dihitung otomatis = Open Door Time − Close Door Time), Number of Cages, Cages Status, Checked by SPV (checkbox HANYA untuk Supervisor; peran lain melihat nilainya sebagai teks 'Ya' / '—', bukan input nonaktif), Remarks — baris dapat ditambah dan dihapus, jumlah baris TIDAK dibatasi per hari",
     "Breadcrumb navigasi (Home > Production Process Activity > Sterilizer > Form) yang dapat ditap",
     "Header 'Mill Smart Log' + ikon hamburger menu"
   ],
@@ -59,9 +59,8 @@
     },
     {
       "action": "Centang Checked by SPV",
-      "description": "Menandai satu baris siklus sudah diperiksa Supervisor — checkbox sederhana per baris, bukan referensi nama Supervisor",
+      "description": "Menandai satu baris siklus sudah diperiksa Supervisor — checkbox sederhana per baris, bukan referensi nama Supervisor; HANYA Supervisor yang melihat dan dapat mengubah checkbox ini (keputusan pengguna 2026-10-04), peran lain hanya melihat nilainya sebagai teks",
       "actor_ids": [
-        "actor-station-operator",
         "actor-supervisor"
       ]
     },
@@ -129,14 +128,15 @@
     }
   ],
   "business_rules": [
-    "Date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Date diisi otomatis sekali saat draft baru dibuat dengan tanggal LOKAL perangkat (bukan UTC — draft yang dibuat 00:00–06:59 WIB tetap bertanggal hari ini), tidak dapat diedit manual",
     "Inputted By otomatis diambil dari user yang login, tidak dapat diedit manual",
     "Checked By hanya bisa diisi/diedit oleh Supervisor; Acknowledged By hanya bisa diisi/diedit oleh Mill Management — KEDUANYA berbeda dari Checked by SPV per-baris yang merupakan checkbox sederhana, bukan referensi user",
     "Log Siklus adalah event-log bebas — baris ditambah manual sesuai siklus sterilisasi, jumlah baris TIDAK dibatasi 24/hari seperti stasiun grid-jam, mengikuti pola CPO Dispatch/Kernel Dispatch/Solid Waste Disposal",
     "Minimal satu baris Log Siklus dengan Close Door Time terisi harus ada sebelum Simpan",
     "Duration (Minutes) dihitung otomatis = Open Door Time − Close Door Time, TIDAK PERNAH dapat diedit manual oleh user",
     "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
-    "Field wajib ditandai asterisk dengan validasi inline"
+    "Field wajib ditandai asterisk dengan validasi inline",
+    "Checked by SPV per-baris hanya boleh diset/diubah oleh Supervisor (keputusan pengguna 2026-10-04): di form hanya Supervisor yang mendapat checkbox, peran lain melihat teks 'Ya'/'—'; server menegakkan aturan yang sama — nilai kiriman dari peran lain DIABAIKAN (bukan ditolak), baris lama mempertahankan nilai tersimpannya dan baris baru selalu false"
   ],
   "usecase_ids": [
     "usecase-122--form-sterilizer"
@@ -149,7 +149,8 @@
     "Draft yang di-Pause lalu dilanjutkan",
     "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
     "User menekan Clear (perlu konfirmasi sebelum hapus permanen)",
-    "User menghapus baris Log Siklus yang sudah ada sebelumnya (bukan baru ditambah)"
+    "User menghapus baris Log Siklus yang sudah ada sebelumnya (bukan baru ditambah)",
+    "Operator/Mill Management membuka draft yang barisnya sudah dicentang Supervisor — 'Checked by SPV' tampil sebagai teks 'Ya' dan tidak dapat diubah; bila nilai dari peran non-Supervisor tetap terkirim ke server, server mengabaikannya"
   ],
   "test_priority": "high",
   "open_questions": []

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-17"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-001--login-web",
   "name": "Login Web",
@@ -24,6 +24,11 @@
       "actor_id": "actor-mill-management",
       "can_access": true,
       "conditions": ""
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Akses web terbatas (keputusan produk 2026-10-04): setelah login diarahkan ke /beranda (route operator.home, middleware auth + role:operator); hanya Beranda dan Ganti Password (/settings/password) yang diizinkan; rute web lain → halaman 403"
     }
   ],
   "api_contracts": [
@@ -42,7 +47,7 @@
             "body_schema": {
               "username": "string",
               "password": "string",
-              "business_unit_id": "string"
+              "business_unit_id": "string, optional — tidak dikirim oleh UI web; bila dikirim harus sama persis dengan user.business_unit_id"
             }
           },
           "response": {
@@ -89,13 +94,16 @@
         }
       ],
       "business_logic": [
-        "1. Validate request body (username, password, business_unit_id wajib) → if invalid: return 422 VALIDATION_ERROR",
-        "2. Validate format password (min 6 karakter, alfanumerik+simbol) → if invalid: return 422 VALIDATION_ERROR",
+        "1. Validate request body (username, password wajib; business_unit_id opsional) → if invalid: return 422 VALIDATION_ERROR",
+        "2. Validate format password via App\\Support\\PasswordPolicy (min 6 karakter, alfanumerik+simbol — aturan tunggal yang sama dengan Ganti Password & Kelola User) → if invalid: return 422 VALIDATION_ERROR",
         "3. Lookup user by username → if not found/password mismatch: return 401 INVALID_CREDENTIALS",
         "4. Check user.is_active → if false: return 403 ACCOUNT_INACTIVE",
-        "5. Check business_unit_id cocok dengan akses user → if mismatch: return 403 BUSINESS_AREA_MISMATCH",
+        "5. Resolusi business area: bila business_unit_id tidak dikirim → pakai user.business_unit_id (Admin tanpa BU → lanjut tanpa BU; non-Admin tanpa BU → 403 BUSINESS_AREA_MISMATCH); bila dikirim dan tidak sama dengan user.business_unit_id → 403 BUSINESS_AREA_MISMATCH",
         "6. Buat Laravel session untuk user, set session cookie",
-        "7. Return 200 dengan user info + redirect_to sesuai role"
+        "7. Return 200 dengan user info + redirect_to sesuai role (AuthService::redirectFor(): admin/supervisor/mill_management → /dashboard, operator → /beranda)",
+        "8. GET /login (LoginForm::mount) saat sudah login → redirect ke redirectFor(role); bila ada flash 'auth_error' (dari EnsureUserIsActive) tampilkan sebagai errorMessage",
+        "9. GET / → user login: redirect ke redirectFor(role); tamu: redirect ke /login",
+        "10. Setiap request web/api (middleware EnsureUserIsActive di grup web+api): sesi milik akun is_active=false di-logout + invalidate → JSON 401 {message} atau redirect /login dengan flash 'Akun Anda telah dinonaktifkan, hubungi Admin.'; token Sanctum milik akun nonaktif ditolak (AppServiceProvider Sanctum::authenticateAccessTokensUsing)"
       ],
       "data_operations": [
         {
@@ -120,12 +128,24 @@
         {
           "condition": "Format Password Tidak Valid",
           "handling": "Return 422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Akun dinonaktifkan saat sesi web masih berjalan",
+          "handling": "EnsureUserIsActive: logout + invalidate sesi pada request berikutnya; non-JSON/Livewire → redirect /login dengan pesan; JSON → 401 {message}"
+        },
+        {
+          "condition": "User sudah login membuka /login atau /",
+          "handling": "Redirect ke AuthService::redirectFor(role) — form tidak ditampilkan"
+        },
+        {
+          "condition": "Operator membuka rute web di luar aksesnya",
+          "handling": "EnsureRole 403 → resources/views/errors/403.blade.php (Indonesia, di dalam shell, tombol 'Kembali ke Beranda' + Logout; varian tamu tanpa shell)"
         }
       ],
       "business_rules_applied": [
         "Password minimal 6 karakter, case-sensitive, kombinasi alfanumerik+simbol",
-        "User harus memilih Business Area/Company yang sesuai dengan aksesnya",
-        "Redirect setelah login mengikuti role masing-masing"
+        "Business Area diturunkan dari akun (tidak dipilih); bila dikirim eksplisit harus cocok",
+        "Redirect setelah login mengikuti role (Operator → /beranda, lainnya → /dashboard)"
       ],
       "unit_test_cases": [
         {
@@ -162,6 +182,16 @@
           "description": "returns success result when all conditions pass",
           "given": "userRepo.findByUsername() returns an active user whose password matches and whose access includes the requested business_unit_id; session creation succeeds",
           "expect": "return 200 with user {id, username, name, role}, business_unit {id, name}, and redirect_to matching the user's role; Laravel session cookie is set"
+        },
+        {
+          "description": "redirects operator web login to /beranda",
+          "given": "active operator with business_unit_id logs in via web (no device_name)",
+          "expect": "redirect_to = '/beranda'; session established"
+        },
+        {
+          "description": "logs out a session whose account was deactivated",
+          "given": "logged-in web session; user.is_active set to false; next request",
+          "expect": "session invalidated; redirect /login with auth_error message (JSON request: 401)"
         }
       ]
     }
@@ -171,7 +201,10 @@
   "implementation_notes": [
     "Rate limiting/lockout setelah percobaan gagal belum diputuskan (open question di business spec)",
     "Sesi login ganda per user/device belum dibatasi di MVP (open question)",
-    "Fitur Lupa Password (available_action terpisah) belum punya usecase — di luar scope tech spec ini, menunggu keputusan scope"
+    "Fitur Lupa Password (available_action terpisah) belum punya usecase — di luar scope tech spec ini, menunggu keputusan scope",
+    "Beranda Operator (/beranda, view operator/home.blade.php) tidak punya screen ASDLC sendiri — didokumentasikan di layar ini sebagai perilaku masuk/redirect; layar 'lihat data sendiri' Operator menyusul lewat alur ASDLC",
+    "Sidebar web (components/layouts/app.blade.php) menampilkan menu hanya bila App\\Support\\RouteAccess::allows(routeName) — peran dibaca langsung dari middleware 'role:' rute, jadi menu selalu sama dengan guard EnsureRole",
+    "Halaman 403 kustom resources/views/errors/403.blade.php menggantikan halaman bawaan Laravel"
   ],
   "test_scenarios": [
     {
@@ -322,6 +355,36 @@
         "route": "/login",
         "action": "user enters a password not meeting the minimum format requirement (e.g. 'abc'), clicks Login",
         "assert": "browser displays a validation message about the password format requirement, login is rejected, user remains on /login"
+      }
+    },
+    {
+      "scenario_ref": "Login Web — Operator mendarat di Beranda Operator",
+      "usecase_id": "usecase-001--login-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "login dengan kredensial Operator aktif",
+        "assert": "redirect ke /beranda; /beranda menampilkan pesan akses terbatas; sidebar hanya Beranda + Ganti Password; /dashboard menjawab 403"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "Operator login web",
+        "assert": "mendarat di /beranda dengan shell terbatas (Beranda, Ganti Password, Logout)"
+      }
+    },
+    {
+      "scenario_ref": "Login Web — Sesi akun yang dinonaktifkan diakhiri",
+      "usecase_id": "usecase-001--login-web",
+      "api_test": [],
+      "component_test": {
+        "component": "EnsureUserIsActive",
+        "action": "Admin menonaktifkan akun yang sedang login di sesi lain, lalu sesi itu membuat request berikutnya",
+        "assert": "sesi dikeluarkan ke /login dengan pesan 'Akun Anda telah dinonaktifkan, hubungi Admin.'; request JSON 401"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "dua browser: Admin menonaktifkan user B; user B memuat ulang halaman",
+        "assert": "user B berada di /login dengan pesan akun dinonaktifkan"
       }
     }
   ]

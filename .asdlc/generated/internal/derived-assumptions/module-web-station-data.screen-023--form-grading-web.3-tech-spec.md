@@ -16,3 +16,17 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 - Nomor langkah business_logic baru = lanjutan penomoran yang ada; kutipan pesan di edge_case_handling disingkat ('...') dari string asli EnforcesPeriodLock::periodLockReason().
 - Rumusan given/expect 3 unit_test_cases (termasuk contoh rentang 2026-10-01..2026-10-31) dipilih agen; kasus-kasus ini SPESIFIKASI — belum ada sebagai test khusus stasiun ini (test per-layar hanya membuka periode sebagai prasyarat), dicatat terus terang di implementation_notes.
 - Sitasi test: EnforcesPeriodLockTest.php dan KelolaPeriodePelaporanTest.php (jalur Sterilizer) dipilih sebagai bukti cakupan; file test per-layar disebut hanya sebagai pemakai prasyarat openPeriodFor()/openPeriodForStation().
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (GradingRecordService.php, FormGrading.php, form-grading.blade.php, EnforcesPeriodLock.php, ScopesToActorMill.php, AppTime.php, ApiExceptionHandler.php).
+- api_contracts[0].endpoints[0].description + request.body_schema = production_line_id (bukan business_unit_id), date normalisasi WIB + batas besok, weighbridge_record_id 'bail', grading_parameter_id/id baris cek UUID ← create() memanggil resolveActiveStationForActor($data['production_line_id']); normalizeFormFields(); validateForm(); validateDetails(); upsertDetails(). (Koreksi business_unit_id → production_line_id adalah drift lama yang ikut dibereskan.)
+- api_contracts[0].endpoints[1].request.body_schema.date/weighbridge_record_id/details = sama untuk PATCH.
+- api_contracts[0].endpoints[0].response.error_codes[1].condition = berbasis production_line_id.
+- api_contracts[0].endpoints[0..1].response.error_codes += 422 (tanggal > besok, UUID), 403 FORBIDDEN cross-mill, 422 QueryException 22P02/22007/22008, 500 generik. ⚠ 403 cross-mill diturunkan dari resolveActiveStationForActor bersama (perilaku lama, tidak tercantum sebelumnya).
+- api_contracts[0].business_logic[1], [6], [8], [12] = resolve via production_line_id; line tidak diterima di update; select Production Line tidak pernah disabled + GuardsRecordIdShape; UOM/Percentage teks.
+- api_contracts[0].business_logic += 19 (batas tanggal), 20 (zona WIB), 21 (UUID sebelum SQL).
+- api_contracts[0].edge_case_handling[3].condition = Production Line; += 4 kasus (tanggal > besok, UUID tidak sah, id baris bukan UUID, {id} bukan UUID).
+- api_contracts[0].business_rules_applied[3], [4] dan += 2 aturan.
+- api_contracts[0].unit_test_cases += 3 ← tests/Feature/AuditFix20261004Test.php [uuid]/[future].
+- implementation_notes[2] = UOM/Percentage teks; += REVISI audit-fix.

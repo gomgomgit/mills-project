@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-01"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-033--kelola-machinery-group",
   "name": "Kelola Machinery Group",
@@ -16,8 +16,8 @@
   ],
   "information_displayed": [
     "Seluruh butir di bawah ini kini ditampilkan oleh screen-031 (Kelola Mesin), bukan oleh layar tersendiri.",
-    "Daftar Machinery Group: kode grup, deskripsi, satuan, nama Station induk, nama Production Line, jumlah Machinery terkait, tanggal dibuat — pada screen-031 sebagian pindah ke panel ringkas yang muncul saat grup dibuka",
-    "Form tambah/edit: dropdown pilih Station induk (satu-satunya pilihan hierarki — Production Line diturunkan dari Station, tidak dipilih terpisah), kode grup, deskripsi, satuan, workshop factor, biaya per peralatan"
+    "Daftar Machinery Group: kode grup, Business Unit, nama Station induk, nama Production Line, jumlah Machinery terkait; deskripsi, satuan, workshop factor, biaya per peralatan, tanggal dibuat pada panel ringkas yang muncul saat grup dibuka di screen-031",
+    "Form tambah/edit: dropdown pilih Station induk berlabel 'Mill — Line — Station' (satu-satunya pilihan hierarki), Production Line ditampilkan sebagai teks yang mengikuti Station terpilih (bukan input disabled), kode grup, deskripsi, satuan, workshop factor, biaya per peralatan"
   ],
   "available_actions": [
     {
@@ -50,7 +50,7 @@
     }
   ],
   "business_rules": [
-    "Kode grup (group_code) harus unik di seluruh sistem",
+    "Kode grup (group_code) harus unik di seluruh sistem — tidak peka huruf besar/kecil",
     "Machinery Group tidak dapat dihapus jika masih memiliki satu atau lebih Machinery terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Machinery Group",
     "Machinery Group harus terkait ke tepat satu Station yang sudah ada",
@@ -62,10 +62,11 @@
   ],
   "edge_cases": [
     "Percobaan menghapus Machinery Group yang masih memiliki Machinery terkait — ditolak dengan pesan penjelasan",
-    "Percobaan menyimpan kode grup yang sudah dipakai Machinery Group lain — validasi gagal",
+    "Percobaan menyimpan kode grup yang sudah dipakai Machinery Group lain (termasuk beda huruf besar/kecil saja) — validasi gagal",
     "Belum ada Station sama sekali — form Tambah Machinery Group tidak dapat diisi, arahkan Admin untuk membuat Station dahulu",
     "Belum ada Machinery Group sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
-    "Pengguna membuka rute lama /master-data/machinery-groups (bookmark atau tautan lama) — diarahkan 301 ke /master-data/machinery, bukan 404; guard role:admin tetap berjalan lebih dulu sehingga sesi non-Admin tetap ditolak 403 alih-alih ikut dialihkan"
+    "Pengguna membuka rute lama /master-data/machinery-groups (bookmark atau tautan lama) — diarahkan 301 ke /master-data/machinery, bukan 404; guard role:admin tetap berjalan lebih dulu sehingga sesi non-Admin tetap ditolak 403 alih-alih ikut dialihkan",
+    "Setelah tambah/edit/hapus grup berhasil tampil pesan sukses ('Machinery Group berhasil ditambahkan/diperbarui/dihapus.'); pesan error hapus lama dibersihkan saat aksi berikutnya dimulai"
   ],
   "test_priority": "medium",
   "open_questions": []

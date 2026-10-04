@@ -1,8 +1,8 @@
 {
-  "ver": 8,
+  "ver": 9,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-02"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
@@ -353,7 +353,7 @@
         {
           "method": "DELETE",
           "path": "/api/periods/{id}",
-          "description": "Menghapus periode beserta baris stasiunnya (cascade), selama tidak ada baris stasiun yang tertutup",
+          "description": "Menghapus periode beserta baris stasiunnya (cascade), selama tidak ada baris stasiun yang tertutup DAN periode belum membingkai record stasiun",
           "auth_required": true,
           "request": {
             "path_params": [
@@ -385,6 +385,11 @@
                 "http_code": 403,
                 "error_code": "FORBIDDEN",
                 "condition": "actor bukan admin"
+              },
+              {
+                "http_code": 409,
+                "error_code": "PERIOD_HAS_RECORDS",
+                "condition": "ada minimal satu record mill itu (dari jenis stasiun yang dimiliki periode) yang tanggal kejadiannya — tanggal header (weighbridge: record_datetime, lainnya: date) atau event_date baris detail CPO Dispatch / Kernel Dispatch / Solid Waste Disposal — berada di dalam rentang periode (inklusif); pesan menyebut jenis stasiun yang berisi data; tidak ada yang dihapus"
               }
             ]
           },
@@ -410,12 +415,12 @@
         "12. update: validasi dan overlap sama seperti create dengan pengecualian dirinya sendiri → UPDATE periods + updated_by=actor, lalu BACKFILL baris stasiun, keduanya dalam SATU transaksi",
         "13. update/backfill: INSERT baris draft untuk setiap kode dari activeStationTypesForMill(business_unit_id TERBARU periode itu) yang belum punya baris. ADD-ONLY: baris tidak pernah dihapus, bahkan ketika jenis stasiunnya sudah dipensiunkan — baris tertutup menyimpan siapa yang menutup dan kapan, dan catatan itu tidak boleh menguap karena ada penyimpanan lain yang kebetulan jalan. Memindahkan periode ke mill lain menyisakan gabungan kedua inventaris; itu konsekuensi yang diterima dari aturan never-remove",
         "14. update: BACKFILL BERJALAN SETELAH GUARD 409, BUKAN SEBELUMNYA — percobaan yang ditolak harus meninggalkan periode utuh bit demi bit, dan menambah baris akan mengubah station_count serta status_summary pada panggilan yang mengembalikan error. BIAYANYA NYATA: periode yang sudah punya satu baris tertutup tidak akan pernah bisa di-backfill lewat update(), karena setiap update() padanya ditolak. Jalan keluar hari ini manual: buka kembali baris itu dari layar detail (screen-142), simpan periodenya sekali, lalu tutup lagi",
-        "15. delete: findOrFail → 404 → guard 409 PERIOD_CLOSED_IMMUTABLE bila ada minimal satu baris closed → DELETE. Aturan 'ANY' dipakai karena period_stations.period_id cascadeOnDelete: di bawah aturan 'ALL', Admin bisa menghapus periode yang memuat satu Sterilizer tertutup hanya karena Clarification masih terbuka — diam-diam membuka segel record yang sudah disegel",
+        "15. delete: findOrFail → 404 → guard 409 PERIOD_CLOSED_IMMUTABLE bila ada minimal satu baris closed → guardAgainstFramedRecords(): untuk tiap station_type periode, model record dari RecordVerificationService::modelForStationType(), WHERE station.business_unit_id = periode.business_unit_id AND (whereDate(header_date) BETWEEN start..end OR detail.event_date BETWEEN start..end untuk cpo-dispatch/kernel-dispatch/solid-waste-disposal) → bila ada yang exists: 409 PERIOD_HAS_RECORDS (PeriodHasRecordsException extends PeriodClosedImmutableException) → DELETE. Aturan 'ANY' dipakai karena period_stations.period_id cascadeOnDelete: di bawah aturan 'ALL', Admin bisa menghapus periode yang memuat satu Sterilizer tertutup hanya karena Clarification masih terbuka — diam-diam membuka segel record yang sudah disegel. Penjaga record mencegah periode berisi data melepas bingkai record-recordnya (audit: periode 'AUDIT-Daily BU D Okt' sempat terhapus padahal berisi record)",
         "16. FE: nama periode adalah tautan ke /master-data/periods/{id} (screen-142). Layar ini TIDAK punya baris expandable, TIDAK punya sub-tabel stasiun, dan TIDAK punya satu pun aksi per stasiun",
         "17. FE: kolom Stasiun menampilkan 'N stasiun' ditambah '· M tertutup' hanya bila closed_station_count > 0, dan 'Belum ada stasiun' bila station_count 0. Kolom Status Stasiun menampilkan badge status_summary dengan kosakata draft→Draft, open→Terbuka, closed→Tertutup, mixed→Campuran, empty→Tanpa Stasiun",
         "18. FE: Edit dan Hapus dirender DISABLED + atribut title ketika is_immutable — bukan disembunyikan; periode dengan 1 dari 19 stasiun tertutup harus menunjukkan bahwa pengubahan terkunci, bukan membuat Admin mencari tombol yang hilang",
         "19. FE: form tambah/ubah TIDAK punya pemilih Jenis Stasiun. Setelah Business Unit dipilih, pratinjau memanggil activeStationTypesForMill() (public justru untuk ini) dan menampilkan daftar jenis stasiun yang akan tercakup; pada mode ubah, jenis yang belum punya baris ditandai badge 'Baru' dan teksnya menjelaskan bahwa menyimpan hanya MENAMBAHKAN. JANGAN menurunkan ulang daftar itu di view",
-        "20. Penegakan kunci periode tertutup bukan bagian layar ini, tetapi SEJAK 2026-10-02 sudah ada (usecase-141): trait App\\Support\\Concerns\\EnforcesPeriodLock di ke-18 *RecordService (create + update) dan di RecordVerificationService, menolak 422 PERIOD_CLOSED",
+        "20. Penegakan kunci periode tertutup bukan bagian layar ini, tetapi SEJAK 2026-10-02 sudah ada (usecase-141): trait App\\Support\\Concerns\\EnforcesPeriodLock di ke-18 *RecordService (create + update) dan di RecordVerificationService, menolak 422 PERIOD_CLOSED. Sejak 2026-10-04: event_date baris detail CPO Dispatch / Kernel Dispatch / Solid Waste Disposal juga diperiksa (assertDetailEventDatesWritable, pesan menyebut tanggal baris), tanggal berzona (Z/±hh:mm) dikonversi ke tanggal WIB (App\\Support\\AppTime) sebelum dicocokkan, tanggal kejadian lebih dari besok (EVENT_DATE_MAX_DAYS_AHEAD) ditolak 422 VALIDATION_ERROR per field, dan aksi verifikasi memakai kata kerja 'verify' pada pesannya",
         "21. open-summary (PeriodService::openPeriodsByBusinessUnit(?string $businessUnitId = null)): ITERASI DIMULAI DARI DAFTAR BUSINESS UNIT, BUKAN DARI DAFTAR PERIODE. Ambil seluruh Business Unit terurut name (dipersempit ke satu bila business_unit_id dikirim), lalu untuk tiap mill ambil periodenya yang memenuhi DUA syarat sekaligus: (a) whereHas('stations', period_stations.status = 'open') — EXISTS, kolom dikualifikasi persis seperti filter status pada list; dan (b) start_date <= :today AND end_date >= :today, inklusif di kedua ujung. Arah iterasi inilah yang membuat mill tanpa periode terbuka mustahil tersaring keluar: ia tetap muncul dengan open_periods: []. Mengawalinya dari daftar periode lalu mengelompokkan per mill akan menghilangkan tepat mill yang paling perlu terlihat",
         "22. open-summary: open_station_count dari withCount(['stations as open_station_count' => fn ($q) => $q->where('period_stations.status', 'open')]) dan station_count dari withCount('stations') — dua agregat dalam satu kueri, bukan dua kueri per periode. Angka ini TIDAK BOLEH diturunkan dari status_summary: 'mixed' tidak menyebut berapa yang terbuka, dan 'open' hanya berarti seluruhnya terbuka. toRow() juga tidak menyediakannya — ia memberi station_count dan closed_station_count saja — jadi menghitungnya di sini memang penambahan, bukan duplikasi",
         "23. open-summary: tanggal acuan diambil SEKALI di awal pemanggilan (Carbon::today()) lalu dipakai untuk seluruh kueri, bukan dipanggil ulang per mill — satu respons tidak boleh menyaring dua mill dengan dua tanggal yang berbeda bila pemanggilannya melewati tengah malam. Nilainya dikembalikan sebagai meta.today dan ditampilkan FE sebagai keterangan panel. Karena lewat Carbon, test membekukannya dengan Carbon::setTestNow() sehingga seluruh perilaku tanggal dapat diuji tanpa bergantung pada hari eksekusi suite. PERBANDINGANNYA WAJIB whereDate(), BUKAN where() biasa — ejaan yang sama dengan findOverlapping(), dan alasannya sama: start_date adalah kolom `date` sungguhan di PostgreSQL sehingga perbandingan biasa lolos di sana, tetapi di SQLite yang dipakai seluruh suite nilainya terbaca '2026-10-01 00:00:00' sehingga `<= '2026-10-01'` bernilai FALSE secara leksikografis dan periode hilang tepat pada hari pertamanya. Terbukti saat implementasi: unit test batas inklusif gagal HANYA pada tanggal mulai dan lolos pada dua tanggal lain",
@@ -442,7 +447,7 @@
         {
           "entity_id": "period",
           "operation": "DELETE",
-          "description": "DELETE periode (baris stasiunnya ikut terhapus lewat cascade)"
+          "description": "DELETE periode (baris stasiunnya ikut terhapus lewat cascade) — didahului SELECT EXISTS pada tabel record jenis stasiun periode (header + detail event_date) untuk penjaga PERIOD_HAS_RECORDS"
         },
         {
           "entity_id": "period-station",
@@ -559,6 +564,10 @@
         {
           "condition": "Actor bukan Admin atau tanpa sesi",
           "handling": "403 FORBIDDEN / 401 UNAUTHENTICATED pada seluruh endpoint periode, termasuk open-summary"
+        },
+        {
+          "condition": "Menghapus periode tanpa stasiun tertutup yang sudah membingkai record stasiun",
+          "handling": "409 PERIOD_HAS_RECORDS ('Periode \"<nama>\" tidak dapat dihapus karena sudah berisi data stasiun (<label jenis>). Hanya periode yang belum berisi data yang dapat dihapus.'); tidak ada yang terhapus. Livewire Kelola/Detail Periode menangkapnya lewat catch PeriodClosedImmutableException yang sudah ada (kelas turunan) dan menampilkan pesannya inline; tombol Hapus tidak dinonaktifkan oleh aturan ini"
         }
       ],
       "business_rules_applied": [
@@ -817,8 +826,8 @@
           "expect": "409 PERIOD_CLOSED_IMMUTABLE dan tidak ada yang terhapus"
         },
         {
-          "description": "delete: menghapus periode beserta baris stasiunnya ketika tidak ada yang closed",
-          "given": "periode dengan baris draft dan open",
+          "description": "delete: menghapus periode beserta baris stasiunnya ketika tidak ada yang closed dan tidak ada record di dalam rentangnya",
+          "given": "periode dengan baris draft dan open, tanpa record mill itu di dalam rentang",
           "expect": "periode terhapus dan seluruh baris period_stations-nya ikut terhapus lewat cascade"
         },
         {
@@ -900,6 +909,21 @@
           "description": "open-summary: respons TIDAK memuat kunci is_running maupun is_past_range",
           "given": "periode yang memenuhi syarat",
           "expect": "kunci-kunci itu absen — setiap periode yang terkirim sudah pasti berjalan hari ini, sehingga penanda semacam itu hanya akan selalu bernilai sama dan mengundang pembacanya menyangka ada keadaan lain yang ikut terkirim"
+        },
+        {
+          "description": "delete: menolak 409 PERIOD_HAS_RECORDS ketika periode membingkai record stasiun",
+          "given": "periode Sterilizer 2026-10-01..2026-10-31 tanpa baris closed; ada sterilizer_record mill itu bertanggal 2026-10-05",
+          "expect": "PeriodHasRecordsException (409 PERIOD_HAS_RECORDS), pesan menyebut 'Sterilizer', periode tetap ada"
+        },
+        {
+          "description": "delete: event_date baris detail dispatch ikut dihitung",
+          "given": "header CPO Dispatch di luar rentang, satu baris detail event_date di dalam rentang",
+          "expect": "409 PERIOD_HAS_RECORDS"
+        },
+        {
+          "description": "delete: record mill lain atau di luar rentang tidak menghalangi",
+          "given": "record hanya ada di mill lain atau di luar rentang periode",
+          "expect": "periode terhapus"
         }
       ]
     }
@@ -990,7 +1014,8 @@
     "PANEL — JANGAN MEMAKAI KELAS md-card. Kelas itu didefinisikan di resources/views/dashboard/partials/report-styles.blade.php yang HANYA di-include oleh layar laporan dashboard; layout master-data tidak memuatnya sama sekali, sehingga markup ber-md-card akan dirender tanpa gaya apa pun. Panel memakai prefix kc- milik layar ini dan SELURUH kelas barunya didefinisikan di blok <style> blade ini sendiri: kc-open-panel, kc-open-panel__head, kc-open-panel__title, kc-open-panel__today, kc-open-panel__none, kc-open-panel__grid, kc-open-card, kc-open-card--empty, kc-open-card__mill, kc-open-card__list, kc-open-card__empty, kc-open-item, kc-open-item__name, kc-open-item__range, kc-open-item__count. Token warna/radius diwarisi dari .kc-page (--kc-brand, --kc-text-muted, --kc-border, --kc-radius-input), bukan nilai keras baru",
     "PANEL — KELAS TANPA DEFINISI ADALAH CACAT, bukan sekadar kurang rapi. Pelajaran kelola-machinery 2026-10-01: lima kelas accordion dipakai markup tanpa satu pun definisi CSS, lolos 25 test Livewire dan 19 spec browser (karena test menguji PERILAKU sementara yang rusak adalah TAMPILAN), dan baru ketahuan saat dilihat mata. Sebelum menyatakan panel selesai: kumpulkan seluruh kelas dari atribut class=\"...\" pada markup panel lalu cocokkan satu per satu dengan selektor di <style> berkas ini",
     "PANEL — JANGAN MENULIS HTML ENTITY DI DALAM {{ }}. `{{ }}` meng-escape keluarannya, jadi '&#9662;' akan tampil sebagai teks mentah '&#9662;'. Bila penanda butuh simbol, tulis karakter UTF-8 langsung (nol permukaan unescaped, lebih aman daripada {!! !!}). Konsekuensi untuk test: assertSee() JUGA meng-escape argumennya sehingga ia akan MELOLOSKAN bentuk rusaknya — asersikan pada $component->html() dan tolak bentuk rusaknya secara eksplisit",
-    "PANEL — LETAKNYA SESUDAH <div class=\"kc-filter\"> DAN SEBELUM <div class=\"kc-table-wrap\">, di luar <table> sepenuhnya. Panel yang bereaksi pada filter Business Unit harus berada sesudah kontrol itu; menaruhnya di atas filter membuat Admin menyangka panel tidak dipengaruhi filter apa pun"
+    "PANEL — LETAKNYA SESUDAH <div class=\"kc-filter\"> DAN SEBELUM <div class=\"kc-table-wrap\">, di luar <table> sepenuhnya. Panel yang bereaksi pada filter Business Unit harus berada sesudah kontrol itu; menaruhnya di atas filter membuat Admin menyangka panel tidak dipengaruhi filter apa pun",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): PeriodService::delete() memanggil guardAgainstFramedRecords() setelah guardAgainstClosedStation() — periode yang membingkai record (header date atau event_date detail tiga stasiun log-kejadian, whereDate inklusif, mill sama, jenis stasiun milik periode) ditolak PeriodHasRecordsException (409 PERIOD_HAS_RECORDS). Kelas itu sengaja extends PeriodClosedImmutableException sehingga Kelola Periode & Detail Periode menampilkannya inline tanpa perubahan komponen, sementara API tetap melaporkan kodenya sendiri (errorCode()). Spec e2e periode kini memakai periode fixture 'Fixture Periode Agustus 2026' dan mill tersendiri 'Mill Periode Uji' (BrowserTestFixtureSeeder::periodFixtures) karena periode berisi data tidak lagi bisa dibersihkan dengan dihapus. Uji Api KelolaPeriodePelaporanTest membekukan jam (Carbon::setTestNow) karena batas tanggal kejadian maksimal besok kini berlaku."
   ],
   "test_scenarios": [
     {

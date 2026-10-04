@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-142--detail-periode-pelaporan",
   "name": "Detail Periode Pelaporan",
@@ -38,12 +38,19 @@
     "backend/app/Services/PeriodService.php",
     "backend/app/Http/Controllers/Api/PeriodController.php",
     "backend/routes/api.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Exceptions/PeriodHasRecordsException.php",
+    "backend/resources/views/components/searchable-select.blade.php",
+    "backend/resources/views/components/searchable-select-assets.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php"
   ],
   "test_files_generated": [
     "backend/tests/Feature/Livewire/DetailPeriodePelaporanTest.php",
     "backend/tests/Feature/Api/DetailPeriodePelaporanTest.php",
-    "e2e-web/tests/detail-periode-pelaporan.spec.ts"
+    "e2e-web/tests/detail-periode-pelaporan.spec.ts",
+    "backend/tests/Feature/AuditFix20261004Test.php",
+    "e2e-web/tests/searchable-select-dependent.spec.ts",
+    "backend/database/seeders/BrowserTestFixtureSeeder.php"
   ],
   "fe_files_generated": [],
   "fe_test_files_generated": [],
@@ -64,7 +71,8 @@
     "e2e dijalankan EMPAT kali berturut-turut (144 lolos / 5 skip / 0 gagal tiap kali) dan hitungan DB tidak bergerak satu baris pun melintasi keempatnya. Run berulang itu bukan kelebihan: residu periode memerahkan suite 1-2 run KEMUDIAN lewat paginasi 20-baris atau PERIOD_OVERLAP, bukan seketika. Diverifikasi ulang secara independen di luar agen implementasi: 144 lolos / 5 skip / 0 gagal.",
     "Penjaga Period (atribut dan query builder) tidak pernah melempar sepanjang pekerjaan ini — getDetail() hanya findOrFail + eager-load, dan satu-satunya filter status tetap where('period_stations.status', ...) yang sudah ada.",
     "AKSI 'BUKA KEMBALI' DI LAYAR INI BERPINDAH ARTI SEJAK 2026-10-02. Sebelum kunci periode ditegakkan, membuka kembali sebuah stasiun hanyalah koreksi status. Sesudahnya, ia adalah SATU-SATUNYA jalan pulih bagi data yang tertahan: record yang ditangkap offline saat stasiun masih terbuka lalu tiba setelah penutupan ditolak 422 PERIOD_CLOSED — penilaiannya memakai status pada saat permintaan TIBA, bukan pada saat kejadian, karena alternatifnya adalah mempercayai waktu tangkap yang dikirim klien untuk memutuskan apakah sebuah kunci server berlaku. Pemulihannya: Admin membuka kembali baris stasiun itu di layar ini, lalu klien mengirim ulang. Konsekuensinya bagi UX layar ini: tombol Buka Kembali perlu tetap mudah ditemukan untuk baris yang sudah tertutup, dan itu sudah demikian.",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/detail-periode-pelaporan.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 23 lulus, 0 gagal; test_results.browser diperbarui."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/detail-periode-pelaporan.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 23 lulus, 0 gagal; test_results.browser diperbarui.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): DetailPeriodePelaporan.php tidak berubah, tetapi perilakunya bertambah lewat PeriodService::delete() — periode yang membingkai record stasiun ditolak PeriodHasRecordsException (409 PERIOD_HAS_RECORDS) dan pesannya tampil inline karena kelas itu extends PeriodClosedImmutableException. Combobox Business Unit di modal Edit Periode diperbaiki lewat komponen bersama x-searchable-select (aset dimuat sekali oleh components/layouts/app.blade.php melalui searchable-select-assets.blade.php; x-data tanpa opsi; listbox wire:ignore) — dikunci e2e-web/tests/searchable-select-dependent.spec.ts skenario 'Detail Periode → Edit'. e2e-web/tests/detail-periode-pelaporan.spec.ts kini memakai periode fixture 'Fixture Periode Agustus 2026' di mill 'Mill Periode Uji' (BrowserTestFixtureSeeder::periodFixtures, id dibaca lewat GET /api/periods) dan tidak lagi menghapus periodenya, karena periode yang membingkai record tidak dapat dihapus; skenario panel memakai mill yang sama. Cakupan backend penjaga hapus: AuditFix20261004Test [period-delete]."
   ],
   "deferred_items": [
     {
@@ -74,7 +82,7 @@
   ],
   "known_issues": [
     {
-      "description": "Penolakan 409 pada Hapus TIDAK punya jalur yang bisa dicapai dari browser. Tombol Hapus ber-@disabled($period['is_immutable']), dan is_immutable adalah kondisi persis yang membuat delete() menjawab 409 — jadi deleteErrorMessage dari PeriodClosedImmutableException hanya dapat dipicu panggilan Livewire yang dipalsukan atau basi. Bukan cacat (penjaganya benar, berlapis), tapi cabang 409 itu tercakup hanya di tingkat komponen dan API, tidak pernah di browser. Test penolakan hapus di browser karena itu memakai jalur 404 (balapan dua Admin), bukan 409.",
+      "description": "Penolakan 409 PERIOD_CLOSED_IMMUTABLE pada Hapus tetap TIDAK punya jalur dari browser (tombol Hapus ber-@disabled($period['is_immutable'])). Sejak 2026-10-04 cabang 409 lain — PERIOD_HAS_RECORDS (periode berisi data stasiun) — DAPAT dicapai dari browser karena tidak memengaruhi is_immutable: tombol Hapus aktif, penolakannya muncul inline lewat catch PeriodClosedImmutableException yang sama (PeriodHasRecordsException adalah turunannya).",
       "severity": "low"
     },
     {

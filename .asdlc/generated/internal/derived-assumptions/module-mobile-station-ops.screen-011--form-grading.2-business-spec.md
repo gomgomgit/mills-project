@@ -18,3 +18,16 @@
 - Business rule baru: setiap Quality Parameter hanya bisa dipakai di satu baris Grading Detail, tidak muncul lagi di dropdown baris lain setelah dipilih, kembali tersedia jika baris dihapus/parameter diganti ← instruksi eksplisit user ("quality parameter yang sudah ditambah di grading itu tidak akan muncul lagi di baris lain")
 - Interpretasi "1 baris untuk qty uom dan percentage nya" ← ditafsirkan sebagai penegasan bahwa struktur satu-baris-satu-parameter (yang memang sudah menjadi desain sejak v2) kini ditegakkan sebagai aturan eksplisit (parameter tidak boleh dipakai ulang di baris lain), bukan perubahan struktur baris itu sendiri
 - Parameter kembali tersedia otomatis jika baris yang memakainya dihapus atau parameternya diganti ← logical consequence, bukan instruksi terpisah dari user
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/FormGradingView.vue, mobile/src/services/gradingRecordRepo.ts, mobile/src/services/gradingParameterSync.ts, mobile/src/services/syncService.ts, mobile/src/services/localSchema.ts).
+- information_displayed[0] = label 'No. Grading', 'No. Polisi', 'Kode Kendaraan', 'Catatan'; Tanggal lokal; dropdown WB hanya saved/synced ber-No. WB Card + pilihan draft ← FormField label/id (field-grading-no, field-license-plate-no, field-vehicle-code, field-note); getWeighbridgeRecordOptions(includeId) WHERE status IN ('saved','synced') AND wb_card_number <> ''.
+- business_rules[0] = dropdown WB difilter saved/synced + No. WB Card, kecuali pilihan draft ← gradingRecordRepo.getWeighbridgeRecordOptions + onMounted loadDraft().then(loadWbOptions).
+- business_rules[1], [2] = label No. Polisi / Kode Kendaraan / Catatan ← FormGradingView.vue.
+- business_rules[7] = Tanggal pakai tanggal/jam LOKAL, dikirim 'YYYY-MM-DD' lokal ← FormGradingView.nowLocalDateTimeString (sudah ada sebelumnya), syncService.pushGradingRow toLocalDateString(row.date).
+- business_rules += master Quality Parameter diselaraskan dari server (login + sebelum sinkron Grading), peta via nama, id tak terpetakan → ditolak di perangkat ← gradingParameterSync.fetchAndCacheGradingParameters/resolveServerGradingParameterIds, auth.ts, syncService.syncAllRecords/pushGradingRow.
+- business_rules += Grading ditolak di perangkat bila Weighbridge tertaut belum tersinkron ← syncService.pushGradingRow localFailure. (⚠ perilaku ini sudah ada sebelum audit; kini juga ditulis ke sync_error lewat localFailure — didokumentasikan karena sebelumnya tidak ada di spec.)
+- edge_cases[2] = dropdown kosong bila tak ada WB saved/synced ber-No. WB Card ← filter repo.
+- edge_cases += pilihan WB lama tetap tampil; master parameter belum tersinkron → gagal sinkron di perangkat; 422 periode tertutup / tanggal > besok → 'Gagal sinkron: <alasan>' ← includeId, gradingParameterSync, GradingRecordService assertEventDateNotTooFarAhead('date'), SyncFailureHint.vue.
+- open_questions[0] = TERJAWAB: dropdown dibatasi saved/synced ber-No. WB Card ← getWeighbridgeRecordOptions.

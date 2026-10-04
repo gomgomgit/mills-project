@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-05"
   },
-  "ver": 2,
+  "ver": 3,
   "id": "screen-060--form-kernel-plant-web",
   "name": "Form Kernel Plant (Web)",
   "module_id": "module-web-station-data",
@@ -18,7 +18,7 @@
     "Tombol 'Edit' dari Detail Kernel Plant (Web) (mode ubah)"
   ],
   "information_displayed": [
-    "Mode Tambah: dropdown Production Line (wajib), Kernel Plant ID (wajib), Tanggal (default hari ini, dapat diedit), Note",
+    "Mode Tambah: dropdown Production Line (wajib), Kernel Plant ID (wajib), Tanggal (default hari ini WIB, dapat diedit, tidak boleh melewati besok), Note",
     "Mode Ubah: Station ditampilkan read-only (tidak dapat diubah setelah dibuat), field lain sama seperti mode tambah",
     "Grid Kernel Plant Detail: baris ditambahkan satu per satu (Tambah Baris), Time-Slot per baris dipilih dari dropdown (opsi = 24 slot kanonis 07:00-06:00 DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), 9 kolom bacaan per baris (Ripple Mill 1/2, Claybath/Hydro SG, Kernel Silo 1/2 Temp, Kernel Moisture, Shell Loss, Downtime (Mins), Findings) — seluruhnya opsional per baris, baris dapat dihapus",
     "Tabel Target Operasional read-only 6 baris x 3 kolom di bawah grid, bukan bagian dari payload simpan",
@@ -113,7 +113,8 @@
     "Simpan selalu menghasilkan status=saved (tidak ada draft/pause di web)",
     "Checked hanya oleh Supervisor, Acknowledged hanya oleh Mill Management",
     "Semua input web (kecuali field yang dibatasi role) harus tetap dapat diisi, tidak ada input yang disabled/readonly di luar pembatasan role",
-    "Tabel Target Operasional murni referensi read-only 3 kolom, tidak pernah dikirim sebagai bagian dari payload simpan record"
+    "Tabel Target Operasional murni referensi read-only 3 kolom, tidak pernah dikirim sebagai bagian dari payload simpan record",
+    "Tanggal tidak boleh melewati besok (zona aplikasi WIB) — bila lewat, Simpan ditolak dengan pesan inline di field Tanggal"
   ],
   "usecase_ids": [
     "usecase-060--form-kernel-plant-web"
@@ -123,7 +124,9 @@
     "Belum ada satu pun baris Kernel Plant Detail valid (Time-Slot terpilih + minimal 1 dari 9 kolom bacaan terisi) saat Simpan ditekan — pesan error khusus pada grid",
     "User memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tidak tersedia di dropdown",
     "Production Line tanpa station Kernel Plant aktif — pesan error umum",
-    "Navigasi ke id yang tidak ada (mode ubah) — pesan 'Record tidak ditemukan'"
+    "Navigasi ke id yang tidak ada (mode ubah) — pesan 'Record tidak ditemukan'",
+    "Tanggal diisi lebih dari besok (mis. salah ketik tahun) — Simpan ditolak dengan pesan inline 'Tanggal dd/mm/YYYY tidak masuk akal: tidak boleh melewati dd/mm/YYYY.'",
+    "Mode ubah dibuka dengan id berformat bukan UUID — diperlakukan sama dengan record tidak ditemukan ('Record tidak ditemukan.'), tanpa error sistem"
   ],
   "test_priority": "high",
   "open_questions": []

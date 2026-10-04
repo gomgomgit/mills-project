@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-034--mills-setting",
   "name": "Mills Setting",
@@ -16,22 +16,31 @@
     "backend/app/Services/MillSettingService.php",
     "backend/app/Http/Controllers/Api/MillSettingController.php",
     "backend/routes/api.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Rules/RealImage.php",
+    "backend/app/Livewire/Concerns/ValidatesUploadOnSelect.php",
+    "backend/app/Http/Controllers/Api/MillSettingController.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/MillSettingServiceTest.php",
     "backend/tests/Feature/Api/MillSettingTest.php",
     "backend/tests/Feature/Livewire/MillsSettingTest.php",
     "backend/database/factories/MillSettingFactory.php",
-    "backend/database/factories/StationFactory.php"
+    "backend/database/factories/StationFactory.php",
+    "backend/tests/Feature/Livewire/MillsSettingAuditTest.php",
+    "backend/tests/Feature/Livewire/ImageUploadValidationTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Settings/MillsSetting.php",
     "backend/resources/views/settings/mill-settings.blade.php",
-    "backend/resources/views/livewire/settings/mills-setting.blade.php"
+    "backend/resources/views/livewire/settings/mills-setting.blade.php",
+    "backend/resources/views/components/searchable-select.blade.php",
+    "mobile/src/services/millSettingRepo.ts"
   ],
   "fe_test_files_generated": [
-    "e2e-web/tests/mills-setting.spec.ts"
+    "e2e-web/tests/mills-setting.spec.ts",
+    "mobile/tests/millSettingRepo.sqljs.spec.ts",
+    "mobile/tests/writeThroughSync.spec.ts"
   ],
   "implementation_notes": [
     "First-time implementation of two new entity-catalog v7 pieces: `mill-setting` (new table, 1:1 with business_units, lazily auto-created via MillSettingService::getOrCreate() — no backfill migration needed, pre-existing Business Units get a default row on first access) and `station.icon` (new nullable string column, added via migration ONLY — no data existed to migrate since entity-catalog v6's short-lived `station.image` field was replaced by `icon` before any implementation ever touched it).",
@@ -44,7 +53,8 @@
     "GET/POST /api/mill-settings/{businessUnitId}/stations endpoints are DELIBERATELY separate from screen-030's existing /api/stations (Admin-only) rather than reusing it, so Mill Management can manage their own mill's station icons without being granted full Kelola Station access.",
     "Independently re-verified: re-ran `php artisan test` (full suite) — 644/644 passed, no regressions in any other screen's tests.",
     "REVISI v2 (2026-10-03, perbaikan tampilan + uji): subtitle halaman di resources/views/livewire/settings/mills-setting.blade.php tidak lagi menyebut 'jumlah cages' (field itu sudah dihapus 2026-08-20) — kini 'Atur nama aplikasi, logo, gambar halaman utama, pengiriman data langsung, dan icon station untuk mill Anda.' e2e-web/tests/mills-setting.spec.ts dijalankan: 6 lulus, 1 dilewati (skenario 'Validasi jumlah cages' di-skip karena field-nya tidak ada lagi); test_results.browser diperbarui. Known issue 'browser test tidak dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): MillsSetting kini punya rules()/messages() sendiri (seluruhnya Indonesia): app_name WAJIB (dulu nullable → mengosongkan tetap 'berhasil disimpan'); MillSettingService::update() menolak app_name yang DIKIRIM kosong (Rule::requiredIf kunci ada; kunci absen = tidak diubah). Logo & home_page_image ditambah App\\Rules\\RealImage (isi file harus JPG/PNG sungguhan) di Livewire dan service, dan divalidasi saat dipilih lewat trait App\\Livewire\\Concerns\\ValidatesUploadOnSelect (pratinjau disembunyikan selama ada error). Pemilih Mill (Admin) dan pemilih icon per station memakai x-searchable-select (stationIcons.<id> → updatedStationIcons() → setStationIcon()). Daftar station menampilkan kolom Production Line (mapStations: production_line_name, urut nama line lalu nama station) dan label tipe dari StationService::typeLabels(). Mobile: millSettingRepo.getMillSetting() kini ikut SELECT immediate_sync_enabled — sebelumnya selalu terbaca false sehingga pengaturan 'Kirim data langsung' di layar ini tidak pernah berlaku di perangkat. Uji: MillsSettingAuditTest.php, ImageUploadValidationTest.php, MillSettingServiceTest.php/MillSettingTest.php (diperbarui), mobile/tests/millSettingRepo.sqljs.spec.ts, mobile/tests/writeThroughSync.spec.ts, e2e-web/tests/mills-setting.spec.ts (diperbarui)."
   ],
   "deferred_items": [],
   "known_issues": [

@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-01"
+    "updated_at": "2026-10-05"
   },
-  "ver": 4,
+  "ver": 5,
   "id": "usecase-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
   "description": "Admin mendefinisikan dan memelihara Periode Pelaporan untuk sebuah mill (Business Unit). Periode inilah satuan waktu seluruh laporan Full Cycle per Stasiun. Cakupannya adalah SELURUH mill pada rentang tanggal itu — tidak ada pilihan jenis stasiun: menyimpan periode mendaftarkan satu baris stasiun berstatus Draft untuk setiap jenis stasiun yang aktif di mill tersebut. Usecase ini mencakup membaca panel 'Periode Terbuka Hari Ini per Mill' di atas daftar — satu card per mill yang menjawab dalam sekali pandang apakah mill itu hari ini dapat menerima input — lalu melihat daftar periode dengan filter beserta ringkasan status stasiunnya, menambah, mengubah, dan menghapus periode, serta membuka layar Detail Periode Pelaporan. Menutup, membuka, dan membuka kembali stasiun BUKAN bagian usecase ini — itu usecase-140 dan usecase-144, yang keduanya berjalan di layar detail karena status melekat pada jenis stasiun.",
@@ -68,7 +68,7 @@
     {
       "step": 11,
       "actor": "actor-admin",
-      "description": "Bila perlu, menghapus periode yang belum punya satu pun stasiun tertutup, dengan konfirmasi inline"
+      "description": "Bila perlu, menghapus periode yang belum punya satu pun stasiun tertutup DAN belum berisi data stasiun (tidak ada record mill itu yang tanggal kejadiannya jatuh dalam rentang periode), dengan konfirmasi inline"
     }
   ],
   "alternative_flows": [
@@ -170,6 +170,15 @@
         "Hasilnya gabungan kedua inventaris — konsekuensi yang diterima dari aturan add-only",
         "Bila periode itu punya stasiun terbuka, ia berpindah card: hilang dari card mill lama dan muncul di card mill baru, sebab card mengikuti business_unit_id periode"
       ]
+    },
+    {
+      "name": "Menghapus periode yang sudah berisi data stasiun",
+      "trigger": "Pada langkah 11, periode yang dipilih belum punya stasiun tertutup, tetapi ada record mill itu — dari jenis stasiun yang dimiliki periode — yang tanggal kejadiannya (tanggal header, atau tanggal baris detail CPO Dispatch / Kernel Dispatch / Solid Waste Disposal) berada di dalam rentangnya",
+      "steps": [
+        "Admin mengonfirmasi hapus (tombol Hapus tidak dinonaktifkan oleh kondisi ini)",
+        "Sistem menolak penghapusan dengan pesan inline yang menyebut jenis stasiun yang sudah berisi data, dan menjelaskan bahwa hanya periode yang belum berisi data yang dapat dihapus",
+        "Periode dan seluruh baris stasiunnya tetap ada"
+      ]
     }
   ],
   "postconditions": [
@@ -177,7 +186,7 @@
     "Daftar periode mencerminkan seluruh perubahan yang dilakukan Admin beserta ringkasan status stasiun terbarunya",
     "Panel 'Periode Terbuka Hari Ini per Mill' mencerminkan keadaan hari ini untuk seluruh mill, termasuk mill yang tidak punya satu pun periode terbuka hari ini",
     "Periode yang tersimpan siap dipilih sebagai satuan waktu pada layar-layar laporan periode per stasiun",
-    "Periode yang punya minimal satu stasiun tertutup tidak dapat diubah maupun dihapus"
+    "Periode yang punya minimal satu stasiun tertutup tidak dapat diubah maupun dihapus; periode yang sudah berisi data stasiun tidak dapat dihapus"
   ],
   "business_rules": [
     "Hanya Admin yang dapat mengakses dan menjalankan usecase ini",
@@ -196,7 +205,8 @@
     "Tombol Edit dan Hapus pada periode terbekukan ditampilkan nonaktif beserta penjelasan, tidak disembunyikan",
     "Periode induk tidak punya status tunggal; kolom Status Stasiun hanyalah rangkuman status seluruh baris stasiunnya",
     "Filter Status Stasiun bermakna 'punya minimal satu stasiun berstatus itu', sehingga satu periode campuran dapat muncul pada lebih dari satu nilai filter — pilihan ini diambil supaya tidak ada periode yang hilang dari daftar tersaring",
-    "Menutup, membuka, dan membuka kembali stasiun berada di layar Detail Periode Pelaporan, bukan di layar daftar ini"
+    "Menutup, membuka, dan membuka kembali stasiun berada di layar Detail Periode Pelaporan, bukan di layar daftar ini",
+    "Periode yang sudah berisi data stasiun (record mill itu, dari jenis stasiun periode itu, bertanggal kejadian di dalam rentangnya — termasuk tanggal baris detail tiga stasiun log-kejadian) tidak dapat dihapus; periode kosong tetap boleh dihapus"
   ],
   "bdd_scenarios": [
     {
@@ -300,6 +310,12 @@
       "given": "Admin sudah login ke aplikasi web dan terdapat periode pada daftar Kelola Periode Pelaporan",
       "when": "Admin menekan nama periode tersebut",
       "then": "Layar Detail Periode Pelaporan periode itu terbuka, tempat seluruh jenis stasiunnya beserta aksi tutup/buka/buka kembali per stasiun berada — daftar ini sendiri tidak menyediakan aksi per stasiun"
+    },
+    {
+      "scenario": "Kelola Periode Pelaporan — Menghapus periode yang sudah berisi data stasiun",
+      "given": "Admin sudah login ke aplikasi web dan sebuah periode tanpa stasiun tertutup sudah membingkai minimal satu record stasiun mill itu",
+      "when": "Admin menekan Hapus pada periode itu dan mengonfirmasi",
+      "then": "Sistem menolak penghapusan dengan pesan inline yang menyebut jenis stasiun yang berisi data; periode dan baris stasiunnya tetap ada"
     }
   ],
   "related_screen_ids": [

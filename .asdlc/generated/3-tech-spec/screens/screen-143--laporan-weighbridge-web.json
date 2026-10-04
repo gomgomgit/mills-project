@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-01"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-143--laporan-weighbridge-web",
   "name": "Laporan Weighbridge (Web)",
@@ -230,7 +230,9 @@
               },
               "completeness": {
                 "days_in_period": "integer",
-                "days_with_trip": "integer"
+                "days_with_trip": "integer",
+                "days_counted": "integer — BARU 2026-10-04 (ReportPeriodDays::counted): penyebut persen hari bertrip; = days_in_period untuk periode selesai, start..hari ini (WIB) untuk periode berjalan, 0 bila belum mulai",
+                "period_running": "boolean — BARU 2026-10-04: true bila end_date setelah hari ini"
               }
             },
             "error_codes": [
@@ -259,7 +261,7 @@
         {
           "method": "GET",
           "path": "/api/weighbridge-reports/export",
-          "description": "Ekspor seluruh trip sepanjang periode ke CSV, satu baris per trip, kolom konteks diulang tiap baris. Header TIDAK memuat kolom durasi",
+          "description": "Ekspor seluruh trip sepanjang periode ke CSV atau Excel (.xlsx sungguhan via SheetWriter), satu baris per trip, kolom konteks diulang tiap baris. Header TIDAK memuat kolom durasi",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -283,7 +285,7 @@
                 "type": "string",
                 "required": false,
                 "default": "csv",
-                "description": "Hanya csv"
+                "description": "csv | excel (excel = .xlsx sungguhan sejak 2026-10-04); di luar itu 422 VALIDATION_ERROR"
               },
               {
                 "name": "business_unit_id",
@@ -297,8 +299,8 @@
           },
           "response": {
             "success_schema": {
-              "content_type": "text/csv",
-              "body": "StreamedResponse — satu baris per trip; kolom konteks periode, mill, Production Line, dan jenis arus diulang tiap baris; trip tanpa berat bersih tetap jadi baris dengan sel kosong"
+              "content_type": "text/csv atau application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "body": "StreamedResponse — satu baris per trip; kolom konteks periode, mill, Production Line, dan jenis arus diulang tiap baris; Status berlabel Indonesia; trip tanpa berat bersih tetap jadi baris dengan sel kosong"
             },
             "error_codes": [
               {
@@ -342,8 +344,8 @@
         "15. summary: by_destination dikelompokkan per destination (arus keluar), urut menurun; destination NULL membentuk SATU kelompok tersendiri dan TIDAK dibuang, sehingga jumlah trip seluruh kelompok tetap menjumlah ke trip_count arus keluar",
         "16. summary: draft_trip_count = COUNT baris berstatus draft_ongoing atau draft_paused; baris draft TETAP ikut di seluruh angka lain — nol filter status diterapkan pada query metrik",
         "17. summary: daily dikelompokkan per bagian tanggal record_datetime dengan keempat angka per tanggal; daily_total menjumlah seluruh baris daily, dan kedua arus tetap terpisah di daily_total",
-        "18. summary: completeness.days_in_period = jumlah hari kalender periode inklusif; days_with_trip = COUNT DISTINCT tanggal yang punya minimal satu trip",
-        "19. export: query sama dengan summary, satu baris per trip, konteks diulang; baris dengan net_weight NULL tetap muncul dengan sel kosong, bukan dibuang maupun ditulis 0; berkas TIDAK memuat kolom durasi"
+        "18. summary: completeness.days_in_period = jumlah hari kalender periode inklusif; days_with_trip = COUNT DISTINCT tanggal yang punya minimal satu trip; days_counted = App\\Support\\ReportPeriodDays::counted(period) dan period_running = ReportPeriodDays::isRunning(period) (audit 2026-10-04 #3). Layar menghitung persen hari bertrip = days_with_trip / days_counted (bukan days_in_period); days_counted 0 → persen null → '—'.",
+        "19. export: query sama dengan summary, satu baris per trip, konteks (Periode, Mill, Production Line, Jenis Arus) diulang; ditulis lewat App\\Support\\SheetWriter — format=csv CSV, format=excel .xlsx SUNGGUHAN (sebelum 2026-10-04 byte CSV bernama .xlsx); kolom Status berlabel Indonesia via ExportValue::status, bukan enum mentah; baris dengan net_weight NULL tetap muncul dengan sel kosong, bukan dibuang maupun ditulis 0; berkas TIDAK memuat kolom durasi"
       ],
       "data_operations": [
         {
@@ -415,6 +417,14 @@
         {
           "condition": "business_unit_id kiriman klien pada peran terikat mill",
           "handling": "Dibuang; mill akun yang dipakai; nol query menerima nilai kiriman itu"
+        },
+        {
+          "condition": "Periode masih berjalan",
+          "handling": "completeness.days_counted = hari start..hari ini, period_running true; layar memakai days_counted sebagai penyebut persen hari bertrip ('dari N hari') dan menampilkan period-running-note"
+        },
+        {
+          "condition": "Periode belum mulai (days_counted 0)",
+          "handling": "persen hari bertrip null → '—', bukan 0%"
         }
       ],
       "business_rules_applied": [
@@ -683,6 +693,11 @@
           "description": "summary returns the full result when all conditions pass",
           "given": "mill-bound supervisor on BU-A, valid period_id covering weighbridge on BU-A, valid production_line_id of BU-A, records present in both flows with mixed net_weight, mixed destinations, mixed statuses and a spread of hours",
           "expect": "returns business_unit, production_line, period, a receive group and a dispatch group each with trip_count / net_weight_total / net_weight_avg / net_weight_trip_count / missing_net_weight_trip_count / 24 hourly buckets / busiest_hour / busiest_hour_trip_count / empty_hour_count plus by_origin (receive) or by_destination (dispatch), draft_trip_count, undated_trip_count, daily, daily_total and completeness — and no duration-derived field at all"
+        },
+        {
+          "description": "summary mengirim completeness.days_counted dan period_running; persen hari bertrip memakai hari yang sudah lewat (audit 2026-10-04 #3)",
+          "given": "periode yang end_date-nya setelah hari ini, trip pada sebagian hari yang sudah lewat",
+          "expect": "completeness.days_counted = hari start..hari ini; period_running = true; layar days-in-period menampilkan days_counted dan period-running-note tampil"
         }
       ]
     }
@@ -736,7 +751,8 @@
     "Rute web: /reports/weighbridge, nama reports.weighbridge, middleware ['auth','role:supervisor,mill_management,admin'], komponen Livewire App\\Livewire\\Dashboard\\LaporanWeighbridge — mengikuti pola persis /reports/storage-tank. Satu laporan stasiun di repo ini terdiri dari ENAM berkas, bukan empat: service, controller, komponen Livewire, blade komponen, DAN blade layout pembungkus yang memegang <x-slot:styles>. resources/views/dashboard/partials/report-styles.blade.php bersifat bersama dan TIDAK boleh diubah.",
     "Grup API memakai middleware ['auth:web,sanctum','role:supervisor,mill_management,admin'] — SENGAJA TANPA operator untuk sekarang. Laporan lain menyertakan operator karena pasangan mobile-nya sudah ada; screen-144 (mobile) belum dibangun. Operator dikecualikan di TIGA tempat — middleware API, guardAccess(), dan canAccess() — dan ketiganya harus dilebarkan bersamaan saat screen-144 dikerjakan: melebarkan rutenya saja akan menjatuhkan Operator ke cabang Admin, tempat business_unit_id kiriman klien JUSTRU dihormati.",
     "WAJIB: tambahkan satu baris ke StationReportService::REPORT_ROUTES memetakan StationType::Weighbridge->value ke 'reports.weighbridge'. Tanpa baris itu laporan ini jadi, seluruh test-nya lolos, dan tile-nya tetap kelabu — layarnya tidak terjangkau dari UI. Komentar di konstanta itu memperingatkan hal yang sama. KONSEKUENSI: test tile-availability yang ada di StationReportServiceTest.php:425 mengasersi weighbridge report_available = false dan akan MERAH setelah baris ini ditambahkan. Test itu harus diperbarui bersamaan — kemerahannya adalah test lama yang kini salah, bukan kode baru yang rusak.",
-    "Urutan REPORT_ROUTES mengikuti station_types.sort_order. Diverifikasi dari migrasi 2026_09_22_000029: weighbridge 10, cages-track 30, sterilizer 40, clarification 70, boiler-room 90, storage-tank 140. Jadi barisnya masuk PALING DEPAN, bukan ditambahkan di akhir."
+    "Urutan REPORT_ROUTES mengikuti station_types.sort_order. Diverifikasi dari migrasi 2026_09_22_000029: weighbridge 10, cages-track 30, sterilizer 40, clarification 70, boiler-room 90, storage-tank 140. Jadi barisnya masuk PALING DEPAN, bukan ditambahkan di akhir.",
+    "AUDIT-FIX 2026-10-04 (kode adalah acuan): laporan-weighbridge.blade.php — persen hari bertrip memakai completeness.days_counted, '—' bila 0, period-running-note; sumbu tren berat via App\\Support\\ChartAxis::nice(0, maks) (dimulai dari nol, langkah bulat; dulu maks × 1,12 dibagi empat → label 295.294), plot mulai x=72; klausa ', bukan M' pada penyebut rata-rata hanya bila net_weight_trip_count ≠ trip_count; teks hari ber-trip nol kg kini 'tidak mendapat titik pada grafik trennya'; teks draft disederhanakan ('sama seperti di laporan stasiun lain'); ekspor via SheetWriter + ExportValue::status."
   ],
   "test_scenarios": [
     {

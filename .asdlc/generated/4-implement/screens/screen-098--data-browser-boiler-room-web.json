@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-098--data-browser-boiler-room-web",
   "name": "Data Browser Boiler Room (Web)",
@@ -22,13 +22,18 @@
     "backend/database/factories/BoilerRoomDetailFactory.php",
     "backend/database/factories/StationFactory.php",
     "backend/resources/views/data/production-process-activity.blade.php",
-    "backend/app/Support/Concerns/ScopesToActorMill.php"
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php",
+    "backend/app/Support/Display.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/BoilerRoomRecordServiceTest.php",
     "backend/tests/Feature/Api/DataBrowserBoilerRoomTest.php",
     "backend/tests/Feature/Livewire/DataBrowserBoilerRoomTest.php",
-    "backend/tests/Feature/ProductionProcessActivityTest.php"
+    "backend/tests/Feature/ProductionProcessActivityTest.php",
+    "backend/tests/Unit/Services/ExportDetailRowsTest.php",
+    "backend/tests/Pest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserBoilerRoom.php",
@@ -52,7 +57,8 @@
     "Ran the full backend test suite (`php artisan test`) after implementation: 1974 passed, 1 pre-existing unrelated flaky failure (Tests\\Unit\\Services\\CagesTrackRecordServiceTest -- a UNIQUE constraint collision from Faker-generated random data, reproduced in isolation as passing, confirmed unrelated to this station's changes). Boiler-Room-specific tests (`--filter=BoilerRoom`): 91 passed (0 failed) -- 34 unit (BoilerRoomRecordServiceTest), 7 integration (Feature/Api/DataBrowserBoilerRoomTest), 5 component (Feature/Livewire/DataBrowserBoilerRoomTest), reported under this screen; remaining 45 Boiler Room tests reported under screen-108/screen-118 below",
     "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau.",
     "REVISI v3 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-boiler-room.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec dijalankan penuh: 5/5 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser spec tidak dapat dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): BoilerRoomRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan, sebelumnya CSV berlabel .xlsx; csv tetap CSV); nilai sel lewat App\\Support\\ExportValue — time slot 'HH:MM', status label Indonesia; data-browser-boiler-room.blade.php memakai Display::status() untuk badge. Uji: BoilerRoomRecordServiceTest export (assert 'PK' + xlsxRows), ExportDetailRowsTest, helper xlsxRows/exportBodyAsCsv di tests/Pest.php. Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah."
   ],
   "deferred_items": [
     {

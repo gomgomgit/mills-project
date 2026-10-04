@@ -39,3 +39,12 @@ Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
 Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 6/0.
 - Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): lewat pemilih Production Line dulu; kasus tile nonaktif men-seed placeholder inaktif; kasus override ikon memblokir re-sync stasiun.
+
+## v16 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile + backend).
+- files_generated += GradingParameterController.php, GradingParameterService.php, routes/api.php ← GET /api/grading-parameters dipakai sinkronisasi layar ini.
+- test_files_generated += backend/tests/Feature/Api/MobileReadEndpointsTest.php (grading-parameters).
+- fe_files_generated += SyncResultDialog.vue, gradingParameterSync.ts, millSettingRepo.ts, utils/localDate.ts, utils/floatingSafeArea.ts, App.vue ← dipakai/diubah untuk alur Sinkronisasi & tampilan layar ini. ⚠ App.vue/floatingSafeArea.ts bersifat global (semua layar), dicantumkan di sini karena Station List pemilik tombol Sinkronisasi/dialog.
+- fe_test_files_generated += syncService.sqljs.spec.ts, SyncFailureHint.spec.ts, DialogTeleport.spec.ts, floatingSafeArea.spec.ts, millSettingRepo.sqljs.spec.ts, writeThroughSync.spec.ts, e2e/sync-and-verification.spec.ts.
+- implementation_notes += REVISI 2026-10-04 (line per record, sync_error, grading param resolve, write-through fix, dialog teleport, safe area, 'Stasiun Aktif').

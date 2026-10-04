@@ -16,3 +16,13 @@ Mencatat perbaikan kode/uji 2026-10-03.
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/KelolaStationTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD KelolaStation.php, StationService.php, kelola-station.blade.php, components/searchable-select.blade.php; berkas baru searchable-select-assets.blade.php, KelolaStationAuditTest.php, e2e-web/tests/searchable-select-dependent.spec.ts).
+- files_generated (+) = app/Rules/UniqueCaseInsensitive.php.
+- fe_files_generated (+) = components/searchable-select-assets.blade.php, components/layouts/app.blade.php ← aset combobox dimuat sekali per halaman oleh layout.
+- test_files_generated (+) = KelolaStationAuditTest.php; fe_test_files_generated (+) = e2e-web/tests/searchable-select-dependent.spec.ts (skenario Kelola Station ganti BU).
+- implementation_notes[1] = is_active hanya dilarang untuk Other ← validate() after().
+- implementation_notes (+) = REVISI audit-fix.
+- known_issues (+) = delete() tidak memeriksa record stasiun (FK restrictOnDelete → error DB tak tertangkap di confirmDelete) dan filter production_line_id tidak ada di API ⚠ INFERENSI dari kode (delete() + migrasi restrictOnDelete + catch di confirmDelete), tidak dibuktikan lewat run.

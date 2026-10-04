@@ -1,14 +1,19 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-059--form-depricarping-web",
   "name": "Form Depricarping (Web)",
   "module_id": "module-web-station-data",
   "status": "complete",
-  "files_generated": [],
+  "files_generated": [
+    "backend/app/Support/AppTime.php",
+    "backend/app/Support/Concerns/EnforcesPeriodLock.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php"
+  ],
   "test_files_generated": [
     "backend/tests/Feature/Api/FormDepricarpingTest.php",
     "e2e-web/tests/form-depricarping.spec.ts"
@@ -16,22 +21,26 @@
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormDepricarping.php",
     "backend/resources/views/data/depricarping-form.blade.php",
-    "backend/resources/views/livewire/data/form-depricarping.blade.php"
+    "backend/resources/views/livewire/data/form-depricarping.blade.php",
+    "backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php"
   ],
   "fe_test_files_generated": [
-    "backend/tests/Feature/Livewire/FormDepricarpingTest.php"
+    "backend/tests/Feature/Livewire/FormDepricarpingTest.php",
+    "backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php",
+    "backend/tests/Feature/Livewire/WebFormNoDisabledFieldTest.php"
   ],
   "implementation_notes": [
     "Reuses DepricarpingRecordService::create()/update() (BE service shared with screen-051)",
     "REVISED 2026-08-24 (entity-catalog v12, correcting the original design the user explicitly rejected): the Depricarping Detail grid is now DYNAMIC -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() now exist on FormDepricarping.php, exactly mirroring FormPressing's just-fixed Pressing Detail grid (screen-058)/FormThreshing's Threshing Detail grid (screen-057) and FormCagesTrack's Cages Tipped Time grid. Grid starts empty on create mode (was: built from DepricarpingRecordService::canonicalTimeSlots() into 24 rows on mount); edit mode still loads existing rows verbatim with each row's id",
-    "All 8 reading-column inputs per row are genuinely editable number/text fields, never disabled -- unlike Form Cages Track Web's computed fields (a documented uiux-spec exception), Depricarping has no computed detail-grid fields, so the 'no disabled web inputs' rule applies with zero exceptions in this screen's detail grid; Downtime (Mins) is a plain number input and Findings a plain text input, both freely editable like the other 6 numeric columns -- UNAFFECTED by the dynamic-grid revision, a row simply counts as filled when EITHER is set, same as any other reading column",
+    "All 8 reading-column inputs per row are genuinely editable number/text fields, never disabled -- Depricarping has no computed detail-grid fields (for comparison, Form Cages Track Web's Total Cages/Cages Remain, formerly disabled inputs, have been rendered as plain text since 2026-10-04), so the 'no disabled web inputs' rule applies with zero exceptions in this screen (enforced statically by tests/Feature/Livewire/WebFormNoDisabledFieldTest.php); Downtime (Mins) is a plain number input and Findings a plain text input, both freely editable like the other 6 numeric columns -- a row simply counts as filled when EITHER is set, same as any other reading column",
     "Target Operasional table queried directly by FormDepricarping::render(), never sent as part of the create/update payload; renders 4 columns (one more than Threshing/Pressing's 3) matching the entity-catalog's own shape for this station -- UNTOUCHED by this revision",
     "Route /data/depricarping/create registered BEFORE /data/depricarping/{id} (screen-055) so the literal 'create' segment is not swallowed by {id}",
     "checked/acknowledged self-attestation checkboxes mirror FormPressing's dual-checkbox pattern (both Checked By AND Acknowledged By, unlike Form Weighbridge/Grading Web which only have Acknowledged)",
     "Ran the full backend Pest suite as the final step of this 6-screen pass: 1287/1287 passing (up from the pre-fix baseline of 1275/1275), confirming zero regressions across Threshing/Pressing/Depricarping and every other station",
     "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): DepricarpingRecordService::create() memanggil assertPeriodOpenForWrite('depricarping', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormDepricarping::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/DepricarpingRecordServiceTest.php, tests/Feature/Api/FormDepricarpingTest.php, tests/Feature/Livewire/FormDepricarpingTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini).",
     "REVISI v4 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormDepricarpingTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 21 uji, semuanya hijau (test_results.integration diperbarui).",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-depricarping.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 9 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-depricarping.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 9 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): FormDepricarping memakai trait App\\Livewire\\Data\\Concerns\\GuardsRecordIdShape — id edit bukan UUID langsung 'Record tidak ditemukan.' tanpa query SQL. DepricarpingRecordService (shared dgn screen-051) create/update memanggil assertEventDateNotTooFarAhead('date') dari EnforcesPeriodLock (tanggal > besok WIB via App\\Support\\AppTime -> 422 inline errors.date) dan upsertDetails() memeriksa Str::isUuid(id baris) sebelum query; ScopesToActorMill menolak production_line_id bukan-UUID (422); ApiExceptionHandler memetakan QueryException 22P02/22007/22008 -> 422 VALIDATION_ERROR, lainnya 500 generik. View form-depricarping.blade.php tidak berubah (sudah tanpa input disabled). Tes yang menutup: tests/Feature/Livewire/RecordIdShapeGuardTest.php, tests/Feature/Livewire/WebFormNoDisabledFieldTest.php; batas atas tanggal diuji lintas stasiun di tests/Feature/AuditFix20261004Test.php (bukan via Depricarping). test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [],

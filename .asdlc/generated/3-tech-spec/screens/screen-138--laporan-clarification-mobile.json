@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-138--laporan-clarification-mobile",
   "name": "Laporan Clarification (Mobile)",
@@ -173,11 +173,13 @@
               "production_line": "{ id: uuid, name: string } | null — blok BARU (2026-09-28), ADITIF: seluruh kunci yang sudah ada tetap di tempatnya. null ketika permintaan tidak membawa production_line_id.",
               "coverage": {
                 "filled_slots": "integer",
-                "expected_slots": "integer",
+                "expected_slots": "integer (= unit_count × days_counted × slots_per_unit_per_day)",
                 "coverage_percent": "float",
                 "unit_count": "integer",
                 "slots_per_unit_per_day": "integer",
-                "days_in_period": "integer"
+                "days_in_period": "integer",
+                "days_counted": "integer — = days_in_period untuk periode selesai, start..hari ini (WIB) untuk periode berjalan, 0 untuk periode belum mulai (App\\Support\\ReportPeriodDays::counted)",
+                "period_running": "boolean — true bila end_date periode setelah hari ini"
               },
               "production": {
                 "total_ton": "float|null",
@@ -330,7 +332,7 @@
           },
           "response": {
             "success_schema": {
-              "_note": "StreamedResponse; kolom konteks record (tanggal, unit clarification, status, catatan) diulang tiap baris, lalu keenam kolom pengukuran dan findings apa adanya"
+              "_note": "StreamedResponse; mobile memakai format=csv. 15 kolom: Periode, Mill, Production Line (konteks ekspor, diulang tiap baris) → Tanggal, Unit Clarification, Status (label Indonesia, mis. 'Tersinkron'), Catatan (konteks record, diulang) → Slot Waktu HH:MM → keenam kolom pengukuran dan findings apa adanya. (format=excel di server kini .xlsx sungguhan via SheetWriter — tidak dipakai layar mobile)"
             },
             "error_codes": [
               {
@@ -432,7 +434,8 @@
         "summary dan export membawa `production_line_id`; /periods dan /business-units/options TIDAK PERNAH membawanya — Periode Pelaporan milik MILL (periods.business_unit_id, tanpa kolom production_line_id).",
         "Nama line yang menyertai angka diambil dari `summary.production_line.name` (jawaban SERVER) lebih dahulu, baru nama pada daftar opsi — yang ditampilkan adalah line yang benar-benar dipakai server, bukan yang dikira klien.",
         "Mengganti mill (Admin) membatalkan pilihan line DAN mengosongkan daftar opsinya: sebuah Production Line milik satu mill, jadi membiarkannya akan menampilkan angka mill baru dengan label line mill lama.",
-        "Tombol Ekspor hanya dirender ketika ada periode DAN line yang berlaku; onExport() pun berhenti lebih dulu tanpa keduanya — berkas yang mencampur line adalah bentuk kesalahan yang paling sulit dibantah setelah terkirim."
+        "Tombol Ekspor hanya dirender ketika ada periode DAN line yang berlaku; onExport() pun berhenti lebih dulu tanpa keduanya — berkas yang mencampur line adalah bentuk kesalahan yang paling sulit dibantah setelah terkirim.",
+        "KELENGKAPAN PERIODE BERJALAN (audit 2026-10-04 #3/#9/#10): ClarificationCoverage di clarificationReportRepo.ts menambah days_counted dan period_running (bawaan 0/false bila blok coverage absen), diteruskan apa adanya. LaporanClarificationView: coverageDaysCounted = days_counted ?? days_in_period; rumus kelengkapan memakai days_counted + ' (sampai hari ini)' bila period_running; data-testid=\"period-running-note\" 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat).'; expected_slots 0 → coverage-percent NOT_AVAILABLE ('-') dan data-testid=\"coverage-no-expected\" 'belum ada slot yang diharapkan' menggantikan coverage-slots; persen 1 desimal. Label status periode: draft 'Draft', open 'Terbuka', closed 'Tertutup' (sama dengan web; sebelumnya 'Ditutup')."
       ],
       "data_operations": [
         {
@@ -750,6 +753,31 @@
           "description": "blok production_line pada respons dipetakan apa adanya, dan null ketika server tidak mengirimnya",
           "given": "respons summary dengan dan tanpa kunci production_line",
           "expect": "repo memulangkan objeknya apa adanya atau null — tanpa menebak, tanpa menghitung ulang"
+        },
+        {
+          "description": "repo meneruskan days_counted dan period_running dari /summary apa adanya",
+          "given": "payload coverage memuat days_counted dan period_running",
+          "expect": "hasil fetchSummary().coverage memuat kedua nilai identik; blok coverage absen → bawaan days_counted 0, period_running false"
+        },
+        {
+          "description": "periode masih berjalan — rumus memakai days_counted dan catatan 'sampai hari ini' tampil",
+          "given": "coverage { period_running: true, days_counted < days_in_period, expected_slots > 0 }",
+          "expect": "period-running-note terender; rumus menyebut days_counted hari (sampai hari ini)"
+        },
+        {
+          "description": "periode sudah selesai — tanpa catatan dan tanpa '(sampai hari ini)'",
+          "given": "coverage { period_running: false }",
+          "expect": "period-running-note tidak ada; rumus tanpa '(sampai hari ini)'"
+        },
+        {
+          "description": "penyebut 0 — persen '-' bukan '0,0%'",
+          "given": "coverage { expected_slots: 0 }",
+          "expect": "coverage-percent = '-'; coverage-no-expected 'belum ada slot yang diharapkan' tampil"
+        },
+        {
+          "description": "periode tertutup — badge 'Tertutup'",
+          "given": "periode berstatus closed",
+          "expect": "period-status-badge = 'Tertutup'; laporan penuh dan Ekspor tetap aktif"
         }
       ]
     }
@@ -813,7 +841,8 @@
     "Kunci ingatan `msl_production_line_{userId}` adalah KUNCI YANG SAMA yang ditulis StationListView.vue dan dibaca ReportingPilihStasiunView.vue (screen-141). Line adalah satu konteks kerja yang dibagi antar layar, bukan tiga pilihan terpisah. Setiap pembacaannya dibungkus try/catch (mode privat bisa melempar).",
     "Bentuk respons options-for-report sengaja {id, name, code} — identik dengan /production-lines/current — supaya mobile cukup punya satu pemeta dan sebuah layar bisa berpindah sumber tanpa mengubah cara membaca barisnya.",
     "Uji yang menyentuh production line WAJIB window.localStorage.clear() di beforeEach: ingatan line bocor antar-uji jauh lebih halus daripada ingatan sesi.",
-    "Cakupan uji Production Line yang nyata untuk layar ini: 13 uji komponen (mobile/tests/LaporanClarificationView.spec.ts), 7 uji repo (mobile/tests/clarificationReportRepo.spec.ts), dan 7 uji browser (mobile/tests/e2e/laporan-*.spec.ts, dijalankan terhadap Vite dev server)."
+    "Cakupan uji Production Line yang nyata untuk layar ini: 13 uji komponen (mobile/tests/LaporanClarificationView.spec.ts), 7 uji repo (mobile/tests/clarificationReportRepo.spec.ts), dan 7 uji browser (mobile/tests/e2e/laporan-*.spec.ts, dijalankan terhadap Vite dev server).",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): server kini menghentikan penyebut kelengkapan di hari ini (ReportPeriodDays) dan mengirim coverage.days_counted + period_running; clarificationReportRepo.ts menambah kedua medan pada tipe + bawaan; LaporanClarificationView.vue menampilkan catatan periode berjalan, rumus '× days_counted hari (sampai hari ini)', '-' + 'belum ada slot yang diharapkan' bila expected_slots 0, dan label status 'Tertutup' (sebelumnya 'Ditutup'). Ekspor CSV dari server kini 15 kolom (Periode/Mill/Production Line + label Indonesia + slot HH:MM). Diuji di mobile/tests/LaporanClarificationView.spec.ts, mobile/tests/clarificationReportRepo.spec.ts, mobile/tests/e2e/laporan-clarification.spec.ts."
   ],
   "test_scenarios": [
     {

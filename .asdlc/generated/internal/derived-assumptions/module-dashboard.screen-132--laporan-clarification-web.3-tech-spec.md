@@ -45,3 +45,18 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (ClarificationReportService.php, ReportPeriodDays.php, SheetWriter.php, ExportValue.php, ChartAxis.php, laporan-clarification.blade.php, routes/api.php, tests/Feature/Api/LaporanClarificationTest.php).
+- actor_permissions[3].conditions = web tertutup (403 page; Operator boleh login web sejak 2026-10-04); API periods/summary/export menerima Operator sejak 2026-09-25 ← routes/api.php + LaporanClarificationTest 'operator: 200 on periods/summary/export…' (drift lama, dikoreksi)
+- api_contracts[0].endpoints[2].response.success_schema.coverage = + days_counted, period_running ← summary() coverage
+- api_contracts[0].endpoints[3].description / _note = CSV atau xlsx sungguhan; 15 kolom Periode/Mill/Production Line + konteks record + slot HH:MM ← EXPORT_HEADER
+- api_contracts[0].business_logic[12] = expected_slots = unit × days_counted × slot ← ReportPeriodDays::counted
+- api_contracts[0].business_logic[18] = ekspor via SheetWriter + exportContext + ExportValue ← export()/streamExportRows
+- api_contracts[0].edge_case_handling (+2) = periode berjalan; expected 0 → '—' ← blade
+- api_contracts[0].unit_test_cases[12] = expected_slots pakai days_counted (periode selesai) ← ReportPeriodDays (⚠ given diubah ke 'periode yang sudah selesai' agar angka 144 tetap benar; disimpulkan)
+- api_contracts[0].unit_test_cases[41].expect = 15 kolom, status 'Tersinkron', slot HH:MM ← ClarificationReportServiceTest diff
+- api_contracts[0].unit_test_cases (+2) = ekspor berlabel; xlsx sungguhan ← ReportAuditFix20261004Test #8, ExportXlsxTest
+- test_scenarios[13].api_test[1..3] = 200; api_test[4] = 404 NOT_FOUND; browser_test.assert = halaman 403 ← routes + LaporanClarificationTest (⚠ step 4 404 disimpulkan dari authorizePeriod findOrFail setelah guard peran meloloskan Operator; tidak diasersi tes)
+- implementation_notes (+1) = REVISI audit-fix

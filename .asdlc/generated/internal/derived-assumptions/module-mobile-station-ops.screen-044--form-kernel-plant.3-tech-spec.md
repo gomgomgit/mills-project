@@ -15,3 +15,11 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - Edge case usecase-141 ditulis ulang: penolakan 4xx write-through kini tampil lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' lalu navigasi ke Monitor Kernel Plant; offline/5xx tetap diam; record tetap 'saved'.
 - implementation_notes[0] diganti: sinkron bukan lagi 'terpisah/tanpa API' — disebut jalur sinkron manual Station List (STATION_PUSH_CONFIGS) + write-through; Pause/Clear tidak memanggil server.
 - Catatan REVISI kunci periode: frasa 'kegagalannya diam' diganti dengan perilaku dialog penolakan.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/services/kernelPlantRecordRepo.ts, mobile/src/views/FormKernelPlantView.vue, mobile/src/services/syncService.ts, mobile/src/services/millSettingRepo.ts, mobile/src/services/localSchema.ts, mobile/src/utils/localDate.ts).
+- api_contracts[0].business_logic[1] = createDraft() mengisi date lokal 'YYYY-MM-DD' (todayLocalDateString); view fallback nowLocalDateTimeString() bila kosong ← diff createDraft + form.date fallback di view
+- api_contracts[0].business_logic[2] = Verifikasi berisi "Catatan" (FormField id field-note) ← diff template view
+- api_contracts[0].edge_case_handling (append) = penolakan 4xx menulis sync_error lokal, dikosongkan saat berhasil, offline tidak dicatat; tampil di Data Preview "Gagal sinkron: <alasan>" ← syncService.failure()/rememberSyncError()/markSynced(), localSchema.migrateRecordTablesForSyncError, components/SyncFailureHint.vue
+- implementation_notes (append) = write-through aktif sungguhan (millSettingRepo SELECT immediate_sync_enabled), payload date lokal, Production Line per record dari station_id ← diff millSettingRepo.ts, syncService.pushUniformRow/resolveRecordContext/syncTable

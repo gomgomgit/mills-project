@@ -23,3 +23,15 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - implementation_notes[0] yang menyatakan "tidak ada panggilan API" diganti: data dibaca dari SQLite lokal; satu-satunya panggilan server adalah aksi verifikasi RecordVerificationActions.vue → recordVerificationApi.setVerification → PATCH /api/records/{stationType}/{server_id}/verification, hanya untuk record tersinkron (punya server id).
 - Teks catatan record belum tersinkron dikutip langsung dari RecordVerificationActions.vue (data-testid verification-not-synced); frasa "kolom verifikasi baris lokal baru diperbarui setelah server menerima" diturunkan dari recordVerificationApi.setVerification (UPDATE lokal setelah respons PATCH).
 - Catatan "Kunci periode … pengecualian atas 'tidak ada panggilan API'" dibiarkan apa adanya (masih akurat sebagai rujukan historis).
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/DataPreviewCagesTrackView.vue, services/recordVerificationApi.ts, services/apiClient.ts, components/SyncFailureHint.vue, utils/localDate.ts, services/syncService.ts, backend RecordVerificationStatusController/Service, routes/api.php).
+- api_contracts[0].endpoints += GET /api/records/{stationType}/verification (stationType='cages-track'; auth:web,sanctum, role 4 peran incl. operator, mill-scoped; 401/403/422/404) ← routes/api.php + controller. ⚠ error_code 404 ditulis NOT_FOUND padahal controller mengembalikan {message} saja.
+- api_contracts[0].business_logic += 14 (pull verifikasi, reload getDraftWithTippedTimes), 15 (SyncFailureHint), 16 (Tanggal type=date via toDateInputValue; Tippler via toDateTimeLocalInputValue) ← view.
+- api_contracts[0].data_operations += UPDATE lokal kolom verifikasi ← pullVerificationStatus().
+- api_contracts[0].edge_case_handling[3].handling = offline via flag `network: true` ← apiClient + isNetworkError().
+- api_contracts[0].edge_case_handling += pull gagal senyap; record ditolak saat sync → hint.
+- api_contracts[0].unit_test_cases += 4 (pull, 404 stop, SyncFailureHint, Tanggal date-only) ← syncService.sqljs.spec.ts, SyncFailureHint.spec.ts, DataPreviewCagesTrackView.spec.ts ('#field-tanggal' = '2026-08-17').
+- implementation_notes += REVISI 2026-10-04.
+- test_scenarios += 2. ⚠ diturunkan dari kode/e2e, bukan bdd_scenarios Phase 2.

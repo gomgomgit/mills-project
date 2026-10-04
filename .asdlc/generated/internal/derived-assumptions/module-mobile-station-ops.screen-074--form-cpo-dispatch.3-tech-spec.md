@@ -25,3 +25,12 @@ Penyeragaman checkbox verifikasi (keputusan user 2026-10-04).
 - test_scenarios: assert operator "remain empty/disabled" → checkbox tidak dirender; skenario "Checked By Khusus Supervisor" → checkbox tidak ditampilkan (count 0).
 - Selaras konvensi 2026-09-14 form stasiun lain; kode dan test sudah diubah lebih dulu.
 - actor_permissions: ditambah entri actor-mill-management (can_access true; akses form seperti Operator/Supervisor + checkbox Acknowledged By, tanpa Checked By) — sinkronisasi dokumentasi, bukan perubahan akses: route hanya mensyaratkan login (router.beforeEach), tanpa pembatasan role.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/services/cpoDispatchRecordRepo.ts, mobile/src/views/FormCpoDispatchView.vue, mobile/src/services/syncService.ts, mobile/src/services/millSettingRepo.ts, backend/app/Services/CpoDispatchRecordService.php, backend/app/Support/Concerns/EnforcesPeriodLock.php).
+- api_contracts[0].business_logic[1] = createDraft() memakai util bersama todayLocalDateString(); view fallback todayLocalDateString() ← diff repo (helper todayDateString dihapus) + view
+- api_contracts[0].business_logic[2] = Verifikasi berisi "Catatan" (id field-note) ← diff template view
+- api_contracts[0].edge_case_handling (+2) = (a) event_date baris di periode tertutup → 422 PERIOD_CLOSED 'Baris log bertanggal kejadian … ditolak.', date/event_date > hari ini+EVENT_DATE_MAX_DAYS_AHEAD (default 1) → 422 VALIDATION_ERROR (field date / details); (b) penolakan 4xx menulis sync_error lokal, ditampilkan Data Preview ← CpoDispatchRecordService::create()/update(), EnforcesPeriodLock, syncService.failure()/rememberSyncError()
+- api_contracts[0].business_rules_applied[5] = kunci periode dinilai terhadap date header DAN setiap event_date baris; tanggal tidak boleh > besok ← assertDetailEventDatesWritable('cpo-dispatch', …) di CpoDispatchRecordService
+- implementation_notes (append) = write-through aktif sungguhan, payload date lokal, line per record, guard detail server ← diff millSettingRepo.ts, syncService.ts, CpoDispatchRecordService.php

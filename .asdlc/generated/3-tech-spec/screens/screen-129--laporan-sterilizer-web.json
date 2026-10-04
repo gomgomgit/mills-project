@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-129--laporan-sterilizer-web",
   "name": "Laporan Sterilizer (Web)",
@@ -28,7 +28,7 @@
     {
       "actor_id": "actor-station-operator",
       "can_access": false,
-      "conditions": "Operator adalah aktor mobile-only, tidak punya akses web sama sekali"
+      "conditions": "Operator boleh login web dengan akses terbatas (/beranda dan /settings/password); route /reports/sterilizer dan seluruh endpoint /api/sterilizer-reports/* tetap menolak 403 (halaman errors/403 di web), dan menu laporannya tidak tampil di sidebar (RouteAccess)"
     }
   ],
   "api_contracts": [
@@ -311,7 +311,8 @@
         "summary(period, productionLineId): scopeToProductionLine() menambahkan WHERE sterilizer_records.production_line_id = ? pada kueri siklus/record — DI KOLOM TABEL RECORD, bukan join ke `stations`. Kolom itu di-snapshot dari stasiun saat record dibuat dan tidak pernah berubah, sehingga record yang stasiunnya kemudian dipindah tetap terhitung di line ASALNYA; menyaring lewat `stations` akan menulis ulang sejarah setiap kali sebuah stasiun dipindahkan.",
         "summary respons: kunci `production_line` ({id,name} dari productionLineInfo(), atau null) DITAMBAHKAN di samping kunci yang sudah ada. Nol kunci lama berubah bentuk, sehingga blade dan layar mobile yang membacanya apa adanya tidak terpengaruh.",
         "listPeriods TIDAK PERNAH menerima production_line_id — Periode Pelaporan milik MILL (periods.business_unit_id, tanpa kolom production_line_id). Daftar periode karena itu tidak berubah saat line berganti; yang tersaring adalah datanya.",
-        "export(period, format, businessUnitId, productionLineId): memakai recordQueryFor() yang sama dengan summary sehingga berkas mengikuti persis cakupan angka di layar. Tanpa line yang berlaku tombol Ekspor TIDAK DIRENDER sama sekali (bukan disabled), dan export() pada komponen pun berhenti lebih dulu."
+        "export(period, format, businessUnitId, productionLineId): memakai recordQueryFor() yang sama dengan summary sehingga berkas mengikuti persis cakupan angka di layar. Tanpa line yang berlaku tombol Ekspor TIDAK DIRENDER sama sekali (bukan disabled), dan export() pada komponen pun berhenti lebih dulu.",
+        "export (sejak audit-fix 2026-10-04): berkas ditulis lewat App\\Support\\SheetWriter — format=csv CSV biasa, format=excel berkas .xlsx SUNGGUHAN (bukan lagi byte CSV bernama .xlsx). Header = EXPORT_HEADER berbahasa Indonesia (Periode, Mill, Production Line, Tanggal, ID Sterilizer, Catatan, Diperiksa Oleh, Diketahui Oleh, Status, No. Sterilizer, Jam Tutup Pintu, Jam Puncak 1..3, Jam Buang 1..3, Jam Buka Pintu, Durasi (menit), Jumlah Lori, Status Lori, Diperiksa SPV, Keterangan); nilai lewat App\\Support\\ExportValue: status berlabel Indonesia, jam HH:MM, checked_by_spv Ya/Tidak, sel kosong tetap kosong"
       ],
       "data_operations": [
         {
@@ -533,7 +534,7 @@
         {
           "description": "authorizePeriod melempar 403 FORBIDDEN untuk aktor Operator",
           "given": "auth()->user() berperan operator; periode P1 milik business unit operator tersebut",
-          "expect": "throw AuthorizationException → HTTP 403, code = 'FORBIDDEN' (Operator tidak punya akses web sama sekali)"
+          "expect": "throw AuthorizationException → HTTP 403, code = 'FORBIDDEN' (Operator tidak berhak atas laporan ini; akses web Operator terbatas pada Beranda dan Ganti Password)"
         },
         {
           "description": "authorizePeriod meloloskan Admin untuk periode mill mana pun",
@@ -623,7 +624,7 @@
         {
           "description": "export menghasilkan satu baris per SIKLUS dengan kolom konteks record diulang tiap baris",
           "given": "1 sterilizer_record (date, note, checked_by, acknowledged_by, status) dengan 3 detail siklus",
-          "expect": "3 baris ekspor; kolom Sterilizer ID, Date, Note, Checked By, Acknowledged By, Status berisi nilai yang sama pada ketiga baris; kolom siklus berbeda per baris"
+          "expect": "3 baris ekspor; kolom konteks Periode, Mill, Production Line, Tanggal, ID Sterilizer, Catatan, Diperiksa Oleh, Diketahui Oleh, Status berisi nilai yang sama pada ketiga baris; kolom siklus berbeda per baris"
         },
         {
           "description": "export melempar 422 EXPORT_FAILED saat jumlah BARIS EKSPOR melebihi 50.000",
@@ -674,6 +675,11 @@
           "description": "tanpa Production Line terpilih tidak ada berkas yang diunduh sama sekali",
           "given": "export('csv') dipanggil pada komponen LaporanSterilizer saat productionLineId = ''",
           "expect": "tidak ada StreamedResponse yang dihasilkan — jalur ekspor berhenti sebelum menyentuh service"
+        },
+        {
+          "description": "baris header ekspor sama persis dengan SterilizerReportService::EXPORT_HEADER (Bahasa Indonesia, diawali Periode/Mill/Production Line) dan tidak lagi memuat judul Inggris",
+          "given": "export('csv') pada periode berisi 1 record dengan detail siklus",
+          "expect": "str_getcsv(baris pertama) === EXPORT_HEADER; tidak memuat 'Sterilizer ID'; status berlabel Indonesia (mis. 'Tersimpan'), jam HH:MM, Diperiksa SPV = Ya/Tidak"
         }
       ]
     }
@@ -740,7 +746,8 @@
     "Properti Livewire `public string $productionLineId` memakai #[Url(as: 'production_line_id')] — alias itu WAJIB: tanpa `as:` Livewire memakai NAMA PROPERTI (`productionLineId`) pada query string, sedangkan screen-140 menyisipkan `production_line_id` pada setiap report_path. Pasangan nama itulah yang membuat rantai tile → laporan bertemu.",
     "@selected pada <option> Production Line WAJIB dirender di server: Livewire 3 tidak menulis balik nilai <select> dari state komponen pada paint pertama, sehingga pengguna yang tiba lewat tautan tile akan melihat 'Pilih Production Line' padahal angkanya sudah milik line itu.",
     "Tombol Ekspor dirender hanya ketika $summary !== null, dan $summary hanya terisi ketika ada line yang berlaku — jadi 'tidak ada line' otomatis berarti 'tidak ada tombol Ekspor', tanpa kondisi kedua yang bisa ikut kedaluwarsa.",
-    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan."
+    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan.",
+    "REVISI (2026-10-04, audit-fix): ekspor memakai SheetWriter (xlsx sungguhan) + ExportValue, dengan kolom konteks Periode/Mill/Production Line di depan dan judul kolom Bahasa Indonesia (EXPORT_HEADER publik). Layar: hero menyebut nama Production Line aktif; grafik tren harian memakai .md-trendchart--days (kolom min 44px) dengan petunjuk gulir bila > 10 tanggal."
   ],
   "test_scenarios": [
     {

@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-116--form-storage-tank-web",
   "name": "Form Storage Tank (Web)",
@@ -40,9 +40,9 @@
             "path_params": [],
             "query_params": [],
             "body_schema": {
-              "production_line_id": "uuid, required",
+              "production_line_id": "uuid, required — nilai bukan-UUID -> 422 VALIDATION_ERROR errors.production_line_id 'Production Line yang dipilih tidak valid.' sebelum menyentuh SQL (ScopesToActorMill::resolveActiveStationForActor)",
               "storage_tank_id": "string, required",
-              "date": "date, required",
+              "date": "date, required — tidak boleh melewati besok menurut zona aplikasi WIB (AppTime::latestEventDate, EVENT_DATE_MAX_DAYS_AHEAD default 1); string ber-zona diturunkan ke tanggal WIB-nya untuk kunci periode",
               "note": "string, optional",
               "checked": "boolean, optional",
               "acknowledged": "boolean, optional",
@@ -74,6 +74,26 @@
                 "http_code": 422,
                 "error_code": "PERIOD_CLOSED",
                 "condition": "tidak ada Periode Pelaporan dengan baris stasiun 'storage-tank' berstatus Terbuka di mill record ini (belum ada periode / masih Draft / sudah Tertutup), atau date di luar rentang periode terbuka itu (inklusif kedua ujung); juga bila date kosong"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "date lebih dari besok (WIB) -> errors.date 'Tanggal dd/mm/YYYY tidak masuk akal: tidak boleh melewati dd/mm/YYYY.' (EnforcesPeriodLock::assertEventDateNotTooFarAhead, dicek sebelum kunci periode)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "production_line_id bukan UUID -> errors.production_line_id 'Production Line yang dipilih tidak valid.'"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "jaring pengaman ApiExceptionHandler: QueryException SQLSTATE 22P02/22007/22008 -> 'Data yang dikirim tidak valid (format ID atau nilai tidak dikenali).', errors {}"
+              },
+              {
+                "http_code": 500,
+                "error_code": null,
+                "condition": "QueryException lain -> 'Terjadi kesalahan pada server.' — teks SQL tidak pernah dibocorkan, juga saat APP_DEBUG=true"
               }
             ]
           },
@@ -98,7 +118,7 @@
             "query_params": [],
             "body_schema": {
               "storage_tank_id": "string, required",
-              "date": "date, required",
+              "date": "date, required — tidak boleh melewati besok (WIB), sama dengan POST",
               "note": "string, optional",
               "checked": "boolean, optional",
               "acknowledged": "boolean, optional",
@@ -128,6 +148,16 @@
                 "http_code": 422,
                 "error_code": "PERIOD_CLOSED",
                 "condition": "tanggal LAMA (date yang tersimpan) atau tanggal BARU (date di body) tidak berada di periode yang Terbuka untuk stasiun 'storage-tank' di mill record ini"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "date baru lebih dari besok (WIB) -> errors.date (dicek setelah kunci periode tanggal lama, sebelum kunci periode tanggal baru)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "jaring pengaman ApiExceptionHandler: QueryException 22P02/22007/22008 (mis. {id} bukan UUID di PostgreSQL) -> 422; QueryException lain -> 500 generik tanpa teks SQL"
               }
             ]
           },
@@ -156,7 +186,10 @@
         "16. FE: render field per section (Identitas Storage Tank, Storage Tank Detail grid dinamis, Verifikasi) -- TIDAK ADA section Target Operasional untuk stasiun ini",
         "17. Simpan berhasil -> redirect ke route('data.storage-tank.detail', ['id' => $record['id']])",
         "18. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty",
-        "19. KUNCI PERIODE (usecase-141): SEBELUM penulisan apa pun -- create: setelah validasi field & resolve station, sebelum penulisan pertama; update: setelah findOrFail + cek akses + validasi -- StorageTankRecordService memanggil EnforcesPeriodLock::assertPeriodOpenForWrite('storage-tank', station.business_unit_id, tanggal). Tanggal kejadian stasiun ini = date (tanggal header). Create: 1 cek terhadap date BARU. Update: 2 cek -- date LAMA (tersimpan) DAN date BARU (body), keduanya harus di periode Terbuka. Lolos hanya bila mill punya Periode Pelaporan yang baris period_stations untuk 'storage-tank' berstatus open DAN tanggal di start_date..end_date (inklusif); status dinilai saat request, bukan saat kejadian. Gagal -> PeriodClosedException 422 PERIOD_CLOSED, nol record maupun baris detail tersimpan/berubah"
+        "19. KUNCI PERIODE (usecase-141): SEBELUM penulisan apa pun -- create: setelah validasi field & resolve station, sebelum penulisan pertama; update: setelah findOrFail + cek akses + validasi -- StorageTankRecordService memanggil EnforcesPeriodLock::assertPeriodOpenForWrite('storage-tank', station.business_unit_id, tanggal). Tanggal kejadian stasiun ini = date (tanggal header). Create: 1 cek terhadap date BARU. Update: 2 cek -- date LAMA (tersimpan) DAN date BARU (body), keduanya harus di periode Terbuka. Lolos hanya bila mill punya Periode Pelaporan yang baris period_stations untuk 'storage-tank' berstatus open DAN tanggal di start_date..end_date (inklusif); status dinilai saat request, bukan saat kejadian. Gagal -> PeriodClosedException 422 PERIOD_CLOSED, nol record maupun baris detail tersimpan/berubah",
+        "20. BATAS ATAS TANGGAL (2026-10-04): create (sebelum kunci periode) dan update (setelah cek tanggal lama, sebelum cek tanggal baru) memanggil EnforcesPeriodLock::assertEventDateNotTooFarAhead(date, 'date', 'Tanggal') — tanggal > AppTime::latestEventDate() (hari ini WIB + EVENT_DATE_MAX_DAYS_AHEAD, default 1 = besok; kosong/negatif = dimatikan) -> ValidationException 422 per field, tampil inline di Livewire",
+        "21. upsertDetails(): baris dengan id bukan-UUID (Str::isUuid) diperlakukan sebagai baris BARU (INSERT) tanpa query berisi nilai itu",
+        "22. FE mode edit: GuardsRecordIdShape::isRecordIdShapeValid($id) — {id} bukan UUID langsung notFound=true ('Record tidak ditemukan.'), tidak sampai ke SQL"
       ],
       "data_operations": [
         {
@@ -239,6 +272,22 @@
         {
           "condition": "Update memindahkan date keluar dari periode Tertutup (tanggal lama di periode Tertutup, tanggal baru di periode Terbuka)",
           "handling": "Ditolak 422 PERIOD_CLOSED -- tanggal LAMA ikut diperiksa, sehingga record tidak bisa dikeluarkan dari periode tertutup (mengeluarkan baris menggeser angka laporan sama nyatanya dengan menambah); record dan baris detailnya tidak berubah"
+        },
+        {
+          "condition": "date lebih dari besok (mis. salah ketik tahun 7278)",
+          "handling": "422 VALIDATION_ERROR errors.date; Livewire menampilkannya inline di field Tanggal; besok masih diterima"
+        },
+        {
+          "condition": "Mode edit dibuka dengan {id} bukan UUID",
+          "handling": "Keadaan 'Record tidak ditemukan.' yang sama dengan UUID tak dikenal, tanpa query SQL (GuardsRecordIdShape)"
+        },
+        {
+          "condition": "production_line_id bukan UUID (request dibuat-buat)",
+          "handling": "422 VALIDATION_ERROR errors.production_line_id"
+        },
+        {
+          "condition": "details[].id bukan UUID pada update",
+          "handling": "Baris diperlakukan sebagai baris baru; tidak error"
         }
       ],
       "business_rules_applied": [
@@ -250,7 +299,8 @@
         "Production Line tidak berubah setelah dibuat",
         "Steam Heating Valve Status adalah satu-satunya kolom status/enum pada baris",
         "Tidak ada tabel referensi target operasional pada stasiun ini",
-        "Kunci periode (usecase-141, whitelist): data Storage Tank hanya dapat dibuat/diubah bila mill record punya Periode Pelaporan yang baris stasiun 'storage-tank'-nya Terbuka DAN tanggal kejadian (date) berada di rentangnya (inklusif kedua ujung); tanpa periode, Draft, Tertutup, tanggal kosong, atau di luar rentang -> 422 PERIOD_CLOSED. Status dinilai per jenis stasiun saat request; periode mill lain atau jenis stasiun lain tidak membuka akses; update memeriksa tanggal lama DAN baru"
+        "Kunci periode (usecase-141, whitelist): data Storage Tank hanya dapat dibuat/diubah bila mill record punya Periode Pelaporan yang baris stasiun 'storage-tank'-nya Terbuka DAN tanggal kejadian (date) berada di rentangnya (inklusif kedua ujung); tanpa periode, Draft, Tertutup, tanggal kosong, atau di luar rentang -> 422 PERIOD_CLOSED. Status dinilai per jenis stasiun saat request; periode mill lain atau jenis stasiun lain tidak membuka akses; update memeriksa tanggal lama DAN baru",
+        "Tanggal kejadian (date) tidak boleh melewati besok menurut zona aplikasi (WIB, Asia/Jakarta) — 422 per field"
       ],
       "unit_test_cases": [
         {
@@ -347,6 +397,11 @@
           "description": "accepts create on the open period's start and end dates (inclusive)",
           "given": "periode Terbuka untuk 'storage-tank' 2026-10-01..2026-10-31; dua create dengan date=2026-10-01 dan date=2026-10-31",
           "expect": "keduanya tersimpan dengan status=saved, tidak ada PeriodClosedException"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when date is later than tomorrow (WIB); tomorrow still accepted",
+          "given": "date = hari ini + 2 hari, lalu = besok",
+          "expect": "pertama ValidationException errors.date, kedua tersimpan (spesifikasi; aturan bersama diuji di tests/Feature/AuditFix20261004Test.php via Weighbridge/CPO Dispatch, belum ada uji khusus stasiun ini)"
         }
       ]
     }
@@ -388,7 +443,8 @@
     "Detail upsert (insert/update/delete) dijalankan dalam DB transaction agar konsisten",
     "PENTING -- normalisasi enum kosong-ke-null: StorageTankRecordService PUNYA 1 kolom enum bertipe CHECK constraint SQLite (steam_heating_valve_status) -- normalizeDetails() HARUS mengonversi '' menjadi null untuk kolom ini sebelum validasi dan sebelum INSERT/UPDATE, atau SQLite akan melempar constraint violation persis seperti yang terjadi pada Kernel Dispatch/Effluent Plant",
     "Stasiun ini TIDAK memiliki tabel referensi Target Operasional -- tidak ada section untuk itu di form",
-    "KUNCI PERIODE (usecase-141; kode sudah ada sejak 49dc0c5, spec disinkronkan 2026-10-03): ditegakkan di StorageTankRecordService::create() (1 cek, tanggal baru) dan update() (2 cek, tanggal lama + baru) via trait App\\Support\\Concerns\\EnforcesPeriodLock; exception App\\Exceptions\\PeriodClosedException (HttpException 422, PERIOD_CLOSED). Berlaku sama untuk API (StorageTankRecordController store/update) dan Livewire FormStorageTank::save() (catch HttpException -> $generalError). Cakupan test: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist, 4 pesan, inklusif, per jenis stasiun, per mill, tanggal kosong, plus cek statis bahwa ke-18 *RecordService memanggil guard >=1x di create dan >=2x di update) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end lewat jalur Sterilizer). Test per-layar (tests/Unit/Services/StorageTankRecordServiceTest.php, tests/Feature/Api/FormStorageTankTest.php, tests/Feature/Livewire/FormStorageTankTest.php) hanya membuka periode sebagai prasyarat (openPeriodFor()/openPeriodForStation() di tests/Pest.php); 3 unit_test_cases kunci periode di atas adalah spesifikasi, belum ada sebagai test khusus stasiun ini"
+    "KUNCI PERIODE (usecase-141; kode sudah ada sejak 49dc0c5, spec disinkronkan 2026-10-03): ditegakkan di StorageTankRecordService::create() (1 cek, tanggal baru) dan update() (2 cek, tanggal lama + baru) via trait App\\Support\\Concerns\\EnforcesPeriodLock; exception App\\Exceptions\\PeriodClosedException (HttpException 422, PERIOD_CLOSED). Berlaku sama untuk API (StorageTankRecordController store/update) dan Livewire FormStorageTank::save() (catch HttpException -> $generalError). Cakupan test: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist, 4 pesan, inklusif, per jenis stasiun, per mill, tanggal kosong, plus cek statis bahwa ke-18 *RecordService memanggil guard >=1x di create dan >=2x di update) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end lewat jalur Sterilizer). Test per-layar (tests/Unit/Services/StorageTankRecordServiceTest.php, tests/Feature/Api/FormStorageTankTest.php, tests/Feature/Livewire/FormStorageTankTest.php) hanya membuka periode sebagai prasyarat (openPeriodFor()/openPeriodForStation() di tests/Pest.php); 3 unit_test_cases kunci periode di atas adalah spesifikasi, belum ada sebagai test khusus stasiun ini",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): StorageTankRecordService create/update memanggil assertEventDateNotTooFarAhead('date') (tanggal > besok WIB -> 422 inline); upsertDetails() memperlakukan id baris bukan-UUID sebagai baris baru (Str::isUuid); production_line_id bukan-UUID -> 422 di ScopesToActorMill; ApiExceptionHandler memetakan QueryException 22P02/22007/22008 -> 422 VALIDATION_ERROR, lainnya 500 generik tanpa SQL; zona aplikasi Asia/Jakarta (kunci periode menurunkan tanggal WIB dari string ber-zona). FormStorageTank memakai trait GuardsRecordIdShape (id bukan UUID -> 'Record tidak ditemukan.'). View form tidak berubah (sudah tanpa input disabled). Tes: tests/Feature/Livewire/RecordIdShapeGuardTest.php, tests/Feature/Livewire/WebFormNoDisabledFieldTest.php (cek statis semua view form)."
   ],
   "test_scenarios": [
     {

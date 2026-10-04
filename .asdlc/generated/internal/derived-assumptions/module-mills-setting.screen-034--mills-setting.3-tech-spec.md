@@ -18,3 +18,19 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (MillSettingService.php, MillSettingController.php, MillsSetting.php, RealImage.php, migrasi immediate_sync_enabled).
+- endpoints[0]/[1].response.success_schema = tanpa jumlah_cages, + immediate_sync_enabled ← toRow() (drift pra-audit)
+- endpoints[1].description + body_schema = app_name required-bila-dikirim, immediate_sync_enabled, logo/home_page_image + RealImage ← controller only(app_name, immediate_sync_enabled) + Validator
+- endpoints[1].error_codes[0].condition diperbarui
+- endpoints[2].response.success_schema += production_line_name ← mapStations()
+- business_logic[2..4] = default tanpa jumlah_cages; validasi PATCH; urut line lalu nama
+- data_operations[1],[2].description = tanpa jumlah_cages
+- edge_case_handling[2] = app_name kosong; [3] = file palsu / ValidatesUploadOnSelect
+- business_rules_applied[2] = nama aplikasi wajib + gambar sungguhan
+- unit_test_cases[0].expect, [6], [7], [9], [11] diganti (jumlah_cages → app_name kosong / immediate_sync / RealImage / urutan line) ← MillsSettingAuditTest, ImageUploadValidationTest, MillSettingServiceTest
+- screen_dependencies[3] = screen-005--home (immediate_sync_enabled dibaca mobile) menggantikan screen-012 jumlah_cages ⚠ DISIMPULKAN: penanggung layar konsumen dipilih screen-005 karena millSettingRepo tercantum di artefak screen-005
+- implementation_notes[7] = x-searchable-select untuk pemilih mill & icon
+- test_scenarios[0] request/aksi tanpa jumlah_cages; [2] assert default; [3] diganti skenario validasi nama aplikasi/gambar

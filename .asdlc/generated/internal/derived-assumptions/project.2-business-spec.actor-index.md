@@ -14,3 +14,9 @@
 
 - actors.actor-mill-management.permissions += "tidak dapat menutup/membuka Periode Pelaporan" ← user stated "Admin saja" for closing/reopening; the explicit denial on Mill Management is the agent spelling that out on the actor most likely to expect the right
 - actors.*.description = laporan periode disebutkan di deskripsi keempat actor ← agent reworded descriptions to match the new permission; user only stated the access rule, not the wording
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (routes/web.php '/beranda' + settings/password role operator, AuthService::ROLE_REDIRECTS, RouteAccess, errors/403.blade.php, routes/api.php GET /records/{stationType}/verification).
+- actors[actor-station-operator].description = mobile offline-first + sync manual + laporan mobile; sejak 2026-10-04 BOLEH login web terbatas (Beranda Operator /beranda + Ganti Password; menu lain tersembunyi via RouteAccess, rute lain 403); layar 'lihat data sendiri' belum dispesifikasikan ← komentar routes/web.php "keputusan produk 2026-10-04"; daftar stasiun lama "(Weighbridge, Grading, Cages & Track)" dibuang karena sudah 18 stasiun (inferensi agen)
+- actors[actor-station-operator].permissions = + tidak dapat mengisi 'Checked by SPV' Sterilizer; baca status verifikasi record sendiri via GET /api/records/{stationType}/verification; web: login, Beranda, Ganti Password saja ← routes + FormSterilizerView (Supervisor only)

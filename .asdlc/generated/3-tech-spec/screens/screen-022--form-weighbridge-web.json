@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-022--form-weighbridge-web",
   "name": "Form Weighbridge (Web)",
@@ -40,10 +40,10 @@
             "path_params": [],
             "query_params": [],
             "body_schema": {
-              "production_line_id": "uuid, wajib secara praktis — dipakai HANYA untuk me-resolve station (kosong/tidak dikenal -> 422 NO_ACTIVE_WEIGHBRIDGE_STATION, bukan VALIDATION_ERROR); production_line_id yang disimpan diambil dari station hasil resolve, bukan dari body; business_unit_id TIDAK diterima endpoint ini",
+              "production_line_id": "uuid, wajib secara praktis — dipakai HANYA untuk me-resolve station (kosong/tidak dikenal -> 422 NO_ACTIVE_WEIGHBRIDGE_STATION; nilai bukan-UUID -> 422 VALIDATION_ERROR errors.production_line_id 'Production Line yang dipilih tidak valid.' sebelum menyentuh SQL, ScopesToActorMill::resolveActiveStationForActor); production_line_id yang disimpan diambil dari station hasil resolve, bukan dari body; business_unit_id TIDAK diterima endpoint ini",
               "wb_card_number": "string, required",
               "weighbridge_type": "enum(receive, dispatch), required",
-              "record_datetime": "timestamp, required",
+              "record_datetime": "timestamp, required — string ber-penanda zona (Z / ±hh:mm, mis. dari mobile) dikonversi ke jam dinding WIB (config app.timezone = Asia/Jakarta) lewat AppTime::normalizeClientDateTime() sebelum disimpan; string naif (datetime-local web) dianggap sudah WIB; tanggal (WIB) tidak boleh melewati besok (AppTime::latestEventDate, EVENT_DATE_MAX_DAYS_AHEAD default 1)",
               "vehicle_number": "string, required",
               "driver_name": "string, required",
               "estate_supplier": "string, required",
@@ -88,6 +88,26 @@
                 "http_code": 403,
                 "error_code": "FORBIDDEN",
                 "condition": "production_line_id me-resolve ke station milik mill lain (CrossMillWriteDeniedException 'Production line yang dipilih bukan milik mill Anda.')"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "record_datetime bertanggal lebih dari besok (WIB) -> errors.record_datetime 'Tanggal & waktu dd/mm/YYYY tidak masuk akal: tidak boleh melewati dd/mm/YYYY.' (EnforcesPeriodLock::assertEventDateNotTooFarAhead, dicek sebelum kunci periode)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "production_line_id bukan UUID -> errors.production_line_id 'Production Line yang dipilih tidak valid.'"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "jaring pengaman ApiExceptionHandler: QueryException SQLSTATE 22P02/22007/22008 (nilai kiriman berformat salah yang lolos validasi) -> 'Data yang dikirim tidak valid (format ID atau nilai tidak dikenali).', errors {}"
+              },
+              {
+                "http_code": 500,
+                "error_code": null,
+                "condition": "QueryException lain -> 'Terjadi kesalahan pada server.' — teks SQL TIDAK PERNAH dibocorkan, juga saat APP_DEBUG=true"
               }
             ]
           },
@@ -113,7 +133,7 @@
             "body_schema": {
               "wb_card_number": "string, required",
               "weighbridge_type": "enum(receive, dispatch), required",
-              "record_datetime": "timestamp, required",
+              "record_datetime": "timestamp, required — normalisasi zona ke WIB sama dengan POST (AppTime::normalizeClientDateTime); tanggal tidak boleh melewati besok (WIB)",
               "vehicle_number": "string, required",
               "driver_name": "string, required",
               "estate_supplier": "string, required",
@@ -150,6 +170,16 @@
                 "http_code": 422,
                 "error_code": "PERIOD_CLOSED",
                 "condition": "tanggal LAMA (record_datetime yang tersimpan) atau tanggal BARU (record_datetime di body) tidak berada di periode yang Terbuka untuk stasiun 'weighbridge' di mill record ini"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "record_datetime baru bertanggal lebih dari besok (WIB) -> errors.record_datetime (assertEventDateNotTooFarAhead, setelah cek kunci periode tanggal lama)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "jaring pengaman ApiExceptionHandler: QueryException SQLSTATE 22P02/22007/22008 (mis. {id} bukan UUID di PostgreSQL) -> 422 'Data yang dikirim tidak valid (format ID atau nilai tidak dikenali).'; QueryException lain -> 500 generik tanpa teks SQL"
               }
             ]
           },
@@ -167,14 +197,17 @@
         "5. Update: validate id -> 404 jika tidak ada -> validate field wajib -> 422 jika gagal",
         "6. Update: production_line_id/business_unit_id/station_id tidak diterima dari body, tidak berubah",
         "7. UPDATE record, net_weight dihitung ulang model event",
-        "8. FE (Livewire FormWeighbridge): mode create tampilkan dropdown Business Unit (businessUnitOptionsForActor, dikunci ke mill aktor) yang meng-cascade dropdown Production Line (StationService::productionLineOptions); production_line_id yang dipilih dikirim ke create(); mode edit memuat detail untuk prefill, BU/station ditampilkan read-only",
+        "8. FE (Livewire FormWeighbridge): mode create tampilkan dropdown Business Unit (businessUnitOptionsForActor, dikunci ke mill aktor) yang meng-cascade dropdown Production Line (StationService::productionLineOptions); selama belum ada opsi line (BU belum dipilih / BU tanpa Production Line) yang tampil adalah TEKS penjelas (data-testid production-line-empty: 'Pilih Business Unit terlebih dahulu.' / 'Business Unit ini belum memiliki Production Line.'), bukan <select> disabled; production_line_id yang dipilih dikirim ke create(); mode edit memuat detail untuk prefill, Business Unit (business_unit_name dari station.businessUnit) dan Production Line (production_line_name dari kolom record) ditampilkan sebagai teks read-only — sebelum 2026-10-04 label Business Unit berisi nama stasiun dan Production Line tidak tampil",
         "9. FE: tab Tipe default Receive (create) atau tersimpan (edit); ganti tab reset record_datetime & destination ke default",
-        "10. FE: record_datetime input datetime-local, default waktu saat ini, tetap dapat diedit manual",
-        "11. FE: Net Weight dihitung reaktif untuk preview tapi field disabled (invariant data, dikecualikan dari konvensi web-form-input)",
+        "10. FE: record_datetime input datetime-local, default waktu saat ini (WIB), tetap dapat diedit manual; prefill mode edit memakai Carbon::parse(...)->setTimezone(config('app.timezone')) agar input menampilkan jam dinding WIB",
+        "11. FE: Net Weight dihitung reaktif (Gross − Tare, format Display::number 2 desimal, '-' bila belum lengkap) dan ditampilkan sebagai TEKS read-only (data-testid net-weight-preview), bukan input — tidak ada input disabled di form web; server tetap menghitung ulang lewat model event",
         "12. FE: checkbox Checked hanya untuk role supervisor, Acknowledged hanya mill_management",
         "13. Simpan berhasil -> navigasi ke Detail Weighbridge",
         "14. Batal -> kembali tanpa API call",
-        "15. KUNCI PERIODE (usecase-141): SEBELUM penulisan apa pun -- create: setelah validasi field & resolve station, sebelum penulisan pertama; update: setelah findOrFail + cek akses + validasi -- WeighbridgeRecordService memanggil EnforcesPeriodLock::assertPeriodOpenForWrite('weighbridge', station.business_unit_id, tanggal). Tanggal kejadian stasiun ini = record_datetime (bagian tanggalnya). Create: 1 cek terhadap record_datetime BARU. Update: 2 cek -- record_datetime LAMA (tersimpan) DAN record_datetime BARU (body), keduanya harus di periode Terbuka. Lolos hanya bila mill punya Periode Pelaporan yang baris period_stations untuk 'weighbridge' berstatus open DAN tanggal di start_date..end_date (inklusif); status dinilai saat request, bukan saat kejadian. Gagal -> PeriodClosedException 422 PERIOD_CLOSED, nol record tersimpan/berubah"
+        "15. KUNCI PERIODE (usecase-141): SEBELUM penulisan apa pun -- create: setelah validasi field & resolve station, sebelum penulisan pertama; update: setelah findOrFail + cek akses + validasi -- WeighbridgeRecordService memanggil EnforcesPeriodLock::assertPeriodOpenForWrite('weighbridge', station.business_unit_id, tanggal). Tanggal kejadian stasiun ini = record_datetime (bagian tanggalnya). Create: 1 cek terhadap record_datetime BARU. Update: 2 cek -- record_datetime LAMA (tersimpan) DAN record_datetime BARU (body), keduanya harus di periode Terbuka. Lolos hanya bila mill punya Periode Pelaporan yang baris period_stations untuk 'weighbridge' berstatus open DAN tanggal di start_date..end_date (inklusif); status dinilai saat request, bukan saat kejadian. Gagal -> PeriodClosedException 422 PERIOD_CLOSED, nol record tersimpan/berubah",
+        "16. BATAS ATAS TANGGAL (2026-10-04): create dan update memanggil EnforcesPeriodLock::assertEventDateNotTooFarAhead(record_datetime, 'record_datetime', 'Tanggal & waktu') — tanggal WIB > AppTime::latestEventDate() (hari ini + EVENT_DATE_MAX_DAYS_AHEAD, default 1 = besok; kosong/negatif = batas dimatikan) -> ValidationException 422 per field; record lama yang sudah melewati batas dibiarkan",
+        "17. ZONA WAKTU (2026-10-04): normalizeFormFields() memanggil AppTime::normalizeClientDateTime(record_datetime) — input ber-zona dikonversi ke WIB 'Y-m-d H:i:s', input naif dibiarkan; tanggal kunci periode juga diturunkan dari tanggal WIB (periodLockEventDate setTimezone)",
+        "18. FE mode edit: GuardsRecordIdShape::isRecordIdShapeValid($id) — {id} bukan UUID langsung notFound=true ('Record tidak ditemukan.'), tidak pernah sampai ke SQL (PostgreSQL 22P02)"
       ],
       "data_operations": [
         {
@@ -234,15 +267,37 @@
         {
           "condition": "production_line_id milik mill lain (request dibuat-buat)",
           "handling": "403 FORBIDDEN (CrossMillWriteDeniedException); di Livewire ditangkap dan ditampilkan sebagai $generalError; nol record tersimpan"
+        },
+        {
+          "condition": "record_datetime lebih dari besok (mis. salah ketik tahun 7278)",
+          "handling": "422 VALIDATION_ERROR errors.record_datetime 'Tanggal & waktu dd/mm/YYYY tidak masuk akal: tidak boleh melewati dd/mm/YYYY.'; Livewire menampilkannya inline di field Tanggal & Waktu; besok masih diterima"
+        },
+        {
+          "condition": "record_datetime dari mobile berakhiran Z / ber-offset",
+          "handling": "dikonversi ke jam WIB sebelum disimpan (20:35 WIB tidak lagi tersimpan sebagai 13:35); kunci periode memakai tanggal WIB-nya"
+        },
+        {
+          "condition": "Mode edit dibuka dengan {id} bukan UUID (mis. /data/weighbridge/abc/edit)",
+          "handling": "Keadaan 'Record tidak ditemukan.' yang sama dengan UUID tak dikenal, tanpa query SQL (GuardsRecordIdShape)"
+        },
+        {
+          "condition": "production_line_id bukan UUID (request dibuat-buat)",
+          "handling": "422 VALIDATION_ERROR errors.production_line_id 'Production Line yang dipilih tidak valid.'"
+        },
+        {
+          "condition": "Business Unit belum dipilih / tidak punya Production Line (mode create)",
+          "handling": "Field Production Line tampil sebagai teks penjelas, bukan select disabled; Simpan tetap ditolak 422 NO_ACTIVE_WEIGHBRIDGE_STATION"
         }
       ],
       "business_rules_applied": [
         "Tidak ada draft/pause di web",
         "record_datetime default sekarang, tetap dapat diedit",
-        "Net Weight dihitung model event, tidak menerima override",
+        "Net Weight dihitung model event, tidak menerima override; di form web ditampilkan sebagai teks read-only (bukan input disabled)",
         "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
         "Business Unit / Production Line (station) tidak berubah setelah dibuat",
-        "Kunci periode (usecase-141, whitelist): data Weighbridge hanya dapat dibuat/diubah bila mill record punya Periode Pelaporan yang baris stasiun 'weighbridge'-nya Terbuka DAN tanggal kejadian (record_datetime) berada di rentangnya (inklusif kedua ujung); tanpa periode, Draft, Tertutup, tanggal kosong, atau di luar rentang -> 422 PERIOD_CLOSED. Status dinilai per jenis stasiun saat request; periode mill lain atau jenis stasiun lain tidak membuka akses; update memeriksa tanggal lama DAN baru"
+        "Kunci periode (usecase-141, whitelist): data Weighbridge hanya dapat dibuat/diubah bila mill record punya Periode Pelaporan yang baris stasiun 'weighbridge'-nya Terbuka DAN tanggal kejadian (record_datetime) berada di rentangnya (inklusif kedua ujung); tanpa periode, Draft, Tertutup, tanggal kosong, atau di luar rentang -> 422 PERIOD_CLOSED. Status dinilai per jenis stasiun saat request; periode mill lain atau jenis stasiun lain tidak membuka akses; update memeriksa tanggal lama DAN baru",
+        "Tanggal kejadian (record_datetime) tidak boleh melewati besok menurut zona aplikasi (WIB) — 422 per field",
+        "Zona waktu aplikasi Asia/Jakarta: waktu ber-zona dari klien disimpan sebagai jam dinding WIB"
       ],
       "unit_test_cases": [
         {
@@ -319,6 +374,21 @@
           "description": "accepts create on the open period's start and end dates (inclusive)",
           "given": "periode Terbuka untuk 'weighbridge' 2026-10-01..2026-10-31; dua create dengan record_datetime=2026-10-01T08:00:00 dan record_datetime=2026-10-31T17:00:00",
           "expect": "keduanya tersimpan dengan status=saved, tidak ada PeriodClosedException"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when record_datetime is later than tomorrow (WIB); tomorrow still accepted",
+          "given": "record_datetime = hari ini + 2 hari, lalu = besok",
+          "expect": "pertama ValidationException errors.record_datetime, kedua tersimpan (tests/Feature/AuditFix20261004Test.php [future])"
+        },
+        {
+          "description": "stores a Z-suffixed record_datetime as WIB wall-clock",
+          "given": "record_datetime '2026-10-03T13:35:00Z'",
+          "expect": "tersimpan '2026-10-03 20:35:00' (AuditFix20261004Test [tz])"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when production_line_id is not a UUID, no SQL query contains the value",
+          "given": "production_line_id='abc'",
+          "expect": "ValidationException errors.production_line_id (AuditFix20261004Test [uuid])"
         }
       ]
     }
@@ -350,12 +420,13 @@
   "implementation_notes": [
     "DIVERGENSI DARI MOBILE: record_datetime pada web default waktu saat ini namun TETAP dapat diedit manual - berbeda dari mobile (screen-010) yang menguncinya. Gunakan input type=datetime-local",
     "DIVERGENSI DARI MOBILE: data web dapat diedit setelah tersimpan (mode edit penuh), tidak ada draft/pause - status langsung saved",
-    "PENGECUALIAN konvensi web-form-input: Net Weight tetap disabled karena WeighbridgeRecord model event selalu menghitung ulang net_weight=gross-tare untuk semua entry point - field editable akan menyesatkan karena nilai user akan ditimpa diam-diam saat disimpan. Setara pengecualian role-based Checked By/Acknowledged By, hanya beda alasan (data-integrity)",
+    "Net Weight ditampilkan sebagai TEKS read-only (sejak 2026-10-04; sebelumnya input disabled yang menyalahi konvensi web-form-input) karena WeighbridgeRecord model event selalu menghitung ulang net_weight=gross-tare untuk semua entry point - field editable akan menyesatkan karena nilai user akan ditimpa diam-diam saat disimpan",
     "Dropdown Business Unit (dikunci ke mill aktor) meng-cascade dropdown Production Line; station di-resolve dari production_line_id (bukan business_unit_id) di WeighbridgeRecordService::create() via resolveActiveStationForActor()",
     "Mode edit prefill reuse GET /api/weighbridge-records/{id} (screen-019)",
     "Route web /data/weighbridge/create HARUS didaftarkan SEBELUM /data/weighbridge/{id} agar tidak tertangkap sebagai {id}",
     "Checked/Acknowledged sebagai checkbox self-attestation, mengisi checked_by/acknowledged_by dengan id user login",
-    "KUNCI PERIODE (usecase-141; kode sudah ada sejak 49dc0c5, spec disinkronkan 2026-10-03): ditegakkan di WeighbridgeRecordService::create() (1 cek, tanggal baru) dan update() (2 cek, tanggal lama + baru) via trait App\\Support\\Concerns\\EnforcesPeriodLock; exception App\\Exceptions\\PeriodClosedException (HttpException 422, PERIOD_CLOSED). Berlaku sama untuk API (WeighbridgeRecordController store/update) dan Livewire FormWeighbridge::save() (catch HttpException -> $generalError). Cakupan test: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist, 4 pesan, inklusif, per jenis stasiun, per mill, tanggal kosong, plus cek statis bahwa ke-18 *RecordService memanggil guard >=1x di create dan >=2x di update) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end lewat jalur Sterilizer). Test per-layar (tests/Unit/Services/WeighbridgeRecordServiceTest.php, tests/Feature/Api/FormWeighbridgeTest.php, tests/Feature/Livewire/FormWeighbridgeTest.php) hanya membuka periode sebagai prasyarat (openPeriodFor()/openPeriodForStation() di tests/Pest.php); 3 unit_test_cases kunci periode di atas adalah spesifikasi, belum ada sebagai test khusus stasiun ini"
+    "KUNCI PERIODE (usecase-141; kode sudah ada sejak 49dc0c5, spec disinkronkan 2026-10-03): ditegakkan di WeighbridgeRecordService::create() (1 cek, tanggal baru) dan update() (2 cek, tanggal lama + baru) via trait App\\Support\\Concerns\\EnforcesPeriodLock; exception App\\Exceptions\\PeriodClosedException (HttpException 422, PERIOD_CLOSED). Berlaku sama untuk API (WeighbridgeRecordController store/update) dan Livewire FormWeighbridge::save() (catch HttpException -> $generalError). Cakupan test: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist, 4 pesan, inklusif, per jenis stasiun, per mill, tanggal kosong, plus cek statis bahwa ke-18 *RecordService memanggil guard >=1x di create dan >=2x di update) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end lewat jalur Sterilizer). Test per-layar (tests/Unit/Services/WeighbridgeRecordServiceTest.php, tests/Feature/Api/FormWeighbridgeTest.php, tests/Feature/Livewire/FormWeighbridgeTest.php) hanya membuka periode sebagai prasyarat (openPeriodFor()/openPeriodForStation() di tests/Pest.php); 3 unit_test_cases kunci periode di atas adalah spesifikasi, belum ada sebagai test khusus stasiun ini",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (a) zona aplikasi Asia/Jakarta; WeighbridgeRecordService::normalizeFormFields() menormalkan record_datetime ber-zona ke WIB via App\\Support\\AppTime; (b) create/update memanggil assertEventDateNotTooFarAhead (tanggal > besok -> 422 errors.record_datetime); (c) production_line_id bukan-UUID -> 422 di ScopesToActorMill; (d) ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422 VALIDATION_ERROR, lainnya 500 generik tanpa SQL; (e) FormWeighbridge: GuardsRecordIdShape (id bukan UUID -> notFound), Net Weight & Production Line kosong dirender sebagai teks (tidak ada select/input disabled), mode edit menampilkan business_unit_name + production_line_name (getDetail() kini mengembalikan business_unit_name, production_line_id, production_line_name — additif). Tes: tests/Feature/AuditFix20261004Test.php, tests/Feature/Livewire/FormWeighbridgeTest.php (3 uji baru Production Line teks/select), tests/Feature/Livewire/RecordIdShapeGuardTest.php, tests/Feature/Livewire/WebFormNoDisabledFieldTest.php (cek statis semua view form)."
   ],
   "test_scenarios": [
     {

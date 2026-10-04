@@ -24,3 +24,12 @@ Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10
 Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - test_results.browser = 20 lulus/0 gagal dari e2e-full.log.counts.json (spec laporan-cages-track); 2 skip dicatat di catatan, bukan di test_results (skema tidak punya field skip).
 - Known_issue tentang 2 test.skip beralasan dipertahankan — bukan 'tidak dijalankan'.
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (CagesTrackReportService.php, laporan-cages-track.blade.php, e2e-web/tests/laporan-cages-track.spec.ts, e2e-web/tests/support/backend.ts, git status).
+- files_generated[+] = backend/app/Support/SheetWriter.php, backend/app/Support/ExportValue.php ← dipakai export()
+- test_files_generated[+] = backend/tests/Feature/ReportAuditFix20261004Test.php, backend/tests/Feature/ExportXlsxTest.php ← menguji ekspor/#9/#10 Cages Track
+- known_issues[5].description = DIPERBAIKI — pruneLaneData menyapu record & periode lajur ← diff spec + docblock backend.ts. ⚠ Bahwa pruneLaneData memanggil perintah backend PruneE2eRecords disimpulkan dari nama berkas yang berubah, tidak dibaca langsung
+- implementation_notes[+] = REVISI (2026-10-04, audit-fix …) ← ringkasan diff
+- test_results tidak diubah

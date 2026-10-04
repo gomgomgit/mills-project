@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-011--form-grading",
   "name": "Form Grading",
@@ -17,7 +17,7 @@
     "Tap salah satu item draft/pause di list Monitor Grading (lanjutkan draft)"
   ],
   "information_displayed": [
-    "Grading Header: Grading No, Tanggal (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit), WB Card No (dropdown dari data Weighbridge lokal), License Plate No (auto-terisi dari Weighbridge saat WB Card No dipilih, tetap dapat diedit manual), Vehicle Code (input manual), Estate (auto-terisi dari Weighbridge, dapat diedit), Divisi (auto-terisi dari Weighbridge, dapat diedit), Netto (kg) (input manual), Quantity (bunch) (input manual), Note (input manual, opsional)",
+    "Grading Header: No. Grading, Tanggal (otomatis terisi sekali saat draft baru dibuat dengan tanggal/jam LOKAL perangkat, tidak dapat diedit), WB Card No (dropdown dari data Weighbridge lokal yang sudah Tersimpan/Tersinkron DAN memiliki No. WB Card, ditambah record yang sudah terpilih di draft ini), No. Polisi (auto-terisi dari Weighbridge saat WB Card No dipilih, tetap dapat diedit manual), Kode Kendaraan (input manual), Estate (auto-terisi dari Weighbridge, dapat diedit), Divisi (auto-terisi dari Weighbridge, dapat diedit), Netto (kg) (input manual), Quantity (bunch) (input manual), Catatan (input manual, opsional)",
     "Grading Detail: grid baris penilaian - Quality Parameter (dropdown dari master data Grading Parameter, hanya menampilkan parameter yang belum dipakai di baris lain), Qty (input manual), UOM (otomatis mengikuti Quality Parameter yang dipilih, tidak dapat diedit), Percentage (dihitung otomatis: Qty/Netto*100 jika UOM=kg, Qty/Quantity*100 jika UOM=bunch) - baris bisa ditambah dan dihapus",
     "Breadcrumb navigasi (Home > Production Process Activity > Grading > Form) yang dapat ditap",
     "Header 'Mill Smart Log' + ikon hamburger menu",
@@ -106,17 +106,19 @@
     }
   ],
   "business_rules": [
-    "WB Card No wajib dipilih dari dropdown data Weighbridge lokal (bukan teks bebas)",
-    "License Plate No, Estate, dan Divisi auto-terisi dari Weighbridge Record yang dipilih saat WB Card No dipilih, namun tetap dapat diedit manual setelahnya",
-    "Vehicle Code, Netto, Quantity, dan Note input manual, tidak ada auto-fill",
+    "WB Card No wajib dipilih dari dropdown data Weighbridge lokal (bukan teks bebas); dropdown hanya memuat record Weighbridge berstatus Tersimpan/Tersinkron yang memiliki No. WB Card (draft kosong tidak ditampilkan karena Grading yang menautkannya tidak akan pernah bisa tersinkron), kecuali record yang sudah terpilih di draft Grading ini tetap ditampilkan",
+    "No. Polisi, Estate, dan Divisi auto-terisi dari Weighbridge Record yang dipilih saat WB Card No dipilih, namun tetap dapat diedit manual setelahnya",
+    "Kode Kendaraan, Netto, Quantity, dan Catatan input manual, tidak ada auto-fill",
     "Minimal satu baris Grading Detail harus diisi sebelum Simpan",
     "Setiap Quality Parameter hanya dapat dipakai di SATU baris Grading Detail — parameter yang sudah dipilih di suatu baris tidak muncul lagi sebagai opsi di dropdown baris lain, dan kembali tersedia jika baris tersebut dihapus atau parameternya diganti",
     "UOM pada tiap baris Grading Detail otomatis mengikuti Quality Parameter yang dipilih (disalin/snapshot saat dipilih), tidak dapat diedit manual",
     "Percentage dihitung otomatis: Qty/Netto*100 jika UOM=kg, Qty/Quantity*100 jika UOM=bunch, dihitung ulang setiap kali Qty baris atau Netto/Quantity header berubah",
-    "Tanggal diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Tanggal diisi otomatis sekali saat draft baru dibuat memakai tanggal/jam LOKAL perangkat (bukan UTC), tidak dapat diedit manual; saat sinkron dikirim sebagai tanggal lokal 'YYYY-MM-DD'",
     "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
     "Field wajib ditandai asterisk dengan validasi inline",
-    "Checked By TIDAK ditampilkan pada form ini (mengikuti mock referensi persis, yang tidak mencantumkan field ini pada Grading Header) - kolom checked_by tetap ada di skema data untuk kebutuhan masa depan, hanya tidak diekspos di layar ini"
+    "Checked By TIDAK ditampilkan pada form ini (mengikuti mock referensi persis, yang tidak mencantumkan field ini pada Grading Header) - kolom checked_by tetap ada di skema data untuk kebutuhan masa depan, hanya tidak diekspos di layar ini",
+    "Master Quality Parameter diselaraskan dari server (saat login dan tepat sebelum sinkronisasi Grading); parameter bawaan lokal dipetakan ke parameter server berdasarkan nama. Bila sebuah parameter belum bisa dipetakan, record Grading DITOLAK di perangkat (tidak dikirim) dengan alasan jelas 'Master Quality Parameter belum tersinkron dari server…' dan tetap Tersimpan untuk dikirim ulang",
+    "Record Grading baru bisa dikirim setelah Weighbridge yang ditautkannya tersinkron; bila belum, record ditolak di perangkat dengan alasan 'Weighbridge terkait belum tersinkron'"
   ],
   "usecase_ids": [
     "usecase-011--form-grading"
@@ -124,16 +126,19 @@
   "edge_cases": [
     "Field wajib belum lengkap saat Simpan ditekan",
     "Belum ada baris Grading Detail sama sekali saat Simpan ditekan",
-    "Belum ada data Weighbridge lokal sama sekali (dropdown WB Card No kosong)",
+    "Belum ada data Weighbridge lokal yang Tersimpan/Tersinkron dengan No. WB Card (dropdown WB Card No kosong)",
     "User mengedit License Plate No/Estate/Divisi secara manual setelah auto-fill dari Weighbridge (perubahan manual tetap tersimpan, tidak ditimpa ulang)",
     "User membuka dropdown Quality Parameter pada suatu baris — parameter yang sudah dipilih di baris lain (selain baris itu sendiri) tidak ditampilkan sebagai opsi",
     "Draft yang di-Pause lalu dilanjutkan - data harus terisi kembali sesuai draft tersimpan, termasuk daftar parameter yang sudah terpakai",
     "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
     "User menekan Clear (perlu konfirmasi sebelum hapus permanen)",
-    "User menghapus baris Grading Detail yang sudah ada sebelumnya (bukan baru ditambah) - Quality Parameter baris tersebut kembali tersedia di baris lain"
+    "User menghapus baris Grading Detail yang sudah ada sebelumnya (bukan baru ditambah) - Quality Parameter baris tersebut kembali tersedia di baris lain",
+    "Draft lama menautkan record Weighbridge yang kini tidak lolos filter dropdown (mis. masih draft) — pilihan tersebut tetap ditampilkan agar tidak hilang",
+    "Perangkat belum pernah online sehingga master Quality Parameter server belum tersimpan — record Grading gagal sinkron di perangkat dengan alasan yang jelas ('Gagal sinkron: <alasan>' di Data Preview), tidak ada data yang dikirim dengan id parameter palsu",
+    "Server menolak (422) record saat sinkron karena periode tertutup untuk tanggal record atau Tanggal lebih jauh dari besok — record tetap Tersimpan dan alasan tampil sebagai 'Gagal sinkron: <alasan>' di Data Preview"
   ],
   "test_priority": "high",
   "open_questions": [
-    "Cakupan sumber data dropdown WB Card No (semua record Weighbridge lokal apa pun statusnya, atau dibatasi tanggal/status tertentu?) - diasumsikan agent: SEMUA record Weighbridge lokal (status apapun), diurutkan terbaru dulu; perlu dikonfirmasi user pada checkpoint pra-implementasi"
+    "TERJAWAB (audit-fix 2026-10-04): dropdown WB Card No dibatasi ke record Weighbridge lokal berstatus Tersimpan/Tersinkron yang memiliki No. WB Card (plus pilihan yang sudah tersimpan di draft), diurutkan terbaru dulu"
   ]
 }

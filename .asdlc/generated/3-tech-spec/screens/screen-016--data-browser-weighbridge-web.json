@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-016--data-browser-weighbridge-web",
   "name": "Data Browser Weighbridge (Web)",
@@ -183,7 +183,7 @@
           "response": {
             "success_schema": {
               "content_type": "text/csv atau application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-              "note": "Response body adalah file stream/binary, bukan JSON"
+              "note": "Response body adalah file stream/binary, bukan JSON. format=csv → text/csv; format=excel → file .xlsx SUNGGUHAN (Office Open XML, zip berawalan 'PK' berisi xl/worksheets/sheet1.xml) ditulis App\\Support\\SheetWriter — bukan lagi byte CSV bernama .xlsx"
             },
             "error_codes": [
               {
@@ -212,9 +212,11 @@
         "5. Build query: weighbridge-record WHERE business_unit_id matches (if provided) AND record_datetime BETWEEN date_from/date_to (if provided) AND weighbridge_type matches (if provided)",
         "6. Paginate hasil sesuai shared-decisions.pagination (page/per_page)",
         "7. Return list + pagination metadata",
-        "8. On export: re-run query filter yang sama (termasuk weighbridge_type) tanpa pagination, generate file CSV/Excel → if dataset terlalu besar/error: return 422 EXPORT_FAILED",
+        "8. On export: re-run query filter yang sama (termasuk weighbridge_type) tanpa pagination, tulis berkas lewat App\\Support\\SheetWriter::open($format) (csv → CSV ke php://output; excel → .xlsx sungguhan, header tebal, sel angka sebagai angka, string angka berawalan nol tetap teks) → if dataset terlalu besar/error: return 422 EXPORT_FAILED",
         "9. Ekspor memakai buildFilteredQuery() yang sama sehingga filter Production Line ikut ke berkas; `Production Line` adalah kolom PERTAMA header CSV dan nilainya diulang pada setiap baris detail (satu baris per detail, konteks record diulang)",
-        "10. Return file stream untuk didownload user"
+        "10. Return file stream untuk didownload user",
+        "11. Isi berkas ekspor (audit 2026-10-04 #8): judul kolom = label layar Detail Weighbridge — Production Line, No. WB Card, Tipe Weighbridge, Tanggal & Waktu, No. Kendaraan, Nama Sopir, Estate/Supplier, Tujuan Muatan, Divisi, Blok, Berat Kotor (Gross Weight) (kg), Berat Kosong (Tare Weight) (kg), Berat Bersih (Net Weight) (kg), Kuantitas (tandan), Checked By, Acknowledged By, Status; Tipe ditulis 'Receive'/'Dispatch', Tanggal & Waktu 'Y-m-d H:i' (tanpa detik), Checked By/Acknowledged By = nama user (eager load checkedBy/acknowledgedBy), Status = label Indonesia lewat App\\Support\\Display::status() (Tersimpan, Tersinkron, …); angka mentah tanpa pemisah ribuan",
+        "12. Tampilan tabel Livewire (bukan API): kolom Status dirender lewat App\\Support\\Display::status() (Draft/Dijeda/Tersimpan/Tersinkron; kelas CSS badge tetap memakai nilai enum asli, mis. wb-badge--saved) dan Net Weight lewat Display::number($v, 2) berformat id-ID ('17.432,50'); nilai API JSON `status` tetap enum mentah"
       ],
       "data_operations": [
         {
@@ -318,7 +320,7 @@
         {
           "description": "returns success result when all conditions pass (export)",
           "given": "valid filter params (including weighbridge_type) and format=csv|excel; weighbridgeRecordRepo.findByFiltersUnpaginated() returns matching records within export limit; file generator succeeds",
-          "expect": "return 200 with a file stream response, content-type matching the requested format (text/csv or application/vnd.openxmlformats-officedocument.spreadsheetml.sheet)"
+          "expect": "return 200 with a file stream response, content-type matching the requested format (text/csv or application/vnd.openxmlformats-officedocument.spreadsheetml.sheet); for format=excel the body is a real xlsx (starts with 'PK', sheet1 rows readable); header contains 'No. WB Card', 'Checked By', 'Acknowledged By' (not 'WB Card Number') and status cells read 'Tersimpan' (not 'saved')"
         },
         {
           "description": "filters the list and the export by the record's own production_line_id column, not through a station join",
@@ -366,7 +368,8 @@
     "Kolom baru: Tipe (weighbridge_type) dan Tujuan Muatan (destination, kosong/'-' untuk baris Receive)",
     "Filter + kolom Production Line (2026-09-28/29): properti Livewire `production_line_id` (default '' = Semua Line), direset oleh updatedBusinessUnitId(), dipaksa sehat di render() lewat forcedProductionLineFilterValue(), dan opsinya dari productionLineOptionsForReadActor(). Ketiganya LAPISAN TAMPILAN — penegakan sesungguhnya ada di ScopesToActorMill::scopeFiltersToActorMill() di dalam service, jadi melewatkan lapisan tampilan pun tidak membocorkan apa pun.",
     "`production_line_id` masuk ke `$request->only([...])` pada index() DAN export() controller API, sehingga filter yang aktif di layar benar-benar ikut ke berkas.",
-    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan."
+    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ekspor Excel kini .xlsx sungguhan via App\\Support\\SheetWriter (tanpa dependensi baru, ext-zip); judul kolom ekspor diganti label layar Detail + kolom Checked By/Acknowledged By, status berlabel Indonesia, waktu tanpa detik; tabel Data Browser memakai App\\Support\\Display untuk label status dan angka id-ID. Kontrak list/export JSON tidak berubah."
   ],
   "test_scenarios": [
     {

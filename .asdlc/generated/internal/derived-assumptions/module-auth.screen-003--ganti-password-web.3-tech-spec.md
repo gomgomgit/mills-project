@@ -11,3 +11,9 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (routes/web.php, AuthService.php, PasswordPolicy.php).
+- actor_permissions += actor-station-operator can_access=true ← web route role:admin,supervisor,mill_management,operator
+- business_logic[1] = validasi via PasswordPolicy ← AuthService::validatePasswordFormat

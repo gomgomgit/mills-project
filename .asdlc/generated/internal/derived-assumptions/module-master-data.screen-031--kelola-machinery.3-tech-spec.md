@@ -38,3 +38,14 @@ api-index), tetapi tabel rujukannya salah sampai diperbaiki.
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (MachineryService.php, MachineryGroupService.php, KelolaMachinery.php, KelolaMachineryAuditTest.php).
+- api_contracts[0].endpoints[1].response.success_schema = + label ← machineryGroupOptions().
+- api_contracts[0].endpoints[3..4].request.body_schema.{equipment_code,picture} = case-insensitive / RealImage ← MachineryService::validate().
+- api_contracts[0].business_logic[2], [4], [5] = opsi berlabel; validasi case-insensitive + RealImage ← kode.
+- api_contracts[0].edge_case_handling[0], [4] + (1) = beda huruf; gambar palsu; pemetaan error baris child ← formErrorKey().
+- api_contracts[0].unit_test_cases (+3) ⚠ diturunkan dari kode/KelolaMachineryAuditTest, contoh label 'MG-001 — Conveyor (Weighbridge · Line 1)' ilustratif.
+- api_contracts[1].endpoints[0].response data[0] = + business_unit_name; endpoints[1] = + label; endpoints[2..3].group_code = case-insensitive; business_logic[3..5]; edge_case_handling[0] ← MachineryGroupService. ⚠ diasumsikan GET /api/stations/options memakai stationOptions() yang sama (tidak dibuka controller-nya).
+- implementation_notes (+) = REVISI audit-fix.

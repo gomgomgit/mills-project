@@ -19,3 +19,12 @@ Mencatat perbaikan kode/uji 2026-10-03.
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/MillsSettingTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD MillsSetting.php, MillSettingService.php, mills-setting.blade.php, mobile/src/services/millSettingRepo.ts; berkas baru RealImage.php, ValidatesUploadOnSelect.php, MillsSettingAuditTest.php, ImageUploadValidationTest.php, millSettingRepo.sqljs.spec.ts).
+- files_generated += Rules/RealImage.php, Livewire/Concerns/ValidatesUploadOnSelect.php, MillSettingController.php
+- test_files_generated += MillsSettingAuditTest.php, ImageUploadValidationTest.php
+- fe_files_generated += components/searchable-select.blade.php, mobile/src/services/millSettingRepo.ts ⚠ DISIMPULKAN: millSettingRepo dimasukkan karena memengaruhi berlakunya pengaturan layar ini (juga tercantum di artefak screen-005/form mobile)
+- fe_test_files_generated += mobile/tests/millSettingRepo.sqljs.spec.ts, mobile/tests/writeThroughSync.spec.ts
+- implementation_notes += REVISI 2026-10-04 (app_name wajib, RealImage, validasi saat dipilih, searchable select, kolom Production Line, SELECT immediate_sync_enabled mobile)

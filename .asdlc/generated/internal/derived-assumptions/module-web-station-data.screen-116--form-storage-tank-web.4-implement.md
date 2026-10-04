@@ -19,3 +19,11 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - known_issue browser Playwright ('was not authored/found ... no browser-level verification (kini tertutup oleh spec e2e-web yang lulus)') dihapus — satu-satunya known_issue, known_issues kini kosong.
 - Path e2e-web/tests/form-storage-tank.spec.ts ditambahkan ke test_files_generated (belum ada di daftar berkas mana pun; dipilih karena daftar itu sudah memuat uji non-komponen).
 - Entri backend/tests/Browser/* (berkas tidak ada di repo) dibiarkan, di luar cakupan.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD FormStorageTank.php, StorageTankRecordService.php; untracked AppTime.php, GuardsRecordIdShape.php, tests).
+- files_generated += backend/app/Support/AppTime.php ← dipakai EnforcesPeriodLock untuk batas atas tanggal & zona WIB (⚠ shared support file, dicantumkan karena perilaku layar berubah lewatnya).
+- fe_files_generated += GuardsRecordIdShape.php ← use GuardsRecordIdShape di FormStorageTank.
+- fe_test_files_generated += RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php ← dataset mencakup FormStorageTank / cek statis semua view form-*.blade.php.
+- implementation_notes += REVISI audit-fix 2026-10-04.

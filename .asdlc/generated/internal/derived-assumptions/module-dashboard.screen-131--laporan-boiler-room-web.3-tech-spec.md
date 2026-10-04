@@ -40,3 +40,16 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (BoilerRoomReportService.php, ReportPeriodDays.php, SheetWriter.php, ExportValue.php, laporan-boiler-room.blade.php, routes/api.php, tests/Feature/Api/LaporanBoilerRoomTest.php).
+- actor_permissions[3].conditions = web tertutup (403 page, Operator boleh login web sejak 2026-10-04); API periods/summary/export menerima Operator sejak 2026-09-25 ← routes/api.php role:...,operator + docblock service (drift lama, dikoreksi)
+- api_contracts[0].endpoints[2].response.success_schema.coverage = + days_counted, period_running; expected_slots pakai days_counted ← summary() coverage array
+- api_contracts[0].endpoints[3].description / response.success_schema._note = CSV atau xlsx sungguhan; kolom Periode/Mill/Production Line + konteks record + slot HH:MM + 15 kolom, Ya/Tidak ← EXPORT_HEADER, streamExportRows
+- api_contracts[0].business_logic[10] = expected_slots = unit × days_counted × slot ← ReportPeriodDays::counted
+- api_contracts[0].business_logic[17] = ekspor via SheetWriter + exportContext + ExportValue ← export()/streamExportRows
+- api_contracts[0].edge_case_handling (+2) = periode berjalan; expected_slots 0 → '—' ← blade
+- api_contracts[0].unit_test_cases (+5) = ReportPeriodDays, coverage 100% periode berjalan, '—', ekspor berlabel, xlsx ← ReportAuditFix20261004Test, ExportXlsxTest (⚠ isRunning(future)=true diturunkan dari kode, tidak diasersi tes)
+- test_scenarios[11].api_test[0..2] = 200 (Operator diterima API); browser_test.assert = halaman 403 ← routes/api.php, LaporanBoilerRoomTest docblock, WebAccessTest (⚠ isi halaman 403 untuk rute ini disimpulkan dari middleware role + errors/403, tidak dicek tes khusus layar ini)
+- implementation_notes (+1) = REVISI audit-fix

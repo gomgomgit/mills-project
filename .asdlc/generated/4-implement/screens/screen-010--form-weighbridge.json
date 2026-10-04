@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
-  "ver": 7,
+  "ver": 8,
   "id": "screen-010--form-weighbridge",
   "name": "Form Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -12,12 +12,17 @@
   "test_files_generated": [],
   "fe_files_generated": [
     "mobile/src/services/weighbridgeRecordRepo.ts",
-    "mobile/src/views/FormWeighbridgeView.vue"
+    "mobile/src/views/FormWeighbridgeView.vue",
+    "mobile/src/utils/localDate.ts",
+    "mobile/src/services/syncService.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/weighbridgeRecordRepo.spec.ts",
     "mobile/tests/FormWeighbridgeView.spec.ts",
-    "mobile/tests/e2e/form-weighbridge.spec.ts"
+    "mobile/tests/e2e/form-weighbridge.spec.ts",
+    "mobile/tests/localDate.sqljs.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts",
+    "mobile/tests/DialogTeleport.spec.ts"
   ],
   "implementation_notes": [
     "FormWeighbridgeView.vue: ditambahkan weighbridge_type tab selector (data-testid='weighbridge-type-receive'/'weighbridge-type-dispatch', role='tab'/aria-selected), default 'receive' untuk draft baru, dipertahankan saat resume.",
@@ -28,7 +33,8 @@
     "Label Kuantitas diubah jadi 'Kuantitas (tandan)'; dispatchTimer/startDispatchTicker/stopDispatchTicker/onBeforeUnmount dihapus total.",
     "Checked By tetap dihapus total dari layar ini (carry-over dari v4) — kolom checked_by/acknowledged_by di entity tetap ada, tapi screen ini tidak membaca/menulisnya.",
     "Regresi penuh diverifikasi independen: npx vitest run unscoped = 21 file test, 407 test, semua lulus; npx vue-tsc --noEmit bersih untuk FormWeighbridgeView.vue.",
-    "REVISI (tech-spec v7, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormWeighbridgeView menyimpan HANYA ke SQLite lokal (tidak ada apiClient/syncAfterSave; stasiun ini tidak punya write-through) dan tidak memeriksa periode; record 'saved' dikirim lewat sinkron manual screen-006 (POST /api/weighbridge-records), dan penolakan 422 PERIOD_CLOSED membuat record tetap 'saved' dengan alasan server di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('weighbridge', mill, record_datetime) di WeighbridgeRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tanggal yang dinilai adalah record_datetime (penanda waktu lengkap) — dicakup kasus 'menerima penanda waktu lengkap, bukan hanya tanggal — jalur Weighbridge' di EnforcesPeriodLockTest. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik)."
+    "REVISI (tech-spec v7, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormWeighbridgeView menyimpan HANYA ke SQLite lokal (tidak ada apiClient/syncAfterSave; stasiun ini tidak punya write-through) dan tidak memeriksa periode; record 'saved' dikirim lewat sinkron manual screen-006 (POST /api/weighbridge-records), dan penolakan 422 PERIOD_CLOSED membuat record tetap 'saved' dengan alasan server di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('weighbridge', mill, record_datetime) di WeighbridgeRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tanggal yang dinilai adalah record_datetime (penanda waktu lengkap) — dicakup kasus 'menerima penanda waktu lengkap, bukan hanya tanggal — jalur Weighbridge' di EnforcesPeriodLockTest. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik).",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): FormWeighbridgeView.nowIso() kini memanggil nowLocalDateTimeString() dan formatDateID/formatTimeID memakai parseStoredDateTime() (mobile/src/utils/localDate.ts) — record_datetime disimpan sebagai jam lokal tanpa sufiks zona; label 'Nama Supir' → 'Nama Sopir' (REQUIRED_FIELD_LABELS + FormField; test unit/e2e disesuaikan ke #field-nama-sopir / getByLabel('Nama Sopir')). Di luar view: localSchema.normalizeLegacyUtcDates() memigrasi record_datetime lama ber-'Z', syncService.pushWeighbridgeRow mengirim toOffsetDateTime(record_datetime), memakai Production Line stasiun record (resolveRecordContext) dan menulis/menghapus sync_error. Cakupan baru: mobile/tests/localDate.sqljs.spec.ts (normalisasi record_datetime lama), mobile/tests/syncService.sqljs.spec.ts (#4 payload weighbridge +07:00, #5 line per record, #9 sync_error), mobile/tests/DialogTeleport.spec.ts (ConfirmDialog di <body>)."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -41,7 +47,7 @@
       "severity": "minor"
     },
     {
-      "description": "FormWeighbridgeView.spec.ts skenario 'Ganti Tipe Setelah Field Terisi' membandingkan record_datetime terhadap system-time advance 120 detik untuk membuktikan re-derivasi menghasilkan timestamp baru yang genuine; jika implementasi auto-set berubah dari new Date().toISOString(), assertion exact-match ini perlu ditinjau ulang",
+      "description": "FormWeighbridgeView.spec.ts skenario 'Ganti Tipe Setelah Field Terisi' membandingkan record_datetime terhadap system-time advance 120 detik untuk membuktikan re-derivasi menghasilkan timestamp baru yang genuine; sejak 2026-10-04 assertion memakai nowLocalDateTimeString(T0) (jam lokal tanpa sufiks) — bila format penyimpanan berubah lagi, assertion exact-match ini perlu ditinjau ulang",
       "severity": "minor"
     }
   ],

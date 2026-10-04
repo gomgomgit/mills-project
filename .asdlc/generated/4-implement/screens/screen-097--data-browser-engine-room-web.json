@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-097--data-browser-engine-room-web",
   "name": "Data Browser Engine Room (Web)",
@@ -22,13 +22,18 @@
     "backend/database/factories/EngineRoomDetailFactory.php",
     "backend/database/factories/StationFactory.php",
     "backend/resources/views/data/production-process-activity.blade.php",
-    "backend/app/Support/Concerns/ScopesToActorMill.php"
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php",
+    "backend/app/Support/Display.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/EngineRoomRecordServiceTest.php",
     "backend/tests/Feature/Api/DataBrowserEngineRoomTest.php",
     "backend/tests/Feature/Livewire/DataBrowserEngineRoomTest.php",
-    "backend/tests/Feature/ProductionProcessActivityTest.php"
+    "backend/tests/Feature/ProductionProcessActivityTest.php",
+    "backend/tests/Unit/Services/ExportDetailRowsTest.php",
+    "backend/tests/Pest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserEngineRoom.php",
@@ -52,7 +57,8 @@
     "Ran the full backend test suite (`php artisan test`) after implementation: 1884 passed (0 failed), confirming no regression to any pre-existing screen. Engine-Room-specific tests (`--filter=EngineRoom`): 90 passed (0 failed) -- 33 unit (EngineRoomRecordServiceTest), 7 integration (Feature/Api/DataBrowserEngineRoomTest), 5 component (Feature/Livewire/DataBrowserEngineRoomTest), reported under this screen; remaining 45 Engine Room tests reported under screen-107/screen-117 below",
     "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau.",
     "REVISI v3 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-engine-room.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec dijalankan penuh: 5/5 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser spec tidak dapat dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): EngineRoomRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan, sebelumnya CSV berlabel .xlsx; csv tetap CSV); nilai sel lewat App\\Support\\ExportValue — time slot 'HH:MM', status label Indonesia; data-browser-engine-room.blade.php memakai Display::status() untuk badge. Uji: EngineRoomRecordServiceTest export (assert 'PK' + xlsxRows), ExportDetailRowsTest, helper xlsxRows/exportBodyAsCsv di tests/Pest.php. Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah."
   ],
   "deferred_items": [
     {

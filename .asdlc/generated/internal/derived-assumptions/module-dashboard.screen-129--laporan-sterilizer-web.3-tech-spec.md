@@ -39,3 +39,13 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (SterilizerReportService.php, SheetWriter.php, ExportValue.php, SterilizerReportServiceTest.php, WebAccessTest.php).
+- actor_permissions[3].conditions = Operator login web terbatas; /reports/sterilizer + /api/sterilizer-reports/* tetap 403; menu disaring RouteAccess ← WebAccessTest (#2) + layouts/app.blade.php
+- api_contracts[0].unit_test_cases[17].expect = teks "(tidak punya akses web sama sekali)" diganti "(akses web Operator terbatas …)" ← keputusan produk 2026-10-04
+- api_contracts[0].unit_test_cases[35].expect = kolom konteks kini Periode, Mill, Production Line, Tanggal, ID Sterilizer, Catatan, Diperiksa Oleh, Diketahui Oleh, Status ← $exportContext + array_merge di export()
+- api_contracts[0].unit_test_cases[+] = header === EXPORT_HEADER, tanpa 'Sterilizer ID' ← SterilizerReportServiceTest diff. ⚠ Contoh label status 'Tersimpan' diturunkan dari Display::status, bukan dibaca dari tes ini
+- api_contracts[0].business_logic[+] = SheetWriter csv/xlsx sungguhan + daftar EXPORT_HEADER + ExportValue status/time/yesNo ← SterilizerReportService::EXPORT_HEADER & export()
+- implementation_notes[+] = REVISI audit-fix (ekspor, hero line, md-trendchart--days + scroll hint) ← diff blade/service

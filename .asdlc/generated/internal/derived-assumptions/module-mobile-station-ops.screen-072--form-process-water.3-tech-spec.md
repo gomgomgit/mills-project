@@ -16,3 +16,11 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - implementation_notes[0]: 'sync manual terpisah' diganti — record 'saved' dikirim lewat sinkron manual Station List (STATION_PUSH_CONFIGS) dan write-through syncAfterSave() bila immediate_sync_enabled aktif.
 - Catatan REVISI kunci periode: frasa 'kegagalannya diam' diganti dengan pembedaan offline/5xx (diam) vs 4xx (dialog).
 - Klaim 'syncService.ts TIDAK diperluas … (deferred)' dinyatakan usang di implementation_notes[0].
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/services/processWaterRecordRepo.ts, mobile/src/views/FormProcessWaterView.vue, mobile/src/services/syncService.ts, mobile/src/services/millSettingRepo.ts, mobile/src/services/localSchema.ts, mobile/src/utils/localDate.ts).
+- api_contracts[0].business_logic[1] = createDraft() mengisi date lokal 'YYYY-MM-DD' (todayLocalDateString); view fallback nowLocalDateTimeString() bila kosong ← diff createDraft + form.date fallback di view
+- api_contracts[0].business_logic[2] = Verifikasi berisi "Catatan" (FormField id field-note) ← diff template view
+- api_contracts[0].edge_case_handling (append) = penolakan 4xx menulis sync_error lokal, dikosongkan saat berhasil, offline tidak dicatat; tampil di Data Preview "Gagal sinkron: <alasan>" ← syncService.failure()/rememberSyncError()/markSynced(), localSchema.migrateRecordTablesForSyncError, components/SyncFailureHint.vue
+- implementation_notes (append) = write-through aktif sungguhan (millSettingRepo SELECT immediate_sync_enabled), payload date lokal, Production Line per record dari station_id ← diff millSettingRepo.ts, syncService.pushUniformRow/resolveRecordContext/syncTable

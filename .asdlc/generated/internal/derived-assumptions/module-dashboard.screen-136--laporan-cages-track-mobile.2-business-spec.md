@@ -12,3 +12,8 @@ Layar ini adalah pasangan mobile dari [[module-dashboard.screen-130--laporan-cag
 - **Ekspor CSV dipertahankan di mobile** ← screen-135 punya; tidak ditanyakan apakah masuk akal mengunduh CSV di ponsel. Layak dipertanyakan kelak, tetapi menghilangkannya akan membuat dua layar laporan mobile berbeda kemampuan tanpa alasan.
 - `test_priority` = `high` ← sama dengan screen-130 dan screen-135: layar ini menyangkut cakupan mill dan hak akses lintas peran.
 - `edge_cases` "hari ber-record tanpa rincian per jam" dan "operasi melewati tengah malam" ← dibawa dari screen-130 karena keduanya sifat data stasiun ini, bukan sifat platformnya; angkanya dihitung server yang sama.
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/LaporanCagesTrackView.vue, mobile/tests/LaporanCagesTrackView.spec.ts).
+- edge_cases[1] = + 0 hari ber-record → rata-rata 'tidak tersedia' + 'Belum ada hari ber-record untuk dijadikan pembagi.', days-with-records disembunyikan ← view template v-if="!kpi?.days_with_records" + spec diff

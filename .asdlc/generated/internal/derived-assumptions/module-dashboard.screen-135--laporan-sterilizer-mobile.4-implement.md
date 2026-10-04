@@ -25,3 +25,11 @@ Ukur ulang uji browser Playwright mobile 2026-10-03.
 - Angka browser diambil dari run tujuh spec laporan mobile (Vite dev server + backend :8000, DemoAccountSeeder): 185 lolos, 0 gagal; failed = 0 dan run_at disetel 2026-10-03T00:00:00Z (jam tidak tercatat, dipakai tengah malam UTC).
 - laporan-sterilizer.spec.ts: 24 lolos (naik dari 18 karena skenario bertambah).
 - Known_issue "test_results.browser tidak diukur ulang" dihapus karena pengukuran ulang kini menutupnya; known_issue lain dibiarkan apa adanya.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/LaporanSterilizerView.vue, mobile/tests/LaporanSterilizerView.spec.ts, mobile/tests/e2e/laporan-sterilizer.spec.ts, SterilizerReportService.php).
+- files_generated[+] = backend/app/Support/SheetWriter.php, backend/app/Support/ExportValue.php ← dipakai endpoint ekspor bersama yang diunduh layar ini
+- test_files_generated[+] = backend/tests/Feature/ReportAuditFix20261004Test.php, backend/tests/Feature/ExportXlsxTest.php ← menguji ekspor Sterilizer bersama
+- implementation_notes[+] = REVISI: label 'closed' → 'Tertutup' (dulu 'Ditutup'); CSV ponsel ikut berubah (header Indonesia + Periode/Mill/Production Line) ← diff view & spec. ⚠ "Ponsel tetap hanya meminta format CSV" disimpulkan dari nama exportCsv/saveCsvFile dan nama berkas .csv, query format tidak dibaca langsung
+- 2-business-spec & 3-tech-spec tidak diubah: keduanya tidak menyebut 'Ditutup' dan tidak memuat daftar kolom ekspor

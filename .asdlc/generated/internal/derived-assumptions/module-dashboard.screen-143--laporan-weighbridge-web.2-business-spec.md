@@ -56,3 +56,14 @@ mereka setujui ikut memuat kesalahan itu. Koreksinya dilaporkan terbuka, bukan d
 - `open_questions` butir ke-4 ← ditambahkan: bila lama kendaraan memang dibutuhkan, yang perlu diubah adalah DATANYA (migrasi + form input mobile dan web + keputusan soal trip lama), bukan laporannya. Dinyatakan supaya kebutuhan itu tidak kembali sebagai permintaan ke laporan.
 
 - `description` ditulis ulang untuk menyatakan ketidakmampuan itu di muka ← pilihan agent; spec yang diam soal apa yang tidak bisa dilakukannya mengundang pertanyaan yang sama berulang kali.
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (laporan-weighbridge.blade.php, WeighbridgeReportService.php, ReportPeriodDays.php, ChartAxis.php, SheetWriter.php).
+- information_displayed[21] = kelengkapan hari bertrip terhadap hari yang sudah lewat + catatan periode berjalan; '—' bila 0 ← blade $persenHari dari days_counted, period-running-note
+- information_displayed[23] = Ekspor CSV + Ekspor Excel (.xlsx sungguhan) ← blade baris 363/367 + SheetWriter
+- information_displayed[6], [9] = klausa ', bukan M' hanya bila angkanya berbeda ← blade receive/dispatch-avg-denominator
+- information_displayed[20] = sumbu tren dari nol dengan label bulat ← ChartAxis::nice(0.0, ...)
+- available_actions[4].description = CSV/xlsx, kolom konteks, status berlabel Indonesia ← EXPORT_HEADER + ExportValue::status
+- business_rules[+1] = penyebut sampai hari ini; belum mulai → '—' ← ReportPeriodDays
+- edge_cases[+2] = periode berjalan; periode belum mulai ← ReportAuditFix20261004Test '#3 Weighbridge'

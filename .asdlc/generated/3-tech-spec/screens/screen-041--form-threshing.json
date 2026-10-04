@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-041--form-threshing",
   "name": "Form Threshing",
@@ -28,8 +28,8 @@
       "endpoints": [],
       "business_logic": [
         "1. Load draft threshing_record by id (route param) beserta seluruh threshing_detail turunannya ke form state (bisa nol baris untuk draft baru), diurutkan berdasarkan time_slot dalam urutan kanonis (07:00..06:00, BUKAN alfabetis)",
-        "2. Auto-set Tanggal (date) = waktu saat ini HANYA jika draft baru (masih kosong); jika draft dilanjutkan, pertahankan nilai tersimpan (defensive fallback, createDraft() sudah mengisinya)",
-        "3. Render field dikelompokkan per section: Identitas Threshing (Thresher ID, Tanggal), Verifikasi (Inputted By read-only, Checked By, Acknowledged By, Note), Threshing Detail (grid dinamis), Target Operasional (tabel referensi read-only, sumber data statis lihat implementation_notes)",
+        "2. Tanggal (date) diisi saat draft dibuat oleh threshingRecordRepo.createDraft() = todayLocalDateString() (src/utils/localDate.ts — tanggal LOKAL 'YYYY-MM-DD', BUKAN toISOString() UTC, sehingga draft 00:00–06:59 WIB tidak bertanggal kemarin); form hanya meng-auto-set bila masih kosong (defensive fallback), draft yang dilanjutkan mempertahankan nilai tersimpan",
+        "3. Render field dikelompokkan per section: Identitas Threshing (Thresher ID, Tanggal), Verifikasi (Inputted By read-only, Checked By, Acknowledged By, Catatan #field-note), Threshing Detail (grid dinamis), Target Operasional (tabel referensi read-only, sumber data statis lihat implementation_notes)",
         "4. Render breadcrumb (Home > Production Process Activity > Threshing > Form, tappable) dan header dengan hamburger",
         "5. REVISI 2026-08-24 (dari desain awal grid statis 24 baris): grid Threshing Detail TIDAK di-pre-generate — dimulai kosong untuk draft baru, mengikuti pola persis Cages Tipped Time (screen-012)",
         "6. On Tambah baris Threshing Detail: tambah 1 baris baru (tanpa id) ke grid, Time-Slot belum dipilih, seluruh kolom bacaan kosong",
@@ -125,11 +125,11 @@
         },
         {
           "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
-          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED terjadi saat record tiba di server: (a) pada sinkron manual dari Station List (screen-006) — record tetap 'saved' di perangkat dan alasan dari server ditampilkan per record di SyncResultDialog; (b) bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mengirim record ini (writeThroughSync.syncAfterSave('threshing_record') → syncService.pushSavedRecordNow → POST /api/threshing-records). REVISI 2026-10-03: penolakan 4xx (mis. 422 PERIOD_CLOSED) pada kiriman langsung ini TIDAK lagi diam — syncAfterSave() mengembalikan {synced:false, rejection:<pesan server>}, form menampilkan ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu bernavigasi ke Monitor Threshing saat dialog ditutup; record tetap 'saved' di perangkat (tidak ada rollback). Kegagalan offline/5xx tetap diam — record menunggu sinkron berikutnya. Pemulihan: Admin membuka kembali baris stasiun Threshing di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang dari screen-006."
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED (atau 422 validasi tanggal lebih jauh dari besok — EnforcesPeriodLock::assertEventDateNotTooFarAhead pada date) terjadi saat record tiba di server: (a) pada sinkron manual dari Station List (screen-006) — record tetap 'saved' di perangkat, alasan server ditampilkan per record di SyncResultDialog DAN disimpan di kolom lokal sync_error (tampil 'Gagal sinkron: <alasan>' di Data Preview lewat SyncFailureHint.vue; dikosongkan saat sinkron berikutnya berhasil; gagal jaringan tidak ditulis); (b) bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mengirim record ini (writeThroughSync.syncAfterSave('threshing_record') → syncService.pushSavedRecordNow → POST /api/threshing-records). Penolakan 4xx pada kiriman langsung ini: syncAfterSave() mengembalikan {synced:false, rejection:<pesan server>}, form menampilkan ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu bernavigasi ke Monitor Threshing saat dialog ditutup; record tetap 'saved' di perangkat (tidak ada rollback). Kegagalan offline/5xx tetap diam — record menunggu sinkron berikutnya. Pemulihan: Admin membuka kembali baris stasiun Threshing di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang dari screen-006."
         }
       ],
       "business_rules_applied": [
-        "Tanggal otomatis sekali saat draft baru dibuat",
+        "Tanggal otomatis sekali saat draft baru dibuat, memakai tanggal LOKAL perangkat (todayLocalDateString), bukan UTC",
         "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
         "Grid Threshing Detail TIDAK di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris, mengikuti pola persis Cages Tipped Time",
         "Time-Slot tiap baris harus lebih lambat (index kanonis lebih besar) dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
@@ -150,9 +150,9 @@
           "expect": "form state's detail rows array is empty"
         },
         {
-          "description": "sets date to current time when draft is new (empty)",
-          "given": "loaded draft record has date = null",
-          "expect": "date set to current timestamp (now) exactly once on mount"
+          "description": "createDraft() stores the LOCAL date (draft created at 01:30 WIB is dated today, not yesterday)",
+          "given": "system time 01:30 WIB (18:30 UTC previous day); createDraft(userId) called",
+          "expect": "threshing_record.date = today's local 'YYYY-MM-DD'; Monitor 'Hari Ini' counter counts it"
         },
         {
           "description": "preserves stored date when resuming a paused draft",
@@ -280,7 +280,8 @@
     "Tabel referensi Target Operasional (6 baris) diimplementasikan sebagai KONSTANTA STATIS di kode mobile (bukan tabel lokal SQLite yang disinkron) — tidak berubah oleh revisi ini, lihat known_issue/deferred sebelumnya",
     "Constraint model server ThreshingRecord::booted() (minimal 1 threshing-detail row exists) sekarang benar-benar berarti apa adanya (baris hanya ada jika user menambahkannya) — validasi 'minimal 1 baris VALID (Time-Slot + kolom bacaan terisi)' pada layar ini tetap ditegakkan di level FE + repo mobile (localDb), bukan constraint DB",
     "Breadcrumb & hamburger mengikuti pola yang sama dengan Form Weighbridge/Grading/Cages Track",
-    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5): FormThreshingView menyimpan ke SQLite lokal; satu-satunya jalur tulis server dari form ini adalah write-through syncAfterSave('threshing_record') saat Mills Setting immediate_sync_enabled aktif (POST /api/threshing-records, create). Penolakan 4xx pada jalur ini (mis. 422 PERIOD_CLOSED) ditampilkan lewat ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu form bernavigasi ke Monitor Threshing; kegagalan offline/5xx tetap diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('threshing', mill, date) berjalan di ThreshingRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5): FormThreshingView menyimpan ke SQLite lokal; satu-satunya jalur tulis server dari form ini adalah write-through syncAfterSave('threshing_record') saat Mills Setting immediate_sync_enabled aktif (POST /api/threshing-records, create). Penolakan 4xx pada jalur ini (mis. 422 PERIOD_CLOSED) ditampilkan lewat ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu form bernavigasi ke Monitor Threshing; kegagalan offline/5xx tetap diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('threshing', mill, date) berjalan di ThreshingRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) threshingRecordRepo.createDraft() menyimpan date = todayLocalDateString() (src/utils/localDate.ts) — sebelumnya ISO UTC sehingga draft 00:00–06:59 WIB bertanggal kemarin; localSchema.normalizeLegacyUtcDates() memigrasi nilai lama, dan payload sinkron selalu mengirim date = toLocalDateString(date); (2) label catatan 'Note' → 'Catatan' dengan id field-note; (3) write-through kini BENAR-BENAR aktif bila immediate_sync_enabled menyala — millSettingRepo.getMillSetting() sebelumnya tidak men-SELECT kolom immediate_sync_enabled sehingga isImmediateSyncEnabled() selalu false; (4) sinkron (manual maupun write-through) memakai production line stasiun record (bukan line yang sedang dipilih), dan kegagalan 4xx ditulis ke sync_error (tampil 'Gagal sinkron' di Data Preview), dikosongkan saat sukses; (5) server ThreshingRecordService menolak date > besok (422 per field) dan id detail non-UUID tidak lagi memicu error SQL; ConfirmDialog kini di-teleport ke <body> (z-index 1200)."
   ],
   "test_scenarios": [
     {

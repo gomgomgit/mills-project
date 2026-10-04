@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-034--mills-setting",
   "name": "Mills Setting",
@@ -57,9 +57,9 @@
               "id": "uuid",
               "business_unit_id": "uuid",
               "app_name": "string",
-              "logo": "string|null",
-              "home_page_image": "string|null",
-              "jumlah_cages": "integer",
+              "logo": "string|null (URL)",
+              "home_page_image": "string|null (URL)",
+              "immediate_sync_enabled": "boolean",
               "created_at": "timestamp"
             },
             "error_codes": [
@@ -83,7 +83,7 @@
         {
           "method": "PATCH",
           "path": "/api/mill-settings/:business_unit_id",
-          "description": "Mengubah nama aplikasi, jumlah cages, logo, dan/atau gambar halaman utama mill",
+          "description": "Mengubah nama aplikasi, logo, gambar halaman utama, dan/atau immediate_sync_enabled mill",
           "auth_required": true,
           "request": {
             "path_params": [
@@ -95,10 +95,10 @@
             ],
             "query_params": [],
             "body_schema": {
-              "app_name": "string, optional",
-              "jumlah_cages": "integer, optional, harus > 0 jika dikirim",
-              "logo": "file, optional, image jpg/png, max 2MB",
-              "home_page_image": "file, optional, image jpg/png, max 2MB"
+              "app_name": "string, optional — kunci tidak dikirim = tidak diubah; bila DIKIRIM wajib terisi (required), max 255",
+              "immediate_sync_enabled": "boolean, optional — tidak dikirim = tidak diubah",
+              "logo": "file, optional, mimes jpg/jpeg/png, max 2MB, dan harus benar-benar gambar JPG/PNG menurut isi file (App\\Rules\\RealImage)",
+              "home_page_image": "file, optional, mimes jpg/jpeg/png, max 2MB, dan harus benar-benar gambar JPG/PNG menurut isi file (App\\Rules\\RealImage)"
             }
           },
           "response": {
@@ -106,15 +106,16 @@
               "id": "uuid",
               "business_unit_id": "uuid",
               "app_name": "string",
-              "logo": "string|null",
-              "home_page_image": "string|null",
-              "jumlah_cages": "integer"
+              "logo": "string|null (URL)",
+              "home_page_image": "string|null (URL)",
+              "immediate_sync_enabled": "boolean",
+              "created_at": "timestamp"
             },
             "error_codes": [
               {
                 "http_code": 422,
                 "error_code": "VALIDATION_ERROR",
-                "condition": "jumlah_cages ≤ 0, atau logo/home_page_image format/ukuran tidak didukung"
+                "condition": "app_name dikirim kosong / > 255 karakter, atau logo/home_page_image format/ukuran tidak didukung atau isi file bukan gambar JPG/PNG sungguhan"
               },
               {
                 "http_code": 404,
@@ -154,6 +155,7 @@
               "data": [
                 {
                   "id": "uuid",
+                  "production_line_name": "string|null",
                   "name": "string",
                   "type": "string",
                   "icon": "string|null"
@@ -233,9 +235,9 @@
       "business_logic": [
         "1. Validate business_unit_id ada (SELECT Business Unit) → if not: return 404 NOT_FOUND",
         "2. Jika role=mill_management, validate business_unit_id == user.business_unit_id → if not: return 403 FORBIDDEN (Admin tidak dibatasi)",
-        "3. GET /:business_unit_id: SELECT mill-setting WHERE business_unit_id → jika tidak ada baris, INSERT default (app_name = business_unit.name, jumlah_cages = 1) lalu return baris yang baru dibuat",
-        "4. PATCH /:business_unit_id: validate jumlah_cages > 0 jika dikirim → validate logo/home_page_image (jika dikirim) format/ukuran → if invalid: return 422 VALIDATION_ERROR → jika mill-setting belum ada, buat default dulu (langkah 3) sebelum di-update → simpan file logo/home_page_image ke Laravel Filesystem jika dikirim → UPDATE mill-setting",
-        "5. GET /:business_unit_id/stations: SELECT station WHERE business_unit_id, urut nama",
+        "3. GET /:business_unit_id: SELECT mill-setting WHERE business_unit_id → jika tidak ada baris, INSERT default (app_name = business_unit.name; immediate_sync_enabled default false) lalu return baris yang baru dibuat",
+        "4. PATCH /:business_unit_id: validate app_name (required bila kuncinya dikirim, max 255) → validate logo/home_page_image (jika dikirim) mimes jpg/jpeg/png + max 2MB + RealImage (isi file) → validate immediate_sync_enabled boolean → if invalid: return 422 VALIDATION_ERROR (pesan Indonesia) → get-or-create baris (langkah 3) → simpan file ke Laravel Filesystem jika dikirim → UPDATE hanya field yang dikirim (+ updated_by)",
+        "5. GET /:business_unit_id/stations: SELECT station WHERE business_unit_id dengan nama Production Line, urut nama Production Line lalu nama station",
         "6. PATCH /:business_unit_id/stations/:station_id: validate station_id ada DAN business_unit_id sama dengan station.business_unit_id → if not: return 404 NOT_FOUND → validate icon (jika dikirim dan tidak null) termasuk dalam daftar icon yang didukung → if invalid: return 422 VALIDATION_ERROR → UPDATE station.icon (null berarti reset ke default per tipe stasiun, tidak ada file yang disimpan)"
       ],
       "data_operations": [
@@ -247,12 +249,12 @@
         {
           "entity_id": "mill-setting",
           "operation": "INSERT",
-          "description": "INSERT baris default (app_name = nama Business Unit, jumlah_cages = 1) jika belum ada baris untuk business_unit_id ini"
+          "description": "INSERT baris default (app_name = nama Business Unit) jika belum ada baris untuk business_unit_id ini"
         },
         {
           "entity_id": "mill-setting",
           "operation": "UPDATE",
-          "description": "UPDATE app_name/logo/home_page_image/jumlah_cages sesuai field yang dikirim"
+          "description": "UPDATE app_name/logo/home_page_image/immediate_sync_enabled sesuai field yang dikirim"
         },
         {
           "entity_id": "business-unit",
@@ -280,12 +282,12 @@
           "handling": "Return 403 FORBIDDEN"
         },
         {
-          "condition": "jumlah_cages dikirim ≤ 0",
-          "handling": "Return 422 VALIDATION_ERROR dengan errors.jumlah_cages"
+          "condition": "app_name dikirim kosong",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.app_name 'Nama aplikasi wajib diisi.' (Livewire: tidak ada pesan sukses)"
         },
         {
-          "condition": "Upload logo/home_page_image dengan format atau ukuran tidak didukung",
-          "handling": "Return 422 VALIDATION_ERROR dengan errors.logo / errors.home_page_image"
+          "condition": "Upload logo/home_page_image dengan format/ukuran tidak didukung, atau file teks/bukan gambar bernama .png/.jpg",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.logo / errors.home_page_image; di Livewire ditolak saat file dipilih (ValidatesUploadOnSelect) dan lagi saat Simpan, pratinjau disembunyikan selama ada error, file tidak pernah tersimpan"
         },
         {
           "condition": "icon dikirim tapi tidak termasuk daftar icon yang didukung",
@@ -303,14 +305,14 @@
       "business_rules_applied": [
         "Setiap mill memiliki tepat satu Mills Setting, dibuat otomatis jika belum ada",
         "Mill Management hanya dapat mengatur mill miliknya sendiri; Admin dapat mengatur mill mana pun",
-        "Jumlah cages harus lebih dari 0",
+        "Nama aplikasi tidak pernah kosong (wajib bila diubah); logo/gambar harus gambar JPG/PNG sungguhan maks 2MB",
         "Icon station hanya dapat diatur untuk station yang sudah terdaftar pada mill terkait, dipilih dari daftar icon yang didukung; kosong berarti memakai default sesuai tipe stasiun"
       ],
       "unit_test_cases": [
         {
           "description": "creates a default mill-setting row on first GET when none exists for the business unit",
           "given": "MillSettingRepository.findByBusinessUnitId(id) returns null; BusinessUnitRepository.findById(id) returns an existing Business Unit named 'Business Unit A'",
-          "expect": "a new mill-setting row is inserted with app_name='Business Unit A', jumlah_cages=1, and returned in the response"
+          "expect": "a new mill-setting row is inserted with app_name='Business Unit A' and returned in the response"
         },
         {
           "description": "returns the existing mill-setting row as-is on GET when one already exists",
@@ -338,14 +340,14 @@
           "expect": "mill-setting row's app_name updated to 'Mill Baru', returned in response"
         },
         {
-          "description": "returns 422 VALIDATION_ERROR when jumlah_cages is 0 or negative",
-          "given": "PATCH body {jumlah_cages: 0}",
-          "expect": "throw ValidationException with errors.jumlah_cages; http 422 VALIDATION_ERROR; no update performed"
+          "description": "returns 422 VALIDATION_ERROR when app_name is sent empty",
+          "given": "PATCH body {app_name: ''}",
+          "expect": "throw ValidationException with errors.app_name; http 422; no update performed. Absent app_name key leaves the value unchanged"
         },
         {
-          "description": "updates jumlah_cages when a positive integer is sent",
-          "given": "PATCH body {jumlah_cages: 8}",
-          "expect": "mill-setting row's jumlah_cages updated to 8"
+          "description": "updates immediate_sync_enabled only when sent",
+          "given": "PATCH body {immediate_sync_enabled: true} vs. a body with only a logo",
+          "expect": "flag updated to true in the first case; unchanged in the second"
         },
         {
           "description": "stores uploaded logo file and updates logo path on PATCH",
@@ -353,9 +355,9 @@
           "expect": "file is stored via Laravel Filesystem, mill-setting.logo path updated, logo present in response"
         },
         {
-          "description": "returns 422 VALIDATION_ERROR when uploaded logo has an unsupported format",
-          "given": "PATCH multipart body includes a logo file with an unsupported mime type",
-          "expect": "throw ValidationException with errors.logo; http 422 VALIDATION_ERROR"
+          "description": "returns 422 VALIDATION_ERROR when uploaded logo is not a real JPG/PNG image",
+          "given": "PATCH multipart body includes a logo with an unsupported mime type, or a text file named logo.png",
+          "expect": "throw ValidationException with errors.logo; http 422 VALIDATION_ERROR; nothing stored"
         },
         {
           "description": "auto-creates the default row before applying an update when PATCH is called on a business unit with no existing mill-setting",
@@ -363,9 +365,9 @@
           "expect": "a default row is created first, then the requested fields are applied on top of it, in a single response"
         },
         {
-          "description": "lists stations belonging to the given business_unit_id ordered by name, each with icon",
-          "given": "StationRepository.findByBusinessUnitId(id) returns 3 stations, 1 with icon='truck' set",
-          "expect": "return 200 with data array of 3 stations ordered by name, icon present/null per row accordingly"
+          "description": "lists stations belonging to the given business_unit_id ordered by production line then name, each with production_line_name and icon",
+          "given": "stations of the business unit across 2 production lines, 1 with icon='truck' set",
+          "expect": "return 200 with data array ordered by production line name then station name; production_line_name and icon present/null per row"
         },
         {
           "description": "sets a station's icon override on PATCH when a supported icon name is sent",
@@ -424,8 +426,8 @@
       "reason": "Icon override per-station yang diatur di sini ditampilkan di Station List mobile (station-tile), fallback ke default per tipe jika kosong"
     },
     {
-      "screen_id": "screen-012--form-cages-track",
-      "reason": "jumlah_cages yang diatur di sini menentukan jumlah kolom checklist pada grid Cages Tipped Time"
+      "screen_id": "screen-005--home",
+      "reason": "immediate_sync_enabled yang diatur di sini dibaca aplikasi mobile (mill_setting lokal via GET /api/mill-settings/current, millSettingRepo.getMillSetting) untuk memutuskan write-through saat form mobile menyimpan data (jumlah_cages sudah dihapus 2026-08-20)"
     }
   ],
   "implementation_notes": [
@@ -436,7 +438,7 @@
     "403 FORBIDDEN untuk Mill Management yang mengakses business_unit_id lain diterapkan di seluruh endpoint secara konsisten",
     "Endpoint GET .../current (screen-005) tetap terpisah dari GET/PATCH .../:business_unit_id (screen-034) — screen-034 butuh varian ber-parameter karena Admin harus bisa memilih mill mana pun, bukan hanya mill sendiri",
     "Endpoint stations di bawah /api/mill-settings/:business_unit_id/... TERPISAH dari /api/stations milik screen-030 (yang Admin-only) — dibuat khusus di sini agar Mill Management juga bisa mengelola icon station mill-nya tanpa membuka akses Kelola Station penuh",
-    "FE: picker icon station dirender sebagai dropdown/select sederhana berisi daftar nama icon yang didukung (tidak ada konvensi icon-picker lain di codebase ini untuk dijadikan acuan) — opsi kosong/'Default' mengirim icon: null untuk reset",
+    "FE: pemilih Mill (Admin) dan pemilih icon per station memakai komponen x-searchable-select (bukan <select> biasa); pemilih icon di-bind ke stationIcons.<station_id> dan langsung disimpan lewat updatedStationIcons() → setStationIcon(); 'Default' (kosong) mengirim icon null untuk reset, dan pilihan dikembalikan ke nilai tersimpan bila gagal",
     "Livewire component dapat memanggil Service Layer yang sama dengan REST API, konsisten dengan pola master data lainnya",
     "GET /api/business-units/options (sudah ada, dari screen-030) digunakan ulang untuk pemilih mill khusus Admin, tidak didaftarkan ulang di sini"
   ],
@@ -466,7 +468,7 @@
           "request_example": {
             "business_unit_id": "{{business_unit_id}}",
             "app_name": "Mill Baru",
-            "jumlah_cages": 8
+            "immediate_sync_enabled": true
           },
           "expected_status": 200,
           "expected_error_code": null
@@ -474,12 +476,12 @@
       ],
       "component_test": {
         "component": "MillsSettingForm",
-        "action": "pilih mill dari dropdown (Admin), ubah nama aplikasi dan jumlah cages, klik Simpan",
+        "action": "pilih mill dari searchable select (Admin), ubah nama aplikasi dan centang pengiriman langsung, klik Simpan",
         "assert": "form submit berhasil, nilai baru tersimpan dan tampil kembali"
       },
       "browser_test": {
         "route": "/mill-settings",
-        "action": "sebagai Admin, pilih mill, ubah nama aplikasi dan jumlah cages, klik Simpan",
+        "action": "sebagai Admin, pilih mill, ubah nama aplikasi dan pengiriman langsung, klik Simpan",
         "assert": "toast konfirmasi muncul, nilai baru tampil saat halaman dimuat ulang"
       }
     },
@@ -531,7 +533,7 @@
       "component_test": {
         "component": "MillsSettingForm",
         "action": "buka Mills Setting untuk mill yang belum pernah diatur",
-        "assert": "form menampilkan nilai default: nama aplikasi = nama mill, jumlah cages = 1"
+        "assert": "form menampilkan nilai default: nama aplikasi = nama mill, pengiriman langsung nonaktif"
       },
       "browser_test": {
         "route": "/mill-settings",
@@ -540,7 +542,7 @@
       }
     },
     {
-      "scenario_ref": "Mills Setting — Validasi jumlah cages gagal",
+      "scenario_ref": "Mills Setting — Validasi nama aplikasi / gambar gagal",
       "usecase_id": "usecase-034--mills-setting",
       "api_test": [
         {
@@ -551,21 +553,21 @@
           },
           "request_example": {
             "business_unit_id": "{{business_unit_id}}",
-            "jumlah_cages": 0
+            "app_name": ""
           },
           "expected_status": 422,
           "expected_error_code": "VALIDATION_ERROR"
         }
       ],
       "component_test": {
-        "component": "MillsSettingForm",
-        "action": "isi jumlah cages dengan 0, klik Simpan",
-        "assert": "pesan error validasi muncul di bawah field jumlah cages, form tidak tersimpan"
+        "component": "MillsSetting",
+        "action": "kosongkan nama aplikasi lalu Simpan; pilih file teks bernama logo.png",
+        "assert": "pesan 'Nama aplikasi wajib diisi.' tanpa pesan sukses; logo palsu ditolak saat dipilih tanpa pratinjau dan tidak tersimpan"
       },
       "browser_test": {
         "route": "/mill-settings",
-        "action": "isi jumlah cages dengan 0, klik Simpan",
-        "assert": "pesan error validasi ditampilkan, nilai lama tidak berubah"
+        "action": "kosongkan nama aplikasi, klik Simpan",
+        "assert": "pesan validasi berbahasa Indonesia ditampilkan, nilai lama tidak berubah"
       }
     },
     {

@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-143--laporan-weighbridge-web",
   "name": "Laporan Weighbridge (Web)",
@@ -36,19 +36,30 @@
     "backend/app/Http/Controllers/Api/WeighbridgeReportController.php",
     "backend/app/Services/StationReportService.php",
     "backend/routes/api.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Support/ReportPeriodDays.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php",
+    "backend/app/Support/Display.php",
+    "backend/app/Support/ChartAxis.php",
+    "backend/app/Support/AppTime.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/WeighbridgeReportServiceTest.php",
     "backend/tests/Feature/Api/LaporanWeighbridgeTest.php",
     "backend/tests/Unit/Services/StationReportServiceTest.php",
     "e2e-web/tests/laporan-weighbridge.spec.ts",
-    "e2e-web/tests/support/period-lanes.ts"
+    "e2e-web/tests/support/period-lanes.ts",
+    "backend/tests/Feature/ReportAuditFix20261004Test.php",
+    "backend/tests/Feature/ExportXlsxTest.php",
+    "e2e-web/tests/support/backend.ts",
+    "e2e-web/tests/support/base-url.ts"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Dashboard/LaporanWeighbridge.php",
     "backend/resources/views/livewire/dashboard/laporan-weighbridge.blade.php",
-    "backend/resources/views/dashboard/laporan-weighbridge.blade.php"
+    "backend/resources/views/dashboard/laporan-weighbridge.blade.php",
+    "backend/resources/views/dashboard/partials/report-styles.blade.php"
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/LaporanWeighbridgeTest.php"
@@ -66,7 +77,8 @@
     "SKENARIO 7 ('mill tanpa periode Weighbridge') HARUS MEMILIH PRODUCTION LINE LEBIH DULU. Empty state layar ini adalah rantai if/elseif dengan cabang 'pilih production line' di DEPAN cabang 'belum ada periode', jadi mill yang dipilih tanpa line selalu menampilkan cabang pertama dan no-period-hint mustahil muncul — perburuan test akan gagal pada SETIAP mill tanpa memandang periodenya. Pola berburu ini disalin dari laporan-storage-tank / clarification / boiler-room, dan ketiganya mengidap kerapuhan yang sama; di sini sudah diperbaiki, di sana belum.",
     "TIDAK ADA MASTER TARGET OPERASIONAL untuk Weighbridge (sama seperti Storage Tank), jadi laporan ini TIDAK menandai nilai di luar batas sama sekali. Dinyatakan sebagai open_question pada business spec, bukan dibiarkan sebagai ketiadaan yang ambigu.",
     "LAMA KENDARAAN DI PABRIK TIDAK DILAPORKAN, dan itu mustahil bukan sekadar sulit: migrasi 2026_08_19_000010 menggabungkan arrival_datetime dan dispatch_datetime menjadi satu record_datetime lalu MEMBUANG keduanya. Tiap trip menyimpan tepat satu penanda waktu, sementara durasi menuntut dua pada trip yang sama. Diganti sebaran trip per jam + jam tersibuk + jumlah jam kosong, yang dapat dihitung dari satu penanda waktu. Bila durasi memang dibutuhkan, yang harus diubah adalah DATANYA (migrasi + form input), bukan laporannya.",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-weighbridge.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 36 lulus, 0 gagal; test_results.browser diperbarui."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-weighbridge.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 36 lulus, 0 gagal; test_results.browser diperbarui.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): WeighbridgeReportService — completeness kini juga mengirim days_counted (ReportPeriodDays::counted) dan period_running (isRunning); ekspor lewat SheetWriter (format=excel = .xlsx sungguhan, bukan CSV bernama .xlsx) dengan Status berlabel Indonesia (ExportValue::status). laporan-weighbridge.blade.php — persen hari bertrip = days_with_trip / days_counted, '—' bila days_counted 0, period-running-note, 'dari N hari' memakai days_counted; sumbu tren berat via ChartAxis::nice(0, maks) (label bulat dari nol, bukan maks × 1,12 / 4), plot mulai x=72 + petunjuk gulir .md-scrollhint--lc; ', bukan M' pada penyebut rata-rata hanya bila angkanya berbeda; teks hari ber-trip nol kg dan teks draft disederhanakan. Uji: LaporanWeighbridgeTest & WeighbridgeReportServiceTest (kunci completeness 4), ReportAuditFix20261004Test (#3 penyebut hari, #6 sumbu bulat, #8 CSV, #10 klausa 'bukan'), ExportXlsxTest; e2e laporan-weighbridge.spec.ts kini memakai laneIsoDate (epoch 1970 karena server menolak tanggal kejadian > besok), pruneLaneData, STATEFUL_REFERER, dan pratinjau berat bersih form sebagai teks ('-' / angka id-ID) karena form web tak lagi punya input readonly."
   ],
   "deferred_items": [
     {

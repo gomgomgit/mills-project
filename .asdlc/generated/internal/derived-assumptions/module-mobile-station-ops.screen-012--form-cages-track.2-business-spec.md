@@ -21,3 +21,11 @@
 - Cages Tipped (header) TIDAK BERUBAH maknanya — tetap input manual "jumlah cage yang akan di-tipping sesi ini", HANYA TIDAK LAGI mengontrol jumlah kolom ← instruksi eksplisit user
 - open_question v2 "Cages Tipped dikunci setelah baris pertama dibuat" DIHAPUS/dianggap tidak relevan lagi — locking itu dulu untuk mencegah N (jumlah kolom) berubah di tengah pengisian; karena N sekarang bersumber dari mill-setting (fixed, tidak diedit di form ini), alasan locking tersebut tidak berlaku lagi ← inferensi agent dari perubahan sumber data N, bukan pernyataan eksplisit user
 - Tombol "Tambah baris" disabled jika mill-setting.jumlah_cages belum tersedia secara lokal (belum sync) atau 0 ← inferensi agent, mengikuti pola disabled sebelumnya (dulu untuk cages_tipped kosong), sekarang diarahkan ke ketersediaan data mill_setting; belum dikonfirmasi eksplisit oleh user
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/FormCagesTrackView.vue, mobile/src/services/cagesTrackRecordRepo.ts, mobile/src/utils/localDate.ts, mobile/src/services/syncService.ts, backend/app/Services/CagesTrackRecordService.php).
+- information_displayed[0] = Tanggal/Tippler Start/Stop jam LOKAL; 'Note' → 'Catatan' ← createDraft nowLocalDateTimeString(), FormField id="field-note" label="Catatan".
+- business_rules[0] = Tanggal & Tippler Start Time lokal (bukan UTC) ← cagesTrackRecordRepo.createDraft.
+- business_rules[1] = Tippler Stop lokal; sinkron kirim offset perangkat, server simpan WIB ← syncService.pushCagesTrackRow toOffsetDateTime, AppTime::normalizeClientDateTime.
+- edge_cases += 422 periode tertutup / tanggal > besok → 'Gagal sinkron: <alasan>' ← assertEventDateNotTooFarAhead('date'), sync_error + SyncFailureHint. (⚠ aturan server ditaruh di spec layar form — inferensi penempatan.)

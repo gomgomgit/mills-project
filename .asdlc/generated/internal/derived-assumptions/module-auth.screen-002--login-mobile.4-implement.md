@@ -27,3 +27,12 @@ Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 5/0 (sebelumnya kosong).
 - mobile/tests/e2e/login.spec.ts ditambahkan ke fe_test_files_generated.
 - Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): kasus offline menunggu #username sebelum setOffline.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD mobile/src/stores/auth.ts, AppServiceProvider.php; berkas baru gradingParameterSync.ts, GradingParameterController/Service).
+- files_generated += AppServiceProvider.php, GradingParameterController.php, GradingParameterService.php
+- test_files_generated += backend/tests/Feature/WebAccessTest.php (#2 token Operator, #4 cabut token)
+- fe_files_generated += mobile/src/services/gradingParameterSync.ts
+- implementation_notes += REVISI 2026-10-04 (grading params saat login, token akun nonaktif)
+- known_issues += mobile tanpa penanganan 401 global setelah token dicabut ⚠ DISIMPULKAN dari grep apiClient.ts/auth.ts (tidak ada redirect 401 global), belum diverifikasi di browser

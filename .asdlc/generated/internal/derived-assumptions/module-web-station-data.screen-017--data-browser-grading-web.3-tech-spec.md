@@ -23,3 +23,13 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (GradingRecordService.php::export(), GradingRecordController.php, SheetWriter.php, ExportValue.php, Display.php, data-browser-grading.blade.php, tests/Unit/Services/ExportDetailRowsTest.php).
+- api_contracts[0].endpoints[1].response.success_schema.note = excel → .xlsx OOXML via SheetWriter ← export()/controller docblock
+- api_contracts[0].business_logic[7] = export via SheetWriter::open($format) ← export() closure
+- api_contracts[0].business_logic += 11 (13 kolom konteks tanpa Checked By, status ExportValue::status) ← header export() + ExportDetailRowsTest 13
+- api_contracts[0].business_logic += 12 (blade Display::status; JSON status tetap enum) ← blade diff + docblock Display
+- api_contracts[0].unit_test_cases += export excel xlsx sungguhan tanpa Checked By ← GradingRecordServiceTest/ExportDetailRowsTest (penulisan kasus uji = ⚠ ringkasan agen)
+- implementation_notes += REVISI 2026-10-04

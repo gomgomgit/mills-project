@@ -24,3 +24,11 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/FormEngineRoomTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD FormEngineRoom.php, EngineRoomRecordService.php; untracked AppTime.php, GuardsRecordIdShape.php, tests).
+- files_generated += backend/app/Support/AppTime.php ← dipakai EnforcesPeriodLock untuk batas atas tanggal & zona WIB (⚠ shared support file, dicantumkan karena perilaku layar berubah lewatnya).
+- fe_files_generated += GuardsRecordIdShape.php ← use GuardsRecordIdShape di FormEngineRoom.
+- fe_test_files_generated += RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php ← dataset mencakup FormEngineRoom / cek statis semua view form-*.blade.php.
+- implementation_notes += REVISI audit-fix 2026-10-04.

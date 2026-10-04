@@ -33,3 +33,11 @@ Ukur ulang uji browser Playwright mobile 2026-10-03.
 Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - known_issue '19 test e2e mobile gagal, pra-ada' dihapus.
 - test_results.browser sudah 31/0 per 2026-10-03, tidak diubah.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (LaporanCagesTrackView.vue, mobile/tests/LaporanCagesTrackView.spec.ts, mobile/tests/e2e/laporan-cages-track.spec.ts, CagesTrackReportService.php).
+- files_generated[+] = backend/app/Support/SheetWriter.php, backend/app/Support/ExportValue.php ← endpoint ekspor bersama
+- test_files_generated[+] = backend/tests/Feature/ReportAuditFix20261004Test.php, backend/tests/Feature/ExportXlsxTest.php ← menguji ekspor Cages Track bersama
+- implementation_notes[+] = REVISI: 'Tertutup', 0 hari → NOT_AVAILABLE + kpi-avg-per-day-empty, CSV berubah ← diff view/spec
+- known_issues tidak diubah (SyncResultDialog.vue hanya berubah indentasi/teleport, tidak terbukti memperbaiki unhandled rejection)

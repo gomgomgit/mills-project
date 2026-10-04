@@ -19,3 +19,11 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - known_issue browser Playwright ('could not be executed in this sandboxed environment') dihapus — satu-satunya known_issue, known_issues kini kosong.
 - Path e2e-web/tests/form-effluent-plant.spec.ts ditambahkan ke test_files_generated (belum ada di daftar berkas mana pun; dipilih karena daftar itu sudah memuat uji non-komponen).
 - Entri backend/tests/Browser/* (berkas tidak ada di repo) dibiarkan, di luar cakupan.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD FormEffluentPlant.php, EffluentPlantRecordService.php; untracked AppTime.php, GuardsRecordIdShape.php, tests).
+- files_generated += backend/app/Support/AppTime.php ← dipakai EnforcesPeriodLock untuk batas atas tanggal & zona WIB (⚠ shared support file, dicantumkan karena perilaku layar berubah lewatnya).
+- fe_files_generated += GuardsRecordIdShape.php ← use GuardsRecordIdShape di FormEffluentPlant.
+- fe_test_files_generated += RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php ← dataset mencakup FormEffluentPlant / cek statis semua view form-*.blade.php.
+- implementation_notes += REVISI audit-fix 2026-10-04.

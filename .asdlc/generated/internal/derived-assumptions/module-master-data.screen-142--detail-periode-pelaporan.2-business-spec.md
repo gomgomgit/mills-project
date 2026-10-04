@@ -15,3 +15,10 @@ sudah mapan di `module-web-station-data`.
 - edge case "lubang backfill" beserta jalan keluar manual ← diminta user secara eksplisit; rumusan detailnya (mengapa update() menolak lebih dulu) dari docblock `update()`
 - `open_questions` berisi satu entri tentang aksi "sinkronkan stasiun" add-only ← turunan agen; itu perbaikan tuntas yang disebut docblock update() sebagai usecase baru, dan belum diputuskan user
 - `test_priority` = high ← sejajar screen-128, karena layar ini memegang aksi yang mengunci angka laporan
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (PeriodService::delete() guardAgainstFramedRecords(), PeriodHasRecordsException.php, DetailPeriodePelaporan.php catch PeriodClosedImmutableException, components/searchable-select*.blade.php, e2e-web/tests/searchable-select-dependent.spec.ts).
+- available_actions[5].description, business_rules (+1), edge_cases (+1) = hapus ditolak bila periode berisi data stasiun, pesan inline ← kode.
+- business_rules[13] = kunci periode juga event_date detail + tanggal WIB ← EnforcesPeriodLock diff.
+- edge_cases (+1) = combobox BU di modal Edit Periode terisi, listbox tertutup ← searchable-select fix (#8) + spec e2e. ⚠ "halaman tidak berpindah" pada penolakan diinferensikan (redirect hanya pada hapus sukses).

@@ -22,3 +22,11 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/KelolaUserRoleTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD UserService.php, KelolaUserRole.php, kelola-user-role.blade.php, UserRole.php; berkas baru PasswordPolicy.php, KelolaUserRoleAuditTest.php).
+- files_generated += Support/PasswordPolicy.php, Enums/UserRole.php
+- test_files_generated += KelolaUserRoleAuditTest.php, WebAccessTest.php
+- fe_test_files_generated += e2e-web/tests/audit-web-admin.spec.ts
+- implementation_notes += REVISI 2026-10-04 (rules() Livewire dihapus, PasswordPolicy, Reset Password, username case-insensitive/tanpa spasi, wire:confirm, cabut token, pesan sukses, label role)

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-116--form-storage-tank-web",
   "name": "Form Storage Tank (Web)",
@@ -109,7 +109,7 @@
   "business_rules": [
     "Tidak ada konsep draft/pause/Clear di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
     "Field wajib ditandai asterisk merah dengan validasi inline",
-    "Tanggal default waktu saat ini saat form dibuka, TETAP DAPAT diedit manual oleh user",
+    "Tanggal default hari ini (zona aplikasi WIB) saat form dibuka, TETAP DAPAT diedit manual oleh user; tanggal tidak boleh melewati besok — bila lewat, Simpan ditolak dengan pesan inline di field Tanggal",
     "Grid Storage Tank Detail TIDAK di-pre-generate — baris ditambahkan satu per satu via 'Tambah Baris', dapat dihapus via 'Hapus', sama seperti mobile dan Form Effluent Plant Web",
     "Time-Slot tiap baris wajib lebih lambat (index kanonis lebih besar) dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
     "Setiap kolom bacaan pada baris opsional; minimal satu baris valid (Time-Slot terpilih + minimal satu kolom bacaan terisi) harus ada sebelum Simpan",
@@ -128,7 +128,9 @@
     "User memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tidak tersedia di dropdown",
     "Production Line terpilih belum memiliki station Storage Tank aktif (mode buat baru) — Simpan ditolak dengan pesan error",
     "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
-    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Effluent Plant Web)"
+    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Effluent Plant Web)",
+    "Tanggal diisi lebih dari besok (mis. salah ketik tahun) — Simpan ditolak dengan pesan inline 'Tanggal dd/mm/YYYY tidak masuk akal: tidak boleh melewati dd/mm/YYYY.'",
+    "Mode edit dibuka dengan id berformat bukan UUID — diperlakukan sama dengan record tidak ditemukan ('Record tidak ditemukan.'), tanpa error sistem"
   ],
   "test_priority": "high",
   "open_questions": []

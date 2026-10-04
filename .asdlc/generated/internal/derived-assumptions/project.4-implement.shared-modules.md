@@ -9,3 +9,12 @@
 - shared-modules.fe_error_handler_no_ui: errorHandler.ts hanya console.log + return string, belum terhubung ke toast/snackbar UI karena belum ada UI library terpasang — wiring ke UI ditunda ke impl-2-screen ← cakupan sengaja dibatasi
 - shared-modules.role_middleware_design: EnsureRole middleware dirancang sebagai alias 'role' dengan parameter role list (mis. role:admin,supervisor), diterapkan per-screen nanti di impl-2-screen — bukan mekanisme yang eksplisit diminta di shared-decisions, disimpulkan dari pola actor_permissions di semua screen tech-spec
 - shared-modules.pagination_wraps_eloquent: Pagination helper membungkus Eloquent paginate() bawaan, bukan implementasi manual — keputusan implementasi agent
+
+## v2 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (bootstrap/app.php, AppServiceProvider, ApiExceptionHandler, config/app.php, backend/.env.example, app/Support/*, app/Rules/*, mobile utils, mobile/vite.config.ts).
+- env_vars_required += APP_TIMEZONE (default Asia/Jakarta), EVENT_DATE_MAX_DAYS_AHEAD (default 1) ← backend/.env.example + config/app.php
+- files_generated += EnsureUserIsActive, AppServiceProvider, config/app.php, Support/{AppTime,RouteAccess,PasswordPolicy,Display,ExportValue,SheetWriter}, Rules/{RealImage,UniqueCaseInsensitive}, Livewire/Concerns/ValidatesUploadOnSelect, errors/403.blade.php, .env.e2e.example ← berkas baru lintas-layar; memasukkannya ke shared-modules (bukan per layar) adalah keputusan agen
+- fe_files_generated += mobile/src/utils/localDate.ts, utils/floatingSafeArea.ts, tests/setup/teleportStub.ts ← berkas baru lintas-layar (keputusan agen)
+- setup_notes += REVISI 2026-10-04 (auth-middleware EnsureUserIsActive + Sanctum nonaktif, error-handler QueryException, timezone, utilitas baru, env e2e) ← kode
+- setup_notes += catatan bahwa deskripsi DB_* MySQL usang, DB aktual PostgreSQL ← arch-spec + .env.example (DB_CONNECTION=pgsql); deskripsi env var lama sengaja tidak ditulis ulang

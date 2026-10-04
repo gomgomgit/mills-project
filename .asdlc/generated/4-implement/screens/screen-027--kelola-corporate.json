@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-027--kelola-corporate",
   "name": "Kelola Corporate",
@@ -17,17 +17,23 @@
     "backend/routes/web.php",
     "backend/database/factories/CorporateFactory.php",
     "backend/database/migrations/2026_08_19_000001_add_fields_to_corporates_table.php",
-    "backend/app/Models/Corporate.php"
+    "backend/app/Models/Corporate.php",
+    "backend/app/Rules/RealImage.php",
+    "backend/app/Rules/UniqueCaseInsensitive.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/CorporateServiceTest.php",
     "backend/tests/Feature/Api/KelolaCorporateTest.php",
-    "backend/tests/Feature/Livewire/KelolaCorporateTest.php"
+    "backend/tests/Feature/Livewire/KelolaCorporateTest.php",
+    "backend/tests/Feature/Livewire/MasterDataValidationAuditTest.php",
+    "backend/tests/Feature/Livewire/ImageUploadValidationTest.php",
+    "backend/tests/Pest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/MasterData/KelolaCorporate.php",
     "backend/resources/views/livewire/master-data/kelola-corporate.blade.php",
-    "backend/resources/views/master-data/corporates.blade.php"
+    "backend/resources/views/master-data/corporates.blade.php",
+    "backend/app/Livewire/Concerns/ValidatesUploadOnSelect.php"
   ],
   "fe_test_files_generated": [
     "e2e-web/tests/kelola-corporate.spec.ts",
@@ -43,7 +49,8 @@
     "Independently re-verified oleh command: re-run `php artisan test` — 368/368 lulus (full suite gabungan 027+028+029); baca CorporateService.php penuh untuk konfirmasi validasi corporate_code/name/logo dan pola created_by/updated_by sesuai tech spec",
     "REVISI v3 (2026-10-03, perbaikan spec e2e — kode aplikasi tidak diubah): e2e-web/tests/kelola-corporate.spec.ts disesuaikan — selector modal kini .kcm-modal, data uji disediakan oleh backend/database/seeders/BrowserTestFixtureSeeder.php, dan pencarian baris di tabel berhalaman memakai helper e2e-web/tests/support/paged-table.ts. test_results.browser tidak diubah (tidak ada hitungan per-layar yang dicatat).",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-corporate.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 6 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): CorporateService::validate() & KelolaCorporate::rules() memakai UniqueCaseInsensitive untuk corporate_code/name, menambah validasi email + website (CorporateService::WEBSITE_PATTERN), dan RealImage('Logo') untuk logo (pesan 'Logo harus berupa file gambar.'); KelolaCorporate memakai ValidatesUploadOnSelect (updatedLogo) dan properti successMessage (alert .kc-alert--success, data-testid=success-message); blade menyembunyikan pratinjau logo selama errors.logo ada. Tes logo kini memakai helper fakeRealImage() (tests/Pest.php, PNG sungguhan tanpa GD); cakupan baru di MasterDataValidationAuditTest (#11 kode/email/website) dan ImageUploadValidationTest (file teks bernama .png)."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -56,7 +63,7 @@
       "severity": "minor"
     },
     {
-      "description": "7 test Corporate memakai UploadedFile::fake()->create() bukan ->image() sebagai workaround GD extension yang tidak ada di sandbox ini — jika suatu saat ext-gd tersedia, bisa dikembalikan ke ->image() untuk fake gambar yang lebih realistis, meski tidak wajib karena yang diuji adalah aturan MIME/ukuran bukan pemrosesan gambar",
+      "description": "GD extension tidak terpasang, sehingga UploadedFile::fake()->image() tidak dipakai; sejak RealImage memeriksa isi file, tes logo memakai helper fakeRealImage() (tests/Pest.php: PNG 1x1 sungguhan + byte pengisi) — gambar valid tapi bukan hasil render GD",
       "severity": "minor"
     }
   ],

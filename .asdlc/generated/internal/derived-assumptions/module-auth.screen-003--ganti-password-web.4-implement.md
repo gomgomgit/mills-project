@@ -29,3 +29,11 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/ChangePasswordWebTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD routes/web.php, AuthService.php; berkas baru PasswordPolicy.php, WebAccessTest.php, audit-web-admin.spec.ts).
+- files_generated += backend/app/Support/PasswordPolicy.php
+- test_files_generated += backend/tests/Feature/WebAccessTest.php
+- fe_test_files_generated += e2e-web/tests/audit-web-admin.spec.ts
+- implementation_notes += REVISI 2026-10-04 (rute web menerima operator, PasswordPolicy)

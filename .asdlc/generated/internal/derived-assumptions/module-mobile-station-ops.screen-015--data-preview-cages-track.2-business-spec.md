@@ -11,3 +11,11 @@
 - Checked By/Acknowledged By DITAMPILKAN di detail (read-only), TIDAK dihilangkan seperti Weighbridge/Grading ← konsisten dengan keputusan Form Cages Track yang mempertahankan kedua field ini; agent menyimpulkan tidak ada pembatasan role untuk MELIHAT (view-only), hanya untuk MENGISI (yang sudah ditegakkan di Form) — bukan instruksi eksplisit user, murni konsistensi logis
 - Search field: Cages Track Number (bukan field lain) ← field paling analog dengan grading_number/wb_card_number di 2 stasiun lain
 - test_priority naik dari "low" ke "medium" ← alasan sama seperti Grading: lebih banyak business rules dibanding versi single-record display lama
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/DataPreviewCagesTrackView.vue, components/SyncFailureHint.vue, services/recordVerificationApi.ts).
+- information_displayed[1]: Tanggal = tanggal saja; label 'Note' → 'Catatan' ← FormField type="date" + label="Catatan".
+- information_displayed += petunjuk 'Gagal sinkron: <alasan>' ← SyncFailureHint.vue.
+- information_displayed += status verifikasi diperbarui dari server ← pullVerificationStatus().
+- edge_cases += record ditolak saat sinkron; offline saat memperbarui status verifikasi.

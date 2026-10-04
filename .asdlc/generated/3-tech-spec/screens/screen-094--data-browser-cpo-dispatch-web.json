@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-094--data-browser-cpo-dispatch-web",
   "name": "Data Browser CPO Dispatch (Web)",
@@ -165,7 +165,7 @@
           "response": {
             "success_schema": {
               "content_type": "text/csv atau application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-              "note": "Response body adalah file stream/binary, bukan JSON"
+              "note": "Response body adalah file stream/binary, bukan JSON. format=csv → text/csv; format=excel → file .xlsx SUNGGUHAN (Office Open XML, zip berawalan 'PK' berisi xl/worksheets/sheet1.xml) ditulis App\\Support\\SheetWriter — bukan lagi byte CSV bernama .xlsx"
             },
             "error_codes": [
               {
@@ -194,9 +194,11 @@
         "5. Build query: cpo-dispatch-record WHERE business_unit_id matches (if provided, via station->business_unit_id) AND date BETWEEN date_from/date_to (if provided)",
         "6. Paginate hasil sesuai shared-decisions.pagination (page/per_page)",
         "7. Return list + pagination metadata, dengan event_count dihitung via withCount(cpoDispatchDetails)",
-        "8. On export: re-run query filter yang sama tanpa pagination, generate file CSV/Excel → if dataset terlalu besar/error: return 422 EXPORT_FAILED",
+        "8. On export: re-run query filter yang sama tanpa pagination, tulis berkas lewat App\\Support\\SheetWriter::open($format) (csv → CSV ke php://output; excel → .xlsx sungguhan, header tebal, sel angka sebagai angka, string angka berawalan nol tetap teks) → if dataset terlalu besar/error: return 422 EXPORT_FAILED",
         "9. Ekspor memakai buildFilteredQuery() yang sama sehingga filter Production Line ikut ke berkas; `Production Line` adalah kolom PERTAMA header CSV dan nilainya diulang pada setiap baris detail (satu baris per detail, konteks record diulang)",
-        "10. Return file stream untuk didownload user"
+        "10. Return file stream untuk didownload user",
+        "11. Format nilai berkas ekspor (audit 2026-10-04 #8, App\\Support\\ExportValue): Status = label Indonesia lewat ExportValue::status() (Tersimpan, Tersinkron, …); sel kosong tetap kosong (null), angka tanpa pemisah ribuan. Judul kolom dan kolom detail tidak berubah",
+        "12. Tampilan tabel Livewire (bukan API): kolom Status dirender lewat App\\Support\\Display::status() (Draft/Dijeda/Tersimpan/Tersinkron; kelas CSS badge tetap memakai nilai enum asli); nilai API JSON `status` tetap enum mentah"
       ],
       "data_operations": [
         {
@@ -309,6 +311,11 @@
           "description": "includes production_line_name on every list row, resolved from the record's own productionLine relation",
           "given": "listRecords() is called on a record whose production_line_id points at LINE-ALPHA",
           "expect": "the row contains production_line_name = 'LINE-ALPHA', loaded via with('productionLine:id,name') on the record query"
+        },
+        {
+          "description": "export format=excel returns a real xlsx file with Indonesian status labels",
+          "given": "matching records with detail rows; export() called with format=excel",
+          "expect": "body starts with 'PK' and its sheet rows are readable (xlsxRows); status cells carry the Indonesian label (e.g. 'Tersimpan')"
         }
       ]
     }
@@ -331,7 +338,8 @@
     "Mengikuti struktur KernelDispatchRecordService/KernelDispatchRecordController persis (Controller → Service → Eloquent)",
     "Filter + kolom Production Line (2026-09-28/29): properti Livewire `production_line_id` (default '' = Semua Line), direset oleh updatedBusinessUnitId(), dipaksa sehat di render() lewat forcedProductionLineFilterValue(), dan opsinya dari productionLineOptionsForReadActor(). Ketiganya LAPISAN TAMPILAN — penegakan sesungguhnya ada di ScopesToActorMill::scopeFiltersToActorMill() di dalam service, jadi melewatkan lapisan tampilan pun tidak membocorkan apa pun.",
     "`production_line_id` masuk ke `$request->only([...])` pada index() DAN export() controller API, sehingga filter yang aktif di layar benar-benar ikut ke berkas.",
-    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan."
+    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ekspor Excel kini .xlsx sungguhan via App\\Support\\SheetWriter (tanpa dependensi baru); status di berkas ekspor berlabel Indonesia via App\\Support\\ExportValue::status(); tabel Data Browser memakai App\\Support\\Display::status(). Kontrak list/export JSON tidak berubah."
   ],
   "test_scenarios": [
     {

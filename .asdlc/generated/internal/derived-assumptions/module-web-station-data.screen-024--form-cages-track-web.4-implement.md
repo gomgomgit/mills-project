@@ -23,3 +23,11 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/FormCagesTrackTest.php` dihapus dari `fe_test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD CagesTrackRecordService.php, FormCagesTrack.php, form-cages-track.blade.php; untracked AppTime.php, GuardsRecordIdShape.php, tests).
+- files_generated += AppTime.php, EnforcesPeriodLock.php, ScopesToActorMill.php, ApiExceptionHandler.php, config/app.php (⚠ shared support files).
+- fe_files_generated += GuardsRecordIdShape.php.
+- test_files_generated += AuditFix20261004Test.php; fe_test_files_generated += WebFormNoDisabledFieldTest.php, RecordIdShapeGuardTest.php.
+- implementation_notes[6] = Total/Remain teks; += REVISI audit-fix.

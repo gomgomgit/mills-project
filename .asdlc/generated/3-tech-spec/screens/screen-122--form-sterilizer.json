@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-04"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-122--form-sterilizer",
   "name": "Form Sterilizer",
@@ -13,17 +13,17 @@
     {
       "actor_id": "actor-station-operator",
       "can_access": true,
-      "conditions": ""
+      "conditions": "Checkbox 'Checked by SPV' per baris Log Siklus tidak dirender — nilainya tampil sebagai teks 'Ya'/'—' (tidak dapat diubah); checkbox header Checked By/Acknowledged By tidak dirender"
     },
     {
       "actor_id": "actor-supervisor",
       "can_access": true,
-      "conditions": ""
+      "conditions": "Satu-satunya peran yang mendapat checkbox 'Checked by SPV' per baris (dapat dicentang/dilepas) dan checkbox header Checked By (keputusan pengguna 2026-10-04)"
     },
     {
       "actor_id": "actor-mill-management",
       "can_access": true,
-      "conditions": "Akses form seperti Operator/Supervisor (isi, Simpan, Pause, Clear, Back) ditambah checkbox Acknowledged By (dirender hanya untuk mill_management); checkbox Checked By tidak dirender. Route hanya mensyaratkan login (tanpa pembatasan role); akses mobile Mill Management sesuai keputusan produk 2026-09-14."
+      "conditions": "Akses form seperti Operator/Supervisor (isi, Simpan, Pause, Clear, Back) ditambah checkbox Acknowledged By (dirender hanya untuk mill_management); checkbox Checked By tidak dirender, dan 'Checked by SPV' per baris tampil sebagai teks 'Ya'/'—' (tidak dapat diubah). Route hanya mensyaratkan login (tanpa pembatasan role); akses mobile Mill Management sesuai keputusan produk 2026-09-14."
     }
   ],
   "api_contracts": [
@@ -33,11 +33,11 @@
       "endpoints": [],
       "business_logic": [
         "1. Load draft sterilizer_record by id (route param) beserta seluruh sterilizer_detail turunannya ke form state",
-        "2. Auto-set Date = hari ini HANYA jika draft baru (masih kosong); jika draft dilanjutkan, pertahankan nilai tersimpan",
-        "3. Render field dikelompokkan per section: Identitas Sterilizer (Sterilizer ID, Date), Verifikasi (Inputted By [read-only], Checked By, Acknowledged By, Note), Log Siklus Sterilisasi (tabel event-log)",
+        "2. Date sudah diisi sterilizerRecordRepo.createDraft() dengan tanggal LOKAL perangkat 'YYYY-MM-DD' (todayLocalDateString(), src/utils/localDate.ts — bukan ISO UTC; menggantikan helper lokal todayDateString() di repo); view hanya mengisi fallback todayLocalDateString() bila record.date masih kosong; draft yang dilanjutkan mempertahankan nilai tersimpan",
+        "3. Render field dikelompokkan per section: Identitas Sterilizer (Sterilizer ID, Date), Verifikasi (Inputted By [read-only], Checked By, Acknowledged By, Catatan — FormField id='field-note' label 'Catatan'), Log Siklus Sterilisasi (tabel event-log)",
         "4. Render breadcrumb (Home > Production Process Activity > Sterilizer > Form, tappable) dan header dengan hamburger",
         "5. On Tambah baris Log Siklus: tambah 1 baris baru (tanpa id) ke tabel, seluruh field kosong (checked_by_spv default false) — TIDAK ADA batasan jumlah baris (event-log unbounded)",
-        "6. On isi field baris (Sterilizer No, Close Door Time, Peak 1-3 Time, Exhaust 1-3 Time, Open Door Time, Number of Cages, Cages Status, Checked by SPV, Remarks): update field baris tersebut secara reaktif; Duration (Minutes) dihitung otomatis = Open Door Time − Close Door Time setiap kali salah satu berubah, ditampilkan sebagai teks non-input (bukan field yang bisa di-tap/edit)",
+        "6. On isi field baris (Sterilizer No, Close Door Time, Peak 1-3 Time, Exhaust 1-3 Time, Open Door Time, Number of Cages, Cages Status, Checked by SPV [hanya Supervisor, lihat langkah 16], Remarks): update field baris tersebut secara reaktif; Duration (Minutes) dihitung otomatis = Open Door Time − Close Door Time setiap kali salah satu berubah, ditampilkan sebagai teks non-input (bukan field yang bisa di-tap/edit)",
         "7. On Hapus baris Log Siklus: hapus baris dari form state; jika baris punya id (sudah tersimpan sebelumnya), tandai untuk DELETE saat Simpan/Pause berikutnya",
         "8. Checked By (header) hanya dirender (v-if=\"isSupervisor\") dan dapat diisi/diedit jika role user saat ini = supervisor; untuk role lain checkbox TIDAK ditampilkan sama sekali (bukan disabled) — konvensi form stasiun 2026-09-14, diseragamkan 2026-10-04",
         "9. Acknowledged By hanya dirender (v-if=\"isMillManagement\") dan dapat diisi/diedit jika role user saat ini = mill_management; untuk role lain checkbox TIDAK ditampilkan sama sekali (bukan disabled) — konvensi form stasiun 2026-09-14, diseragamkan 2026-10-04",
@@ -46,7 +46,8 @@
         "12. On Clear: tampilkan dialog konfirmasi → jika dikonfirmasi: DELETE seluruh sterilizer_detail milik record lalu DELETE sterilizer_record → navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
         "13. On Back: jika form dirty: tampilkan dialog konfirmasi → jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
         "14. On tap breadcrumb segment → navigasi ke route terkait",
-        "15. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+        "15. On tap hamburger → buka menu navigasi (Ganti Password, Logout)",
+        "16. Checked by SPV per baris (keputusan pengguna 2026-10-04): checkbox (data-testid detail-checked-by-spv-{index}) hanya dirender v-if=\"isSupervisor\"; peran lain (operator, mill_management, admin) melihat <span> teks 'Ya' bila true atau '—' bila false (data-testid detail-checked-by-spv-text-{index}) — bukan input nonaktif. Nilai checked_by_spv baris tetap dibawa apa adanya di state/penyimpanan lokal (repo tidak men-strip per peran); server SterilizerRecordService::upsertDetails() menegakkan aturan yang sama: dari aktor non-Supervisor nilai kiriman DIABAIKAN (baris lama mempertahankan nilai tersimpan, baris baru selalu false), bukan ditolak"
       ],
       "data_operations": [
         {
@@ -125,6 +126,18 @@
         {
           "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
           "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED terjadi saat record tiba di server: (a) pada sinkron manual dari Station List (screen-006) — record tetap 'saved' di perangkat dan alasan dari server ditampilkan per record di SyncResultDialog; (b) bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mengirim record ini (writeThroughSync.syncAfterSave('sterilizer_record') → syncService.pushSavedRecordNow → POST /api/sterilizer-records). REVISI 2026-10-03: penolakan 4xx (termasuk 422 PERIOD_CLOSED) pada kiriman langsung ini TIDAK lagi diam — syncAfterSave() mengembalikan {synced: false, rejection: <pesan server>}, form menampilkan ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu bernavigasi ke Monitor Sterilizer saat dialog ditutup; record tetap 'saved' di perangkat. Kegagalan karena offline/5xx tetap diam (record menunggu sinkron berikutnya). Pemulihan: Admin membuka kembali baris stasiun Sterilizer di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
+        },
+        {
+          "condition": "Peran selain Supervisor membuka draft yang barisnya punya Checked by SPV",
+          "handling": "Checkbox tidak dirender; nilai tampil sebagai teks 'Ya'/'—' dan tidak dapat diubah. Bila payload dari aktor non-Supervisor tetap membawa checked_by_spv, server mengabaikannya (baris lama mempertahankan nilai tersimpan, baris baru = false) — simpan tidak ditolak."
+        },
+        {
+          "condition": "Draft baru dibuat antara 00:00–06:59 WIB, atau data lama masih menyimpan `date` sebagai ISO UTC",
+          "handling": "createDraft() mengisi `date` dengan todayLocalDateString() (tanggal lokal perangkat 'YYYY-MM-DD'), sehingga draft tetap bertanggal hari ini. Baris lama ber-sufiks zona (Z/±hh:mm) dinormalisasi sekali ke tanggal lokal saat initLocalSchema() (localSchema.normalizeLegacyUtcDates(), idempoten). Payload sinkron (manual maupun write-through) selalu mengirim `date` sebagai tanggal lokal 'YYYY-MM-DD' (toLocalDateString)."
+        },
+        {
+          "condition": "Server menolak record (4xx) saat write-through atau sinkron manual",
+          "handling": "syncService menulis alasan penolakan ke kolom lokal `sync_error` record (dikosongkan saat sinkron berikutnya berhasil; gagal jaringan/offline TIDAK ditulis) sehingga Data Preview menampilkan 'Gagal sinkron: <alasan>'. Write-through kini benar-benar aktif bila Mills Setting immediate_sync_enabled = true (millSettingRepo.getMillSetting() kini ikut SELECT immediate_sync_enabled — sebelumnya selalu terbaca false). Production Line kiriman diturunkan dari stasiun tempat record dibuat (station_id → station.production_line_id)."
         }
       ],
       "business_rules_applied": [
@@ -133,7 +146,8 @@
         "Log Siklus adalah event-log bebas, jumlah baris tidak dibatasi",
         "Minimal satu baris Log Siklus dengan Close Door Time terisi sebelum Simpan",
         "Duration (Minutes) dihitung otomatis per baris, TIDAK PERNAH dapat diedit manual",
-        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'sterilizer' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`"
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'sterilizer' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`",
+        "Checked by SPV per baris hanya dapat diubah Supervisor (UI: checkbox hanya untuk Supervisor, peran lain teks; server: nilai dari non-Supervisor diabaikan)"
       ],
       "unit_test_cases": [
         {
@@ -220,6 +234,16 @@
           "description": "navigates directly on Back when form is not dirty",
           "given": "form state isDirty = false, Back pressed",
           "expect": "navigates to Monitor immediately, no dialog shown"
+        },
+        {
+          "description": "renders Checked by SPV per row as text (not an input) for non-supervisor roles",
+          "given": "current user role in ['operator', 'mill_management', 'admin']; draft with 2 rows, checked_by_spv true and false",
+          "expect": "no detail-checked-by-spv-{i} checkbox and no checkbox inside the row; detail-checked-by-spv-text-0 = 'Ya', detail-checked-by-spv-text-1 = '—'"
+        },
+        {
+          "description": "renders Checked by SPV per row as an editable checkbox for a supervisor",
+          "given": "current user role = 'supervisor'; draft with 1 row checked_by_spv=false",
+          "expect": "detail-checked-by-spv-0 enabled, can be checked; no text fallback rendered"
         }
       ]
     }
@@ -243,7 +267,8 @@
     "13 kolom detail mengikuti persis urutan field entity-catalog sterilizer-detail: sterilizer_no, close_door_time, peak_1_time, exhaust_1_time, peak_2_time, exhaust_2_time, peak_3_time, exhaust_3_time, open_door_time, duration_minutes, number_of_cages, cages_status, checked_by_spv, remarks",
     "BERBEDA dari CPO Dispatch/Kernel Dispatch: TIDAK ADA kolom event_date per baris — seluruh baris siklus memakai Date milik header (satu Sterilizer Record = satu tanggal, banyak siklus dalam tanggal itu). checked_by_spv adalah checkbox boolean sederhana per baris, BUKAN referensi nama Supervisor (berbeda dari header checked_by yang merupakan FK user)",
     "Ini adalah stasiun TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01)",
-    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec): FormSterilizerView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('sterilizer_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/sterilizer-records, create). Kegagalan offline/5xx diam; penolakan 4xx (mis. 422 PERIOD_CLOSED) sejak perbaikan 2026-10-03 ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' sebelum navigasi ke Monitor Sterilizer. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('sterilizer', mill, date) berjalan di SterilizerRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142. Skenario ini teruji end-to-end di backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali') memakai POST /api/sterilizer-records."
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec): FormSterilizerView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('sterilizer_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/sterilizer-records, create). Kegagalan offline/5xx diam; penolakan 4xx (mis. 422 PERIOD_CLOSED) sejak perbaikan 2026-10-03 ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' sebelum navigasi ke Monitor Sterilizer. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('sterilizer', mill, date) berjalan di SterilizerRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142. Skenario ini teruji end-to-end di backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali') memakai POST /api/sterilizer-records.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) 'Checked by SPV' per baris kini HANYA Supervisor (keputusan pengguna 2026-10-04): FormSterilizerView merender checkbox v-if=\"isSupervisor\", peran lain melihat teks 'Ya'/'—' (span.spv-check-text); SterilizerRecordService::upsertDetails() mengabaikan nilai dari aktor non-Supervisor (baris lama dipertahankan, baris baru false). (2) sterilizerRecordRepo.createDraft() memakai todayLocalDateString() bersama dari src/utils/localDate.ts (helper lokal todayDateString() dihapus); localSchema.normalizeLegacyUtcDates() memigrasi baris lama; payload `date` sinkron selalu tanggal lokal. (3) Label kolom catatan 'Note' → 'Catatan' dengan id eksplisit 'field-note' (noteLabelConsistency.spec.ts). (4) Write-through syncAfterSave('sterilizer_record') kini benar-benar berjalan saat immediate_sync_enabled aktif (perbaikan SELECT millSettingRepo); penolakan server juga disimpan sebagai `sync_error`; sinkron memakai Production Line stasiun record. (5) ConfirmDialog di-teleport ke <body> (z-index 1200). (6) Kosmetik header: ikon brand SVG + ikon hamburger/tutup SVG dengan aria-label, tombol Pause bergaya warning (oranye)."
   ],
   "test_scenarios": [
     {
@@ -409,6 +434,21 @@
         "route": "/stations/sterilizer/form/:id",
         "action": "tekan tombol Clear lalu konfirmasi hapus; ulangi dan batalkan konfirmasi",
         "assert": "saat dikonfirmasi: draft terhapus permanen dan navigasi ke Monitor; saat dibatalkan: tidak ada perubahan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Checked by SPV per Baris Khusus Supervisor",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "mount as operator / mill_management / admin, then as supervisor, with draft rows that have checked_by_spv true/false",
+        "assert": "non-supervisor: per-row value shown as text 'Ya'/'—', no checkbox; supervisor: per-row checkbox rendered and toggleable"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "sebagai Operator tambah baris; lalu login Supervisor, buat draft, tambah baris, centang Checked by SPV, Pause, buka lagi dan lepas centang",
+        "assert": "Operator: tidak ada checkbox di baris, teks '—'; Supervisor: checkbox ada, nilai tercentang tersimpan setelah Pause dan dapat dilepas"
       }
     }
   ]

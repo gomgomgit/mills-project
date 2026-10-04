@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-130--laporan-cages-track-web",
   "name": "Laporan Cages & Tracks (Web)",
@@ -28,7 +28,7 @@
     {
       "actor_id": "actor-station-operator",
       "can_access": false,
-      "conditions": "Operator tidak punya akses web; jalur laporannya ada di mobile (screen-136)"
+      "conditions": "Operator boleh login web dengan akses terbatas (/beranda dan /settings/password) tetapi tidak berhak atas route web /reports/cages-track (halaman errors/403; menu disaring RouteAccess); jalur laporannya ada di mobile (screen-136)"
     }
   ],
   "api_contracts": [
@@ -248,7 +248,7 @@
         {
           "method": "GET",
           "path": "/api/cages-track-reports/export",
-          "description": "Ekspor seluruh rincian penumpahan per jam sepanjang periode ke CSV, satu baris per jam penumpahan dengan kolom konteks record diulang",
+          "description": "Ekspor seluruh rincian penumpahan per jam sepanjang periode dan line terpilih ke CSV atau Excel (.xlsx sungguhan via App\\Support\\SheetWriter), satu baris per jam penumpahan dengan kolom konteks Periode/Mill/Production Line dan kolom konteks record diulang",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -286,7 +286,7 @@
           },
           "response": {
             "success_schema": {
-              "_note": "StreamedResponse berisi berkas; header Content-Disposition attachment. Kolom: Tanggal, Nomor Cages Track, Tippler Mulai, Tippler Berhenti, Jam, Nomor Lori Diperiksa, Lori Ditumpahkan, Lori Tersisa, Lori Keluar (record), Status, Catatan"
+              "_note": "StreamedResponse berisi berkas (CSV, atau .xlsx sungguhan untuk format=excel); header Content-Disposition attachment. Kolom: Periode, Mill, Production Line, Tanggal, Nomor Cages Track, Tippler Mulai, Tippler Berhenti, Jam (HH:MM, mis. 06:00), Nomor Lori Diperiksa, Lori Ditumpahkan, Lori Tersisa, Lori Keluar (record), Status (label Indonesia via ExportValue::status), Catatan"
             },
             "error_codes": [
               {
@@ -337,7 +337,7 @@
         "queue: cages_remain adalah potret per jam (armada lori stasiun dikurangi yang ditumpahkan pada jam itu), bukan antrean yang menumpuk, sehingga TIDAK PERNAH dijumlahkan. queue.min_remaining = MIN(cages_remain) atas seluruh baris rincian sepanjang periode; queue.avg_remaining = rata-rata atas seluruh baris rincian, 1 desimal. Bila tidak ada baris rincian: keduanya null. Kolom cages_remain bertipe NOT NULL di skema, jadi tidak ada cabang null per baris.",
         "summary daily: satu baris per TANGGAL yang punya record, diurutkan menaik. Tanggal yang punya record tetapi tidak punya satu pun baris rincian TETAP dibuatkan baris dengan cages_tipped = 0 dan TETAP masuk penyebut avg_cages_per_day -- membuangnya membuat rata-rata harian terlihat lebih baik daripada kenyataan. Tanggal tanpa record sama sekali tidak dibuatkan baris nol.",
         "Seluruh agregasi dijalankan di PHP atas baris mentah, BUKAN lewat SUM/AVG/GROUP BY di SQL. Alasannya menentukan: perilaku agregat SQL atas kolom nullable dan atas selisih timestamp berbeda antara SQLite (dipakai test) dan PostgreSQL (produksi), dan aturan null-bukan-nol di atas justru yang paling mudah hilang di perbedaan itu.",
-        "export: authorizePeriod -> hitung jumlah baris cages_tipped_times dalam rentang -> if > 50.000: 422 EXPORT_FAILED -> stream lewat chunk(200), satu baris per jam penumpahan, dengan kolom konteks record (tanggal, nomor cages track, tippler mulai, tippler berhenti, lori keluar, status, catatan) DIULANG pada tiap baris, mengikuti konvensi ekspor repo.",
+        "export: authorizePeriod -> hitung jumlah baris cages_tipped_times dalam rentang -> if > 50.000: 422 EXPORT_FAILED -> stream lewat chunk(200) ke App\\Support\\SheetWriter (csv, atau .xlsx sungguhan untuk excel), satu baris per jam penumpahan, dengan kolom konteks Periode/Mill/Production Line lalu kolom konteks record (tanggal, nomor cages track, tippler mulai, tippler berhenti, lori keluar, status berlabel Indonesia, catatan) DIULANG pada tiap baris; jam ditulis 'HH:00'.",
         "productionLineOptions(businessUnitId): SELECT production_lines WHERE business_unit_id = <mill yang berlaku> ORDER BY name. Berlaku untuk SEMUA peran — tidak seperti businessUnitOptions() yang khusus Admin — karena Production Line BUKAN ikatan akun (tidak ada `users.production_line_id`) melainkan KONTEKS YANG DIPILIH; satu mill di lapangan punya belasan line dengan jenis stasiun yang sama berulang.",
         "resolveProductionLine(businessUnitId, requested): null bila kosong, dan null pula bila line itu bukan milik mill yang berlaku — DIABAIKAN, bukan 403 (403 justru memastikan line itu ada). MEMILIH LINE WAJIB di layar laporan: null berarti 'jangan tampilkan angka apa pun', BUKAN 'tampilkan semua line', karena laporan menghasilkan ANGKA GABUNGAN dan total yang mencampur belasan line tidak dapat ditindaklanjuti siapa pun.",
         "summary(period, productionLineId): scopeToProductionLine() menambahkan WHERE cages_track_records.production_line_id = ? pada kueri siklus/record — DI KOLOM TABEL RECORD, bukan join ke `stations`. Kolom itu di-snapshot dari stasiun saat record dibuat dan tidak pernah berubah, sehingga record yang stasiunnya kemudian dipindah tetap terhitung di line ASALNYA; menyaring lewat `stations` akan menulis ulang sejarah setiap kali sebuah stasiun dipindahkan.",
@@ -395,7 +395,7 @@
       "edge_case_handling": [
         {
           "condition": "Periode tidak memuat satu pun penumpahan",
-          "handling": "200 dengan seluruh KPI nol, hourly tetap 24 entri bernilai 0, daily = [], peak_hour/longest_gap_hours/avg_tippler_duration_hours = null. Livewire menampilkan empty-period dan TIDAK merender grafik kosong"
+          "handling": "200 dengan seluruh KPI nol, hourly tetap 24 entri bernilai 0, daily = [], peak_hour/longest_gap_hours/avg_tippler_duration_hours = null. Livewire menampilkan empty-period dan TIDAK merender grafik kosong. Bila days_with_records = 0, kartu rata-rata per hari merender '–' (data-testid kpi-avg-per-day-empty, 'Belum ada hari ber-record untuk dijadikan pembagi') walau API tetap mengirim avg_cages_per_day = 0, dan meta kartu Total Lori Keluar berbunyi 'Belum ada record pada periode dan line ini', bukan 'Sama banyak dengan lori yang ditumpahkan'"
         },
         {
           "condition": "Hari punya record tetapi tidak punya satu pun baris rincian per jam",
@@ -759,7 +759,7 @@
         {
           "description": "ekspor melakukan streaming chunk(200) dengan satu baris per jam penumpahan",
           "given": "periode berisi 450 baris cages_tipped_times",
-          "expect": "respons text/csv streaming; chunk(200) dipanggil 3 kali; 450 baris data dihasilkan dengan kolom konteks record (tanggal, nomor cages track, tippler mulai, tippler berhenti, lori keluar, status, catatan) diulang pada tiap baris"
+          "expect": "respons streaming; chunk(200) dipanggil 3 kali; 450 baris data dihasilkan dengan kolom konteks Periode/Mill/Production Line lalu kolom konteks record (tanggal, nomor cages track, tippler mulai, tippler berhenti, lori keluar, status, catatan) diulang pada tiap baris; kolom Jam berformat HH:MM (06:00, bukan 06.00)"
         },
         {
           "description": "ekspor menolak jumlah baris melebihi batas",
@@ -880,7 +880,8 @@
     "Properti Livewire `public string $productionLineId` memakai #[Url(as: 'production_line_id')] — alias itu WAJIB: tanpa `as:` Livewire memakai NAMA PROPERTI (`productionLineId`) pada query string, sedangkan screen-140 menyisipkan `production_line_id` pada setiap report_path. Pasangan nama itulah yang membuat rantai tile → laporan bertemu.",
     "@selected pada <option> Production Line WAJIB dirender di server: Livewire 3 tidak menulis balik nilai <select> dari state komponen pada paint pertama, sehingga pengguna yang tiba lewat tautan tile akan melihat 'Pilih Production Line' padahal angkanya sudah milik line itu.",
     "Tombol Ekspor dirender hanya ketika $summary !== null, dan $summary hanya terisi ketika ada line yang berlaku — jadi 'tidak ada line' otomatis berarti 'tidak ada tombol Ekspor', tanpa kondisi kedua yang bisa ikut kedaluwarsa.",
-    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan."
+    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan.",
+    "REVISI (2026-10-04, audit-fix): ekspor via SheetWriter (xlsx sungguhan) dengan kolom konteks Periode/Mill/Production Line, status ExportValue::status, jam 'HH:00' (sebelumnya hourLabel 'HH.00'). Layar: hero menyebut nama line aktif; tren harian .md-trendchart--days + petunjuk gulir bila > 10 tanggal; days_with_records = 0 → rata-rata '–' dan meta lori keluar 'Belum ada record pada periode dan line ini'."
   ],
   "test_scenarios": [
     {

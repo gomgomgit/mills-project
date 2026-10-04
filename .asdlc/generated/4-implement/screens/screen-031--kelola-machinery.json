@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-031--kelola-machinery",
   "name": "Kelola Mesin",
@@ -22,7 +22,9 @@
     "backend/app/Services/MachineryGroupService.php",
     "backend/app/Http/Controllers/Api/MachineryGroupController.php",
     "backend/app/Models/MachineryGroup.php",
-    "backend/app/Exceptions/MachineryGroupHasMachineryException.php"
+    "backend/app/Exceptions/MachineryGroupHasMachineryException.php",
+    "backend/app/Rules/RealImage.php",
+    "backend/app/Rules/UniqueCaseInsensitive.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/MachineryServiceTest.php",
@@ -34,13 +36,17 @@
     "backend/tests/Feature/Api/KelolaMachineryGroupTest.php",
     "backend/tests/Feature/Livewire/KelolaMachineryGroupTest.php",
     "e2e-web/tests/kelola-machinery.spec.ts",
-    "e2e-web/tests/kelola-machinery-group.spec.ts"
+    "e2e-web/tests/kelola-machinery-group.spec.ts",
+    "backend/tests/Feature/Livewire/KelolaMachineryAuditTest.php",
+    "backend/tests/Feature/Livewire/ImageUploadValidationTest.php",
+    "backend/tests/Pest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/MasterData/KelolaMachinery.php",
     "backend/resources/views/livewire/master-data/kelola-machinery.blade.php",
     "backend/resources/views/master-data/machinery.blade.php",
-    "backend/resources/views/components/layouts/app.blade.php"
+    "backend/resources/views/components/layouts/app.blade.php",
+    "backend/app/Livewire/Concerns/ValidatesUploadOnSelect.php"
   ],
   "fe_test_files_generated": [],
   "implementation_notes": [
@@ -52,11 +58,12 @@
     "TIDAK ADA delete-guard — satu-satunya screen master data dalam round ini yang menghapus tanpa pemeriksaan referensi, karena insurance/tax_purchase murni anak Machinery tanpa identitas independen",
     "GET /api/machinery/:id (endpoint baru, tidak ada di screen master data lain) mengembalikan detail lengkap + insurances[] + tax_purchases[] untuk mengisi form Edit",
     "picture disimpan di Laravel Filesystem local disk (PICTURE_DISK=local, direktori machinery-pictures), pola sama dengan logo Corporate/Company/Business Unit",
-    "Semua test upload gambar memakai UploadedFile::fake()->create() (bukan ->image()) — workaround GD extension yang konsisten sepanjang round ini",
+    "Tes upload gambar yang harus lolos kini memakai helper fakeRealImage() (tests/Pest.php: PNG sungguhan + byte pengisi) karena RealImage memeriksa isi file; GD tetap tidak terpasang sehingga ->image() tidak dipakai.",
     "Independently re-verified oleh command: re-run `php artisan test` — 599/599 lulus (full suite gabungan seluruh 6 screen master data: 027-031, 033); baca MachineryService.php penuh untuk konfirmasi transaksi DB, replace-all semantics, dan tidak-ada-delete-guard sesuai tech spec",
     "REVISI v2 (tech-spec v4, penggabungan Kelola Machinery + Machinery Group menjadi layar 'Kelola Mesin' — sinkronisasi artefak, kode layar tidak diubah dalam sinkronisasi ini): commit 3312973 (2026-09-30) membuat KelolaMachinery menyerap seluruh CRUD Machinery Group (saveGroup/deleteGroup dst., terpisah dari save) dengan dua mode tampilan (Grup hierarkis / Rata), accordion grup, panel atribut grup, dan wadah 'Tanpa grup'; komponen/blade KelolaMachineryGroup dihapus; rute web /master-data/machinery-groups menjadi redirect 301 ke /master-data/machinery dengan guard auth+role:admin tetap di depan (non-Admin tetap 403); sidebar 13→12 entri. MachineryService::listMachinery melayani tiga cabang saling eksklusif (machinery_group_id / ungrouped=true → whereNull / Rata) dan menolak 422 bila machinery_group_id dan ungrouped dikirim bersamaan. Pencarian memakai lower(kolom) LIKE ? dengan needle mb_strtolower (bukan ILIKE, bukan LIKE telanjang) di MachineryService maupun MachineryGroupService — dikunci unit test bentuk SQL dan test tidak-peka-huruf (sesuai delta v4). MachineryGroupService::listMachineryGroups mencari group_code/description ATAU mesin di dalamnya (EXISTS), memproyeksikan has_search_match_in_machinery (withExists) dan meta.ungrouped_machinery_count. production_line_id (bukan business_unit_id) selalu diturunkan server-side dari MachineryGroup/Station. Commit ffed7ca memperbaiki penanda accordion (karakter UTF-8, bukan entitas ter-escape) dan menambah definisi CSS kelas accordion. PERBAIKAN CONTROLLER (2026-10-03, sesi ini): MachineryController::index kini meneruskan query param ungrouped ($request->boolean) dan search ke listMachinery, dan MachineryGroupController::index meneruskan search — sebelumnya kedua param diabaikan lewat HTTP (?ungrouped=true mengembalikan semua mesin, 422 tidak terjangkau, has_search_match_in_machinery selalu false); layar web tidak terdampak karena Livewire memanggil service langsung. Ditambah 3 test HTTP di tests/Feature/Api/KelolaMachineryTest.php dan 1 di tests/Feature/Api/KelolaMachineryGroupTest.php. Kontrak Machinery Group yang dulu milik screen-033 kini diimplementasikan di layar ini; test machinery-group (MachineryGroupServiceTest 32, Api/KelolaMachineryGroupTest 26, Livewire/KelolaMachineryGroupTest 20 — kini menguji KelolaMachinery) seluruhnya lulus dan dicatat di artefak 4-implement screen-033. Hitungan test_results di sini hanya untuk file test Machinery.",
     "REVISI (2026-10-03): redirect 301 rute lama /master-data/machinery-groups → /master-data/machinery untuk sesi Admin kini punya test backend — backend/tests/Feature/Livewire/KelolaMachineryGroupTest.php (sudah tercatat di test_files_generated), test 'Admin: rute lama /master-data/machinery-groups mengalihkan 301 ke Kelola Mesin' (lulus). Known issue 'redirect tanpa test backend' dihapus. Pembersihan daftar file di versi sebelumnya: backend/tests/Browser/KelolaMachineryTest.php (tidak pernah ada) dikeluarkan dari test_files_generated.",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-machinery.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 8 lulus, 0 gagal; test_results.browser diperbarui (hanya spec kelola-machinery; kelola-machinery-group.spec.ts 11 lulus dicatat di artefak screen-033); known_issue 'browser test belum dijalankan' dihapus."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-machinery.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 8 lulus, 0 gagal; test_results.browser diperbarui (hanya spec kelola-machinery; kelola-machinery-group.spec.ts 11 lulus dicatat di artefak screen-033); known_issue 'browser test belum dijalankan' dihapus.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): KelolaMachinery — openCreateForm(?groupId) dipanggil tombol '+ Mesin' sehingga grup terpilih otomatis (#9a); formErrorKey() memetakan error service insurances.N.* / tax_purchases.N.* ke insurances.N.* / taxPurchases.N.* yang dirender di bawah kolom + formErrorMessage (#9b); MachineryGroupService::stationOptions() label 'Mill — Line — Station' (urut label), MachineryService::machineryGroupOptions() label 'MG-xxx — deskripsi (Station · Line)', toRow grup + business_unit_name dan kolom Business Unit di daftar grup (#9c); equipment_code & group_code UniqueCaseInsensitive (#11); successMessage + clearFeedback() untuk mesin & grup (#12); saat mencari, ungroupedCount = jumlah mesin tanpa grup yang cocok, Station/Production Line di form tampil sebagai teks .kc-form-field__static (#15); picture RealImage('Gambar') di service & Livewire, divalidasi saat dipilih (updatedPicture → validateUploadNow), pratinjau hanya untuk ekstensi gambar tanpa error. master-data/machinery.blade.php: judul layout 'Kelola Mesin'. Cakupan baru KelolaMachineryAuditTest + ImageUploadValidationTest; tes Unit/Api MachineryService(Group) dan e2e kelola-machinery(-group).spec.ts diperbarui."
   ],
   "deferred_items": [],
   "known_issues": [],

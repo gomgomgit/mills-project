@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-133--laporan-storage-tank-web",
   "name": "Laporan Storage Tank (Web)",
@@ -178,11 +178,13 @@
               "production_line": "{ id: uuid, name: string } | null — blok BARU (2026-09-28), ADITIF: seluruh kunci yang sudah ada tetap di tempatnya dan tetap datar. null ketika permintaan tidak membawa production_line_id.",
               "coverage": {
                 "filled_slots": "integer",
-                "expected_slots": "integer",
+                "expected_slots": "integer — tank_count x days_counted x slots_per_tank_per_day",
                 "coverage_percent": "float",
                 "tank_count": "integer",
                 "slots_per_tank_per_day": "integer",
-                "days_in_period": "integer"
+                "days_in_period": "integer — seluruh hari periode (inklusif)",
+                "days_counted": "integer — BARU 2026-10-04: hari yang dipakai penyebut (App\\Support\\ReportPeriodDays::counted): = days_in_period untuk periode selesai, start..hari ini (WIB) untuk periode berjalan, 0 bila belum mulai",
+                "period_running": "boolean — BARU 2026-10-04: true bila end_date periode setelah hari ini (ReportPeriodDays::isRunning)"
               },
               "stock": {
                 "opening_mt": "float|null",
@@ -318,7 +320,7 @@
         {
           "method": "GET",
           "path": "/api/storage-tank-reports/export",
-          "description": "Ekspor seluruh pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot",
+          "description": "Ekspor seluruh pembacaan per slot waktu sepanjang periode ke CSV atau Excel (.xlsx sungguhan via SheetWriter), satu baris per slot",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -356,7 +358,7 @@
           },
           "response": {
             "success_schema": {
-              "_note": "StreamedResponse; kolom konteks record (tanggal, tangki, status, catatan) diulang tiap baris, lalu ketujuh belas kolom pengukuran termasuk enum katup uap dan kolom teks apa adanya"
+              "_note": "StreamedResponse (text/csv atau application/vnd.openxmlformats-officedocument.spreadsheetml.sheet .xlsx sungguhan); kolom konteks ekspor (Periode, Mill, Production Line) + konteks record (Tanggal, Tangki, Status berlabel Indonesia, Catatan) diulang tiap baris, lalu Slot Waktu HH:MM dan ketujuh belas kolom pengukuran; katup uap berlabel form ('Open 1/2'), kolom teks apa adanya"
             },
             "error_codes": [
               {
@@ -404,12 +406,12 @@
         "PENYEBUT TERPISAH PER METRIK: ketujuh belas kolom non-time_slot nullable dan sebuah baris dianggap terisi bila minimal satu di antaranya terisi (definisi StorageTankRecordService — pakai itu, jangan bikin definisi kedua). Setiap metrik dihitung HANYA dari baris yang kolom metrik ITU non-null, dengan reading_count-nya sendiri.",
         "SUHU RATA-RATA DIAMBIL DARI KOLOM average_temperature_c YANG DICATAT OPERATOR, tidak dihitung ulang dari oil_temperature_top/middle/bottom. Menghitung ulang akan menciptakan kebenaran kedua yang menyimpang diam-diam dari yang dilihat Operator di layar input, dan selisihnya tidak akan pernah terlihat karena keduanya sama-sama masuk akal. Ketiga suhu per posisi tetap dikirim sebagai metrik tersendiri untuk keperluan lain.",
         "NULL BUKAN NOL untuk seluruh metrik: metrik yang tidak pernah terisi menghasilkan min/avg/max null dengan reading_count 0, independen per metrik.",
-        "KELENGKAPAN PENCATATAN: filled_slots = jumlah baris storage_tank_details yang minimal satu dari 17 kolom non-time_slot-nya terisi. expected_slots = tank_count x days_in_period x slots_per_tank_per_day.",
+        "KELENGKAPAN PENCATATAN: filled_slots = jumlah baris storage_tank_details yang minimal satu dari 17 kolom non-time_slot-nya terisi. expected_slots = tank_count x days_counted x slots_per_tank_per_day, dengan days_counted = App\\Support\\ReportPeriodDays::counted(period) — PENYEBUT BERHENTI DI HARI INI (WIB) untuk periode yang masih berjalan, seluruh hari untuk periode selesai, 0 untuk periode belum mulai (audit 2026-10-04 #3). coverage juga mengirim days_counted dan period_running.",
         "daily[] mengirim ffa, moisture, dan dobi per tanggal agar layar dapat menggambar ketiganya pada satu grafik. PERHATIAN SKALA: DOBI berkisar 2-4, FFA 3-5 persen, kadar air 0,1-0,3 persen. Ketiganya TIDAK sebanding pada satu sumbu linear. Layar wajib menormalkan atau memakai sumbu kedua, dan MENYATAKANNYA — menempelkan tiga skala berbeda pada satu sumbu tanpa keterangan membuat dua di antaranya terlihat datar dan seolah tidak berubah.",
         "storage_tank_details punya satu kolom enum steam_heating_valve_status ('closed','open_1_4','open_1_2') yang nullable, dan tiga kolom teks (tank_structural_condition, inspector_name, findings). Keempatnya TIDAK PERNAH diagregasi menjadi min/avg/max dan hanya muncul pada ekspor.",
         "Seluruh agregasi dijalankan di PHP atas baris mentah, BUKAN SUM/AVG/GROUP BY di SQL — terlebih di sini, karena pemilihan pembacaan pertama/terakhir per tangki adalah logika berurutan yang tidak diungkapkan agregat SQL biasa.",
         "TIDAK ADA penandaan nilai di luar batas di mana pun. Tidak ada StorageTankOperationalTarget (hanya Threshing/Pressing/Depricarping/Kernel Plant yang punya), dan docblock StorageTankRecordService menyatakan ketiadaan itu memang disengaja. Ketiadaannya WAJIB diasersi menurut nama.",
-        "export: authorizePeriod -> hitung baris storage_tank_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat chunk, satu baris per slot waktu, kolom konteks record diulang tiap baris. Penjagaan izin EAGER sebelum generator mulai menghasilkan.",
+        "export: authorizePeriod -> hitung baris storage_tank_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat App\\Support\\SheetWriter (format=csv: CSV; format=excel: .xlsx SUNGGUHAN, bukan lagi byte CSV bernama .xlsx), satu baris per slot waktu. Kolom konteks EKSPOR (Periode, Mill, Production Line) lalu konteks record (tanggal, tangki, status, catatan) diulang tiap baris — EXPORT_CONTEXT_COLUMN_COUNT = 7. Status via ExportValue::status (label Indonesia, mis. 'Tersinkron'), time_slot via ExportValue::time (HH:MM), steam_heating_valve_status via ExportValue::valve (label form 'Closed'/'Open 1/4'/'Open 1/2'); kolom teks lain apa adanya. Penjagaan izin EAGER sebelum generator mulai menghasilkan.",
         "productionLineOptions(businessUnitId): SELECT production_lines WHERE business_unit_id = <mill yang berlaku> ORDER BY name. Berlaku untuk SEMUA peran — tidak seperti businessUnitOptions() yang khusus Admin — karena Production Line BUKAN ikatan akun (tidak ada `users.production_line_id`) melainkan KONTEKS YANG DIPILIH; satu mill di lapangan punya belasan line dengan jenis stasiun yang sama berulang.",
         "resolveProductionLine(businessUnitId, requested): null bila kosong, dan null pula bila line itu bukan milik mill yang berlaku — DIABAIKAN, bukan 403 (403 justru memastikan line itu ada). MEMILIH LINE WAJIB di layar laporan: null berarti 'jangan tampilkan angka apa pun', BUKAN 'tampilkan semua line', karena laporan menghasilkan ANGKA GABUNGAN dan total yang mencampur belasan line tidak dapat ditindaklanjuti siapa pun.",
         "summary(period, productionLineId): scopeToProductionLine() menambahkan WHERE storage_tank_records.production_line_id = ? pada kueri siklus/record — DI KOLOM TABEL RECORD, bukan join ke `stations`. Kolom itu di-snapshot dari stasiun saat record dibuat dan tidak pernah berubah, sehingga record yang stasiunnya kemudian dipindah tetap terhitung di line ASALNYA; menyaring lewat `stations` akan menulis ulang sejarah setiap kali sebuah stasiun dipindahkan.",
@@ -548,6 +550,14 @@
         {
           "condition": "Stasiun sebuah record sudah dipindah ke Production Line lain",
           "handling": "Record tetap terhitung di line ASALNYA, karena penyaringan memakai kolom record `storage_tank_records.production_line_id` (snapshot saat create), bukan `stations.production_line_id` yang menunjuk line stasiun itu SEKARANG."
+        },
+        {
+          "condition": "Periode masih berjalan (end_date setelah hari ini)",
+          "handling": "days_counted = hari start..hari ini (WIB), expected_slots memakai days_counted, period_running = true; UI menampilkan '× N hari (sampai hari ini)' dan catatan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)'"
+        },
+        {
+          "condition": "Penyebut kelengkapan 0 (periode belum mulai atau tank_count 0)",
+          "handling": "expected_slots 0; UI menampilkan coverage-percent '—' dan 'belum ada slot yang diharapkan', bukan '0,0%'"
         }
       ],
       "business_rules_applied": [
@@ -709,7 +719,7 @@
         {
           "description": "Kolom enum dan teks HANYA muncul pada ekspor, satu baris per slot waktu",
           "given": "StorageTankReportService::export(periodId, businessUnitId) atas fixture yang sama",
-          "expect": "header CSV memuat steam_heating_valve_status, tank_structural_condition, inspector_name, findings; satu baris per storage_tank_details dengan kolom konteks record (date, storage_tank_id, note, checked_by, acknowledged_by, status) diulang; time_slot tertulis sebagai jam-menit"
+          "expect": "header memuat 'Periode','Mill','Production Line' lalu 'Tanggal','Tangki','Status','Catatan','Slot Waktu', ... 'Status Katup Pemanas Uap','Kondisi Struktur Tangki','Nama Inspektur','Temuan'; satu baris per storage_tank_details dengan 7 kolom konteks diulang (EXPORT_CONTEXT_COLUMN_COUNT = 7; kolom 0 = nama periode); status berlabel ('Tersinkron', bukan 'synced'); katup 'Open 1/2' bukan 'open_1_2'; time_slot HH:MM"
         },
         {
           "description": "Agregasi dijalankan di PHP, bukan di SQL",
@@ -840,6 +850,11 @@
           "description": "tanpa Production Line terpilih tidak ada berkas yang diunduh sama sekali",
           "given": "export('csv') dipanggil pada komponen LaporanStorageTank saat productionLineId = ''",
           "expect": "tidak ada StreamedResponse yang dihasilkan — jalur ekspor berhenti sebelum menyentuh service"
+        },
+        {
+          "description": "Kelengkapan periode berjalan — penyebut berhenti di hari ini (audit 2026-10-04 #3)",
+          "given": "summary() dengan periode yang end_date-nya setelah hari ini",
+          "expect": "payload coverage memuat days_counted dan period_running; period_running true; expected_slots = tank_count x days_counted x 24 (bukan days_in_period)"
         }
       ]
     }
@@ -909,7 +924,8 @@
     "Properti Livewire `public string $productionLineId` memakai #[Url(as: 'production_line_id')] — alias itu WAJIB: tanpa `as:` Livewire memakai NAMA PROPERTI (`productionLineId`) pada query string, sedangkan screen-140 menyisipkan `production_line_id` pada setiap report_path. Pasangan nama itulah yang membuat rantai tile → laporan bertemu.",
     "@selected pada <option> Production Line WAJIB dirender di server: Livewire 3 tidak menulis balik nilai <select> dari state komponen pada paint pertama, sehingga pengguna yang tiba lewat tautan tile akan melihat 'Pilih Production Line' padahal angkanya sudah milik line itu.",
     "Tombol Ekspor dirender hanya ketika $summary !== null, dan $summary hanya terisi ketika ada line yang berlaku — jadi 'tidak ada line' otomatis berarti 'tidak ada tombol Ekspor', tanpa kondisi kedua yang bisa ikut kedaluwarsa.",
-    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan."
+    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan.",
+    "AUDIT-FIX 2026-10-04 (kode adalah acuan): kelengkapan memakai App\\Support\\ReportPeriodDays (days_counted/period_running); blade menampilkan persen 1 desimal (sebelumnya 2), '—' bila expected_slots 0, catatan periode berjalan, nama Production Line di hero; sumbu tegak grafik stok dan grafik mutu memakai App\\Support\\ChartAxis::nice() (langkah 1/2/2,5/5 x 10^n, label bulat berjarak sama, desimal mengikuti langkah) dan petunjuk gulir .md-scrollhint--lc via container query; ekspor via App\\Support\\SheetWriter (xlsx sungguhan) + App\\Support\\ExportValue."
   ],
   "test_scenarios": [
     {

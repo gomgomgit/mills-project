@@ -1,21 +1,35 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-048--data-preview-kernel-plant",
   "name": "Data Preview Kernel Plant",
   "module_id": "module-mobile-station-ops",
   "status": "complete",
-  "files_generated": [],
-  "test_files_generated": [],
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/RecordVerificationStatusController.php",
+    "backend/app/Services/RecordVerificationStatusService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/MobileReadEndpointsTest.php"
+  ],
   "fe_files_generated": [
-    "mobile/src/views/DataPreviewKernelPlantView.vue"
+    "mobile/src/views/DataPreviewKernelPlantView.vue",
+    "mobile/src/components/SyncFailureHint.vue",
+    "mobile/src/services/recordVerificationApi.ts",
+    "mobile/src/services/apiClient.ts",
+    "mobile/src/utils/localDate.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/DataPreviewKernelPlantView.spec.ts",
-    "mobile/tests/e2e/data-preview-kernel-plant.spec.ts"
+    "mobile/tests/e2e/data-preview-kernel-plant.spec.ts",
+    "mobile/tests/SyncFailureHint.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts",
+    "mobile/tests/recordVerification.spec.ts",
+    "mobile/tests/e2e/sync-and-verification.spec.ts"
   ],
   "implementation_notes": [
     "Dual-mode component (list/detail driven by :id? route param), mirrors DataPreviewDepricarpingView.vue's watch()-driven mode switch exactly",
@@ -24,7 +38,8 @@
     "Playwright e2e spec (mobile/tests/e2e/data-preview-kernel-plant.spec.ts) REVISED 2026-08-24 alongside this fix to seed only 3 kernel_plant_detail rows (matching what a real saved record now typically looks like, mirroring data-preview-depricarping.spec.ts's already-revised seeding); the 'Back dari Mode Detail' assertion reverted from the exact-path regex workaround (added under the old fixed-24-row implementation, when this screen's own e2e run first surfaced the bare-glob-matching quirk) back to the plain '**/...' glob now that it mirrors data-preview-depricarping.spec.ts's own (working) assertion exactly -- kept for consistency across all 4 stations' sibling specs rather than carrying a station-specific workaround.",
     "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='kernel-plant', local-table='kernel_plant_record') yang memanggil PATCH /api/records/kernel-plant/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `date` record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus.",
     "REVISI v4 (2026-10-03, sinkronisasi catatan uji — kode tidak diubah): celah 'recordVerification.spec.ts belum punya kasus PERIOD_CLOSED khusus' pada catatan REVISI kunci periode di atas kini TERTUTUP — mobile/tests/recordVerification.spec.ts menambah 'shows the period-lock (422 PERIOD_CLOSED) message verbatim as an error and leaves the local row untouched' untuk komponen bersama RecordVerificationActions yang dipasang di mode detail layar ini: pesan server 422 PERIOD_CLOSED ditampilkan apa adanya sebagai galat dan baris lokal tidak di-UPDATE. Uji hijau.",
-    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/data-preview-kernel-plant.spec.ts 4/4 lulus — kini dijalankan ulang secara nyata (known_issue 'tidak dapat dijalankan ulang di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL pada 'Back dari Mode Detail' kembali memakai RegExp — glob '**/…' polos (yang dipulihkan 2026-08-24, lihat catatan di atas) digabung ke baseURL sehingga tak pernah cocok."
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/data-preview-kernel-plant.spec.ts 4/4 lulus — kini dijalankan ulang secara nyata (known_issue 'tidak dapat dijalankan ulang di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL pada 'Back dari Mode Detail' kembali memakai RegExp — glob '**/…' polos (yang dipulihkan 2026-08-24, lihat catatan di atas) digabung ke baseURL sehingga tak pernah cocok.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): DataPreviewKernelPlantView.vue kini memanggil recordVerificationApi.pullVerificationStatus('kernel-plant', 'kernel_plant_record', userId) best-effort saat loadList() dan refreshVerificationInBackground() saat detail dibuka (memuat ulang via getDraftWithDetails bila status berubah) → GET /api/records/kernel-plant/verification?ids[]=… (baru: RecordVerificationStatusController/Service, routes/api.php, operator boleh, cakupan mill). PATCH verifikasi kini memakai prefix /api dan isNetworkError() memakai flag `network: true` dari apiClient. SyncFailureHint.vue ('Gagal sinkron: <alasan>' dari kolom lokal sync_error, ditulis/dikosongkan syncService) dipasang di item list (compact) dan di atas detail. Detail Tanggal kini FormField type=date lewat toDateInputValue (utils/localDate.ts; sebelumnya datetime-local). filter-row grid minmax(0,1fr) — tanpa geser horizontal di 390px. Uji: SyncFailureHint.spec.ts, syncService.sqljs.spec.ts (#6 pullVerificationStatus), recordVerification.spec.ts, e2e sync-and-verification.spec.ts (pola #2/#9/#6 yang sama di stasiun lain), backend MobileReadEndpointsTest.php."
   ],
   "deferred_items": [],
   "known_issues": [],

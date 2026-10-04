@@ -1,22 +1,36 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
-  "ver": 8,
+  "ver": 9,
   "id": "screen-013--data-preview-weighbridge",
   "name": "Data Preview Weighbridge",
   "module_id": "module-mobile-station-ops",
   "status": "complete",
-  "files_generated": [],
-  "test_files_generated": [],
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/RecordVerificationStatusController.php",
+    "backend/app/Services/RecordVerificationStatusService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/MobileReadEndpointsTest.php"
+  ],
   "fe_files_generated": [
     "mobile/src/services/weighbridgeRecordRepo.ts",
-    "mobile/src/views/DataPreviewWeighbridgeView.vue"
+    "mobile/src/views/DataPreviewWeighbridgeView.vue",
+    "mobile/src/components/SyncFailureHint.vue",
+    "mobile/src/services/recordVerificationApi.ts",
+    "mobile/src/services/apiClient.ts",
+    "mobile/src/utils/localDate.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/DataPreviewWeighbridgeView.spec.ts",
-    "mobile/tests/e2e/data-preview-weighbridge.spec.ts"
+    "mobile/tests/e2e/data-preview-weighbridge.spec.ts",
+    "mobile/tests/SyncFailureHint.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts",
+    "mobile/tests/recordVerification.spec.ts",
+    "mobile/tests/e2e/sync-and-verification.spec.ts"
   ],
   "implementation_notes": [
     "Filter tanggal (dateFilter) sekarang default ke tanggal lokal hari ini (YYYY-MM-DD) saat loadList() dipanggil, bukan string kosong — dibangun manual dari getFullYear()/getMonth()/getDate() (bukan toISOString(), yang UTC-based dan bisa off-by-one-day)",
@@ -27,7 +41,8 @@
     "Regresi diverifikasi: vue-tsc bersih untuk file ini (error pre-existing di FormWeighbridgeView.vue/CagesTippedTimeGrid.vue/GradingDetailGrid.vue bukan scope perubahan ini); vitest 400/400 (seluruh suite mobile, termasuk 24/24 untuk screen ini); Playwright e2e 11/11 untuk screen ini, 99/102 untuk seluruh suite mobile.",
     "REVISI (tech-spec v5, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='weighbridge', local-table='weighbridge_record') yang memanggil PATCH /api/records/weighbridge/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `record_datetime` record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus.",
     "REVISI v7 (2026-10-03, sinkronisasi catatan uji — kode tidak diubah): celah 'recordVerification.spec.ts belum punya kasus PERIOD_CLOSED khusus' pada catatan REVISI kunci periode di atas kini TERTUTUP — mobile/tests/recordVerification.spec.ts menambah 'shows the period-lock (422 PERIOD_CLOSED) message verbatim as an error and leaves the local row untouched' untuk komponen bersama RecordVerificationActions yang dipasang di mode detail layar ini: pesan server 422 PERIOD_CLOSED ditampilkan apa adanya sebagai galat dan baris lokal tidak di-UPDATE. Uji hijau.",
-    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/data-preview-weighbridge.spec.ts 11/11 lulus. Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL pada 'Back dari Mode Detail' memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp. known_issue lama '3 kegagalan e2e full-suite' dihapus karena terbantah run penuh hari ini."
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/data-preview-weighbridge.spec.ts 11/11 lulus. Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL pada 'Back dari Mode Detail' memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp. known_issue lama '3 kegagalan e2e full-suite' dihapus karena terbantah run penuh hari ini.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): DataPreviewWeighbridgeView.vue kini memanggil recordVerificationApi.pullVerificationStatus('weighbridge', 'weighbridge_record', userId) best-effort saat loadList() dan refreshVerificationInBackground() saat detail dibuka (memuat ulang via getDraftById bila status berubah) → GET /api/records/weighbridge/verification?ids[]=… (baru: RecordVerificationStatusController/Service, routes/api.php, operator boleh, cakupan mill). PATCH verifikasi kini memakai prefix /api dan isNetworkError() memakai flag `network: true` dari apiClient. SyncFailureHint.vue ('Gagal sinkron: <alasan>' dari kolom lokal sync_error, ditulis/dikosongkan syncService) dipasang di item list (compact) dan di atas detail. Detail record_datetime lewat toDateTimeLocalInputValue (utils/localDate.ts). filter-row grid minmax(0,1fr) — tanpa geser horizontal di 390px. Uji: SyncFailureHint.spec.ts, syncService.sqljs.spec.ts (#6 pullVerificationStatus), recordVerification.spec.ts, e2e sync-and-verification.spec.ts (#10 Load Data Weighbridge tanpa overflow 390px; #2/#9/#6 pola yang sama di stasiun lain), backend MobileReadEndpointsTest.php."
   ],
   "deferred_items": [],
   "known_issues": [

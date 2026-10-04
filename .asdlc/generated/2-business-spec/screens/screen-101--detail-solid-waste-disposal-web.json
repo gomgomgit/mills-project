@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-101--detail-solid-waste-disposal-web",
   "name": "Detail Solid Waste Disposal (Web)",
@@ -20,7 +20,7 @@
     "Identitas Solid Waste Disposal: Solid Waste Disp. ID, Tanggal, Note",
     "Log Kejadian Solid Waste Disposal: tabel seluruh baris kejadian (Tanggal Kejadian, Shift, Weighbridge Ticket No, Vehicle No, Driver Name, Solid Waste Type, Source Station, Gross/Tare/Net Weight, Disposal/Utilization Site, Purpose/End Use, Gate Pass No, Security Seal No, Operator ID, Remarks, Findings)",
     "Verifikasi: Inputted By, Checked By, Acknowledged By (nama user, atau '-' jika belum diisi)",
-    "Status record (saved/synced)",
+    "Status record dengan label Bahasa Indonesia (Tersimpan / Tersinkron; Draft / Dijeda bila ada) — bukan nilai enum mentah saved/synced",
     "Tombol Back kembali ke Data Browser dan tombol Edit ke Form"
   ],
   "available_actions": [
@@ -47,14 +47,17 @@
     "Seluruh field ditampilkan read-only — tidak ada aksi edit langsung dari layar ini (koreksi data dilakukan lewat Form Solid Waste Disposal Web)",
     "Checked By DAN Acknowledged By keduanya ditampilkan apa adanya, tanpa pembatasan role untuk melihat, konsisten dengan Data Preview Solid Waste Disposal mobile",
     "Log Kejadian ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang",
-    "Field dikelompokkan sesuai struktur Form Solid Waste Disposal (Identitas, Log Kejadian, Verifikasi)"
+    "Field dikelompokkan sesuai struktur Form Solid Waste Disposal (Identitas, Log Kejadian, Verifikasi)",
+    "Tampilan berbahasa Indonesia (audit 2026-10-04): status record berlabel Indonesia (Draft / Dijeda / Tersimpan / Tersinkron), Tanggal header memakai nama bulan Indonesia dalam zona WIB (mis. '04 Okt 2026'; Tanggal Kejadian per baris tetap dd/mm/yyyy), Gross/Tare/Net Weight berformat id-ID (titik ribuan, koma desimal), nilai kosong tampil '-'",
+    "Verifikasi (Checked By / Acknowledged By) ikut terkunci oleh Tanggal Kejadian SETIAP baris Log Kejadian (audit 2026-10-04): bila ada baris yang tanggalnya jatuh di periode tertutup / belum dibuka / di luar periode open, verifikasi (setujui maupun batalkan) ditolak dengan pesan yang menyebut tanggal baris tersebut, walau tanggal header berada di periode open"
   ],
   "usecase_ids": [
     "usecase-065--detail-solid-waste-disposal-web"
   ],
   "edge_cases": [
     "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
-    "Checked By/Acknowledged By belum diisi — tampilkan '-'"
+    "Checked By/Acknowledged By belum diisi — tampilkan '-'",
+    "{id} di URL bukan UUID (mis. teks 'abc', angka, atau UUID terpotong) — sejak audit 2026-10-04 diperlakukan sama persis dengan record tidak ditemukan: pesan 'Record tidak ditemukan' + tombol Back, bukan halaman error"
   ],
   "test_priority": "medium",
   "open_questions": []

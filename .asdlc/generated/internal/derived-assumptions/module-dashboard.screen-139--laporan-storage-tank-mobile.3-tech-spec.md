@@ -23,3 +23,14 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (LaporanStorageTankView.vue, storageTankReportRepo.ts, StorageTankReportService.php).
+- api_contracts[0].endpoints[2].response.success_schema.coverage = + days_counted, period_running ← service summary() + repo type
+- test_scenarios[13].component_test.assert = coverage 1 desimal ('1,3%') ← LaporanStorageTankView.spec.ts diff
+- test_scenarios[18].component_test.assert = label 'Tertutup' ← view diff + spec
+- api_contracts[0].edge_case_handling[+2] = periode berjalan (fallback days_counted ?? days_in_period); expected 0 → '-' ← view computed
+- api_contracts[0].unit_test_cases[+1] = repo meneruskan days_counted/period_running, default 0/false ← storageTankReportRepo.spec.ts + repo default block
+- implementation_notes[+1] = ringkasan audit-fix ← diff
+- (unit_test_cases[19] dibiarkan: repo memang tetap meneruskan 1.25 apa adanya; pembulatan 1 desimal terjadi di view)

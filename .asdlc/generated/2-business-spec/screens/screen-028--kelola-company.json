@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-028--kelola-company",
   "name": "Kelola Company",
@@ -18,7 +18,8 @@
     "Daftar Company: kode, nama, nama Corporate induk, jumlah Business Unit terkait, tanggal dibuat",
     "Form tambah/edit — Identitas: dropdown pilih Corporate induk, kode Company, nama, nama singkat, nama pimpinan, nama pengacara/penasihat hukum, logo",
     "Form tambah/edit — Kontak: alamat, telepon, fax, kontak, extension, email, website, link peta",
-    "Form tambah/edit — Legal & Kepegawaian: nomor registrasi pajak, nomor asuransi, EPF employer, SOCSO employer, serikat pekerja"
+    "Form tambah/edit — Legal & Kepegawaian: nomor registrasi pajak, nomor asuransi, EPF employer, SOCSO employer, serikat pekerja",
+    "Pesan sukses setelah simpan/hapus berhasil ('Company berhasil ditambahkan/diperbarui/dihapus.')"
   ],
   "available_actions": [
     {
@@ -51,23 +52,25 @@
     }
   ],
   "business_rules": [
-    "Kode Company harus unik di seluruh sistem",
-    "Nama Company harus unik dalam satu Corporate (Company yang sama boleh dipakai di Corporate berbeda)",
+    "Kode Company harus unik di seluruh sistem — perbandingan tidak peka huruf besar/kecil",
+    "Nama Company harus unik dalam satu Corporate, tidak peka huruf besar/kecil (Company yang sama boleh dipakai di Corporate berbeda)",
     "Company tidak dapat dihapus jika masih memiliki satu atau lebih Business Unit terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Company",
     "Company harus terkait ke tepat satu Corporate yang sudah ada (dipilih via dropdown, bukan input bebas)",
-    "Field selain kode, nama, dan Corporate induk bersifat opsional"
+    "Field selain kode, nama, dan Corporate induk bersifat opsional",
+    "Logo harus benar-benar gambar JPG/PNG (diperiksa dari isi file, bukan dari nama/ekstensi), maksimal 2MB — diperiksa saat file dipilih dan diperiksa ulang saat Simpan",
+    "Setelah tambah/edit/hapus berhasil ditampilkan pesan sukses; pesan sukses/error sebelumnya dibersihkan saat Admin memulai aksi baru"
   ],
   "usecase_ids": [
     "usecase-028--kelola-company"
   ],
   "edge_cases": [
     "Percobaan menghapus Company yang masih memiliki Business Unit terkait — ditolak dengan pesan penjelasan",
-    "Percobaan menyimpan kode Company yang sudah dipakai Company lain — validasi gagal (berlaku global)",
+    "Percobaan menyimpan kode Company yang sudah dipakai Company lain, termasuk yang hanya berbeda huruf besar/kecil — validasi gagal (berlaku global)",
     "Percobaan menyimpan nama Company yang sudah dipakai di Corporate yang sama — validasi gagal (nama sama di Corporate berbeda tetap diizinkan)",
     "Belum ada Corporate sama sekali — form Tambah Company tidak dapat diisi, arahkan Admin untuk membuat Corporate dahulu",
     "Belum ada Company sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
-    "Upload logo dengan format/ukuran tidak didukung — validasi gagal"
+    "Upload logo dengan format/ukuran tidak didukung, atau file yang bukan gambar sungguhan walau bernama .png/.jpg — ditolak saat file dipilih (pesan di bawah kolom Logo, pratinjau tidak ditampilkan) dan ditolak lagi saat Simpan"
   ],
   "test_priority": "medium",
   "open_questions": []

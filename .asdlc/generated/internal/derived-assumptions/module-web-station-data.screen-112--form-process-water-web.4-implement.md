@@ -18,3 +18,11 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - test_results.browser = 7 lulus, 0 gagal, run_at 2026-10-03T00:00:00Z. Angka lulus/gagal/skip diambil dari e2e-full.log.counts.json (bukan dihitung ulang).
 - known_issue 'Browser (Playwright) spec ... could not be executed in this sandboxed environment' dihapus (satu-satunya known_issue).
 - e2e-web/tests/form-process-water.spec.ts ditambahkan ke test_files_generated (belum ada di daftar berkas mana pun).
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD FormProcessWater.php, ProcessWaterRecordService.php; untracked GuardsRecordIdShape.php, AppTime.php, tests).
+- files_generated += AppTime.php, EnforcesPeriodLock.php, ScopesToActorMill.php, ApiExceptionHandler.php ⚠ shared support files, dicantumkan karena perilaku create/update layar ini berubah lewatnya.
+- fe_files_generated += GuardsRecordIdShape.php ← use GuardsRecordIdShape di FormProcessWater.php.
+- fe_test_files_generated += RecordIdShapeGuardTest.php (FormProcessWater edit ada di dataset 18 stasiun), WebFormNoDisabledFieldTest.php (cek statis semua view form-*).
+- implementation_notes += REVISI audit-fix 2026-10-04 (view tidak berubah).

@@ -20,3 +20,12 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 
 Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 17/0 (run_at diperbarui); spec tidak diubah.
+
+## v7 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (cagesTrackRecordRepo.ts, FormCagesTrackView.vue, syncService.ts, millSettingRepo.ts, routes/api.php, tests baru di mobile/tests).
+- fe_files_generated += utils/localDate.ts, services/syncService.ts, services/millSettingRepo.ts ← diimpor repo (localDate) / jalur sinkron / getJumlahCages. (⚠ syncService tidak diimpor view langsung.)
+- fe_test_files_generated += localDate.sqljs.spec.ts, syncService.sqljs.spec.ts, millSettingRepo.sqljs.spec.ts, noteLabelConsistency.spec.ts, DialogTeleport.spec.ts ← menguji tippler_start_time lokal, payload/line/sync_error, SELECT mill_setting, label Catatan, teleport dialog. (⚠ DialogTeleport/millSettingRepo cakupan tidak langsung.)
+- known_issues -= "station_id belum diisi createDraft()" ← createDraft memakai resolveActiveStationId (commit 845009c, sebelum audit).
+- known_issues -= "GET /api/mill-settings/current BELUM diimplementasikan" ← routes/api.php:445 Route::get('/mill-settings/current').
+- implementation_notes += REVISI 2026-10-04 ← diff terkait.

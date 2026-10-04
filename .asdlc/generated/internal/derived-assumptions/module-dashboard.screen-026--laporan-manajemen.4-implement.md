@@ -15,3 +15,13 @@ Mencatat perbaikan kode/uji 2026-10-03.
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/ManagementReportTest.php` dihapus dari `fe_test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff: ManagementReportService.php, ManagementReport.php, management-report.blade.php, ManagementReportController.php, Support/SheetWriter.php, Support/Display.php).
+- files_generated += backend/app/Support/SheetWriter.php ← export() memakai SheetWriter::open()
+- fe_files_generated += backend/app/Support/Display.php ← blade memakai Display::number/date
+- test_files_generated += backend/tests/Feature/ExportXlsxTest.php ← tes 'ekspor Laporan Manajemen format=excel adalah xlsx sungguhan'
+- implementation_notes[3] = ekspor via SheetWriter (csv / xlsx sungguhan) ← fileMetaFor docblock + SheetWriter
+- implementation_notes += REVISI (2026-10-04, audit-fix): line wajib, split WB, rentang invalid, ekspor, tampilan Indonesia ← diff kode
+- test_results tidak diubah (tidak menjalankan tes per brief)

@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-049--data-browser-threshing-web",
   "name": "Data Browser Threshing (Web)",
@@ -20,12 +20,17 @@
     "backend/database/factories/ThreshingDetailFactory.php",
     "backend/database/factories/StationFactory.php",
     "backend/database/migrations/2026_08_23_000001_widen_station_type_enum.php",
-    "backend/app/Support/Concerns/ScopesToActorMill.php"
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php",
+    "backend/app/Support/Display.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/ThreshingRecordServiceTest.php",
     "backend/tests/Feature/Api/DataBrowserThreshingTest.php",
-    "backend/tests/Feature/Livewire/DataBrowserThreshingTest.php"
+    "backend/tests/Feature/Livewire/DataBrowserThreshingTest.php",
+    "backend/tests/Unit/Services/ExportDetailRowsTest.php",
+    "backend/tests/Pest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserThreshing.php",
@@ -43,15 +48,11 @@
     "Ran `php artisan migrate` and `php artisan db:seed --class=ThreshingOperationalTargetSeeder` against the actual dev database.sqlite as part of this implementation pass, so the seeded reference table exists for both the web Livewire components and any future manual QA against this dev DB, not only the test suite's RefreshDatabase-seeded rows",
     "REVISI v3 (tech-spec v3, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v3, `php artisan test` untuk berkas uji layar ini hijau.",
     "REVISI v4 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-threshing.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec yang sama juga diperbaiki dari race href ekspor (assertion kini menunggu href ekspor terbarui setelah filter diterapkan). Spec dijalankan penuh: 6/6 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser spec tidak dapat dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ThreshingRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan, sebelumnya CSV berlabel .xlsx; csv tetap CSV); nilai sel lewat App\\Support\\ExportValue — time slot 'HH:MM', status label Indonesia; data-browser-threshing.blade.php memakai Display::status() untuk badge. Uji: ThreshingRecordServiceTest export (assert 'PK' + xlsxRows), ExportDetailRowsTest, helper xlsxRows/exportBodyAsCsv di tests/Pest.php. Known_issue tile Threshing di Production Process Activity dihapus — resources/views/data/production-process-activity.blade.php kini menautkan data.threshing (sudah sejak sebelum audit ini). Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Production Process Activity (Web) (screen-035, out of this 6-screen task's scope) still only renders 3 active station tiles (Weighbridge/Grading/Cages Track) -- it has not been updated to add a Threshing tile linking to /data/threshing. This screen is reachable directly by URL/route but not yet from that entry-point grid. Needs a separate revision of screen-035 (shared across all 4 new-station agent runs, not owned by any single one).",
-      "severity": "major"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "2026-10-03T00:00:00Z",

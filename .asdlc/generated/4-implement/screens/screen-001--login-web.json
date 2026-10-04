@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-001--login-web",
   "name": "Login Web",
@@ -20,20 +20,32 @@
     "backend/database/factories/CorporateFactory.php",
     "backend/database/factories/CompanyFactory.php",
     "backend/database/factories/BusinessUnitFactory.php",
-    "backend/database/factories/UserFactory.php"
+    "backend/database/factories/UserFactory.php",
+    "backend/app/Http/Middleware/EnsureUserIsActive.php",
+    "backend/app/Providers/AppServiceProvider.php",
+    "backend/bootstrap/app.php",
+    "backend/app/Support/PasswordPolicy.php",
+    "backend/app/Support/RouteAccess.php",
+    "backend/app/Enums/UserRole.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/AuthServiceTest.php",
     "backend/tests/Feature/Api/LoginWebTest.php",
     "backend/tests/Feature/Livewire/LoginFormTest.php",
-    "e2e-web/tests/login-web.spec.ts"
+    "e2e-web/tests/login-web.spec.ts",
+    "backend/tests/Feature/WebAccessTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Auth/LoginForm.php",
     "backend/resources/views/livewire/auth/login-form.blade.php",
-    "backend/resources/views/auth/login.blade.php"
+    "backend/resources/views/auth/login.blade.php",
+    "backend/resources/views/operator/home.blade.php",
+    "backend/resources/views/errors/403.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "e2e-web/tests/audit-web-admin.spec.ts"
+  ],
   "implementation_notes": [
     "redirect_to per role: admin→/admin/dashboard, supervisor→/supervisor/dashboard, mill_management→/mill-management/dashboard, operator→/operator/dashboard, fallback /dashboard (AuthService::ROLE_REDIRECTS) — tidak didokumentasikan eksplisit di tech spec",
     "Business-area access = exact match terhadap User.business_unit_id (tidak ada tabel M2M akses di entity-catalog)",
@@ -43,7 +55,8 @@
     "AuthController dan LoginForm sama-sama memanggil AuthService::login() — ada seam komentar untuk cabang mobile/device_name di masa depan (usecase-002), belum diimplementasikan",
     "Fix round 1: POST /api/login awalnya di grup middleware 'api' stateless; ditambahkan middleware('web') eksplisit karena business_logic step 6 mengharuskan Laravel session dibuat unconditional (bukan SPA cross-origin call)",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/login-web.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 4 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): AuthService::ROLE_REDIRECTS kini admin/supervisor/mill_management → /dashboard dan operator → /beranda (menggantikan catatan redirect lama di atas); redirectFor() dibuat public. Operator boleh login web (akses terbatas): rute /beranda (operator.home, auth+role:operator, view operator/home.blade.php) dan '/' (redirect ke beranda peran / login) di routes/web.php di luar blok ASDLC. LoginForm::mount() mengalihkan user yang sudah login dan menampilkan flash 'auth_error'. Middleware baru EnsureUserIsActive (append ke grup web+api di bootstrap/app.php) mengeluarkan sesi akun nonaktif (redirect /login + pesan, JSON 401); AppServiceProvider menolak token Sanctum akun nonaktif. Validasi format password dipindah ke App\\Support\\PasswordPolicy (aturan & pesan sama). Sidebar layouts/app.blade.php difilter per peran lewat App\\Support\\RouteAccess; halaman errors/403.blade.php berbahasa Indonesia. Uji: backend/tests/Feature/WebAccessTest.php, e2e-web/tests/audit-web-admin.spec.ts (#1/#2/#4/#14)."
   ],
   "deferred_items": [],
   "known_issues": [

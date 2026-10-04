@@ -26,3 +26,13 @@ Penyeragaman checkbox verifikasi (keputusan user 2026-10-04).
 - implementation_notes: ditambah satu catatan REVISI 2026-10-04 — checkbox header Checked By/Acknowledged By kini hanya dirender untuk peran yang berhak (v-if="isSupervisor" / v-if="isMillManagement"), bukan tampil-disabled untuk semua peran.
 - Test vitest dan e2e form ini sudah disesuaikan (toBeDisabled → toHaveCount(0); tes baru untuk mill_management); run gabungan 4 form 60/60 e2e, 57/57 vitest lulus.
 - test_results sengaja tidak diubah (jumlah spec e2e tetap).
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff mobile/src/views/FormSterilizerView.vue, mobile/src/services/sterilizerRecordRepo.ts, backend/app/Services/SterilizerRecordService.php; tes baru/berubah).
+- files_generated (+) = backend/app/Services/SterilizerRecordService.php ← penegakan server checked_by_spv hanya Supervisor (upsertDetails) yang melengkapi aturan UI layar ini (⚠ inferensi: atribusi berkas backend bersama ke layar mobile)
+- test_files_generated (+) = backend/tests/Feature/AuditFix20261004Test.php ← test '[spv] ...' (non-Supervisor diabaikan, Supervisor bisa set saat create)
+- fe_files_generated (+) = mobile/src/utils/localDate.ts, mobile/src/services/millSettingRepo.ts, mobile/src/services/syncService.ts ← createDraft memakai todayLocalDateString; jalur write-through/sinkron (⚠ inferensi: berkas bersama)
+- fe_test_files_generated (+) = noteLabelConsistency, DialogTeleport, localDate.sqljs, writeThroughSync, millSettingRepo.sqljs, syncService.sqljs (*.spec.ts) ← cakupan generik lintas stasiun (⚠ inferensi); FormSterilizerView.spec.ts & e2e/form-sterilizer.spec.ts sudah terdaftar (isi berubah: test SPV per peran)
+- implementation_notes[3] = checked_by_spv kini role-gated (checkbox hanya Supervisor, peran lain span teks Ya/—) — sebelumnya "never role-gated" ← diff template
+- implementation_notes (append) = REVISI 2026-10-04 audit-fix (SPV hanya Supervisor UI+server, date lokal bersama, Catatan, write-through/sync_error/line, teleport, kosmetik header + Pause warning); test_results tidak diubah ← diff kode

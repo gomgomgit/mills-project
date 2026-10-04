@@ -95,3 +95,13 @@ dan keduanya menolak tanpa menulis apa pun.
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: bukan entity-catalog v20 (node ini sudah clean), melainkan re-track shared-decisions pada putaran yang sama; spec layar ini sudah ditulis setelah kunci periode diimplementasikan sehingga isinya tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v9 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (PeriodService.php, PeriodHasRecordsException.php, EnforcesPeriodLock.php, AuditFix20261004Test.php, tests/Feature/Api/KelolaPeriodePelaporanTest.php diff).
+- api_contracts[0].endpoints[5].description + error_codes (+409 PERIOD_HAS_RECORDS) ← delete().
+- api_contracts[0].business_logic[15] = alur delete dengan guardAgainstFramedRecords() ← kode.
+- api_contracts[0].business_logic[20] = cakupan kunci periode diperluas ← EnforcesPeriodLock.
+- api_contracts[0].data_operations[3] = + SELECT EXISTS record ← kode.
+- api_contracts[0].edge_case_handling (+1), unit_test_cases[47] + (3) = periode berisi record ditolak ← AuditFix20261004Test [period-delete] ⚠ ditulis sebagai kasus unit walau tesnya Feature.
+- implementation_notes (+) = REVISI audit-fix.

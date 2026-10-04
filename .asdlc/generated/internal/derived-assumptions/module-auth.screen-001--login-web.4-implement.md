@@ -26,3 +26,13 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/LoginWebTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v4 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD + berkas baru).
+- files_generated += EnsureUserIsActive.php, AppServiceProvider.php, bootstrap/app.php, Support/PasswordPolicy.php, Support/RouteAccess.php, Enums/UserRole.php ← dipakai alur login/redirect/sesi
+- test_files_generated += backend/tests/Feature/WebAccessTest.php
+- fe_files_generated += operator/home.blade.php, errors/403.blade.php, components/layouts/app.blade.php
+- fe_test_files_generated += e2e-web/tests/audit-web-admin.spec.ts
+- implementation_notes += REVISI 2026-10-04 (redirect Operator /beranda, '/' route, LoginForm::mount, EnsureUserIsActive, Sanctum inactive, PasswordPolicy, RouteAccess, 403)
+- test_results tidak diubah (tidak ada hitungan baru)

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-14"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-002--login-mobile",
   "name": "Login Mobile",
@@ -20,7 +20,7 @@
   "information_displayed": [
     "Logo & nama produk (Mills System)",
     "Form login: username/NIK, password",
-    "Pilihan Business Area/Company (predefined)",
+    "Tidak ada pemilih Business Area — Business Area diturunkan otomatis dari akun",
     "Link Lupa Password"
   ],
   "available_actions": [
@@ -44,7 +44,9 @@
   "business_rules": [
     "Password minimal 6 karakter, case-sensitive, kombinasi alfanumerik+simbol",
     "Login pertama kali memerlukan koneksi internet aktif; sesi berikutnya dapat berjalan offline berkat token tersimpan lokal",
-    "User harus memilih Business Area/Company yang sesuai dengan penugasannya"
+    "Business Area tidak dipilih — diturunkan otomatis dari business_unit_id akun (akun non-Admin tanpa Business Unit ditolak)",
+    "Setelah login online berhasil, aplikasi mengambil (best-effort) Mills Setting mill dan master Quality Parameter Grading dari server; kegagalan/offline tidak menggagalkan login",
+    "Token sesi milik akun yang dinonaktifkan Admin dicabut di server dan ditolak (401) pada request berikutnya"
   ],
   "usecase_ids": [
     "usecase-002--login-mobile"
@@ -53,7 +55,8 @@
     "Tidak ada koneksi internet saat login pertama kali (device belum pernah aktivasi)",
     "Kredensial salah",
     "Akun tidak aktif/dinonaktifkan",
-    "Token sesi lokal kadaluarsa saat offline dalam waktu lama"
+    "Token sesi lokal kadaluarsa saat offline dalam waktu lama",
+    "Akun dinonaktifkan Admin saat aplikasi mobile masih login — token dicabut; panggilan API berikutnya (mis. sinkronisasi) ditolak 401"
   ],
   "test_priority": "high",
   "open_questions": [

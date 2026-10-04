@@ -1,14 +1,16 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-119--form-clarification-web",
   "name": "Form Clarification (Web)",
   "module_id": "module-web-station-data",
   "status": "complete",
-  "files_generated": [],
+  "files_generated": [
+    "backend/app/Support/AppTime.php"
+  ],
   "test_files_generated": [
     "backend/tests/Feature/Api/FormClarificationTest.php",
     "e2e-web/tests/form-clarification.spec.ts"
@@ -16,10 +18,13 @@
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormClarification.php",
     "backend/resources/views/data/clarification-form.blade.php",
-    "backend/resources/views/livewire/data/form-clarification.blade.php"
+    "backend/resources/views/livewire/data/form-clarification.blade.php",
+    "backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php"
   ],
   "fe_test_files_generated": [
-    "backend/tests/Feature/Livewire/FormClarificationTest.php"
+    "backend/tests/Feature/Livewire/FormClarificationTest.php",
+    "backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php",
+    "backend/tests/Feature/Livewire/WebFormNoDisabledFieldTest.php"
   ],
   "implementation_notes": [
     "Reuses ClarificationRecordService::create()/update() (BE service shared with screen-099)",
@@ -32,7 +37,8 @@
     "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): ClarificationRecordService::create() memanggil assertPeriodOpenForWrite('clarification', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormClarification::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/ClarificationRecordServiceTest.php, tests/Feature/Api/FormClarificationTest.php, tests/Feature/Livewire/FormClarificationTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini).",
     "REVISI v3 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormClarificationTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 19 uji, semuanya hijau (test_results.integration diperbarui).",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-clarification.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 8 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): FormClarification memakai trait App\\Livewire\\Data\\Concerns\\GuardsRecordIdShape — {id} bukan UUID pada mode edit langsung 'Record tidak ditemukan.' tanpa query SQL. ClarificationRecordService (bersama screen-099) create/update memanggil EnforcesPeriodLock::assertEventDateNotTooFarAhead('date') (tanggal > besok WIB via App\\Support\\AppTime -> 422 errors.date, tampil inline lewat catch ValidationException yang sudah ada), dan upsertDetails() memperlakukan id baris bukan-UUID sebagai baris baru. production_line_id bukan-UUID -> 422 (ScopesToActorMill); QueryException 22P02/22007/22008 -> 422 di ApiExceptionHandler. View form tidak berubah. Tes yang menutup layar ini: RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php (cek statis). test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [],

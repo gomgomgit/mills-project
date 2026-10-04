@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-036--kelola-production-line",
   "name": "Kelola Production Line",
@@ -17,7 +17,8 @@
   "information_displayed": [
     "Tabel Production Line: Nama, Kode, Business Unit, Jumlah Station, tanggal dibuat",
     "Filter daftar berdasarkan Business Unit",
-    "Form tambah/edit: Business Unit (dropdown), Nama, Kode (opsional), Deskripsi (opsional)"
+    "Form tambah/edit: Business Unit (dropdown), Nama, Kode (opsional), Deskripsi (opsional)",
+    "Pesan sukses setelah simpan/hapus berhasil ('Production Line berhasil ditambahkan/diperbarui/dihapus.')"
   ],
   "available_actions": [
     {
@@ -43,7 +44,7 @@
     },
     {
       "action": "Hapus Production Line",
-      "description": "Menghapus Production Line, dengan konfirmasi inline; ditolak jika Production Line masih memiliki Station terkait",
+      "description": "Menghapus Production Line beserta station-station kosongnya sekaligus (dengan konfirmasi inline); ditolak bila station-nya masih memiliki record stasiun, Machinery Group, atau Machinery",
       "actor_ids": [
         "actor-admin"
       ]
@@ -59,18 +60,19 @@
   "business_rules": [
     "Business Unit wajib dipilih saat membuat Production Line",
     "Nama Production Line wajib diisi",
-    "Kode Production Line opsional, tapi harus unik secara global jika diisi",
+    "Kode Production Line opsional, tapi harus unik secara global jika diisi — perbandingan tidak peka huruf besar/kecil",
     "Saat Production Line baru dibuat, sistem otomatis membuat 18 station kanonis untuk Production Line tersebut, dalam satu transaksi dengan pembuatan Production Line-nya sendiri — semua 18 aktif (Weighbridge, Grading, Cages Track, Sterilizer, Threshing, Pressing, Depricarping, Kernel Plant, Clarification, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Process Water, Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control), 0 placeholder",
     "Mengubah (edit) Production Line TIDAK membuat ulang atau menghapus station yang sudah ada — provisioning station hanya terjadi sekali, saat pembuatan",
-    "Production Line tidak dapat dihapus selama masih memiliki Station terkait — Admin harus memindah/menghapus station-nya terlebih dahulu (di luar screen ini, lewat Kelola Station)",
-    "Hanya Admin yang dapat mengakses screen ini"
+    "Menghapus Production Line ikut menghapus seluruh station-nya dalam satu transaksi, selama station-station itu masih kosong. Penghapusan ditolak (tidak ada yang terhapus) bila ada record stasiun (lewat station line ini atau production_line_id record), Machinery Group, atau Machinery yang menempel; pesan penolakan merinci jumlahnya",
+    "Hanya Admin yang dapat mengakses screen ini",
+    "Setelah tambah/edit/hapus berhasil ditampilkan pesan sukses; pesan sukses/error sebelumnya dibersihkan saat Admin memulai aksi baru"
   ],
   "usecase_ids": [
     "usecase-036--kelola-production-line"
   ],
   "edge_cases": [
-    "Membuat Production Line dengan kode yang sudah dipakai Production Line lain → ditolak, error di bawah field Kode",
-    "Menghapus Production Line yang masih punya Station → ditolak dengan pesan inline, baris tetap ada di daftar",
+    "Membuat Production Line dengan kode yang sudah dipakai Production Line lain (termasuk yang hanya berbeda huruf besar/kecil) → ditolak, error di bawah field Kode",
+    "Menghapus Production Line yang baru dibuat (18 station kosong) → line dan ke-18 station-nya terhapus sekaligus; menghapus Production Line yang station-nya sudah punya record / Machinery Group / Machinery → ditolak dengan pesan inline yang merinci (mis. '... station-nya masih memiliki 5 record stasiun, 1 Machinery Group. Hapus atau pindahkan data tersebut terlebih dahulu.'), baris tetap ada di daftar",
     "Mengedit/menghapus Production Line yang sudah dihapus pengguna lain di antara form dibuka dan disimpan → pesan error ramah, tidak crash",
     "Belum ada Business Unit sama sekali → dropdown Business Unit kosong, form tidak bisa disimpan"
   ],

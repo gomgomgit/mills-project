@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-058--form-pressing-web",
   "name": "Form Pressing (Web)",
@@ -20,7 +20,7 @@
   "information_displayed": [
     "Production Line (dropdown) — hanya pada mode buat baru, menentukan station Pressing tujuan record (1 station Pressing aktif per production line)",
     "Presser ID",
-    "Tanggal — default hari ini, DAPAT diedit manual (berbeda dari mobile yang menguncinya)",
+    "Tanggal — default hari ini (WIB), DAPAT diedit manual (berbeda dari mobile yang menguncinya); tidak boleh melewati besok",
     "Note (input manual, opsional)",
     "Grid Pressing Detail: baris ditambahkan satu per satu (Tambah Baris), Time-Slot per baris dipilih dari dropdown (opsi = 24 slot kanonis 07:00-06:00 DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), kolom lain per baris: Digester Temp, Digester Level, Press Motor Current, Cone Hydraulic Pressure, Dilution Water Temp, Downtime Reason — semua kolom bacaan opsional, baris dapat dihapus",
     "Tabel Referensi Target Operasional: read-only, ditampilkan di bawah grid, bukan bagian dari payload simpan",
@@ -110,7 +110,7 @@
   "business_rules": [
     "Tidak ada konsep draft/pause/Clear di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
     "Field wajib ditandai asterisk merah dengan validasi inline",
-    "Tanggal default waktu saat ini saat form dibuka, TETAP DAPAT diedit manual oleh user",
+    "Tanggal default waktu saat ini (WIB, zona aplikasi) saat form dibuka, TETAP DAPAT diedit manual oleh user; tanggalnya tidak boleh melewati besok — bila lewat, Simpan ditolak dengan pesan inline di field Tanggal",
     "REVISI 2026-08-24 (menggantikan desain awal yang ditolak user): Grid Pressing Detail TIDAK di-pre-generate — baris ditambahkan satu per satu via 'Tambah Baris', dapat dihapus via 'Hapus', sama seperti mobile dan Threshing Detail Web/Cages Tipped Time Web",
     "Time-Slot tiap baris wajib lebih lambat (index kanonis lebih besar) dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
     "Setiap kolom bacaan pada baris opsional; minimal satu baris valid (Time-Slot terpilih + minimal satu kolom bacaan terisi) harus ada sebelum Simpan",
@@ -129,7 +129,9 @@
     "User memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tidak tersedia di dropdown",
     "Production Line terpilih belum memiliki station Pressing aktif (mode buat baru) — Simpan ditolak dengan pesan error",
     "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
-    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Weighbridge/Grading/Cages Track/Threshing Web)"
+    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Weighbridge/Grading/Cages Track/Threshing Web)",
+    "Tanggal diisi lebih dari besok (mis. salah ketik tahun) — Simpan ditolak dengan pesan inline 'Tanggal dd/mm/YYYY tidak masuk akal: tidak boleh melewati dd/mm/YYYY.'",
+    "Mode edit dibuka dengan id berformat bukan UUID — diperlakukan sama dengan record tidak ditemukan ('Record tidak ditemukan.'), tanpa error sistem"
   ],
   "test_priority": "high",
   "open_questions": []

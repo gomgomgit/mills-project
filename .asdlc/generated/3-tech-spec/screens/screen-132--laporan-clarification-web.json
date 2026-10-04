@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-132--laporan-clarification-web",
   "name": "Laporan Clarification (Web)",
@@ -28,7 +28,7 @@
     {
       "actor_id": "actor-station-operator",
       "can_access": false,
-      "conditions": "Operator tidak punya akses web. TIDAK ada perluasan Operator di sini — versi mobile (screen-138) belum dikerjakan"
+      "conditions": "Rute WEB /reports/clarification tetap tertutup bagi Operator (LaporanClarification::canAccess + middleware role) — sejak 2026-10-04 Operator boleh login web (akses terbatas) dan membuka rute ini mendapat halaman 403 (errors/403.blade.php). Rute API /api/clarification-reports/periods|summary|export MENERIMA Operator sejak 2026-09-25 (screen-138, guard auth:web,sanctum) dengan cakupan mill akunnya sendiri; /business-units/options tetap 403 bagi Operator"
     }
   ],
   "api_contracts": [
@@ -178,11 +178,13 @@
               "production_line": "{ id: uuid, name: string } | null — blok BARU (2026-09-28), ADITIF: seluruh kunci yang sudah ada tetap di tempatnya dan tetap datar. null ketika permintaan tidak membawa production_line_id.",
               "coverage": {
                 "filled_slots": "integer",
-                "expected_slots": "integer",
+                "expected_slots": "integer (= unit_count × days_counted × slots_per_unit_per_day)",
                 "coverage_percent": "float",
                 "unit_count": "integer",
                 "slots_per_unit_per_day": "integer",
-                "days_in_period": "integer"
+                "days_in_period": "integer",
+                "days_counted": "integer — hari yang dipakai penyebut: = days_in_period untuk periode selesai, start..hari ini (WIB) untuk periode berjalan, 0 untuk periode belum mulai (App\\Support\\ReportPeriodDays::counted)",
+                "period_running": "boolean — true bila end_date periode setelah hari ini (ReportPeriodDays::isRunning)"
               },
               "production": {
                 "total_ton": "float|null",
@@ -297,7 +299,7 @@
         {
           "method": "GET",
           "path": "/api/clarification-reports/export",
-          "description": "Ekspor seluruh pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot",
+          "description": "Ekspor seluruh pembacaan per slot waktu sepanjang periode ke CSV atau Excel (.xlsx sungguhan via App\\Support\\SheetWriter), satu baris per slot",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -335,7 +337,7 @@
           },
           "response": {
             "success_schema": {
-              "_note": "StreamedResponse; kolom konteks record (tanggal, unit clarification, status, catatan) diulang tiap baris, lalu keenam kolom pengukuran dan findings apa adanya"
+              "_note": "StreamedResponse; format=csv → text/csv; format=excel → .xlsx sungguhan (Office Open XML) ditulis App\\Support\\SheetWriter. EXPORT_HEADER 15 kolom: Periode, Mill, Production Line (konteks ekspor, diulang tiap baris) → Tanggal, Unit Clarification, Status (label Indonesia via ExportValue::status, mis. 'Tersinkron'), Catatan (konteks record, diulang tiap baris) → Slot Waktu (HH:MM via ExportValue::time) → keenam kolom pengukuran dan findings apa adanya"
             },
             "error_codes": [
               {
@@ -379,13 +381,13 @@
         "PENYEBUT TERPISAH PER METRIK. Keenam kolom pengukuran nullable dan sebuah baris dianggap terisi bila minimal satu kolom non-time_slot terisi. Setiap metrik dihitung HANYA dari baris yang kolom metrik ITU non-null, dengan reading_count-nya sendiri. Memakai jumlah baris terisi sebagai penyebut bersama akan mengempiskan metrik yang jarang diisi.",
         "DOWNTIME NOL BERBEDA DARI DOWNTIME TIDAK TERCATAT. downtime.total_mins = SUM atas baris yang downtime_mins non-null; downtime.reading_count = jumlah baris itu; downtime.hours_with_downtime = jumlah baris yang downtime_mins > 0. Bila reading_count = 0 -> total_mins = null, BUKAN 0. Nol berarti 'tidak pernah berhenti'; null berarti 'tidak diketahui'. Menyatukan keduanya akan melaporkan keandalan yang tidak pernah diukur.",
         "NULL BUKAN NOL untuk seluruh metrik: metrik yang tidak pernah terisi menghasilkan min/avg/max null dengan reading_count 0, independen per metrik.",
-        "KELENGKAPAN PENCATATAN: filled_slots = jumlah baris clarification_details yang minimal satu kolom non-time_slot-nya terisi; baris yang seluruh kolomnya null TIDAK dihitung. expected_slots = unit_count x days_in_period x slots_per_unit_per_day. Di layar ini kelengkapan lebih menentukan daripada di stasiun lain, karena produksi DITURUNKAN dari pembacaan yang ada — pencatatan yang bolong langsung menurunkan angka produksinya, bukan sekadar menurunkan keyakinan atasnya.",
+        "KELENGKAPAN PENCATATAN: filled_slots = jumlah baris clarification_details yang minimal satu kolom non-time_slot-nya terisi; baris yang seluruh kolomnya null TIDAK dihitung. expected_slots = unit_count x days_counted x slots_per_unit_per_day, dengan days_counted = App\\Support\\ReportPeriodDays::counted(period): PENYEBUT BERHENTI DI HARI INI (WIB) untuk periode yang masih berjalan, seluruh hari untuk periode selesai, 0 untuk periode belum mulai (temuan audit 2026-10-04 #3). coverage memuat days_in_period, days_counted, period_running. Layar: expected_slots 0 → persen '—' + 'belum ada slot yang diharapkan'; period_running → keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)' dan rumus '× days_counted hari (sampai hari ini)'. Di layar ini kelengkapan lebih menentukan daripada di stasiun lain, karena produksi DITURUNKAN dari pembacaan yang ada — pencatatan yang bolong langsung menurunkan angka produksinya, bukan sekadar menurunkan keyakinan atasnya.",
         "daily[] mengirim KETIGA suhu tangki pada satu baris per tanggal, sehingga layar dapat menggambarnya pada SATU grafik dengan sumbu yang sama. Yang dibaca adalah SELISIH antar tangki — itulah yang menunjukkan proses pemisahan berjalan. Tiga grafik terpisah memenuhi kalimat 'tren suhu antar tangki' secara harfiah sambil menghilangkan maksudnya.",
         "by_unit: GROUP BY clarification_id atas seluruh record periode. Unit yang punya record tetapi nol pembacaan terisi TETAP muncul dengan reading_count 0 dan seluruh nilai null — menghilangkannya akan menyembunyikan unit yang justru tidak pernah dicatat.",
         "TIDAK ADA penandaan nilai di luar batas di mana pun — tanpa kartu ambang, warna aman/bahaya, outlier, maupun IQR. Clarification tidak punya master target operasional (tidak ada ClarificationOperationalTarget; hanya Threshing/Pressing/Depricarping/Kernel Plant yang punya). Ketiadaannya WAJIB diasersi menurut nama, bukan sekadar tidak diimplementasikan — aturan 'jangan menandai' hanya bertahan kalau ada test yang menjaganya.",
         "time_slot bertipe TIME. Pengurutan dan pengelompokan memakai nilai TIME apa adanya; jangan mengonversinya menjadi integer dan jangan mengasumsikan slot jatuh tepat di awal jam.",
         "Seluruh agregasi dijalankan di PHP atas baris mentah, BUKAN SUM/AVG/GROUP BY di SQL. Test berjalan di SQLite dan produksi di PostgreSQL, dan justru aturan penyebut-terpisah serta null-bukan-nol yang paling mudah hilang di perbedaan itu.",
-        "export: authorizePeriod -> hitung baris clarification_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat chunk, satu baris per slot waktu, kolom konteks record diulang tiap baris. Penjagaan izin dilakukan EAGER sebelum generator mulai menghasilkan, agar 403/422 tidak tampak seperti respons kosong yang berhasil.",
+        "export: authorizePeriod -> hitung baris clarification_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat generator streamExportRows(recordQuery, exportContext) ke App\\Support\\SheetWriter::open(format) (csv atau xlsx sungguhan), satu baris per slot waktu: konteks ekspor [period.name, mill, nama production line] + konteks record (tanggal, unit, status berlabel Indonesia via ExportValue::status, catatan) diulang tiap baris, slot HH:MM (ExportValue::time), lalu kolom pengukuran apa adanya. Penjagaan izin dilakukan EAGER sebelum generator mulai menghasilkan, agar 403/422 tidak tampak seperti respons kosong yang berhasil.",
         "productionLineOptions(businessUnitId): SELECT production_lines WHERE business_unit_id = <mill yang berlaku> ORDER BY name. Berlaku untuk SEMUA peran — tidak seperti businessUnitOptions() yang khusus Admin — karena Production Line BUKAN ikatan akun (tidak ada `users.production_line_id`) melainkan KONTEKS YANG DIPILIH; satu mill di lapangan punya belasan line dengan jenis stasiun yang sama berulang.",
         "resolveProductionLine(businessUnitId, requested): null bila kosong, dan null pula bila line itu bukan milik mill yang berlaku — DIABAIKAN, bukan 403 (403 justru memastikan line itu ada). MEMILIH LINE WAJIB di layar laporan: null berarti 'jangan tampilkan angka apa pun', BUKAN 'tampilkan semua line', karena laporan menghasilkan ANGKA GABUNGAN dan total yang mencampur belasan line tidak dapat ditindaklanjuti siapa pun.",
         "summary(period, productionLineId): scopeToProductionLine() menambahkan WHERE clarification_records.production_line_id = ? pada kueri siklus/record — DI KOLOM TABEL RECORD, bukan join ke `stations`. Kolom itu di-snapshot dari stasiun saat record dibuat dan tidak pernah berubah, sehingga record yang stasiunnya kemudian dipindah tetap terhitung di line ASALNYA; menyaring lewat `stations` akan menulis ulang sejarah setiap kali sebuah stasiun dipindahkan.",
@@ -520,6 +522,14 @@
         {
           "condition": "Stasiun sebuah record sudah dipindah ke Production Line lain",
           "handling": "Record tetap terhitung di line ASALNYA, karena penyaringan memakai kolom record `clarification_records.production_line_id` (snapshot saat create), bukan `stations.production_line_id` yang menunjuk line stasiun itu SEKARANG."
+        },
+        {
+          "condition": "Periode masih berjalan (end_date setelah hari ini)",
+          "handling": "coverage.days_counted = hari start..hari ini (WIB), expected_slots memakai days_counted, period_running = true; layar menampilkan data-testid=\"period-running-note\" dan rumus '× N hari (sampai hari ini)'"
+        },
+        {
+          "condition": "expected_slots = 0 (belum ada unit tercatat atau periode belum mulai)",
+          "handling": "coverage-percent tampil '—' dan data-testid=\"coverage-no-expected\" 'belum ada slot yang diharapkan' menggantikan 'X dari Y slot' — bukan '0,0%'"
         }
       ],
       "business_rules_applied": [
@@ -607,9 +617,9 @@
           "expect": "kontribusi produksi baris itu === 10.0 ton (BUKAN 10 * 40/60 = 6.67) dan downtime.total_mins === 20; komentar test menyebut bahwa rumus tanpa pengurangan ini adalah keputusan yang masih menunggu konfirmasi pemilik proses (open_question pada spec layar)"
         },
         {
-          "description": "coverage.expected_slots = jumlah unit x hari periode x 24",
-          "given": "periode 3 hari (inklusif) pada mill dengan 2 unit clarification (clarification_id berbeda)",
-          "expect": "coverage.expected_slots === 144 (2 x 3 x 24)"
+          "description": "coverage.expected_slots = jumlah unit x days_counted x 24",
+          "given": "periode 3 hari (inklusif) yang sudah selesai pada mill dengan 2 unit clarification (clarification_id berbeda)",
+          "expect": "coverage.expected_slots === 144 (2 x 3 x 24); days_counted === days_in_period === 3; period_running === false"
         },
         {
           "description": "coverage.filled_slots hanya menghitung baris yang minimal satu kolom non-time_slot terisi",
@@ -754,7 +764,7 @@
         {
           "description": "ekspor menulis satu baris per slot waktu dengan kolom konteks record diulang",
           "given": "2 record (unit berbeda) masing-masing 3 clarification_details terisi pada periode",
-          "expect": "keluaran CSV memuat 6 baris data; setiap baris memuat kolom konteks record (tanggal, clarification_id/unit, status, catatan) yang diulang, plus time_slot dan keenam kolom metrik"
+          "expect": "keluaran memuat 6 baris data; setiap baris diawali Periode/Mill/Production Line lalu kolom konteks record (tanggal, clarification_id/unit, status berlabel Indonesia mis. 'Tersinkron', catatan) yang diulang, plus time_slot HH:MM dan kolom metrik — 15 kolom sesuai EXPORT_HEADER"
         },
         {
           "description": "ekspor berupa streaming, tidak memuat seluruh baris di memori",
@@ -815,6 +825,16 @@
           "description": "tanpa Production Line terpilih tidak ada berkas yang diunduh sama sekali",
           "given": "export('csv') dipanggil pada komponen LaporanClarification saat productionLineId = ''",
           "expect": "tidak ada StreamedResponse yang dihasilkan — jalur ekspor berhenti sebelum menyentuh service"
+        },
+        {
+          "description": "ekspor membawa Periode/Mill/Production Line di tiap baris, judul Indonesia, tanpa enum mentah, slot HH:MM",
+          "given": "GET /api/clarification-reports/export?format=csv dengan satu record ber-detail time_slot 07:00:00",
+          "expect": "header diawali ['Periode','Mill','Production Line']; tiap baris data memuat nama periode, mill, line; tidak ada sel 'synced' dsb.; slot '07:00', tidak pernah HH:MM:SS"
+        },
+        {
+          "description": "format=excel menghasilkan xlsx sungguhan",
+          "given": "GET /api/clarification-reports/export?format=excel",
+          "expect": "badan respons diawali 'PK' (zip OOXML) dan baris pertamanya judul kolom; format=csv tetap CSV biasa"
         }
       ]
     }
@@ -886,7 +906,8 @@
     "Properti Livewire `public string $productionLineId` memakai #[Url(as: 'production_line_id')] — alias itu WAJIB: tanpa `as:` Livewire memakai NAMA PROPERTI (`productionLineId`) pada query string, sedangkan screen-140 menyisipkan `production_line_id` pada setiap report_path. Pasangan nama itulah yang membuat rantai tile → laporan bertemu.",
     "@selected pada <option> Production Line WAJIB dirender di server: Livewire 3 tidak menulis balik nilai <select> dari state komponen pada paint pertama, sehingga pengguna yang tiba lewat tautan tile akan melihat 'Pilih Production Line' padahal angkanya sudah milik line itu.",
     "Tombol Ekspor dirender hanya ketika $summary !== null, dan $summary hanya terisi ketika ada line yang berlaku — jadi 'tidak ada line' otomatis berarti 'tidak ada tombol Ekspor', tanpa kondisi kedua yang bisa ikut kedaluwarsa.",
-    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan."
+    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) penyebut kelengkapan memakai App\\Support\\ReportPeriodDays::counted() — coverage menambah days_counted & period_running; layar menampilkan keterangan periode berjalan, rumus '× days_counted hari (sampai hari ini)', dan '—' + 'belum ada slot yang diharapkan' bila expected_slots 0; (2) ekspor lewat App\\Support\\SheetWriter (Excel = .xlsx sungguhan) dengan 3 kolom konteks Periode/Mill/Production Line di depan EXPORT_HEADER (kini 15 kolom), status via App\\Support\\ExportValue::status, slot HH:MM; (3) grafik suhu antar tangki memakai App\\Support\\ChartAxis::nice() — label sumbu bulat berjarak sama dengan desimal mengikuti langkah, area plot digeser ke x=72; petunjuk gulir .md-scrollhint--lc hanya bila kartu < 660px (container query); (4) tren produksi + rekap per unit ditumpuk satu kolom (.md-row, bukan .md-row--2) agar tabel 8 kolom tidak terpotong; tren harian .md-trendchart--days + scroll-hint bila > 10 tanggal; hero menyebut nama Production Line. Diuji di ReportAuditFix20261004Test dan ExportXlsxTest. Drift lama juga dikoreksi: Operator diterima di API laporan sejak 2026-09-25 (test_scenarios[13] diselaraskan)."
   ],
   "test_scenarios": [
     {
@@ -1392,10 +1413,10 @@
             "path": "/api/clarification-reports/periods"
           },
           "request_example": {
-            "_context": "Sesi Station Operator"
+            "_context": "Sesi Station Operator — API laporan dibuka untuk Operator sejak 2026-09-25 (screen-138); 200 dengan periode mill akunnya sendiri"
           },
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
+          "expected_status": 200,
+          "expected_error_code": null
         },
         {
           "step": 3,
@@ -1407,8 +1428,8 @@
             "_context": "Sesi Station Operator dengan period_id valid milik mill-nya",
             "period_id": 1
           },
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
+          "expected_status": 200,
+          "expected_error_code": null
         },
         {
           "step": 4,
@@ -1420,8 +1441,8 @@
             "_context": "Sesi Station Operator",
             "period_id": 1
           },
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
+          "expected_status": 200,
+          "expected_error_code": null
         },
         {
           "step": 5,
@@ -1430,11 +1451,11 @@
             "path": "/api/clarification-reports/summary"
           },
           "request_example": {
-            "_context": "Guard peran WAJIB berjalan sebelum findOrFail: Operator dengan period_id yang tidak ada harus menerima 403 FORBIDDEN, BUKAN 404 NOT_FOUND",
+            "_context": "Operator kini diterima di rute ini, jadi period_id yang tidak ada dijawab 404 NOT_FOUND oleh authorizePeriod (findOrFail)",
             "period_id": 999999
           },
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
+          "expected_status": 404,
+          "expected_error_code": "NOT_FOUND"
         },
         {
           "step": 6,
@@ -1458,7 +1479,7 @@
       "browser_test": {
         "route": "/reports/clarification",
         "action": "Login sebagai Station Operator lalu buka /reports/clarification",
-        "assert": "Halaman menampilkan penolakan akses (status 403); tidak ada satu pun angka laporan atau menu Laporan Stasiun Clarification yang dapat diakses"
+        "assert": "Operator kini boleh login web (keputusan 2026-10-04, mendarat di /beranda); membuka /reports/clarification menghasilkan halaman 403 (errors/403.blade.php); tidak ada satu pun angka laporan Clarification yang terlihat"
       }
     },
     {

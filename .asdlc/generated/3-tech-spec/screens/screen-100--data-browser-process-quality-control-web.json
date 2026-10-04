@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-100--data-browser-process-quality-control-web",
   "name": "Data Browser Process Quality Control (Web)",
@@ -165,7 +165,7 @@
           "response": {
             "success_schema": {
               "content_type": "text/csv atau application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-              "note": "Response body adalah file stream/binary, bukan JSON"
+              "note": "Response body adalah file stream/binary, bukan JSON. format=csv → text/csv; format=excel → file .xlsx SUNGGUHAN (Office Open XML, zip berawalan 'PK' berisi xl/worksheets/sheet1.xml) ditulis App\\Support\\SheetWriter — bukan lagi byte CSV bernama .xlsx"
             },
             "error_codes": [
               {
@@ -195,9 +195,11 @@
         "6. Paginate hasil sesuai shared-decisions.pagination (page/per_page)",
         "7. filled_slot_count per record dihitung via withCount() dengan constraint OR across 14 kolom non-time_slot (fruit_press_oil_loss_in_sludge_percent, fruit_press_oil_loss_in_fibre_percent, purifier_clarification_balance_inlet_temp_c, purifier_clarification_balance_backpressure_bar, vacuum_drying_station_drier_temp_c, vacuum_drying_station_vacuum_pressure_bar, decanter_centrifuge_feed_rate_mth, decanter_centrifuge_oil_loss_in_cake_percent, final_storage_ffa_percent, final_storage_moisture_content_percent, final_storage_impurities_dirt_percent, final_storage_dobi_index, qc_engineering_corrective_actions, findings) NOT NULL — shift dan qc_inspector_id TIDAK ikut dihitung (kolom identitas baris) -- bisa jadi SAMA DENGAN total baris pada record (jika semua baris yang ditambahkan sudah terisi) atau lebih kecil (jika ada baris ditambahkan tapi belum diisi kolom apapun)",
         "8. Return list + pagination metadata",
-        "9. On export: re-run query filter yang sama tanpa pagination, generate file CSV/Excel -> if dataset terlalu besar/error: return 422 EXPORT_FAILED",
+        "9. On export: re-run query filter yang sama tanpa pagination, tulis berkas lewat App\\Support\\SheetWriter::open($format) (csv -> CSV ke php://output; excel -> .xlsx sungguhan, header tebal, sel angka sebagai angka, string angka berawalan nol tetap teks) -> if dataset terlalu besar/error: return 422 EXPORT_FAILED",
         "10. Ekspor memakai buildFilteredQuery() yang sama sehingga filter Production Line ikut ke berkas; `Production Line` adalah kolom PERTAMA header CSV dan nilainya diulang pada setiap baris detail (satu baris per detail, konteks record diulang)",
-        "11. Return file stream untuk didownload user"
+        "11. Return file stream untuk didownload user",
+        "12. Format nilai berkas ekspor (audit 2026-10-04 #8, App\\Support\\ExportValue): Time Slot lewat ExportValue::time() -> 'HH:MM' (tanpa detik); Status = label Indonesia lewat ExportValue::status() (Tersimpan, Tersinkron, …); sel kosong tetap kosong (null), angka tanpa pemisah ribuan. Judul kolom tidak berubah",
+        "13. Tampilan tabel Livewire (bukan API): kolom Status dirender lewat App\\Support\\Display::status() (Draft/Dijeda/Tersimpan/Tersinkron; kelas CSS badge tetap memakai nilai enum asli); nilai API JSON `status` tetap enum mentah"
       ],
       "data_operations": [
         {
@@ -316,6 +318,11 @@
           "description": "includes production_line_name on every list row, resolved from the record's own productionLine relation",
           "given": "listRecords() is called on a record whose production_line_id points at LINE-ALPHA",
           "expect": "the row contains production_line_name = 'LINE-ALPHA', loaded via with('productionLine:id,name') on the record query"
+        },
+        {
+          "description": "export format=excel returns a real xlsx file with Indonesian status labels and HH:MM time slots",
+          "given": "matching records with detail rows; export() called with format=excel",
+          "expect": "body starts with 'PK' and its sheet rows are readable (xlsxRows); time slot cells read 'HH:MM', status cells carry the Indonesian label (e.g. 'Tersimpan')"
         }
       ]
     }
@@ -338,7 +345,8 @@
     "Stasiun ini TIDAK memiliki tabel referensi Target Operasional -- tidak ada seeder/model ProcessQualityControlOperationalTarget. Ini adalah stasiun dengan jumlah kolom bacaan terbanyak di seluruh proyek (16 kolom non-time_slot), namun tanpa kolom enum/status apapun.",
     "Filter + kolom Production Line (2026-09-28/29): properti Livewire `production_line_id` (default '' = Semua Line), direset oleh updatedBusinessUnitId(), dipaksa sehat di render() lewat forcedProductionLineFilterValue(), dan opsinya dari productionLineOptionsForReadActor(). Ketiganya LAPISAN TAMPILAN — penegakan sesungguhnya ada di ScopesToActorMill::scopeFiltersToActorMill() di dalam service, jadi melewatkan lapisan tampilan pun tidak membocorkan apa pun.",
     "`production_line_id` masuk ke `$request->only([...])` pada index() DAN export() controller API, sehingga filter yang aktif di layar benar-benar ikut ke berkas.",
-    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan."
+    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ekspor Excel kini .xlsx sungguhan via App\\Support\\SheetWriter (tanpa dependensi baru); nilai sel lewat App\\Support\\ExportValue (status berlabel Indonesia, time slot 'HH:MM'); tabel Data Browser memakai App\\Support\\Display::status(). Kontrak list/export JSON tidak berubah."
   ],
   "test_scenarios": [
     {

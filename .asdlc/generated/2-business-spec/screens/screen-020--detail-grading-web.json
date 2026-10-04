@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-020--detail-grading-web",
   "name": "Detail Grading (Web)",
@@ -23,7 +23,7 @@
     "Data Grading: Netto (kg), Quantity (bunch), Note",
     "Grid Grading Detail: Quality Parameter, Qty, UOM, Percentage per baris",
     "Verifikasi: Acknowledged By (nama user, atau '-' jika belum diisi)",
-    "Status record (saved/synced)",
+    "Status record dengan label Bahasa Indonesia (Tersimpan / Tersinkron; Draft / Dijeda bila ada) — bukan nilai enum mentah saved/synced",
     "Tombol Back kembali ke Data Browser Grading"
   ],
   "available_actions": [
@@ -41,14 +41,16 @@
     "Seluruh field ditampilkan read-only — tidak ada aksi edit dari layar ini (koreksi data dilakukan lewat Form Grading Web)",
     "Checked By TIDAK ditampilkan pada layar ini, konsisten dengan Data Preview Grading mobile (screen-014)",
     "Grid Grading Detail ditampilkan lengkap dengan nama Quality Parameter yang di-resolve (bukan raw grading_parameter_id)",
-    "Field dikelompokkan sesuai struktur Form Grading (Identitas, Kendaraan, Asal Muatan, Data Grading, Grid Detail)"
+    "Field dikelompokkan sesuai struktur Form Grading (Identitas, Kendaraan, Asal Muatan, Data Grading, Grid Detail)",
+    "Tampilan berbahasa Indonesia (audit 2026-10-04): status record berlabel Indonesia (Draft / Dijeda / Tersimpan / Tersinkron), Tanggal memakai nama bulan Indonesia dalam zona WIB (mis. '04 Okt 2026'), Netto, Quantity serta Qty dan Percentage grid berformat id-ID (titik ribuan, koma desimal, jumlah desimal apa adanya), nilai kosong tampil '-'"
   ],
   "usecase_ids": [
     "usecase-020--detail-grading-web"
   ],
   "edge_cases": [
     "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
-    "Acknowledged By belum diisi — tampilkan '-'"
+    "Acknowledged By belum diisi — tampilkan '-'",
+    "{id} di URL bukan UUID (mis. teks 'abc', angka, atau UUID terpotong) — sejak audit 2026-10-04 diperlakukan sama persis dengan record tidak ditemukan: pesan 'Record tidak ditemukan' + tombol Back, bukan halaman error"
   ],
   "test_priority": "medium",
   "open_questions": []

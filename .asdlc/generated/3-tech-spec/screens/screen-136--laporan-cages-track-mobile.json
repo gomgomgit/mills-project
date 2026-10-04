@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-136--laporan-cages-track-mobile",
   "name": "Laporan Cages & Tracks (Mobile)",
@@ -243,7 +243,7 @@
         {
           "method": "GET",
           "path": "/api/cages-track-reports/export",
-          "description": "Ekspor seluruh rincian penumpahan per jam sepanjang periode ke CSV, satu baris per jam penumpahan dengan kolom konteks record diulang — DIPAKAI ULANG apa adanya oleh screen-136 (mobile); tidak ada endpoint mobile terpisah",
+          "description": "Ekspor seluruh rincian penumpahan per jam sepanjang periode ke CSV (atau .xlsx sungguhan untuk format=excel, via App\\Support\\SheetWriter), satu baris per jam penumpahan dengan kolom konteks Periode/Mill/Production Line dan kolom konteks record diulang — DIPAKAI ULANG apa adanya oleh screen-136 (mobile, yang meminta CSV); tidak ada endpoint mobile terpisah",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -281,7 +281,7 @@
           },
           "response": {
             "success_schema": {
-              "_note": "StreamedResponse berisi berkas; header Content-Disposition attachment. Kolom: Tanggal, Nomor Cages Track, Tippler Mulai, Tippler Berhenti, Jam, Nomor Lori Diperiksa, Lori Ditumpahkan, Lori Tersisa, Lori Keluar (record), Status, Catatan"
+              "_note": "StreamedResponse berisi berkas; header Content-Disposition attachment. Kolom: Periode, Mill, Production Line, Tanggal, Nomor Cages Track, Tippler Mulai, Tippler Berhenti, Jam (HH:MM, mis. 06:00), Nomor Lori Diperiksa, Lori Ditumpahkan, Lori Tersisa, Lori Keluar (record), Status (label Indonesia), Catatan"
             },
             "error_codes": [
               {
@@ -469,6 +469,10 @@
         {
           "condition": "Stasiun sebuah record sudah dipindah ke Production Line lain",
           "handling": "Record tetap terhitung di line ASALNYA: server menyaring pada kolom record `cages_track_records.production_line_id` (snapshot saat create), bukan pada `stations`."
+        },
+        {
+          "condition": "Tidak ada satu pun hari ber-record pada periode/line (kpi.days_with_records = 0)",
+          "handling": "Server tetap mengirim avg_cages_per_day = 0, tetapi view TIDAK merendernya sebagai '0 lori/hari': [data-testid=\"kpi-avg-cages-per-day\"] berisi 'tidak tersedia' (NOT_AVAILABLE), [data-testid=\"kpi-avg-per-day-empty\"] berbunyi 'Belum ada hari ber-record untuk dijadikan pembagi.', dan [data-testid=\"days-with-records\"] tidak dirender — sama dengan laporan web (temuan audit 2026-10-04 #9)."
         }
       ],
       "business_rules_applied": [
@@ -730,7 +734,8 @@
     "Kunci ingatan `msl_production_line_{userId}` adalah KUNCI YANG SAMA yang ditulis StationListView.vue dan dibaca ReportingPilihStasiunView.vue (screen-141). Line adalah satu konteks kerja yang dibagi antar layar, bukan tiga pilihan terpisah. Setiap pembacaannya dibungkus try/catch (mode privat bisa melempar).",
     "Bentuk respons options-for-report sengaja {id, name, code} — identik dengan /production-lines/current — supaya mobile cukup punya satu pemeta dan sebuah layar bisa berpindah sumber tanpa mengubah cara membaca barisnya.",
     "Uji yang menyentuh production line WAJIB window.localStorage.clear() di beforeEach: ingatan line bocor antar-uji jauh lebih halus daripada ingatan sesi.",
-    "Cakupan uji Production Line yang nyata untuk layar ini: 13 uji komponen (mobile/tests/LaporanCagesTrackView.spec.ts), 7 uji repo (mobile/tests/cagesTrackReportRepo.spec.ts), dan 7 uji browser (mobile/tests/e2e/laporan-*.spec.ts, dijalankan terhadap Vite dev server)."
+    "Cakupan uji Production Line yang nyata untuk layar ini: 13 uji komponen (mobile/tests/LaporanCagesTrackView.spec.ts), 7 uji repo (mobile/tests/cagesTrackReportRepo.spec.ts), dan 7 uji browser (mobile/tests/e2e/laporan-*.spec.ts, dijalankan terhadap Vite dev server).",
+    "REVISI (2026-10-04, audit-fix): label status periode 'closed' di view = 'Tertutup' (sebelumnya 'Ditutup'), sama dengan web; days_with_records = 0 → rata-rata per hari 'tidak tersedia' + kpi-avg-per-day-empty; CSV dari endpoint bersama kini diawali Periode/Mill/Production Line dengan jam HH:MM dan status berlabel Indonesia."
   ],
   "test_scenarios": [
     {

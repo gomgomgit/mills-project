@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-25"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-139--laporan-storage-tank-mobile",
   "name": "Laporan Storage Tank (Mobile)",
@@ -23,7 +23,7 @@
     "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Storage Tank, yaitu periode berjenis Storage Tank maupun periode yang berlaku untuk semua jenis stasiun",
     "Pemilih Mill — hanya bagi Admin, yang tidak terikat satu mill",
     "Nama mill yang sedang berlaku, sebagai keterangan bagi pengguna yang terikat satu mill",
-    "Rentang tanggal dan status periode yang sedang dilihat",
+    "Rentang tanggal dan status periode yang sedang dilihat — label status sama dengan web (periode tertutup berlabel 'Tertutup')",
     "Stok awal seluruh tangki pada periode itu dalam berat (MT), beserta tanggal pembacaan pertamanya",
     "Stok akhir seluruh tangki dalam berat (MT), beserta tanggal pembacaan terakhirnya",
     "Pergerakan bersih sepanjang periode — selisih stok akhir terhadap stok awal, yang dapat bernilai negatif",
@@ -36,7 +36,7 @@
     "Volume (m3) dan kedalaman sounding sebagai metrik tersendiri, terpisah dari angka stok yang memakai berat",
     "Tren harian mutu minyak — FFA, kadar air, dan DOBI pada satu grafik, dengan skala yang dinormalkan atau memakai sumbu kedua karena rentang ketiganya tidak sebanding, dan cara penskalaan itu dinyatakan pada grafik",
     "Tren harian stok total seluruh tangki",
-    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan",
+    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan, persen 1 desimal seperti laporan web; untuk periode yang masih berjalan rumusnya memakai hari yang sudah lewat ('× N hari (sampai hari ini)') disertai keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)'; bila belum ada slot yang diharapkan persen tampil '-' dengan keterangan 'belum ada slot yang diharapkan'",
     "Rekap harian yang dapat dibuka dan ditutup, karena pada periode sebulan daftarnya panjang di layar ponsel",
     "Keterangan ketika periode tidak memuat data sama sekali",
     "Keterangan ketika mill belum punya satu pun periode yang mencakup Storage Tank",
@@ -112,7 +112,8 @@
     "Layar ini membutuhkan jaringan. Kegagalan memuat harus dinyatakan dengan jelas beserta tombol mencoba lagi, dan periode yang sudah dipilih tidak boleh hilang — tidak boleh layar kosong tanpa penjelasan, dan tidak boleh diam.",
     "Sesi yang sudah tidak berlaku mengarahkan pengguna ke layar Login, sama seperti layar mobile lain.",
     "Tata letak ponsel: satu kolom, sasaran sentuh minimal 44 piksel, dan halaman tidak pernah menggulir mendatar. Grafik dan tabel yang lebih lebar dari layar — terutama rekap per tangki — menggulir di dalam kartunya sendiri, bukan menggeser seluruh halaman.",
-    "Rekap harian dapat ditutup dan dibuka kembali agar angka utama dan grafik tetap terbaca pada layar ponsel."
+    "Rekap harian dapat ditutup dan dibuka kembali agar angka utama dan grafik tetap terbaca pada layar ponsel.",
+    "KELENGKAPAN UNTUK PERIODE BERJALAN (audit 2026-10-04): penyebut slot yang diharapkan dihitung server sampai hari ini (WIB) untuk periode yang masih berjalan; periode belum mulai → penyebut 0 → persen '-', bukan '0,0%'. Persen ditampilkan 1 desimal, sama dengan web."
   ],
   "usecase_ids": [
     "usecase-139--laporan-storage-tank-mobile"
@@ -134,7 +135,9 @@
     "Sesi berakhir saat layar terbuka — pengguna diarahkan ke Login, sama seperti layar mobile lain.",
     "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar layar tetap terbaca di ponsel.",
     "Rekap per tangki punya banyak kolom sehingga lebih lebar daripada layar ponsel — tabel menggulir mendatar di dalam kartunya sendiri, tanpa membuat seluruh halaman ikut bergeser.",
-    "Nilai DOBI berada pada rentang yang jauh berbeda dari FFA dan kadar air — grafik gabungan menormalkan skalanya atau memakai sumbu kedua dan menyatakannya, sehingga garis yang terlihat berdempetan tidak dibaca sebagai nilai yang berdekatan."
+    "Nilai DOBI berada pada rentang yang jauh berbeda dari FFA dan kadar air — grafik gabungan menormalkan skalanya atau memakai sumbu kedua dan menyatakannya, sehingga garis yang terlihat berdempetan tidak dibaca sebagai nilai yang berdekatan.",
+    "Periode masih berjalan — kelengkapan dihitung sampai hari ini dan keterangan 'sampai hari ini' ditampilkan.",
+    "Periode belum mulai atau belum ada tangki tercatat (penyebut 0) — persen kelengkapan '-' dan 'belum ada slot yang diharapkan', bukan '0,0%'."
   ],
   "test_priority": "high",
   "open_questions": [

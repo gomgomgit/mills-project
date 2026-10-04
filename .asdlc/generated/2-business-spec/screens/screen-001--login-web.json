@@ -1,38 +1,41 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-14"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-001--login-web",
   "name": "Login Web",
   "module_id": "module-auth",
-  "description": "Halaman masuk untuk pengguna web (Admin, Supervisor, Mill Management) menggunakan kredensial (username/NIK + password) dan pemilihan Business Area/Company, lalu diarahkan ke dashboard sesuai role masing-masing.",
+  "description": "Halaman masuk web menggunakan kredensial (username/NIK + password). Business Area diturunkan otomatis dari akun (tidak dipilih). Admin/Supervisor/Mill Management diarahkan ke /dashboard; Operator (akses web terbatas, keputusan produk 2026-10-04) diarahkan ke Beranda Operator /beranda. Layar ini juga mencakup perilaku masuk/pengalihan web: '/' dan '/login' saat sudah login mengalihkan ke beranda peran.",
   "actors": [
     "actor-admin",
     "actor-supervisor",
-    "actor-mill-management"
+    "actor-mill-management",
+    "actor-station-operator"
   ],
   "entry_points": [
-    "Mengakses URL aplikasi web saat belum login",
+    "Mengakses URL aplikasi web ('/') saat belum login — '/' dialihkan ke /login",
     "Redirect otomatis setelah sesi login berakhir/expired",
-    "Redirect setelah logout"
+    "Redirect setelah logout",
+    "Dikeluarkan otomatis karena akun dinonaktifkan Admin saat sesi masih berjalan — dialihkan ke /login dengan pesan 'Akun Anda telah dinonaktifkan, hubungi Admin.'"
   ],
   "information_displayed": [
     "Logo aplikasi & nama produk",
     "Form login: username/NIK, password",
-    "Pilihan Business Area/Company",
+    "Pesan 'Akun Anda telah dinonaktifkan, hubungi Admin.' bila sesi sebelumnya diakhiri karena akun dinonaktifkan (tidak ada pemilih Business Area — diturunkan dari akun)",
     "Link Lupa Password",
     "Pesan error jika kredensial salah"
   ],
   "available_actions": [
     {
       "action": "Submit login form",
-      "description": "Memvalidasi kredensial dan business area, lalu mengarahkan user ke dashboard sesuai role",
+      "description": "Memvalidasi kredensial (business area diturunkan dari akun), lalu mengarahkan user ke beranda perannya: /dashboard (Admin/Supervisor/Mill Management) atau /beranda (Operator)",
       "actor_ids": [
         "actor-admin",
         "actor-supervisor",
-        "actor-mill-management"
+        "actor-mill-management",
+        "actor-station-operator"
       ]
     },
     {
@@ -47,8 +50,11 @@
   ],
   "business_rules": [
     "Password minimal 6 karakter, case-sensitive, kombinasi alfanumerik+simbol",
-    "User harus memilih Business Area/Company yang sesuai dengan aksesnya",
-    "Redirect setelah login mengikuti role masing-masing (Admin/Supervisor/Mill Management)"
+    "Business Area tidak dipilih di form — diturunkan otomatis dari business_unit_id akun; Admin boleh tanpa Business Unit; akun non-Admin tanpa Business Unit ditolak (BUSINESS_AREA_MISMATCH)",
+    "Redirect setelah login mengikuti role: Admin/Supervisor/Mill Management → /dashboard; Operator → /beranda (Beranda Operator)",
+    "Operator boleh login web dengan akses TERBATAS (keputusan produk 2026-10-04): Beranda Operator (/beranda, pesan akses terbatas) dan Ganti Password saja; menu sidebar hanya menampilkan rute yang diizinkan guard peran (RouteAccess); rute lain menampilkan halaman 403 berbahasa Indonesia di dalam shell dengan tombol 'Kembali ke Beranda' dan Logout",
+    "User yang sudah login dan membuka '/' atau '/login' langsung dialihkan ke beranda perannya (form login tidak ditampilkan lagi); tamu yang membuka '/' dialihkan ke /login",
+    "Sesi web (dan token mobile) milik akun yang dinonaktifkan diakhiri pada request berikutnya — tidak hanya diperiksa saat login"
   ],
   "usecase_ids": [
     "usecase-001--login-web"
@@ -57,7 +63,10 @@
     "Kredensial salah (username/NIK atau password tidak cocok)",
     "Akun tidak aktif/dinonaktifkan Admin",
     "Business Area tidak sesuai dengan akses user",
-    "Sesi login ganda (user sudah login di device/browser lain)"
+    "Sesi login ganda (user sudah login di device/browser lain)",
+    "Akun dinonaktifkan Admin saat sesi web masih berjalan — request berikutnya mengeluarkan user ke /login dengan pesan; request JSON dijawab 401",
+    "User yang sudah login membuka /login atau '/' — dialihkan ke beranda peran",
+    "Operator membuka rute web di luar aksesnya (mis. /dashboard) — halaman 403 Indonesia dengan jalan keluar (Beranda/Logout)"
   ],
   "test_priority": "high",
   "open_questions": [

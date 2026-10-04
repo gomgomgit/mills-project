@@ -17,3 +17,12 @@ Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 4/0 (sebelumnya kosong).
 - known_issue 'spec tidak dapat dijalankan di sandbox' dihapus — kini dijalankan nyata.
 - Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): 'Back dari Mode Detail' — cek negatif not.toHaveURL dengan glob '**/…' (digabung ke baseURL, tak pernah cocok) diganti RegExp.
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile + backend).
+- files_generated += RecordVerificationStatusController.php, RecordVerificationStatusService.php, routes/api.php ← endpoint GET verifikasi baru dipakai layar ini.
+- test_files_generated += backend/tests/Feature/Api/MobileReadEndpointsTest.php ← menguji endpoint GET verifikasi.
+- fe_files_generated += SyncFailureHint.vue, recordVerificationApi.ts, apiClient.ts, utils/localDate.ts ← diimpor/dipakai DataPreviewKernelPlantView.vue. ⚠ recordVerificationApi.ts/apiClient.ts sudah dipakai sebelumnya tapi tidak terdaftar — ditambahkan karena berubah di audit ini.
+- fe_test_files_generated += SyncFailureHint.spec.ts, syncService.sqljs.spec.ts, recordVerification.spec.ts, e2e/sync-and-verification.spec.ts. ⚠ e2e sync-and-verification tidak menguji stasiun ini secara langsung (pola #2/#9/#6 diuji di stasiun lain, komponen bersama).
+- implementation_notes += REVISI 2026-10-04 (pull verifikasi, /api prefix, network flag, SyncFailureHint, Tanggal FormField datetime-local → date (toDateInputValue), filter-row minmax).

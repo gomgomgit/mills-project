@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-17"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-002--login-mobile",
   "name": "Login Mobile",
@@ -37,7 +37,7 @@
             "body_schema": {
               "username": "string",
               "password": "string",
-              "business_unit_id": "string",
+              "business_unit_id": "string, optional — tidak dikirim aplikasi mobile; bila dikirim harus sama persis dengan user.business_unit_id",
               "device_name": "string"
             }
           },
@@ -89,9 +89,11 @@
         "2. Validate format password → if invalid: return 422 VALIDATION_ERROR",
         "3. Lookup user by username → if not found/password mismatch: return 401 INVALID_CREDENTIALS",
         "4. Check user.is_active → if false: return 403 ACCOUNT_INACTIVE",
-        "5. Check business_unit_id cocok dengan penugasan user → if mismatch: return 403 BUSINESS_AREA_MISMATCH",
+        "5. Resolusi business area: bila business_unit_id tidak dikirim → pakai user.business_unit_id (non-Admin tanpa BU → 403 BUSINESS_AREA_MISMATCH); bila dikirim dan tidak cocok → 403 BUSINESS_AREA_MISMATCH",
         "6. Buat Sanctum personal access token (nama = device_name)",
-        "7. Return 200 dengan user info + token"
+        "7. Return 200 dengan user info + token",
+        "8. Client (stores/auth.ts login()): setelah token tersimpan, best-effort fetchAndCacheMillSetting() lalu fetchAndCacheGradingParameters() (GET /api/grading-parameters, services/gradingParameterSync.ts) — masing-masing dibungkus try/catch, gagal/offline tidak menggagalkan login",
+        "9. Token Sanctum akun is_active=false ditolak (AppServiceProvider Sanctum::authenticateAccessTokensUsing → 401) dan seluruh token dicabut saat akun dinonaktifkan (UserService::setStatus)"
       ],
       "data_operations": [
         {
@@ -124,6 +126,10 @@
         {
           "condition": "Format password tidak valid",
           "handling": "Return 422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Akun dinonaktifkan saat aplikasi mobile masih login",
+          "handling": "Token dicabut server-side (UserService::setStatus) dan token akun nonaktif ditolak 401 pada request berikutnya"
         }
       ],
       "business_rules_applied": [
@@ -171,7 +177,8 @@
     "Token Sanctum disimpan lokal di device (secure storage) untuk mendukung sesi offline berikutnya, sesuai shared-decisions.auth.session_strategy",
     "Verifikasi token lokal saat offline sepenuhnya di sisi client, tidak ada panggilan API — durasi validitas token offline belum ditentukan (open question di business spec)",
     "Deteksi 'tidak ada koneksi saat login pertama kali' dilakukan client-side (device belum pernah punya token tersimpan) — submit diblokir sebelum memanggil API",
-    "Lupa Password membutuhkan koneksi internet, di luar scope tech spec ini (belum ada usecase terpisah)"
+    "Lupa Password membutuhkan koneksi internet, di luar scope tech spec ini (belum ada usecase terpisah)",
+    "Master Quality Parameter Grading diambil saat login (best-effort) agar Form Grading di perangkat baru tidak memakai id parameter buatan lokal (default-grading-parameter-N) yang ditolak server"
   ],
   "test_scenarios": [
     {

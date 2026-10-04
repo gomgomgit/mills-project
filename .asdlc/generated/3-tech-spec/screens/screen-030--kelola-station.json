@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-030--kelola-station",
   "name": "Kelola Station",
@@ -39,7 +39,7 @@
         {
           "method": "GET",
           "path": "/api/stations",
-          "description": "List Station dengan Business Unit induk dan jumlah Machinery Group terkait, dipaginasi, opsional filter per Business Unit",
+          "description": "List Station dengan Business Unit, Production Line, dan jumlah Machinery Group terkait, dipaginasi (urut nama Production Line lalu nama station), opsional filter per Business Unit. Filter per Production Line hanya tersedia di Livewire (StationService::listStations() parameter ke-4), tidak diekspos query param API",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -75,10 +75,12 @@
                   "id": "uuid",
                   "code": "string",
                   "name": "string",
-                  "type": "string",
+                  "type": "string (kode station_types)",
                   "is_active": "boolean",
                   "business_unit_id": "uuid",
                   "business_unit_name": "string",
+                  "production_line_id": "uuid",
+                  "production_line_name": "string",
                   "machinery_group_count": "integer",
                   "created_at": "timestamp"
                 }
@@ -145,11 +147,12 @@
             "query_params": [],
             "body_schema": {
               "business_unit_id": "uuid, required, harus Business Unit yang ada",
-              "code": "string, optional, unik jika diisi",
+              "production_line_id": "uuid, required, harus Production Line yang ada dan milik business_unit_id yang sama",
+              "code": "string, optional, unik jika diisi (tidak peka huruf besar/kecil)",
               "name": "string, required",
               "description": "string, optional",
-              "type": "enum(weighbridge, grading, cages-track, other), required",
-              "is_active": "boolean, required, hanya true jika type in (weighbridge, grading, cages-track)"
+              "type": "string, required, harus ada di station_types.code; satu station per tipe per production_line_id kecuali 'other'",
+              "is_active": "boolean, required, tidak boleh true bila type=other"
             }
           },
           "response": {
@@ -169,7 +172,7 @@
               {
                 "http_code": 422,
                 "error_code": "VALIDATION_ERROR",
-                "condition": "name kosong, code sudah dipakai, business_unit_id tidak valid, atau is_active=true untuk type=other"
+                "condition": "name kosong, code sudah dipakai (case-insensitive), business_unit_id/production_line_id tidak valid atau line bukan milik BU, type tidak ada di station_types, type sudah dimiliki station lain di Production Line yang sama (kecuali other), atau is_active=true untuk type=other"
               },
               {
                 "http_code": 403,
@@ -199,11 +202,12 @@
             "query_params": [],
             "body_schema": {
               "business_unit_id": "uuid, required, harus Business Unit yang ada",
-              "code": "string, optional, unik jika diisi (kecuali dirinya sendiri)",
+              "production_line_id": "uuid, required, harus Production Line yang ada dan milik business_unit_id yang sama",
+              "code": "string, optional, unik jika diisi kecuali dirinya sendiri (tidak peka huruf besar/kecil)",
               "name": "string, required",
               "description": "string, optional",
-              "type": "enum(weighbridge, grading, cages-track, other), required",
-              "is_active": "boolean, required, hanya true jika type in (weighbridge, grading, cages-track)"
+              "type": "string, required, harus ada di station_types.code; aturan satu-tipe-per-line hanya diperiksa bila production_line_id atau type berubah",
+              "is_active": "boolean, required, tidak boleh true bila type=other"
             }
           },
           "response": {
@@ -223,7 +227,7 @@
               {
                 "http_code": 422,
                 "error_code": "VALIDATION_ERROR",
-                "condition": "name kosong, code sudah dipakai, business_unit_id tidak valid, atau is_active=true untuk type=other"
+                "condition": "name kosong, code sudah dipakai (case-insensitive), business_unit_id/production_line_id tidak valid atau line bukan milik BU, type tidak ada di station_types, type bentrok dengan station lain di line yang sama (bila line/tipe berubah), atau is_active=true untuk type=other"
               },
               {
                 "http_code": 404,
@@ -287,10 +291,10 @@
         }
       ],
       "business_logic": [
-        "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by business_unit_id, eager-load BusinessUnit untuk business_unit_name, hitung machinery_group_count via COUNT machinery_group WHERE station_id",
+        "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by business_unit_id (dan production_line_id dari Livewire), eager-load businessUnit + productionLine, withCount machineryGroups, ORDER BY (SELECT name FROM production_lines) lalu name — tiap line punya set station yang sama sehingga tanpa urutan/kolom line daftar tampak berulang",
         "2. GET /api/business-units/options: SELECT id, name dari seluruh Business Unit, urut nama, untuk dropdown form (tanpa pagination)",
-        "3. POST create: validate business_unit_id ada → validate name required → validate code unik jika diisi → validate is_active hanya true untuk type weighbridge/grading/cages-track → if invalid: return 422 VALIDATION_ERROR → insert Station baru",
-        "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate business_unit_id ada → validate name required → validate code unik jika diisi (exclude self) → validate is_active sesuai type → if invalid: return 422 VALIDATION_ERROR → update Station",
+        "3. POST create: validate business_unit_id & production_line_id ada → validate name required → validate type exists di station_types → validate code unik case-insensitive jika diisi → after(): is_active tidak boleh true untuk type other; production_line milik business_unit yang sama; duplicateTypeMessage(): line belum punya station bertipe sama (kecuali other) → if invalid: return 422 VALIDATION_ERROR → insert Station",
+        "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validasi sama seperti create (code exclude self); duplicateTypeMessage() dilewati bila production_line_id DAN type station tidak berubah (data lama yang sudah duplikat tetap bisa diedit) → if invalid: return 422 VALIDATION_ERROR → update Station",
         "5. DELETE: validate id exists → if not: return 404 NOT_FOUND → count MachineryGroup WHERE station_id=id + count Machinery WHERE station_id=id → if either > 0: return 409 STATION_HAS_MACHINERY → else delete Station"
       ],
       "data_operations": [
@@ -333,7 +337,7 @@
       "edge_case_handling": [
         {
           "condition": "Kode Station sudah dipakai Station lain",
-          "handling": "Return 422 VALIDATION_ERROR dengan errors.code"
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.code (termasuk kode yang hanya berbeda huruf besar/kecil)"
         },
         {
           "condition": "Station masih memiliki Machinery Group/Machinery terkait saat dihapus",
@@ -354,14 +358,27 @@
         {
           "condition": "business_unit_id tidak valid/tidak ditemukan",
           "handling": "Return 422 VALIDATION_ERROR dengan errors.business_unit_id"
+        },
+        {
+          "condition": "Production Line sudah punya station bertipe sama (selain other) saat create, atau saat update yang mengubah line/tipe",
+          "handling": "Return 422 VALIDATION_ERROR errors.type: 'Production Line ini sudah memiliki station bertipe {label}. Satu Production Line hanya boleh memiliki satu station per tipe (kecuali Other).' — dicek di aplikasi (bukan indeks unik DB) karena data lama berisi duplikat"
+        },
+        {
+          "condition": "Edit station dengan tipe yang sudah dinonaktifkan di master",
+          "handling": "typeOptions($includeCode) tetap menyertakan tipe station yang sedang diedit sehingga dropdown Type tidak kosong"
+        },
+        {
+          "condition": "Filter BU/Production Line (Livewire) tidak mencocokkan apa pun",
+          "handling": "Empty state 'Tidak ada Station yang cocok dengan filter' (isFiltered), berbeda dari 'Belum ada Station'; mengganti filter BU mereset filter Production Line dan page=1"
         }
       ],
       "business_rules_applied": [
-        "Kode Station harus unik jika diisi",
-        "Status aktif hanya diperbolehkan untuk tipe Weighbridge, Grading, atau Cages Track",
+        "Kode Station harus unik jika diisi (tidak peka huruf besar/kecil)",
+        "Tipe harus ada di master station_types; is_active=true dilarang untuk tipe Other",
         "Station tidak dapat dihapus jika masih memiliki satu atau lebih Machinery Group atau Machinery terkait",
         "Hanya Admin yang dapat mengakses dan mengelola data Station",
-        "Station harus terkait ke tepat satu Business Unit yang sudah ada"
+        "Station harus terkait ke tepat satu Business Unit yang sudah ada",
+        "Satu station per tipe per Production Line (kecuali Other)"
       ],
       "unit_test_cases": [
         {
@@ -410,8 +427,8 @@
           "expect": "throw ValidationException with errors.is_active; http 422 VALIDATION_ERROR"
         },
         {
-          "description": "allows is_active=true for type in (weighbridge, grading, cages-track)",
-          "given": "input type='weighbridge', is_active=true",
+          "description": "allows is_active=true for any non-other type from station_types",
+          "given": "input type='weighbridge' (atau tipe aktif lain dari station_types), is_active=true",
           "expect": "Station is created/updated successfully, no VALIDATION_ERROR"
         },
         {
@@ -438,6 +455,21 @@
           "description": "returns 403 FORBIDDEN for create/update/delete when authenticated user is not Admin",
           "given": "authenticated user role != admin",
           "expect": "return 403 FORBIDDEN, no mutation performed"
+        },
+        {
+          "description": "rejects a second station of the same type on the same production line, but allows it on another line and for type other",
+          "given": "line L sudah punya station bertipe weighbridge",
+          "expect": "create weighbridge di L → 422 errors.type; di line lain atau type=other → berhasil"
+        },
+        {
+          "description": "an existing duplicate station can still be renamed (rule only applies when line/type changes)",
+          "given": "dua station weighbridge lama di line yang sama; update hanya nama",
+          "expect": "update berhasil"
+        },
+        {
+          "description": "type options list every active station_types entry (not 4) with master labels",
+          "given": "station_types berisi 18 tipe aktif",
+          "expect": "typeOptions() mengembalikan seluruhnya urut sort_order dengan label nama master (mis. 'CPO Dispatch')"
         }
       ]
     }
@@ -471,7 +503,8 @@
     "machinery_group_count dihitung via withCount('machineryGroups'), business_unit_name via eager-load with('businessUnit')",
     "Station TIDAK punya field logo (tidak ada di ERD maupun entity-catalog untuk Station)",
     "Field `type` (enum weighbridge/grading/cages-track/other) DIPERTAHANKAN dari entity-catalog v1-v3 meski tidak ada di ERD literal — krusial bagi mobile app (screen-006/007-009) yang sudah diimplementasikan dan bergantung padanya. Form Kelola Station merender ini sebagai dropdown, bukan field baru.",
-    "409 STATION_HAS_MACHINERY memeriksa DUA entity anak (machinery-group DAN machinery langsung) karena keduanya punya FK station_id langsung per entity-catalog v4"
+    "409 STATION_HAS_MACHINERY memeriksa DUA entity anak (machinery-group DAN machinery langsung) karena keduanya punya FK station_id langsung per entity-catalog v4",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): spec ver 1 tertinggal dari skema — Station kini wajib production_line_id (milik BU yang sama) dan type divalidasi terhadap master station_types (bukan enum 4 nilai). Temuan audit #7: KelolaStation memakai StationService::typeOptions() (seluruh tipe aktif, urut sort_order, menyertakan tipe station yang sedang diedit) dan typeLabels() (label master, menggantikan ucfirst(slug)); aturan satu station per tipe per line (kecuali Other) di StationService::duplicateTypeMessage(), dipakai service (API) dan Livewire. Temuan #10: list menampilkan kolom Production Line, diurutkan per line, filter Production Line (Livewire saja) bergantung filter BU. #11: code UniqueCaseInsensitive. #12: successMessage. #15: empty state khusus saat terfilter. Combobox BU → Production Line di form memakai x-searchable-select yang diperbaiki untuk opsi bergantung (wire:ignore pada listbox, opsi via data-ss-options, aset dimuat sekali oleh layout)."
   ],
   "test_scenarios": [
     {

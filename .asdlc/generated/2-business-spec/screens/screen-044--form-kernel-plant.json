@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-05"
   },
-  "ver": 2,
+  "ver": 3,
   "id": "screen-044--form-kernel-plant",
   "name": "Form Kernel Plant",
   "module_id": "module-mobile-station-ops",
@@ -19,7 +19,7 @@
   ],
   "information_displayed": [
     "Identitas Kernel Plant: Kernel Plant ID (wajib, dapat diedit bebas), Tanggal (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual)",
-    "Verifikasi: Inputted By (read-only, nama user pembuat), Checked By (toggle 'Saya verifikasi data ini', khusus Supervisor), Acknowledged By (toggle 'Saya menyetujui data ini', khusus Mill Management), Note (opsional)",
+    "Verifikasi: Inputted By (read-only, nama user pembuat), Checked By (toggle 'Saya verifikasi data ini', khusus Supervisor), Acknowledged By (toggle 'Saya menyetujui data ini', khusus Mill Management), Catatan (label 'Catatan', opsional)",
     "Kernel Plant Detail: grid baris time-slot yang ditambahkan satu per satu oleh user (Tambah baris), dengan kolom per baris: Time-Slot (dropdown, opsi = 24 slot kanonis jam 07:00-06:00 keesokan hari DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), Ripple Mill 1 (Amps), Ripple Mill 2 (Amps), Claybath/Hydro SG, Kernel Silo 1 Temp (°C), Kernel Silo 2 Temp (°C), Kernel Moisture (%), Shell Loss (%), Downtime (Mins), dan Findings — seluruh 9 kolom bacaan opsional per baris, baris dapat dihapus (Hapus baris)",
     "Target Operasional: tabel referensi read-only 6 baris x 3 kolom (Equipment / Parameter, Target Benchmark, Corrective Action Plan), bukan bagian dari data yang disimpan",
     "Header 'Mill Smart Log' + breadcrumb (Home > Production Process Activity > Kernel Plant > Form) + ikon hamburger menu"
@@ -105,8 +105,8 @@
     }
   ],
   "business_rules": [
-    "Kernel Plant ID wajib diisi sebelum Simpan; Note/Checked By/Acknowledged By tidak wajib",
-    "Tanggal otomatis terisi sekali saat draft baru dibuat (mengikuti pola Arrival Weighbridge), tidak dapat diedit manual sama sekali",
+    "Kernel Plant ID wajib diisi sebelum Simpan; Catatan/Checked By/Acknowledged By tidak wajib",
+    "Tanggal otomatis terisi sekali saat draft baru dibuat (mengikuti pola Arrival Weighbridge) dengan tanggal LOKAL perangkat (bukan tanggal UTC — draft yang dibuat 00:00–06:59 WIB tetap bertanggal hari ini), tidak dapat diedit manual sama sekali",
     "Grid Kernel Plant Detail TIDAK di-pre-generate — baris ditambahkan satu per satu oleh user via 'Tambah baris' (revisi 2026-08-24 dari desain awal grid statis 24 baris, mengikuti pola persis Depricarping Detail/Pressing Detail/Threshing Detail/Cages Tipped Time/Cages Track Record)",
     "Time-Slot tiap baris wajib lebih lambat (index kanonis lebih besar) dari Time-Slot baris yang terakhir ditambahkan pada record yang sama, dan tidak boleh duplikat dengan baris manapun (urutan menaik kronologis, maksimal 24 baris karena hanya ada 24 slot kanonis)",
     "Setiap kolom bacaan pada baris Kernel Plant Detail bersifat opsional — baris yang sebagian terisi tetap valid",

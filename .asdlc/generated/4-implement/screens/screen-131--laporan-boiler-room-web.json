@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-131--laporan-boiler-room-web",
   "name": "Laporan Boiler Room (Web)",
@@ -37,7 +37,11 @@
     "backend/routes/api.php",
     "backend/routes/web.php",
     "backend/app/Services/StationReportService.php",
-    "backend/app/Services/BoilerRoomRecordService.php"
+    "backend/app/Services/BoilerRoomRecordService.php",
+    "backend/app/Support/ReportPeriodDays.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php",
+    "backend/app/Support/Display.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Dashboard/LaporanBoilerRoom.php",
@@ -49,7 +53,9 @@
   "test_files_generated": [
     "backend/tests/Unit/Services/BoilerRoomReportServiceTest.php",
     "backend/tests/Feature/Api/LaporanBoilerRoomTest.php",
-    "e2e-web/tests/laporan-boiler-room.spec.ts"
+    "e2e-web/tests/laporan-boiler-room.spec.ts",
+    "backend/tests/Feature/ReportAuditFix20261004Test.php",
+    "backend/tests/Feature/ExportXlsxTest.php"
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/LaporanBoilerRoomTest.php"
@@ -69,7 +75,8 @@
     "CSS: .md-card > .md-recap beserta pasangan 767px-nya dan .md-kpi__value { white-space: normal } ditambahkan ke breakpoint 767px yang SUDAH ADA, hanya di blok <style> kedua. .md-trendchart dan .md-trendchart__col TIDAK disentuh (tetap height 176px + grid auto/1fr/auto) dan komentar penjelasnya utuh. Diverifikasi tidak ada halaman lain yang menyarangkan .md-recap sebagai anak langsung .md-card — sterilizer dan cages-track menaruhnya di dalam <details> — sehingga selector baru ini tidak dapat meregresi keduanya.",
     "Browser test lolos 21/22 pada eksekusi PERTAMA dengan penyemaian berhasil sekali jalan. afterAll deletePeriodsByPrefix(['BoilerRoom ']) terkonfirmasi di keluaran ('6 periode dihapus', nol residu). support/periods.ts tidak dilebarkan; createPeriod/selectSearchable disalin lokal mengikuti konvensi yang sudah ada.",
     "SPEC BROWSER DIPERBAIKI 2026-10-02 — MERAH SELAMA EMPAT HARI TANPA ADA YANG TAHU. e2e-web/tests/laporan-boiler-room.spec.ts terakhir disentuh 2026-09-27 (commit 83a4065), sementara kewajiban memilih Production Line mendarat 2026-09-28 (commit a5ccfba). Sejak itu SETIAP test laporannya berhenti di empty state `select-production-line-hint` dan tidak pernah sampai ke badan laporan: 18 dari 22 test gagal dengan satu sebab yang sama. Perbaikannya helper selectProductionLine() dipanggil sebelum tiap selectPeriod() — urutan mill -> line -> periode, karena komponen memanggil keepProductionLineValid() yang mengosongkan pilihan line begitu ia tidak ada di daftar line mill yang sedang dipilih. Satu test lain (perburuan 'mill belum punya periode') juga butuh line dipilih per kandidat mill: empty state layar ini adalah rantai if/elseif dan cabang line berada DI DEPAN cabang periode-kosong, jadi perburuan tanpa line akan gagal pada SETIAP mill tanpa memandang periodenya. Hasil sesudah perbaikan: 21 lolos, 1 skip (skip itu sudah ada sebelumnya, kasus fixture akun-tanpa-mill). Pelajaran prosesnya: aturan lintas-layar yang mendarat tanpa menyentuh spec browser layar-layar lama tidak menghasilkan kegagalan yang terlihat — ia menghasilkan suite browser yang diam-diam berhenti punya nilai.",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-boiler-room.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 21 lulus, 0 gagal, 1 skip (test.skip 'akun tanpa mill' yang sudah tercatat di known_issues); test_results.browser diperbarui."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-boiler-room.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 21 lulus, 0 gagal, 1 skip (test.skip 'akun tanpa mill' yang sudah tercatat di known_issues); test_results.browser diperbarui.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): BoilerRoomReportService — expected_slots = unit × ReportPeriodDays::counted() × slot (coverage + days_counted, period_running); ekspor lewat SheetWriter::open($format) (Excel kini .xlsx sungguhan) dengan EXPORT_HEADER diawali Periode/Mill/Production Line, streamExportRows(recordQuery, exportContext), status via ExportValue::status, slot via ExportValue::time (HH:MM), blowdown/sootblowing 'y'/'n' → 'Ya'/'Tidak'. laporan-boiler-room.blade.php — nama line di hero, period-running-note, coverage '—' + coverage-no-expected bila expected_slots 0, rumus '× days_counted hari (sampai hari ini)', .md-trendchart--days + scroll-hint (> 10 tanggal). report-styles.blade.php — aturan tambahan audit (#4 ikon .md-threshold, #5 angka KPI, #7 petunjuk gulir, judul tabel boleh membungkus). Uji: ReportAuditFix20261004Test (#3 Boiler Room 100% sampai hari ini, #8 ekspor, #9 '—', #10 hero line) + ExportXlsxTest; BoilerRoomReportServiceTest diselaraskan dengan indeks kolom baru. Known issue 'format=excel menyajikan badan CSV' dihapus karena sudah diperbaiki. test_results tidak diubah (belum ada run baru tercatat)."
   ],
   "deferred_items": [
     {
@@ -96,10 +103,6 @@
     },
     {
       "description": "Skenario browser 11 (query-string lintas mill) inert secara konstruksi karena LaporanBoilerRoom tidak mendeklarasikan property #[Url], sehingga lolos secara trivial. Penjaga lintas mill yang sesungguhnya diuji di lapisan Api (403 atas period_id mill lain) dan Livewire. Keterbatasan yang sama dengan laporan-cages-track.spec.ts.",
-      "severity": "low"
-    },
-    {
-      "description": "format=excel menyajikan badan CSV di bawah mimetype xlsx — konsisten dengan seluruh ekspor lain di repo ini, karena tidak ada penulis XLSX terpasang.",
       "severity": "low"
     },
     {

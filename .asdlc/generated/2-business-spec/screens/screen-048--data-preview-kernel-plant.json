@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-05"
   },
-  "ver": 2,
+  "ver": 3,
   "id": "screen-048--data-preview-kernel-plant",
   "name": "Data Preview Kernel Plant",
   "module_id": "module-mobile-station-ops",
@@ -20,7 +20,9 @@
     "Mode List: filter Tanggal (default hari ini) dan Cari (Kernel Plant ID), daftar seluruh record Kernel Plant milik user dengan badge status (Pause untuk draft_ongoing/draft_paused, Tersimpan untuk saved, Tersinkron untuk synced)",
     "Mode Detail: header lengkap (Kernel Plant ID, Tanggal, Inputted By, Checked By, Acknowledged By, Catatan) read-only, grid Kernel Plant Detail read-only (seluruh 9 kolom bacaan) — menampilkan persis sebanyak baris yang tersimpan pada record tersebut (bisa kurang dari 24, sesuai berapa baris yang ditambahkan user saat input via 'Tambah baris'), tabel referensi Target Operasional read-only 6 baris x 3 kolom",
     "Badge status pada mode detail membedakan Sedang Berlangsung (draft_ongoing) vs Dijeda (draft_paused) secara visual, berbeda dari mode list yang menyamakan keduanya sebagai 'Pause'",
-    "Header 'Mill Smart Log' + breadcrumb (Home > Production Process Activity > Kernel Plant > Load Data) + ikon hamburger menu"
+    "Header 'Mill Smart Log' + breadcrumb (Home > Production Process Activity > Kernel Plant > Load Data) + ikon hamburger menu",
+    "Petunjuk 'Gagal sinkron: <alasan>' (di bawah label item list dan di atas detail) untuk record berstatus Tersimpan yang terakhir kali DITOLAK server saat sinkronisasi; alasan = pesan penolakan terakhir, hilang otomatis setelah sinkron berhasil (audit 2026-10-04)",
+    "Status verifikasi record tersinkron (diperiksa Supervisor / dikonfirmasi Mill Management) diperbarui dari server di latar belakang setiap kali list atau detail dibuka saat online — termasuk verifikasi yang dilakukan lewat web (audit 2026-10-04)"
   ],
   "available_actions": [
     {
@@ -79,7 +81,9 @@
     "Belum ada data Kernel Plant sama sekali — mode list menampilkan empty state",
     "Filter aktif tidak menghasilkan data yang cocok — pesan 'tidak ada data cocok filter' beserta tombol Reset Filter",
     "Navigasi langsung ke id yang tidak valid/tidak ada — mode detail menampilkan pesan 'data tidak ditemukan'",
-    "Record ditampilkan di mode DETAIL dengan grid Kernel Plant Detail kosong (kasus tepi: record tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+    "Record ditampilkan di mode DETAIL dengan grid Kernel Plant Detail kosong (kasus tepi: record tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error",
+    "Record ditolak server saat sinkronisasi (mis. periode pelaporan tertutup) — tetap berstatus Tersimpan dengan petunjuk 'Gagal sinkron: <alasan>'; kegagalan karena tidak ada jaringan tidak ditandai sebagai penolakan",
+    "Offline / server tidak dapat dijangkau saat memperbarui status verifikasi — status verifikasi lokal terakhir tetap ditampilkan tanpa pesan galat"
   ],
   "test_priority": "medium",
   "open_questions": []

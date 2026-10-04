@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-140--laporan-stasiun-web",
   "name": "Laporan Stasiun (Web)",
@@ -28,7 +28,7 @@
     {
       "actor_id": "actor-station-operator",
       "can_access": false,
-      "conditions": "Operator adalah aktor mobile-only, tidak punya akses web sama sekali. Jalur laporannya ada di mobile lewat menu Dashboard & Reporting."
+      "conditions": "Tidak punya akses ke layar ini. Sejak keputusan produk 2026-10-04 Operator BOLEH login web dengan akses terbatas (mendarat di /beranda, boleh /settings/password), tetapi entri sidebar 'Laporan Stasiun' tidak ditampilkan untuknya (App\\Support\\RouteAccess) dan membuka /reports langsung menghasilkan 403 (halaman errors/403). Jalur laporannya ada di mobile lewat menu Dashboard & Reporting."
     }
   ],
   "api_contracts": [
@@ -395,7 +395,7 @@
     "WAJIB @include('dashboard.partials.report-styles'). CSS md-* bersama sudah ada di sana; jangan menulis ulang atau menduplikasi. Kelas baru untuk tile ditulis di blok kedua file itu yang sudah ditandai, tanpa menyentuh satu pun selector lama.",
     "Gaya tile mengikuti .station-grid / .station-tile.active / .station-tile.disabled milik resources/views/data/production-process-activity.blade.php — baca file itu dulu. Tile aktif memakai hijau merek #249360, BUKAN merah #D20000 milik layar itu, karena layar ini masuk keluarga LAPORAN bersama dashboard dan Laporan Sterilizer.",
     "Ikon SVG per stasiun disalin dari production-process-activity.blade.php agar dua grid stasiun tidak memakai ikon berbeda untuk stasiun yang sama.",
-    "Grid 3 kolom tetap, termasuk di bawah 767px, mengikuti .station-grid. Halaman tidak boleh punya gulir horizontal sampai 767px. Seluruh teks UI Bahasa Indonesia.",
+    "Grid stasiun responsif: .station-grid = repeat(auto-fill, minmax(150px, 1fr)) selebar halaman (revisi audit 2026-10-04 #10; semula 3 kolom tetap max-width 640px); pada <=767px minmax(110px, 1fr). Halaman tidak boleh punya gulir horizontal sampai 767px. Seluruh teks UI Bahasa Indonesia.",
     "Pegangan test memakai data-testid: mill-select, mill-current, station-grid, station-tile-<code>, mill-required-hint, no-business-units, no-mill-for-account, no-station-types. Tile nonaktif berkelas .disabled, tanpa href, beratribut aria-disabled=\"true\", dan tanpa wire:click.",
     "Daftar stasiun TIDAK disaring per mill — master Jenis Stasiun bersifat global. Konsekuensinya mill yang tidak punya stasiun tertentu tetap melihat tile-nya. Ini keputusan sadar mengikuti aturan 'tampilkan semua, nonaktifkan yang belum siap', bukan kelalaian.",
     "Mill terbawa ke laporan lewat query param business_unit_id di dalam report_path. screen-129 BELUM membaca parameter itu, sehingga untuk sementara Admin masih akan memilih mill sekali lagi di layar laporan. Penyesuaian screen-129 adalah pekerjaan terpisah — catat sebagai deferred_item, jangan dikerjakan di run ini.",

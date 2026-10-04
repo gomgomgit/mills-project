@@ -14,3 +14,18 @@ Cakupan yang user tetapkan untuk Clarification berbunyi: *"produksi minyak murni
 - **Kelengkapan pencatatan diangkat menjadi isi laporan** ← lebih menentukan di sini daripada di Boiler Room, karena produksi DITURUNKAN dari pembacaan yang ada: pencatatan yang bolong langsung menurunkan angka produksinya, bukan sekadar menurunkan keyakinan atasnya.
 - **Mock dibuat dengan kelengkapan sengaja rendah (35,9%)** ← agar sifat di atas terlihat pada state berdata, bukan hanya tertulis di aturan. Pilihan agent.
 - **Koreksi aritmetika 2026-09-24**: instruksi mock saya menyebut rata-rata produksi 131,9 ton/hari, padahal 1.847,5 / 14 = 131,96 yang membulat ke **132,0**. Agen mengikuti instruksi dan mencatat penyimpangannya alih-alih diam-diam membetulkan; saya verifikasi dan mengoreksi mock-nya. Blok audit di kaki berkas menyimpan jejak koreksi itu.
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (ClarificationReportService.php, ReportPeriodDays.php, ChartAxis.php, SheetWriter.php, ExportValue.php, laporan-clarification.blade.php, LaporanClarification.php).
+- information_displayed[2] = hero menyebut nama Production Line ← blade `$selectedProductionLine` (audit #10)
+- information_displayed[12] = tren produksi selebar halaman, kolom selebar label, scroll-hint > 10 tanggal ← blade `.md-row` (bukan --2), `.md-trendchart--days`
+- information_displayed[13] = sumbu suhu angka bulat berjarak sama, petunjuk gulir hanya bila kartu sempit ← ChartAxis::nice, .md-scrollhint--lc + container query
+- information_displayed[14] = kelengkapan sampai hari ini (periode berjalan) + keterangan; '—' + 'belum ada slot yang diharapkan' bila expected 0 ← ReportPeriodDays, blade
+- information_displayed[15] = rekap per unit selebar halaman di bawah tren ← blade komentar audit #7
+- information_displayed[18] = Ekspor CSV + Excel (.xlsx sungguhan), hanya setelah line dipilih ← blade + SheetWriter
+- information_displayed (+1) = pemilih Production Line wajib ← blade production-line-select (drift lama, ditambahkan karena kode acuan)
+- available_actions[3].description = CSV/xlsx, kolom Periode/Mill/Production Line, status Indonesia, slot HH:MM ← EXPORT_HEADER/streamExportRows
+- available_actions (+1) = Pilih Production Line ← LaporanClarification::$productionLineId (drift lama)
+- business_rules (+2) = penyebut berhenti di hari ini (WIB); Excel = xlsx sungguhan ← ReportPeriodDays, SheetWriter
+- edge_cases (+2) = periode berjalan; expected_slots 0 → '—' ← blade

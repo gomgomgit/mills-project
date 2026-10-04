@@ -90,3 +90,9 @@ Yang berubah karena keputusan itu, semuanya konsekuensi logis dan bukan tambahan
 
 Nama panel ikut berubah: **'Periode Terbuka Hari Ini per Mill'** — judul yang menyebut syaratnya,
 supaya tidak ada pembaca yang menyangka panel ini mendaftar seluruh periode terbuka.
+
+## v7 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (backend/app/Services/PeriodService.php guardAgainstFramedRecords(), backend/app/Exceptions/PeriodHasRecordsException.php, EnforcesPeriodLock.php, tests/Feature/AuditFix20261004Test.php).
+- available_actions[6].description, business_rules (+1), edge_cases (+1) = periode berisi data tidak dapat dihapus; penolakan inline setelah konfirmasi, tombol tidak dinonaktifkan ← guardAgainstFramedRecords() + PeriodHasRecordsException extends PeriodClosedImmutableException (catch yang sudah ada di KelolaPeriodePelaporan). ⚠ "tombol tidak dinonaktifkan" diinferensikan dari is_immutable yang hanya menghitung baris closed.
+- business_rules[20] = kunci periode kini juga event_date detail, tanggal berzona → WIB, tanggal > besok ditolak ← EnforcesPeriodLock diff + AuditFix20261004Test [detail-lock]/[future]/[tz].

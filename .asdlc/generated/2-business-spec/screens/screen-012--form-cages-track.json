@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-012--form-cages-track",
   "name": "Form Cages Track",
@@ -17,7 +17,7 @@
     "Tap salah satu item draft/pause di list Monitor Cages Track (lanjutkan draft)"
   ],
   "information_displayed": [
-    "Cages Header: Tanggal (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit), Tippler Start Time (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit), Tippler Stop Time (otomatis terisi sekali saat Simpan ditekan, kosong sebelumnya, tidak dapat diedit manual), Cages Out (input manual), Cages Tipped (input manual — jumlah cage yang akan di-tipping sesi ini; TIDAK LAGI menentukan jumlah kolom checklist grid, lihat Cages Tipped Time), Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (hanya bisa diisi Supervisor), Acknowledged By (hanya bisa diisi Mill Management), Note (input manual, opsional)",
+    "Cages Header: Tanggal (otomatis terisi sekali saat draft baru dibuat dengan tanggal LOKAL perangkat, tidak dapat diedit), Tippler Start Time (otomatis terisi sekali saat draft baru dibuat dengan jam LOKAL perangkat, tidak dapat diedit), Tippler Stop Time (otomatis terisi sekali saat Simpan ditekan dengan jam LOKAL perangkat, kosong sebelumnya, tidak dapat diedit manual), Cages Out (input manual), Cages Tipped (input manual — jumlah cage yang akan di-tipping sesi ini; TIDAK LAGI menentukan jumlah kolom checklist grid, lihat Cages Tipped Time), Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (hanya bisa diisi Supervisor), Acknowledged By (hanya bisa diisi Mill Management), Catatan (input manual, opsional)",
     "Cages Tipped Time: grid baris slot waktu - Time (dropdown jam 0-23, hanya menampilkan jam yang lebih besar dari jam baris terakhir ditambahkan dan belum dipakai baris lain), checklist Cage 1..N (N = Jumlah Cages dari Mills Setting milik mill/business unit tempat stasiun ini berada — BUKAN dari field Cages Tipped header) yang dicentang pada jam tersebut, Total Cages (dihitung otomatis dari jumlah cage tercentang di baris itu), Number of Cages Remain (dihitung otomatis: N (Jumlah Cages dari Mills Setting) dikurangi Total Cages baris itu) - baris bisa ditambah dan dihapus",
     "Breadcrumb navigasi (Home > Production Process Activity > Cages Track > Form) yang dapat ditap",
     "Header 'Mill Smart Log' + ikon hamburger menu",
@@ -128,8 +128,8 @@
     }
   ],
   "business_rules": [
-    "Tanggal dan Tippler Start Time diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
-    "Tippler Stop Time diisi otomatis sekali tepat saat Simpan ditekan (bukan live-ticking), tidak dapat diedit manual",
+    "Tanggal dan Tippler Start Time diisi otomatis sekali saat draft baru dibuat memakai tanggal/jam LOKAL perangkat (bukan UTC, sehingga record 00:00–06:59 WIB tetap bertanggal hari itu), tidak dapat diedit manual",
+    "Tippler Stop Time diisi otomatis sekali tepat saat Simpan ditekan (bukan live-ticking) memakai jam LOKAL perangkat, tidak dapat diedit manual; saat sinkron Tippler Start/Stop Time dikirim disertai offset zona perangkat (mis. +07:00) dan server menyimpannya sebagai jam WIB",
     "Inputted By otomatis diambil dari user yang login, tidak dapat diedit manual",
     "Checked By hanya bisa diisi/diedit oleh Supervisor; Acknowledged By hanya bisa diisi/diedit oleh Mill Management",
     "Jumlah kolom checklist Cage 1..N pada grid Cages Tipped Time mengacu ke pengaturan Jumlah Cages di Mills Setting milik mill (business unit) tempat stasiun ini berada — BUKAN dari field Cages Tipped header. Field Cages Tipped tetap ada sebagai input manual terpisah dengan makna aslinya (jumlah cage yang akan di-tipping sesi ini), tidak lagi mengontrol jumlah kolom",
@@ -152,7 +152,8 @@
     "Draft yang di-Pause lalu dilanjutkan",
     "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
     "User menekan Clear (perlu konfirmasi sebelum hapus permanen)",
-    "User menghapus baris Cages Tipped Time yang sudah ada sebelumnya (bukan baru ditambah)"
+    "User menghapus baris Cages Tipped Time yang sudah ada sebelumnya (bukan baru ditambah)",
+    "Server menolak (422) record saat sinkron karena periode tertutup untuk Tanggal record atau Tanggal lebih jauh dari besok — record tetap Tersimpan di perangkat dan alasan tampil sebagai 'Gagal sinkron: <alasan>' di Data Preview"
   ],
   "test_priority": "high",
   "open_questions": [

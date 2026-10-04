@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-14"
+    "updated_at": "2026-10-04"
   },
   "unit_test": {
     "coverage_threshold": 80,
@@ -31,11 +31,11 @@
   "browser_test": {
     "tool": "Playwright",
     "scope": "single-screen",
-    "environment": "local dev server with test database",
+    "environment": "Web (e2e-web, Playwright): server e2e TERPISAH dengan database-nya sendiri `mill_smart_log_e2e` — TIDAK PERNAH database dev `mill_smart_log` (sejak 2026-10-04; sebelumnya suite berjalan di server dev :8000 dan meninggalkan residu faker/fixture/282 baris Weighbridge bertahun 7278). Env-nya backend/.env.e2e (salinan dari backend/.env.e2e.example yang di-commit: APP_ENV=e2e, APP_URL=http://localhost:8001, DB_DATABASE=mill_smart_log_e2e, SANCTUM_STATEFUL_DOMAINS port 8001, APP_TIMEZONE=Asia/Jakarta, EVENT_DATE_MAX_DAYS_AHEAD=1 tetap AKTIF). Reset+seed: `cd e2e-web && npm run db:prepare` (scripts/prepare-db.sh — migrate:fresh --seed + BrowserTestFixtureSeeder, DESTRUKTIF, menolak berjalan kecuali --env=e2e menunjuk database berakhiran _e2e). tests/support/global-setup.ts menolak run bila baseURL bukan APP_URL env e2e atau DB bukan *_e2e, lalu menjalankan ulang BrowserTestFixtureSeeder (idempoten; E2E_SKIP_SEED=1 melewatinya). global-teardown + enam spec laporan-* menjalankan `php artisan e2e:prune-records --force --env=e2e` yang menghapus record stasiun (Weighbridge lewat record_datetime) dan Periode Pelaporan bertanggal 1970-01-01..2019-12-31 — lajur spec laporan kini di MASA LALU (tests/support/period-lanes.ts), karena server menolak tanggal kejadian > besok (WIB) dan periode yang membingkai record tidak bisa dihapus (409 PERIOD_HAS_RECORDS); perintah itu menolak env selain e2e. Mobile (mobile/tests/e2e, Playwright): Vite dev server :5174 terhadap backend :8000 + seeder (lihat memori proyek).",
     "headless": true,
-    "start_command": "php artisan serve",
-    "base_url": "http://localhost:8000",
-    "run_command": "playwright test"
+    "start_command": "cd e2e-web && npm run db:prepare && npm run serve   # serve = cd ../backend && php artisan serve --env=e2e --port=8001 (server dev :8000 dibiarkan)",
+    "base_url": "http://localhost:8001",
+    "run_command": "cd e2e-web && npm test   # override: E2E_WEB_BASE_URL (default http://localhost:8001), E2E_BACKEND_ENV (default e2e)"
   },
   "auto_fix": {
     "enabled": true,

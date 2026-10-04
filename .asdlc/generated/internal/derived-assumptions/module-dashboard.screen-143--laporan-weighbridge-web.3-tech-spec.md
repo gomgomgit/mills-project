@@ -25,3 +25,13 @@ per-butir. 49 unit test dan 35 test scenario diturunkan `test-spec-writer-agent`
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (WeighbridgeReportService.php, laporan-weighbridge.blade.php, tests).
+- api_contracts[0].endpoints[2].response.success_schema.completeness = + days_counted, period_running ← summary() + LaporanWeighbridgeTest kunci completeness
+- api_contracts[0].business_logic[17] = persen hari bertrip pakai days_counted, 0 → '—' ← blade
+- api_contracts[0].business_logic[18] = SheetWriter csv/xlsx, Status via ExportValue::status ← export() diff
+- api_contracts[0].endpoints[3].description / request.query_params[2].description / response.success_schema = csv|excel (xlsx sungguhan), status berlabel ← controller docblock 'outside csv|excel' + fileMetaFor (spec lama 'Hanya csv' sudah usang sebelum audit — ⚠ dikoreksi sekalian)
+- api_contracts[0].edge_case_handling[+2], unit_test_cases[+1] = periode berjalan / belum mulai ← ReportPeriodDays + tests
+- implementation_notes[+1] = ChartAxis, klausa 'bukan', teks nol-kg & draft ← blade diff

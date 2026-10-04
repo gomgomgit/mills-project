@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-140--laporan-stasiun-web",
   "name": "Laporan Stasiun (Web)",
@@ -49,7 +49,9 @@
   "test_files_generated": [
     "backend/tests/Unit/Services/StationReportServiceTest.php",
     "backend/tests/Feature/Api/LaporanStasiunTest.php",
-    "e2e-web/tests/laporan-stasiun.spec.ts"
+    "e2e-web/tests/laporan-stasiun.spec.ts",
+    "backend/tests/Feature/ReportAuditFix20261004Test.php",
+    "backend/tests/Feature/WebAccessTest.php"
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/LaporanStasiunTest.php"
@@ -64,12 +66,13 @@
     "known_issue #3 artefak screen-129 DITUTUP oleh run ini: entri sidebar 'Laporan Stasiun' kini mengarah ke route('reports.stations') dan komentar Blade bertanda SEMENTARA sudah dihapus. Posisi entri tetap (setelah 'Laporan Manajemen', sebelum 'Master Data Tree View'). Kondisi aktif memakai routeIs('reports.stations','reports.sterilizer') agar menu tetap tersorot pada layar turunannya.",
     "Kelas CSS baru hanya ditulis di blok <style> KEDUA report-styles.blade.php yang sudah bertanda, berjudul 'TAMBAHAN 2026-09-23 — screen-140'; override 767px disisipkan ke media query yang sudah ada. Nol selector lama disentuh — dikonfirmasi oleh browser test Laporan Sterilizer yang tetap 15/15.",
     "Ikon SVG disalin persis dari production-process-activity.blade.php untuk 18 kode stasiun, plus satu ikon fallback agar jenis stasiun baru dari master tidak merusak halaman. Tile aktif memakai hijau merek #249360, bukan merah #D20000 milik layar itu, karena layar ini masuk keluarga LAPORAN.",
-    "Grid 3 kolom tetap di setiap lebar; pada <=767px tanpa gulir horizontal halaman. Seluruh teks UI Bahasa Indonesia.",
+    "Grid stasiun responsif auto-fill (tile min 150px, <=767px min 110px) selebar halaman — revisi audit 2026-10-04 #10 (semula 3 kolom tetap max-width 640px); pada <=767px tanpa gulir horizontal halaman. Seluruh teks UI Bahasa Indonesia.",
     "data-testid lengkap dan diverifikasi per keadaan: Supervisor bermill → mill-current + station-grid + station-tile-* tanpa mill-select; Admin belum memilih → mill-select + mill-required-hint tanpa grid; master mill kosong → tambah no-business-units; Supervisor tanpa mill → hanya no-mill-for-account; master stasiun kosong → grid nol tile + no-station-types. Tile nonaktif adalah <span class=\"station-tile disabled\" aria-disabled=\"true\"> berteks 'Belum tersedia', tanpa href, dan nol wire:click di seluruh halaman.",
     "mount() memanggil abort_unless($this->canAccess(), 403); keepSelectionValid() membuang businessUnitId basi agar service tidak pernah menjawab 404 untuk pilihan yang tidak pernah dibuat pengguna.",
     "PENEMPATAN CSS — pelajaran yang mahal pada run ini. Partial report-styles memancarkan <style>. Livewire 3 memasang wire:id pada elemen ter-render PERTAMA, jadi meletakkan @include di atas root div membuat atribut itu menempel pada <style> dan seluruh wire:model berhenti bekerja (pemilih Mill Admin mati total di peramban; ditangkap browser test, TIDAK tertangkap component test karena Livewire::test() tidak melewati semantik root-element peramban). Penempatan akhir yang dipakai kedua layar laporan: di view halaman lewat <x-slot:styles> milik x-layouts.app — konvensi repo yang sama dengan production-process-activity.blade.php. Di sana CSS berada di luar komponen sepenuhnya, sehingga tidak ada masalah single-root dan HTML yang diperiksa Livewire::test() berisi markup saja.",
     "SPEC BROWSER DIPERBAIKI 2026-10-02, dan layar INI yang paling banyak berubah dari keenamnya. e2e-web/tests/laporan-stasiun.spec.ts terakhir disentuh 2026-09-24, empat hari sebelum kewajiban Production Line mendarat (a5ccfba). Grid stasiun dirender hanya saat `$businessUnit !== null && ! $needsProductionLineSelection`, jadi mill saja tidak cukup dan `station-grid` tidak pernah ada: 11 dari 14 test gagal. Tiga hal yang khas di sini dan tidak ada di lima spec laporan lain: (1) HELPER-NYA MENCARI, BUKAN MEMILIH OPSI PERTAMA — line milik BUSINESS_UNIT sengaja dibuat tidak lengkap satu-satu ('PL Tanpa Threshing', 'PL Tanpa Pressing', ...) ditambah dua line bersatu stasiun, jadi memilih opsi pertama menggantungkan test pada urutan abjad dan bisa menghilangkan tile sterilizer atau threshing yang justru diasersi; helper mencoba tiap line sampai menemukan satu yang memuat seluruh kode yang diminta dan melempar galat menyebut apa yang dicari bila tidak ada. (2) OPSI LINE HARUS DITUNGGU, BUKAN LANGSUNG DIBACA — ia dimuat lewat round trip Livewire sesudah mill dipilih; evaluateAll() tidak auto-retry sementara expect() ya, dan tanpa penantian itu kegagalannya berbunyi 'mill tidak punya line' padahal yang terjadi hanya balapan. (3) ASERSI URL DILONGGARKAN dari `${REPORT_PATH}$` menjadi `${REPORT_PATH}(\\?|$)` — pilihan mill dan line terikat #[Url] secara sengaja (supaya pilihan Admin bertahan saat ia menekan tile lalu kembali), jadi layar ini MEMANG membawa query string; yang diuji adalah bahwa menekan tile nonaktif tidak memindahkan halaman, bukan bahwa URL-nya bersih. Satu test lain ('mill terbawa') memilih mill terakhir secara abjad, yaitu 'Mill Kode Duplikat' yang punya NOL production line — diganti pencarian dari ujung untuk mill yang benar-benar punya line. Hasil: 14 lolos, 0 gagal.",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-stasiun.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 14 lulus, 0 gagal; test_results.browser diperbarui."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-stasiun.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 14 lulus, 0 gagal; test_results.browser diperbarui.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): report-styles.blade.php — .station-grid diganti repeat(auto-fill, minmax(150px, 1fr)) tanpa max-width (<=767px minmax 110px), plus blok aditif 'TAMBAHAN 2026-10-04' (ukuran ikon .md-threshold, angka KPI penuh, petunjuk gulir grafik, judul kolom tabel boleh membungkus) yang dipakai keenam laporan stasiun. layouts/app.blade.php — entri sidebar dibungkus RouteAccess::allows() (menu per role), label menu boleh turun baris, padding bawah 104px untuk tombol chatbot. e2e-web/tests/laporan-stasiun.spec.ts — selectMillAndSettle() menunggu round trip Livewire alih-alih waitForTimeout(500). Diuji: ReportAuditFix20261004Test (#4/#5/#7/#10 report-styles hasil render memuat grid auto-fill), WebAccessTest (sidebar per role, Operator 403)."
   ],
   "deferred_items": [
     {
@@ -119,7 +122,7 @@
       "severity": "minor"
     },
     {
-      "description": "Sidebar tetap tidak menyaring menu per role (pola repo). Penegakan ada di middleware route dan mount(); menekan menu sebagai Operator menghasilkan 403, bukan kebocoran data.",
+      "description": "DITUTUP audit-fix 2026-10-04: sidebar kini menyaring menu per role lewat App\\Support\\RouteAccess (entri tampil hanya bila middleware role rute mengizinkan); Operator yang login web tidak melihat 'Laporan Stasiun' dan mendapat halaman errors/403 bila membuka /reports langsung. Dibiarkan sebagai catatan riwayat — tidak ada isu tersisa.",
       "severity": "minor"
     }
   ]

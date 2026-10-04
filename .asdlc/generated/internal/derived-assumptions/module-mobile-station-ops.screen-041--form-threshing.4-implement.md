@@ -19,3 +19,10 @@ Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 9/0 (sebelumnya kosong).
 - known_issue 'spec tidak dapat dijalankan di sandbox' dihapus — kini dijalankan nyata.
 - Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): tabel Target Operasional di CollapsibleSection tertutup default (disengaja 2026-08-25) — spec kini membukanya.
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (FormThreshingView.vue, threshingRecordRepo.ts, utils/localDate.ts, millSettingRepo.ts, syncService.ts, tests baru di mobile/tests).
+- fe_files_generated += threshingRecordRepo.ts, utils/localDate.ts, services/millSettingRepo.ts, services/syncService.ts ← createDraft memakai todayLocalDateString; write-through bergantung pada millSettingRepo; payload/line/sync_error di syncService. (⚠ threshingRecordRepo.ts sebelumnya tidak tercantum walau dipakai layar; millSettingRepo/syncService tidak diimpor view langsung.)
+- fe_test_files_generated += localDate.sqljs.spec.ts (createDraft threshing 01:30 WIB), noteLabelConsistency.spec.ts, DialogTeleport.spec.ts, writeThroughSync.spec.ts, millSettingRepo.sqljs.spec.ts, syncService.sqljs.spec.ts ← label Catatan, teleport dialog penolakan, write-through aktif, SELECT immediate_sync_enabled, date lokal/line/sync_error. (⚠ DialogTeleport/syncService.sqljs cakupan tidak langsung.)
+- implementation_notes += REVISI 2026-10-04 ← diff terkait.

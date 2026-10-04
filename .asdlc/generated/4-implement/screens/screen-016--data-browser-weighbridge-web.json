@@ -1,8 +1,8 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-016--data-browser-weighbridge-web",
   "name": "Data Browser Weighbridge (Web)",
@@ -18,12 +18,17 @@
     "backend/database/factories/CompanyFactory.php",
     "backend/database/factories/StationFactory.php",
     "backend/database/factories/WeighbridgeRecordFactory.php",
-    "backend/app/Support/Concerns/ScopesToActorMill.php"
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/Display.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/WeighbridgeRecordServiceTest.php",
     "backend/tests/Feature/Api/DataBrowserWeighbridgeTest.php",
-    "backend/tests/Feature/Livewire/DataBrowserWeighbridgeTest.php"
+    "backend/tests/Feature/Livewire/DataBrowserWeighbridgeTest.php",
+    "backend/tests/Feature/ExportXlsxTest.php",
+    "backend/tests/Feature/AuditFix20261004Test.php",
+    "backend/tests/Pest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserWeighbridge.php",
@@ -36,7 +41,7 @@
     "e2e-web/tests/support/production-line-filter.ts"
   ],
   "implementation_notes": [
-    "Export excel pakai fallback CSV dengan mimetype/ekstensi .xlsx (belum ada XLSX writer package, sesuai instruksi tidak menambah dependency baru)",
+    "Export excel (s.d. 2026-10-03) pakai fallback CSV dengan mimetype/ekstensi .xlsx — DIGANTIKAN 2026-10-04 oleh .xlsx sungguhan via App\\Support\\SheetWriter (lihat catatan REVISI 2026-10-04)",
     "EXPORT_ROW_LIMIT = 50000 dipilih sebagai batas pragmatis",
     "Filter stasiun dari prosa uiux-spec sengaja tidak diimplementasikan (bukan query param resmi tech-spec)",
     "Livewire component panggil WeighbridgeRecordService langsung, berbagi code path persis sama dengan API controller",
@@ -47,14 +52,11 @@
     "REVISI v3 (screen-019--detail-weighbridge-web Phase 4 selesai): route data.weighbridge.detail sekarang ada, baris tabel di Data Browser kini benar-benar clickable (onclick navigasi ke Detail) — known_issue lama tentang ini dihapus. Test Feature/Livewire scenario 'Klik Baris Membuka Detail' diperbarui untuk assert perilaku baru (bukan lagi assert non-clickable).",
     "REVISI v4 (tech-spec v3, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v3, `php artisan test` untuk berkas uji layar ini hijau.",
     "REVISI v5 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-weighbridge.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec dijalankan penuh: 2/2 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser test tidak dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): WeighbridgeRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan; csv tetap CSV), judul kolom = label layar Detail Weighbridge + Checked By/Acknowledged By (eager load checkedBy/acknowledgedBy), Tipe 'Receive'/'Dispatch', Tanggal & Waktu 'Y-m-d H:i', status lewat Display::status(); data-browser-weighbridge.blade.php memakai Display::status() untuk badge dan Display::number(net_weight, 2) (id-ID). Uji: ExportXlsxTest (xlsx Data Browser lewat HTTP), AuditFix20261004Test '[display] Data Browser dan Detail Weighbridge…', WeighbridgeRecordServiceTest export (helper xlsxRows/exportBodyAsCsv di tests/Pest.php). Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah."
   ],
   "deferred_items": [],
   "known_issues": [
-    {
-      "description": "format=excel mengembalikan konten CSV dengan mimetype/ekstensi .xlsx (fallback MVP pragmatis, bukan file OOXML asli)",
-      "severity": "minor"
-    },
     {
       "description": "Skenario 'Tidak Ada Data Sesuai Filter': opsi reset-filter yang disebut uiux-spec belum ada di Blade (hanya pesan empty-state)",
       "severity": "minor"

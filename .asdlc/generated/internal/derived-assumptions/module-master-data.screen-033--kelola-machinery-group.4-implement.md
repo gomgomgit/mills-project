@@ -24,3 +24,11 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - test_results.browser = 11 lulus/0 gagal dari e2e-full.log.counts.json (spec kelola-machinery-group).
 - Known_issue 'Browser test dibuat tapi tidak dijalankan' dihapus; path spec sudah ada di test_files_generated.
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD MachineryGroupService.php, KelolaMachinery.php, tests/Unit/Services/MachineryGroupServiceTest.php; berkas baru KelolaMachineryAuditTest.php).
+- files_generated (+) = app/Rules/UniqueCaseInsensitive.php.
+- test_files_generated (+) = KelolaMachineryAuditTest.php.
+- implementation_notes[3] = stations/options {id,name,production_line_id,label} (catatan lama masih menyebut business_unit_id) ← stationOptions().
+- implementation_notes (+) = REVISI audit-fix.

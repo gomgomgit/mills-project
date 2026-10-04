@@ -1,21 +1,35 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-082--data-preview-process-water",
   "name": "Data Preview Process Water",
   "module_id": "module-mobile-station-ops",
   "status": "complete",
-  "files_generated": [],
-  "test_files_generated": [],
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/RecordVerificationStatusController.php",
+    "backend/app/Services/RecordVerificationStatusService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/MobileReadEndpointsTest.php"
+  ],
   "fe_files_generated": [
-    "mobile/src/views/DataPreviewProcessWaterView.vue"
+    "mobile/src/views/DataPreviewProcessWaterView.vue",
+    "mobile/src/components/SyncFailureHint.vue",
+    "mobile/src/services/recordVerificationApi.ts",
+    "mobile/src/services/apiClient.ts",
+    "mobile/src/utils/localDate.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/DataPreviewProcessWaterView.spec.ts",
-    "mobile/tests/e2e/data-preview-process-water.spec.ts"
+    "mobile/tests/e2e/data-preview-process-water.spec.ts",
+    "mobile/tests/SyncFailureHint.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts",
+    "mobile/tests/recordVerification.spec.ts",
+    "mobile/tests/e2e/sync-and-verification.spec.ts"
   ],
   "implementation_notes": [
     "Dual-mode component (list/detail driven by :id? route param), mirrors DataPreviewThreshingView.vue's watch()-driven mode switch exactly",
@@ -24,7 +38,8 @@
     "UNLIKE Data Preview Threshing: this screen has NO operational-target reference table section, per this station's explicit scope",
     "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='process-water', local-table='process_water_record') yang memanggil PATCH /api/records/process-water/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `date` record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus.",
     "REVISI v3 (2026-10-03, sinkronisasi catatan uji — kode tidak diubah): celah 'recordVerification.spec.ts belum punya kasus PERIOD_CLOSED khusus' pada catatan REVISI kunci periode di atas kini TERTUTUP — mobile/tests/recordVerification.spec.ts menambah 'shows the period-lock (422 PERIOD_CLOSED) message verbatim as an error and leaves the local row untouched' untuk komponen bersama RecordVerificationActions yang dipasang di mode detail layar ini: pesan server 422 PERIOD_CLOSED ditampilkan apa adanya sebagai galat dan baris lokal tidak di-UPDATE. Uji hijau.",
-    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/data-preview-process-water.spec.ts 4/4 lulus — kini dijalankan nyata (known_issue 'tidak dapat dijalankan di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL pada 'Back dari Mode Detail' memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp."
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/data-preview-process-water.spec.ts 4/4 lulus — kini dijalankan nyata (known_issue 'tidak dapat dijalankan di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL pada 'Back dari Mode Detail' memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): DataPreviewProcessWaterView.vue kini memanggil recordVerificationApi.pullVerificationStatus('process-water', 'process_water_record', userId) best-effort saat loadList() dan refreshVerificationInBackground() saat detail dibuka (memuat ulang via getDraftWithDetails bila status berubah) → GET /api/records/process-water/verification?ids[]=… (baru: RecordVerificationStatusController/Service, routes/api.php, operator boleh, cakupan mill). PATCH verifikasi kini memakai prefix /api dan isNetworkError() memakai flag `network: true` dari apiClient. SyncFailureHint.vue ('Gagal sinkron: <alasan>' dari kolom lokal sync_error, ditulis/dikosongkan syncService) dipasang di item list (compact) dan di atas detail. Detail Tanggal kini FormField type=date lewat toDateInputValue (utils/localDate.ts; sebelumnya datetime-local). filter-row grid minmax(0,1fr) — tanpa geser horizontal di 390px. Uji: SyncFailureHint.spec.ts, syncService.sqljs.spec.ts (#6 pullVerificationStatus), recordVerification.spec.ts, e2e sync-and-verification.spec.ts (pola #2/#9/#6 yang sama di stasiun lain), backend MobileReadEndpointsTest.php."
   ],
   "deferred_items": [],
   "known_issues": [],

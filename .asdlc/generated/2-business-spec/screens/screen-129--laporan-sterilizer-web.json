@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-129--laporan-sterilizer-web",
   "name": "Laporan Sterilizer (Web)",
@@ -27,7 +27,8 @@
     "Daftar siklus dengan durasi di luar kebiasaan, beserta tanggal, unit, durasi, dan jumlah lori — disertai keterangan ambang batas yang dipakai agar pembaca tahu dasar penyaringannya",
     "Tabel rekap harian lengkap (dapat dibuka/tutup) berisi angka per tanggal, ditutup baris Total periode",
     "Keterangan periode yang sedang ditampilkan: nama, rentang tanggal, dan statusnya (Draft / Terbuka / Tertutup)",
-    "Pesan kosong yang mengarahkan bila belum ada Periode Pelaporan untuk mill tersebut, atau bila periode terpilih tidak memuat data Sterilizer sama sekali"
+    "Pesan kosong yang mengarahkan bila belum ada Periode Pelaporan untuk mill tersebut, atau bila periode terpilih tidak memuat data Sterilizer sama sekali",
+    "Pemilih Production Line (wajib) dan nama line aktif di hero laporan, di samping nama periode"
   ],
   "available_actions": [
     {
@@ -57,7 +58,16 @@
     },
     {
       "action": "Ekspor laporan",
-      "description": "Mengunduh data siklus Sterilizer sepanjang periode terpilih ke CSV/Excel, satu baris per siklus rebus dengan kolom konteks harian diulang di tiap baris",
+      "description": "Mengunduh data siklus Sterilizer sepanjang periode dan Production Line terpilih ke CSV atau Excel (.xlsx sungguhan), satu baris per siklus rebus. Setiap baris diawali kolom konteks Periode, Mill, dan Production Line, lalu kolom konteks harian diulang di tiap baris; judul kolom berbahasa Indonesia, status record berlabel Indonesia, jam ditulis HH:MM, dan 'Diperiksa SPV' ditulis Ya/Tidak",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Memilih line produksi yang angkanya ingin dilihat; wajib sebelum angka, grafik, tabel, dan tombol Ekspor tampil",
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
@@ -66,7 +76,7 @@
     }
   ],
   "business_rules": [
-    "Laporan hanya dapat diakses Supervisor, Mill Management, dan Admin; Operator tidak memiliki akses web sama sekali, konsisten dengan Production Process Activity",
+    "Laporan hanya dapat diakses Supervisor, Mill Management, dan Admin; Operator boleh login web dengan akses terbatas (Beranda Operator dan Ganti Password saja), sehingga membuka laporan ini menghasilkan halaman 403 dan menu laporannya tidak tampil di sidebar Operator",
     "Supervisor dan Mill Management otomatis dibatasi pada mill (business unit) miliknya sendiri — tidak ada pilihan mill lain, konsisten dengan Laporan Manajemen dan Mills Setting",
     "Admin tidak terikat pada satu mill, sehingga Admin — dan hanya Admin — mendapat pemilih Mill; tanpa pemilih itu Admin tidak akan pernah melihat data apa pun. Bila Admin belum memilih mill, laporan menampilkan pesan yang meminta pemilihan mill terlebih dahulu",
     "Periode yang dapat dipilih hanyalah periode milik mill yang sedang dilihat dan mencakup jenis stasiun Sterilizer, yaitu periode ber-jenis-stasiun Sterilizer maupun periode yang berlaku untuk semua jenis stasiun",
@@ -78,7 +88,8 @@
     "Kepatuhan Triple-Peak dihitung sebagai persentase siklus yang ketiga waktu puncak dan ketiga waktu pembuangannya terisi lengkap; siklus dengan salah satu waktu kosong dianggap tidak patuh",
     "Siklus dengan durasi menyimpang ditentukan dari sebaran durasi periode itu sendiri, dan ambang yang dipakai wajib ditampilkan di layar agar angka yang muncul dapat dipertanggungjawabkan",
     "Laporan bersifat baca saja — tidak ada aksi yang mengubah data Sterilizer dari layar ini",
-    "Status periode (Draft / Terbuka / Tertutup) ditampilkan sebagai keterangan, tetapi tidak membatasi apa pun di layar ini: laporan periode tertutup tetap dapat dilihat dan diekspor"
+    "Status periode (Draft / Terbuka / Tertutup) ditampilkan sebagai keterangan, tetapi tidak membatasi apa pun di layar ini: laporan periode tertutup tetap dapat dilihat dan diekspor",
+    "Production Line wajib dipilih (opsi hanya line milik mill yang dilihat, tanpa opsi 'semua line'); sebelum dipilih tidak ada angka dan tombol Ekspor tidak tampil. Nama line aktif ditulis di hero laporan bersama nama periode"
   ],
   "usecase_ids": [
     "usecase-129--laporan-sterilizer-web"
@@ -89,7 +100,7 @@
     "Periode terpilih tidak memuat satu pun data Sterilizer → seluruh angka utama tampil nol dengan pesan 'belum ada data pada periode ini', grafik tidak dipaksa menggambar batang kosong",
     "Seluruh siklus dalam periode memiliki durasi sama persis → tidak ada siklus yang dianggap menyimpang, dan kartu siklus menyimpang menyatakan hal itu alih-alih tampil kosong tanpa penjelasan",
     "Sebagian siklus belum terisi waktu buka pintu sehingga durasinya kosong → siklus tersebut tetap dihitung pada Total Siklus namun dikeluarkan dari perhitungan durasi, dan jumlah yang dikeluarkan disebutkan agar angka rata-rata tidak menyesatkan",
-    "Periode sangat panjang sehingga tren harian memuat banyak tanggal → grafik tetap terbaca, tidak melebar keluar layar",
+    "Periode sangat panjang sehingga tren harian memuat banyak tanggal → setiap kolom batang selebar labelnya sehingga label tanggal/nilai tidak bertumpuk; yang tidak muat menggulir di dalam kartu (bukan halaman), dan bila lebih dari 10 tanggal muncul petunjuk 'Geser mendatar untuk melihat seluruh tanggal.'",
     "Pengguna membuka laporan di layar selebar ponsel → kartu dan tabel menyesuaikan, tidak ada gulir horizontal pada halaman",
     "Supervisor atau Mill Management membuka laporan sementara periode yang ada hanya milik mill lain → daftar periode tampil kosong dan pesan kosong muncul, bukan data mill lain",
     "Data Sterilizer ada tetapi seluruhnya belum terverifikasi → laporan tetap menampilkan angkanya; verifikasi bukan syarat tampil"

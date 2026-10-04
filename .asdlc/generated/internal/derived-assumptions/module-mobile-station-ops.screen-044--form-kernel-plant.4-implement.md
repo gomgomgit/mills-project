@@ -19,3 +19,10 @@ Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 10/0 (sebelumnya kosong).
 - known_issue 'spec tidak dapat dijalankan di sandbox' dihapus — kini dijalankan nyata.
 - Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): tabel Target Operasional di CollapsibleSection tertutup default (disengaja 2026-08-25) — spec kini membukanya.
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile/, tests baru di mobile/tests/).
+- fe_files_generated (+) = mobile/src/utils/localDate.ts, mobile/src/services/millSettingRepo.ts, mobile/src/services/syncService.ts ← dipakai jalur draft-date / write-through layar ini (⚠ inferensi: atribusi berkas bersama ke layar ini, bukan berkas milik layar)
+- fe_test_files_generated (+) = noteLabelConsistency, DialogTeleport, localDate.sqljs, writeThroughSync, millSettingRepo.sqljs, syncService.sqljs (*.spec.ts) ← tes baru/berubah yang mencakup label Catatan, ConfirmDialog, createDraft lokal & normalisasi UTC, write-through, sync_error/line per record (⚠ inferensi: cakupan generik lintas stasiun, bukan tes khusus layar)
+- implementation_notes (append) = REVISI 2026-10-04 audit-fix (label Catatan, date lokal, write-through aktif, sync_error, line per record, ConfirmDialog teleport) ← diff kode terkait

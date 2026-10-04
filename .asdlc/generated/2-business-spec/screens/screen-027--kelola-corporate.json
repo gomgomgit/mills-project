@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-027--kelola-corporate",
   "name": "Kelola Corporate",
@@ -18,7 +18,8 @@
     "Daftar Corporate: kode, nama, jumlah Company terkait, tanggal dibuat",
     "Form tambah/edit — Identitas: kode Corporate, nama, nama singkat, nama pimpinan, nama pengacara/penasihat hukum, logo",
     "Form tambah/edit — Kontak: alamat, telepon, fax, kontak, extension, email, website, link peta",
-    "Form tambah/edit — Legal & Kepegawaian: nomor registrasi pajak, nomor asuransi, EPF employer, SOCSO employer, serikat pekerja"
+    "Form tambah/edit — Legal & Kepegawaian: nomor registrasi pajak, nomor asuransi, EPF employer, SOCSO employer, serikat pekerja",
+    "Pesan sukses setelah simpan/hapus berhasil ('Corporate berhasil ditambahkan/diperbarui/dihapus.')"
   ],
   "available_actions": [
     {
@@ -51,20 +52,24 @@
     }
   ],
   "business_rules": [
-    "Kode Corporate harus unik di seluruh sistem",
-    "Nama Corporate harus unik di seluruh sistem",
+    "Kode Corporate harus unik di seluruh sistem — perbandingan tidak peka huruf besar/kecil ('corp-a' dianggap sama dengan 'CORP-A')",
+    "Nama Corporate harus unik di seluruh sistem — perbandingan tidak peka huruf besar/kecil",
     "Corporate tidak dapat dihapus jika masih memiliki satu atau lebih Company terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Corporate",
-    "Field selain kode dan nama (kontak, legal, kepegawaian, logo) bersifat opsional"
+    "Field selain kode dan nama (kontak, legal, kepegawaian, logo) bersifat opsional",
+    "Email (bila diisi) harus berformat email yang valid; Website (bila diisi) harus berformat domain, dengan atau tanpa http(s):// (contoh: www.contoh.co.id)",
+    "Logo harus benar-benar gambar JPG/PNG (diperiksa dari isi file, bukan dari nama/ekstensi), maksimal 2MB — diperiksa saat file dipilih dan diperiksa ulang saat Simpan",
+    "Setelah tambah/edit/hapus berhasil ditampilkan pesan sukses; pesan sukses/error sebelumnya dibersihkan saat Admin memulai aksi baru"
   ],
   "usecase_ids": [
     "usecase-027--kelola-corporate"
   ],
   "edge_cases": [
     "Percobaan menghapus Corporate yang masih memiliki Company terkait — ditolak dengan pesan penjelasan",
-    "Percobaan menyimpan kode atau nama Corporate yang sudah dipakai Corporate lain — validasi gagal",
+    "Percobaan menyimpan kode atau nama Corporate yang sudah dipakai Corporate lain (termasuk yang hanya berbeda huruf besar/kecil) — validasi gagal",
     "Belum ada Corporate sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
-    "Upload logo dengan format/ukuran tidak didukung — validasi gagal"
+    "Upload logo dengan format/ukuran tidak didukung, atau file yang bukan gambar sungguhan walau bernama .png/.jpg — ditolak saat file dipilih (pesan di bawah kolom Logo, pratinjau tidak ditampilkan) dan ditolak lagi saat Simpan; logo tidak tersimpan",
+    "Email atau Website berformat tidak valid — validasi gagal dengan pesan di bawah kolomnya ('Format email tidak valid.' / 'Format website tidak valid (contoh: www.contoh.co.id).')"
   ],
   "test_priority": "medium",
   "open_questions": []

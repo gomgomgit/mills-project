@@ -22,3 +22,11 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 
 Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - business_logic 12/13 dan edge_case[10]: konversi '' -> null pada 3 kolom enum dijelaskan sebagai efek normalisasi generik `nilai || null` di applyDetailRowChanges() (dipakai saveDraft dan pauseDraftWithFormData), bukan penanganan khusus enum; alasan 'menghindari CHECK constraint enum' dihapus karena SQLite lokal tidak punya constraint itu (constraint hanya di backend, yang juga menormalkan ENUM_FIELDS).
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/services/effluentPlantRecordRepo.ts, mobile/src/views/FormEffluentPlantView.vue, mobile/src/services/syncService.ts, mobile/src/services/millSettingRepo.ts, mobile/src/services/localSchema.ts, mobile/src/utils/localDate.ts).
+- api_contracts[0].business_logic[1] = createDraft() mengisi date lokal 'YYYY-MM-DD' (todayLocalDateString); view fallback nowLocalDateTimeString() bila kosong ← diff createDraft + form.date fallback di view
+- api_contracts[0].business_logic[2] = Verifikasi berisi "Catatan" (FormField id field-note) ← diff template view
+- api_contracts[0].edge_case_handling (append) = penolakan 4xx menulis sync_error lokal, dikosongkan saat berhasil, offline tidak dicatat; tampil di Data Preview "Gagal sinkron: <alasan>" ← syncService.failure()/rememberSyncError()/markSynced(), localSchema.migrateRecordTablesForSyncError, components/SyncFailureHint.vue
+- implementation_notes (append) = write-through aktif sungguhan (millSettingRepo SELECT immediate_sync_enabled), payload date lokal, Production Line per record dari station_id ← diff millSettingRepo.ts, syncService.pushUniformRow/resolveRecordContext/syncTable

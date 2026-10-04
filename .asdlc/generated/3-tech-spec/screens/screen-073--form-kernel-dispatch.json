@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-04"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-073--form-kernel-dispatch",
   "name": "Form Kernel Dispatch",
@@ -33,8 +33,8 @@
       "endpoints": [],
       "business_logic": [
         "1. Load draft kernel_dispatch_record by id (route param) beserta seluruh kernel_dispatch_detail turunannya ke form state",
-        "2. Auto-set Date = hari ini HANYA jika draft baru (masih kosong); jika draft dilanjutkan, pertahankan nilai tersimpan",
-        "3. Render field dikelompokkan per section: Identitas Kernel Dispatch (Kernel Dispatch ID, Date), Verifikasi (Inputted By [read-only], Checked By, Acknowledged By, Note), Log Kejadian (tabel event-log)",
+        "2. Date diisi kernelDispatchRecordRepo.createDraft() dengan tanggal LOKAL perangkat 'YYYY-MM-DD' via util bersama todayLocalDateString() (mobile/src/utils/localDate.ts; menggantikan helper todayDateString() milik repo — audit-fix 2026-10-04). Saat load, view hanya mengisi fallback todayLocalDateString() bila date masih kosong; jika draft dilanjutkan, pertahankan nilai tersimpan",
+        "3. Render field dikelompokkan per section: Identitas Kernel Dispatch (Kernel Dispatch ID, Date), Verifikasi (Inputted By [read-only], Checked By, Acknowledged By, Catatan — FormField id=\"field-note\" berlabel 'Catatan'), Log Kejadian (tabel event-log)",
         "4. Render breadcrumb (Home > Production Process Activity > Kernel Dispatch > Form, tappable) dan header dengan hamburger",
         "5. On Tambah baris Log Kejadian: tambah 1 baris baru (tanpa id) ke tabel, seluruh field kosong — TIDAK ADA batasan jumlah baris (event-log unbounded)",
         "6. On isi field baris (Tanggal Kejadian, Shift, Weighbridge Ticket No, Waybill Number, Transporter/Contractor, Vehicle Plate No, Driver Name, Silo Source ID, Destination/Buyer, dll): update field baris tersebut secara reaktif; Net Weight (MT) dihitung otomatis = Gross Weight - Tare Weight setiap kali salah satu berubah; Remarks/Gate Status dipilih dari enum (Released/Not Released)",
@@ -121,6 +121,14 @@
         {
           "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
           "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED terjadi saat record tiba di server: (a) pada sinkron manual dari Station List (screen-006) — record tetap 'saved' di perangkat dan alasan dari server ditampilkan per record di SyncResultDialog; (b) bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mengirim record ini (writeThroughSync.syncAfterSave('kernel_dispatch_record') → syncService.pushSavedRecordNow → POST /api/kernel-dispatch-records). REVISI 2026-10-03: penolakan 4xx (termasuk 422 PERIOD_CLOSED) pada kiriman langsung ini TIDAK lagi diam — syncAfterSave() mengembalikan {synced: false, rejection: <pesan server>}, form menampilkan ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu bernavigasi ke Monitor Kernel Dispatch saat dialog ditutup; record tetap 'saved' di perangkat dan dapat dikirim ulang lewat sinkron manual setelah masalahnya diselesaikan. Kegagalan offline/5xx tetap diam (record menunggu sinkron berikutnya). Pemulihan: Admin membuka kembali baris stasiun Kernel Dispatch di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
+        },
+        {
+          "condition": "Tanggal Kejadian (event_date) salah satu baris Log Kejadian jatuh di periode yang ditutup, atau Date header / Tanggal Kejadian baris melewati besok (audit-fix 2026-10-04)",
+          "handling": "Simpan lokal tidak memeriksa ini. Saat record tiba di server (write-through atau sinkron manual), KernelDispatchRecordService::create() menjalankan assertEventDateNotTooFarAhead pada `date` header (422 VALIDATION_ERROR field date, 'Tanggal dd/mm/yyyy tidak masuk akal: tidak boleh melewati dd/mm/yyyy.') dan pada setiap event_date baris (field details, label 'Tanggal Kejadian baris ke-N'); batas = hari ini WIB + EVENT_DATE_MAX_DAYS_AHEAD (default 1). Lalu assertDetailEventDatesWritable('kernel-dispatch', mill, event_date baris) — 422 PERIOD_CLOSED 'Baris log bertanggal kejadian dd/mm/yyyy ditolak. ...'. Di perangkat ditangani sama dengan penolakan 4xx lain: ConfirmDialog 'Tersimpan, tetapi ditolak server' (write-through) / SyncResultDialog (sinkron manual); record tetap 'saved', alasan disimpan di sync_error."
+        },
+        {
+          "condition": "Kiriman record ini ditolak server (4xx) pada write-through atau sinkron manual (audit-fix 2026-10-04)",
+          "handling": "syncService menulis alasan penolakan ke kolom lokal sync_error pada record (kolom ditambahkan localSchema.migrateRecordTablesForSyncError) dan mengosongkannya saat kiriman berikutnya berhasil; kegagalan jaringan (tanpa status HTTP) tidak dicatat. Data Preview Kernel Dispatch menampilkannya sebagai 'Gagal sinkron: <alasan>' (SyncFailureHint.vue). Record tetap 'saved' dan dapat dikirim ulang."
         }
       ],
       "business_rules_applied": [
@@ -129,7 +137,7 @@
         "Log Kejadian adalah event-log bebas, jumlah baris tidak dibatasi",
         "Minimal satu baris Log Kejadian dengan Tanggal Kejadian terisi sebelum Simpan",
         "Net Weight dihitung otomatis per baris, tidak dapat diedit manual",
-        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'kernel-dispatch' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian header `date` (bukan event_date per baris detail)"
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'kernel-dispatch' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal header `date` DAN (sejak audit-fix 2026-10-04) setiap event_date baris Log Kejadian (assertDetailEventDatesWritable); `date` header maupun event_date baris juga tidak boleh melewati besok (assertEventDateNotTooFarAhead)"
       ],
       "unit_test_cases": [
         {
@@ -232,7 +240,8 @@
     "Hapus baris mengikuti pola queue-for-deletion (baris dengan id ditandai, baru DELETE eksekusi saat Simpan/Pause berikutnya), konsisten dengan Form Solid Waste Disposal/Form Cages Track",
     "Net Weight (MT) dihitung client-side lalu dipersist, tidak pernah dihitung ulang oleh repo saat load",
     "21 kolom detail (lebih banyak dari Solid Waste Disposal's 17) mengikuti persis urutan field entity-catalog kernel-dispatch-detail: event_date, shift, weighbridge_ticket_no, waybill_number, transporter_contractor, vehicle_plate_no, driver_name, silo_source_id, destination_buyer, gross_weight_mt, tare_weight_mt, net_weight_mt, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent, security_seal_no_top, security_seal_no_bottom, weighbridge_operator_id, remarks_gate_status, findings",
-    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormKernelDispatchView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('kernel_dispatch_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/kernel-dispatch-records, create). Kegagalan offline/5xx tetap diam; penolakan 4xx (mis. 422 PERIOD_CLOSED) kini ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' sebelum navigasi ke Monitor (revisi kode 2026-10-03), record tetap 'saved'. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('kernel-dispatch', mill, date) berjalan di KernelDispatchRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormKernelDispatchView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('kernel_dispatch_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/kernel-dispatch-records, create). Kegagalan offline/5xx tetap diam; penolakan 4xx (mis. 422 PERIOD_CLOSED) kini ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' sebelum navigasi ke Monitor (revisi kode 2026-10-03), record tetap 'saved'. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('kernel-dispatch', mill, date) berjalan di KernelDispatchRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): write-through syncAfterSave('kernel_dispatch_record') kini benar-benar aktif bila immediate_sync_enabled=true (millSettingRepo.getMillSetting() sebelumnya tidak men-SELECT kolom itu sehingga fitur selalu mati). syncService.pushUniformRow mengirim `date` selalu sebagai tanggal lokal 'YYYY-MM-DD', mencatat sync_error saat ditolak, dan pada sinkron manual memakai Production Line dari stasiun tempat record dibuat (station_id → station.production_line_id; line pilihan Station List hanya cadangan). Server kini juga menilai kunci periode per event_date baris dan menolak tanggal > besok — catatan sebelumnya 'bukan event_date per baris detail' sudah usang. Label catatan 'Note' → 'Catatan' (id field-note)."
   ],
   "test_scenarios": [
     {

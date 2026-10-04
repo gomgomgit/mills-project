@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-29"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-131--laporan-boiler-room-web",
   "name": "Laporan Boiler Room (Web)",
@@ -28,7 +28,7 @@
     {
       "actor_id": "actor-station-operator",
       "can_access": false,
-      "conditions": "Operator tidak punya akses web. Berbeda dari rangkaian cages-track, TIDAK ada perluasan Operator di sini — versi mobile Boiler Room (screen-137) belum dikerjakan"
+      "conditions": "Rute WEB /reports/boiler-room tetap tertutup bagi Operator (LaporanBoilerRoom::canAccess + middleware role) — sejak 2026-10-04 Operator boleh login web (akses terbatas) dan membuka rute ini mendapat halaman 403 (errors/403.blade.php). Rute API /api/boiler-room-reports/periods|summary|export MENERIMA Operator sejak 2026-09-25 (screen-137, guard auth:web,sanctum) dengan cakupan mill akunnya sendiri; /business-units/options tetap 403 bagi Operator"
     }
   ],
   "api_contracts": [
@@ -178,11 +178,13 @@
               "production_line": "{ id: uuid, name: string } | null — blok BARU (2026-09-28), ADITIF: seluruh kunci yang sudah ada tetap di tempatnya dan tetap datar. null ketika permintaan tidak membawa production_line_id.",
               "coverage": {
                 "filled_slots": "integer",
-                "expected_slots": "integer",
+                "expected_slots": "integer (= boiler_unit_count × days_counted × slots_per_unit_per_day)",
                 "coverage_percent": "float",
                 "boiler_unit_count": "integer",
                 "slots_per_unit_per_day": "integer",
-                "days_in_period": "integer"
+                "days_in_period": "integer",
+                "days_counted": "integer — hari yang dipakai penyebut: = days_in_period untuk periode selesai, start..hari ini (WIB) untuk periode berjalan, 0 untuk periode belum mulai (App\\Support\\ReportPeriodDays::counted)",
+                "period_running": "boolean — true bila end_date periode setelah hari ini (ReportPeriodDays::isRunning)"
               },
               "metrics": {
                 "steam_pressure_bar": {
@@ -316,7 +318,7 @@
         {
           "method": "GET",
           "path": "/api/boiler-room-reports/export",
-          "description": "Ekspor seluruh pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot",
+          "description": "Ekspor seluruh pembacaan per slot waktu sepanjang periode ke CSV atau Excel (.xlsx sungguhan via App\\Support\\SheetWriter), satu baris per slot",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -354,7 +356,7 @@
           },
           "response": {
             "success_schema": {
-              "_note": "StreamedResponse; Content-Disposition attachment. Kolom konteks record (tanggal, unit boiler, status, catatan) diulang tiap baris, lalu seluruh 15 kolom pengukuran termasuk ketiga kolom teks bebas apa adanya"
+              "_note": "StreamedResponse; Content-Disposition attachment. format=csv → text/csv; format=excel → .xlsx sungguhan (Office Open XML, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet) ditulis App\\Support\\SheetWriter. Kolom: Periode, Mill, Production Line (konteks ekspor, diulang tiap baris) → Tanggal, Unit Boiler, Status (label Indonesia via ExportValue::status, mis. 'Tersinkron'), Catatan (konteks record, diulang tiap baris) → Slot Waktu (HH:MM via ExportValue::time) → 15 kolom pengukuran; blowdown_executed/sootblowing_executed ditulis 'Ya'/'Tidak' (null → sel kosong), ketiga kolom teks bebas apa adanya"
             },
             "error_codes": [
               {
@@ -396,14 +398,14 @@
         "metrics[].min dan metrics[].max diambil dari PEMBACAAN MENTAH, bukan dari rata-rata harian. Laporan ini menjawab 'seberapa stabil'; tekanan yang anjlok ke 12 bar pada satu slot adalah kejadian yang penting justru karena rata-rata harinya tetap terlihat 20. Konsekuensinya angka min/max pada kartu TIDAK dapat direkonsiliasi dengan kolom rata-rata harian di rekap — perbedaan itu disengaja dan WAJIB diberi label di layar, kalau tidak pembaca akan mengira laporannya rusak.",
         "NULL BUKAN NOL: metrik yang tidak pernah terisi sepanjang periode menghasilkan min/avg/max = null dengan reading_count = 0 — bukan 0/0/0, yang akan terbaca sebagai 'terukur dan hasilnya nol'. Berlaku per metrik secara independen: satu metrik null tidak memengaruhi metrik lain.",
         "PERAWATAN PUNYA TIGA KEADAAN. blowdown_executed dan sootblowing_executed adalah enum 'y'/'n' NULLABLE. executed = COUNT('y'); not_executed = COUNT('n'); not_recorded = COUNT(NULL). Ketiganya WAJIB berjumlah sama dengan jumlah baris pembacaan. NULL tidak pernah menambah not_executed — memperlakukannya demikian akan melaporkan kelalaian perawatan yang tidak pernah terjadi. avg_per_day = executed / days_with_records.",
-        "KELENGKAPAN PENCATATAN: filled_slots = jumlah baris boiler_room_details yang minimal satu dari 15 kolom non-time_slot-nya terisi. Baris yang seluruh 15 kolomnya null TIDAK dihitung terisi. expected_slots = boiler_unit_count x days_in_period x slots_per_unit_per_day. coverage_percent = 100 * filled / expected. Ini bagian isi laporan, bukan metadata: periode yang terisi 20% tetap menghasilkan rata-rata yang terlihat rapi, dan pembaca harus tahu itu sebelum mempercayainya.",
+        "KELENGKAPAN PENCATATAN: filled_slots = jumlah baris boiler_room_details yang minimal satu dari 15 kolom non-time_slot-nya terisi. Baris yang seluruh 15 kolomnya null TIDAK dihitung terisi. expected_slots = boiler_unit_count x days_counted x slots_per_unit_per_day, dengan days_counted = App\\Support\\ReportPeriodDays::counted(period): PENYEBUT BERHENTI DI HARI INI (WIB) untuk periode yang masih berjalan, seluruh hari untuk periode selesai, 0 untuk periode belum mulai (temuan audit 2026-10-04 #3). coverage memuat days_in_period, days_counted, dan period_running. coverage_percent = 100 * filled / expected. Layar: expected_slots 0 → persen '—' + 'belum ada slot yang diharapkan' (null bukan 0); period_running → keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)' dan rumus '× days_counted hari (sampai hari ini)'. Ini bagian isi laporan, bukan metadata: periode yang terisi 20% tetap menghasilkan rata-rata yang terlihat rapi, dan pembaca harus tahu itu sebelum mempercayainya.",
         "TIGA KOLOM TEKS BEBAS — fuel_feed_rate, id_fan_load, sa_fan_load — TIDAK PERNAH diagregasi, tidak pernah menjadi min/avg/max, dan tidak pernah muncul pada tren. Satuan pada formulir kertasnya bercampur (Hz/%/ton, A/%) sehingga kolomnya memang string di skema, bukan float. Ketiganya hanya muncul apa adanya pada ekspor.",
         "TIDAK ADA penandaan nilai di luar batas di mana pun — tanpa warna peringatan, ikon, maupun label pelanggaran. Boiler Room tidak punya master target operasional (tidak ada BoilerRoomOperationalTarget; hanya Threshing/Pressing/Depricarping/Kernel Plant yang punya), dan menurunkan ambang dari data periode itu sendiri untuk tekanan boiler berisiko dibaca sebagai batas keselamatan padahal hanya turunan statistik. Penilaian ada pada manusia.",
         "time_slot bertipe TIME, bukan integer jam seperti tipped_hour milik Cages & Tracks. Pengurutan dan pengelompokan memakai nilai TIME apa adanya; jangan mengasumsikan slot jatuh tepat di awal jam dan jangan mengonversinya menjadi integer.",
         "daily: satu baris per TANGGAL yang punya record, menaik, menggabungkan seluruh unit boiler pada tanggal itu. Kolom *_avg adalah rata-rata harian metrik itu, masing-masing dengan penyebut hariannya sendiri. Tanggal ber-record yang seluruh barisnya kosong untuk sebuah metrik menghasilkan null pada kolom itu, tetapi tanggal itu TETAP terhitung sebagai hari ber-record.",
         "by_unit: GROUP BY boiler_room_id atas seluruh record periode. Unit yang punya record tetapi nol pembacaan terisi TETAP muncul dengan reading_count 0 dan seluruh rata-rata null — menghilangkannya akan menyembunyikan unit yang justru tidak pernah dicatat.",
         "Seluruh agregasi dijalankan di PHP atas baris mentah, BUKAN lewat SUM/AVG/GROUP BY di SQL. Perilaku agregat SQL atas kolom nullable berbeda antara SQLite (dipakai test) dan PostgreSQL (produksi), dan justru aturan penyebut-terpisah serta null-bukan-nol yang paling mudah hilang di perbedaan itu.",
-        "export: authorizePeriod -> hitung jumlah baris boiler_room_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat chunk, satu baris per slot waktu, dengan kolom konteks record (tanggal, unit boiler, status, catatan) DIULANG tiap baris mengikuti konvensi ekspor repo, lalu seluruh 15 kolom pengukuran termasuk ketiga kolom teks bebas apa adanya.",
+        "export: authorizePeriod -> hitung jumlah baris boiler_room_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat generator streamExportRows(recordQuery, exportContext) ke App\\Support\\SheetWriter::open(format) (csv atau xlsx sungguhan), satu baris per slot waktu: kolom konteks ekspor [period.name, mill (period.businessUnit.name), nama production line] lalu konteks record (tanggal, unit boiler, status berlabel Indonesia via ExportValue::status, catatan) DIULANG tiap baris, slot HH:MM (ExportValue::time), lalu seluruh 15 kolom pengukuran — blowdown/sootblowing 'y'/'n' ditulis 'Ya'/'Tidak' (null → kosong), ketiga kolom teks bebas apa adanya.",
         "productionLineOptions(businessUnitId): SELECT production_lines WHERE business_unit_id = <mill yang berlaku> ORDER BY name. Berlaku untuk SEMUA peran — tidak seperti businessUnitOptions() yang khusus Admin — karena Production Line BUKAN ikatan akun (tidak ada `users.production_line_id`) melainkan KONTEKS YANG DIPILIH; satu mill di lapangan punya belasan line dengan jenis stasiun yang sama berulang.",
         "resolveProductionLine(businessUnitId, requested): null bila kosong, dan null pula bila line itu bukan milik mill yang berlaku — DIABAIKAN, bukan 403 (403 justru memastikan line itu ada). MEMILIH LINE WAJIB di layar laporan: null berarti 'jangan tampilkan angka apa pun', BUKAN 'tampilkan semua line', karena laporan menghasilkan ANGKA GABUNGAN dan total yang mencampur belasan line tidak dapat ditindaklanjuti siapa pun.",
         "summary(period, productionLineId): scopeToProductionLine() menambahkan WHERE boiler_room_records.production_line_id = ? pada kueri siklus/record — DI KOLOM TABEL RECORD, bukan join ke `stations`. Kolom itu di-snapshot dari stasiun saat record dibuat dan tidak pernah berubah, sehingga record yang stasiunnya kemudian dipindah tetap terhitung di line ASALNYA; menyaring lewat `stations` akan menulis ulang sejarah setiap kali sebuah stasiun dipindahkan.",
@@ -534,6 +536,14 @@
         {
           "condition": "Stasiun sebuah record sudah dipindah ke Production Line lain",
           "handling": "Record tetap terhitung di line ASALNYA, karena penyaringan memakai kolom record `boiler_room_records.production_line_id` (snapshot saat create), bukan `stations.production_line_id` yang menunjuk line stasiun itu SEKARANG."
+        },
+        {
+          "condition": "Periode masih berjalan (end_date setelah hari ini)",
+          "handling": "coverage.days_counted = hari start..hari ini (WIB), expected_slots memakai days_counted, period_running = true; layar menampilkan data-testid=\"period-running-note\" dan rumus '× N hari (sampai hari ini)'"
+        },
+        {
+          "condition": "expected_slots = 0 (belum ada unit tercatat atau periode belum mulai)",
+          "handling": "coverage-percent tampil '—' dan data-testid=\"coverage-no-expected\" 'belum ada slot yang diharapkan' menggantikan 'X dari Y slot' — bukan '0,0%'"
         }
       ],
       "business_rules_applied": [
@@ -807,6 +817,31 @@
           "description": "tanpa Production Line terpilih tidak ada berkas yang diunduh sama sekali",
           "given": "export('csv') dipanggil pada komponen LaporanBoilerRoom saat productionLineId = ''",
           "expect": "tidak ada StreamedResponse yang dihasilkan — jalur ekspor berhenti sebelum menyentuh service"
+        },
+        {
+          "description": "ReportPeriodDays: periode berjalan dihitung sampai hari ini, periode selesai utuh, periode belum mulai 0",
+          "given": "tiga periode boiler-room: 01–09 Okt (berjalan, hari ini 04 Okt), 01–30 Sep (selesai), 01–30 Nov (belum mulai)",
+          "expect": "counted = 4 / 30 / 0; isRunning = true / false / true"
+        },
+        {
+          "description": "kelengkapan periode berjalan memakai hari yang sudah lewat sebagai penyebut",
+          "given": "periode 01–09 Okt dibaca 04 Okt, keempat hari pertama terisi penuh untuk satu unit",
+          "expect": "coverage.expected_slots = 1 × 4 × 24, coverage_percent = 100 (bukan ~44), days_counted = 4, period_running = true; layar memuat keterangan 'sampai hari ini'"
+        },
+        {
+          "description": "tanpa unit tercatat kelengkapan tampil '—'",
+          "given": "periode selesai tanpa record Boiler Room",
+          "expect": "expected_slots = 0; layar menampilkan coverage-no-expected dan '—', bukan '0 dari 0 slot · 0,0%'"
+        },
+        {
+          "description": "ekspor membawa Periode/Mill/Production Line di tiap baris, status berlabel, slot HH:MM, blowdown/sootblowing Ya/Tidak",
+          "given": "satu record status synced dengan detail time_slot 07:00:00, blowdown 'y', sootblowing 'n'",
+          "expect": "header diawali ['Periode','Mill','Production Line']; tiap baris memuat nama periode, mill, line; status 'Tersinkron'; slot '07:00'; tidak ada sel 'synced'/'y'/'n'"
+        },
+        {
+          "description": "format=excel menghasilkan xlsx sungguhan",
+          "given": "GET /api/boiler-room-reports/export?format=excel",
+          "expect": "badan respons adalah arsip zip OOXML ([Content_Types].xml, xl/workbook.xml, xl/worksheets/sheet1.xml) yang dapat dibuka, bukan byte CSV"
         }
       ]
     }
@@ -877,7 +912,8 @@
     "Properti Livewire `public string $productionLineId` memakai #[Url(as: 'production_line_id')] — alias itu WAJIB: tanpa `as:` Livewire memakai NAMA PROPERTI (`productionLineId`) pada query string, sedangkan screen-140 menyisipkan `production_line_id` pada setiap report_path. Pasangan nama itulah yang membuat rantai tile → laporan bertemu.",
     "@selected pada <option> Production Line WAJIB dirender di server: Livewire 3 tidak menulis balik nilai <select> dari state komponen pada paint pertama, sehingga pengguna yang tiba lewat tautan tile akan melihat 'Pilih Production Line' padahal angkanya sudah milik line itu.",
     "Tombol Ekspor dirender hanya ketika $summary !== null, dan $summary hanya terisi ketika ada line yang berlaku — jadi 'tidak ada line' otomatis berarti 'tidak ada tombol Ekspor', tanpa kondisi kedua yang bisa ikut kedaluwarsa.",
-    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan."
+    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) penyebut kelengkapan memakai App\\Support\\ReportPeriodDays::counted() — coverage menambah days_counted & period_running; layar menampilkan keterangan periode berjalan, rumus '× days_counted hari (sampai hari ini)', dan '—' + 'belum ada slot yang diharapkan' bila expected_slots 0; (2) ekspor lewat App\\Support\\SheetWriter (Excel = .xlsx sungguhan, bukan CSV bernama .xlsx) dengan 3 kolom konteks Periode/Mill/Production Line di depan EXPORT_HEADER, status via App\\Support\\ExportValue::status, slot HH:MM, blowdown/sootblowing Ya/Tidak; (3) hero menyebut nama Production Line; grafik tren harian .md-trendchart--days + petunjuk gulir bila > 10 tanggal; ikon .md-threshold dan angka KPI diperbaiki di report-styles. Diuji di tests/Feature/ReportAuditFix20261004Test.php dan tests/Feature/ExportXlsxTest.php. Juga dikoreksi drift lama: Operator diterima di API laporan sejak 2026-09-25 (test_scenarios[11] diselaraskan)."
   ],
   "test_scenarios": [
     {
@@ -1324,10 +1360,10 @@
             "path": "/api/boiler-room-reports/periods"
           },
           "request_example": {
-            "_context": "Sesi Station Operator; layar web ini tidak diperluas untuk Operator"
+            "_context": "Sesi Station Operator (sanctum) — API laporan dibuka untuk Operator sejak 2026-09-25 (screen-137); 200 dengan periode mill akunnya sendiri. Yang tertutup hanya layar WEB"
           },
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
+          "expected_status": 200,
+          "expected_error_code": null
         },
         {
           "step": 2,
@@ -1339,8 +1375,8 @@
             "_context": "Sesi Station Operator mencoba rekap",
             "period_id": 10
           },
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
+          "expected_status": 200,
+          "expected_error_code": null
         },
         {
           "step": 3,
@@ -1352,8 +1388,8 @@
             "_context": "Sesi Station Operator mencoba ekspor",
             "period_id": 10
           },
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
+          "expected_status": 200,
+          "expected_error_code": null
         },
         {
           "step": 4,
@@ -1377,7 +1413,7 @@
       "browser_test": {
         "route": "/reports/boiler-room",
         "action": "Playwright: masuk sebagai Station Operator lalu buka /reports/boiler-room",
-        "assert": "halaman menampilkan akses ditolak atau dialihkan keluar; tidak ada satu pun angka laporan Boiler Room yang terlihat"
+        "assert": "Operator kini boleh login web (keputusan 2026-10-04, mendarat di /beranda); membuka /reports/boiler-room menghasilkan halaman 403 (errors/403.blade.php) dan tidak ada satu pun angka laporan Boiler Room yang terlihat"
       }
     },
     {

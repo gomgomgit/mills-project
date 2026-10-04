@@ -19,3 +19,11 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - test_results.browser diisi 3 lulus/0 gagal dari e2e-full.log.counts.json (spec detail-threshing); run_at 2026-10-03T00:00:00Z.
 - known_issue tunggal tentang spec Playwright backend/tests/Browser/* yang tidak dapat dijalankan dihapus (berkas itu sudah tidak ada; cakupan browser kini e2e-web) — known_issues jadi kosong.
 - Path spec sudah ada di fe_test_files_generated — tidak ditambahkan lagi.
+
+## v6 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/Data/DetailThreshing.php, backend/resources/views/livewire/data/detail-threshing.blade.php, backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php, backend/app/Support/Display.php, backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php).
+- fe_files_generated += backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php, backend/app/Support/Display.php ← dipakai DetailThreshing.php (use GuardsRecordIdShape) dan blade (\App\Support\Display::...)
+- fe_test_files_generated += backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php ← file uji baru mencakup DetailThreshing (dataset 18 stasiun)
+- implementation_notes += REVISI (2026-10-04, audit-fix) ← git diff DetailThreshing.php / detail-threshing.blade.php; DetailThreshingTest asersi angka kini id-ID
+- known_issues: tidak diubah ← tidak ada issue yang diperbaiki/ditambahkan oleh audit untuk layar ini

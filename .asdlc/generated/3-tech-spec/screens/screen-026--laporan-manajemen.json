@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-026--laporan-manajemen",
   "name": "Laporan Manajemen",
@@ -34,7 +34,7 @@
         {
           "method": "GET",
           "path": "/api/reports/management-summary",
-          "description": "Breakdown harian + baris Total Weighbridge/Grading/Cages Track untuk mill milik acting user, dalam rentang tanggal terfilter",
+          "description": "Breakdown harian + baris Total Weighbridge (masuk/keluar terpisah)/Grading/Cages Track untuk satu production line milik mill acting user, dalam rentang tanggal terfilter",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -52,6 +52,13 @@
                 "required": false,
                 "default": "hari ini",
                 "description": "Filter tanggal akhir; default hari ini jika tidak diisi"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "Production line yang dilaporkan — WAJIB dan harus milik mill acting user; kosong / bukan UUID / line mill lain → 422 VALIDATION_ERROR (field production_line_id)"
               }
             ],
             "body_schema": {}
@@ -62,8 +69,14 @@
                 {
                   "date": "date",
                   "weighbridge": {
-                    "count": "integer",
-                    "total_net_weight": "float"
+                    "receive": {
+                      "count": "integer",
+                      "total_net_weight": "float"
+                    },
+                    "dispatch": {
+                      "count": "integer",
+                      "total_net_weight": "float"
+                    }
                   },
                   "grading": {
                     "count": "integer",
@@ -78,8 +91,14 @@
               ],
               "total": {
                 "weighbridge": {
-                  "count": "integer",
-                  "total_net_weight": "float"
+                  "receive": {
+                    "count": "integer",
+                    "total_net_weight": "float"
+                  },
+                  "dispatch": {
+                    "count": "integer",
+                    "total_net_weight": "float"
+                  }
                 },
                 "grading": {
                   "count": "integer",
@@ -97,6 +116,11 @@
                 "http_code": 422,
                 "error_code": "INVALID_DATE_RANGE",
                 "condition": "date_from > date_to"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "production_line_id kosong ('Production Line wajib dipilih untuk menampilkan laporan.') atau bukan UUID / bukan line mill acting user ('Production Line yang dipilih tidak valid.')"
               }
             ]
           },
@@ -108,7 +132,7 @@
         {
           "method": "GET",
           "path": "/api/reports/management-summary/export",
-          "description": "Ekspor breakdown harian + baris Total ke CSV/Excel, mengikuti filter rentang tanggal yang sama",
+          "description": "Ekspor breakdown harian + baris Total ke CSV atau .xlsx sungguhan (App\\Support\\SheetWriter), mengikuti filter production line + rentang tanggal yang sama; kolom pertama Production Line diulang tiap baris, judul kolom Bahasa Indonesia (ManagementReportService::EXPORT_HEADER), Weighbridge Masuk/Keluar terpisah, baris akhir 'Total'",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -133,6 +157,13 @@
                 "required": false,
                 "default": "csv",
                 "description": "csv atau excel"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "sama seperti endpoint summary (wajib, line milik mill acting user)"
               }
             ],
             "body_schema": {}
@@ -151,6 +182,11 @@
                 "http_code": 422,
                 "error_code": "EXPORT_FAILED",
                 "condition": "gagal membuat berkas"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "production_line_id kosong / bukan UUID / bukan line mill acting user"
               }
             ]
           },
@@ -162,17 +198,18 @@
       ],
       "business_logic": [
         "1. Resolve business_unit_id dari acting user (Mill Management selalu punya business_unit_id)",
-        "2. Validasi date_from/date_to: jika date_from > date_to, return 422 INVALID_DATE_RANGE",
-        "3. Default date_from ke awal bulan berjalan, date_to ke hari ini, jika tidak diisi",
-        "4. Untuk setiap tanggal dalam rentang (inklusif), agregasi weighbridge-record/grading-record/cages-track-record (+cages-tipped-time) yang di-scope ke business_unit_id user, sama seperti DashboardService tapi per-hari",
-        "5. Susun array rows (satu per tanggal) + hitung baris total (penjumlahan seluruh rows)",
-        "6. Return {rows, total}"
+        "2. Resolve production_line_id (ManagementReportService::resolveProductionLine): wajib, Str::isUuid dulu (nilai bukan-UUID tidak boleh sampai SQL), lalu harus milik business_unit_id acting user; gagal → 422 VALIDATION_ERROR tanpa mengonfirmasi keberadaan line mill lain",
+        "3. Validasi date_from/date_to: jika date_from > date_to, return 422 INVALID_DATE_RANGE",
+        "4. Default date_from ke awal bulan berjalan, date_to ke hari ini, jika tidak diisi",
+        "5. Untuk setiap tanggal dalam rentang (inklusif), agregasi weighbridge-record (dipisah receive vs dispatch: weighbridge_type='dispatch' → dispatch, selain itu termasuk NULL → receive)/grading-record/cages-track-record (+cages-tipped-time) yang di-scope ke business_unit_id user (whereHas station) DAN production_line_id milik record",
+        "6. Susun array rows (satu per tanggal) + hitung baris total (penjumlahan seluruh rows, receive dan dispatch dijumlah masing-masing, tidak pernah digabung)",
+        "7. Return {rows, total}; export menulis header ['Production Line', ...EXPORT_HEADER], satu baris per tanggal, lalu baris 'Total', via SheetWriter (csv atau xlsx)"
       ],
       "data_operations": [
         {
           "entity_id": "weighbridge-record",
           "operation": "SELECT",
-          "description": "Aggregate count + SUM(net_weight) per hari, scoped ke business_unit_id user"
+          "description": "Aggregate count + SUM(net_weight) per hari, dipisah receive/dispatch, scoped ke business_unit_id user + production_line_id record"
         },
         {
           "entity_id": "grading-record",
@@ -202,6 +239,18 @@
         {
           "condition": "Tidak ada data sama sekali di seluruh rentang",
           "handling": "rows berisi baris 0 untuk setiap tanggal, total = 0; export tetap menghasilkan file"
+        },
+        {
+          "condition": "production_line_id tidak dikirim / bukan UUID / milik mill lain (API)",
+          "handling": "422 VALIDATION_ERROR pada field production_line_id; tidak ada agregasi dijalankan"
+        },
+        {
+          "condition": "Layar web: line belum dipilih, atau production_line_id di query string bukan opsi mill pengguna",
+          "handling": "productionLineId direset ke '' → breakdown tidak dihitung (null); tampil petunjuk select-production-line-hint, tanpa tabel/total/tombol ekspor"
+        },
+        {
+          "condition": "Layar web: date_from > date_to (InvalidDateRangeException)",
+          "handling": "Hanya errorMessage yang ditampilkan; breakdown null → tanpa 'Belum ada data', tanpa baris Total kosong, tanpa tombol ekspor"
         }
       ],
       "business_rules_applied": [
@@ -257,6 +306,21 @@
           "description": "export() generates a CSV with one row per date plus a Total row",
           "given": "valid date range with data",
           "expect": "streamed CSV body contains a header row, one row per date, and a final Total row"
+        },
+        {
+          "description": "separates Weighbridge receive and dispatch — never summed",
+          "given": "receive and dispatch weighbridge records on the same day",
+          "expect": "rows[].weighbridge.receive and .dispatch carry their own count/total_net_weight; total sums each flow separately"
+        },
+        {
+          "description": "filters by the selected production line and rejects another mill's line",
+          "given": "records on two lines of the user's mill and on a foreign mill's line",
+          "expect": "only the selected line's records are aggregated; resolveProductionLineOrNull returns null for a foreign line"
+        },
+        {
+          "description": "API returns 422 when production_line_id is empty or belongs to another mill",
+          "given": "GET /api/reports/management-summary without production_line_id, or with a foreign mill's line id",
+          "expect": "422 VALIDATION_ERROR on production_line_id"
         }
       ]
     }
@@ -291,8 +355,9 @@
   "implementation_notes": [
     "Endpoint terpisah dari GET /api/dashboard/summary (screen-025) karena bentuk data berbeda: breakdown per-hari + Total, bukan satu snapshot rentang gabungan, dan scope business_unit_id otomatis dari acting user (bukan query param opsional)",
     "ManagementReportService baru (bukan reuse DashboardService) agar per-entity aggregation query tidak perlu diubah jadi date-range-only vs per-day -- pola sama seperti WeighbridgeRecordService/GradingRecordService/CagesTrackRecordService yang masing-masing punya service sendiri",
-    "Export mengikuti pola WeighbridgeRecordService::export() -- CSV native, format=excel fallback ke CSV dengan xlsx mimetype/filename",
-    "route /reports/management dipilih agar tidak bentrok dengan /dashboard (screen-025) dan konsisten dengan namespace 'reports' untuk kemungkinan laporan lain di masa depan"
+    "Export memakai App\\Support\\SheetWriter: format=csv → CSV, format=excel → file .xlsx sungguhan (bukan lagi CSV berekstensi xlsx; revisi audit 2026-10-04)",
+    "route /reports/management dipilih agar tidak bentrok dengan /dashboard (screen-025) dan konsisten dengan namespace 'reports' untuk kemungkinan laporan lain di masa depan",
+    "REVISI audit 2026-10-04: production line wajib dipilih (pemilih di layar, #[Url] production_line_id; API resolveProductionLine 422), scope per production_line_id milik record, Weighbridge dipisah receive/dispatch di layar/JSON/ekspor, judul kolom & format angka/tanggal Indonesia (App\\Support\\Display) di layar."
   ],
   "test_scenarios": [
     {
@@ -305,14 +370,16 @@
             "method": "GET",
             "path": "/api/reports/management-summary"
           },
-          "request_example": {},
+          "request_example": {
+            "production_line_id": "<uuid line mill acting user>"
+          },
           "expected_status": 200,
           "expected_error_code": null
         }
       ],
       "component_test": {
         "component": "ManagementReport",
-        "action": "mount component with default filter (start of month..today)",
+        "action": "mount component, select a production line (default filter start of month..today)",
         "assert": "rows table renders one row per date with correct aggregates, plus a Total row"
       },
       "browser_test": {
@@ -332,6 +399,7 @@
             "path": "/api/reports/management-summary"
           },
           "request_example": {
+            "production_line_id": "<uuid line mill acting user>",
             "date_from": "2026-02-01",
             "date_to": "2026-02-10"
           },
@@ -361,6 +429,7 @@
             "path": "/api/reports/management-summary"
           },
           "request_example": {
+            "production_line_id": "<uuid line mill acting user>",
             "date_from": "2020-01-01",
             "date_to": "2020-01-02"
           },
@@ -390,6 +459,7 @@
             "path": "/api/reports/management-summary"
           },
           "request_example": {
+            "production_line_id": "<uuid line mill acting user>",
             "date_from": "2026-02-10",
             "date_to": "2026-02-01"
           },
@@ -400,7 +470,7 @@
       "component_test": {
         "component": "ManagementReport",
         "action": "set date_from later than date_to and apply",
-        "assert": "validation error message shown, table keeps previous values"
+        "assert": "validation error message shown; no table, no 'belum ada data', no empty Total row, no export buttons"
       },
       "browser_test": {
         "route": "/reports/management",
@@ -419,6 +489,7 @@
             "path": "/api/reports/management-summary/export"
           },
           "request_example": {
+            "production_line_id": "<uuid line mill acting user>",
             "date_from": "2026-02-01",
             "date_to": "2026-02-10",
             "format": "csv"
@@ -436,6 +507,32 @@
         "route": "/reports/management",
         "action": "click the Ekspor button",
         "assert": "browser downloads a CSV file containing the daily breakdown and Total row"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Manajemen -- Production Line Belum/Salah Dipilih",
+      "usecase_id": "usecase-026--laporan-manajemen",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/reports/management-summary"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "ManagementReport",
+        "action": "mount without selecting a production line (and with a foreign mill's line in production_line_id)",
+        "assert": "select-production-line-hint shown, no numbers/table; foreign line is not an option and is reset to empty"
+      },
+      "browser_test": {
+        "route": "/reports/management",
+        "action": "open the page as Mill Management without choosing a line",
+        "assert": "page asks to pick a production line and shows no figures until one is chosen"
       }
     }
   ]

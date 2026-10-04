@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-02"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-142--detail-periode-pelaporan",
   "name": "Detail Periode Pelaporan",
@@ -149,6 +149,14 @@
         {
           "condition": "Actor bukan Admin atau tanpa sesi",
           "handling": "403 FORBIDDEN / 401 UNAUTHENTICATED; tidak ada data periode maupun status stasiun yang dikirim ke klien"
+        },
+        {
+          "condition": "Hapus periode (lewat PeriodService::delete(), kontrak screen-128) yang sudah membingkai record stasiun",
+          "handling": "PeriodHasRecordsException (409 PERIOD_HAS_RECORDS) extends PeriodClosedImmutableException, sehingga catch yang sudah ada di DetailPeriodePelaporan menampilkan pesannya inline ('Periode \"<nama>\" tidak dapat dihapus karena sudah berisi data stasiun (<jenis>)...'); halaman tetap di detail, tidak ada yang terhapus"
+        },
+        {
+          "condition": "Membuka modal Edit Periode (combobox x-searchable-select pertama di halaman muncul lewat morph Livewire)",
+          "handling": "Style + ssSelect() dimuat sekali per halaman oleh components/layouts/app.blade.php (x-searchable-select-assets), bukan @once di komponen — script yang disisipkan morph tidak dieksekusi browser sehingga combobox dulu kosong dengan listbox kosong terbuka; kini Business Unit terisi dan listbox tertutup"
         }
       ],
       "business_rules_applied": [
@@ -691,7 +699,7 @@
         "5. → bila affected rows = 0 (Admin lain lebih dulu): baca ulang baris itu dan lempar 409 PERIOD_NOT_DRAFT dengan status yang benar-benar dimilikinya sekarang; JANGAN menimpa diam-diam",
         "6. Stamp periods.updated_by = actor setelah UPDATE menang, lalu kembalikan toStatusRow(id)",
         "7. TIDAK ADA record stasiun yang dibaca, divalidasi, maupun diubah — berbeda dari close() yang menghitung record belum terverifikasi. Jangan menambahkan sapuan apa pun di sini",
-        "8. Baris berstatus open TIDAK membekukan periodenya: update() dan delete() hanya menolak bila ada baris closed. Jangan memperluas lock ke 'open'",
+        "8. Baris berstatus open TIDAK membekukan periodenya: update() hanya menolak bila ada baris closed, dan delete() menolak bila ada baris closed ATAU (sejak 2026-10-04) bila periode membingkai record stasiun (409 PERIOD_HAS_RECORDS) — penjaga record itu tentang DATA, bukan status. Jangan memperluas lock status ke 'open'",
         "9. FE: tombol 'Buka Stasiun' HANYA dirender untuk baris berstatus draft; trio askOpen / cancelOpen / confirmOpen meniru askReopen / cancelReopen / confirmReopen"
       ],
       "data_operations": [
@@ -875,7 +883,8 @@
     "test_scenario 'data mobile menyusul' mengandaikan POST record stasiun idempoten terhadap UUID yang dibuat offline (sesuai shared-decisions: ID entitas yang dibuat offline memakai UUID)",
     "LUBANG BACKFILL: PeriodService::update() menolak 409 pada periode yang punya minimal satu baris closed, dan backfill baris stasiun baru hanya berjalan di dalam update() yang sukses. Akibatnya periode semacam itu tidak bisa mendapat baris jenis stasiun baru sampai barisnya dibuka kembali. Jalan keluar hari ini manual dan harus dijelaskan ke Admin dari layar ini: Buka Kembali → simpan periode → Tutup lagi. Perbaikan tuntasnya adalah aksi 'sinkronkan stasiun' add-only yang diizinkan meski ada baris tertutup — usecase baru, belum diputuskan",
     "Test browser memakai Vite dev server / rute web Livewire seperti layar master data lain; /master-data/periods/{id} dapat diuji langsung di browser, tidak perlu ditunda",
-    "e2e-web sudah punya helper periode (tests/support/periods.ts, period-screen.ts, period-lanes.ts) yang saat ini mengandaikan aksi stasiun berada di dalam baris expandable layar daftar. Helper itu harus diarahkan ke rute detail saat implementasi; ini catatan untuk langkah implementasi, bukan bagian spec"
+    "e2e-web sudah punya helper periode (tests/support/periods.ts, period-screen.ts, period-lanes.ts) yang saat ini mengandaikan aksi stasiun berada di dalam baris expandable layar daftar. Helper itu harus diarahkan ke rute detail saat implementasi; ini catatan untuk langkah implementasi, bukan bagian spec",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) Hapus Periode dari layar ini kini juga ditolak bila periode berisi data stasiun — PeriodService::guardAgainstFramedRecords() → PeriodHasRecordsException (409 PERIOD_HAS_RECORDS), ditangkap catch PeriodClosedImmutableException yang sudah ada sehingga DetailPeriodePelaporan tidak diubah. (2) Perbaikan komponen bersama x-searchable-select (temuan #8): aset dipindah ke components/searchable-select-assets.blade.php yang dimuat layout, x-data tidak memuat opsi (dibaca dari data-ss-options), listbox wire:ignore — combobox Business Unit di modal Edit Periode kini terisi. (3) Kunci periode (usecase-141, di luar layar ini) kini juga memeriksa event_date baris detail tiga stasiun log-kejadian dan memakai tanggal WIB. Spec e2e detail-periode-pelaporan memakai periode fixture 'Fixture Periode Agustus 2026' di 'Mill Periode Uji' karena periode buatan test yang membingkai record tidak lagi bisa dihapus."
   ],
   "test_scenarios": [
     {

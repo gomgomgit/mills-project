@@ -1,8 +1,8 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-114--form-cpo-dispatch-web",
   "name": "Form CPO Dispatch (Web)",
@@ -13,27 +13,36 @@
     "backend/app/Services/CpoDispatchRecordService.php",
     "backend/app/Http/Controllers/Api/CpoDispatchRecordController.php",
     "backend/routes/api.php",
-    "backend/database/factories/StationFactory.php"
+    "backend/database/factories/StationFactory.php",
+    "backend/app/Support/AppTime.php",
+    "backend/app/Support/Concerns/EnforcesPeriodLock.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php",
+    "backend/config/app.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/CpoDispatchRecordServiceTest.php",
-    "backend/tests/Feature/Api/FormCpoDispatchTest.php"
+    "backend/tests/Feature/Api/FormCpoDispatchTest.php",
+    "backend/tests/Feature/AuditFix20261004Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormCpoDispatch.php",
     "backend/resources/views/livewire/data/form-cpo-dispatch.blade.php",
     "backend/resources/views/data/cpo-dispatch-form.blade.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php"
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/FormCpoDispatchTest.php",
-    "e2e-web/tests/form-cpo-dispatch.spec.ts"
+    "e2e-web/tests/form-cpo-dispatch.spec.ts",
+    "backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php",
+    "backend/tests/Feature/Livewire/WebFormNoDisabledFieldTest.php"
   ],
   "implementation_notes": [
     "Satu Livewire component (FormCpoDispatch) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormKernelDispatch/FormSolidWasteDisposal/FormWeighbridge/FormGrading",
     "CpoDispatchRecordService::create()/update() dipanggil dari CpoDispatchRecordController::store()/update() (API) DAN Livewire FormCpoDispatch::save() — satu source of truth validasi/business logic",
     "BERBEDA dari Kernel Dispatch: TIDAK ADA kolom remarks_gate_status/weighbridge_ticket_no — CPO Dispatch tidak memiliki field gate-status setara maupun weighbridge ticket number. Sebagai gantinya CPO Dispatch punya time_in/time_out (dua input type=time terpisah dari Tanggal Kejadian) dan dobi, tidak ada CHECK-constraint enum di tabel cpo_dispatch_details sama sekali (diverifikasi dari migration) sehingga tidak ada isu SQLite empty-string-vs-null seperti yang ditemukan pada Kernel Dispatch's remarks_gate_status — upsertDetails() tetap mengoersi time_in/time_out kosong ('') menjadi null sebagai praktik defensif yang sama, walau bukan untuk menghindari CHECK-constraint error",
-    "Net Weight (MT) dihitung server di CpoDispatchRecordService::upsertDetails() (= gross_weight_mt - tare_weight_mt, null jika salah satu kosong) — TIDAK menerima override dari client, dikecualikan dari konvensi web-form-input 'tidak boleh disabled' karena computed/data-integrity, sama alasan seperti Net Weight Form Weighbridge Web/Form Kernel Dispatch Web",
+    "Net Weight (MT) dihitung server di CpoDispatchRecordService::upsertDetails() (= gross_weight_mt - tare_weight_mt, null jika salah satu kosong) — TIDAK menerima override dari client; di form web dirender sebagai TEKS (span .cf-computed-value) sejak 2026-10-04, sebelumnya input disabled yang menyalahi konvensi web-form-input",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit): Date pada web default hari ini namun TETAP dapat diedit manual — TIDAK dikunci/dibekukan seperti mobile screen-074",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit): tidak ada draft/pause/Clear di web — Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
     "Checked By DAN Acknowledged By keduanya ada di form ini sebagai checkbox self-attestation role-gated, konsisten dengan mobile screen-074 dan Detail CPO Dispatch Web (screen-104)",
@@ -44,7 +53,8 @@
     "REVISI v3 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormCpoDispatchTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 18 uji, semuanya hijau (test_results.integration diperbarui).",
     "REVISI v4 (2026-10-03, perbaikan kode + uji): CpoDispatchRecordService::upsertDetails() kini menormalkan field angka detail yang kosong ('' → null) lewat helper baru numericOrNull() (filled($v) ? (float)$v : null) untuk gross_weight_mt, tare_weight_mt, ffa_percent, moisture_percent, impurities_percent, dan dobi. Sebelumnya '' dari input angka yang dikosongkan diteruskan apa adanya ke kolom float PostgreSQL → SQLSTATE 22P02 → HTTP 500 di form web (SQLite di suite menerimanya diam-diam, jadi suite tetap hijau), dan (float)'' menyimpan gross/tare kosong sebagai 0 sehingga Net Weight ikut terhitung palsu. Uji regresi: tests/Unit/Services/CpoDispatchRecordServiceTest.php 'stores blank numeric detail fields as null, not empty string or 0'. e2e-web/tests/form-cpo-dispatch.spec.ts juga diperbaiki: Production Line dipilih berdasarkan label 'PL Mill A' (bukan index 1, yang kini jatuh ke line fixture Kelola Machinery tanpa stasiun CPO Dispatch); skenario simpan di baris :48 kini lulus. test_results tidak diubah.",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-cpo-dispatch.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 2 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): CpoDispatchRecordService create/update kini memanggil assertEventDateNotTooFarAhead(date) (tanggal > besok WIB -> 422 errors.date) dan EnforcesPeriodLock::assertDetailEventDatesWritable('cpo-dispatch', ...) untuk event_date setiap baris (create: tanggal baru; update: tanggal baru + tanggal baris tersimpan) -> 422 PERIOD_CLOSED 'Baris log bertanggal kejadian dd/mm/YYYY ditolak. ...'; validateDetails() menolak event_date tidak sah ('Tanggal Kejadian pada baris ke-N tidak valid.') atau > besok (errors.details); upsertDetails() memperlakukan id baris bukan-UUID sebagai baris baru (Str::isUuid). Ekspor memakai App\\Support\\SheetWriter/ExportValue (bukan bagian layar ini). FormCpoDispatch memakai GuardsRecordIdShape (id bukan UUID -> 'Record tidak ditemukan.'); view merender Net Weight per baris sebagai teks. Bersama: ScopesToActorMill (production_line_id bukan-UUID -> 422), ApiExceptionHandler (QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL), AppTime/config app.timezone Asia/Jakarta. Tes: tests/Feature/AuditFix20261004Test.php ([detail-lock] create+update, [future], [uuid]), RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php (dataset dispatch net weight forms). test_results tidak diubah."
   ],
   "deferred_items": [],
   "known_issues": [

@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-129--laporan-sterilizer-web",
   "name": "Laporan Sterilizer (Web)",
@@ -37,7 +37,9 @@
     "backend/routes/api.php",
     "backend/routes/web.php",
     "backend/app/Exceptions/ExportFailedException.php",
-    "backend/app/Livewire/Data/FormSterilizer.php"
+    "backend/app/Livewire/Data/FormSterilizer.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Dashboard/LaporanSterilizer.php",
@@ -50,7 +52,9 @@
   "test_files_generated": [
     "backend/tests/Unit/Services/SterilizerReportServiceTest.php",
     "backend/tests/Feature/Api/LaporanSterilizerTest.php",
-    "e2e-web/tests/laporan-sterilizer.spec.ts"
+    "e2e-web/tests/laporan-sterilizer.spec.ts",
+    "backend/tests/Feature/ReportAuditFix20261004Test.php",
+    "backend/tests/Feature/ExportXlsxTest.php"
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/LaporanSterilizerTest.php"
@@ -69,7 +73,8 @@
     "Status periode tidak membatasi apa pun pada layar ini: Ekspor tidak pernah dinonaktifkan, periode berstatus closed tetap tampil penuh, badge status hanya keterangan. Kunci periode mengatur penulisan data, bukan pembacaan laporan.",
     "Bahasa UI seluruhnya Indonesia. Responsif: baris filter membungkus, KPI 4 kolom menjadi 2, breakdown unit 2 menjadi 1, tren harian dan tabel rekap menggulir DI DALAM kartunya sehingga halaman tidak punya gulir horizontal sampai lebar 767px.",
     "SPEC BROWSER DIPERBAIKI 2026-10-02. e2e-web/tests/laporan-sterilizer.spec.ts terakhir disentuh 2026-09-27, sementara kewajiban memilih Production Line mendarat 2026-09-28 (commit a5ccfba), sehingga seluruh test laporannya berhenti di empty state `select-production-line-hint`. Helper selectProductionLine() ditambahkan dan dipanggil sebelum tiap selectPeriod(). SATU HAL KHUSUS DI SPEC INI: ia tidak punya konstanta PRODUCTION_LINE_ID seperti keempat spec laporan lain, dan BUSINESS_UNIT ('BU Browser Test') punya 15 production line — beberapa di antaranya sengaja tidak lengkap ('PL Tanpa Threshing' dan seterusnya) plus dua yang hanya punya satu stasiun. Memilih 'index 1' di layar laporan hanya kebetulan menghasilkan line yang sama dengan yang dipakai form selama kedua picker mengurutkan isinya identik; kalau suatu saat tidak, laporannya menampilkan nol angka pada line tanpa record dan kegagalannya terbaca seperti bug produk. Jadi line yang dipilih form DIREKAM saat record pertama dibuat lalu dipakai ulang laporan — laporan membaca line yang sama dengan yang ditulis, apa pun urutannya. Hasil: 15 lolos, 0 gagal.",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-sterilizer.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 15 lulus, 0 gagal; test_results.browser diperbarui."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-sterilizer.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 15 lulus, 0 gagal; test_results.browser diperbarui.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): SterilizerReportService::export() menulis lewat App\\Support\\SheetWriter (format=excel kini .xlsx sungguhan, bukan byte CSV bernama .xlsx) dengan EXPORT_HEADER publik berbahasa Indonesia yang diawali kolom konteks Periode/Mill/Production Line; nilai lewat App\\Support\\ExportValue (status berlabel Indonesia, jam HH:MM, Diperiksa SPV Ya/Tidak). laporan-sterilizer.blade.php: hero menyebut nama Production Line aktif; tren harian memakai .md-trendchart--days + petunjuk gulir (data-testid scroll-hint) bila > 10 tanggal; report-styles.blade.php mendapat aturan tambahan (ukuran ikon .md-threshold, angka KPI penuh, kolom harian, header tabel membungkus, grid stasiun auto-fill). Uji: SterilizerReportServiceTest & Api/LaporanSterilizerTest diperbarui ke header Indonesia; ReportAuditFix20261004Test (#8 CSV Sterilizer, #10 hero line, report-styles) dan ExportXlsxTest (xlsx sungguhan keenam laporan) baru; e2e-web/tests/laporan-sterilizer.spec.ts kini menyapu data lajur (pruneLaneData) sebelum/sesudah run."
   ],
   "deferred_items": [
     {
@@ -107,7 +112,7 @@
       "severity": "minor"
     },
     {
-      "description": "Sidebar tidak menyaring menu per role (pola repo, sama seperti screen-128). Penegakan ada di middleware route dan mount() (abort_unless), jadi menekan menu hanya menghasilkan 403, bukan kebocoran data.",
+      "description": "DIPERBAIKI 2026-10-04 (audit-fix). Sidebar kini menyaring menu per role lewat App\\Support\\RouteAccess (layouts/app.blade.php): item tampil hanya bila middleware role route-nya mengizinkan user; akses langsung oleh role tak berhak menampilkan halaman errors/403.blade.php. Penegakan di middleware route dan mount() tetap ada.",
       "severity": "minor"
     },
     {
@@ -115,7 +120,7 @@
       "severity": "minor"
     },
     {
-      "description": "Browser spec tidak membersihkan fixture-nya — periode dan record sterilizer tiap run tidak dihapus. Jendela RUN_OFFSET yang unik membuat re-run aman, tetapi baris menumpuk di database dev (run sebelumnya meninggalkan sekitar 12 periode dan 4 record sterilizer bertahun 2699–2700). Perbaikan untuk siklus revisi: hapus baris ber-RUN_OFFSET di afterAll.",
+      "description": "DIPERBAIKI 2026-10-04. Browser spec kini membersihkan fixture-nya: pruneLaneData('laporan-sterilizer') (e2e-web/tests/support/backend.ts) menyapu record & periode lajur di awal run (sisa run terhenti) dan di afterAll, sebelum periode dihapus (periode berisi record ditolak 409 PERIOD_HAS_RECORDS).",
       "severity": "minor"
     },
     {

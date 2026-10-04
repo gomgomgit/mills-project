@@ -1,13 +1,13 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-030--kelola-station",
   "name": "Kelola Station",
   "module_id": "module-master-data",
-  "description": "Layar bagi Admin untuk mengelola data master Station — stasiun produksi mill di bawah Business Unit (3 aktif di MVP: Weighbridge, Grading, Cages Track; 12 lainnya placeholder skema masa depan). Admin dapat melihat daftar Station (dapat difilter per Business Unit), menambah Station baru dengan memilih Business Unit induk dan tipe stasiun, mengedit data yang sudah ada, dan menghapus Station yang tidak lagi memiliki Machinery Group atau Machinery terkait.",
+  "description": "Layar bagi Admin untuk mengelola data master Station — stasiun produksi mill di bawah Business Unit dan Production Line (setiap Production Line memiliki set 18 tipe station kanonis dari master station_types). Admin dapat melihat daftar Station (dapat difilter per Business Unit dan per Production Line), menambah Station baru dengan memilih Business Unit, Production Line, dan tipe stasiun, mengedit data yang sudah ada, dan menghapus Station yang tidak lagi memiliki Machinery Group atau Machinery terkait.",
   "actors": [
     "actor-admin"
   ],
@@ -15,27 +15,30 @@
     "Menu sidebar 'Master Data' > 'Kelola Station'"
   ],
   "information_displayed": [
-    "Daftar Station: kode, nama, tipe, status aktif, nama Business Unit induk, jumlah Machinery Group terkait, tanggal dibuat",
-    "Form tambah/edit: dropdown pilih Business Unit induk, kode (opsional), nama, deskripsi, tipe (dropdown: Weighbridge/Grading/Cages Track/Other), status aktif"
+    "Daftar Station (diurutkan per Production Line lalu nama): nama, Business Unit, Production Line, tipe (label dari master station_types, mis. 'CPO Dispatch'), status aktif, kode, jumlah Machinery Group terkait, tanggal dibuat",
+    "Filter Business Unit dan filter Production Line (bergantung pada filter Business Unit; tanpa filter BU, opsi line berlabel 'Mill — Line')",
+    "Form tambah/edit: dropdown Business Unit, dropdown Production Line (milik Business Unit terpilih), kode (opsional), nama, deskripsi, tipe (dropdown seluruh tipe aktif dari master station_types, urut proses; tipe station yang sedang diedit tetap muncul walau tipenya sudah nonaktif), status aktif",
+    "Empty state berbeda saat filter tidak cocok ('Tidak ada Station yang cocok dengan filter') vs belum ada data ('Belum ada Station')",
+    "Pesan sukses setelah simpan/hapus berhasil ('Station berhasil ditambahkan/diperbarui/dihapus.')"
   ],
   "available_actions": [
     {
       "action": "Lihat daftar Station",
-      "description": "Menampilkan seluruh Station dengan kode, tipe, status aktif, Business Unit induk, dan jumlah Machinery Group terkait, dapat difilter per Business Unit",
+      "description": "Menampilkan seluruh Station dengan Business Unit, Production Line, tipe, status aktif, kode, dan jumlah Machinery Group terkait, dapat difilter per Business Unit dan per Production Line",
       "actor_ids": [
         "actor-admin"
       ]
     },
     {
       "action": "Tambah Station",
-      "description": "Membuat Station baru dengan memilih Business Unit induk, tipe, dan mengisi nama",
+      "description": "Membuat Station baru dengan memilih Business Unit, Production Line, tipe, dan mengisi nama",
       "actor_ids": [
         "actor-admin"
       ]
     },
     {
       "action": "Edit Station",
-      "description": "Mengubah data Station yang sudah ada, termasuk kode, nama, deskripsi, tipe, status aktif, dan Business Unit induk",
+      "description": "Mengubah data Station yang sudah ada, termasuk kode, nama, deskripsi, tipe, status aktif, Business Unit, dan Production Line",
       "actor_ids": [
         "actor-admin"
       ]
@@ -49,22 +52,27 @@
     }
   ],
   "business_rules": [
-    "Kode Station harus unik jika diisi (field opsional)",
-    "Status aktif (is_active=true) hanya diperbolehkan untuk tipe Weighbridge, Grading, atau Cages Track — tipe Other (placeholder) harus is_active=false",
+    "Kode Station harus unik jika diisi (field opsional) — perbandingan tidak peka huruf besar/kecil",
+    "Tipe station harus salah satu kode di master station_types; station bertipe Other (placeholder) harus is_active=false, tipe lainnya boleh aktif",
     "Station tidak dapat dihapus jika masih memiliki satu atau lebih Machinery Group atau Machinery terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Station",
-    "Station harus terkait ke tepat satu Business Unit yang sudah ada (dipilih via dropdown, bukan input bebas)",
-    "Jumlah Machinery Group yang ditampilkan dihitung otomatis, bukan diisi manual"
+    "Station harus terkait ke tepat satu Business Unit dan satu Production Line yang sudah ada, dan Production Line tersebut harus milik Business Unit yang sama (dipilih via dropdown, bukan input bebas)",
+    "Jumlah Machinery Group yang ditampilkan dihitung otomatis, bukan diisi manual",
+    "Satu Production Line hanya boleh memiliki satu station per tipe, kecuali tipe Other. Saat edit, aturan ini hanya diperiksa bila Production Line atau tipe station berubah (station duplikat lama tetap bisa diedit namanya)",
+    "Setelah tambah/edit/hapus berhasil ditampilkan pesan sukses; pesan sukses/error sebelumnya dibersihkan saat Admin memulai aksi baru"
   ],
   "usecase_ids": [
     "usecase-030--kelola-station"
   ],
   "edge_cases": [
     "Percobaan menghapus Station yang masih memiliki Machinery Group atau Machinery terkait — ditolak dengan pesan penjelasan",
-    "Percobaan menyimpan kode Station yang sudah dipakai Station lain — validasi gagal",
+    "Percobaan menyimpan kode Station yang sudah dipakai Station lain (termasuk yang hanya berbeda huruf besar/kecil) — validasi gagal",
     "Percobaan mengaktifkan (is_active=true) Station bertipe Other — validasi gagal",
     "Belum ada Business Unit sama sekali — form Tambah Station tidak dapat diisi, arahkan Admin untuk membuat Business Unit dahulu",
-    "Belum ada Station sama sekali — tampilkan empty state dengan ajakan tambah data pertama"
+    "Belum ada Station sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
+    "Menambah/memindah station ke Production Line yang sudah memiliki station bertipe sama (selain Other) — ditolak di kolom Type: 'Production Line ini sudah memiliki station bertipe {tipe}. Satu Production Line hanya boleh memiliki satu station per tipe (kecuali Other).'",
+    "Edit station bertipe non-MVP (mis. Boiler Room) — tipe terpilih tetap tampil di dropdown Type (dulu kosong karena hanya 4 tipe yang tersedia)",
+    "Filter Business Unit/Production Line tidak mencocokkan station apa pun — empty state 'Tidak ada Station yang cocok dengan filter' dengan ajakan mengubah filter; mengganti filter Business Unit mengosongkan filter Production Line"
   ],
   "test_priority": "medium",
   "open_questions": []

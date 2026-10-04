@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-043--form-depricarping",
   "name": "Form Depricarping",
@@ -13,11 +13,20 @@
   "fe_files_generated": [
     "mobile/src/views/FormDepricarpingView.vue",
     "mobile/src/services/writeThroughSync.ts",
-    "mobile/src/components/ConfirmDialog.vue"
+    "mobile/src/components/ConfirmDialog.vue",
+    "mobile/src/services/depricarpingRecordRepo.ts",
+    "mobile/src/utils/localDate.ts",
+    "mobile/src/services/millSettingRepo.ts",
+    "mobile/src/services/syncService.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/FormDepricarpingView.spec.ts",
-    "mobile/tests/e2e/form-depricarping.spec.ts"
+    "mobile/tests/e2e/form-depricarping.spec.ts",
+    "mobile/tests/noteLabelConsistency.spec.ts",
+    "mobile/tests/DialogTeleport.spec.ts",
+    "mobile/tests/writeThroughSync.spec.ts",
+    "mobile/tests/millSettingRepo.sqljs.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts"
   ],
   "implementation_notes": [
     "REVISED 2026-08-24 (entity-catalog v12, replacing the original fixed 24-row design the user explicitly rejected as wasting screen space): Depricarping Detail grid now renders whatever rows exist (0..24) loaded from depricarpingRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Pressing Detail (screen-042, just fixed)/Threshing Detail (screen-041)/Cages Tipped Time (screen-012), no longer a structural difference from those grids",
@@ -29,7 +38,8 @@
     "Time-Slot per row is now a SearchableSelect.vue instance (was a read-only label) -- mirrors FormPressingView.vue exactly, WITH pendingDeletionIds for existing (has-id) rows removed via Hapus baris",
     "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak): FormDepricarpingView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('depricarping_record') → pushSavedRecordNow → POST /api/depricarping-records bila Mills Setting immediate_sync_enabled aktif. Penolakannya (termasuk 422 PERIOD_CLOSED) sejak 2026-10-03 ditampilkan langsung di form (lihat catatan REVISI 2026-10-03); di sinkron manual screen-006 alasannya tampil per record di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('depricarping', mill, date) di DepricarpingRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik), dan mobile/tests/writeThroughSync.spec.ts.",
     "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave() mengembalikan {synced, rejection}; respons server 4xx (mis. 422 PERIOD_CLOSED) mengisi rejection dengan pesan server, sedangkan offline/5xx/fitur nonaktif tetap {synced:false, rejection:null} dan diam. onSimpan() FormDepricarpingView menyimpan pesan itu ke writeThroughRejection, menampilkan ConfirmDialog satu tombol (cancel-label=\"\") berjudul 'Tersimpan, tetapi ditolak server' dengan pesan server, dan baru bernavigasi ke monitor-depricarping saat dialog ditutup (Mengerti atau klik overlay). Record tetap 'saved' di SQLite lokal, tidak ada rollback. Test: mobile/tests/writeThroughSync.spec.ts ('reports the server message when the push is rejected with 422 PERIOD_CLOSED' + kasus diam); tidak ada test per-form untuk dialog ini di layar Depricarping — pola identik dengan Threshing yang dicakup mobile/tests/FormThreshingView.spec.ts.",
-    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/form-depricarping.spec.ts 10/10 lulus — kini dijalankan nyata (known_issue 'tidak dapat dijalankan di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): tabel Target Operasional berada di CollapsibleSection yang tertutup secara default (disengaja, 2026-08-25) — spec kini membukanya dulu sebelum meng-assert isi tabel."
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/form-depricarping.spec.ts 10/10 lulus — kini dijalankan nyata (known_issue 'tidak dapat dijalankan di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): tabel Target Operasional berada di CollapsibleSection yang tertutup secara default (disengaja, 2026-08-25) — spec kini membukanya dulu sebelum meng-assert isi tabel.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): depricarpingRecordRepo.createDraft() menyimpan date = todayLocalDateString() (mobile/src/utils/localDate.ts; sebelumnya ISO UTC → draft 00:00–06:59 WIB bertanggal kemarin); FormDepricarpingView: catatan berlabel 'Catatan' dengan id field-note. Write-through syncAfterSave() kini benar-benar berjalan saat immediate_sync_enabled aktif karena millSettingRepo.getMillSetting() men-SELECT immediate_sync_enabled (sebelumnya selalu false). Payload sinkron (manual & write-through) mengirim date lokal dan production line stasiun record; 4xx menulis sync_error (Data Preview 'Gagal sinkron'), sukses mengosongkannya. ConfirmDialog (termasuk dialog penolakan write-through) di-teleport ke <body>. Server DepricarpingRecordService menolak date > besok. Cakupan baru: writeThroughSync.spec.ts (disesuaikan), millSettingRepo.sqljs.spec.ts, syncService.sqljs.spec.ts (#4/#5/#9), noteLabelConsistency.spec.ts, DialogTeleport.spec.ts; tidak ada uji createDraft tanggal-lokal khusus Depricarping (localDate.sqljs.spec.ts hanya menguji Threshing — kode identik)."
   ],
   "deferred_items": [],
   "known_issues": [],

@@ -22,3 +22,10 @@ Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10
 Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 - test_results.browser = 18 lulus/0 gagal dari e2e-full.log.counts.json (spec kelola-periode-pelaporan); 1 skip dicatat di catatan.
 - Known_issue scenario 6 di-skip dipertahankan — skip disengaja, bukan 'tidak dijalankan'.
+
+## v10 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD PeriodService.php, EnforcesPeriodLock.php, e2e-web/tests/kelola-periode-pelaporan.spec.ts + support/*, BrowserTestFixtureSeeder.php; berkas baru PeriodHasRecordsException.php, AppTime.php, AuditFix20261004Test.php).
+- files_generated (+) = PeriodHasRecordsException.php, Support/Concerns/EnforcesPeriodLock.php, Support/AppTime.php ← dipakai PeriodService / kunci periode / tanggal WIB panel. ⚠ EnforcesPeriodLock & AppTime dimasukkan karena terkait langsung aturan periode layar ini, walau bukan berkas layar.
+- test_files_generated (+) = AuditFix20261004Test.php, e2e support/period-fixture.ts, period-lanes.ts, BrowserTestFixtureSeeder.php.
+- implementation_notes (+) = REVISI audit-fix.

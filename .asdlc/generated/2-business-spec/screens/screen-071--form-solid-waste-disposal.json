@@ -1,13 +1,13 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-04"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-071--form-solid-waste-disposal",
   "name": "Form Solid Waste Disposal",
   "module_id": "module-mobile-station-ops",
-  "description": "Form input/edit data log Cages Track yang mencatat data header (Solid Waste Disp. ID, Date otomatis, verifikasi Checked By/Acknowledged By) dan log detail per-kejadian pembuangan/pengiriman limbah padat (baris ditambah manual sesuai kejadian, TIDAK dibatasi jumlah baris per hari), mengikuti pola Form Cages Track.",
+  "description": "Form input/edit data log Solid Waste Disposal yang mencatat data header (Solid Waste Disp. ID, Date otomatis, verifikasi Checked By/Acknowledged By) dan log detail per-kejadian pembuangan/pengiriman limbah padat (baris ditambah manual sesuai kejadian, TIDAK dibatasi jumlah baris per hari), mengikuti pola Form Cages Track.",
   "actors": [
     "actor-station-operator",
     "actor-supervisor",
@@ -19,7 +19,7 @@
   ],
   "information_displayed": [
     "Identitas Solid Waste Disposal: Solid Waste Disp. ID (input manual, wajib), Date (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit)",
-    "Verifikasi: Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (checkbox hanya ditampilkan untuk & diisi oleh Supervisor), Acknowledged By (checkbox hanya ditampilkan untuk & diisi oleh Mill Management), Note (input manual, opsional) — peran lain tidak melihat checkbox verifikasi tersebut (disembunyikan, bukan dinonaktifkan)",
+    "Verifikasi: Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (checkbox hanya ditampilkan untuk & diisi oleh Supervisor), Acknowledged By (checkbox hanya ditampilkan untuk & diisi oleh Mill Management), Catatan (label 'Catatan', input manual, opsional) — peran lain tidak melihat checkbox verifikasi tersebut (disembunyikan, bukan dinonaktifkan)",
     "Log Kejadian Solid Waste Disposal: tabel baris per-kejadian dengan kolom Tanggal Kejadian, Shift, Weighbridge Ticket No, Vehicle No, Driver Name, Solid Waste Type, Source Station, Gross Weight (MT), Tare Weight (MT), Net Weight (MT, dihitung otomatis = Gross - Tare), Disposal/Utilization Site, Purpose/End Use, Gate Pass No, Security Seal No, Operator ID, Remarks, Findings — baris dapat ditambah dan dihapus, jumlah baris TIDAK dibatasi per hari",
     "Breadcrumb navigasi (Home > Production Process Activity > Solid Waste Disposal > Form) yang dapat ditap",
     "Header 'Mill Smart Log' + ikon hamburger menu"
@@ -121,7 +121,7 @@
     }
   ],
   "business_rules": [
-    "Date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Date diisi otomatis sekali saat draft baru dibuat dengan tanggal LOKAL perangkat (bukan tanggal UTC — draft yang dibuat 00:00–06:59 WIB tetap bertanggal hari ini), tidak dapat diedit manual",
     "Inputted By otomatis diambil dari user yang login, tidak dapat diedit manual",
     "Checked By hanya bisa diisi/diedit oleh Supervisor; Acknowledged By hanya bisa diisi/diedit oleh Mill Management",
     "Log Kejadian adalah event-log bebas — baris ditambah manual sesuai kejadian pengiriman/pembuangan limbah padat, jumlah baris TIDAK dibatasi 24/hari seperti stasiun grid-jam, mengikuti pola cages-tipped-time/cages-track-record",
@@ -140,7 +140,8 @@
     "Draft yang di-Pause lalu dilanjutkan",
     "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
     "User menekan Clear (perlu konfirmasi sebelum hapus permanen)",
-    "User menghapus baris Log Kejadian yang sudah ada sebelumnya (bukan baru ditambah)"
+    "User menghapus baris Log Kejadian yang sudah ada sebelumnya (bukan baru ditambah)",
+    "Tanggal Kejadian salah satu baris jatuh di periode pelaporan yang sudah ditutup, atau Date/Tanggal Kejadian melewati besok — record tetap tersimpan di perangkat, tetapi server menolaknya saat dikirim (simpan langsung atau sinkronisasi) dan alasannya ditampilkan ke user"
   ],
   "test_priority": "high",
   "open_questions": []

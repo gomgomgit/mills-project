@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-126--form-sterilizer-web",
   "name": "Form Sterilizer (Web)",
@@ -20,9 +20,9 @@
   "information_displayed": [
     "Production Line (dropdown) — hanya pada mode buat baru, menentukan station Sterilizer tujuan record; station otomatis di-resolve dari Production Line terpilih (1 station Sterilizer aktif per production line)",
     "Sterilizer ID",
-    "Date — default hari ini, DAPAT diedit manual (berbeda dari mobile yang mengunci field ini)",
+    "Date — default hari ini (WIB), DAPAT diedit manual (berbeda dari mobile yang mengunci field ini); tidak boleh melewati besok",
     "Note (input manual, opsional)",
-    "Log Siklus Sterilisasi: tabel baris siklus dengan kolom yang sama seperti mobile (Sterilizer No, Close Door Time, Peak 1-3 Time, Exhaust 1-3 Time, Open Door Time, Duration otomatis, Number of Cages, Cages Status, Checked by SPV, Remarks) — baris bisa ditambah/dihapus, tidak dibatasi jumlahnya",
+    "Log Siklus Sterilisasi: tabel baris siklus dengan kolom yang sama seperti mobile (Sterilizer No, Close Door Time, Peak 1-3 Time, Exhaust 1-3 Time, Open Door Time, Duration otomatis, Number of Cages, Cages Status, Checked by SPV, Remarks) — baris bisa ditambah/dihapus, tidak dibatasi jumlahnya. Kolom Checked by SPV berupa checkbox hanya untuk Supervisor; peran lain melihatnya sebagai teks 'Ya'/'Tidak'",
     "Checked By — checkbox 'Tandai sudah diperiksa', hanya tampil & aktif untuk role Supervisor",
     "Acknowledged By — checkbox 'Tandai sudah dikonfirmasi', hanya tampil & aktif untuk role Mill Management",
     "Field dikelompokkan per section: Identitas Sterilizer, Log Siklus, Verifikasi"
@@ -66,11 +66,9 @@
     },
     {
       "action": "Centang Checked by SPV",
-      "description": "Menandai satu baris siklus sudah diperiksa Supervisor — checkbox sederhana per baris",
+      "description": "Menandai satu baris siklus sudah diperiksa Supervisor — checkbox per baris, hanya untuk Supervisor (keputusan user 2026-10-04); peran lain hanya melihat nilainya sebagai teks",
       "actor_ids": [
-        "actor-supervisor",
-        "actor-mill-management",
-        "actor-admin"
+        "actor-supervisor"
       ]
     },
     {
@@ -109,14 +107,14 @@
   "business_rules": [
     "Tidak ada konsep draft/pause/Clear di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
     "Field wajib ditandai asterisk merah dengan validasi inline",
-    "Date default hari ini saat form dibuka, TETAP DAPAT diedit manual oleh user",
+    "Date default hari ini (WIB) saat form dibuka, TETAP DAPAT diedit manual oleh user; tanggal yang melewati besok ditolak dengan pesan inline",
     "Log Siklus adalah event-log bebas, jumlah baris tidak dibatasi, sama seperti mobile",
     "Duration (Minutes) dihitung server, tidak menerima override dari client — dikecualikan dari konvensi 'input web tidak boleh disabled' karena computed/data-integrity, ditampilkan sebagai teks non-input (bukan disabled input) untuk konsistensi visual dengan konvensi web terbaru, sama alasan seperti Net Weight pada Form Weighbridge Web/Form CPO Dispatch Web",
     "Minimal satu baris Log Siklus dengan Close Door Time terisi harus ada sebelum Simpan",
     "Production Line (dan station Sterilizer terkait) tidak dapat diubah setelah record dibuat — pada mode edit, station asal ditampilkan sebagai teks read-only",
     "Checked By hanya dapat diisi (via checkbox) oleh user dengan role Supervisor — field disembunyikan untuk role lain",
     "Acknowledged By hanya dapat diisi (via checkbox) oleh user dengan role Mill Management — field disembunyikan untuk role lain",
-    "Checked by SPV (per baris) adalah checkbox sederhana, tidak role-gated, berbeda dari header Checked By/Acknowledged By"
+    "Checked by SPV (per baris) hanya dapat diset/diubah oleh Supervisor (keputusan user 2026-10-04) — untuk peran lain ditampilkan sebagai teks Ya/Tidak (bukan checkbox nonaktif), dan nilai yang dikirim peran lain diabaikan server: baris baru tersimpan 'Tidak', baris lama mempertahankan nilainya. Berlaku juga untuk data dari mobile"
   ],
   "usecase_ids": [
     "usecase-126--form-sterilizer-web"
@@ -127,7 +125,10 @@
     "Production Line terpilih belum memiliki station Sterilizer aktif (mode buat baru) — Simpan ditolak dengan pesan error",
     "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
     "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Weighbridge/CPO Dispatch Web)",
-    "Siklus melewati tengah malam (Open Door Time lebih awal dari Close Door Time) — Duration tetap dihitung benar oleh server"
+    "Siklus melewati tengah malam (Open Door Time lebih awal dari Close Door Time) — Duration tetap dihitung benar oleh server",
+    "Date diisi lebih dari besok (mis. salah ketik tahun) — Simpan ditolak dengan pesan inline 'Tanggal dd/mm/YYYY tidak masuk akal: tidak boleh melewati dd/mm/YYYY.'",
+    "Mode edit dibuka dengan id berformat bukan UUID — diperlakukan sama dengan record tidak ditemukan, tanpa error sistem",
+    "Peran selain Supervisor mengirim Checked by SPV tercentang (mis. lewat mobile/API) — nilai diabaikan, simpan tetap berhasil"
   ],
   "test_priority": "high",
   "open_questions": []

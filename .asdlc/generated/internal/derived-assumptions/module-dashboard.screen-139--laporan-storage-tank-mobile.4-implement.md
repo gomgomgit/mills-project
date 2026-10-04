@@ -21,3 +21,11 @@ Ukur ulang uji browser Playwright mobile 2026-10-03.
 Pembersihan rujukan komponen grid yang dihapus.
 - known_issue 'galat vue-tsc PRA-ADA di CagesTippedTimeGrid.vue dan GradingDetailGrid.vue' dihapus: kedua komponen dihapus di 004aacd; vue-tsc kini 0 galat dan vite build sukses.
 - Ditambah satu catatan REVISI merujuk 004aacd; kode layar tidak berubah.
+
+## v5 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git diff mobile view/repo/tests + StorageTankReportService.php).
+- files_generated[+] = Support/ReportPeriodDays, SheetWriter, ExportValue ← dipakai StorageTankReportService yang dilayani endpoint layar ini
+- test_files_generated[+] = ReportAuditFix20261004Test.php, ExportXlsxTest.php ← mencakup ekspor/kelengkapan Storage Tank sisi server
+- implementation_notes[+1] = REVISI audit-fix ← diff
+- known_issues[+1] = stub CSV e2e masih 4 kolom konteks ← mobile/tests/e2e/laporan-storage-tank.spec.ts:393 vs EXPORT_HEADER (⚠ inferensi: dinilai tidak memerahkan test karena di-stub; tidak dijalankan)

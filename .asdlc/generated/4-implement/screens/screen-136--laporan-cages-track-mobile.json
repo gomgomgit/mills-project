@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-136--laporan-cages-track-mobile",
   "name": "Laporan Cages & Tracks (Mobile)",
@@ -36,7 +36,9 @@
     "backend/app/Services/CagesTrackReportService.php",
     "backend/app/Http/Controllers/Api/CagesTrackReportController.php",
     "backend/app/Http/Controllers/Api/ProductionLineController.php",
-    "backend/app/Services/ProductionLineService.php"
+    "backend/app/Services/ProductionLineService.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php"
   ],
   "fe_files_generated": [
     "mobile/src/services/cagesTrackReportRepo.ts",
@@ -50,7 +52,9 @@
     "backend/tests/Feature/Api/LaporanCagesTrackTest.php",
     "mobile/tests/e2e/laporan-cages-track.spec.ts",
     "mobile/tests/e2e/reporting-pilih-stasiun.spec.ts",
-    "backend/tests/Feature/Api/KelolaProductionLineTest.php"
+    "backend/tests/Feature/Api/KelolaProductionLineTest.php",
+    "backend/tests/Feature/ReportAuditFix20261004Test.php",
+    "backend/tests/Feature/ExportXlsxTest.php"
   ],
   "fe_test_files_generated": [
     "mobile/tests/cagesTrackReportRepo.spec.ts",
@@ -72,7 +76,8 @@
     "Repo klien: nol aritmetika KPI, nol try/catch, tanpa normalizeKpi (Cages & Tracks tidak punya penamaan ganda seperti Sterilizer), tanpa kelas galat kustom. fetchBusinessUnits/fetchPeriods memakai response.data?.data ?? [] langsung; hanya fetchSummary memakai unwrap(). Itu bentuk nyata sterilizerReportRepo, bukan parafrase briefing saya.",
     "isReportAvailable() di ReportingPilihStasiunView.vue TIDAK disentuh — tidak ada 'station.isActive &&' yang ditambahkan, sesuai peringatan di kepala berkas itu. Prosa yang menjadi basi diperbarui: '17 stasiun lain' menjadi 16, dan 'hari ini hanya Sterilizer' menjadi Sterilizer + Cages & Tracks.",
     "REVISI v2 (tech-spec v4, pemisahan periods/period_stations + isolasi Production Line — sinkronisasi artefak, kode tidak diubah): diverifikasi 2026-10-03 terhadap delta tech-spec 02105a8 dan 1b35980. (1) Pemisahan induk-anak periode (83a4065, dirapikan di mobile oleh 02105a8): station_type pada opsi periode cagesTrackReportRepo.ts kini `string` non-nullable, status dibaca sebagai status baris period_stations Cages & Tracks, fixture station_type null/'Semua Jenis Stasiun' dibuang dari spec komponen, repo, dan e2e, dan klien tidak menyaring ulang daftar periode. (2) Isolasi Production Line (backend a5ccfba, mobile 98c812b): CagesTrackReportController meneruskan production_line_id ke summary/export, dan CagesTrackReportService menyaring pada kolom record `cages_track_records.production_line_id` (bukan stations) sehingga record yang stasiunnya dipindah tetap terhitung di line asalnya; respons summary menambah blok `production_line` {id,name}|null secara aditif. cagesTrackReportRepo.ts mengirim production_line_id HANYA ke /summary dan /export lewat productionLineParams() (tanpa cabang peran), tidak pernah ke /periods; exportCsv kini juga membawa business_unit_id untuk Admin (cacat 422 pra-ada ditutup 98c812b). LaporanCagesTrackView.vue: daftar line dari productionLineRepo.fetchProductionLinesForReport() → GET /api/production-lines/options-for-report (endpoint baru 98c812b, ProductionLineController::optionsForReport + ProductionLineService, cakupan lewat ScopesToActorMill), resolveProductionLine() berurutan rute ?production_line_id= > ingatan msl_production_line_{userId} > satu-line-otomatis > pemilih, nilai rute/ingatan hanya dipercaya bila ada di daftar; loadSummary() dan onExport() berhenti tanpa line; tombol Ekspor hanya dirender bila periode DAN line ada; nama line dari summary.production_line.name lebih dulu; ganti mill (Admin) mengosongkan line + opsinya; kegagalan daftar line tampil sebagai production-line-unavailable + production-line-retry, bukan galat laporan; akun tanpa mill tetap nol permintaan. Catatan tambahan: cacat bentuk galat yang dicatat known_issues layar 137/138/139 (LaporanCagesTrackView.vue membaca candidate?.response?.status) sudah dibereskan di 98c812b — ErrorLike tanpa response, view membaca error.status saja. ReportingPilihStasiunView.vue (tercantum di fe_files_generated layar ini) kini juga membawa ?production_line_id= ke rute laporan — dicatat di artefak screen-141. Test 2026-10-03: unit 39 (cagesTrackReportRepo.spec 29 + productionLineRepo.spec 10), integration 102 (Feature/Api/LaporanCagesTrackTest 35 + Unit/Services/CagesTrackReportServiceTest 57 + KelolaProductionLineTest --filter options-for-report 10), component 38 (LaporanCagesTrackView.spec) — semuanya lolos; browser tidak dijalankan ulang.",
-    "REVISI v3 (ukur ulang uji browser 2026-10-03 — kode produksi tidak diubah): mobile/tests/e2e/laporan-cages-track.spec.ts dijalankan ulang di bawah Vite dev server dengan backend :8000 (DemoAccountSeeder) — 31 lolos, 0 gagal (total run tujuh spec laporan mobile 185/185). Kenaikan 25 → 31 mencerminkan skenario Production Line (98c812b) yang bertambah. Satu asersi tata letak yang flaky diperbaiki di berkas test (sama di laporan-clarification, -storage-tank, -boiler-room): expectSingleColumn() membaca cards.count() langsung sesudah pickPeriod() tanpa menunggu laporan selesai dirender, sehingga 1 dari 5 run membaca 0 kartu; kini menunggu lewat await expect(cards).toHaveCount(n) / menunggu kartu pertama sebelum mengukur. Terverifikasi 60/60 dalam 5 kali ulang. Known_issue 'test_results.browser tidak diukur ulang' karena itu dihapus."
+    "REVISI v3 (ukur ulang uji browser 2026-10-03 — kode produksi tidak diubah): mobile/tests/e2e/laporan-cages-track.spec.ts dijalankan ulang di bawah Vite dev server dengan backend :8000 (DemoAccountSeeder) — 31 lolos, 0 gagal (total run tujuh spec laporan mobile 185/185). Kenaikan 25 → 31 mencerminkan skenario Production Line (98c812b) yang bertambah. Satu asersi tata letak yang flaky diperbaiki di berkas test (sama di laporan-clarification, -storage-tank, -boiler-room): expectSingleColumn() membaca cards.count() langsung sesudah pickPeriod() tanpa menunggu laporan selesai dirender, sehingga 1 dari 5 run membaca 0 kartu; kini menunggu lewat await expect(cards).toHaveCount(n) / menunggu kartu pertama sebelum mengukur. Terverifikasi 60/60 dalam 5 kali ulang. Known_issue 'test_results.browser tidak diukur ulang' karena itu dihapus.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): LaporanCagesTrackView.vue — label status periode 'closed' kini 'Tertutup' (sebelumnya 'Ditutup'), sama dengan web; bila kpi.days_with_records = 0 kartu rata-rata per hari menampilkan NOT_AVAILABLE ('tidak tersedia') + [data-testid=kpi-avg-per-day-empty] 'Belum ada hari ber-record untuk dijadikan pembagi.' dan [data-testid=days-with-records] tidak dirender (dulu '0'). LaporanCagesTrackView.spec.ts dan e2e laporan-cages-track.spec.ts diperbarui. CSV yang diunduh ponsel berasal dari /api/cages-track-reports/export bersama sehingga ikut berubah: kolom konteks Periode/Mill/Production Line di depan, jam 'HH:00' (dulu 'HH.00'), status berlabel Indonesia (SheetWriter + ExportValue)."
   ],
   "deferred_items": [
     {

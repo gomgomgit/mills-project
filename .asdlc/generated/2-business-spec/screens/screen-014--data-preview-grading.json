@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-014--data-preview-grading",
   "name": "Data Preview Grading",
@@ -17,9 +17,11 @@
   ],
   "information_displayed": [
     "Mode LIST: daftar seluruh record Grading (draft/pause dan saved/synced) milik user, dengan filter tanggal (default terisi hari ini) & pencarian (Grading No/License Plate No), masing-masing item menampilkan label + indikator status ('Pause' untuk draft_ongoing/draft_paused, 'Tersimpan' untuk saved, 'Tersinkron' untuk synced)",
-    "Mode DETAIL: seluruh field header Grading (Grading No, Tanggal, WB Card No, License Plate No, Vehicle Code, Estate, Divisi, Netto (kg), Quantity (bunch), Note) dan grid Grading Detail (Quality Parameter, Qty, UOM, Percentage) secara read-only, beserta status badge record",
+    "Mode DETAIL: seluruh field header Grading (Grading No, Tanggal, WB Card No, License Plate No, Vehicle Code, Estate, Divisi, Netto (kg), Quantity (bunch), Catatan) dan grid Grading Detail (Quality Parameter, Qty, UOM, Percentage) secara read-only, beserta status badge record",
     "Breadcrumb navigasi (Home > Production Process Activity > Grading > Load Data) yang dapat ditap",
-    "Header 'Mill Smart Log' + ikon hamburger menu"
+    "Header 'Mill Smart Log' + ikon hamburger menu",
+    "Petunjuk 'Gagal sinkron: <alasan>' (di bawah label item list dan di atas detail) untuk record berstatus Tersimpan yang terakhir kali DITOLAK saat sinkronisasi; alasan = pesan penolakan terakhir, hilang otomatis setelah sinkron berhasil (audit 2026-10-04)",
+    "Status konfirmasi record tersinkron (dikonfirmasi Mill Management) diperbarui dari server di latar belakang setiap kali list atau detail dibuka saat online — termasuk konfirmasi yang dilakukan lewat web (audit 2026-10-04)"
   ],
   "available_actions": [
     {
@@ -101,7 +103,9 @@
   "edge_cases": [
     "Record tidak ditemukan di mode detail (id tidak valid/tidak ada)",
     "List kosong (belum ada record Grading sama sekali untuk user ini)",
-    "Filter tanggal/pencarian (termasuk default hari ini) tidak menghasilkan record yang cocok"
+    "Filter tanggal/pencarian (termasuk default hari ini) tidak menghasilkan record yang cocok",
+    "Record ditolak saat sinkronisasi (mis. periode pelaporan tertutup, Weighbridge acuan belum tersinkron, atau master Quality Parameter belum tersedia) — tetap berstatus Tersimpan dengan petunjuk 'Gagal sinkron: <alasan>'; kegagalan karena tidak ada jaringan tidak ditandai sebagai penolakan",
+    "Offline / server tidak dapat dijangkau saat memperbarui status verifikasi — status verifikasi lokal terakhir tetap ditampilkan tanpa pesan galat"
   ],
   "test_priority": "medium",
   "open_questions": []

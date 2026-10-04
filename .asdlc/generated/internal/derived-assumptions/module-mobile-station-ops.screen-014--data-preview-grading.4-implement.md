@@ -32,3 +32,12 @@ Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 Pembersihan rujukan komponen grid yang dihapus.
 - known_issue dead-code GradingDetailGrid.vue dihapus: komponen dihapus di 004aacd. Klaim lama bahwa error vue-tsc-nya 'tidak mempengaruhi build' ternyata keliru — vue-tsc adalah langkah pertama npm run build.
 - Ditambah satu catatan REVISI merujuk 004aacd.
+
+## v8 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile + backend).
+- files_generated += RecordVerificationStatusController.php, RecordVerificationStatusService.php, routes/api.php ← endpoint GET verifikasi dipakai layar ini.
+- test_files_generated += backend/tests/Feature/Api/MobileReadEndpointsTest.php.
+- fe_files_generated += SyncFailureHint.vue, recordVerificationApi.ts, apiClient.ts, utils/localDate.ts ← diimpor/dipakai DataPreviewGradingView.vue.
+- fe_test_files_generated += SyncFailureHint.spec.ts, syncService.sqljs.spec.ts, recordVerification.spec.ts, e2e/sync-and-verification.spec.ts.
+- implementation_notes += REVISI 2026-10-04.

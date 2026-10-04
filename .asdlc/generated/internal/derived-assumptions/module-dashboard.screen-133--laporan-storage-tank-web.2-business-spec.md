@@ -11,3 +11,14 @@
 - **Skala DOBI tidak sebanding dengan FFA dan kadar air** ← DOBI ~2–4, FFA ~3–5%, kadar air ~0,1–0,3%. Menempelkan ketiganya pada satu sumbu linear membuat dua di antaranya terlihat datar dan seolah tidak berubah. Layar wajib menormalkan atau memakai sumbu kedua, dan menyatakannya. Turunan agent; user hanya menulis "tren FFA/moisture/DOBI".
 - **Tidak ada penandaan nilai di luar batas** ← diverifikasi tidak ada `StorageTankOperationalTarget`, dan docblock `StorageTankRecordService` menyatakan ketiadaan itu memang disengaja, sama seperti Engine Room/Effluent Plant. FFA dan kadar air punya batas mutu yang lazim dikenal di industri; itu diangkat sebagai `open_questions` yang MASIH TERBUKA.
 - `test_priority` = `high` ← menyangkut cakupan mill dan hak akses lintas peran, sama dengan empat laporan stasiun sebelumnya.
+
+## v3 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (StorageTankReportService.php, laporan-storage-tank.blade.php, ReportPeriodDays.php, ExportValue.php, SheetWriter.php).
+- information_displayed[2] = nama Production Line ikut di hero ← blade `@if ($selectedProductionLine) {{ name }} &middot;`
+- information_displayed[14] = kelengkapan 1 desimal, penyebut sampai hari ini + catatan period-running, '—' bila expected 0 ← blade coverage-percent/period-running-note/coverage-no-expected
+- information_displayed[16] = Ekspor CSV + Ekspor Excel (.xlsx sungguhan) ← blade export-excel-button + SheetWriter
+- information_displayed[+] = Pemilih Production Line wajib tanpa opsi semua ← blade production-line-select (perubahan 2026-09-28 yang belum tercatat di business-spec; ⚠ ditambahkan karena artefak tidak menyebutnya sama sekali)
+- available_actions[3].description = ekspor CSV/xlsx dengan kolom Periode/Mill/Production Line, status Indonesia, HH:MM, label katup ← StorageTankReportService::EXPORT_HEADER/streamExportRows
+- business_rules[+3] = penyebut sampai hari ini; persen 1 desimal; label ekspor terbaca ← ReportPeriodDays::counted, blade $nilai(...,1), ExportValue
+- edge_cases[+2] = periode berjalan; penyebut 0 → '—' ← blade + ReportAuditFix20261004Test

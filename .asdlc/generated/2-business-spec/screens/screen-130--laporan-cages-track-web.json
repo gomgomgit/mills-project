@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-24"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-130--laporan-cages-track-web",
   "name": "Laporan Cages & Tracks (Web)",
@@ -33,7 +33,8 @@
     "Durasi operasi tippler rata-rata per hari, beserta jumlah hari yang waktu berhentinya tidak tercatat",
     "Rekap harian yang dapat dibuka dan ditutup",
     "Keterangan bila periode tidak memuat data",
-    "Tombol Ekspor CSV"
+    "Tombol Ekspor CSV dan Ekspor Excel (berkas .xlsx sungguhan)",
+    "Pemilih Production Line (wajib) dan nama line aktif di hero laporan, di samping nama periode"
   ],
   "available_actions": [
     {
@@ -63,7 +64,16 @@
     },
     {
       "action": "Ekspor",
-      "description": "Mengunduh rincian penumpahan per jam sepanjang periode sebagai CSV, satu baris per jam penumpahan dengan kolom konteks record diulang.",
+      "description": "Mengunduh rincian penumpahan per jam sepanjang periode dan Production Line terpilih sebagai CSV atau Excel (.xlsx sungguhan), satu baris per jam penumpahan. Setiap baris diawali kolom konteks Periode, Mill, dan Production Line, lalu kolom konteks record diulang; jam ditulis HH:MM (mis. 06:00) dan status record berlabel Indonesia.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Memilih line produksi yang angkanya ingin dilihat; wajib sebelum angka, grafik, rekap, dan tombol Ekspor tampil.",
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
@@ -74,7 +84,7 @@
   "business_rules": [
     "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
     "Pengguna hanya melihat data mill-nya sendiri. Supervisor dan Mill Management terikat pada mill di akunnya dan tidak dapat melihat mill lain, bahkan bila mencoba memaksanya lewat permintaan. Admin tidak terikat sehingga ia memilih.",
-    "Operator tidak punya akses ke layar web ini. Jalur laporan bagi Operator ada di mobile.",
+    "Operator tidak punya akses ke layar web ini: Operator boleh login web dengan akses terbatas (Beranda Operator dan Ganti Password), membuka laporan ini menghasilkan halaman 403, dan menunya tidak tampil di sidebar Operator. Jalur laporan bagi Operator ada di mobile.",
     "Daftar periode hanya memuat periode yang mencakup stasiun Cages & Tracks — periode berjenis Cages & Tracks, atau periode yang tidak menyebut jenis stasiun.",
     "Status periode tidak membatasi apa pun. Periode tertutup tetap dapat dilihat dan diekspor; kunci periode mengatur penulisan data, bukan pembacaan laporan.",
     "Rentang periode inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
@@ -82,13 +92,14 @@
     "Jam tanpa penumpahan hanya dihitung di dalam jam operasi, yaitu antara jam tippler mulai dan berhenti pada hari itu. Menghitung seluruh 24 jam akan membuat mill yang beroperasi satu shift selalu terlihat punya 16 jam menganggur — angka yang benar tetapi menyesatkan.",
     "Jeda penumpahan terpanjang dihitung dari selisih antar jam penumpahan berturut-turut dalam satu hari, bukan lintas hari. Jeda semalam bukan jeda operasional.",
     "Hari yang waktu berhenti tippler-nya tidak tercatat dikeluarkan dari perhitungan durasi operasi, dan jumlah hari yang dikeluarkan ditampilkan — supaya rata-rata durasi tidak pernah dibaca tanpa tahu berapa yang tidak dihitung.",
-    "Antrean lori tersisa adalah armada lori stasiun dikurangi lori yang ditumpahkan pada jam itu — potret per jam, bukan antrean yang menumpuk. Nilai terendah sepanjang periode menunjukkan saat tersibuk."
+    "Antrean lori tersisa adalah armada lori stasiun dikurangi lori yang ditumpahkan pada jam itu — potret per jam, bukan antrean yang menumpuk. Nilai terendah sepanjang periode menunjukkan saat tersibuk.",
+    "Production Line wajib dipilih (opsi hanya line milik mill yang dilihat, tanpa opsi 'semua line'); sebelum dipilih tidak ada angka dan tombol Ekspor tidak tampil."
   ],
   "usecase_ids": [
     "usecase-130--laporan-cages-track-web"
   ],
   "edge_cases": [
-    "Periode tidak memuat satu pun penumpahan — seluruh angka nol dengan keterangan belum ada data, dan tidak ada grafik kosong.",
+    "Periode tidak memuat satu pun penumpahan — seluruh angka nol dengan keterangan belum ada data, dan tidak ada grafik kosong. Bila tidak ada satu pun hari ber-record, rata-rata lori per hari tampil '–' (bukan '0 lori/hari') dengan keterangan 'Belum ada hari ber-record untuk dijadikan pembagi', dan kartu Total Lori Keluar menyatakan 'Belum ada record pada periode dan line ini' — bukan 'Sama banyak dengan lori yang ditumpahkan' untuk 0 vs 0.",
     "Sebuah hari punya record tetapi tidak punya satu pun baris rincian per jam — hari itu terhitung sebagai hari operasi tanpa penumpahan, bukan diabaikan.",
     "Seluruh hari dalam periode waktu berhenti tippler-nya kosong — durasi operasi rata-rata ditampilkan sebagai tidak tersedia, bukan nol.",
     "Penumpahan hanya terjadi pada satu jam saja sepanjang periode — tidak ada jeda yang dapat dihitung; dikatakan demikian, bukan ditampilkan sebagai nol jam.",
@@ -96,7 +107,7 @@
     "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
     "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
     "Mill belum punya satu pun periode yang mencakup Cages & Tracks — pemilih periode kosong dengan arahan menghubungi Admin.",
-    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca."
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca; grafik tren harian memberi tiap kolom selebar labelnya, menggulir di dalam kartu, dan menampilkan petunjuk 'Geser mendatar untuk melihat seluruh tanggal.' bila lebih dari 10 tanggal."
   ],
   "test_priority": "high",
   "open_questions": []

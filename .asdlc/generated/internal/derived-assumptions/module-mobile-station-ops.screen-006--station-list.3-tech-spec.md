@@ -40,3 +40,16 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 - Menyebut write-through (immediate_sync_enabled) sebagai jalur kedua yang penolakannya diam sehingga alasan hanya terlihat di layar ini — temuan kode, tidak ada di brief.
 - Menyatakan 'grid stasiun tidak menampilkan indikator record saved yang tertahan' sebagai konsekuensi terbuka (diverifikasi: StationListView/StationGrid tidak menghitung record 'saved').
 - Tidak menambah unit_test_cases: tidak ada logika baru di layar ini; penanganan galat generik sudah teruji.
+
+## v11 — 2026-10-05
+
+Sumber: audit-fix 2026-10-04, code is truth (mobile/src/services/syncService.ts, gradingParameterSync.ts, localSchema.ts, millSettingRepo.ts, components/SyncResultDialog.vue, StationGrid.vue, App.vue, utils/floatingSafeArea.ts, utils/localDate.ts; backend GradingParameterController/Service, routes/api.php).
+- api_contracts[0].endpoints += GET /api/grading-parameters (auth:web,sanctum, 4 peran; data [{id,name,uom,sort_order}]) ← routes/api.php + GradingParameterService::listForMobile(); dipanggil syncAllRecords bila ada Grading saved.
+- api_contracts[0].business_logic += step 9 Sinkronisasi (line per record, fallback line terpilih, tanpa throw; grading param resolve; date lokal/offset; sync_error tulis/kosongkan; SyncResultDialog teleport + stationName) ← syncAllRecords()/syncTable()/resolveRecordContext()/failure()/markSynced().
+- api_contracts[0].data_operations += station SELECT production_line_id,name; record UPDATE status/server_id/sync_error; grading-parameter UPSERT. ⚠ entity_id 'grading-parameter' dan operation UPSERT diasumsikan (cache lokal diisi fetchAndCacheGradingParameters, isi persis tidak dibaca).
+- api_contracts[0].edge_case_handling[4].handling = nama fungsi baru (syncTable/push*Row) + sync_error → hint Data Preview ← syncService.ts.
+- api_contracts[0].edge_case_handling += line beda dari terpilih; tanpa line (NO_LINE_REASON); grading id palsu tak terpetakan; offline tidak menulis sync_error ← syncService.ts, gradingParameterSync.resolveServerGradingParameterIds().
+- api_contracts[0].business_rules_applied += sinkron ke line stasiun tempat record dibuat ← resolveRecordContext().
+- api_contracts[0].unit_test_cases += 4 ← syncService.sqljs.spec.ts (#3/#5/#9), syncService.spec.ts.
+- implementation_notes += REVISI 2026-10-04 (koreksi catatan 2026-10-03: write-through kini benar aktif via millSettingRepo SELECT fix; penolakan ditulis sync_error; dialog teleport; floating safe area; label 'Stasiun Aktif').
+- test_scenarios += 'Pilih Stasiun — Sinkronisasi per Record'. ⚠ diturunkan dari e2e sync-and-verification.spec.ts, bukan dari bdd_scenarios Phase 2.

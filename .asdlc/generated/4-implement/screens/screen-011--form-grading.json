@@ -1,35 +1,49 @@
 {
-  "ver": 7,
+  "ver": 8,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-011--form-grading",
   "name": "Form Grading",
   "module_id": "module-mobile-station-ops",
   "status": "complete",
-  "files_generated": [],
-  "test_files_generated": [],
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/GradingParameterController.php",
+    "backend/app/Services/GradingParameterService.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/MobileReadEndpointsTest.php"
+  ],
   "fe_files_generated": [
     "mobile/src/services/gradingRecordRepo.ts",
     "mobile/src/views/FormGradingView.vue",
     "mobile/src/router/index.ts",
-    "mobile/src/main.ts"
+    "mobile/src/main.ts",
+    "mobile/src/services/gradingParameterSync.ts",
+    "mobile/src/services/syncService.ts",
+    "mobile/src/services/localSchema.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/gradingRecordRepo.spec.ts",
     "mobile/tests/FormGradingView.spec.ts",
-    "mobile/tests/e2e/form-grading.spec.ts"
+    "mobile/tests/e2e/form-grading.spec.ts",
+    "mobile/tests/syncService.sqljs.spec.ts",
+    "mobile/tests/syncService.spec.ts",
+    "mobile/tests/auth.store.spec.ts",
+    "mobile/tests/noteLabelConsistency.spec.ts",
+    "mobile/tests/DialogTeleport.spec.ts"
   ],
   "implementation_notes": [
-    "Full rewrite (v3) mengikuti mock referensi persis + pola FormWeighbridgeView.vue v4: section Identitas Grading/Referensi Weighbridge & Kendaraan/Asal Muatan/Data Berat & Kuantitas/Grading Detail, WB Card No dropdown (SEMUA record weighbridge_record lokal apa pun status, terbaru dulu) dengan auto-fill sekali (bukan reaktif) ke license_plate_no/estate_supplier/division, Quality Parameter dropdown men-snapshot uom (bukan live-join), Percentage dihitung reaktif (qty/netto*100 jika kg, qty/quantity*100 jika bunch, recompute saat qty baris ATAU netto/quantity header berubah). Checked By dihapus total dari UI (kolom skema tetap ada).",
+    "Full rewrite (v3) mengikuti mock referensi persis + pola FormWeighbridgeView.vue v4: section Identitas Grading/Referensi Weighbridge & Kendaraan/Asal Muatan/Data Berat & Kuantitas/Grading Detail, WB Card No dropdown (sejak audit 2026-10-04: hanya weighbridge_record lokal saved/synced yang punya No. WB Card + pilihan draft, terbaru dulu) dengan auto-fill sekali (bukan reaktif) ke license_plate_no/estate_supplier/division, Quality Parameter dropdown men-snapshot uom (bukan live-join), Percentage dihitung reaktif (qty/netto*100 jika kg, qty/quantity*100 jika bunch, recompute saat qty baris ATAU netto/quantity header berubah). Checked By dihapus total dari UI (kolom skema tetap ada).",
     "gradingRecordRepo.ts screen-011 block ditulis ulang total (GradingRecord/GradingDetailRow/GradingParameterOption/WeighbridgeRecordOption/GradingHeaderFormData/GradingDetailFormRow/getDraftWithDetails/getWeighbridgeRecordOptions/getGradingParameterOptions/saveDraft/pauseDraftWithFormData) memakai kolom entity-catalog v2. Blok screen-008 TIDAK disentuh.",
     "GradingDetailGrid.vue TIDAK dipakai lagi oleh screen ini (grid detail diimplementasi inline di FormGradingView.vue) — dead-code candidate lintas screen 011/014, dicatat sebagai known_issue, bukan dihapus sepihak.",
     "BUG DITEMUKAN & DIPERBAIKI (v3, independen dari laporan agent): seedGradingParametersIfNeeded() sempat diekspor tapi TIDAK PERNAH dipanggil — diperbaiki dengan wiring ke mobile/src/main.ts.",
     "v4 — fitur baru: setiap Quality Parameter hanya bisa dipakai di SATU baris Grading Detail. Ditambahkan availableParameterOptions(index) di FormGradingView.vue — computed reaktif atas SELURUH detailRows.value (bukan cuma baris sendiri) yang mengecualikan grading_parameter_id yang sudah dipakai baris LAIN dari opsi dropdown baris tersebut; baris itu sendiri tetap menampilkan parameter yang sedang dipilihnya. Reaktif otomatis terhadap tambah/hapus/ganti baris manapun — tidak perlu event handler tambahan karena computed membaca seluruh array. Murni pembatasan pilihan UI, tidak ada perubahan skema/validasi saat Simpan.",
     "Independently re-verified (bukan hanya laporan agent, implementasi v4 dikerjakan langsung oleh command bukan sub-agent): 301/301 vitest (28 file FormGradingView.spec.ts, +3 test baru), 80/80 Playwright FULL SUITE seluruh app (10 form-grading termasuk 1 test e2e baru untuk exclusion + freed-on-remove). 1 kegagalan e2e sempat terjadi saat penulisan test (nama parameter fixture test bertabrakan dengan nama parameter asli hasil seedGradingParametersIfNeeded() — 'Brondolan Segar'/'Masak' adalah nama asli dari 16 parameter kanonis), diperbaiki dengan assert terhadap option value (id) bukan visible text.",
     "REVISI (tech-spec v4, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormGradingView menyimpan HANYA ke SQLite lokal (tidak ada apiClient/syncAfterSave; stasiun ini tidak punya write-through) dan tidak memeriksa periode; record 'saved' dikirim lewat sinkron manual screen-006 (POST /api/grading-records), dan penolakan 422 PERIOD_CLOSED membuat record tetap 'saved' dengan alasan server di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('grading', mill, date) di GradingRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Bila Weighbridge acuannya ditolak, Grading gagal sinkron dengan alasan 'Weighbridge terkait belum tersinkron' (mobile/tests/syncService.spec.ts 'fails a Grading record without POSTing when its parent Weighbridge record has not been synced'). Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik).",
-    "REVISI (commit 004aacd, 2026-10-03 — pembersihan dead code): mobile/src/components/GradingDetailGrid.vue (komponen lama pre-v2 berbasis field category, tidak diimpor di mana pun) DIHAPUS bersama CagesTippedTimeGrid.vue karena tipe lamanya membuat `vue-tsc --noEmit` (langkah pertama `npm run build`) gagal. Setelah penghapusan vue-tsc 0 error dan vite build sukses. Layar ini tidak terdampak (grid detail inline di FormGradingView.vue sejak v3); known_issue dead-code terkait ditutup."
+    "REVISI (commit 004aacd, 2026-10-03 — pembersihan dead code): mobile/src/components/GradingDetailGrid.vue (komponen lama pre-v2 berbasis field category, tidak diimpor di mana pun) DIHAPUS bersama CagesTippedTimeGrid.vue karena tipe lamanya membuat `vue-tsc --noEmit` (langkah pertama `npm run build`) gagal. Setelah penghapusan vue-tsc 0 error dan vite build sukses. Layar ini tidak terdampak (grid detail inline di FormGradingView.vue sejak v3); known_issue dead-code terkait ditutup.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): FormGradingView — label Indonesia 'No. Grading'/'No. Polisi'/'Kode Kendaraan'/'Catatan' (id field-grading-no/field-license-plate-no/field-vehicle-code/field-note; e2e form-grading.spec.ts disesuaikan), WB options dimuat SETELAH draft (loadDraft().then(loadWbOptions)) dan gradingRecordRepo.getWeighbridgeRecordOptions(includeId) memfilter saved/synced ber-No. WB Card. Perbaikan KRITIS sinkron: services/gradingParameterSync.ts (fetchAndCacheGradingParameters dipanggil di stores/auth.ts saat login dan di syncService sebelum sinkron Grading; resolveServerGradingParameterIds di pushGradingRow) memetakan id buatan 'default-grading-parameter-N' ke id server lewat nama — id palsu tidak pernah dikirim, record ditolak di perangkat dengan alasan jelas bila belum terpetakan; localSchema.seedGradingParametersIfNeeded() tidak menanam ulang id buatan bila master server sudah ada. Backend baru: GET /api/grading-parameters (GradingParameterController@index → GradingParameterService::listForMobile, auth:web,sanctum, 4 peran, global). syncService juga memakai production line stasiun record, date lokal, dan menulis/mengosongkan sync_error. Cakupan baru: backend/tests/Feature/Api/MobileReadEndpointsTest.php (grading-parameters: bentuk & urutan, 4 peran, 401), mobile/tests/syncService.sqljs.spec.ts (#3 id parameter palsu, #7 dropdown WB), auth.store.spec.ts (fetch master saat login), gradingRecordRepo.spec.ts (filter WB), noteLabelConsistency.spec.ts, DialogTeleport.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

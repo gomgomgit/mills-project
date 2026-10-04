@@ -1,8 +1,8 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-113--form-kernel-dispatch-web",
   "name": "Form Kernel Dispatch (Web)",
@@ -13,27 +13,36 @@
     "backend/app/Services/KernelDispatchRecordService.php",
     "backend/app/Http/Controllers/Api/KernelDispatchRecordController.php",
     "backend/routes/api.php",
-    "backend/database/factories/StationFactory.php"
+    "backend/database/factories/StationFactory.php",
+    "backend/app/Support/AppTime.php",
+    "backend/app/Support/Concerns/EnforcesPeriodLock.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php",
+    "backend/config/app.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/KernelDispatchRecordServiceTest.php",
-    "backend/tests/Feature/Api/FormKernelDispatchTest.php"
+    "backend/tests/Feature/Api/FormKernelDispatchTest.php",
+    "backend/tests/Feature/AuditFix20261004Test.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormKernelDispatch.php",
     "backend/resources/views/livewire/data/form-kernel-dispatch.blade.php",
     "backend/resources/views/data/kernel-dispatch-form.blade.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php"
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/FormKernelDispatchTest.php",
-    "e2e-web/tests/form-kernel-dispatch.spec.ts"
+    "e2e-web/tests/form-kernel-dispatch.spec.ts",
+    "backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php",
+    "backend/tests/Feature/Livewire/WebFormNoDisabledFieldTest.php"
   ],
   "implementation_notes": [
     "Satu Livewire component (FormKernelDispatch) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormSolidWasteDisposal/FormCagesTrack/FormWeighbridge/FormGrading",
     "KernelDispatchRecordService::create()/update() dipanggil dari KernelDispatchRecordController::store()/update() (API) DAN Livewire FormKernelDispatch::save() — satu source of truth validasi/business logic",
     "BERBEDA dari Cages Track: TIDAK ADA konsep N-kolom checklist/jam — tidak perlu MillSettingService atau resolve jumlah_cages/machinery_count sama sekali. Log Kejadian murni tabel bebas per-kejadian tanpa batasan jumlah baris atau constraint ascending pada suatu kolom",
-    "Net Weight (MT) dihitung server di KernelDispatchRecordService::upsertDetails() (= gross_weight_mt - tare_weight_mt, null jika salah satu kosong) — TIDAK menerima override dari client, dikecualikan dari konvensi web-form-input 'tidak boleh disabled' karena computed/data-integrity, sama alasan seperti Net Weight Form Weighbridge Web/Form Solid Waste Disposal Web",
+    "Net Weight (MT) dihitung server di KernelDispatchRecordService::upsertDetails() (= gross_weight_mt - tare_weight_mt, null jika salah satu kosong) — TIDAK menerima override dari client; di form web dirender sebagai TEKS (span .kf-computed-value) sejak 2026-10-04, sebelumnya input disabled yang menyalahi konvensi web-form-input",
     "remarks_gate_status (enum released/not_released) dinormalisasi ke null saat kosong ('') sebelum INSERT/UPDATE di upsertDetails() — kolom SQLite ini punya CHECK constraint yang menolak string kosong, ditemukan & diperbaiki saat menjalankan FormKernelDispatchTest.php (Feature/Livewire) 'edit mode: saving updates the existing record', yang menambah baris baru lewat addDetailRow() dengan seluruh field default string kosong termasuk remarks_gate_status",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit): Date pada web default hari ini namun TETAP dapat diedit manual — TIDAK dikunci/dibekukan seperti mobile screen-073",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit): tidak ada draft/pause/Clear di web — Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
@@ -45,7 +54,8 @@
     "REVISI v3 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormKernelDispatchTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 18 uji, semuanya hijau (test_results.integration diperbarui).",
     "REVISI v4 (2026-10-03, perbaikan kode + uji): KernelDispatchRecordService::upsertDetails() kini menormalkan field angka detail yang kosong ('' → null) lewat helper baru numericOrNull() (filled($v) ? (float)$v : null) untuk gross_weight_mt, tare_weight_mt, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, dan broken_kernel_percent. Sebelumnya '' dari input angka yang dikosongkan diteruskan apa adanya ke kolom float PostgreSQL → SQLSTATE 22P02 → HTTP 500 di form web (SQLite di suite menerimanya diam-diam), dan (float)'' menyimpan gross/tare kosong sebagai 0 sehingga Net Weight ikut terhitung palsu. Uji regresi: tests/Unit/Services/KernelDispatchRecordServiceTest.php 'stores blank numeric detail fields as null, not empty string or 0'. e2e-web/tests/form-kernel-dispatch.spec.ts juga diperbaiki: Production Line dipilih berdasarkan label 'PL Mill A' (bukan index 1, yang kini jatuh ke line fixture Kelola Machinery tanpa stasiun Kernel Dispatch); skenario simpan di baris :48 kini lulus. test_results tidak diubah.",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-kernel-dispatch.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 2 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): KernelDispatchRecordService create/update kini memanggil assertEventDateNotTooFarAhead(date) (tanggal > besok WIB -> 422 errors.date) dan EnforcesPeriodLock::assertDetailEventDatesWritable('kernel-dispatch', ...) untuk event_date setiap baris (create: tanggal baru; update: tanggal baru + tanggal baris tersimpan) -> 422 PERIOD_CLOSED 'Baris log bertanggal kejadian dd/mm/YYYY ditolak. ...'; validateDetails() menolak event_date tidak sah ('Tanggal Kejadian pada baris ke-N tidak valid.') atau > besok (errors.details); upsertDetails() memperlakukan id baris bukan-UUID sebagai baris baru (Str::isUuid). FormKernelDispatch memakai GuardsRecordIdShape (id bukan UUID -> 'Record tidak ditemukan.'); view merender Net Weight per baris sebagai teks. Bersama: ScopesToActorMill (production_line_id bukan-UUID -> 422), ApiExceptionHandler (QueryException 22P02/22007/22008 -> 422, lainnya 500 tanpa SQL), AppTime/config app.timezone Asia/Jakarta. Tes: tests/Feature/AuditFix20261004Test.php ([detail-lock] create, dataset event log stations), RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php (dataset dispatch net weight forms). test_results tidak diubah."
   ],
   "deferred_items": [],
   "known_issues": [

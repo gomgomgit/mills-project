@@ -1,8 +1,8 @@
 {
-  "ver": 7,
+  "ver": 8,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-022--form-weighbridge-web",
   "name": "Form Weighbridge (Web)",
@@ -12,13 +12,21 @@
     "backend/app/Exceptions/NoActiveWeighbridgeStationException.php",
     "backend/app/Services/WeighbridgeRecordService.php",
     "backend/app/Http/Controllers/Api/WeighbridgeRecordController.php",
-    "backend/routes/api.php"
+    "backend/routes/api.php",
+    "backend/app/Support/AppTime.php",
+    "backend/app/Support/Concerns/EnforcesPeriodLock.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php",
+    "backend/config/app.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/WeighbridgeRecordServiceTest.php",
     "backend/tests/Feature/Api/FormWeighbridgeTest.php",
     "backend/tests/Feature/Livewire/FormWeighbridgeTest.php",
-    "e2e-web/tests/form-weighbridge.spec.ts"
+    "e2e-web/tests/form-weighbridge.spec.ts",
+    "backend/tests/Feature/AuditFix20261004Test.php",
+    "backend/tests/Feature/Livewire/RecordIdShapeGuardTest.php",
+    "backend/tests/Feature/Livewire/WebFormNoDisabledFieldTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormWeighbridge.php",
@@ -26,7 +34,9 @@
     "backend/resources/views/data/weighbridge-form.blade.php",
     "backend/routes/web.php",
     "backend/resources/views/livewire/data/data-browser-weighbridge.blade.php",
-    "backend/resources/views/livewire/data/detail-weighbridge.blade.php"
+    "backend/resources/views/livewire/data/detail-weighbridge.blade.php",
+    "backend/app/Livewire/Data/Concerns/GuardsRecordIdShape.php",
+    "backend/app/Support/Display.php"
   ],
   "fe_test_files_generated": [],
   "implementation_notes": [
@@ -34,7 +44,7 @@
     "WeighbridgeRecordService::create()/update() ditambahkan, dipanggil dari WeighbridgeRecordController::store()/update() (API) DAN Livewire FormWeighbridge::save() - satu source of truth validasi/business logic, mengikuti pola getDetail()/listRecords() yang sudah ada",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit user): record_datetime pada web adalah input datetime-local yang genuinely editable, default now() saat form dibuka/tipe berganti - TIDAK dikunci seperti mobile screen-010",
     "DIVERGENSI DARI MOBILE (instruksi eksplisit user): tidak ada draft/pause/lock di web - Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
-    "PENGECUALIAN dari konvensi web-form-input 'tidak boleh disabled': Net Weight tetap field disabled (hanya preview dihitung reaktif client-side) karena WeighbridgeRecord model punya 'saving' event yang SELALU menghitung ulang net_weight=gross-tare untuk semua entry point (mobile/sync/web) - field editable akan menyesatkan karena nilai user akan diam-diam ditimpa saat disimpan. Didokumentasikan di WeighbridgeRecordService::create()'s docblock",
+    "Net Weight dirender sebagai TEKS read-only (span data-testid net-weight-preview, Display::number 2 desimal) sejak 2026-10-04 — sebelumnya input disabled yang menyalahi konvensi web-form-input. Tetap tidak dapat diisi karena WeighbridgeRecord model punya 'saving' event yang SELALU menghitung ulang net_weight=gross-tare untuk semua entry point (mobile/sync/web). Didokumentasikan di WeighbridgeRecordService::create()'s docblock",
     "Business Unit dropdown query langsung BusinessUnit::query()->orderBy('name')->get(['id','name']) di dalam Livewire mount() - identik dengan query yang sudah dipakai BusinessUnitController::index() untuk endpoint publik GET /api/business-units, tidak perlu endpoint baru",
     "Station diresolve otomatis dari business_unit_id (WHERE type=weighbridge AND is_active=true, ambil 1) - mengasumsikan tiap mill hanya punya 1 station weighbridge aktif (keputusan pragmatis yang sudah dipakai fitur Mills Setting sebelumnya di sesi ini)",
     "Checked/Acknowledged diimplementasikan sebagai checkbox self-attestation boolean (bukan pilih user lain) di WeighbridgeRecordService::applyVerification() - mengisi checked_by/acknowledged_by dengan id user yang login, role-gated (Supervisor untuk Checked, Mill Management untuk Acknowledged), field FE hanya dirender untuk role yang sesuai",
@@ -47,7 +57,8 @@
     "REVISI (2026-10-03, koreksi catatan usang — kode tidak diubah): catatan 'Station diresolve otomatis dari business_unit_id' di atas TIDAK lagi berlaku. Sejak Production Line disisipkan di antara Business Unit dan Station (entity-catalog v9, 2026-08-20), WeighbridgeRecordService::create() me-resolve station dari production_line_id lewat ScopesToActorMill::resolveActiveStationForActor(production_line_id, 'weighbridge', actor): Station WHERE production_line_id AND type=weighbridge AND is_active=true ORDER BY created_at, id (tertua menang; tidak ada unique (production_line_id, type)). production_line_id kosong/tidak dikenal/tanpa station aktif -> 422 NoActiveWeighbridgeStationException (pesan default-nya masih menyebut 'Business Unit'); station milik mill lain -> 403 CrossMillWriteDeniedException; production_line_id record di-snapshot dari station hasil resolve, bukan dari request. WeighbridgeRecordController::store() menerima production_line_id (bukan business_unit_id). Di Livewire, dropdown Business Unit (businessUnitOptionsForActor, dikunci ke mill aktor lewat pinFormMillToActor()) hanya meng-cascade opsi Production Line (StationService::productionLineOptions) dan tidak dikirim ke resolver. Docblock FORM_FIELDS di WeighbridgeRecordService masih menyebut business_unit_id sebagai field create-only — komentar kode usang, tidak diubah di sini.",
     "REVISI v5 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormWeighbridgeTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 16 uji, semuanya hijau (test_results.integration diperbarui).",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-weighbridge.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 7 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): WeighbridgeRecordService create/update kini memanggil assertEventDateNotTooFarAhead('record_datetime') (tanggal > besok WIB -> 422 inline) dan normalizeFormFields() menormalkan record_datetime ber-zona ke jam WIB via App\\Support\\AppTime (config/app.php timezone Asia/Jakarta, event_date_max_days_ahead); getDetail() menambah business_unit_name/production_line_id/production_line_name (additif). FormWeighbridge: trait GuardsRecordIdShape (id bukan UUID -> 'Record tidak ditemukan.'), prefill record_datetime setTimezone WIB, mode edit menampilkan Business Unit (bukan lagi nama stasiun) + Production Line read-only; view: Net Weight dan Production Line-tanpa-opsi dirender sebagai teks (tidak ada select/input disabled). ScopesToActorMill menolak production_line_id bukan-UUID (422); ApiExceptionHandler memetakan QueryException 22P02/22007/22008 -> 422 VALIDATION_ERROR, lainnya 500 generik tanpa teks SQL. Ekspor Excel di layar lain (SheetWriter) tidak memengaruhi form ini. Tes yang menutup: tests/Feature/AuditFix20261004Test.php, tests/Feature/Livewire/FormWeighbridgeTest.php (+3 uji Production Line), RecordIdShapeGuardTest.php, WebFormNoDisabledFieldTest.php. test_results tidak diubah (suite tidak dijalankan untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

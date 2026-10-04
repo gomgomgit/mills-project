@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-03"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-130--laporan-cages-track-web",
   "name": "Laporan Cages & Tracks (Web)",
@@ -36,7 +36,9 @@
     "backend/app/Http/Controllers/Api/CagesTrackReportController.php",
     "backend/routes/api.php",
     "backend/routes/web.php",
-    "backend/app/Services/StationReportService.php"
+    "backend/app/Services/StationReportService.php",
+    "backend/app/Support/SheetWriter.php",
+    "backend/app/Support/ExportValue.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Dashboard/LaporanCagesTrack.php",
@@ -49,7 +51,9 @@
     "backend/tests/Unit/Services/CagesTrackReportServiceTest.php",
     "backend/tests/Feature/Api/LaporanCagesTrackTest.php",
     "e2e-web/tests/laporan-cages-track.spec.ts",
-    "e2e-web/tests/laporan-stasiun.spec.ts"
+    "e2e-web/tests/laporan-stasiun.spec.ts",
+    "backend/tests/Feature/ReportAuditFix20261004Test.php",
+    "backend/tests/Feature/ExportXlsxTest.php"
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/LaporanCagesTrackTest.php"
@@ -64,7 +68,8 @@
     "Partial report-styles di-include lewat <x-slot:styles> pada view halaman, bukan @include di dalam komponen Livewire — alasannya sudah mahal dibayar di screen-140: partial ini memancarkan <style>, dan Livewire 3 memasang wire:id pada elemen ter-render pertama. Tepat dua modifier baru ditambahkan (.md-kpis--3, .md-trendchart__col--off) beserta legendanya.",
     "Seluruh agregasi dijalankan di PHP atas baris mentah. Ada unit test khusus yang merekam setiap statement SQL selama summary() dan menegakkan tidak ada SUM/AVG/GROUP BY maupun aritmetika timestamp di sisi SQL — test jalan di SQLite, produksi di PostgreSQL, dan justru aturan null-bukan-nol yang paling mudah berbeda di antara keduanya.",
     "SPEC BROWSER DIPERBAIKI 2026-10-02. Terakhir disentuh 2026-09-27; kewajiban memilih Production Line mendarat 2026-09-28 (a5ccfba), sehingga 17 dari 22 test berhenti di empty state `select-production-line-hint`. Helper selectProductionLine() dipanggil sebelum tiap selectPeriod(), urutan mill -> line -> periode (keepProductionLineValid() mengosongkan pilihan line begitu mill berganti). Perburuan 'mill belum punya periode' juga butuh line dipilih per kandidat — di spec ini hint-nya bernama `no-periods`, bukan `no-period-hint` seperti di storage-tank/clarification, jadi penambalan massal berdasar satu nama testid akan melewatkannya; itu yang terjadi pada percobaan pertama dan tertangkap oleh run berikutnya. Hasil: 20 lolos, 2 skip (kedua skip sudah ada sebelumnya).",
-    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-cages-track.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 20 lulus, 0 gagal, 2 skip (dua test.skip beralasan yang sudah tercatat di known_issues); test_results.browser diperbarui."
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-cages-track.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 20 lulus, 0 gagal, 2 skip (dua test.skip beralasan yang sudah tercatat di known_issues); test_results.browser diperbarui.",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): CagesTrackReportService::export() menulis lewat App\\Support\\SheetWriter (format=excel kini .xlsx sungguhan) dengan kolom konteks Periode/Mill/Production Line di depan, status via App\\Support\\ExportValue::status (label Indonesia), dan kolom Jam 'HH:00' (sebelumnya hourLabel 'HH.00'). laporan-cages-track.blade.php: hero menyebut nama Production Line; days_with_records = 0 → kartu rata-rata '–' (kpi-avg-per-day-empty) dan meta Total Lori Keluar 'Belum ada record pada periode dan line ini' (bukan 'Sama banyak'); tren harian .md-trendchart--days + scroll-hint bila > 10 tanggal. Uji: Api/LaporanCagesTrackTest (06:00), ReportAuditFix20261004Test (#8, #9, #10), ExportXlsxTest; e2e-web/tests/laporan-cages-track.spec.ts memakai pruneLaneData, laneIsoDate, STATEFUL_REFERER, dan total lori form kini <span> (toHaveText)."
   ],
   "deferred_items": [
     {
@@ -98,7 +103,7 @@
       "severity": "low"
     },
     {
-      "description": "Residu fixture browser: cages_track_records yang dibuat lewat screen-024 tidak pernah dihapus (tidak ada jalur DELETE untuk record stasiun, berbeda dari periode). Diredam dengan RUN_OFFSET berjarak 25 hari terhadap span 20 hari per run, tetapi dua run yang terpisah tepat 100.000 detik (~27,8 jam) masih dapat bertabrakan. Periode sendiri sudah dibersihkan lewat deletePeriodsByPrefix di afterAll.",
+      "description": "DIPERBAIKI 2026-10-04. Residu fixture browser kini disapu: pruneLaneData('laporan-cages-track') (e2e-web/tests/support/backend.ts, perintah backend PruneE2eRecords yang hanya berjalan di environment e2e berdatabase *_e2e) menghapus record & periode lajur di awal beforeAll dan di afterAll, sebelum deletePeriodsByPrefix (periode berisi record ditolak 409 PERIOD_HAS_RECORDS).",
       "severity": "low"
     },
     {

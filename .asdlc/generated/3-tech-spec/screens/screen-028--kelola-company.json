@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-05"
   },
   "id": "screen-028--kelola-company",
   "name": "Kelola Company",
@@ -143,8 +143,8 @@
             "query_params": [],
             "body_schema": {
               "corporate_id": "uuid, required, harus Corporate yang ada",
-              "company_code": "string, required, unik secara global",
-              "name": "string, required, unik dalam corporate_id",
+              "company_code": "string, required, unik secara global (tidak peka huruf besar/kecil — UniqueCaseInsensitive)",
+              "name": "string, required, unik dalam corporate_id (tidak peka huruf besar/kecil)",
               "short_name": "string, optional",
               "leader_name": "string, optional",
               "lawyer_name": "string, optional",
@@ -161,7 +161,7 @@
               "epf_employer": "string, optional",
               "socso_employer": "string, optional",
               "labor_union": "string, optional",
-              "logo": "file, optional, image jpg/png, max 2MB",
+              "logo": "file, optional, gambar JPG/PNG sungguhan (isi file diperiksa — App\\Rules\\RealImage), max 2MB",
               "last_update": "date, optional"
             }
           },
@@ -227,8 +227,8 @@
             "query_params": [],
             "body_schema": {
               "corporate_id": "uuid, required, harus Corporate yang ada",
-              "company_code": "string, required, unik secara global (kecuali dirinya sendiri)",
-              "name": "string, required, unik dalam corporate_id (kecuali dirinya sendiri)",
+              "company_code": "string, required, unik secara global kecuali dirinya sendiri (tidak peka huruf besar/kecil)",
+              "name": "string, required, unik dalam corporate_id kecuali dirinya sendiri (tidak peka huruf besar/kecil)",
               "short_name": "string, optional",
               "leader_name": "string, optional",
               "lawyer_name": "string, optional",
@@ -245,7 +245,7 @@
               "epf_employer": "string, optional",
               "socso_employer": "string, optional",
               "labor_union": "string, optional",
-              "logo": "file, optional, image jpg/png, max 2MB",
+              "logo": "file, optional, gambar JPG/PNG sungguhan (isi file diperiksa — App\\Rules\\RealImage), max 2MB",
               "last_update": "date, optional"
             }
           },
@@ -347,8 +347,8 @@
       "business_logic": [
         "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by corporate_id, join/eager-load Corporate untuk corporate_name, hitung business_unit_count via COUNT business_unit WHERE company_id",
         "2. GET /api/corporates/options: SELECT id, name dari seluruh Corporate, urut nama, untuk dropdown form (tanpa pagination)",
-        "3. POST create: validate corporate_id ada → validate company_code required+unik global → validate name required+unik dalam corporate_id → validate logo (jika ada) → if invalid: return 422 VALIDATION_ERROR → simpan logo jika ada → insert Company baru dengan seluruh field profil",
-        "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate corporate_id ada → validate company_code required+unik global (exclude self) → validate name required+unik dalam corporate_id (exclude self) → validate logo (jika diganti) → if invalid: return 422 VALIDATION_ERROR → update Company dengan seluruh field profil",
+        "3. POST create: validate corporate_id ada → validate company_code required+unik global case-insensitive → validate name required+unik case-insensitive dalam corporate_id → validate logo (jika ada): mimes jpg/jpeg/png, max 2MB, RealImage (isi file benar-benar gambar) → if invalid: return 422 VALIDATION_ERROR → simpan logo jika ada → insert Company baru dengan seluruh field profil",
+        "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate corporate_id ada → validate company_code required+unik global case-insensitive (exclude self) → validate name required+unik case-insensitive dalam corporate_id (exclude self) → validate logo (jika diganti, termasuk RealImage) → if invalid: return 422 VALIDATION_ERROR → update Company dengan seluruh field profil",
         "5. DELETE: validate id exists → if not: return 404 NOT_FOUND → count BusinessUnit WHERE company_id=id → if count > 0: return 409 COMPANY_HAS_BUSINESS_UNITS → else delete Company"
       ],
       "data_operations": [
@@ -409,8 +409,12 @@
           "handling": "Return 422 VALIDATION_ERROR dengan errors.corporate_id"
         },
         {
-          "condition": "Upload logo dengan format/ukuran tidak didukung",
-          "handling": "Return 422 VALIDATION_ERROR dengan errors.logo"
+          "condition": "Upload logo dengan format/ukuran tidak didukung, atau file bukan gambar sungguhan walau bernama .png/.jpg",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.logo (mimes/max/RealImage); di Livewire ditolak saat file dipilih (updatedLogo → validateUploadNow) dan lagi saat Simpan, pratinjau disembunyikan selama ada error"
+        },
+        {
+          "condition": "Kode Company hanya berbeda huruf besar/kecil dari Company lain",
+          "handling": "Return 422 VALIDATION_ERROR errors.company_code (UniqueCaseInsensitive)"
         }
       ],
       "business_rules_applied": [
@@ -505,6 +509,16 @@
           "description": "returns 403 FORBIDDEN for create/update/delete when authenticated user is not Admin",
           "given": "authenticated user role != admin",
           "expect": "return 403 FORBIDDEN, no mutation performed"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when company_code differs only by letter case from an existing Company",
+          "given": "existing Company company_code 'COMP-A'; input 'comp-a'",
+          "expect": "ValidationException errors.company_code; nothing inserted"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when the logo file is not a real image",
+          "given": "text file named logo.png uploaded as logo",
+          "expect": "ValidationException errors.logo (RealImage); no file stored"
         }
       ]
     }
@@ -537,7 +551,8 @@
     "Livewire component dapat memanggil Service Layer yang sama dengan REST API, konsisten dengan pola screen-016/017/018/027",
     "business_unit_count dihitung via withCount('businessUnits') (Eloquent), corporate_name via eager-load with('corporate')",
     "REWORK ver 2 (2026-08-19, adopsi ERD): id tetap uuid PK/FK. company_code ditambahkan sebagai field unik GLOBAL terpisah (bukan PK) — berbeda dari name yang tetap unik PER-CORPORATE (dua aturan keunikan independen berdampingan). 17 field profil baru + last_update ditambahkan, seluruhnya opsional kecuali company_code, name, dan corporate_id.",
-    "Logo disimpan di Laravel Filesystem local disk, path/URL disimpan di kolom logo, diekspos di response sebagai logo_url — pola sama dengan Corporate (screen-027)"
+    "Logo disimpan di Laravel Filesystem local disk, path/URL disimpan di kolom logo, diekspos di response sebagai logo_url — pola sama dengan Corporate (screen-027)",
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): company_code (global) dan name (per corporate) kini unik tidak peka huruf besar/kecil (App\\Rules\\UniqueCaseInsensitive); logo wajib gambar JPG/PNG sungguhan (App\\Rules\\RealImage) di service dan Livewire, Livewire memvalidasi logo saat dipilih (ValidatesUploadOnSelect); Livewire menampilkan successMessage setelah simpan/hapus. Aturan hapus (COMPANY_HAS_BUSINESS_UNITS) tidak berubah."
   ],
   "test_scenarios": [
     {

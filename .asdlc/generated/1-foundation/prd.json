@@ -1,10 +1,10 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-05"
   },
-  "overview": "Mill Smart Log adalah sistem manajemen operasional pabrik CPO (mill) yang mendigitalisasi log sheet stasiun produksi — Operator menginput data melalui aplikasi mobile offline-first, sementara Supervisor, Mill Management, dan Admin mengelola, memonitor, dan turut menginput data stasiun melalui web (dan mobile untuk Supervisor), menggantikan pencatatan manual berbasis kertas.",
+  "overview": "Mill Smart Log adalah sistem manajemen operasional pabrik CPO (mill) yang mendigitalisasi log sheet stasiun produksi — Operator menginput data melalui aplikasi mobile offline-first (dengan akses web terbatas untuk login dan melihat data miliknya sendiri), sementara Supervisor, Mill Management, dan Admin mengelola, memonitor, dan turut menginput data stasiun melalui web (dan mobile untuk Supervisor), menggantikan pencatatan manual berbasis kertas.",
   "problem_statement": "Pencatatan log stasiun pabrik CPO secara manual (kertas) menyebabkan keterlambatan pelaporan, risiko kesalahan input, kesulitan konsolidasi data lintas stasiun, dan tidak adanya jalur input cadangan saat operator lapangan tidak dapat mengakses perangkat mobile.",
   "goals": [
     {
@@ -12,7 +12,7 @@
       "reason": "Mengurangi kesalahan input manual dan keterlambatan pelaporan"
     },
     {
-      "item": "Menyediakan web app bagi Admin, Supervisor, dan Mill Management untuk memonitor, mereview, mengekspor data, dan mengelola master data operasional",
+      "item": "Menyediakan web app bagi Admin, Supervisor, dan Mill Management untuk memonitor, mereview, mengekspor data, dan mengelola master data operasional — serta akses web terbatas (read-only atas data sendiri) bagi Operator",
       "reason": "Memberi visibilitas dan kontrol terpusat atas data stasiun"
     },
     {
@@ -87,14 +87,14 @@
     }
   ],
   "initial_actors": [
-    "Station Operator (mobile — input data stasiun yang ditugaskan, kerja offline, memicu sync manual)",
+    "Station Operator (mobile — input data stasiun yang ditugaskan, kerja offline, memicu sync manual; web terbatas — boleh login ke web, hanya Beranda, Ganti Password, dan melihat data miliknya sendiri; tidak bisa input/edit data stasiun, verifikasi, ekspor, laporan, atau master data di web — halaman lain 403)",
     "Supervisor (mobile & web — input/edit data stasiun sama seperti Operator, mengisi field Checked By, review, dashboard, ekspor)",
     "Mill Management (web — review, dashboard, ekspor, input data stasiun, mengisi field Acknowledged By, akses laporan level manajemen)",
     "Admin (web — kelola user/role, master data, setup stasiun & mesin, input/edit data form stasiun)"
   ],
   "assumptions": [
     {
-      "assumption": "Pengguna web (Admin/Supervisor/Mill Management) memiliki koneksi internet stabil saat mengakses web app, tidak perlu offline-first di web",
+      "assumption": "Pengguna web (Admin/Supervisor/Mill Management, dan Operator dengan akses terbatas) memiliki koneksi internet stabil saat mengakses web app, tidak perlu offline-first di web",
       "status": "tbd"
     },
     {

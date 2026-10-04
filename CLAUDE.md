@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when working in this repository.
 ## 1. Project
 
 **Name:** Mill Smart Log
-**Description:** Mill Smart Log adalah sistem manajemen operasional pabrik CPO (mill) yang mendigitalisasi log sheet stasiun produksi — Operator menginput data melalui aplikasi mobile offline-first, sementara Supervisor, Mill Management, dan Admin mengelola, memonitor, dan turut menginput data stasiun melalui web (dan mobile untuk Supervisor), menggantikan pencatatan manual berbasis kertas.
+**Description:** Mill Smart Log adalah sistem manajemen operasional pabrik CPO (mill) yang mendigitalisasi log sheet stasiun produksi — Operator menginput data melalui aplikasi mobile offline-first (dengan akses web terbatas untuk login dan melihat data miliknya sendiri), sementara Supervisor, Mill Management, dan Admin mengelola, memonitor, dan turut menginput data stasiun melalui web (dan mobile untuk Supervisor), menggantikan pencatatan manual berbasis kertas.
 **Current state:** call `artifact__list` at the start of every session.
 
 ---

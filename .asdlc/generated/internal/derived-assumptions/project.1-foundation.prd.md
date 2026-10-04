@@ -11,3 +11,8 @@
 - constraints = "Database MySQL, mengikuti struktur ERD yang sudah didesain" ← agent recommendation, not explicitly requested by user
 - constraints = "File/gambar (machinery picture, logo) disimpan sebagai object storage/Laravel filesystem disk, bukan binary di database" ← agent recommendation, not explicitly requested by user
 - assumptions = "Pengguna web (Admin/Supervisor/Mill Management) memiliki koneksi internet stabil saat mengakses web app, tidak perlu offline-first di web" (status: tbd) ← no explicit statement from user
+
+## v7 — 2026-10-05
+
+- initial_actors[0] = "Operator web terbatas: hanya Beranda, Ganti Password, dan melihat data miliknya sendiri; input/edit data stasiun, verifikasi, ekspor, laporan, master data di web tidak diizinkan (403)" ← user hanya menyatakan "operator boleh login web terbatas" (sebelumnya memilih "Beri akses web terbatas" = boleh login web dan melihat data sendiri); rincian halaman yang diizinkan/ditolak diturunkan agen dari RouteAccess yang sudah diimplementasikan. Layar "Data Saya" belum dibangun — Operator saat ini hanya mendarat di /beranda.
+- goals[1] = "akses web terbatas (read-only atas data sendiri) bagi Operator" ← diturunkan dari keputusan yang sama, bukan kalimat user

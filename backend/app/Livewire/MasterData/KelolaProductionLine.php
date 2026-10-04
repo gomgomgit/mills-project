@@ -4,6 +4,7 @@ namespace App\Livewire\MasterData;
 
 use App\Exceptions\ProductionLineHasStationsException;
 use App\Models\ProductionLine;
+use App\Rules\UniqueCaseInsensitive;
 use App\Services\ProductionLineService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
@@ -79,6 +80,9 @@ class KelolaProductionLine extends Component
 
     public ?string $deleteErrorMessage = null;
 
+    /** Umpan balik sukses simpan/hapus (temuan audit 2026-10-04 #12). */
+    public ?string $successMessage = null;
+
     public function mount(): void
     {
         $this->form = $this->emptyForm();
@@ -113,7 +117,7 @@ class KelolaProductionLine extends Component
      */
     protected function buildValidator(): \Illuminate\Validation\Validator
     {
-        $codeUniqueRule = Rule::unique('production_lines', 'code');
+        $codeUniqueRule = UniqueCaseInsensitive::on('production_lines', 'code');
 
         if ($this->editingId !== null) {
             $codeUniqueRule = $codeUniqueRule->ignore($this->editingId);
@@ -154,6 +158,7 @@ class KelolaProductionLine extends Component
      */
     public function openCreateForm(): void
     {
+        $this->successMessage = null;
         $this->resetValidation();
         $this->editingId = null;
         $this->business_unit_id = '';
@@ -168,6 +173,7 @@ class KelolaProductionLine extends Component
      */
     public function openEditForm(string $id): void
     {
+        $this->successMessage = null;
         $productionLine = ProductionLine::findOrFail($id);
 
         $this->resetValidation();
@@ -199,6 +205,7 @@ class KelolaProductionLine extends Component
      */
     public function save(): void
     {
+        $this->successMessage = null;
         $this->formErrorMessage = null;
 
         // create: business_unit_id exists, name required, code
@@ -245,6 +252,10 @@ class KelolaProductionLine extends Component
             return;
         }
 
+        $this->successMessage = $this->editingId !== null
+            ? 'Production Line berhasil diperbarui.'
+            : 'Production Line berhasil ditambahkan.';
+        $this->deleteErrorMessage = null;
         $this->showForm = false;
         $this->editingId = null;
         $this->business_unit_id = '';
@@ -259,6 +270,7 @@ class KelolaProductionLine extends Component
      */
     public function askDelete(string $id): void
     {
+        $this->successMessage = null;
         $this->confirmingDeleteId = $id;
         $this->deleteErrorMessage = null;
     }
@@ -287,6 +299,7 @@ class KelolaProductionLine extends Component
             $service->delete($this->confirmingDeleteId);
             $this->confirmingDeleteId = null;
             $this->deleteErrorMessage = null;
+            $this->successMessage = 'Production Line berhasil dihapus.';
         } catch (ProductionLineHasStationsException $e) {
             // Delete-guard: nothing was deleted, row must remain in the
             // list — drop back to the un-confirming state and surface the

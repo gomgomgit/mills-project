@@ -586,6 +586,12 @@ it('backfill tidak pernah menghapus baris stasiun, termasuk untuk jenis yang sud
 
 // Scenario: "data mobile menyusul setelah periode ditutup"
 it('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali', function () {
+    // JAM DIBEKUKAN (2026-10-04): sejak batas atas tanggal kejadian (besok,
+    // zona aplikasi) berlaku, tanggal skenario di bawah tidak boleh berada di
+    // masa depan relatif terhadap "hari ini" — kalau tidak, penolakannya
+    // VALIDATION_ERROR (tanggal tidak masuk akal), bukan PERIOD_CLOSED yang
+    // sedang diuji. afterEach() sudah mereset setTestNow().
+    Carbon::setTestNow(Carbon::create(2026, 10, 31, 12));
     $period = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
         ->stationType('sterilizer')
@@ -663,6 +669,12 @@ it('menolak 422 PERIOD_CLOSED saat mencoba memverifikasi record di dalam periode
 
 // Scenario 19: "mengubah data stasiun pada periode tertutup"
 it('menolak 422 PERIOD_CLOSED untuk input baru maupun perubahan data stasiun pada periode tertutup', function () {
+    // JAM DIBEKUKAN (2026-10-04): sejak batas atas tanggal kejadian (besok,
+    // zona aplikasi) berlaku, tanggal skenario di bawah tidak boleh berada di
+    // masa depan relatif terhadap "hari ini" — kalau tidak, penolakannya
+    // VALIDATION_ERROR (tanggal tidak masuk akal), bukan PERIOD_CLOSED yang
+    // sedang diuji. afterEach() sudah mereset setTestNow().
+    Carbon::setTestNow(Carbon::create(2026, 10, 31, 12));
     $period = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
         ->stationType('sterilizer')
@@ -725,6 +737,12 @@ it('menolak 422 PERIOD_CLOSED untuk input baru maupun perubahan data stasiun pad
 // diinput atau disinkronkan. Dibuktikan dengan dua periode berdampingan — Oktober
 // tertutup, November terbuka — lalu memasukkan ketiga tanggal pada saat yang sama.
 it('keanggotaan periode dari tanggal kejadian: November terbuka diterima, Oktober tertutup ditolak', function () {
+    // JAM DIBEKUKAN (2026-10-04): sejak batas atas tanggal kejadian (besok,
+    // zona aplikasi) berlaku, tanggal skenario di bawah tidak boleh berada di
+    // masa depan relatif terhadap "hari ini" — kalau tidak, penolakannya
+    // VALIDATION_ERROR (tanggal tidak masuk akal), bukan PERIOD_CLOSED yang
+    // sedang diuji. afterEach() sudah mereset setTestNow().
+    Carbon::setTestNow(Carbon::create(2026, 11, 30, 12));
     $october = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
         ->stationType('sterilizer')

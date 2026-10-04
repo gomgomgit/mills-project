@@ -6,6 +6,7 @@ use App\Exceptions\MachineryGroupHasMachineryException;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\Station;
+use App\Rules\UniqueCaseInsensitive;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
@@ -72,7 +73,7 @@ class MachineryGroupService
         $needle = $hasSearch ? '%'.mb_strtolower($search).'%' : null;
 
         $query = MachineryGroup::query()
-            ->with(['station', 'productionLine'])
+            ->with(['station', 'productionLine.businessUnit'])
             ->withCount('machinery')
             ->orderBy('group_code');
 
@@ -135,14 +136,24 @@ class MachineryGroupService
      */
     public function stationOptions(): array
     {
+        // 'label' = "Mill — Line — Station" (temuan audit #9c): 431 station
+        // dulu hanya berlabel nama station, padahal tiap line punya set nama
+        // yang sama — pemilih tidak bisa membedakan "Weighbridge" mana.
         return Station::query()
-            ->orderBy('name')
-            ->get(['id', 'name', 'production_line_id'])
+            ->with(['businessUnit:id,name', 'productionLine:id,name'])
+            ->get(['id', 'name', 'production_line_id', 'business_unit_id'])
             ->map(fn (Station $station) => [
                 'id' => $station->id,
                 'name' => $station->name,
                 'production_line_id' => $station->production_line_id,
+                'label' => implode(' — ', array_filter([
+                    optional($station->businessUnit)->name,
+                    optional($station->productionLine)->name,
+                    $station->name,
+                ])),
             ])
+            ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
             ->all();
     }
 
@@ -255,7 +266,7 @@ class MachineryGroupService
      */
     protected function validate(array $data, ?string $excludeId): array
     {
-        $groupCodeUniqueRule = Rule::unique('machinery_groups', 'group_code');
+        $groupCodeUniqueRule = UniqueCaseInsensitive::on('machinery_groups', 'group_code');
 
         if ($excludeId !== null) {
             $groupCodeUniqueRule = $groupCodeUniqueRule->ignore($excludeId);
@@ -337,6 +348,7 @@ class MachineryGroupService
             'production_line_name' => optional($machineryGroup->productionLine)->name,
             'station_id' => $machineryGroup->station_id,
             'station_name' => optional($machineryGroup->station)->name,
+            'business_unit_name' => optional(optional($machineryGroup->productionLine)->businessUnit)->name,
             'group_code' => $machineryGroup->group_code,
             'description' => $machineryGroup->description,
             'unit' => $machineryGroup->unit,

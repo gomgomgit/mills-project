@@ -5,7 +5,9 @@ namespace App\Support\Concerns;
 use App\Enums\PeriodStatus;
 use App\Exceptions\PeriodClosedException;
 use App\Models\Period;
+use App\Support\AppTime;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 /**
  * EnforcesPeriodLock — the Period Pelaporan write lock shared by all 18
@@ -65,6 +67,9 @@ trait EnforcesPeriodLock
      * @param  string  $stationType  station_types.code, e.g. 'sterilizer'
      * @param  string  $businessUnitId  the mill the record's station belongs to
      * @param  string|null  $eventDate  the record's own event timestamp or date
+     * @param  string  $action  'write' (simpan/ubah data) atau 'verify'
+     *                          (Checked/Acknowledged di layar Detail) — hanya
+     *                          mengubah KALIMAT penolakan, bukan aturannya
      *
      * @throws PeriodClosedException
      */
@@ -72,6 +77,7 @@ trait EnforcesPeriodLock
         string $stationType,
         string $businessUnitId,
         ?string $eventDate,
+        string $action = 'write',
     ): void {
         $date = $this->periodLockEventDate($eventDate);
 
@@ -94,8 +100,115 @@ trait EnforcesPeriodLock
         }
 
         throw new PeriodClosedException(
-            $this->periodLockReason($stationType, $businessUnitId, $date)
+            $this->periodLockReason($stationType, $businessUnitId, $date, $action)
         );
+    }
+
+    /**
+     * KUNCI PERIODE UNTUK TANGGAL KEJADIAN PER BARIS DETAIL (CPO Dispatch,
+     * Kernel Dispatch, Solid Waste Disposal — tiga stasiun log-kejadian yang
+     * barisnya membawa `event_date` sendiri).
+     *
+     * Sampai 2026-10-04 hanya tanggal HEADER yang diperiksa, sehingga baris
+     * bertanggal 15/09/2026 diterima ke record Oktober walau tidak ada periode
+     * September yang terbuka. Aturan usecase-141 berlaku untuk SETIAP tanggal
+     * kejadian yang ditulis, jadi:
+     *
+     *  - $newDates: tanggal setiap baris yang dikirim (create dan update);
+     *  - $oldDates: tanggal setiap baris yang SUDAH tersimpan (update saja).
+     *    upsertDetails() menulis ulang / menghapus semua baris lama, jadi
+     *    semuanya ikut diperiksa — sama dengan header: record yang tanggalnya
+     *    jatuh di periode tertutup terkunci sebagai satu kesatuan.
+     *
+     * Pesan penolakannya sama dengan header (422 PERIOD_CLOSED) dan menyebut
+     * tanggal baris yang menyebabkan penolakan.
+     *
+     * @param  iterable<mixed>  $newDates
+     * @param  iterable<mixed>  $oldDates
+     *
+     * @throws PeriodClosedException
+     */
+    protected function assertDetailEventDatesWritable(
+        string $stationType,
+        string $businessUnitId,
+        iterable $newDates,
+        iterable $oldDates = [],
+        string $action = 'write',
+    ): void {
+        $dates = [];
+
+        foreach ([$oldDates, $newDates] as $list) {
+            foreach ($list as $value) {
+                $date = $value instanceof \DateTimeInterface
+                    ? Carbon::instance($value)->toDateString()
+                    : $this->periodLockEventDate($value === null ? null : (string) $value);
+
+                if ($date !== null) {
+                    $dates[$date] = true;
+                }
+            }
+        }
+
+        $dates = array_keys($dates);
+        sort($dates);
+
+        foreach ($dates as $date) {
+            try {
+                $this->assertPeriodOpenForWrite($stationType, $businessUnitId, $date, $action);
+            } catch (PeriodClosedException $e) {
+                throw new PeriodClosedException('Baris log bertanggal kejadian '.Carbon::parse($date)->format('d/m/Y').' ditolak. '.$e->getMessage());
+            }
+        }
+    }
+
+    /**
+     * Relasi detail yang barisnya membawa `event_date` sendiri, per jenis
+     * stasiun. Hanya tiga stasiun log-kejadian ini; stasiun lain memakai
+     * tanggal header untuk semua barisnya.
+     */
+    protected function detailEventDateRelation(string $stationType): ?string
+    {
+        return match ($stationType) {
+            'cpo-dispatch' => 'cpoDispatchDetails',
+            'kernel-dispatch' => 'kernelDispatchDetails',
+            'solid-waste-disposal' => 'solidWasteDisposalDetails',
+            default => null,
+        };
+    }
+
+    /**
+     * BATAS ATAS TANGGAL KEJADIAN (2026-10-04). Tanggal kejadian tidak boleh
+     * melewati BESOK di zona aplikasi (lihat AppTime::latestEventDate()).
+     * Ditemukan 282 record Weighbridge bertahun 7278 hasil input salah ketik;
+     * baris lama itu dibiarkan, hanya tulis BARU yang ditolak — 422 per field,
+     * karena ini kesalahan isian, bukan soal periode.
+     *
+     * @throws ValidationException
+     */
+    protected function assertEventDateNotTooFarAhead(mixed $eventDate, string $field, string $label = 'Tanggal'): void
+    {
+        if ($eventDate instanceof \DateTimeInterface) {
+            $date = Carbon::instance($eventDate)->toDateString();
+        } else {
+            $date = $this->periodLockEventDate($eventDate === null ? null : (string) $eventDate);
+        }
+
+        if ($date === null) {
+            return;
+        }
+
+        $limit = AppTime::latestEventDate();
+
+        if ($limit !== null && $date > $limit->toDateString()) {
+            throw ValidationException::withMessages([
+                $field => sprintf(
+                    '%s %s tidak masuk akal: tidak boleh melewati %s.',
+                    $label,
+                    Carbon::parse($date)->format('d/m/Y'),
+                    $limit->format('d/m/Y'),
+                ),
+            ]);
+        }
     }
 
     /**
@@ -110,7 +223,9 @@ trait EnforcesPeriodLock
         }
 
         try {
-            return Carbon::parse($eventDate)->toDateString();
+            // setTimezone(): string ber-offset ("...Z") adalah instan dan
+            // harus jatuh ke tanggal WIB-nya; string naif sudah jam WIB.
+            return Carbon::parse($eventDate)->setTimezone(AppTime::zone())->toDateString();
         } catch (\Throwable) {
             return null;
         }
@@ -132,9 +247,10 @@ trait EnforcesPeriodLock
      * the wrong screen, and three of the four reasons are fixed by an Admin on a
      * different screen than the user is standing on.
      */
-    protected function periodLockReason(string $stationType, string $businessUnitId, string $date): string
+    protected function periodLockReason(string $stationType, string $businessUnitId, string $date, string $action = 'write'): string
     {
         $formatted = Carbon::parse($date)->format('d/m/Y');
+        $verify = $action === 'verify';
 
         // (a) A period covers this date and HAS a row for this station type —
         // so the refusal is about that row's status, which is the most
@@ -153,14 +269,18 @@ trait EnforcesPeriodLock
 
             if ($statusValue === PeriodStatus::Closed->value) {
                 return sprintf(
-                    'Periode "%s" untuk stasiun ini sudah ditutup, sehingga data bertanggal %s tidak dapat disimpan atau diubah. Hubungi Admin bila periode itu perlu dibuka kembali.',
+                    $verify
+                        ? 'Periode "%s" untuk stasiun ini sudah ditutup, sehingga verifikasi data bertanggal %s tidak dapat diubah. Hubungi Admin bila periode itu perlu dibuka kembali.'
+                        : 'Periode "%s" untuk stasiun ini sudah ditutup, sehingga data bertanggal %s tidak dapat disimpan atau diubah. Hubungi Admin bila periode itu perlu dibuka kembali.',
                     $covering->name,
                     $formatted,
                 );
             }
 
             return sprintf(
-                'Periode "%s" untuk stasiun ini belum dibuka (masih Draft), sehingga data bertanggal %s belum dapat disimpan. Hubungi Admin untuk membukanya.',
+                $verify
+                    ? 'Periode "%s" untuk stasiun ini belum dibuka (masih Draft), sehingga verifikasi data bertanggal %s belum dapat diubah. Hubungi Admin untuk membukanya.'
+                    : 'Periode "%s" untuk stasiun ini belum dibuka (masih Draft), sehingga data bertanggal %s belum dapat disimpan. Hubungi Admin untuk membukanya.',
                 $covering->name,
                 $formatted,
             );
@@ -185,7 +305,9 @@ trait EnforcesPeriodLock
                 ->implode(', ');
 
             return sprintf(
-                'Tanggal %s berada di luar periode yang terbuka untuk stasiun ini. Periode yang menerima data saat ini: %s.',
+                $verify
+                    ? 'Tanggal %s berada di luar periode yang terbuka untuk stasiun ini, sehingga verifikasinya tidak dapat diubah. Periode yang terbuka saat ini: %s.'
+                    : 'Tanggal %s berada di luar periode yang terbuka untuk stasiun ini. Periode yang menerima data saat ini: %s.',
                 $formatted,
                 $ranges,
             );
@@ -193,7 +315,9 @@ trait EnforcesPeriodLock
 
         // (c) Nothing open for this station at all.
         return sprintf(
-            'Belum ada Periode Pelaporan yang terbuka untuk stasiun ini, sehingga data bertanggal %s belum dapat disimpan. Hubungi Admin untuk membuka periodenya.',
+            $verify
+                ? 'Belum ada Periode Pelaporan yang terbuka untuk stasiun ini, sehingga verifikasi data bertanggal %s tidak dapat diubah. Hubungi Admin untuk membuka periodenya.'
+                : 'Belum ada Periode Pelaporan yang terbuka untuk stasiun ini, sehingga data bertanggal %s belum dapat disimpan. Hubungi Admin untuk membuka periodenya.',
             $formatted,
         );
     }

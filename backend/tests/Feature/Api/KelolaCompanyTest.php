@@ -292,7 +292,7 @@ it('uploads a valid logo image and returns a logo_url, storing the file under co
         'corporate_id' => $corporate->id,
         'company_code' => 'COMP-API-LOGO-001',
         'name' => 'PT Berlogo',
-        'logo' => UploadedFile::fake()->create('logo.jpg', 500, 'image/jpeg'),
+        'logo' => fakeRealImage('logo.jpg', 500),
     ]);
 
     $response->assertStatus(201);
@@ -327,7 +327,7 @@ it('returns 422 with errors.logo when the logo file exceeds the max size', funct
         'corporate_id' => $corporate->id,
         'company_code' => 'COMP-API-LOGO-003',
         'name' => 'PT Logo Besar',
-        'logo' => UploadedFile::fake()->create('logo.jpg', 3000, 'image/jpeg'),
+        'logo' => fakeRealImage('logo.jpg', 3000),
     ]);
 
     $response->assertStatus(422);

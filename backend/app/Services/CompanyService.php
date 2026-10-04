@@ -6,6 +6,8 @@ use App\Exceptions\CompanyHasBusinessUnitsException;
 use App\Models\BusinessUnit;
 use App\Models\Company;
 use App\Models\Corporate;
+use App\Rules\RealImage;
+use App\Rules\UniqueCaseInsensitive;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
@@ -335,8 +337,8 @@ class CompanyService
      */
     protected function validate(string $corporateId, array $attributes, ?UploadedFile $logo, ?string $excludeId): void
     {
-        $codeUniqueRule = Rule::unique('companies', 'company_code');
-        $nameUniqueRule = Rule::unique('companies', 'name')
+        $codeUniqueRule = UniqueCaseInsensitive::on('companies', 'company_code');
+        $nameUniqueRule = UniqueCaseInsensitive::on('companies', 'name')
             ->where(fn ($query) => $query->where('corporate_id', $corporateId));
 
         if ($excludeId !== null) {
@@ -353,7 +355,7 @@ class CompanyService
             'corporate_id' => ['required', 'string', Rule::exists('corporates', 'id')],
             'company_code' => ['required', 'string', 'max:255', $codeUniqueRule],
             'name' => ['required', 'string', 'max:255', $nameUniqueRule],
-            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Logo')],
         ];
 
         if (array_key_exists('last_update', $attributes)) {

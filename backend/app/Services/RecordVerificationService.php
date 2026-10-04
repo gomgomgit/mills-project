@@ -164,7 +164,23 @@ class RecordVerificationService
             $stationType,
             $station->business_unit_id,
             $eventDate instanceof Carbon ? $eventDate->toDateString() : ($eventDate === null ? null : (string) $eventDate),
+            'verify',
         );
+
+        // Stasiun log-kejadian (CPO/Kernel Dispatch, Solid Waste Disposal):
+        // tanggal kejadian per baris ikut dikunci — verifikasi mengesahkan
+        // SEMUA baris record, termasuk yang jatuh di periode lain.
+        $detailRelation = $this->detailEventDateRelation($stationType);
+
+        if ($detailRelation !== null) {
+            $this->assertDetailEventDatesWritable(
+                $stationType,
+                $station->business_unit_id,
+                [],
+                $record->{$detailRelation}()->pluck('event_date')->all(),
+                'verify',
+            );
+        }
 
         $record->forceFill([
             $this->column($level) => $value ? $actor->id : null,

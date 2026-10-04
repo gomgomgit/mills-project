@@ -40,7 +40,8 @@ it('berhasil: renders all header fields and the Engine Room Detail grid, read-on
     Livewire::actingAs($this->user)
         ->test(DetailEngineRoom::class, ['id' => $record->id])
         ->assertSee($record->engine_room_id)
-        ->assertSee('1242.5')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('1.242,5')
         ->assertDontSee('Record tidak ditemukan');
 });
 

@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Rules\RealImage;
+use App\Rules\UniqueCaseInsensitive;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
@@ -182,14 +184,20 @@ class MachineryService
      */
     public function machineryGroupOptions(): array
     {
+        // 'label' = "MG-xxx — deskripsi (Station · Line)" (temuan audit #9c):
+        // kode MG saja tidak bermakna bagi pengguna saat memilih grup.
         return MachineryGroup::query()
+            ->with(['station:id,name', 'productionLine:id,name'])
             ->orderBy('group_code')
-            ->get(['id', 'group_code', 'station_id', 'production_line_id'])
+            ->get(['id', 'group_code', 'description', 'station_id', 'production_line_id'])
             ->map(fn (MachineryGroup $group) => [
                 'id' => $group->id,
                 'group_code' => $group->group_code,
                 'station_id' => $group->station_id,
                 'production_line_id' => $group->production_line_id,
+                'label' => $group->group_code
+                    .($group->description ? ' — '.$group->description : '')
+                    .(($place = implode(' · ', array_filter([optional($group->station)->name, optional($group->productionLine)->name]))) !== '' ? ' ('.$place.')' : ''),
             ])
             ->all();
     }
@@ -375,7 +383,7 @@ class MachineryService
      */
     protected function validate(array $data, ?UploadedFile $picture, ?string $excludeId): array
     {
-        $equipmentCodeUniqueRule = Rule::unique('machinery', 'equipment_code');
+        $equipmentCodeUniqueRule = UniqueCaseInsensitive::on('machinery', 'equipment_code');
 
         if ($excludeId !== null) {
             $equipmentCodeUniqueRule = $equipmentCodeUniqueRule->ignore($excludeId);
@@ -396,7 +404,7 @@ class MachineryService
             'equipment_code' => ['required', 'string', 'max:255', $equipmentCodeUniqueRule],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'picture' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'picture' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Gambar')],
             'rpm' => ['nullable', 'numeric'],
             'year_made' => ['nullable', 'integer'],
         ];

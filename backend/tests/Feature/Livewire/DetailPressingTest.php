@@ -45,7 +45,8 @@ it('berhasil: renders all header fields, the 24-row Pressing Detail grid, and th
     Livewire::actingAs($this->user)
         ->test(DetailPressing::class, ['id' => $record->id])
         ->assertSee($record->presser_id)
-        ->assertSee('92.5')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('92,5')
         ->assertSee('Cone Hydraulic Pressure')
         ->assertSee('45 - 55 Bar')
         ->assertDontSee('Record tidak ditemukan');

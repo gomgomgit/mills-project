@@ -93,7 +93,7 @@
                         <td>{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d/m/Y') : '-' }}</td>
                         <td>{{ $record['cycle_count'] }}</td>
                         <td>
-                            <span class="sf-badge sf-badge--{{ $record['status'] }}">{{ $record['status'] }}</span>
+                            <span class="sf-badge sf-badge--{{ $record['status'] }}">{{ \App\Support\Display::status($record['status']) }}</span>
                         </td>
                     </tr>
                 @empty

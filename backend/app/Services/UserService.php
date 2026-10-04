@@ -7,6 +7,7 @@ use App\Exceptions\CannotDeactivateSelfException;
 use App\Models\BusinessUnit;
 use App\Models\User;
 use App\Support\Pagination;
+use App\Support\PasswordPolicy;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -31,19 +32,12 @@ use Illuminate\Validation\ValidationException;
  *    (is_active), to preserve referential integrity on created_by/
  *    checked_by/acknowledged_by across every other entity. See
  *    setStatus() instead of a destroy()-style method.
- *  - update() never touches password_hash — password changes are the
- *    self-service Ganti Password screen's (screen-003/004) domain, not
- *    this screen's.
+ *  - update() hanya menyentuh password_hash bila Admin mengisi kolom
+ *    opsional "Reset Password" (2026-10-04) — kosong = password tidak
+ *    berubah. Ganti password mandiri tetap domain screen-003/004.
  */
 class UserService
 {
-    /**
-     * Minimum password length — entity-catalog `user.password_hash`:
-     * "minimal 6 karakter, case-sensitive, alfanumerik+simbol sebelum
-     * di-hash".
-     */
-    protected const PASSWORD_MIN_LENGTH = 6;
-
     /**
      * listUsers() — business_logic step "list": paginate, optional
      * role/business_unit_id filters, eager-load businessUnit (for
@@ -126,11 +120,18 @@ class UserService
 
         $this->validate($attributes, $user->id, isCreate: false);
 
-        $user->update([
+        $changes = [
             'name' => $attributes['name'],
             'role' => $attributes['role'],
             'business_unit_id' => $attributes['business_unit_id'],
-        ]);
+        ];
+
+        // Reset Password oleh Admin — opsional; kosong = tidak berubah.
+        if ($attributes['password'] !== '') {
+            $changes['password_hash'] = Hash::make($attributes['password']);
+        }
+
+        $user->update($changes);
         $user->load('businessUnit');
 
         return $this->toRow($user);
@@ -154,6 +155,13 @@ class UserService
         }
 
         $user->update(['is_active' => $isActive]);
+
+        // Penonaktifan mencabut seluruh token Sanctum (sesi mobile) akun itu
+        // seketika; sesi web-nya dikeluarkan EnsureUserIsActive pada request
+        // berikutnya.
+        if (! $isActive) {
+            $user->tokens()->delete();
+        }
         $user->load('businessUnit');
 
         return $this->toRow($user);
@@ -210,14 +218,12 @@ class UserService
         // only applies here; validating it on update() would incorrectly
         // fail since update()'s $data never carries a 'username' key.
         if ($isCreate) {
-            $usernameUniqueRule = Rule::unique('users', 'username');
-
-            if ($excludeId !== null) {
-                $usernameUniqueRule = $usernameUniqueRule->ignore($excludeId);
-            }
-
-            $rules['username'] = ['required', 'string', 'max:255', $usernameUniqueRule];
-            $rules['password'] = ['required', 'string', 'min:'.self::PASSWORD_MIN_LENGTH];
+            $rules['username'] = ['required', 'string', 'max:255', 'regex:/^\S+$/u', self::usernameUniqueRule($excludeId)];
+            $rules['password'] = ['required', 'string', PasswordPolicy::rule()];
+        } elseif ($attributes['password'] !== '') {
+            // Reset Password (opsional) di Edit User — aturan yang SAMA
+            // dengan login/Ganti Password.
+            $rules['password'] = ['string', PasswordPolicy::rule()];
         }
 
         Validator::make(
@@ -226,7 +232,7 @@ class UserService
             [
                 'username.required' => 'Username wajib diisi.',
                 'username.max' => 'Username maksimal 255 karakter.',
-                'username.unique' => 'Username sudah digunakan.',
+                'username.regex' => 'Username tidak boleh mengandung spasi.',
                 'name.required' => 'Nama wajib diisi.',
                 'name.max' => 'Nama maksimal 255 karakter.',
                 'role.required' => 'Role wajib dipilih.',
@@ -234,9 +240,28 @@ class UserService
                 'business_unit_id.required' => 'Business Unit wajib dipilih untuk role selain Admin.',
                 'business_unit_id.exists' => 'Business Unit yang dipilih tidak ditemukan.',
                 'password.required' => 'Password wajib diisi.',
-                'password.min' => 'Password minimal '.self::PASSWORD_MIN_LENGTH.' karakter.',
             ]
         )->validate();
+    }
+
+    /**
+     * Keunikan username TIDAK peka huruf besar/kecil ("OPERATOR01" dianggap
+     * sama dengan "operator01"). lower() di kedua sisi — aman di SQLite
+     * maupun PostgreSQL (Rule::unique membandingkan apa adanya, peka huruf
+     * di PostgreSQL).
+     */
+    public static function usernameUniqueRule(?string $excludeId = null): \Closure
+    {
+        return function (string $attribute, mixed $value, \Closure $fail) use ($excludeId): void {
+            $exists = User::query()
+                ->whereRaw('lower(username) = ?', [mb_strtolower(trim((string) $value))])
+                ->when($excludeId !== null, fn ($q) => $q->where('id', '!=', $excludeId))
+                ->exists();
+
+            if ($exists) {
+                $fail('Username sudah digunakan.');
+            }
+        };
     }
 
     /**

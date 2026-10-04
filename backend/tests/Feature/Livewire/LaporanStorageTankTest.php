@@ -753,7 +753,7 @@ it('pencatatan sangat tidak lengkap: kartu kelengkapan menampilkan 3 dari 240 pa
 
     expect(laporanStorageTankRendered($html, 'coverage-filled-slots'))->toBe('3');
     expect(laporanStorageTankRendered($html, 'coverage-expected-slots'))->toBe('240');
-    expect(laporanStorageTankRendered($html, 'coverage-percent'))->toBe('1,25%');
+    expect(laporanStorageTankRendered($html, 'coverage-percent'))->toBe('1,3%'); // 1 desimal seperti laporan lain (temuan audit 2026-10-04 #10)
 
     // PART OF THE REPORT BODY, NOT A FOOTNOTE: the coverage card is
     // rendered BEFORE the stock cards, because on this screen coverage is

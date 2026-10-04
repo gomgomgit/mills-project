@@ -34,7 +34,7 @@
                 </div>
                 <div class="er-detail-field">
                     <span class="er-detail-field__label">Tanggal</span>
-                    <span class="er-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="er-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="er-detail-field">
                     <span class="er-detail-field__label">Station</span>
@@ -87,33 +87,33 @@
                         @forelse ($record['details'] as $row)
                             <tr data-testid="engine-room-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['steam_turbine_inlet_pressure_bar'] ?? '-' }}</td>
-                                <td>{{ $row['steam_turbine_inlet_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['steam_turbine_exhaust_pressure_bar'] ?? '-' }}</td>
-                                <td>{{ $row['steam_turbine_rpm'] ?? '-' }}</td>
-                                <td>{{ $row['steam_turbine_alternator_bearing_temp_1_c'] ?? '-' }}</td>
-                                <td>{{ $row['steam_turbine_alternator_bearing_temp_2_c'] ?? '-' }}</td>
-                                <td>{{ $row['diesel_gen_1_status'] ?? '-' }}</td>
-                                <td>{{ $row['diesel_gen_1_load_kw'] ?? '-' }}</td>
-                                <td>{{ $row['diesel_gen_1_amperage_a'] ?? '-' }}</td>
-                                <td>{{ $row['diesel_gen_1_jacket_water_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['diesel_gen_1_lube_oil_pressure_bar'] ?? '-' }}</td>
-                                <td>{{ $row['diesel_gen_2_status'] ?? '-' }}</td>
-                                <td>{{ $row['diesel_gen_2_load_kw'] ?? '-' }}</td>
-                                <td>{{ $row['diesel_gen_2_amperage_a'] ?? '-' }}</td>
-                                <td>{{ $row['diesel_gen_2_jacket_water_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['diesel_gen_2_lube_oil_pressure_bar'] ?? '-' }}</td>
-                                <td>{{ $row['electrical_sync_total_factory_load_kw'] ?? '-' }}</td>
-                                <td>{{ $row['electrical_sync_system_frequency_hz'] ?? '-' }}</td>
-                                <td>{{ $row['electrical_sync_power_factor'] ?? '-' }}</td>
-                                <td>{{ $row['electrical_sync_busbar_voltage_v'] ?? '-' }}</td>
-                                <td>{{ $row['air_compressor_1_pressure_bar'] ?? '-' }}</td>
-                                <td>{{ $row['compressor_2_pressure_bar'] ?? '-' }}</td>
-                                <td>{{ $row['battery_charger_ups_voltage_v'] ?? '-' }}</td>
-                                <td>{{ $row['fuel_tank_level'] ?? '-' }}</td>
-                                <td>{{ $row['daily_energy_export_kwh'] ?? '-' }}</td>
-                                <td>{{ $row['action_taken_maintenance_remark'] ?? '-' }}</td>
-                                <td>{{ $row['findings'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['steam_turbine_inlet_pressure_bar']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['steam_turbine_inlet_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['steam_turbine_exhaust_pressure_bar']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['steam_turbine_rpm']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['steam_turbine_alternator_bearing_temp_1_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['steam_turbine_alternator_bearing_temp_2_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['diesel_gen_1_status']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['diesel_gen_1_load_kw']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['diesel_gen_1_amperage_a']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['diesel_gen_1_jacket_water_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['diesel_gen_1_lube_oil_pressure_bar']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['diesel_gen_2_status']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['diesel_gen_2_load_kw']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['diesel_gen_2_amperage_a']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['diesel_gen_2_jacket_water_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['diesel_gen_2_lube_oil_pressure_bar']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['electrical_sync_total_factory_load_kw']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['electrical_sync_system_frequency_hz']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['electrical_sync_power_factor']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['electrical_sync_busbar_voltage_v']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['air_compressor_1_pressure_bar']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['compressor_2_pressure_bar']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['battery_charger_ups_voltage_v']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['fuel_tank_level']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['daily_energy_export_kwh']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['action_taken_maintenance_remark']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>
                         @empty
                             <tr data-testid="engine-room-detail-rows-empty">
@@ -142,7 +142,7 @@
                 </div>
                 <div class="er-detail-field">
                     <span class="er-detail-field__label">Status</span>
-                    <span class="er-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="er-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

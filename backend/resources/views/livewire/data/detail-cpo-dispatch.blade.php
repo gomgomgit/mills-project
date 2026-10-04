@@ -34,7 +34,7 @@
                 </div>
                 <div class="cd-detail-field">
                     <span class="cd-detail-field__label">Tanggal</span>
-                    <span class="cd-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="cd-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="cd-detail-field">
                     <span class="cd-detail-field__label">Station</span>
@@ -91,13 +91,13 @@
                                     <td>{{ $row['storage_tank_source'] ?: '-' }}</td>
                                     <td>{{ $row['seal_no_top'] ?: '-' }}</td>
                                     <td>{{ $row['seal_no_bottom'] ?: '-' }}</td>
-                                    <td>{{ $row['gross_weight_mt'] ?? '-' }}</td>
-                                    <td>{{ $row['tare_weight_mt'] ?? '-' }}</td>
-                                    <td>{{ $row['net_weight_mt'] ?? '-' }}</td>
-                                    <td>{{ $row['ffa_percent'] ?? '-' }}</td>
-                                    <td>{{ $row['moisture_percent'] ?? '-' }}</td>
-                                    <td>{{ $row['impurities_percent'] ?? '-' }}</td>
-                                    <td>{{ $row['dobi'] ?? '-' }}</td>
+                                    <td>{{ \App\Support\Display::value($row['gross_weight_mt']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['tare_weight_mt']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['net_weight_mt']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['ffa_percent']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['moisture_percent']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['impurities_percent']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['dobi']) }}</td>
                                     <td>{{ $row['destination_buyer'] ?: '-' }}</td>
                                     <td>{{ $row['weighbridge_operator'] ?: '-' }}</td>
                                     <td>{{ $row['findings'] ?: '-' }}</td>
@@ -128,7 +128,7 @@
                 </div>
                 <div class="cd-detail-field">
                     <span class="cd-detail-field__label">Status</span>
-                    <span class="cd-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="cd-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

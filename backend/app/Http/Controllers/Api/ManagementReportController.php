@@ -32,11 +32,15 @@ class ManagementReportController extends Controller
     public function summary(Request $request): JsonResponse
     {
         $businessUnitId = (string) $request->user()->business_unit_id;
+        // Production Line WAJIB (temuan audit 2026-10-04 #2b) — 422 bila
+        // kosong atau bukan milik mill pemanggil.
+        $productionLineId = $this->service->resolveProductionLine($businessUnitId, is_string($request->query('production_line_id')) ? $request->query('production_line_id') : null);
 
         $breakdown = $this->service->getBreakdown(
             $businessUnitId,
             $request->query('date_from'),
             $request->query('date_to'),
+            $productionLineId,
         );
 
         return response()->json($breakdown);
@@ -44,19 +48,21 @@ class ManagementReportController extends Controller
 
     /**
      * export() — GET /api/reports/management-summary/export. Same filter
-     * as summary(), generates a CSV/xlsx-fallback file stream with one
+     * as summary(), generates a CSV / real .xlsx file stream with one
      * row per date plus a Total row. NOT a JSON response.
      */
     public function export(Request $request): StreamedResponse
     {
         $businessUnitId = (string) $request->user()->business_unit_id;
         $format = (string) $request->query('format', 'csv');
+        $productionLineId = $this->service->resolveProductionLine($businessUnitId, is_string($request->query('production_line_id')) ? $request->query('production_line_id') : null);
 
         return $this->service->export(
             $businessUnitId,
             $request->query('date_from'),
             $request->query('date_to'),
             $format,
+            $productionLineId,
         );
     }
 }

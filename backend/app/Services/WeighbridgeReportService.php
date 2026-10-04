@@ -13,6 +13,9 @@ use App\Models\PeriodStation;
 use App\Models\ProductionLine;
 use App\Models\StationType;
 use App\Models\WeighbridgeRecord;
+use App\Support\ExportValue;
+use App\Support\ReportPeriodDays;
+use App\Support\SheetWriter;
 use DateTimeInterface;
 use Generator;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -672,6 +675,10 @@ class WeighbridgeReportService
                 // exactly one row per such date, so counting it IS the
                 // distinct count — one definition, one answer.
                 'days_with_trip' => count($daily),
+                // Penyebut persentase hari bertrip: berhenti di HARI INI untuk
+                // periode yang masih berjalan (temuan audit 2026-10-04 #3).
+                'days_counted' => ReportPeriodDays::counted($period),
+                'period_running' => ReportPeriodDays::isRunning($period),
             ],
         ];
     }
@@ -778,21 +785,18 @@ class WeighbridgeReportService
         try {
             [$contentType, $filename] = $this->fileMetaFor($format, $resolvedPeriod);
 
-            return response()->streamDownload(function () use ($rows) {
+            return response()->streamDownload(function () use ($rows, $format) {
                 // A failure WHILE writing is still EXPORT_FAILED (422), not a
                 // half-written file reported as a success.
                 try {
-                    $handle = fopen('php://output', 'w');
-
-                    // Explicit $separator/$enclosure/$escape — PHP 8.4
-                    // deprecates relying on fputcsv()'s default $escape.
-                    fputcsv($handle, self::EXPORT_HEADER, ',', '"', '\\');
+                    $handle = SheetWriter::open($format);
+                    $handle->row(self::EXPORT_HEADER);
 
                     foreach ($rows as $row) {
-                        fputcsv($handle, $row, ',', '"', '\\');
+                        $handle->row($row);
                     }
 
-                    fclose($handle);
+                    $handle->close();
                 } catch (ExportFailedException $e) {
                     throw $e;
                 } catch (Throwable $e) {
@@ -1298,7 +1302,8 @@ class WeighbridgeReportService
                 // Stays NULL -> empty cell. Never 0, never a dropped row.
                 $record->net_weight,
                 $record->quantity,
-                $this->recordStatusValue($record),
+                // Label Indonesia, bukan enum mentah (temuan audit 2026-10-04 #8c).
+                ExportValue::status($this->recordStatusValue($record)),
             ]);
         }
     }
@@ -1564,8 +1569,8 @@ class WeighbridgeReportService
 
     /**
      * Same Content-Type/filename convention as every other export in this
-     * codebase — no XLSX writer package is installed, so format=excel serves
-     * a CSV body under the xlsx mimetype/extension.
+     * codebase. format=excel is a real .xlsx written by App\Support\SheetWriter (temuan
+     * audit 2026-10-04 #1 — previously a CSV body under an xlsx name).
      *
      * @return array{0: string, 1: string}
      */

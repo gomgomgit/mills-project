@@ -111,7 +111,7 @@
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.source_station" class="sf-input"></td>
                                     <td><input type="number" step="0.01" wire:model.live="detailRows.{{ $index }}.gross_weight_mt" class="sf-input" data-testid="detail-gross-weight-{{ $index }}"></td>
                                     <td><input type="number" step="0.01" wire:model.live="detailRows.{{ $index }}.tare_weight_mt" class="sf-input" data-testid="detail-tare-weight-{{ $index }}"></td>
-                                    <td><input type="text" value="{{ $this->rowNetWeight($index) ?? '-' }}" class="sf-input" data-testid="detail-net-weight-{{ $index }}" disabled></td>
+                                    <td>{{-- Nilai terhitung ditampilkan sebagai teks, bukan input disabled (konvensi web). --}}<span class="sf-computed-value" data-testid="detail-net-weight-{{ $index }}">{{ $this->rowNetWeight($index) ?? '-' }}</span></td>
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.disposal_utilization_site" class="sf-input"></td>
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.purpose_end_use" class="sf-input"></td>
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.gate_pass_no" class="sf-input"></td>
@@ -180,7 +180,7 @@
         .sf-field__error { font-size: 12px; color: #b91c1c; }
         .sf-required { color: #b91c1c; }
         .sf-input { padding: 8px 12px; border: 1px solid var(--color-border, #d1d5db); border-radius: var(--radius-input, 6px); font-size: 14px; font-family: inherit; width: 100%; box-sizing: border-box; }
-        .sf-input:disabled { background: #f3f4f6; color: var(--color-text-muted, #6b7280); }
+        .sf-computed-value { display: inline-block; min-width: 80px; padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--color-text, #1f2937); background: #f3f4f6; border-radius: var(--radius-input, 6px); box-sizing: border-box; }
         .sf-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; }
         .sf-actions { display: flex; justify-content: flex-end; }
         .sf-table-wrap { width: 100%; overflow-x: auto; }

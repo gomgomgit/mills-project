@@ -95,7 +95,7 @@
                         <td>{{ $record['vehicle_number'] }}</td>
                         <td>{{ $record['driver_name'] }}</td>
                         <td>
-                            <span class="gr-badge gr-badge--{{ $record['status'] }}">{{ $record['status'] }}</span>
+                            <span class="gr-badge gr-badge--{{ $record['status'] }}">{{ \App\Support\Display::status($record['status']) }}</span>
                         </td>
                     </tr>
                 @empty

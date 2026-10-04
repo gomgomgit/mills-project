@@ -9,8 +9,11 @@ use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\ProductionLine;
 use App\Models\Station;
+use App\Models\StationType as StationTypeModel;
+use App\Rules\UniqueCaseInsensitive;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -54,15 +57,25 @@ class StationService
      * same approach as BusinessUnitService::listBusinessUnits()'s
      * with('company')/withCount('stations').
      */
-    public function listStations(int $page, int $perPage, ?string $businessUnitId = null): array
+    public function listStations(int $page, int $perPage, ?string $businessUnitId = null, ?string $productionLineId = null): array
     {
+        // Diurutkan per Production Line lalu nama: tiap line punya set
+        // station yang sama (18 tipe), jadi tanpa kolom/urutan line daftar
+        // tampak berisi station yang sama 2–3 kali (temuan audit #10).
         $query = Station::query()
-            ->with('businessUnit')
+            ->with(['businessUnit', 'productionLine'])
             ->withCount('machineryGroups')
+            ->orderBy(
+                ProductionLine::query()->select('name')->whereColumn('production_lines.id', 'stations.production_line_id')
+            )
             ->orderBy('name');
 
         if ($businessUnitId !== null && $businessUnitId !== '') {
             $query->where('business_unit_id', $businessUnitId);
+        }
+
+        if ($productionLineId !== null && $productionLineId !== '') {
+            $query->where('production_line_id', $productionLineId);
         }
 
         $paginator = $query->paginate(perPage: $perPage, page: $page);
@@ -103,6 +116,98 @@ class StationService
      * FormGrading::loadWeighbridgeOptions()'s "nothing selected yet"
      * behaviour.
      */
+    /**
+     * Pilihan Type station — dari master station_types (aktif, urutan
+     * proses), BUKAN daftar 4 tipe yang ditulis tangan seperti dulu: edit
+     * station "Boiler Room" menampilkan Type kosong karena tipenya tidak ada
+     * di daftar itu (temuan audit #7). $includeCode menjaga tipe station
+     * yang sedang diedit tetap muncul walau tipenya sudah dinonaktifkan.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public function typeOptions(?string $includeCode = null): array
+    {
+        return StationTypeModel::query()
+            ->where(function ($query) use ($includeCode) {
+                $query->where('is_active', true);
+
+                if ($includeCode !== null && $includeCode !== '') {
+                    $query->orWhere('code', $includeCode);
+                }
+            })
+            ->orderBy('sort_order')
+            ->get(['code', 'name'])
+            ->map(fn (StationTypeModel $type) => ['value' => $type->code, 'label' => $type->name])
+            ->all();
+    }
+
+    /**
+     * code → nama tampilan ("cpo-dispatch" → "CPO Dispatch"), menggantikan
+     * ucfirst(slug) ("Cpo dispatch") di view.
+     *
+     * @return array<string, string>
+     */
+    public static function typeLabels(): array
+    {
+        return StationTypeModel::query()->pluck('name', 'code')->all();
+    }
+
+    /**
+     * Satu Production Line hanya boleh punya SATU station per tipe, kecuali
+     * "Other" (temuan audit #7: dua Weighbridge di line yang sama diterima).
+     * Dicek di aplikasi, bukan indeks unik DB — data lama (fixture e2e)
+     * sudah berisi duplikat, dan station lama itu harus tetap bisa diedit:
+     * karena itu pada update pemeriksaan hanya berlaku bila line ATAU tipe
+     * station tersebut berubah.
+     *
+     * @return string|null pesan error, atau null bila tidak bentrok
+     */
+    public function duplicateTypeMessage(?string $productionLineId, ?string $type, ?string $excludeId = null): ?string
+    {
+        if (! $productionLineId || ! $type || $type === StationType::Other->value) {
+            return null;
+        }
+
+        if ($excludeId !== null) {
+            $current = Station::find($excludeId);
+            $currentType = $current?->type instanceof StationType ? $current->type->value : $current?->type;
+
+            if ($current !== null && $current->production_line_id === $productionLineId && $currentType === $type) {
+                return null;
+            }
+        }
+
+        $exists = Station::query()
+            ->where('production_line_id', $productionLineId)
+            ->where('type', $type)
+            ->when($excludeId !== null, fn ($query) => $query->where('id', '!=', $excludeId))
+            ->exists();
+
+        if (! $exists) {
+            return null;
+        }
+
+        $label = self::typeLabels()[$type] ?? $type;
+
+        return "Production Line ini sudah memiliki station bertipe {$label}. Satu Production Line hanya boleh memiliki satu station per tipe (kecuali Other).";
+    }
+
+    /**
+     * Tabel record stasiun (18) — semuanya ber-FK station_id
+     * (restrictOnDelete) dan production_line_id. Dipakai penjaga hapus
+     * Production Line (ProductionLineService::delete()): station yang sudah
+     * punya record TIDAK boleh ikut terhapus. Sama dengan daftar migrasi
+     * 2026_09_28_000041_add_production_line_id_to_18_record_tables.
+     */
+    public const RECORD_TABLES = [
+        'boiler_room_records', 'cages_track_records', 'clarification_records',
+        'cpo_dispatch_records', 'depricarping_records', 'effluent_plant_records',
+        'engine_room_records', 'grading_records', 'kernel_dispatch_records',
+        'kernel_plant_records', 'pressing_records', 'process_quality_control_records',
+        'process_water_records', 'solid_waste_disposal_records', 'sterilizer_records',
+        'storage_tank_records', 'threshing_records', 'weighbridge_records',
+    ];
+
     public function productionLineOptions(?string $businessUnitId): array
     {
         if ($businessUnitId === null || $businessUnitId === '') {
@@ -139,7 +244,7 @@ class StationService
         $attributes = $this->validate($data, null);
 
         $station = Station::create($attributes);
-        $station->load('businessUnit');
+        $station->load(['businessUnit', 'productionLine']);
         $station->loadCount('machineryGroups');
 
         return $this->toRow($station);
@@ -162,7 +267,7 @@ class StationService
         $attributes = $this->validate($data, $station->id);
 
         $station->update($attributes);
-        $station->load('businessUnit');
+        $station->load(['businessUnit', 'productionLine']);
         $station->loadCount('machineryGroups');
 
         return $this->toRow($station);
@@ -218,7 +323,7 @@ class StationService
      */
     protected function validate(array $data, ?string $excludeId): array
     {
-        $codeUniqueRule = Rule::unique('stations', 'code');
+        $codeUniqueRule = UniqueCaseInsensitive::on('stations', 'code');
 
         if ($excludeId !== null) {
             $codeUniqueRule = $codeUniqueRule->ignore($excludeId);
@@ -295,7 +400,7 @@ class StationService
         // App\Exceptions's various delete-guard exceptions for the
         // equivalent pattern at the exception layer rather than the
         // validator layer).
-        $validator->after(function ($validator) use ($payload) {
+        $validator->after(function ($validator) use ($payload, $excludeId) {
             $isActive = filter_var($payload['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
             $type = $payload['type'];
 
@@ -319,6 +424,14 @@ class StationService
                         'production_line_id',
                         'Production Line yang dipilih bukan milik Business Unit ini.'
                     );
+                }
+            }
+
+            if (! $validator->errors()->has('production_line_id') && ! $validator->errors()->has('type')) {
+                $duplicate = $this->duplicateTypeMessage($payload['production_line_id'], $payload['type'], $excludeId);
+
+                if ($duplicate !== null) {
+                    $validator->errors()->add('type', $duplicate);
                 }
             }
         });
@@ -371,6 +484,7 @@ class StationService
             'business_unit_id' => $station->business_unit_id,
             'business_unit_name' => optional($station->businessUnit)->name,
             'production_line_id' => $station->production_line_id,
+            'production_line_name' => optional($station->productionLine)->name,
             'name' => $station->name,
             'type' => $station->type instanceof StationType ? $station->type->value : $station->type,
             'is_active' => $station->is_active,

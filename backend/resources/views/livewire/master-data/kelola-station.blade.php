@@ -10,6 +10,12 @@
         </button>
     </div>
 
+    @if ($successMessage)
+        <div class="kc-alert kc-alert--success" role="status" data-testid="success-message">
+            {{ $successMessage }}
+        </div>
+    @endif
+
     @if ($deleteErrorMessage)
         <div class="kc-alert" role="alert">
             {{ $deleteErrorMessage }}
@@ -25,6 +31,14 @@
             placeholder="Semua Business Unit"
             class="kc-form-field__input kc-filter__select"
         />
+        <label for="filterProductionLineId" class="kc-filter__label">Filter Production Line</label>
+        <x-searchable-select
+            id="filterProductionLineId"
+            wire:model.live="filterProductionLineId"
+            :options="$filterProductionLineOptions"
+            placeholder="Semua Production Line"
+            class="kc-form-field__input kc-filter__select"
+        />
     </div>
 
     <div class="kc-table-wrap">
@@ -33,6 +47,7 @@
                 <tr>
                     <th>Nama</th>
                     <th>Business Unit</th>
+                    <th>Production Line</th>
                     <th>Type</th>
                     <th>Status</th>
                     <th>Kode</th>
@@ -46,7 +61,8 @@
                     <tr class="kc-table__row" wire:key="station-{{ $station['id'] }}">
                         <td>{{ $station['name'] }}</td>
                         <td>{{ $station['business_unit_name'] ?? '-' }}</td>
-                        <td>{{ ucfirst(str_replace('-', ' ', $station['type'])) }}</td>
+                        <td>{{ $station['production_line_name'] ?? '-' }}</td>
+                        <td>{{ $typeLabels[$station['type']] ?? $station['type'] }}</td>
                         <td>
                             @if ($station['is_active'])
                                 <span class="kc-badge kc-badge--active">Aktif</span>
@@ -80,11 +96,16 @@
                     </tr>
                 @empty
                     <tr class="kc-table__row kc-table__row--static">
-                        <td colspan="8">
+                        <td colspan="9">
                             <div class="kc-empty">
                                 <div class="kc-empty__illustration" aria-hidden="true">&#9881;&#65039;</div>
-                                <p class="kc-empty__title">Belum ada Station</p>
-                                <p class="kc-empty__subtitle">Klik "Tambah Station" untuk menambahkan data baru.</p>
+                                @if ($isFiltered)
+                                    <p class="kc-empty__title">Tidak ada Station yang cocok dengan filter</p>
+                                    <p class="kc-empty__subtitle">Ubah atau kosongkan filter Business Unit / Production Line.</p>
+                                @else
+                                    <p class="kc-empty__title">Belum ada Station</p>
+                                    <p class="kc-empty__subtitle">Klik "Tambah Station" untuk menambahkan data baru.</p>
+                                @endif
                             </div>
                         </td>
                     </tr>
@@ -324,8 +345,15 @@
             font-size: 14px;
         }
 
+        .kc-alert--success {
+            background: #ecfdf5;
+            border-color: var(--kc-brand);
+            color: var(--kc-brand-hover);
+        }
+
         .kc-filter {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             gap: 10px;
             margin-bottom: 16px;

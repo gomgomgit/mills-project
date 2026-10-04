@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\GuardsRecordIdShape;
 use App\Livewire\Data\Concerns\HandlesRecordVerification;
 use App\Models\EngineRoomRecord;
 use App\Services\EngineRoomRecordService;
@@ -34,6 +35,7 @@ use Livewire\Component;
 #[Layout('data.engine-room-detail')]
 class DetailEngineRoom extends Component
 {
+    use GuardsRecordIdShape;
     use HandlesRecordVerification;
 
     public string $id;
@@ -45,6 +47,14 @@ class DetailEngineRoom extends Component
     public function mount(string $id): void
     {
         $this->id = $id;
+
+        if (! $this->isRecordIdShapeValid($id)) {
+            // id bukan UUID tidak boleh sampai ke SQL (PostgreSQL: 22P02),
+            // perlakukan sama dengan UUID yang tidak dikenal.
+            $this->notFound = true;
+
+            return;
+        }
 
         try {
             $this->reloadRecord();

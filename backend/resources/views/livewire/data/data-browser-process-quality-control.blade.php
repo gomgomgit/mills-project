@@ -93,7 +93,7 @@
                         <td>{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d/m/Y') : '-' }}</td>
                         <td>{{ $record['filled_slot_count'] }} / 24</td>
                         <td>
-                            <span class="pqc-badge pqc-badge--{{ $record['status'] }}">{{ $record['status'] }}</span>
+                            <span class="pqc-badge pqc-badge--{{ $record['status'] }}">{{ \App\Support\Display::status($record['status']) }}</span>
                         </td>
                     </tr>
                 @empty

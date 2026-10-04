@@ -345,7 +345,7 @@ it('uploads a valid picture successfully and stores the file', function () {
         ->set('machinery_group_id', $this->group->id)
         ->set('form.equipment_code', 'EQ-LW-PIC')
         ->set('form.name', 'Mesin Berfoto')
-        ->set('picture', UploadedFile::fake()->create('picture.jpg', 500, 'image/jpeg'))
+        ->set('picture', fakeRealImage('picture.jpg', 500))
         ->call('save')
         ->assertHasNoErrors();
 
@@ -363,7 +363,7 @@ it('shows a validation error under picture when the file exceeds the max size', 
         ->set('machinery_group_id', $this->group->id)
         ->set('form.equipment_code', 'EQ-LW-PICBIG')
         ->set('form.name', 'Mesin Foto Besar')
-        ->set('picture', UploadedFile::fake()->create('picture.jpg', 3000, 'image/jpeg'))
+        ->set('picture', fakeRealImage('picture.jpg', 3000))
         ->call('save')
         ->assertHasErrors(['picture']);
 

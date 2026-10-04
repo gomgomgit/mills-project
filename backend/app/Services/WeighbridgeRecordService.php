@@ -8,9 +8,12 @@ use App\Exceptions\InvalidDateRangeException;
 use App\Exceptions\NoActiveWeighbridgeStationException;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
+use App\Support\AppTime;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
+use App\Support\Display;
 use App\Support\Pagination;
+use App\Support\SheetWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
@@ -73,7 +76,7 @@ class WeighbridgeRecordService
     /**
      * export() — business_logic step 5-6: re-run the same filter query
      * (no pagination), enforce the row limit, generate a CSV (or
-     * CSV-served-as-xlsx fallback — see implementation_notes) body, and
+     * real .xlsx via App\Support\SheetWriter — see implementation_notes) body, and
      * return it as a StreamedResponse for download.
      *
      * @param  array{date_from?: ?string, date_to?: ?string, weighbridge_type?: ?string, business_unit_id?: ?string, production_line_id?: ?string}  $filters
@@ -89,40 +92,46 @@ class WeighbridgeRecordService
         }
 
         try {
-            $records = $query->with('productionLine:id,name')->get();
+            $records = $query->with(['productionLine:id,name', 'checkedBy:id,name', 'acknowledgedBy:id,name'])->get();
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
-                $handle = fopen('php://output', 'w');
+            return response()->streamDownload(function () use ($records, $format) {
+                $handle = SheetWriter::open($format);
 
-                // Header row. Explicit $separator/$enclosure/$escape (PHP
-                // 8.4 deprecates relying on fputcsv()'s default $escape).
-                fputcsv($handle, [
+                // Judul kolom = label layar Detail Weighbridge (temuan audit
+                // 2026-10-04 #8), termasuk Checked By / Acknowledged By seperti
+                // ekspor stasiun lain. Status memakai label Indonesia
+                // (Display::status), waktu tanpa detik.
+                $handle->row([
                     'Production Line',
-                    'WB Card Number',
-                    'Type',
-                    'Record Datetime',
-                    'Vehicle Number',
-                    'Driver Name',
+                    'No. WB Card',
+                    'Tipe Weighbridge',
+                    'Tanggal & Waktu',
+                    'No. Kendaraan',
+                    'Nama Sopir',
                     'Estate/Supplier',
-                    'Destination',
-                    'Division',
-                    'Block',
-                    'Gross Weight',
-                    'Tare Weight',
-                    'Net Weight',
-                    'Quantity',
+                    'Tujuan Muatan',
+                    'Divisi',
+                    'Blok',
+                    'Berat Kotor (Gross Weight) (kg)',
+                    'Berat Kosong (Tare Weight) (kg)',
+                    'Berat Bersih (Net Weight) (kg)',
+                    'Kuantitas (tandan)',
+                    'Checked By',
+                    'Acknowledged By',
                     'Status',
-                ], ',', '"', '\\');
+                ]);
 
                 foreach ($records as $record) {
                     /** @var WeighbridgeRecord $record */
-                    fputcsv($handle, [
+                    $type = $record->weighbridge_type instanceof \BackedEnum ? $record->weighbridge_type->value : (string) $record->weighbridge_type;
+
+                    $handle->row([
                         $record->productionLine?->name,
                         $record->wb_card_number,
-                        $record->weighbridge_type,
-                        optional($record->record_datetime)->toDateTimeString(),
+                        $type === 'dispatch' ? 'Dispatch' : 'Receive',
+                        optional($record->record_datetime)->format('Y-m-d H:i'),
                         $record->vehicle_number,
                         $record->driver_name,
                         $record->estate_supplier,
@@ -133,11 +142,13 @@ class WeighbridgeRecordService
                         $record->tare_weight,
                         $record->net_weight,
                         $record->quantity,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
+                        $record->checkedBy?->name,
+                        $record->acknowledgedBy?->name,
+                        Display::status($record->status),
+                    ]);
                 }
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);
@@ -155,13 +166,8 @@ class WeighbridgeRecordService
 
     /**
      * Resolves the Content-Type + filename for the requested export format.
-     *
-     * No XLSX writer package is present in composer.json (spatie/laravel-excel
-     * or maatwebsite/excel), and the tech-spec explicitly says not to add
-     * one unless strictly necessary — so format=excel falls back to a CSV
-     * body served with the xlsx mimetype/extension (pragmatic MVP; opens
-     * correctly in Excel/most spreadsheet tools since they sniff CSV
-     * content, though it is not a real OOXML file). See implementation_notes.
+     * format=excel is a real .xlsx file written by App\Support\SheetWriter
+     * (temuan audit 2026-10-04 #1 — previously a CSV body under an xlsx name).
      *
      * @return array{0: string, 1: string}
      */
@@ -293,11 +299,11 @@ class WeighbridgeRecordService
      * status=saved. net_weight is never accepted from $data — the
      * WeighbridgeRecord model's `saving` event always recomputes it from
      * gross/tare (see that model's docblock); this is why Net Weight
-     * stays a disabled field in the form despite the general
-     * "web inputs are never disabled" convention (uiux-spec
-     * component_patterns 'web-form-input') — the value would be silently
-     * overwritten on save regardless of what the UI sent, so exposing it
-     * as editable would be misleading.
+     * is rendered as read-only TEXT in the form (since 2026-10-04; it was
+     * a disabled input, against the "web inputs are never disabled"
+     * convention) — the value would be silently overwritten on save
+     * regardless of what the UI sent, so exposing it as editable would be
+     * misleading.
      *
      * @param  array<string, mixed>  $data
      *
@@ -323,6 +329,8 @@ class WeighbridgeRecordService
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
         // penolakan tidak menyisakan induk tanpa detail. Jenis stasiun dan mill
         // diambil dari stasiun yang SUDAH di-resolve, bukan dari request.
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['record_datetime'] ?? null, 'record_datetime', 'Tanggal & waktu');
         $this->assertPeriodOpenForWrite('weighbridge', $station->business_unit_id, $attributes['record_datetime'] ?? null);
 
         $attributes['station_id'] = $station->id;
@@ -339,7 +347,7 @@ class WeighbridgeRecordService
         $this->applyVerification($attributes, $data, $actor);
 
         $record = WeighbridgeRecord::create($attributes);
-        $record->load(['station', 'checkedBy', 'acknowledgedBy']);
+        $record->load(['station.businessUnit', 'productionLine', 'checkedBy', 'acknowledgedBy']);
 
         return $this->toDetailRow($record);
     }
@@ -376,12 +384,14 @@ class WeighbridgeRecordService
         $periodLockMillId = $record->station->business_unit_id;
 
         $this->assertPeriodOpenForWrite('weighbridge', $periodLockMillId, optional($record->record_datetime)->toDateString());
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['record_datetime'] ?? null, 'record_datetime', 'Tanggal & waktu');
         $this->assertPeriodOpenForWrite('weighbridge', $periodLockMillId, $attributes['record_datetime'] ?? null);
 
         $this->applyVerification($attributes, $data, $actor);
 
         $record->update($attributes);
-        $record->load(['station', 'checkedBy', 'acknowledgedBy']);
+        $record->load(['station.businessUnit', 'productionLine', 'checkedBy', 'acknowledgedBy']);
 
         return $this->toDetailRow($record);
     }
@@ -397,6 +407,11 @@ class WeighbridgeRecordService
         foreach (self::FORM_FIELDS as $field) {
             $attributes[$field] = $data[$field] ?? null;
         }
+
+        // ZONA WAKTU: input ber-offset (mis. "...Z" dari mobile) dikonversi
+        // ke jam WIB sebelum disimpan — Eloquent tidak mengonversinya.
+        // Lihat App\Support\AppTime.
+        $attributes['record_datetime'] = AppTime::normalizeClientDateTime($attributes['record_datetime']);
 
         // EMPTY STRING MUST BECOME NULL ON THE NULLABLE NUMERIC FIELDS, and
         // validation will NOT do it for us. `['nullable', 'numeric']` lets ''
@@ -509,7 +524,7 @@ class WeighbridgeRecordService
         // jalur ini memuat record mill lain secara utuh bila UUID-nya
         // diketahui, dan 403 baru muncul saat save.
         $record = $this->scopeQueryToActorMill(
-            WeighbridgeRecord::with(['station', 'checkedBy', 'acknowledgedBy'])
+            WeighbridgeRecord::with(['station.businessUnit', 'productionLine', 'checkedBy', 'acknowledgedBy'])
         )->findOrFail($id);
 
         return $this->toDetailRow($record);
@@ -527,6 +542,13 @@ class WeighbridgeRecordService
             'id' => $record->id,
             'station_id' => $record->station_id,
             'station_name' => $record->station?->name,
+            // Ditambahkan 2026-10-04 (additif): Form Weighbridge web mode edit
+            // menampilkan Business Unit dan Production Line record ini. Line
+            // dibaca dari KOLOM RECORD (snapshot saat create), mill dari
+            // stasiunnya — record tidak menyimpan business_unit_id sendiri.
+            'business_unit_name' => $record->station?->businessUnit?->name,
+            'production_line_id' => $record->production_line_id,
+            'production_line_name' => $record->productionLine?->name,
             'wb_card_number' => $record->wb_card_number,
             'weighbridge_type' => $record->weighbridge_type,
             'record_datetime' => optional($record->record_datetime)->toIso8601String(),

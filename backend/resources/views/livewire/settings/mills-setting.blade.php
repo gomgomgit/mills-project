@@ -17,12 +17,13 @@
     @if ($isAdmin)
         <div class="ms-filter">
             <label for="selectedBusinessUnitId" class="ms-filter__label">Pilih Mill</label>
-            <select id="selectedBusinessUnitId" wire:model.live="selectedBusinessUnitId" class="ms-form-field__input ms-filter__select">
-                <option value="">— Pilih mill —</option>
-                @foreach ($businessUnitOptions as $option)
-                    <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
-                @endforeach
-            </select>
+            <x-searchable-select
+                id="selectedBusinessUnitId"
+                wire:model.live="selectedBusinessUnitId"
+                :options="collect($businessUnitOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
+                placeholder="— Pilih mill —"
+                class="ms-form-field__input ms-filter__select"
+            />
         </div>
     @endif
 
@@ -52,7 +53,7 @@
                     <div class="ms-form-field ms-form-field--span2">
                         <label class="ms-form-field__label">Logo</label>
                         <div class="ms-image-field">
-                            @if ($logo && in_array(strtolower($logo->getClientOriginalExtension()), $previewableExtensions, true))
+                            @if ($logo && ! $errors->has('logo') && in_array(strtolower($logo->getClientOriginalExtension()), $previewableExtensions, true))
                                 <img src="{{ $logo->temporaryUrl() }}" alt="Preview logo" class="ms-image-field__preview">
                             @elseif ($existingLogoUrl)
                                 <img src="{{ $existingLogoUrl }}" alt="Logo saat ini" class="ms-image-field__preview">
@@ -71,7 +72,7 @@
                     <div class="ms-form-field ms-form-field--span2">
                         <label class="ms-form-field__label">Gambar Halaman Utama (Home Mobile)</label>
                         <div class="ms-image-field">
-                            @if ($home_page_image && in_array(strtolower($home_page_image->getClientOriginalExtension()), $previewableExtensions, true))
+                            @if ($home_page_image && ! $errors->has('home_page_image') && in_array(strtolower($home_page_image->getClientOriginalExtension()), $previewableExtensions, true))
                                 <img src="{{ $home_page_image->temporaryUrl() }}" alt="Preview gambar halaman utama" class="ms-image-field__preview ms-image-field__preview--wide">
                             @elseif ($existingHomePageImageUrl)
                                 <img src="{{ $existingHomePageImageUrl }}" alt="Gambar halaman utama saat ini" class="ms-image-field__preview ms-image-field__preview--wide">
@@ -122,6 +123,7 @@
                     <table class="ms-table">
                         <thead class="ms-table__head">
                             <tr>
+                                <th>Production Line</th>
                                 <th>Nama Station</th>
                                 <th>Tipe</th>
                                 <th>Icon</th>
@@ -130,18 +132,18 @@
                         <tbody>
                             @foreach ($stations as $station)
                                 <tr class="ms-table__row" wire:key="station-icon-{{ $station['id'] }}">
+                                    <td>{{ $station['production_line_name'] ?? '-' }}</td>
                                     <td>{{ $station['name'] }}</td>
-                                    <td>{{ ucfirst(str_replace('-', ' ', $station['type'])) }}</td>
+                                    <td>{{ $typeLabels[$station['type']] ?? $station['type'] }}</td>
                                     <td>
-                                        <select
+                                        <x-searchable-select
+                                            id="station-icon-{{ $station['id'] }}"
+                                            wire:model.live="stationIcons.{{ $station['id'] }}"
+                                            :options="$iconOptions"
+                                            placeholder="Default"
                                             class="ms-form-field__input"
-                                            wire:change="setStationIcon('{{ $station['id'] }}', $event.target.value)"
-                                        >
-                                            <option value="" @selected($station['icon'] === null)>Default</option>
-                                            @foreach ($iconOptions as $icon)
-                                                <option value="{{ $icon['value'] }}" @selected($station['icon'] === $icon['value'])>{{ $icon['label'] }}</option>
-                                            @endforeach
-                                        </select>
+                                            data-testid="station-icon-picker"
+                                        />
                                     </td>
                                 </tr>
                             @endforeach

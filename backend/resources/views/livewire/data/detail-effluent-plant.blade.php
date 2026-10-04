@@ -34,7 +34,7 @@
                 </div>
                 <div class="ep-detail-field">
                     <span class="ep-detail-field__label">Tanggal</span>
-                    <span class="ep-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="ep-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="ep-detail-field">
                     <span class="ep-detail-field__label">Station</span>
@@ -79,25 +79,25 @@
                         @forelse ($record['details'] as $row)
                             <tr data-testid="effluent-plant-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['anaerobic_pond_1_ph'] ?? '-' }}</td>
-                                <td>{{ $row['anaerobic_pond_1_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['anaerobic_pond_2_ph'] ?? '-' }}</td>
-                                <td>{{ $row['anaerobic_pond_2_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['cooling_pond_ph'] ?? '-' }}</td>
-                                <td>{{ $row['cooling_pond_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['biogas_flare_status'] ?? '-' }}</td>
-                                <td>{{ $row['biogas_flow_rate_m3h'] ?? '-' }}</td>
-                                <td>{{ $row['raw_pome_feed_rate_m3h'] ?? '-' }}</td>
-                                <td>{{ $row['effluent_discharge_flow_rate_m3h'] ?? '-' }}</td>
-                                <td>{{ $row['final_discharge_ph'] ?? '-' }}</td>
-                                <td>{{ $row['final_discharge_bod_mgl_lab'] ?? '-' }}</td>
-                                <td>{{ $row['final_discharge_cod_mgl_lab'] ?? '-' }}</td>
-                                <td>{{ $row['final_discharge_tss_mgl_lab'] ?? '-' }}</td>
-                                <td>{{ $row['dosing_pump_1_status'] ?? '-' }}</td>
-                                <td>{{ $row['chemical_consumed_kgl'] ?? '-' }}</td>
-                                <td>{{ $row['sludge_dewatering_status'] ?? '-' }}</td>
-                                <td>{{ $row['remarks_maintenance_actions'] ?? '-' }}</td>
-                                <td>{{ $row['findings'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['anaerobic_pond_1_ph']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['anaerobic_pond_1_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['anaerobic_pond_2_ph']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['anaerobic_pond_2_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['cooling_pond_ph']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['cooling_pond_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['biogas_flare_status']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['biogas_flow_rate_m3h']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['raw_pome_feed_rate_m3h']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['effluent_discharge_flow_rate_m3h']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['final_discharge_ph']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['final_discharge_bod_mgl_lab']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['final_discharge_cod_mgl_lab']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['final_discharge_tss_mgl_lab']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['dosing_pump_1_status']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['chemical_consumed_kgl']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['sludge_dewatering_status']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['remarks_maintenance_actions']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>
                         @empty
                             <tr data-testid="effluent-plant-detail-rows-empty">
@@ -126,7 +126,7 @@
                 </div>
                 <div class="ep-detail-field">
                     <span class="ep-detail-field__label">Status</span>
-                    <span class="ep-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="ep-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

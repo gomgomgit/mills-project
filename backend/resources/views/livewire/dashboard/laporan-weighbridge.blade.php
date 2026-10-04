@@ -166,10 +166,10 @@
 
     $lcX = function (int $i) use ($lcJumlah) {
         if ($lcJumlah <= 1) {
-            return 396.0;
+            return 409.0;
         }
 
-        return round(46 + 700 * $i / ($lcJumlah - 1), 1);
+        return round(72 + 674 * $i / ($lcJumlah - 1), 1);
     };
 
     // SUMBU DIMULAI DARI NOL, sengaja: yang dibaca adalah besaran berat, dan
@@ -185,8 +185,10 @@
     }
 
     $adaGrafikTren = $beratHarian !== [];
-    $trenHi = $adaGrafikTren ? max($beratHarian) * 1.12 : 0.0;
-    $trenHi = $trenHi > 0 ? $trenHi : 1.0;
+    // Sumbu "angka bulat" (temuan audit 2026-10-04 #6): langkah 1/2/2,5/5
+    // × 10^n dari nol, bukan maks × 1,12 dibagi empat (label 295.294 …).
+    $sumbuTren = \App\Support\ChartAxis::nice(0.0, $adaGrafikTren ? max(max($beratHarian), 1.0) : 1.0);
+    $trenHi = $sumbuTren['hi'];
 
     $lcY = function ($value) use ($trenHi) {
         return round(260 - 216 * ((float) $value) / $trenHi, 1);
@@ -524,7 +526,7 @@
                         <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h16"/><path d="M4 14l5-5 4 4 7-7"/></svg></span>
                     </div>
                     <p class="md-kpi__value">{{ $nilai($receive['net_weight_avg'], 2) }} <span>kg</span></p>
-                    <p class="md-kpi__meta">penyebutnya <b data-testid="receive-avg-denominator">{{ $cacah($receive['net_weight_trip_count']) }}</b> trip, bukan {{ $cacah($receive['trip_count']) }}</p>
+                    <p class="md-kpi__meta">penyebutnya <b data-testid="receive-avg-denominator">{{ $cacah($receive['net_weight_trip_count']) }}</b> trip{{ $receive['net_weight_trip_count'] !== $receive['trip_count'] ? ', bukan '.$cacah($receive['trip_count']) : '' }}</p>
                     <p class="md-kpi__foot">{{ $nilai($receive['net_weight_total'], 2) }} kg &divide; {{ $cacah($receive['net_weight_trip_count']) }} trip</p>
                     <p class="md-kpi__foot"><small>Trip yang beratnya kosong tidak menurunkan rata-rata, ia menghilang darinya &mdash; membagi dengan seluruh trip akan menurunkan rata-rata secara palsu hanya karena ada penimbangan yang belum selesai.</small></p>
                 </article>
@@ -570,7 +572,7 @@
                         <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h16"/><path d="M4 14l5-5 4 4 7-7"/></svg></span>
                     </div>
                     <p class="md-kpi__value">{{ $nilai($dispatch['net_weight_avg'], 2) }} <span>kg</span></p>
-                    <p class="md-kpi__meta">penyebutnya <b data-testid="dispatch-avg-denominator">{{ $cacah($dispatch['net_weight_trip_count']) }}</b> trip, bukan {{ $cacah($dispatch['trip_count']) }}</p>
+                    <p class="md-kpi__meta">penyebutnya <b data-testid="dispatch-avg-denominator">{{ $cacah($dispatch['net_weight_trip_count']) }}</b> trip{{ $dispatch['net_weight_trip_count'] !== $dispatch['trip_count'] ? ', bukan '.$cacah($dispatch['trip_count']) : '' }}</p>
                     <p class="md-kpi__foot">{{ $nilai($dispatch['net_weight_total'], 2) }} kg &divide; {{ $cacah($dispatch['net_weight_trip_count']) }} trip</p>
                     <p class="md-kpi__foot"><small>Rata-rata arus keluar bisa jauh berbeda dari arus masuk karena satuan muatannya memang berbeda &mdash; satu kiriman keluar adalah satu truk tangki penuh, satu trip masuk adalah satu bak FFB. Dua rata-rata ini tidak sebanding, dan justru itulah alasan keduanya tidak pernah disatukan.</small></p>
                 </article>
@@ -593,25 +595,34 @@
                             <span>Hari dengan minimal satu trip</span>
                             <span class="md-budget__nums">
                                 <strong data-testid="days-with-trip">{{ $cacah($completeness['days_with_trip']) }}</strong>
-                                dari <span data-testid="days-in-period">{{ $cacah($completeness['days_in_period']) }}</span> hari
+                                dari <span data-testid="days-in-period">{{ $cacah($completeness['days_counted']) }}</span> hari
                             </span>
                         </div>
                         @php
-                            $persenHari = $completeness['days_in_period'] > 0
-                                ? round(100 * $completeness['days_with_trip'] / $completeness['days_in_period'], 1)
-                                : 0.0;
+                            // Penyebut = hari yang SUDAH terjadi (temuan audit
+                            // 2026-10-04 #3); 0 hari (periode belum mulai) → "—",
+                            // bukan 0% (null bukan 0).
+                            $persenHari = $completeness['days_counted'] > 0
+                                ? round(100 * $completeness['days_with_trip'] / $completeness['days_counted'], 1)
+                                : null;
                         @endphp
-                        <span class="md-budget__pct" data-testid="days-with-trip-percent">{{ $nilai($persenHari, 1) }}%</span>
+                        <span class="md-budget__pct" data-testid="days-with-trip-percent">{{ $persenHari === null ? '—' : $nilai($persenHari, 1).'%' }}</span>
                         <div class="md-bar md-bar--lg"><span style="width: {{ min(100, max(0, (float) $persenHari)) }}%"></span></div>
                     </div>
+                    @if ($completeness['period_running'])
+                        <p class="md-budget__note" data-testid="period-running-note">
+                            Dihitung sampai hari ini, periode masih berjalan
+                            ({{ $cacah($completeness['days_counted']) }} dari {{ $cacah($completeness['days_in_period']) }} hari periode sudah lewat).
+                        </p>
+                    @endif
                 </div>
                 <div class="md-explain" data-testid="completeness-note">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
                     <span>
                         Rentang periode <b>inklusif di kedua ujung</b>, jadi hari pertama dan hari terakhir
                         ikut dihitung. Hari tanpa satu trip pun <b>bukan hal yang sama</b> dengan hari
-                        bertrip nol kilogram: hari semacam itu tidak mendapat baris pada rekap harian dan
-                        tampil sebagai <b>&mdash;</b> pada trennya, bukan sebagai 0,00 kg.
+                        bertrip nol kilogram: hari semacam itu tidak mendapat baris pada rekap harian
+                        dan <b>tidak mendapat titik</b> pada grafik trennya, bukan digambar sebagai 0 kg.
                         <small>
                             Keanggotaan periode ditentukan oleh <b>waktu penimbangan</b>, bukan waktu baris
                             dibuat maupun waktu sinkronisasi dari mobile &mdash; sebuah trip yang tersinkron
@@ -671,10 +682,8 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
                     <span>
                         Baris-baris ini sengaja berada di satu tempat karena masing-masing
-                        <b>berlaku berbeda</b>. Trip <b>draft ikut terhitung</b> &mdash; mengikuti kelima
-                        laporan stasiun yang sudah ada, yang tak satu pun menyaring status record; laporan
-                        yang berhitung dengan aturan berbeda antar stasiun lebih menyesatkan daripada
-                        laporan yang memasukkan data belum selesai secara terbuka. Trip yang
+                        <b>berlaku berbeda</b>. Trip <b>draft ikut terhitung</b> di semua angka,
+                        sama seperti di laporan stasiun lain. Trip yang
                         <b>beratnya belum terisi</b> ikut dihitung sebagai trip tetapi tidak ikut total
                         maupun rata-rata. Trip arus keluar yang <b>tujuannya belum diisi</b> tetap muncul
                         sebagai kelompoknya sendiri pada rekap per tujuan, supaya jumlah trip per tujuan
@@ -931,15 +940,14 @@
                     <div class="md-lc" data-testid="daily-trend-chart">
                         <svg class="md-lc__svg" viewBox="0 0 760 300" role="img"
                              aria-label="Tren harian berat bersih: dua garis terpisah, arus masuk dan arus keluar, sepanjang {{ count($daily) }} tanggal, dalam kilogram">
-                            @for ($k = 0; $k < 5; $k++)
+                            @foreach ($sumbuTren['ticks'] as $tickNilai)
                                 @php
-                                    $tickNilai = $trenHi * $k / 4;
-                                    $tickY = round(260 - 216 * $k / 4, 1);
+                                    $tickY = round(260 - 216 * $tickNilai / $trenHi, 1);
                                 @endphp
-                                <line class="md-lc__grid" x1="46" y1="{{ $tickY }}" x2="746" y2="{{ $tickY }}"/>
-                                <text class="md-lc__ytick" x="38" y="{{ $tickY + 4 }}" text-anchor="end">{{ $nilai($tickNilai, 0) }}</text>
-                            @endfor
-                            <line class="md-lc__axis" x1="46" y1="260" x2="746" y2="260"/>
+                                <line class="md-lc__grid" x1="72" y1="{{ $tickY }}" x2="746" y2="{{ $tickY }}"/>
+                                <text class="md-lc__ytick" x="64" y="{{ $tickY + 4 }}" text-anchor="end">{{ $nilai($tickNilai, $sumbuTren['decimals']) }}</text>
+                            @endforeach
+                            <line class="md-lc__axis" x1="72" y1="260" x2="746" y2="260"/>
                             @foreach ($daily as $i => $row)
                                 <text class="md-lc__xtick" x="{{ $lcX($i) }}" y="280" text-anchor="middle">{{ $tglAngka($row['date']) }}</text>
                             @endforeach
@@ -956,12 +964,18 @@
                             @endforeach
                         </svg>
                     </div>
+                    {{-- Petunjuk gulir — tampil HANYA bila kartu lebih sempit dari grafiknya
+                         (container query di report-styles), temuan audit 2026-10-04 #7. --}}
+                    <p class="md-scrollhint md-scrollhint--lc">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M15 8l4 4-4 4M9 8l-4 4 4 4"/></svg>
+                        Geser mendatar untuk melihat seluruh tanggal.
+                    </p>
                     <ul class="md-legend" data-testid="daily-trend-legend">
                         <li class="md-legend__item"><span class="md-legend__swatch md-legend__swatch--s1"></span>
                             Arus masuk &mdash; total periode {{ $nilai($receive['net_weight_total'], 2) }} kg dari {{ $cacah($receive['net_weight_trip_count']) }} trip terisi</li>
                         <li class="md-legend__item"><span class="md-legend__swatch md-legend__swatch--s2"></span>
                             Arus keluar &mdash; total periode {{ $nilai($dispatch['net_weight_total'], 2) }} kg dari {{ $cacah($dispatch['net_weight_trip_count']) }} trip terisi</li>
-                        <li class="md-legend__item"><small>Sumbu tegak dalam kilogram, <b>dimulai dari nol</b>. Tanggal yang arus itu tidak punya trip sama sekali tergambar sebagai titik pada nol; tanggal yang punya trip tetapi tak satu pun beratnya terisi sengaja <b>dilewati</b>, bukan digambar pada nol.</small></li>
+                        <li class="md-legend__item"><small>Sumbu tegak dalam kilogram, <b>dimulai dari nol</b>. Hanya tanggal yang punya trip yang digambar. Pada tanggal itu, arus yang tidak punya trip sama sekali tergambar sebagai titik pada nol; arus yang punya trip tetapi tak satu pun beratnya terisi sengaja <b>dilewati</b>, bukan digambar pada nol.</small></li>
                     </ul>
                     <div class="md-explain" data-testid="daily-trend-note">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>

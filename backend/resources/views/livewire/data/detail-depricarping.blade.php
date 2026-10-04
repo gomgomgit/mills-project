@@ -34,7 +34,7 @@
                 </div>
                 <div class="dp-detail-field">
                     <span class="dp-detail-field__label">Tanggal</span>
-                    <span class="dp-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="dp-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="dp-detail-field">
                     <span class="dp-detail-field__label">Station</span>
@@ -69,15 +69,15 @@
                         @foreach ($record['details'] as $row)
                             <tr data-testid="depricarping-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['fan_static_pressure_mmh2o'] ?? '-' }}</td>
-                                <td>{{ $row['polishing_drum_speed_rpm'] ?? '-' }}</td>
-                                <td>{{ $row['air_velocity_ms'] ?? '-' }}</td>
-                                <td>{{ $row['fibre_moisture_percent'] ?? '-' }}</td>
-                                <td>{{ $row['kernel_recovery_in_fibre_percent'] ?? '-' }}</td>
-                                <td>{{ $row['nut_silo_1_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['nut_silo_2_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['downtime_minutes'] ?? '-' }}</td>
-                                <td>{{ $row['findings'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['fan_static_pressure_mmh2o']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['polishing_drum_speed_rpm']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['air_velocity_ms']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['fibre_moisture_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['kernel_recovery_in_fibre_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['nut_silo_1_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['nut_silo_2_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['downtime_minutes']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -128,7 +128,7 @@
                 </div>
                 <div class="dp-detail-field">
                     <span class="dp-detail-field__label">Status</span>
-                    <span class="dp-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="dp-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

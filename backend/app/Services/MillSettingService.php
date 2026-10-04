@@ -6,8 +6,10 @@ use App\Enums\StationType;
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\MillSetting;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
+use App\Rules\RealImage;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
@@ -142,16 +144,19 @@ class MillSettingService
         ];
 
         Validator::make($payload, [
-            'app_name' => ['nullable', 'string', 'max:255'],
-            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
-            'home_page_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
+            // Kunci absen = tidak diubah; kunci DIKIRIM tapi kosong = ditolak
+            // (business spec screen-034: nama aplikasi tidak pernah kosong).
+            'app_name' => [Rule::requiredIf(array_key_exists('app_name', $data)), 'nullable', 'string', 'max:255'],
+            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Logo')],
+            'home_page_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Gambar halaman utama')],
             'immediate_sync_enabled' => ['nullable', 'boolean'],
         ], [
+            'app_name.required' => 'Nama aplikasi wajib diisi.',
             'app_name.max' => 'Nama aplikasi maksimal 255 karakter.',
-            'logo.file' => 'Logo harus berupa file.',
+            'logo.file' => 'Logo harus berupa file gambar.',
             'logo.mimes' => 'Logo harus berformat JPG atau PNG.',
             'logo.max' => 'Ukuran logo maksimal 2MB.',
-            'home_page_image.file' => 'Gambar halaman utama harus berupa file.',
+            'home_page_image.file' => 'Gambar halaman utama harus berupa file gambar.',
             'home_page_image.mimes' => 'Gambar halaman utama harus berformat JPG atau PNG.',
             'home_page_image.max' => 'Ukuran gambar halaman utama maksimal 2MB.',
         ])->validate();
@@ -247,12 +252,20 @@ class MillSettingService
      */
     protected function mapStations(string $businessUnitId): array
     {
+        // production_line_name + urutan per line (temuan audit #10): tiap line
+        // punya set station yang sama, jadi tanpa line daftar icon tampak
+        // memuat station yang sama 2–3 kali.
         return Station::query()
+            ->with('productionLine:id,name')
             ->where('business_unit_id', $businessUnitId)
+            ->orderBy(
+                ProductionLine::query()->select('name')->whereColumn('production_lines.id', 'stations.production_line_id')
+            )
             ->orderBy('name')
-            ->get(['id', 'name', 'type', 'icon'])
+            ->get(['id', 'name', 'type', 'icon', 'production_line_id'])
             ->map(fn (Station $station) => [
                 'id' => $station->id,
+                'production_line_name' => optional($station->productionLine)->name,
                 'name' => $station->name,
                 'type' => $station->type instanceof StationType ? $station->type->value : $station->type,
                 'icon' => $station->icon,

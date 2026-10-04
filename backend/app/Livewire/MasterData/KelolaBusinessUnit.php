@@ -3,7 +3,10 @@
 namespace App\Livewire\MasterData;
 
 use App\Exceptions\BusinessUnitHasStationsException;
+use App\Livewire\Concerns\ValidatesUploadOnSelect;
 use App\Models\BusinessUnit;
+use App\Rules\RealImage;
+use App\Rules\UniqueCaseInsensitive;
 use App\Services\BusinessUnitService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Storage;
@@ -52,6 +55,7 @@ use Livewire\WithFileUploads;
 #[Layout('master-data.business-units')]
 class KelolaBusinessUnit extends Component
 {
+    use ValidatesUploadOnSelect;
     use WithFileUploads;
 
     /**
@@ -141,6 +145,9 @@ class KelolaBusinessUnit extends Component
 
     public ?string $deleteErrorMessage = null;
 
+    /** Umpan balik sukses simpan/hapus (temuan audit 2026-10-04 #12). */
+    public ?string $successMessage = null;
+
     public function mount(): void
     {
         $this->form = $this->emptyForm();
@@ -175,7 +182,7 @@ class KelolaBusinessUnit extends Component
      */
     protected function rules(): array
     {
-        $codeUniqueRule = Rule::unique('business_units', 'code');
+        $codeUniqueRule = UniqueCaseInsensitive::on('business_units', 'code');
 
         if ($this->editingId !== null) {
             $codeUniqueRule = $codeUniqueRule->ignore($this->editingId);
@@ -185,7 +192,7 @@ class KelolaBusinessUnit extends Component
             'company_id' => ['required', 'string', Rule::exists('companies', 'id')],
             'form.code' => ['required', 'string', 'max:255', $codeUniqueRule],
             'form.name' => ['required', 'string', 'max:255'],
-            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Logo')],
         ];
 
         foreach (self::FIELDS as $field) {
@@ -209,7 +216,7 @@ class KelolaBusinessUnit extends Component
             'form.code.unique' => 'Kode business unit sudah digunakan.',
             'form.name.required' => 'Nama business unit wajib diisi.',
             'form.name.max' => 'Nama business unit maksimal 255 karakter.',
-            'logo.image' => 'Logo harus berupa gambar.',
+            'logo.file' => 'Logo harus berupa file gambar.',
             'logo.mimes' => 'Logo harus berformat JPG atau PNG.',
             'logo.max' => 'Ukuran logo maksimal 2MB.',
         ];
@@ -237,8 +244,17 @@ class KelolaBusinessUnit extends Component
     /**
      * "Tambah Business Unit" button — opens the form empty (create mode).
      */
+    /**
+     * Logo dicek saat dipilih — lihat ValidatesUploadOnSelect.
+     */
+    public function updatedLogo(): void
+    {
+        $this->validateUploadNow('logo');
+    }
+
     public function openCreateForm(): void
     {
+        $this->successMessage = null;
         $this->resetValidation();
         $this->editingId = null;
         $this->company_id = '';
@@ -256,6 +272,7 @@ class KelolaBusinessUnit extends Component
      */
     public function openEditForm(string $id): void
     {
+        $this->successMessage = null;
         $businessUnit = BusinessUnit::findOrFail($id);
 
         $this->resetValidation();
@@ -294,6 +311,7 @@ class KelolaBusinessUnit extends Component
      */
     public function save(): void
     {
+        $this->successMessage = null;
         $this->formErrorMessage = null;
 
         // create: company_id exists, code required+unique globally, name
@@ -344,6 +362,10 @@ class KelolaBusinessUnit extends Component
             return;
         }
 
+        $this->successMessage = $this->editingId !== null
+            ? 'Business Unit berhasil diperbarui.'
+            : 'Business Unit berhasil ditambahkan.';
+        $this->deleteErrorMessage = null;
         $this->showForm = false;
         $this->editingId = null;
         $this->company_id = '';
@@ -360,6 +382,7 @@ class KelolaBusinessUnit extends Component
      */
     public function askDelete(string $id): void
     {
+        $this->successMessage = null;
         $this->confirmingDeleteId = $id;
         $this->deleteErrorMessage = null;
     }
@@ -388,6 +411,7 @@ class KelolaBusinessUnit extends Component
             $service->delete($this->confirmingDeleteId);
             $this->confirmingDeleteId = null;
             $this->deleteErrorMessage = null;
+            $this->successMessage = 'Business Unit berhasil dihapus.';
         } catch (BusinessUnitHasStationsException $e) {
             // Delete-guard: nothing was deleted, row must remain in the
             // list — drop back to the un-confirming state and surface the

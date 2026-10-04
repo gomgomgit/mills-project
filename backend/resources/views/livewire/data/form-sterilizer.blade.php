@@ -112,9 +112,16 @@
                                     <td><input type="number" wire:model="detailRows.{{ $index }}.number_of_cages" class="sf-input"></td>
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.cages_status" class="sf-input"></td>
                                     <td>
-                                        <label class="sf-checkbox">
-                                            <input type="checkbox" wire:model="detailRows.{{ $index }}.checked_by_spv" data-testid="detail-checked-by-spv-{{ $index }}">
-                                        </label>
+                                        {{-- Checked By SPV hanya boleh diubah Supervisor (keputusan
+                                             user 2026-10-04). Peran lain melihat TEKS, bukan kotak
+                                             centang disabled; server juga mengabaikan nilainya. --}}
+                                        @if ($this->isSupervisor())
+                                            <label class="sf-checkbox">
+                                                <input type="checkbox" wire:model="detailRows.{{ $index }}.checked_by_spv" data-testid="detail-checked-by-spv-{{ $index }}">
+                                            </label>
+                                        @else
+                                            <span class="sf-computed-value" data-testid="detail-checked-by-spv-text-{{ $index }}">{{ ! empty($row['checked_by_spv']) ? 'Ya' : 'Tidak' }}</span>
+                                        @endif
                                     </td>
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.remarks" class="sf-input"></td>
                                     <td><button type="button" wire:click="removeDetailRow({{ $index }})" class="sf-button sf-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button></td>

@@ -5,6 +5,11 @@ namespace App\Services;
 use App\Exceptions\BusinessUnitHasStationsException;
 use App\Models\BusinessUnit;
 use App\Models\Company;
+use App\Models\Period;
+use App\Models\ProductionLine;
+use App\Models\User;
+use App\Rules\RealImage;
+use App\Rules\UniqueCaseInsensitive;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
@@ -250,8 +255,28 @@ class BusinessUnitService
     {
         $businessUnit = BusinessUnit::findOrFail($id);
 
-        if ($businessUnit->stations()->count() > 0) {
-            throw new BusinessUnitHasStationsException;
+        // Semua yang akan hilang/rusak bila BU dihapus (temuan audit
+        // 2026-10-04 #5): users.business_unit_id nullOnDelete → user non-Admin
+        // kehilangan BU wajibnya; production_lines/stations/periods
+        // cascadeOnDelete → ikut terhapus diam-diam. mill_settings (1:1,
+        // konfigurasi) boleh ikut terhapus dan tidak dihitung.
+        $dependencies = array_filter([
+            'User' => User::query()->where('business_unit_id', $businessUnit->id)->count(),
+            'Production Line' => ProductionLine::query()->where('business_unit_id', $businessUnit->id)->count(),
+            'Station' => $businessUnit->stations()->count(),
+            'Periode Pelaporan' => Period::query()->where('business_unit_id', $businessUnit->id)->count(),
+        ]);
+
+        if ($dependencies !== []) {
+            $parts = [];
+            foreach ($dependencies as $label => $count) {
+                $parts[] = "{$count} {$label}";
+            }
+
+            throw new BusinessUnitHasStationsException(
+                'Business Unit tidak dapat dihapus karena masih memiliki '.implode(', ', $parts)
+                .'. Pindahkan atau hapus data tersebut terlebih dahulu.'
+            );
         }
 
         $businessUnit->delete();
@@ -311,7 +336,7 @@ class BusinessUnitService
      */
     protected function validate(string $companyId, array $attributes, ?UploadedFile $logo, ?string $excludeId): void
     {
-        $codeUniqueRule = Rule::unique('business_units', 'code');
+        $codeUniqueRule = UniqueCaseInsensitive::on('business_units', 'code');
 
         if ($excludeId !== null) {
             $codeUniqueRule = $codeUniqueRule->ignore($excludeId);
@@ -326,7 +351,7 @@ class BusinessUnitService
             'company_id' => ['required', 'string', Rule::exists('companies', 'id')],
             'code' => ['required', 'string', 'max:255', $codeUniqueRule],
             'name' => ['required', 'string', 'max:255'],
-            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Logo')],
         ];
 
         foreach (self::OPTIONAL_TEXT_FIELDS as $field) {

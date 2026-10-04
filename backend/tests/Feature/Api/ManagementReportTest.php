@@ -30,6 +30,8 @@ beforeEach(function () {
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
     $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
+    // Production Line wajib sejak temuan audit 2026-10-04 #2b.
+    $this->line = (string) $this->station->production_line_id;
 });
 
 // Scenario: "Lihat Laporan Manajemen — berhasil"
@@ -37,7 +39,7 @@ it('berhasil: returns daily breakdown for start-of-month..today when no filter i
     $today = Carbon::today()->toDateString();
     WeighbridgeRecord::factory()->forStation($this->station)->arrivedAt($today.' 08:00:00')->create();
 
-    $response = $this->actingAs($this->millManagement, 'web')->getJson('/api/reports/management-summary');
+    $response = $this->actingAs($this->millManagement, 'web')->getJson('/api/reports/management-summary?production_line_id='.$this->line);
 
     $response->assertOk();
     $response->assertJsonStructure([
@@ -52,15 +54,29 @@ it('returns 403 for Supervisor, Admin, and Operator — Mill Management only', f
     $this->actingAs($this->operator, 'web')->getJson('/api/reports/management-summary')->assertStatus(403);
 });
 
+it('422 bila production_line_id kosong atau milik mill lain (temuan audit 2026-10-04 #2b)', function () {
+    $this->actingAs($this->millManagement, 'web')->getJson('/api/reports/management-summary')
+        ->assertStatus(422)->assertJsonValidationErrors('production_line_id');
+
+    $foreignStation = Station::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create();
+    $this->actingAs($this->millManagement, 'web')
+        ->getJson('/api/reports/management-summary?production_line_id='.$foreignStation->production_line_id)
+        ->assertStatus(422);
+    $this->actingAs($this->millManagement, 'web')
+        ->get('/api/reports/management-summary/export?production_line_id=bukan-uuid')
+        ->assertStatus(422);
+});
+
 it('rejects unauthenticated requests', function () {
     $this->getJson('/api/reports/management-summary')->assertStatus(401);
 });
 
 // Scenario: "Lihat Laporan Manajemen — Filter Diterapkan"
 it('filters by the given date range', function () {
-    WeighbridgeRecord::factory()->forStation($this->station)->arrivedAt('2026-02-05 08:00:00')->create();
+    WeighbridgeRecord::factory()->forStation($this->station)->arrivedAt('2026-02-05 08:00:00')->ofType('receive')->create();
 
     $response = $this->actingAs($this->millManagement, 'web')->getJson('/api/reports/management-summary?'.http_build_query([
+        'production_line_id' => $this->line,
         'date_from' => '2026-02-01',
         'date_to' => '2026-02-10',
     ]));
@@ -76,21 +92,24 @@ it('never leaks another business unit\'s data', function () {
 
     WeighbridgeRecord::factory()->forStation($otherStation)->arrivedAt($today.' 08:00:00')->create();
 
-    $response = $this->actingAs($this->millManagement, 'web')->getJson('/api/reports/management-summary');
+    $response = $this->actingAs($this->millManagement, 'web')->getJson('/api/reports/management-summary?production_line_id='.$this->line);
 
     $response->assertOk();
-    $response->assertJsonPath('total.weighbridge.count', 0);
+    $response->assertJsonPath('total.weighbridge.receive.count', 0);
+    $response->assertJsonPath('total.weighbridge.dispatch.count', 0);
 });
 
 // Scenario: "Lihat Laporan Manajemen — Tidak Ada Data Sesuai Filter"
 it('returns zero-value rows when no records match the filter, not an error', function () {
     $response = $this->actingAs($this->millManagement, 'web')->getJson('/api/reports/management-summary?'.http_build_query([
+        'production_line_id' => $this->line,
         'date_from' => '2020-01-01',
         'date_to' => '2020-01-02',
     ]));
 
     $response->assertOk();
-    $response->assertJsonPath('total.weighbridge.count', 0);
+    $response->assertJsonPath('total.weighbridge.receive.count', 0);
+    $response->assertJsonPath('total.weighbridge.dispatch.count', 0);
     $response->assertJsonPath('total.grading.count', 0);
     $response->assertJsonPath('total.cages_track.count', 0);
 });
@@ -98,6 +117,7 @@ it('returns zero-value rows when no records match the filter, not an error', fun
 // Scenario: "Lihat Laporan Manajemen — Rentang Tanggal Tidak Valid"
 it('returns 422 INVALID_DATE_RANGE when date_from > date_to', function () {
     $response = $this->actingAs($this->millManagement, 'web')->getJson('/api/reports/management-summary?'.http_build_query([
+        'production_line_id' => $this->line,
         'date_from' => '2026-02-10',
         'date_to' => '2026-02-01',
     ]));
@@ -107,9 +127,10 @@ it('returns 422 INVALID_DATE_RANGE when date_from > date_to', function () {
 
 // Scenario: "Lihat Laporan Manajemen — Ekspor Laporan"
 it('export: downloads a CSV file for Mill Management', function () {
-    WeighbridgeRecord::factory()->forStation($this->station)->arrivedAt('2026-02-05 08:00:00')->create();
+    WeighbridgeRecord::factory()->forStation($this->station)->arrivedAt('2026-02-05 08:00:00')->ofType('receive')->create();
 
     $response = $this->actingAs($this->millManagement, 'web')->get('/api/reports/management-summary/export?'.http_build_query([
+        'production_line_id' => $this->line,
         'date_from' => '2026-02-01',
         'date_to' => '2026-02-05',
     ]));
@@ -121,7 +142,7 @@ it('export: downloads a CSV file for Mill Management', function () {
 it('export: also authenticates via Sanctum token (mobile-style guard, dual auth)', function () {
     Sanctum::actingAs($this->millManagement, ['*']);
 
-    $response = $this->get('/api/reports/management-summary');
+    $response = $this->get('/api/reports/management-summary?production_line_id='.$this->line);
 
     $response->assertOk();
 });

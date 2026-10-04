@@ -40,7 +40,6 @@ use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\MachineryService;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function () {
@@ -172,7 +171,7 @@ it('uploads a valid picture and returns a picture_url, storing the file', functi
         'machinery_group_id' => $this->group->id,
         'equipment_code' => 'EQ-API-PIC',
         'name' => 'Mesin Berfoto',
-        'picture' => UploadedFile::fake()->create('picture.jpg', 500, 'image/jpeg'),
+        'picture' => fakeRealImage('picture.jpg', 500),
     ]);
 
     $response->assertStatus(201);

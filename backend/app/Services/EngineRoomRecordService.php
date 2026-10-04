@@ -13,10 +13,13 @@ use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
+use App\Support\ExportValue;
 use App\Support\Pagination;
+use App\Support\SheetWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -125,6 +128,8 @@ class EngineRoomRecordService
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
         // penolakan tidak menyisakan induk tanpa detail. Jenis stasiun dan mill
         // diambil dari stasiun yang SUDAH di-resolve, bukan dari request.
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('engine-room', $station->business_unit_id, $attributes['date'] ?? null);
 
         $attributes['station_id'] = $station->id;
@@ -190,6 +195,8 @@ class EngineRoomRecordService
         $periodLockMillId = $record->station->business_unit_id;
 
         $this->assertPeriodOpenForWrite('engine-room', $periodLockMillId, optional($record->date)->toDateString());
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('engine-room', $periodLockMillId, $attributes['date'] ?? null);
 
         $this->applyVerification($attributes, $data, $actor);
@@ -368,7 +375,7 @@ class EngineRoomRecordService
                 $detailAttributes[$field] = $row[$field];
             }
 
-            if (! empty($row['id']) && EngineRoomDetail::where('id', $row['id'])->where('engine_room_record_id', $record->id)->exists()) {
+            if (! empty($row['id']) && Str::isUuid((string) $row['id']) && EngineRoomDetail::where('id', $row['id'])->where('engine_room_record_id', $record->id)->exists()) {
                 EngineRoomDetail::where('id', $row['id'])->update($detailAttributes);
             } else {
                 EngineRoomDetail::create($detailAttributes);
@@ -461,14 +468,13 @@ class EngineRoomRecordService
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($query) {
-                $handle = fopen('php://output', 'w');
+            return response()->streamDownload(function () use ($query, $format) {
+                $handle = SheetWriter::open($format);
 
-                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
-                // deprecates relying on fputcsv()'s default $escape). The
+                // Header row. The
                 // record's context columns repeat on every detail line, so the
                 // file can be pivoted and filtered directly in a spreadsheet.
-                fputcsv($handle, [
+                $handle->row([
                     'Production Line',
                     'Engine Room ID',
                     'Date',
@@ -504,7 +510,7 @@ class EngineRoomRecordService
                     'Daily Energy Export (kWh)',
                     'Action Taken/Maintenance Remark',
                     'Findings',
-                ], ',', '"', '\\');
+                ]);
 
                 $query->chunk(200, function ($records) use ($handle) {
                     foreach ($records as $record) {
@@ -516,21 +522,21 @@ class EngineRoomRecordService
                             $record->note,
                             $record->checkedBy?->name,
                             $record->acknowledgedBy?->name,
-                            $record->status?->value,
+                            ExportValue::status($record->status),
                         ];
 
                         $details = $record->engineRoomDetails;
 
                         if ($details->isEmpty()) {
-                            fputcsv($handle, array_merge($context, array_fill(0, 28, null)), ',', '"', '\\');
+                            $handle->row(array_merge($context, array_fill(0, 28, null)));
 
                             continue;
                         }
 
                         foreach ($details as $detail) {
                             /** @var EngineRoomDetail $detail */
-                            fputcsv($handle, array_merge($context, [
-                                $detail->time_slot,
+                            $handle->row(array_merge($context, [
+                                ExportValue::time($detail->time_slot),
                                 $detail->steam_turbine_inlet_pressure_bar,
                                 $detail->steam_turbine_inlet_temp_c,
                                 $detail->steam_turbine_exhaust_pressure_bar,
@@ -558,12 +564,12 @@ class EngineRoomRecordService
                                 $detail->daily_energy_export_kwh,
                                 $detail->action_taken_maintenance_remark,
                                 $detail->findings,
-                            ]), ',', '"', '\\');
+                            ]));
                         }
                     }
                 });
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);

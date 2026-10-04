@@ -40,7 +40,8 @@ it('berhasil: renders all header fields and the Storage Tank Detail grid, read-o
     Livewire::actingAs($this->user)
         ->test(DetailStorageTank::class, ['id' => $record->id])
         ->assertSee($record->storage_tank_id)
-        ->assertSee('1242.5')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('1.242,5')
         ->assertDontSee('Record tidak ditemukan');
 });
 

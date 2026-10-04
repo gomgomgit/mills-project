@@ -34,7 +34,7 @@
                 </div>
                 <div class="ct-detail-field">
                     <span class="ct-detail-field__label">Tanggal</span>
-                    <span class="ct-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="ct-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="ct-detail-field">
                     <span class="ct-detail-field__label">Station</span>
@@ -42,11 +42,11 @@
                 </div>
                 <div class="ct-detail-field">
                     <span class="ct-detail-field__label">Tippler Start Time</span>
-                    <span class="ct-detail-field__value">{{ $record['tippler_start_time'] ? \Illuminate\Support\Carbon::parse($record['tippler_start_time'])->format('d M Y H:i') : '-' }}</span>
+                    <span class="ct-detail-field__value">{{ \App\Support\Display::dateTime($record['tippler_start_time']) }}</span>
                 </div>
                 <div class="ct-detail-field">
                     <span class="ct-detail-field__label">Tippler Stop Time</span>
-                    <span class="ct-detail-field__value">{{ $record['tippler_stop_time'] ? \Illuminate\Support\Carbon::parse($record['tippler_stop_time'])->format('d M Y H:i') : '-' }}</span>
+                    <span class="ct-detail-field__value">{{ \App\Support\Display::dateTime($record['tippler_stop_time']) }}</span>
                 </div>
             </div>
         </div>
@@ -56,11 +56,11 @@
             <div class="ct-detail-grid">
                 <div class="ct-detail-field">
                     <span class="ct-detail-field__label">Cages Out</span>
-                    <span class="ct-detail-field__value">{{ $record['cages_out'] }}</span>
+                    <span class="ct-detail-field__value">{{ \App\Support\Display::value($record['cages_out']) }}</span>
                 </div>
                 <div class="ct-detail-field">
                     <span class="ct-detail-field__label">Cages Tipped</span>
-                    <span class="ct-detail-field__value">{{ $record['cages_tipped'] }}</span>
+                    <span class="ct-detail-field__value">{{ \App\Support\Display::value($record['cages_tipped']) }}</span>
                 </div>
                 <div class="ct-detail-field">
                     <span class="ct-detail-field__label">Note</span>
@@ -87,8 +87,8 @@
                                 <tr>
                                     <td>{{ str_pad((string) $row['tipped_hour'], 2, '0', STR_PAD_LEFT) }}:00</td>
                                     <td>{{ $row['checked_cage_numbers'] ?: '-' }}</td>
-                                    <td>{{ $row['total_cages'] }}</td>
-                                    <td>{{ $row['cages_remain'] }}</td>
+                                    <td>{{ \App\Support\Display::value($row['total_cages']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['cages_remain']) }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -116,7 +116,7 @@
                 </div>
                 <div class="ct-detail-field">
                     <span class="ct-detail-field__label">Status</span>
-                    <span class="ct-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="ct-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

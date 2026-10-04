@@ -34,7 +34,7 @@
                 </div>
                 <div class="sf-detail-field">
                     <span class="sf-detail-field__label">Tanggal</span>
-                    <span class="sf-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="sf-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="sf-detail-field">
                     <span class="sf-detail-field__label">Station</span>
@@ -82,8 +82,8 @@
                                     <td>{{ $row['peak_3_time'] ?: '-' }}</td>
                                     <td>{{ $row['exhaust_3_time'] ?: '-' }}</td>
                                     <td>{{ $row['open_door_time'] ?: '-' }}</td>
-                                    <td>{{ $row['duration_minutes'] ?? '-' }}</td>
-                                    <td>{{ $row['number_of_cages'] ?? '-' }}</td>
+                                    <td>{{ \App\Support\Display::value($row['duration_minutes']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['number_of_cages']) }}</td>
                                     <td>{{ $row['cages_status'] ?: '-' }}</td>
                                     <td>{{ $row['checked_by_spv'] ? 'Ya' : 'Tidak' }}</td>
                                     <td>{{ $row['remarks'] ?: '-' }}</td>
@@ -114,7 +114,7 @@
                 </div>
                 <div class="sf-detail-field">
                     <span class="sf-detail-field__label">Status</span>
-                    <span class="sf-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="sf-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

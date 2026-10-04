@@ -3,6 +3,7 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
+use App\Livewire\Data\Concerns\GuardsRecordIdShape;
 use App\Services\CpoDispatchRecordService;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -26,6 +27,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.cpo-dispatch-form')]
 class FormCpoDispatch extends Component
 {
+    use GuardsRecordIdShape;
     use ScopesToActorMill;
 
     protected const FIELDS = ['production_line_id', 'cpo_dispatch_id', 'date', 'note'];
@@ -83,6 +85,14 @@ class FormCpoDispatch extends Component
 
         $this->id = $id;
         $this->isEdit = true;
+
+        if (! $this->isRecordIdShapeValid($id)) {
+            // id bukan UUID tidak boleh sampai ke SQL (PostgreSQL: 22P02),
+            // perlakukan sama dengan UUID yang tidak dikenal.
+            $this->notFound = true;
+
+            return;
+        }
 
         try {
             $record = app(CpoDispatchRecordService::class)->getDetail($id);

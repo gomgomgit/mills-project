@@ -271,3 +271,54 @@ it('cakupan mill: Admin tetap bisa memilih mill lain dan melihat production line
             return in_array($otherLine->id, $ids, true);
         });
 });
+
+// ─── AUDIT 2026-10-04: tidak ada input disabled di form web ────────────────
+// Mode create merender <select> Production Line `disabled` selama pilihannya
+// kosong (Business Unit belum dipilih / BU tanpa line). Konvensi web: tidak
+// ada input disabled/readonly — keadaan tak-bisa-diisi ditampilkan sebagai
+// TEKS. Diperiksa pada HTML hasil render (bukan sumber Blade).
+function weighbridgeFormDisabledControls(string $html): array
+{
+    preg_match_all('/<(input|select|textarea)\b[^>]*>/i', $html, $m);
+
+    return array_values(array_filter($m[0], fn ($tag) => preg_match('/\s(disabled|readonly)(\s|=|>|\/)/i', $tag)));
+}
+
+it('create tanpa Business Unit terpilih: Production Line tampil sebagai teks, bukan select disabled', function () {
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $component = Livewire::actingAs($admin)->test(FormWeighbridge::class)
+        ->assertSet('form.business_unit_id', '')
+        ->assertSeeHtml('data-testid="production-line-empty"')
+        ->assertDontSeeHtml('data-testid="production-line-select"')
+        ->assertSee('Pilih Business Unit terlebih dahulu.');
+
+    expect(weighbridgeFormDisabledControls($component->html()))->toBe([]);
+});
+
+it('create dengan Business Unit tanpa Production Line: teks penjelas, bukan select disabled', function () {
+    // BU baru tanpa stasiun/line apa pun (Station factory di beforeEach ikut
+    // membuat line untuk $this->businessUnit). Admin boleh memilih mill mana pun.
+    $emptyBusinessUnit = BusinessUnit::factory()->create();
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $component = Livewire::actingAs($admin)->test(FormWeighbridge::class)
+        ->set('form.business_unit_id', $emptyBusinessUnit->id)
+        ->assertSet('productionLineOptions', [])
+        ->assertSeeHtml('data-testid="production-line-empty"')
+        ->assertSee('Business Unit ini belum memiliki Production Line.');
+
+    expect(weighbridgeFormDisabledControls($component->html()))->toBe([]);
+});
+
+it('create dengan Production Line tersedia: select aktif ditampilkan', function () {
+    $line = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+
+    $component = Livewire::actingAs($this->supervisor)->test(FormWeighbridge::class)
+        ->set('form.business_unit_id', $this->businessUnit->id)
+        ->assertSeeHtml('data-testid="production-line-select"')
+        ->assertDontSeeHtml('data-testid="production-line-empty"')
+        ->assertSeeHtml('value="'.$line->id.'"');
+
+    expect(weighbridgeFormDisabledControls($component->html()))->toBe([]);
+});

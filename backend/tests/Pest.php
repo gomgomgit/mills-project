@@ -6,6 +6,7 @@ use App\Models\Period;
 use App\Models\PeriodStation;
 use App\Models\Station;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 /*
@@ -147,4 +148,106 @@ function replacePrerequisiteWithClosedAndOpenPeriods(string $businessUnitId, str
             ->stationType($stationType)
             ->create(['status' => $status->value]);
     }
+}
+
+/**
+ * fakeRealImage() — file unggahan berisi PNG SUNGGUHAN (1x1, ditambah byte
+ * pengisi sampai $kilobytes). Pengganti UploadedFile::fake()->create(
+ * 'logo.jpg', N, 'image/jpeg'), yang isinya hanya byte nol: sejak App\Rules\
+ * RealImage memeriksa ISI file (temuan audit 2026-10-04 #6), file seperti itu
+ * memang harus ditolak. GD tidak terpasang, jadi ->image() tidak tersedia.
+ */
+function fakeRealImage(string $name = 'logo.png', int $kilobytes = 1): UploadedFile
+{
+    $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
+    $padding = max(0, $kilobytes * 1024 - strlen($png));
+
+    return UploadedFile::fake()->createWithContent($name, $png.str_repeat("\0", $padding));
+}
+
+/**
+ * exportBodyAsCsv() — isi file ekspor sebagai teks CSV. Body CSV
+ * dikembalikan apa adanya; body xlsx (diawali "PK", sejak temuan audit
+ * 2026-10-04 #1 "Ekspor Excel" adalah file .xlsx sungguhan, bukan CSV
+ * berlabel .xlsx) dibuka dengan ZipArchive, xl/worksheets/sheet1.xml
+ * dibaca, dan setiap baris ditulis ulang sebagai satu baris CSV — supaya
+ * tes yang memeriksa judul kolom/isi tetap berlaku untuk kedua format.
+ */
+function exportBodyAsCsv(string $body): string
+{
+    if (! str_starts_with($body, 'PK')) {
+        return $body;
+    }
+
+    return implode('', array_map(function (array $row) {
+        $out = fopen('php://memory', 'w+');
+        fputcsv($out, $row, ',', '"', '\\');
+        rewind($out);
+        $line = stream_get_contents($out);
+        fclose($out);
+
+        return $line;
+    }, xlsxRows($body)));
+}
+
+/**
+ * xlsxRows() — baca lembar pertama file xlsx (bytes) menjadi array baris.
+ * Gagal (melempar) bila bytes bukan paket xlsx yang sah: tidak ada
+ * [Content_Types].xml, workbook, atau sheet1.xml, atau XML-nya rusak.
+ *
+ * @return list<list<string|int|float|null>>
+ */
+function xlsxRows(string $bytes): array
+{
+    $path = tempnam(sys_get_temp_dir(), 'xlsx-test-');
+    file_put_contents($path, $bytes);
+
+    $zip = new ZipArchive;
+    if ($zip->open($path) !== true) {
+        @unlink($path);
+        throw new RuntimeException('Bukan file zip/xlsx.');
+    }
+
+    foreach (['[Content_Types].xml', '_rels/.rels', 'xl/workbook.xml', 'xl/_rels/workbook.xml.rels', 'xl/worksheets/sheet1.xml'] as $part) {
+        if ($zip->locateName($part) === false) {
+            $zip->close();
+            @unlink($path);
+            throw new RuntimeException("Bagian xlsx hilang: {$part}");
+        }
+    }
+
+    $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+    $zip->close();
+    @unlink($path);
+
+    $sheet = simplexml_load_string($sheetXml);
+    if ($sheet === false) {
+        throw new RuntimeException('sheet1.xml bukan XML yang sah.');
+    }
+
+    $rows = [];
+    foreach ($sheet->sheetData->row as $row) {
+        $cells = [];
+        foreach ($row->c as $cell) {
+            $ref = (string) $cell['r'];
+            $letters = preg_replace('/\d+/', '', $ref);
+            $index = 0;
+            foreach (str_split($letters) as $char) {
+                $index = $index * 26 + (ord($char) - 64);
+            }
+            $index--;
+
+            $value = (string) $cell['t'] === 'inlineStr'
+                ? (string) $cell->is->t
+                : ((string) $cell->v === '' ? null : (str_contains((string) $cell->v, '.') ? (float) (string) $cell->v : (int) (string) $cell->v));
+
+            for ($i = count($cells); $i < $index; $i++) {
+                $cells[$i] = null;
+            }
+            $cells[$index] = $value;
+        }
+        $rows[] = $cells;
+    }
+
+    return $rows;
 }

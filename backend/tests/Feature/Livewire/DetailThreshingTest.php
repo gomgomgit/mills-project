@@ -44,7 +44,8 @@ it('berhasil: renders all header fields, the Threshing Detail grid, and the oper
     Livewire::actingAs($this->user)
         ->test(DetailThreshing::class, ['id' => $record->id])
         ->assertSee($record->thresher_id)
-        ->assertSee('42.5')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('42,5')
         ->assertSee('Thresher Drum Speed')
         ->assertSee('21 - 23 RPM')
         ->assertDontSee('Record tidak ditemukan');

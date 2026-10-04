@@ -8,7 +8,6 @@ use App\Models\BusinessUnit;
 use App\Models\User;
 use App\Services\UserService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -73,54 +72,13 @@ class KelolaUserRole extends Component
     }
 
     /**
-     * Client-side mirror of UserService::validate() (defense in depth —
-     * same rule set, same DB hits via Rule::exists/Rule::unique).
-     * `business_unit_id` is only required when the selected role isn't
-     * Admin, mirroring the service's Rule::requiredIf() exactly.
+     * Validasi SENGAJA tidak diduplikasi di komponen ini lagi (dulu ada
+     * rules() sendiri dengan password `min:6` yang menyimpang dari aturan
+     * login → user yang tidak pernah bisa masuk). Seluruh aturan hidup di
+     * UserService::validate(); save() memetakan ValidationException-nya ke
+     * kunci form.* dengan pesan yang sama.
      */
-    protected function rules(): array
-    {
-        $usernameUniqueRule = Rule::unique('users', 'username');
-
-        if ($this->editingId !== null) {
-            $usernameUniqueRule = $usernameUniqueRule->ignore($this->editingId);
-        }
-
-        $rules = [
-            'form.username' => ['required', 'string', 'max:255', $usernameUniqueRule],
-            'form.name' => ['required', 'string', 'max:255'],
-            'form.role' => ['required', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::cases()))],
-            'form.business_unit_id' => [
-                Rule::requiredIf(fn () => $this->form['role'] !== UserRole::Admin->value),
-                'nullable',
-                'string',
-                Rule::exists('business_units', 'id'),
-            ],
-        ];
-
-        if ($this->editingId === null) {
-            $rules['form.password'] = ['required', 'string', 'min:6'];
-        }
-
-        return $rules;
-    }
-
-    protected function messages(): array
-    {
-        return [
-            'form.username.required' => 'Username wajib diisi.',
-            'form.username.max' => 'Username maksimal 255 karakter.',
-            'form.username.unique' => 'Username sudah digunakan.',
-            'form.name.required' => 'Nama wajib diisi.',
-            'form.name.max' => 'Nama maksimal 255 karakter.',
-            'form.role.required' => 'Role wajib dipilih.',
-            'form.role.in' => 'Role yang dipilih tidak valid.',
-            'form.business_unit_id.required' => 'Business Unit wajib dipilih untuk role selain Admin.',
-            'form.business_unit_id.exists' => 'Business Unit yang dipilih tidak ditemukan.',
-            'form.password.required' => 'Password wajib diisi.',
-            'form.password.min' => 'Password minimal 6 karakter.',
-        ];
-    }
+    public ?string $successMessage = null;
 
     protected function emptyForm(): array
     {
@@ -135,6 +93,8 @@ class KelolaUserRole extends Component
 
     public function openCreateForm(): void
     {
+        $this->successMessage = null;
+        $this->statusErrorMessage = null;
         $this->resetValidation();
         $this->editingId = null;
         $this->form = $this->emptyForm();
@@ -147,6 +107,8 @@ class KelolaUserRole extends Component
         $user = User::findOrFail($id);
 
         $this->resetValidation();
+        $this->successMessage = null;
+        $this->statusErrorMessage = null;
         $this->formErrorMessage = null;
         $this->editingId = $user->id;
         $this->form = [
@@ -171,14 +133,14 @@ class KelolaUserRole extends Component
     /**
      * "Simpan" — create or update, per whether $editingId is set. On
      * create, role != admin resets business_unit_id validation to
-     * required; on update, password is never sent (this form's edit mode
-     * has no password field at all — see the view).
+     * required; on update, form.password = kolom opsional "Reset
+     * Password" (kosong = tidak diubah).
      */
     public function save(): void
     {
         $this->formErrorMessage = null;
-
-        $this->validate();
+        $this->successMessage = null;
+        $this->resetValidation();
 
         $service = app(UserService::class);
 
@@ -200,27 +162,35 @@ class KelolaUserRole extends Component
             return;
         }
 
+        $wasEditing = $this->editingId !== null;
+        $passwordReset = $wasEditing && $this->form['password'] !== '';
+
         $this->showForm = false;
         $this->editingId = null;
         $this->form = $this->emptyForm();
         $this->resetValidation();
+        $this->successMessage = ! $wasEditing
+            ? 'User berhasil ditambahkan.'
+            : ($passwordReset ? 'User berhasil diperbarui dan password telah direset.' : 'User berhasil diperbarui.');
     }
 
     /**
      * "Aktifkan"/"Nonaktifkan" row action — business_logic step "status":
      * validate id exists → 404 if not → 409 CANNOT_DEACTIVATE_SELF if
      * deactivating the acting admin's own account → else toggle
-     * is_active. No confirmation dialog (not a destructive/permanent
-     * action, unlike delete on the master-data screens).
+     * is_active. Nonaktifkan meminta konfirmasi (wire:confirm di view) —
+     * akun itu langsung dikeluarkan dari sesi web & mobile-nya.
      */
     public function toggleStatus(string $id, bool $newIsActive): void
     {
         $this->statusErrorMessage = null;
+        $this->successMessage = null;
 
         $service = app(UserService::class);
 
         try {
             $service->setStatus($id, $newIsActive, (string) auth()->id());
+            $this->successMessage = $newIsActive ? 'User berhasil diaktifkan.' : 'User berhasil dinonaktifkan.';
         } catch (CannotDeactivateSelfException $e) {
             $this->statusErrorMessage = $e->getMessage();
         } catch (ModelNotFoundException) {

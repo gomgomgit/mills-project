@@ -6,9 +6,11 @@ use App\Enums\StationType;
 use App\Exceptions\ProductionLineHasStationsException;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
+use App\Models\MachineryGroup;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
+use App\Rules\UniqueCaseInsensitive;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Auth\AuthenticationException;
@@ -394,9 +396,13 @@ class ProductionLineService
     }
 
     /**
-     * delete() — business_logic step "delete": validate id exists → 404
-     * if not → count Station WHERE production_line_id=id → 409
-     * PRODUCTION_LINE_HAS_STATIONS if any exist → else delete.
+     * delete() — hapus Production Line BESERTA station-nya, dalam satu
+     * transaksi, selama station-station itu masih "kosong": tanpa record
+     * stasiun dan tanpa Machinery Group / Machinery (temuan audit
+     * 2026-10-04 #5). Sebelumnya line yang baru dibuat — yang otomatis
+     * mendapat 18 station — tidak bisa dihapus sebelum ke-18 station
+     * dihapus satu per satu. Bila ada data yang menempel, ditolak 409
+     * dengan rincian apa yang menghalangi; tidak ada yang terhapus.
      *
      * @throws ModelNotFoundException
      * @throws ProductionLineHasStationsException
@@ -405,11 +411,57 @@ class ProductionLineService
     {
         $productionLine = ProductionLine::findOrFail($id);
 
-        if ($productionLine->stations()->count() > 0) {
-            throw new ProductionLineHasStationsException;
+        DB::transaction(function () use ($productionLine) {
+            $stationIds = Station::query()
+                ->where('production_line_id', $productionLine->id)
+                ->lockForUpdate()
+                ->pluck('id')
+                ->all();
+
+            $recordCount = $this->recordCount($stationIds, $productionLine->id);
+            $groupCount = MachineryGroup::query()
+                ->where(fn ($q) => $q->whereIn('station_id', $stationIds)->orWhere('production_line_id', $productionLine->id))
+                ->count();
+            $machineryCount = Machinery::query()
+                ->where(fn ($q) => $q->whereIn('station_id', $stationIds)->orWhere('production_line_id', $productionLine->id))
+                ->count();
+
+            $blockers = array_filter([
+                $recordCount > 0 ? "{$recordCount} record stasiun" : null,
+                $groupCount > 0 ? "{$groupCount} Machinery Group" : null,
+                $machineryCount > 0 ? "{$machineryCount} Machinery" : null,
+            ]);
+
+            if ($blockers !== []) {
+                throw new ProductionLineHasStationsException(
+                    'Production Line tidak dapat dihapus karena station-nya masih memiliki '
+                    .implode(', ', $blockers).'. Hapus atau pindahkan data tersebut terlebih dahulu.'
+                );
+            }
+
+            Station::query()->whereIn('id', $stationIds)->delete();
+            $productionLine->delete();
+        });
+    }
+
+    /**
+     * Record yang menunjuk station-station line ini ATAU line ini langsung
+     * (production_line_id di record adalah snapshot, bisa berbeda dari line
+     * station-nya sekarang) — dihitung sekali per baris, tanpa dobel.
+     *
+     * @param  list<string>  $stationIds
+     */
+    protected function recordCount(array $stationIds, string $productionLineId): int
+    {
+        $total = 0;
+
+        foreach (StationService::RECORD_TABLES as $table) {
+            $total += DB::table($table)
+                ->where(fn ($q) => $q->whereIn('station_id', $stationIds)->orWhere('production_line_id', $productionLineId))
+                ->count();
         }
 
-        $productionLine->delete();
+        return $total;
     }
 
     /**
@@ -425,7 +477,7 @@ class ProductionLineService
      */
     protected function validate(array $data, ?string $excludeId): array
     {
-        $codeUniqueRule = Rule::unique('production_lines', 'code');
+        $codeUniqueRule = UniqueCaseInsensitive::on('production_lines', 'code');
 
         if ($excludeId !== null) {
             $codeUniqueRule = $codeUniqueRule->ignore($excludeId);

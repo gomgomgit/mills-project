@@ -906,9 +906,10 @@ it('orders slots by their TIME value so 06:00 precedes 06:30, never collapsing t
 
     // Column 4 of the export row is the time slot (after date / unit /
     // status / note).
-    $slots = array_map(fn ($row) => $row[4], $rows);
+    $slots = array_map(fn ($row) => $row[7], $rows);
 
-    expect($slots)->toBe(['06:00:00', '06:30:00', '18:00:00']);
+    // HH:MM sejak temuan audit 2026-10-04 #8d.
+    expect($slots)->toBe(['06:00', '06:30', '18:00']);
     // Three distinct slots: an integer-hour cast would have made the first
     // two the same slot and lost a reading.
     expect($rows)->toHaveCount(3);
@@ -940,7 +941,7 @@ it('counts the same time slot on two different boiler units as two readings', fu
     $rows = iterator_to_array($this->service->buildExportRows($this->periodA), false);
 
     expect($rows)->toHaveCount(2);
-    expect(array_map(fn ($row) => $row[1], $rows))->toBe(['BLR-1', 'BLR-2']);
+    expect(array_map(fn ($row) => $row[4], $rows))->toBe(['BLR-1', 'BLR-2']);
 });
 
 // =====================================================================
@@ -1086,7 +1087,7 @@ it('counts a record by its event date even when created_at falls outside the per
 
     $rows = iterator_to_array($this->service->buildExportRows($this->periodA), false);
     expect($rows)->toHaveCount(1);
-    expect($rows[0][0])->toBe('2026-03-15');
+    expect($rows[0][3])->toBe('2026-03-15');
 });
 
 // =====================================================================
@@ -1523,17 +1524,18 @@ it('exports one line per time slot with the record context columns repeated on e
 
     foreach ($rows as $row) {
         // Date / boiler unit / status / note, identical on all three lines.
-        expect($row[0])->toBe('2026-03-04');
-        expect($row[1])->toBe('BLR-1');
-        expect($row[2])->toBe('synced');
-        expect($row[3])->toBe('uji');
+        expect($row[3])->toBe('2026-03-04');
+        expect($row[4])->toBe('BLR-1');
+        expect($row[5])->toBe('Tersinkron');
+        expect($row[6])->toBe('uji');
     }
 
     // Ordered by date, then by time_slot.
-    expect(array_map(fn ($row) => $row[4], $rows))->toBe(['07:00', '08:00', '09:00']);
+    expect(array_map(fn ($row) => $row[7], $rows))->toBe(['07:00', '08:00', '09:00']);
 
     // Every one of the fifteen measurement columns is emitted after the slot.
-    expect($rows[0])->toHaveCount(4 + 1 + count(BoilerRoomRecordService::READING_FIELDS));
+    // 3 kolom konteks ekspor (Periode/Mill/Line) + 4 konteks record + slot.
+    expect($rows[0])->toHaveCount(3 + 4 + 1 + count(BoilerRoomRecordService::READING_FIELDS));
 });
 
 // =====================================================================

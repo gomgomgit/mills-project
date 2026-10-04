@@ -34,7 +34,7 @@
                 </div>
                 <div class="kp-detail-field">
                     <span class="kp-detail-field__label">Tanggal</span>
-                    <span class="kp-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="kp-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="kp-detail-field">
                     <span class="kp-detail-field__label">Station</span>
@@ -69,15 +69,15 @@
                         @foreach ($record['details'] as $row)
                             <tr data-testid="kernel-plant-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['ripple_mill_1_amps'] ?? '-' }}</td>
-                                <td>{{ $row['ripple_mill_2_amps'] ?? '-' }}</td>
-                                <td>{{ $row['claybath_hydro_sg'] ?? '-' }}</td>
-                                <td>{{ $row['kernel_silo_1_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['kernel_silo_2_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['kernel_moisture_percent'] ?? '-' }}</td>
-                                <td>{{ $row['shell_loss_percent'] ?? '-' }}</td>
-                                <td>{{ $row['downtime_minutes'] ?? '-' }}</td>
-                                <td>{{ $row['findings'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['ripple_mill_1_amps']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['ripple_mill_2_amps']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['claybath_hydro_sg']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['kernel_silo_1_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['kernel_silo_2_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['kernel_moisture_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['shell_loss_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['downtime_minutes']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -126,7 +126,7 @@
                 </div>
                 <div class="kp-detail-field">
                     <span class="kp-detail-field__label">Status</span>
-                    <span class="kp-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="kp-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

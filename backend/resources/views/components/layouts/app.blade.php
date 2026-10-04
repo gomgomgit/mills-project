@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @livewireStyles
+    <x-searchable-select-assets />
     <style>
         /* Shared page shell (sidebar + header) — single source of truth for
            every screen in resources/views/. Design tokens per uiux-spec v5
@@ -101,17 +102,19 @@
             flex-shrink: 0;
         }
 
+        /* Label boleh turun baris (bukan dipotong "Production Process A…"):
+           nama menu panjang tetap terbaca utuh di sidebar 240px. */
         .shell-sidebar__nav .label {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.3;
         }
 
         /* ---------- Collapsible nav group ----------
            Uses native <details>/<summary> — no JS, keyboard-operable for free,
            same element the daily mill report already uses for its table toggle.
            The group is rendered with `open` from Blade whenever one of its
-           children is the current route, so landing on Kelola Company shows
+           children is the current route, so landing on one of its child pages shows
            the group already expanded rather than hiding where you are. */
         .shell-nav-group > summary {
             display: flex;
@@ -226,9 +229,13 @@
             background: #f3f4f6;
         }
 
+        /* padding-bottom 104px = tombol chatbot melayang (56px + jarak 24px
+           dari tepi bawah) + 24px ruang: baris/tombol terakhir halaman
+           (mis. "Hapus" di baris tabel paling bawah) selalu bisa digulir ke
+           atas tombol itu, tidak pernah tertutup. */
         .shell-body {
             flex: 1;
-            padding: 32px 24px;
+            padding: 32px 24px 104px;
             overflow-x: hidden;
         }
 
@@ -359,7 +366,7 @@
             }
 
             .shell-body {
-                padding: 20px 16px;
+                padding: 20px 16px 104px;
             }
 
             .shell-header {
@@ -375,11 +382,24 @@
     <aside class="shell-sidebar" id="shell-sidebar">
         <p class="shell-sidebar__brand"><span class="label">Mills Smart Log</span></p>
         <ul class="shell-sidebar__nav">
+            @if (\App\Support\RouteAccess::allows('operator.home'))
+            <li><a href="{{ route('operator.home') }}"{!! request()->routeIs('operator.home') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 10 3l7 6.5"/><path d="M5 8v9h10V8"/></svg><span class="label">Beranda</span></a></li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('dashboard'))
             <li><a href="{{ route('dashboard') }}"{!! request()->routeIs('dashboard') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="7" height="7" rx="1"/><rect x="11" y="2" width="7" height="7" rx="1"/><rect x="2" y="11" width="7" height="7" rx="1"/><rect x="11" y="11" width="7" height="7" rx="1"/></svg><span class="label">Dashboard</span></a></li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('production-process-activity'))
             <li><a href="{{ route('production-process-activity') }}"{!! request()->routeIs('production-process-activity') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 11 6 11 8 5 12 16 14 11 18 11"/></svg><span class="label">Production Process Activity</span></a></li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('reports.management'))
             <li><a href="{{ route('reports.management') }}"{!! request()->routeIs('reports.management') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="17" x2="4" y2="9"/><line x1="10" y1="17" x2="10" y2="3"/><line x1="16" y1="17" x2="16" y2="12"/></svg><span class="label">Laporan Manajemen</span></a></li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('reports.stations'))
             <li><a href="{{ route('reports.stations') }}"{!! request()->routeIs('reports.stations', 'reports.sterilizer', 'reports.cages-track', 'reports.boiler-room', 'reports.clarification', 'reports.storage-tank') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2.5" width="14" height="15" rx="2"/><path d="M6.5 13.5v-3M10 13.5v-6M13.5 13.5v-4.5"/></svg><span class="label">Laporan Stasiun</span></a></li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('master-data.tree-view'))
             <li><a href="{{ route('master-data.tree-view') }}"{!! request()->routeIs('master-data.tree-view') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h3.6l1.4 1.7h7A1.5 1.5 0 0 1 17 7.2v7.3A1.5 1.5 0 0 1 15.5 16h-12A1.5 1.5 0 0 1 2 14.5v-9z"/></svg><span class="label">Master Data Tree View</span></a></li>
+            @endif
             {{-- Corporate -> Company -> Business Unit -> Production Line are one
                  hierarchy and were four separate sidebar entries; folded into a single
                  collapsible group to shorten the rail. Opens automatically when the
@@ -393,6 +413,7 @@
                  "tiap kelas yang dipakai markup harus punya definisi" tidak
                  menemukannya lagi sebagai cacat — dan supaya siapa pun yang nanti
                  butuh menata <li> ini tahu hook-nya sudah tersedia. --}}
+            @if (\App\Support\RouteAccess::allowsAny(['master-data.corporates', 'master-data.companies', 'master-data.business-units', 'master-data.production-lines']))
             <li class="shell-nav-group-wrap">
                 <details class="shell-nav-group"{!! request()->routeIs('master-data.corporates', 'master-data.companies', 'master-data.production-lines', 'master-data.business-units') ? ' open' : '' !!}>
                     <summary>
@@ -401,19 +422,40 @@
                         <svg class="shell-nav-group__chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 4 13 10 7 16"/></svg>
                     </summary>
                     <ul class="shell-nav-group__items">
+                    @if (\App\Support\RouteAccess::allows('master-data.corporates'))
                     <li><a href="{{ route('master-data.corporates') }}"{!! request()->routeIs('master-data.corporates') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="10" height="16" rx="1"/><line x1="8" y1="6" x2="8" y2="6"/><line x1="12" y1="6" x2="12" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/></svg><span class="label">Kelola Corporate</span></a></li>
+                    @endif
+                    @if (\App\Support\RouteAccess::allows('master-data.companies'))
                     <li><a href="{{ route('master-data.companies') }}"{!! request()->routeIs('master-data.companies') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="6" height="11"/><rect x="10" y="2" width="7" height="16"/></svg><span class="label">Kelola Company</span></a></li>
+                    @endif
+                    @if (\App\Support\RouteAccess::allows('master-data.business-units'))
                     <li><a href="{{ route('master-data.business-units') }}"{!! request()->routeIs('master-data.business-units') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="1.5"/><path d="M7 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="2" y1="12" x2="18" y2="12"/></svg><span class="label">Kelola Business Unit</span></a></li>
+                    @endif
+                    @if (\App\Support\RouteAccess::allows('master-data.production-lines'))
                     <li><a href="{{ route('master-data.production-lines') }}"{!! request()->routeIs('master-data.production-lines') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="10" x2="14" y2="10"/><polyline points="10 6 14 10 10 14"/></svg><span class="label">Kelola Production Line</span></a></li>
+                    @endif
                     </ul>
                 </details>
             </li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('master-data.stations'))
             <li><a href="{{ route('master-data.stations') }}"{!! request()->routeIs('master-data.stations') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 18s6-5.5 6-10a6 6 0 1 0-12 0c0 4.5 6 10 6 10z"/><circle cx="10" cy="8" r="2"/></svg><span class="label">Kelola Station</span></a></li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('master-data.machinery'))
             <li><a href="{{ route('master-data.machinery') }}"{!! request()->routeIs('master-data.machinery', 'master-data.machinery-groups') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M18 10h-2M4 10H2M15.5 4.5l-1.4 1.4M5.9 14.1l-1.4 1.4M15.5 15.5l-1.4-1.4M5.9 5.9 4.5 4.5"/></svg><span class="label">Kelola Mesin</span></a></li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('master-data.periods'))
             <li><a href="{{ route('master-data.periods') }}"{!! request()->routeIs('master-data.periods') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="15" height="13" rx="2"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3"/></svg><span class="label">Kelola Periode Pelaporan</span></a></li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('mill-settings'))
             <li><a href="{{ route('mill-settings') }}"{!! request()->routeIs('mill-settings') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l-1-1 5.3-5.3a4 4 0 0 1 5.4-5.4l-2.4 2.4 1 1 2.4-2.4z"/></svg><span class="label">Mills Setting</span></a></li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('users.index'))
             <li><a href="{{ route('users.index') }}"{!! request()->routeIs('users.index') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="3"/><path d="M2 18c0-3 2-5 5-5s5 2 5 5"/><circle cx="15" cy="8" r="2.3"/><path d="M13 12c2 0 5 1 5 6"/></svg><span class="label">Kelola User & Role</span></a></li>
+            @endif
+            @if (\App\Support\RouteAccess::allows('settings.password'))
             <li><a href="{{ route('settings.password') }}"{!! request()->routeIs('settings.password') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="9" width="12" height="9" rx="1.5"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg><span class="label">Ganti Password</span></a></li>
+            @endif
         </ul>
     </aside>
 

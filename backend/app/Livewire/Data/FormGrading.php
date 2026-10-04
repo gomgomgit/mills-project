@@ -3,6 +3,7 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
+use App\Livewire\Data\Concerns\GuardsRecordIdShape;
 use App\Models\GradingParameter;
 use App\Models\Station;
 use App\Models\WeighbridgeRecord;
@@ -47,6 +48,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.grading-form')]
 class FormGrading extends Component
 {
+    use GuardsRecordIdShape;
     use ScopesToActorMill;
 
     protected const FIELDS = [
@@ -129,6 +131,14 @@ class FormGrading extends Component
 
         $this->id = $id;
         $this->isEdit = true;
+
+        if (! $this->isRecordIdShapeValid($id)) {
+            // id bukan UUID tidak boleh sampai ke SQL (PostgreSQL: 22P02),
+            // perlakukan sama dengan UUID yang tidak dikenal.
+            $this->notFound = true;
+
+            return;
+        }
 
         try {
             $record = app(GradingRecordService::class)->getDetail($id);

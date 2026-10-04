@@ -164,7 +164,7 @@ it('berhasil: periods -> summary -> export for a Supervisor, chained on the real
     expect($export->headers->get('Content-Disposition'))->toContain('attachment');
 
     $body = $export->streamedContent();
-    expect($body)->toContain('Sterilizer ID');
+    expect($body)->toContain('ID Sterilizer');
     // One line per CYCLE (header + 10 cycles), not one per daily record.
     expect(array_values(array_filter(explode("\n", trim($body)))))->toHaveCount(11);
 });

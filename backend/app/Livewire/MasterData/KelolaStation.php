@@ -6,6 +6,7 @@ use App\Enums\StationType;
 use App\Exceptions\StationHasMachineryException;
 use App\Models\ProductionLine;
 use App\Models\Station;
+use App\Rules\UniqueCaseInsensitive;
 use App\Services\StationService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
@@ -58,6 +59,12 @@ class KelolaStation extends Component
 
     public string $filterBusinessUnitId = '';
 
+    /** Filter Production Line (temuan audit #10) — bergantung pada filter BU. */
+    public string $filterProductionLineId = '';
+
+    /** Umpan balik sukses simpan/hapus (temuan audit #12). */
+    public ?string $successMessage = null;
+
     public bool $showForm = false;
 
     public ?string $editingId = null;
@@ -95,6 +102,37 @@ class KelolaStation extends Component
     public function updatedFilterBusinessUnitId(): void
     {
         $this->page = 1;
+        $this->filterProductionLineId = '';
+    }
+
+    public function updatedFilterProductionLineId(): void
+    {
+        $this->page = 1;
+    }
+
+    /**
+     * Pilihan filter Production Line: line milik BU terpilih, atau — tanpa
+     * filter BU — semua line berlabel "Mill — Line" supaya line bernama
+     * sama di mill berbeda bisa dibedakan.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    protected function filterProductionLineOptions(): array
+    {
+        return ProductionLine::query()
+            ->with('businessUnit:id,name')
+            ->when($this->filterBusinessUnitId !== '', fn ($q) => $q->where('business_unit_id', $this->filterBusinessUnitId))
+            ->orderBy('name')
+            ->get(['id', 'name', 'business_unit_id'])
+            ->map(fn (ProductionLine $line) => [
+                'value' => $line->id,
+                'label' => $this->filterBusinessUnitId !== ''
+                    ? $line->name
+                    : (optional($line->businessUnit)->name ?? '-').' — '.$line->name,
+            ])
+            ->sortBy('label')
+            ->values()
+            ->all();
     }
 
     /**
@@ -138,7 +176,7 @@ class KelolaStation extends Component
      */
     protected function buildValidator(): \Illuminate\Validation\Validator
     {
-        $codeUniqueRule = Rule::unique('stations', 'code');
+        $codeUniqueRule = UniqueCaseInsensitive::on('stations', 'code');
 
         if ($this->editingId !== null) {
             $codeUniqueRule = $codeUniqueRule->ignore($this->editingId);
@@ -178,7 +216,7 @@ class KelolaStation extends Component
             'business_unit_id' => ['required', 'string', Rule::exists('business_units', 'id')],
             'production_line_id' => ['required', 'string', Rule::exists('production_lines', 'id')],
             'form.name' => ['required', 'string', 'max:255'],
-            'type' => ['required', Rule::in(array_map(fn (StationType $case) => $case->value, StationType::cases()))],
+            'type' => ['required', Rule::exists('station_types', 'code')],
             'is_active' => ['required', 'boolean'],
             'form.code' => ['nullable', 'string', 'max:255', $codeUniqueRule],
             'form.description' => ['nullable', 'string', 'max:255'],
@@ -220,6 +258,17 @@ class KelolaStation extends Component
                     );
                 }
             }
+
+            // Satu station per tipe per Production Line (kecuali Other) —
+            // aturan yang sama persis dengan StationService::validate().
+            if (! $validator->errors()->has('production_line_id') && ! $validator->errors()->has('type')) {
+                $duplicate = app(StationService::class)
+                    ->duplicateTypeMessage($payload['production_line_id'], $payload['type'], $this->editingId);
+
+                if ($duplicate !== null) {
+                    $validator->errors()->add('type', $duplicate);
+                }
+            }
         });
 
         return $validator;
@@ -230,6 +279,8 @@ class KelolaStation extends Component
      */
     public function openCreateForm(): void
     {
+        $this->successMessage = null;
+        $this->deleteErrorMessage = null;
         $this->resetValidation();
         $this->editingId = null;
         $this->business_unit_id = '';
@@ -251,6 +302,8 @@ class KelolaStation extends Component
         $station = Station::findOrFail($id);
 
         $this->resetValidation();
+        $this->successMessage = null;
+        $this->deleteErrorMessage = null;
         $this->formErrorMessage = null;
         $this->editingId = $station->id;
         $this->business_unit_id = $station->business_unit_id;
@@ -288,6 +341,7 @@ class KelolaStation extends Component
     public function save(): void
     {
         $this->formErrorMessage = null;
+        $this->successMessage = null;
 
         // create: business_unit_id exists, name required, type
         // required+in-enum, is_active required boolean + cross-field
@@ -342,6 +396,9 @@ class KelolaStation extends Component
             return;
         }
 
+        $this->successMessage = $this->editingId !== null
+            ? 'Station berhasil diperbarui.'
+            : 'Station berhasil ditambahkan.';
         $this->showForm = false;
         $this->editingId = null;
         $this->business_unit_id = '';
@@ -362,6 +419,7 @@ class KelolaStation extends Component
     {
         $this->confirmingDeleteId = $id;
         $this->deleteErrorMessage = null;
+        $this->successMessage = null;
     }
 
     public function cancelDelete(): void
@@ -388,6 +446,7 @@ class KelolaStation extends Component
             $service->delete($this->confirmingDeleteId);
             $this->confirmingDeleteId = null;
             $this->deleteErrorMessage = null;
+            $this->successMessage = 'Station berhasil dihapus.';
         } catch (StationHasMachineryException $e) {
             // Delete-guard: nothing was deleted, row must remain in the
             // list — drop back to the un-confirming state and surface the
@@ -412,22 +471,6 @@ class KelolaStation extends Component
         }
     }
 
-    /**
-     * Type-select options — Indonesian-friendly labels for the 4
-     * StationType enum cases, fed to the view's `<select>`.
-     *
-     * @return list<array{value: string, label: string}>
-     */
-    protected function typeOptions(): array
-    {
-        return [
-            ['value' => StationType::Weighbridge->value, 'label' => 'Weighbridge'],
-            ['value' => StationType::Grading->value, 'label' => 'Grading'],
-            ['value' => StationType::CagesTrack->value, 'label' => 'Cages Track'],
-            ['value' => StationType::Other->value, 'label' => 'Other'],
-        ];
-    }
-
     public function render()
     {
         $service = app(StationService::class);
@@ -435,14 +478,19 @@ class KelolaStation extends Component
         $result = $service->listStations(
             $this->page,
             $this->perPage,
-            $this->filterBusinessUnitId !== '' ? $this->filterBusinessUnitId : null
+            $this->filterBusinessUnitId !== '' ? $this->filterBusinessUnitId : null,
+            $this->filterProductionLineId !== '' ? $this->filterProductionLineId : null,
         );
 
         return view('livewire.master-data.kelola-station', [
             'stations' => $result['data'],
             'meta' => $result['meta'],
             'businessUnitOptions' => $service->businessUnitOptions(),
-            'typeOptions' => $this->typeOptions(),
+            'filterProductionLineOptions' => $this->filterProductionLineOptions(),
+            // Semua 18 tipe dari master station_types (bukan 4 tipe tulis tangan).
+            'typeOptions' => $service->typeOptions($this->type !== '' ? $this->type : null),
+            'typeLabels' => StationService::typeLabels(),
+            'isFiltered' => $this->filterBusinessUnitId !== '' || $this->filterProductionLineId !== '',
         ]);
     }
 }

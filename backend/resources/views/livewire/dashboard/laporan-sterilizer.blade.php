@@ -73,6 +73,9 @@
                 @if ($selectedPeriod)
                     {{ $summary['period']['business_unit_name'] ?? '' }}
                     @if (! empty($summary['period']['business_unit_name'])) &middot; @endif
+                    {{-- Nama line di hero, sama seperti Laporan Weighbridge
+                         (temuan audit 2026-10-04 #10). --}}
+                    @if ($selectedProductionLine) {{ $selectedProductionLine['name'] }} &middot; @endif
                     {{ $tgl($selectedPeriod['start_date']) }} &ndash; {{ $tgl($selectedPeriod['end_date']) }}
                 @else
                     Rangkuman kinerja perebusan sepanjang satu Periode Pelaporan
@@ -351,7 +354,7 @@
                         ({{ $mnt(round($avgDailyCycles, 1)) }} siklus)
                     </span>
                 </header>
-                <div class="md-trendchart">
+                <div class="md-trendchart md-trendchart--days">
                     @foreach ($daily as $row)
                         <div class="md-trendchart__col {{ $row['cycles'] < $avgDailyCycles ? 'md-trendchart__col--low' : '' }}"
                              data-testid="daily-trend-col-{{ $row['date'] }}">
@@ -361,6 +364,12 @@
                         </div>
                     @endforeach
                 </div>
+                @if (count($daily) > 10)
+                    <p class="md-scrollhint" data-testid="scroll-hint">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M15 8l4 4-4 4M9 8l-4 4 4 4"/></svg>
+                        Geser mendatar untuk melihat seluruh tanggal.
+                    </p>
+                @endif
                 <ul class="md-legend md-legend--inline">
                     <li><span>{{ count($daily) }} tanggal berdata &middot; tertinggi {{ $num($maxDailyCycles) }} siklus/hari</span></li>
                 </ul>

@@ -3,6 +3,7 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
+use App\Livewire\Data\Concerns\GuardsRecordIdShape;
 use App\Models\KernelPlantOperationalTarget;
 use App\Services\KernelPlantRecordService;
 use App\Support\Concerns\ScopesToActorMill;
@@ -61,6 +62,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.kernel-plant-form')]
 class FormKernelPlant extends Component
 {
+    use GuardsRecordIdShape;
     use ScopesToActorMill;
 
     protected const FIELDS = ['production_line_id', 'kernel_plant_id', 'date', 'note'];
@@ -120,6 +122,14 @@ class FormKernelPlant extends Component
 
         $this->id = $id;
         $this->isEdit = true;
+
+        if (! $this->isRecordIdShapeValid($id)) {
+            // id bukan UUID tidak boleh sampai ke SQL (PostgreSQL: 22P02),
+            // perlakukan sama dengan UUID yang tidak dikenal.
+            $this->notFound = true;
+
+            return;
+        }
 
         try {
             $record = app(KernelPlantRecordService::class)->getDetail($id);

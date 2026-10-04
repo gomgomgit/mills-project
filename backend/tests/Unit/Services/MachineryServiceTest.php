@@ -387,7 +387,7 @@ it('throws a ModelNotFoundException when deleting a machinery id that does not e
 it('uploads a valid picture successfully and stores the file', function () {
     Storage::fake(MachineryService::PICTURE_DISK);
     $group = makeMachineryGroupFixture();
-    $picture = UploadedFile::fake()->create('picture.jpg', 500, 'image/jpeg');
+    $picture = fakeRealImage('picture.jpg', 500);
 
     $result = $this->service->create([
         'machinery_group_id' => $group->id,
@@ -402,7 +402,7 @@ it('uploads a valid picture successfully and stores the file', function () {
 it('throws a ValidationException when the picture exceeds the max size', function () {
     Storage::fake(MachineryService::PICTURE_DISK);
     $group = makeMachineryGroupFixture();
-    $picture = UploadedFile::fake()->create('picture.jpg', 3000, 'image/jpeg');
+    $picture = fakeRealImage('picture.jpg', 3000);
 
     try {
         $this->service->create([
@@ -464,12 +464,15 @@ it('returns machineryGroupOptions with id/group_code/station_id/production_line_
     $options = $this->service->machineryGroupOptions();
 
     expect($options)->toHaveCount(1);
-    expect($options[0])->toEqual([
+    expect($options[0])->toMatchArray([
         'id' => $group->id,
         'group_code' => $group->group_code,
         'station_id' => $group->station_id,
         'production_line_id' => $group->production_line_id,
     ]);
+    // Label tampilan (audit 2026-10-04 #9c): kode grup + station/line.
+    expect($options[0]['label'])->toStartWith($group->group_code)
+        ->toContain((string) $group->station->name);
 });
 
 it('returns detail() with insurances/tax_purchases arrays populated', function () {

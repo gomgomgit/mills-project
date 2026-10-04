@@ -84,6 +84,9 @@
                 @if ($selectedPeriod)
                     {{ $summary['period']['business_unit_name'] ?? '' }}
                     @if (! empty($summary['period']['business_unit_name'])) &middot; @endif
+                    {{-- Nama line di hero, sama seperti Laporan Weighbridge
+                         (temuan audit 2026-10-04 #10). --}}
+                    @if ($selectedProductionLine) {{ $selectedProductionLine['name'] }} &middot; @endif
                     {{ $tgl($selectedPeriod['start_date']) }} &ndash; {{ $tgl($selectedPeriod['end_date']) }}
                 @else
                     Pola penumpahan lori sepanjang satu Periode Pelaporan &mdash; kapan memuncak, kapan berhenti
@@ -309,7 +312,11 @@
                 <p class="md-kpi__value">{{ $num($kpi['total_cages_out']) }} <span>lori</span></p>
                 <p class="md-kpi__meta">
                     @php $selisih = $kpi['total_cages_out'] - $kpi['total_cages_tipped']; @endphp
-                    @if ($selisih === 0)
+                    {{-- 0 vs 0 bukan "sama banyak" — belum ada data sama
+                         sekali (temuan audit 2026-10-04 #9). --}}
+                    @if ($kpi['days_with_records'] === 0)
+                        Belum ada record pada periode dan line ini
+                    @elseif ($selisih === 0)
                         Sama banyak dengan lori yang ditumpahkan
                     @elseif ($selisih > 0)
                         {{ $num($selisih) }} lori lebih banyak daripada yang ditumpahkan
@@ -328,10 +335,17 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15l4-7 4 5 3-6 4 8h3"/></svg>
                     </span>
                 </div>
-                <p class="md-kpi__value">{{ $dec($kpi['avg_cages_per_day']) }} <span>lori/hari</span></p>
-                <p class="md-kpi__meta">
-                    {{ $num($kpi['total_cages_tipped']) }} lori dibagi {{ $num($kpi['days_with_records']) }} hari ber-record
-                </p>
+                {{-- Penyebut 0 hari → "—", bukan "0 lori/hari": null bukan 0
+                     (temuan audit 2026-10-04 #9). --}}
+                @if ($kpi['days_with_records'] === 0)
+                    <p class="md-kpi__value" data-testid="kpi-avg-per-day-empty">&ndash;</p>
+                    <p class="md-kpi__meta">Belum ada hari ber-record untuk dijadikan pembagi</p>
+                @else
+                    <p class="md-kpi__value">{{ $dec($kpi['avg_cages_per_day']) }} <span>lori/hari</span></p>
+                    <p class="md-kpi__meta">
+                        {{ $num($kpi['total_cages_tipped']) }} lori dibagi {{ $num($kpi['days_with_records']) }} hari ber-record
+                    </p>
+                @endif
                 <div class="md-bar"><span style="width: {{ $kpi['avg_cages_per_day'] > 0 ? 100 : 0 }}%"></span></div>
                 {{-- Hari ber-record tanpa satu pun baris rincian TETAP masuk
                      penyebut — membuangnya membuat rata-rata harian terlihat
@@ -511,7 +525,7 @@
                             ({{ $dec(round($avgDaily, 1)) }} lori/hari)
                         </span>
                     </header>
-                    <div class="md-trendchart">
+                    <div class="md-trendchart md-trendchart--days">
                         @foreach ($daily as $row)
                             <div class="md-trendchart__col {{ $row['cages_tipped'] < $avgDaily ? 'md-trendchart__col--low' : '' }}"
                                  data-testid="daily-trend-col-{{ $row['date'] }}">
@@ -521,6 +535,12 @@
                             </div>
                         @endforeach
                     </div>
+                    @if (count($daily) > 10)
+                        <p class="md-scrollhint" data-testid="scroll-hint">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M15 8l4 4-4 4M9 8l-4 4 4 4"/></svg>
+                            Geser mendatar untuk melihat seluruh tanggal.
+                        </p>
+                    @endif
                     <ul class="md-legend">
                         <li class="md-legend__item">{{ count($daily) }} tanggal ber-record &middot; tertinggi {{ $num($maxDaily) }} lori/hari</li>
                         <li class="md-legend__item">Jumlah seluruh batang: {{ $num($total['cages_tipped']) }} lori</li>

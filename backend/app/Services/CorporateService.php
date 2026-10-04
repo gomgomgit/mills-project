@@ -4,12 +4,13 @@ namespace App\Services;
 
 use App\Exceptions\CorporateHasCompaniesException;
 use App\Models\Corporate;
+use App\Rules\RealImage;
+use App\Rules\UniqueCaseInsensitive;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -102,6 +103,9 @@ class CorporateService
      * disk name as a second literal.
      */
     public const LOGO_DISK = 'local';
+
+    /** Website dengan/tanpa http(s)://, minimal satu titik domain. */
+    public const WEBSITE_PATTERN = '/^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(:\d+)?(\/\S*)?$/i';
 
     protected const LOGO_DIRECTORY = 'corporate-logos';
 
@@ -247,8 +251,8 @@ class CorporateService
      */
     protected function validate(array $attributes, ?UploadedFile $logo, ?string $excludeId): void
     {
-        $codeUniqueRule = Rule::unique('corporates', 'corporate_code');
-        $nameUniqueRule = Rule::unique('corporates', 'name');
+        $codeUniqueRule = UniqueCaseInsensitive::on('corporates', 'corporate_code');
+        $nameUniqueRule = UniqueCaseInsensitive::on('corporates', 'name');
 
         if ($excludeId !== null) {
             $codeUniqueRule = $codeUniqueRule->ignore($excludeId);
@@ -260,12 +264,17 @@ class CorporateService
         $rules = [
             'corporate_code' => ['required', 'string', 'max:255', $codeUniqueRule],
             'name' => ['required', 'string', 'max:255', $nameUniqueRule],
-            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Logo')],
         ];
 
         foreach (self::OPTIONAL_TEXT_FIELDS as $field) {
             $rules[$field] = ['nullable', 'string', 'max:255'];
         }
+
+        // Format email & website (temuan audit 2026-10-04 #11) — website
+        // boleh tanpa skema ("www.contoh.co.id"), seperti yang biasa diketik.
+        $rules['email'][] = 'email';
+        $rules['website'][] = 'regex:'.self::WEBSITE_PATTERN;
 
         Validator::make(
             $payload,
@@ -277,7 +286,9 @@ class CorporateService
                 'name.required' => 'Nama corporate wajib diisi.',
                 'name.max' => 'Nama corporate maksimal 255 karakter.',
                 'name.unique' => 'Nama corporate sudah digunakan.',
-                'logo.file' => 'Logo harus berupa file.',
+                'logo.file' => 'Logo harus berupa file gambar.',
+                'email.email' => 'Format email tidak valid.',
+                'website.regex' => 'Format website tidak valid (contoh: www.contoh.co.id).',
                 'logo.mimes' => 'Logo harus berformat JPG atau PNG.',
                 'logo.max' => 'Ukuran logo maksimal 2MB.',
             ]

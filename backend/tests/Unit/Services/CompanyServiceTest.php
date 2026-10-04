@@ -384,7 +384,7 @@ it('returns an empty corporate options list when no corporates exist', function 
 it('stores an uploaded logo file under company-logos/ and returns a logo_url in the row', function () {
     Storage::fake(CompanyService::LOGO_DISK);
     $corporate = Corporate::factory()->create();
-    $logo = UploadedFile::fake()->create('logo.jpg', 500, 'image/jpeg');
+    $logo = fakeRealImage('logo.jpg', 500);
 
     $result = $this->service->create([
         'corporate_id' => $corporate->id,
@@ -417,7 +417,7 @@ it('creates a company without a logo successfully', function () {
 it('throws a ValidationException when the logo file exceeds the max size', function () {
     Storage::fake(CompanyService::LOGO_DISK);
     $corporate = Corporate::factory()->create();
-    $logo = UploadedFile::fake()->create('logo.jpg', 3000, 'image/jpeg');
+    $logo = fakeRealImage('logo.jpg', 3000);
 
     try {
         $this->service->create([
@@ -463,7 +463,7 @@ it('replaces the stored logo on update when a new file is provided', function ()
         'company_code' => 'COMP-LOGO-005',
         'logo' => 'company-logos/old.jpg',
     ]);
-    $newLogo = UploadedFile::fake()->create('new-logo.png', 400, 'image/png');
+    $newLogo = fakeRealImage('new-logo.png', 400);
 
     $result = $this->service->update($company->id, [
         'corporate_id' => $corporate->id,

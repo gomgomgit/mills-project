@@ -13,6 +13,9 @@ use App\Models\ProductionLine;
 use App\Models\StationType;
 use App\Models\StorageTankDetail;
 use App\Models\StorageTankRecord;
+use App\Support\ExportValue;
+use App\Support\ReportPeriodDays;
+use App\Support\SheetWriter;
 use DateTimeInterface;
 use Generator;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -271,8 +274,10 @@ class StorageTankReportService
      * How many leading EXPORT_HEADER columns are RECORD CONTEXT, repeated
      * verbatim on every one of that record's time-slot lines. Published as a
      * constant so the export shape is derived, never counted by hand.
+     * 3 export context (Periode/Mill/Production Line, sejak temuan audit
+     * 2026-10-04 #8b) + 4 record context (tanggal, tangki, status, catatan).
      */
-    public const EXPORT_CONTEXT_COLUMN_COUNT = 4;
+    public const EXPORT_CONTEXT_COLUMN_COUNT = 7;
 
     /**
      * Export column headers — context columns first (repeated on every
@@ -285,6 +290,11 @@ class StorageTankReportService
      * @var array<int, string>
      */
     public const EXPORT_HEADER = [
+        // Kolom konteks diulang di setiap baris, sama dengan ekspor Laporan
+        // Weighbridge (temuan audit 2026-10-04 #8b).
+        'Periode',
+        'Mill',
+        'Production Line',
         'Tanggal',
         'Tangki',
         'Status',
@@ -633,7 +643,11 @@ class StorageTankReportService
         // (StorageTankRecordService::canonicalTimeSlots()), not from a number
         // invented here — one definition, one answer.
         $slotsPerTankPerDay = count(StorageTankRecordService::canonicalTimeSlots());
-        $expectedSlots = $tankCount * $daysInPeriod * $slotsPerTankPerDay;
+        // PENYEBUT BERHENTI DI HARI INI untuk periode yang masih berjalan
+        // (temuan audit 2026-10-04 #3) — hari yang belum terjadi tidak mungkin
+        // tercatat. Lihat App\Support\ReportPeriodDays.
+        $daysCounted = ReportPeriodDays::counted($period);
+        $expectedSlots = $tankCount * $daysCounted * $slotsPerTankPerDay;
 
         return [
             'period' => [
@@ -672,6 +686,10 @@ class StorageTankReportService
                 'tank_count' => $tankCount,
                 'slots_per_tank_per_day' => $slotsPerTankPerDay,
                 'days_in_period' => $daysInPeriod,
+                // Hari yang dipakai penyebut: = days_in_period untuk periode
+                // yang sudah selesai, sampai hari ini untuk yang masih berjalan.
+                'days_counted' => $daysCounted,
+                'period_running' => ReportPeriodDays::isRunning($period),
             ],
             'stock' => $this->stockOf($tanks),
             'metrics' => $this->metricsOf($filledRows),
@@ -741,7 +759,13 @@ class StorageTankReportService
             throw new ExportFailedException;
         }
 
-        return $this->streamExportRows($recordQuery);
+        $exportContext = [
+            (string) $period->name,
+            (string) ($period->businessUnit?->name ?? ''),
+            (string) ($this->productionLineInfo($productionLineId)['name'] ?? ''),
+        ];
+
+        return $this->streamExportRows($recordQuery, $exportContext);
     }
 
     /**
@@ -779,21 +803,18 @@ class StorageTankReportService
         try {
             [$contentType, $filename] = $this->fileMetaFor($format, $resolvedPeriod);
 
-            return response()->streamDownload(function () use ($rows) {
+            return response()->streamDownload(function () use ($rows, $format) {
                 // A failure WHILE writing is still EXPORT_FAILED (422), not a
                 // half-written file reported as a success.
                 try {
-                    $handle = fopen('php://output', 'w');
-
-                    // Explicit $separator/$enclosure/$escape — PHP 8.4
-                    // deprecates relying on fputcsv()'s default $escape.
-                    fputcsv($handle, self::EXPORT_HEADER, ',', '"', '\\');
+                    $handle = SheetWriter::open($format);
+                    $handle->row(self::EXPORT_HEADER);
 
                     foreach ($rows as $row) {
-                        fputcsv($handle, $row, ',', '"', '\\');
+                        $handle->row($row);
                     }
 
-                    fclose($handle);
+                    $handle->close();
                 } catch (ExportFailedException $e) {
                     throw $e;
                 } catch (Throwable $e) {
@@ -1276,7 +1297,7 @@ class StorageTankReportService
      *
      * @return Generator<int, array<int, string|float|null>>
      */
-    protected function streamExportRows(Builder $recordQuery): Generator
+    protected function streamExportRows(Builder $recordQuery, array $exportContext = ['', '', '']): Generator
     {
         $query = (clone $recordQuery)
             ->with(['storageTankDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot')])
@@ -1293,23 +1314,28 @@ class StorageTankReportService
             // The checker / acknowledger user columns are intentionally
             // absent: they hold raw user UUIDs, which mean nothing to a
             // spreadsheet reader, and no sibling export carries them.
-            $context = [
+            $context = array_merge($exportContext, [
                 optional($record->date)->toDateString(),
                 $record->storage_tank_id,
-                $this->recordStatusValue($record),
+                // Label Indonesia, bukan enum mentah (temuan audit 2026-10-04 #8c).
+                ExportValue::status($this->recordStatusValue($record)),
                 $record->note,
-            ];
+            ]);
 
             foreach ($record->storageTankDetails as $detail) {
                 /** @var StorageTankDetail $detail */
-                $reading = [$this->timeSlotValue($detail->time_slot)];
+                // Slot selalu HH:MM (temuan audit 2026-10-04 #8d).
+                $reading = [ExportValue::time($detail->time_slot)];
 
                 foreach (StorageTankRecordService::READING_FIELDS as $field) {
-                    // VERBATIM — including the steam valve enum and the three
-                    // text columns — with no rounding and no normalisation,
-                    // exactly as the Operator typed it. This is the only
-                    // place those four ever appear.
-                    $reading[] = $detail->{$field};
+                    // VERBATIM — the three text columns — with no rounding
+                    // and no normalisation, exactly as the Operator typed
+                    // it. The steam valve enum is written with the form's
+                    // own label ("Open 1/2", not "open_1_2") — temuan audit
+                    // 2026-10-04 #8c.
+                    $reading[] = $field === 'steam_heating_valve_status'
+                        ? ExportValue::valve($this->enumText($detail->{$field}))
+                        : $detail->{$field};
                 }
 
                 yield array_merge($context, $reading);
@@ -1508,6 +1534,16 @@ class StorageTankReportService
      * casting to an integer would collapse 06:00 and 06:30 into one slot and
      * would sort 00:30 after 10:00.
      */
+    /** Backed enum atau string → teks nilai mentahnya (null tetap null). */
+    protected function enumText(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return $value instanceof \BackedEnum ? (string) $value->value : (string) $value;
+    }
+
     protected function timeSlotValue(mixed $timeSlot): string
     {
         $value = trim((string) $timeSlot);
@@ -1634,8 +1670,8 @@ class StorageTankReportService
 
     /**
      * Same Content-Type/filename convention as every other export in this
-     * codebase — no XLSX writer package is installed, so format=excel
-     * serves a CSV body under the xlsx mimetype/extension.
+     * codebase. format=excel is a real .xlsx written by App\Support\SheetWriter (temuan
+     * audit 2026-10-04 #1 — previously a CSV body under an xlsx name).
      *
      * @return array{0: string, 1: string}
      */

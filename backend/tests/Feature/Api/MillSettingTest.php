@@ -110,7 +110,7 @@ it('returns 403 for Supervisor and Operator roles (route-level role gate)', func
 // File uploads.
 it('stores an uploaded logo via multipart PATCH and returns a resolved logo URL', function () {
     Storage::fake(MillSettingService::LOGO_DISK);
-    $logo = UploadedFile::fake()->create('logo.jpg', 500, 'image/jpeg');
+    $logo = fakeRealImage('logo.jpg', 500);
 
     $response = $this->actingAs($this->admin, 'web')->post("/api/mill-settings/{$this->businessUnit->id}", [
         '_method' => 'PATCH',

@@ -253,9 +253,10 @@ it('ekspor: periods -> export streams one CSV line per tipping hour with the rec
         expect($line)->toContain('Catatan harian');
     }
 
-    expect($lines[1])->toContain('06.00');
-    expect($lines[2])->toContain('07.00');
-    expect($lines[3])->toContain('08.00');
+    // Jam HH:MM seperti slot ekspor lain (temuan audit 2026-10-04 #8d).
+    expect($lines[1])->toContain('06:00');
+    expect($lines[2])->toContain('07:00');
+    expect($lines[3])->toContain('08:00');
 });
 
 // =====================================================================

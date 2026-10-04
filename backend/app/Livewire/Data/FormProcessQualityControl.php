@@ -3,6 +3,7 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
+use App\Livewire\Data\Concerns\GuardsRecordIdShape;
 use App\Services\ProcessQualityControlRecordService;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -50,6 +51,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.process-quality-control-form')]
 class FormProcessQualityControl extends Component
 {
+    use GuardsRecordIdShape;
     use ScopesToActorMill;
 
     protected const FIELDS = ['production_line_id', 'process_qc_id', 'date', 'note'];
@@ -120,6 +122,14 @@ class FormProcessQualityControl extends Component
 
         $this->id = $id;
         $this->isEdit = true;
+
+        if (! $this->isRecordIdShapeValid($id)) {
+            // id bukan UUID tidak boleh sampai ke SQL (PostgreSQL: 22P02),
+            // perlakukan sama dengan UUID yang tidak dikenal.
+            $this->notFound = true;
+
+            return;
+        }
 
         try {
             $record = app(ProcessQualityControlRecordService::class)->getDetail($id);

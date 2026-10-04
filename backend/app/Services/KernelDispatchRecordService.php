@@ -11,10 +11,13 @@ use App\Models\KernelDispatchRecord;
 use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
+use App\Support\ExportValue;
 use App\Support\Pagination;
+use App\Support\SheetWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -74,7 +77,11 @@ class KernelDispatchRecordService
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
         // penolakan tidak menyisakan induk tanpa detail. Jenis stasiun dan mill
         // diambil dari stasiun yang SUDAH di-resolve, bukan dari request.
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('kernel-dispatch', $station->business_unit_id, $attributes['date'] ?? null);
+        // Tanggal kejadian PER BARIS ikut dikunci (usecase-141, 2026-10-04).
+        $this->assertDetailEventDatesWritable('kernel-dispatch', $station->business_unit_id, array_column($details, 'event_date'));
 
         $attributes['station_id'] = $station->id;
         // Snapshot the line from the RESOLVED STATION, never from the
@@ -131,7 +138,13 @@ class KernelDispatchRecordService
         $periodLockMillId = $record->station->business_unit_id;
 
         $this->assertPeriodOpenForWrite('kernel-dispatch', $periodLockMillId, optional($record->date)->toDateString());
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('kernel-dispatch', $periodLockMillId, $attributes['date'] ?? null);
+        // Tanggal kejadian PER BARIS ikut dikunci (usecase-141, 2026-10-04):
+        // tanggal baru setiap baris yang dikirim DAN tanggal lama setiap baris
+        // tersimpan (upsertDetails() menulis ulang / menghapus semuanya).
+        $this->assertDetailEventDatesWritable('kernel-dispatch', $periodLockMillId, array_column($details, 'event_date'), $record->kernelDispatchDetails()->pluck('event_date')->all());
 
         $this->applyVerification($attributes, $data, $actor);
 
@@ -202,6 +215,19 @@ class KernelDispatchRecordService
                 'details' => 'Minimal satu baris log Kernel Dispatch (Tanggal Kejadian wajib) harus diisi.',
             ]);
         }
+
+        // Setiap Tanggal Kejadian harus tanggal yang sah dan tidak melewati
+        // batas atas — sebelum ini nilai sembarang lolos sampai ke SQL
+        // (PostgreSQL menolaknya sebagai 500) dan tahun 7278 diterima.
+        foreach ($validRows as $index => $row) {
+            if (! is_string($row['event_date']) || strtotime($row['event_date']) === false) {
+                throw ValidationException::withMessages([
+                    'details' => sprintf('Tanggal Kejadian pada baris ke-%d tidak valid.', $index + 1),
+                ]);
+            }
+
+            $this->assertEventDateNotTooFarAhead($row['event_date'], 'details', sprintf('Tanggal Kejadian baris ke-%d', $index + 1));
+        }
     }
 
     /** '' / null → null; anything else → float. See upsertDetails(). */
@@ -257,7 +283,7 @@ class KernelDispatchRecordService
                 'findings' => $row['findings'],
             ];
 
-            if (! empty($row['id']) && KernelDispatchDetail::where('id', $row['id'])->where('kernel_dispatch_record_id', $record->id)->exists()) {
+            if (! empty($row['id']) && Str::isUuid((string) $row['id']) && KernelDispatchDetail::where('id', $row['id'])->where('kernel_dispatch_record_id', $record->id)->exists()) {
                 KernelDispatchDetail::where('id', $row['id'])->update($detailAttributes);
                 $keptIds[] = $row['id'];
             } else {
@@ -349,14 +375,13 @@ class KernelDispatchRecordService
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($query) {
-                $handle = fopen('php://output', 'w');
+            return response()->streamDownload(function () use ($query, $format) {
+                $handle = SheetWriter::open($format);
 
-                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
-                // deprecates relying on fputcsv()'s default $escape). The
+                // Header row. The
                 // record's context columns repeat on every detail line, so the
                 // file can be pivoted and filtered directly in a spreadsheet.
-                fputcsv($handle, [
+                $handle->row([
                     'Production Line',
                     'Kernel Dispatch ID',
                     'Date',
@@ -386,7 +411,7 @@ class KernelDispatchRecordService
                     'Weighbridge Operator ID',
                     'Remarks/Gate Status',
                     'Findings',
-                ], ',', '"', '\\');
+                ]);
 
                 $query->chunk(200, function ($records) use ($handle) {
                     foreach ($records as $record) {
@@ -399,20 +424,20 @@ class KernelDispatchRecordService
                             $record->checkedBy?->name,
                             $record->acknowledgedBy?->name,
                             $record->kernel_dispatch_details_count,
-                            $record->status?->value,
+                            ExportValue::status($record->status),
                         ];
 
                         $details = $record->kernelDispatchDetails;
 
                         if ($details->isEmpty()) {
-                            fputcsv($handle, array_merge($context, array_fill(0, 21, null)), ',', '"', '\\');
+                            $handle->row(array_merge($context, array_fill(0, 21, null)));
 
                             continue;
                         }
 
                         foreach ($details as $detail) {
                             /** @var KernelDispatchDetail $detail */
-                            fputcsv($handle, array_merge($context, [
+                            $handle->row(array_merge($context, [
                                 optional($detail->event_date)->toDateString(),
                                 $detail->shift,
                                 $detail->weighbridge_ticket_no,
@@ -434,12 +459,12 @@ class KernelDispatchRecordService
                                 $detail->weighbridge_operator_id,
                                 $detail->remarks_gate_status,
                                 $detail->findings,
-                            ]), ',', '"', '\\');
+                            ]));
                         }
                     }
                 });
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);

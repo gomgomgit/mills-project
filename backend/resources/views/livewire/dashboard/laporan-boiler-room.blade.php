@@ -131,6 +131,9 @@
                 @if ($selectedPeriod)
                     {{ $summary['period']['business_unit_name'] ?? '' }}
                     @if (! empty($summary['period']['business_unit_name'])) &middot; @endif
+                    {{-- Nama line di hero, sama seperti Laporan Weighbridge
+                         (temuan audit 2026-10-04 #10). --}}
+                    @if ($selectedProductionLine) {{ $selectedProductionLine['name'] }} &middot; @endif
                     {{ $tgl($selectedPeriod['start_date']) }} &ndash; {{ $tgl($selectedPeriod['end_date']) }}
                 @else
                     Kondisi Boiler Room sepanjang satu Periode Pelaporan &mdash; seberapa stabil, dan seberapa lengkap tercatat
@@ -351,13 +354,26 @@
                     <div class="md-budget__label">
                         <span>Slot waktu terisi sepanjang periode</span>
                         <span class="md-budget__nums">
-                            <strong data-testid="coverage-filled-slots">{{ $cacah($coverage['filled_slots']) }}</strong>
-                            dari <span data-testid="coverage-expected-slots">{{ $cacah($coverage['expected_slots']) }}</span> slot
+                            @if ($coverage['expected_slots'] === 0)
+                                <span data-testid="coverage-no-expected">belum ada slot yang diharapkan</span>
+                            @else
+                                <strong data-testid="coverage-filled-slots">{{ $cacah($coverage['filled_slots']) }}</strong>
+                                dari <span data-testid="coverage-expected-slots">{{ $cacah($coverage['expected_slots']) }}</span> slot
+                            @endif
                         </span>
                     </div>
-                    <span class="md-budget__pct" data-testid="coverage-percent">{{ $nilai($coverage['coverage_percent'], 1) }}%</span>
+                    {{-- Penyebut 0 (belum ada unit tercatat / periode belum mulai) →
+                         "—", bukan "0,0%": null bukan 0 (temuan audit 2026-10-04 #9).
+                         Persen 1 desimal di semua laporan (#10). --}}
+                    <span class="md-budget__pct" data-testid="coverage-percent">{{ $coverage['expected_slots'] === 0 ? '—' : $nilai($coverage['coverage_percent'], 1).'%' }}</span>
                     <div class="md-bar md-bar--lg"><span style="width: {{ min(100, max(0, (float) $coverage['coverage_percent'])) }}%"></span></div>
                 </div>
+                @if ($coverage['period_running'])
+                    <p class="md-budget__note" data-testid="period-running-note">
+                        Dihitung sampai hari ini, periode masih berjalan
+                        ({{ $cacah($coverage['days_counted']) }} dari {{ $cacah($coverage['days_in_period']) }} hari periode sudah lewat).
+                    </p>
+                @endif
             </div>
             <div class="md-threshold">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
@@ -366,7 +382,7 @@
                     slot yang tidak terisi tidak diperlakukan sebagai nol, melainkan tidak ikut dihitung.
                     <small>
                         Slot yang diharapkan = {{ $cacah($coverage['boiler_unit_count']) }} unit boiler
-                        &times; {{ $cacah($coverage['days_in_period']) }} hari
+                        &times; {{ $cacah($coverage['days_counted']) }} hari{{ $coverage['period_running'] ? ' (sampai hari ini)' : '' }}
                         &times; {{ $cacah($coverage['slots_per_unit_per_day']) }} slot.
                     </small>
                 </span>
@@ -520,7 +536,7 @@
                                 Rata-rata per tanggal, dalam {!! $tren['satuan'] !!} &middot; {{ count($daily) }} tanggal berdata
                             </span>
                         </header>
-                        <div class="md-trendchart">
+                        <div class="md-trendchart md-trendchart--days">
                             @foreach ($daily as $row)
                                 {{-- Tanpa modifier warna apa pun: tidak ada
                                      batang yang ditandai "rendah" atau
@@ -532,6 +548,12 @@
                                 </div>
                             @endforeach
                         </div>
+                        @if (count($daily) > 10)
+                            <p class="md-scrollhint" data-testid="scroll-hint">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M15 8l4 4-4 4M9 8l-4 4 4 4"/></svg>
+                                Geser mendatar untuk melihat seluruh tanggal.
+                            </p>
+                        @endif
                         <ul class="md-legend">
                             <li class="md-legend__item">
                                 Terendah {{ $nilai($minTren, $tren['digits']) }} &middot; tertinggi {{ $nilai($maksTren, $tren['digits']) }}

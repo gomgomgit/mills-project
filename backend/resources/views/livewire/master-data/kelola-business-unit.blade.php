@@ -10,6 +10,12 @@
         </button>
     </div>
 
+    @if ($successMessage)
+        <div class="kc-alert kc-alert--success" role="status" data-testid="success-message">
+            {{ $successMessage }}
+        </div>
+    @endif
+
     @if ($deleteErrorMessage)
         <div class="kc-alert" role="alert">
             {{ $deleteErrorMessage }}
@@ -138,7 +144,7 @@
                             <h4 class="kc-form-section__title">Logo</h4>
 
                             <div class="kc-logo-field">
-                                @if ($logo && $this->logoIsPreviewable)
+                                @if ($logo && $this->logoIsPreviewable && ! $errors->has('logo'))
                                     <img src="{{ $logo->temporaryUrl() }}" alt="Pratinjau logo baru" class="kc-logo-field__preview">
                                 @elseif ($existingLogoUrl)
                                     <img src="{{ $existingLogoUrl }}" alt="Logo saat ini" class="kc-logo-field__preview">
@@ -437,6 +443,12 @@
             border: 1px solid var(--kc-destructive);
             color: var(--kc-destructive);
             font-size: 14px;
+        }
+
+        .kc-alert--success {
+            background: #ecfdf5;
+            border-color: var(--kc-brand);
+            color: var(--kc-brand-hover);
         }
 
         .kc-filter {

@@ -34,7 +34,7 @@
                 </div>
                 <div class="br-detail-field">
                     <span class="br-detail-field__label">Tanggal</span>
-                    <span class="br-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="br-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="br-detail-field">
                     <span class="br-detail-field__label">Station</span>
@@ -75,21 +75,21 @@
                         @forelse ($record['details'] as $row)
                             <tr data-testid="boiler-room-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['steam_pressure_bar'] ?? '-' }}</td>
-                                <td>{{ $row['steam_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['feed_water_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['feed_water_tank_level_percent'] ?? '-' }}</td>
-                                <td>{{ $row['boiler_water_level_percent'] ?? '-' }}</td>
-                                <td>{{ $row['water_tds_ppm'] ?? '-' }}</td>
-                                <td>{{ $row['water_ph'] ?? '-' }}</td>
-                                <td>{{ $row['fuel_feed_rate'] ?? '-' }}</td>
-                                <td>{{ $row['id_fan_load'] ?? '-' }}</td>
-                                <td>{{ $row['sa_fan_load'] ?? '-' }}</td>
-                                <td>{{ $row['exhaust_gas_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['dust_collector_differential_pressure_mmh2o'] ?? '-' }}</td>
-                                <td>{{ $row['blowdown_executed'] ?? '-' }}</td>
-                                <td>{{ $row['sootblowing_executed'] ?? '-' }}</td>
-                                <td>{{ $row['findings'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['steam_pressure_bar']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['steam_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['feed_water_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['feed_water_tank_level_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['boiler_water_level_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['water_tds_ppm']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['water_ph']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['fuel_feed_rate']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['id_fan_load']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['sa_fan_load']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['exhaust_gas_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['dust_collector_differential_pressure_mmh2o']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['blowdown_executed']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['sootblowing_executed']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>
                         @empty
                             <tr data-testid="boiler-room-detail-rows-empty">
@@ -118,7 +118,7 @@
                 </div>
                 <div class="br-detail-field">
                     <span class="br-detail-field__label">Status</span>
-                    <span class="br-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="br-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

@@ -34,7 +34,7 @@
                 </div>
                 <div class="st-detail-field">
                     <span class="st-detail-field__label">Tanggal</span>
-                    <span class="st-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="st-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="st-detail-field">
                     <span class="st-detail-field__label">Station</span>
@@ -77,23 +77,23 @@
                         @forelse ($record['details'] as $row)
                             <tr data-testid="storage-tank-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['cpo_sounding_depth_mm'] ?? '-' }}</td>
-                                <td>{{ $row['water_dip_bottom_depth_mm'] ?? '-' }}</td>
-                                <td>{{ $row['net_oil_depth_mm'] ?? '-' }}</td>
-                                <td>{{ $row['oil_temperature_top_c'] ?? '-' }}</td>
-                                <td>{{ $row['oil_temperature_middle_c'] ?? '-' }}</td>
-                                <td>{{ $row['oil_temperature_bottom_c'] ?? '-' }}</td>
-                                <td>{{ $row['average_temperature_c'] ?? '-' }}</td>
-                                <td>{{ $row['calculated_volume_m3'] ?? '-' }}</td>
-                                <td>{{ $row['calculated_weight_mt'] ?? '-' }}</td>
-                                <td>{{ $row['ffa_percent'] ?? '-' }}</td>
-                                <td>{{ $row['moisture_content_percent'] ?? '-' }}</td>
-                                <td>{{ $row['impurities_dirt_percent'] ?? '-' }}</td>
-                                <td>{{ $row['dobi_index'] ?? '-' }}</td>
-                                <td>{{ $row['steam_heating_valve_status'] ?? '-' }}</td>
-                                <td>{{ $row['tank_structural_condition'] ?? '-' }}</td>
-                                <td>{{ $row['inspector_name'] ?? '-' }}</td>
-                                <td>{{ $row['findings'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['cpo_sounding_depth_mm']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['water_dip_bottom_depth_mm']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['net_oil_depth_mm']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['oil_temperature_top_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['oil_temperature_middle_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['oil_temperature_bottom_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['average_temperature_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['calculated_volume_m3']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['calculated_weight_mt']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['ffa_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['moisture_content_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['impurities_dirt_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['dobi_index']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['steam_heating_valve_status']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['tank_structural_condition']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['inspector_name']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>
                         @empty
                             <tr data-testid="storage-tank-detail-rows-empty">
@@ -122,7 +122,7 @@
                 </div>
                 <div class="st-detail-field">
                     <span class="st-detail-field__label">Status</span>
-                    <span class="st-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="st-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

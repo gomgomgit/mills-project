@@ -1181,18 +1181,19 @@ it('orders slots by their TIME value, so 00:30:00 precedes 09:00:00 and 10:00:00
 
     $rows = iterator_to_array($this->service->buildExportRows($this->periodA), false);
 
-    // Column 4 is the Slot Waktu column of EXPORT_HEADER.
-    expect(array_column($rows, 4))->toBe(['00:30:00', '09:00:00', '10:00:00', '22:15:00']);
+    // Column 7 is the Slot Waktu column of EXPORT_HEADER (after the three
+    // context columns), written HH:MM — temuan audit 2026-10-04 #8d.
+    expect(array_column($rows, 7))->toBe(['00:30', '09:00', '10:00', '22:15']);
 
     // 00:30 sorts FIRST, ahead of 09:00 and 10:00 — impossible under an
     // integer-hour cast that would have to compare 0 against 9 and 10 after
     // truncating the minutes away.
-    expect($rows[0][4])->toBe('00:30:00');
-    expect($rows[3][4])->toBe('22:15:00');
+    expect($rows[0][7])->toBe('00:30');
+    expect($rows[3][7])->toBe('22:15');
 
     // The minutes survive: nothing was rounded to the top of the hour.
-    expect($rows[0][4])->not->toBe('00:00:00');
-    expect($rows[3][4])->not->toBe('22:00:00');
+    expect($rows[0][7])->not->toBe('00:00');
+    expect($rows[3][7])->not->toBe('22:00');
 
     // Four distinct slots on one record, none of them collapsed together.
     expect($record->clarificationDetails()->count())->toBe(4);
@@ -1894,34 +1895,35 @@ it('exports one line per time slot with the record context columns repeated on e
     // Context columns repeated verbatim on every line of the same record, so
     // the file can be pivoted directly in a spreadsheet.
     foreach (array_slice($rows, 0, 3) as $row) {
-        expect($row[0])->toBe('2026-03-04');
-        expect($row[1])->toBe('CLF-01');
-        expect($row[2])->toBe('synced');
-        expect($row[3])->toBe('catatan satu');
+        expect($row[3])->toBe('2026-03-04');
+        expect($row[4])->toBe('CLF-01');
+        expect($row[5])->toBe('Tersinkron');
+        expect($row[6])->toBe('catatan satu');
     }
 
     foreach (array_slice($rows, 3, 3) as $row) {
-        expect($row[0])->toBe('2026-03-05');
-        expect($row[1])->toBe('CLF-02');
-        expect($row[3])->toBe('catatan dua');
+        expect($row[3])->toBe('2026-03-05');
+        expect($row[4])->toBe('CLF-02');
+        expect($row[6])->toBe('catatan dua');
     }
 
     // Slot column, then all SEVEN non-time_slot columns including `findings`
-    // verbatim — 4 context + 1 slot + 7 = 12 columns, matching EXPORT_HEADER.
-    expect(ClarificationReportService::EXPORT_HEADER)->toHaveCount(12);
+    // verbatim — 3 export context (Periode/Mill/Line) + 4 record context +
+    // 1 slot + 7 = 15 columns, matching EXPORT_HEADER.
+    expect(ClarificationReportService::EXPORT_HEADER)->toHaveCount(15);
 
     foreach ($rows as $row) {
-        expect($row)->toHaveCount(12);
+        expect($row)->toHaveCount(15);
     }
 
-    expect($rows[0][4])->toBe('07:00');
-    expect($rows[0][5])->toBe(93.0);
-    expect($rows[0][9])->toBe(10.0);
-    expect($rows[3][11])->toBe('bocor kecil');
+    expect($rows[0][7])->toBe('07:00');
+    expect($rows[0][8])->toBe(93.0);
+    expect($rows[0][12])->toBe(10.0);
+    expect($rows[3][14])->toBe('bocor kecil');
     // A recorded zero downtime is exported as 0, not as an empty cell.
-    expect($rows[4][10])->toBe(0.0);
+    expect($rows[4][13])->toBe(0.0);
     // And a slot that recorded nothing for a column exports null, never 0.
-    expect($rows[5][10])->toBeNull();
+    expect($rows[5][13])->toBeNull();
 });
 
 // ---------------------------------------------------------------------
@@ -2025,7 +2027,7 @@ it('exports the time slots on both period bounds and nothing outside the range',
 
     $rows = iterator_to_array($this->service->buildExportRows($period), false);
 
-    $dates = array_column($rows, 0);
+    $dates = array_column($rows, 3);
 
     expect($rows)->toHaveCount(2);
     expect($dates)->toContain('2026-03-01');
@@ -2033,7 +2035,7 @@ it('exports the time slots on both period bounds and nothing outside the range',
     expect($dates)->not->toContain('2026-02-28');
     expect($dates)->not->toContain('2026-03-06');
 
-    expect(array_column($rows, 9))->toBe([10.0, 20.0]);
+    expect(array_column($rows, 12))->toBe([10.0, 20.0]);
 });
 
 // =====================================================================

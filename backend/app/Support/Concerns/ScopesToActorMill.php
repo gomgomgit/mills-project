@@ -13,6 +13,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -150,6 +151,16 @@ trait ScopesToActorMill
 
         if ($productionLineId === null || $productionLineId === '') {
             return null;
+        }
+
+        // UUID DIVALIDASI SEBELUM MENYENTUH SQL (2026-10-04). PostgreSQL
+        // menolak teks bukan-UUID pada kolom uuid dengan SQLSTATE 22P02 (500),
+        // sedangkan SQLite di suite diam saja — jadi id rusak dari klien
+        // ditolak di sini sebagai 422 berpesan jelas.
+        if (! Str::isUuid($productionLineId)) {
+            throw ValidationException::withMessages([
+                'production_line_id' => 'Production Line yang dipilih tidak valid.',
+            ]);
         }
 
         $station = Station::query()

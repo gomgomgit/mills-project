@@ -9,6 +9,7 @@ use App\Exceptions\InvalidCredentialsException;
 use App\Exceptions\OldPasswordIncorrectException;
 use App\Exceptions\PasswordConfirmationMismatchException;
 use App\Models\User;
+use App\Support\PasswordPolicy;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -44,16 +45,17 @@ class AuthService
      * were never registered, since the dashboard screens didn't exist yet —
      * now that screen-025--dashboard-web is implemented as the single
      * '/dashboard' route (role:admin,supervisor,mill_management), every web
-     * login role redirects there. 'operator' is kept for completeness even
-     * though screen-001 (web login) only accepts admin/supervisor/
-     * mill_management — operator logs in via screen-002 (mobile), which
-     * never reads redirect_to.
+     * login role redirects there. 'operator' mendarat di /beranda
+     * (operator.home): akses web Operator terbatas — sebelumnya ia
+     * diarahkan ke /dashboard yang menjawab 403 tanpa jalan keluar. Input
+     * data Operator tetap lewat screen-002 (mobile), yang tidak membaca
+     * redirect_to.
      */
     protected const ROLE_REDIRECTS = [
         'admin' => '/dashboard',
         'supervisor' => '/dashboard',
         'mill_management' => '/dashboard',
-        'operator' => '/dashboard',
+        'operator' => '/beranda',
     ];
 
     /**
@@ -225,18 +227,18 @@ class AuthService
      */
     protected function validatePasswordFormat(string $password, string $field = 'password'): void
     {
-        $hasMinLength = mb_strlen($password) >= 6;
-        $hasAlphanumeric = (bool) preg_match('/[A-Za-z0-9]/', $password);
-        $hasSymbol = (bool) preg_match('/[^A-Za-z0-9]/', $password);
-
-        if (! $hasMinLength || ! $hasAlphanumeric || ! $hasSymbol) {
+        if (! PasswordPolicy::isValid($password)) {
             throw ValidationException::withMessages([
-                $field => ['Password minimal 6 karakter dan harus mengandung kombinasi huruf/angka serta simbol.'],
+                $field => [PasswordPolicy::MESSAGE],
             ]);
         }
     }
 
-    protected function redirectFor(string $role): string
+    /**
+     * Halaman beranda web untuk peran ini — juga dipakai LoginForm::mount()
+     * dan rute '/' untuk mengalihkan user yang SUDAH login.
+     */
+    public function redirectFor(string $role): string
     {
         return self::ROLE_REDIRECTS[$role] ?? '/dashboard';
     }

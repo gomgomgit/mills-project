@@ -40,7 +40,8 @@ it('berhasil: renders all header fields and the Clarification Detail grid, read-
     Livewire::actingAs($this->user)
         ->test(DetailClarification::class, ['id' => $record->id])
         ->assertSee($record->clarification_id)
-        ->assertSee('65.5')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('65,5')
         ->assertDontSee('Record tidak ditemukan');
 });
 

@@ -13,6 +13,8 @@ use App\Models\Period;
 use App\Models\PeriodStation;
 use App\Models\ProductionLine;
 use App\Models\StationType;
+use App\Support\ExportValue;
+use App\Support\SheetWriter;
 use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -554,12 +556,20 @@ class CagesTrackReportService
 
             [$contentType, $filename] = $this->fileMetaFor($format, $period);
 
-            return response()->streamDownload(function () use ($query) {
-                $handle = fopen('php://output', 'w');
+            // Kolom konteks Periode/Mill/Production Line diulang di setiap
+            // baris, status berlabel Indonesia (temuan audit 2026-10-04 #8).
+            $exportContext = [
+                (string) $period->name,
+                (string) ($period->businessUnit?->name ?? ''),
+                (string) ($this->productionLineInfo($productionLineId)['name'] ?? ''),
+            ];
 
-                // Explicit $separator/$enclosure/$escape — PHP 8.4 deprecates
-                // relying on fputcsv()'s default $escape.
-                fputcsv($handle, [
+            return response()->streamDownload(function () use ($query, $format, $exportContext) {
+                $handle = SheetWriter::open($format);
+                $handle->row([
+                    'Periode',
+                    'Mill',
+                    'Production Line',
                     'Tanggal',
                     'Nomor Cages Track',
                     'Tippler Mulai',
@@ -571,12 +581,13 @@ class CagesTrackReportService
                     'Lori Keluar (record)',
                     'Status',
                     'Catatan',
-                ], ',', '"', '\\');
+                ]);
 
-                $query->chunk(200, function ($records) use ($handle) {
+                $query->chunk(200, function ($records) use ($handle, $exportContext) {
                     foreach ($records as $record) {
                         /** @var CagesTrackRecord $record */
                         $context = [
+                            ...$exportContext,
                             optional($record->date)->toDateString(),
                             $record->cages_track_number,
                             optional($record->tippler_start_time)->format('Y-m-d H:i'),
@@ -588,23 +599,24 @@ class CagesTrackReportService
                             // like the other context columns. It is NOT a
                             // per-hour figure and must never be read as one.
                             $record->cages_out,
-                            $record->status instanceof \BackedEnum ? $record->status->value : $record->status,
+                            ExportValue::status($record->status),
                             $record->note,
                         ];
 
                         foreach ($record->cagesTippedTimes as $detail) {
                             /** @var CagesTippedTime $detail */
-                            fputcsv($handle, array_merge($context, [
-                                $this->hourLabel((int) $detail->tipped_hour),
+                            $handle->row(array_merge($context, [
+                                // HH:MM seperti slot ekspor lain (temuan audit 2026-10-04 #8d).
+                                sprintf('%02d:00', (int) $detail->tipped_hour),
                                 $detail->checked_cage_numbers,
                                 $detail->total_cages,
                                 $detail->cages_remain,
-                            ], $tail), ',', '"', '\\');
+                            ], $tail));
                         }
                     }
                 });
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);
@@ -1308,8 +1320,8 @@ class CagesTrackReportService
 
     /**
      * Same Content-Type/filename convention as every other export in this
-     * codebase — no XLSX writer package is installed, so format=excel
-     * serves a CSV body under the xlsx mimetype/extension.
+     * codebase. format=excel is a real .xlsx written by App\Support\SheetWriter (temuan
+     * audit 2026-10-04 #1 — previously a CSV body under an xlsx name).
      *
      * @return array{0: string, 1: string}
      */

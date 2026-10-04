@@ -12,12 +12,16 @@ use App\Models\GradingDetail;
 use App\Models\GradingParameter;
 use App\Models\GradingRecord;
 use App\Models\User;
+use App\Support\AppTime;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
+use App\Support\ExportValue;
 use App\Support\Pagination;
+use App\Support\SheetWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -89,6 +93,8 @@ class GradingRecordService
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
         // penolakan tidak menyisakan induk tanpa detail. Jenis stasiun dan mill
         // diambil dari stasiun yang SUDAH di-resolve, bukan dari request.
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('grading', $station->business_unit_id, $attributes['date'] ?? null);
 
         $attributes['station_id'] = $station->id;
@@ -156,6 +162,8 @@ class GradingRecordService
         $periodLockMillId = $record->station->business_unit_id;
 
         $this->assertPeriodOpenForWrite('grading', $periodLockMillId, optional($record->date)->toDateString());
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('grading', $periodLockMillId, $attributes['date'] ?? null);
 
         $this->applyVerification($attributes, $data, $actor);
@@ -177,6 +185,11 @@ class GradingRecordService
         foreach (self::FORM_FIELDS as $field) {
             $attributes[$field] = $data[$field] ?? null;
         }
+
+        // ZONA WAKTU: input ber-offset (mis. "...Z" dari mobile) dikonversi
+        // ke jam WIB sebelum disimpan — Eloquent tidak mengonversinya.
+        // Lihat App\Support\AppTime.
+        $attributes['date'] = AppTime::normalizeClientDateTime($attributes['date']);
 
         return $attributes;
     }
@@ -201,7 +214,9 @@ class GradingRecordService
         Validator::make($attributes, [
             'grading_number' => ['required', 'string'],
             'date' => ['required', 'date'],
-            'weighbridge_record_id' => ['required', 'uuid', 'exists:weighbridge_records,id'],
+            // `bail`: tanpa itu rule `exists` tetap dijalankan untuk nilai
+            // bukan-UUID dan PostgreSQL melempar SQLSTATE 22P02 (500).
+            'weighbridge_record_id' => ['bail', 'required', 'uuid', 'exists:weighbridge_records,id'],
             'license_plate_no' => ['required', 'string'],
             'vehicle_code' => ['nullable', 'string'],
             'estate_supplier' => ['required', 'string'],
@@ -213,6 +228,7 @@ class GradingRecordService
             'grading_number.required' => 'Grading Number wajib diisi.',
             'date.required' => 'Tanggal wajib diisi.',
             'weighbridge_record_id.required' => 'WB Card No wajib dipilih.',
+            'weighbridge_record_id.uuid' => 'WB Card No yang dipilih tidak valid.',
             'weighbridge_record_id.exists' => 'WB Card No yang dipilih tidak valid.',
             'license_plate_no.required' => 'License Plate No wajib diisi.',
             'estate_supplier.required' => 'Estate/Supplier wajib diisi.',
@@ -248,7 +264,11 @@ class GradingRecordService
         }
 
         foreach ($validRows as $row) {
-            if (! GradingParameter::whereKey($row['grading_parameter_id'])->exists()) {
+            // Str::isUuid() DULU: id bukan-UUID tidak boleh sampai ke SQL
+            // (PostgreSQL: SQLSTATE 22P02 → 500 dengan teks SQL).
+            if (! is_string($row['grading_parameter_id'])
+                || ! Str::isUuid($row['grading_parameter_id'])
+                || ! GradingParameter::whereKey($row['grading_parameter_id'])->exists()) {
                 throw ValidationException::withMessages([
                     'details' => 'Quality Parameter yang dipilih tidak valid.',
                 ]);
@@ -289,7 +309,7 @@ class GradingRecordService
                 'percentage' => round($percentage, 2),
             ];
 
-            if (! empty($row['id']) && GradingDetail::where('id', $row['id'])->where('grading_record_id', $record->id)->exists()) {
+            if (! empty($row['id']) && Str::isUuid((string) $row['id']) && GradingDetail::where('id', $row['id'])->where('grading_record_id', $record->id)->exists()) {
                 GradingDetail::where('id', $row['id'])->update($detailAttributes);
                 $keptIds[] = $row['id'];
             } else {
@@ -342,7 +362,7 @@ class GradingRecordService
     /**
      * export() — business_logic step 5-6: re-run the same filter query
      * (no pagination), enforce the row limit, generate a CSV (or
-     * CSV-served-as-xlsx fallback — see implementation_notes) body, and
+     * real .xlsx via App\Support\SheetWriter — see implementation_notes) body, and
      * return it as a StreamedResponse for download.
      *
      * @param  array{date_from?: ?string, date_to?: ?string, business_unit_id?: ?string, production_line_id?: ?string}  $filters
@@ -367,7 +387,6 @@ class GradingRecordService
             $query = $baseQuery
                 ->with([
                     'productionLine:id,name',
-                    'checkedBy:id,name',
                     'acknowledgedBy:id,name',
                     'weighbridgeRecord:id,wb_card_number',
                     'gradingDetails.gradingParameter',
@@ -377,14 +396,13 @@ class GradingRecordService
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($query) {
-                $handle = fopen('php://output', 'w');
+            return response()->streamDownload(function () use ($query, $format) {
+                $handle = SheetWriter::open($format);
 
-                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
-                // deprecates relying on fputcsv()'s default $escape). The
+                // Header row. The
                 // record's context columns repeat on every detail line, so the
                 // file can be pivoted and filtered directly in a spreadsheet.
-                fputcsv($handle, [
+                $handle->row([
                     'Production Line',
                     'Grading Number',
                     'Date',
@@ -396,14 +414,16 @@ class GradingRecordService
                     'Netto',
                     'Quantity',
                     'Note',
-                    'Checked By',
+                    // Tanpa 'Checked By': Grading memang tidak pernah
+                    // mengumpulkannya (lihat RecordVerificationService) —
+                    // kolom itu selalu kosong (temuan audit 2026-10-04 #8).
                     'Acknowledged By',
                     'Status',
                     'Quality Parameter',
                     'Qty',
                     'UOM',
                     'Percentage (%)',
-                ], ',', '"', '\\');
+                ]);
 
                 $query->chunk(200, function ($records) use ($handle) {
                     foreach ($records as $record) {
@@ -420,32 +440,31 @@ class GradingRecordService
                             $record->netto,
                             $record->quantity,
                             $record->note,
-                            $record->checkedBy?->name,
                             $record->acknowledgedBy?->name,
-                            $record->status?->value,
+                            ExportValue::status($record->status),
                         ];
 
                         $details = $record->gradingDetails->sortBy(fn ($detail) => $detail->gradingParameter?->sort_order ?? 0);
 
                         if ($details->isEmpty()) {
-                            fputcsv($handle, array_merge($context, array_fill(0, 4, null)), ',', '"', '\\');
+                            $handle->row(array_merge($context, array_fill(0, 4, null)));
 
                             continue;
                         }
 
                         foreach ($details as $detail) {
                             /** @var GradingDetail $detail */
-                            fputcsv($handle, array_merge($context, [
+                            $handle->row(array_merge($context, [
                                 $detail->gradingParameter?->name,
                                 $detail->quantity,
                                 $detail->uom?->value,
                                 $detail->percentage,
-                            ]), ',', '"', '\\');
+                            ]));
                         }
                     }
                 });
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);
@@ -464,13 +483,8 @@ class GradingRecordService
     /**
      * Resolves the Content-Type + filename for the requested export format.
      *
-     * No XLSX writer package is present in composer.json (spatie/laravel-excel
-     * or maatwebsite/excel), and the tech-spec explicitly says not to add
-     * one unless strictly necessary — so format=excel falls back to a CSV
-     * body served with the xlsx mimetype/extension (pragmatic MVP; opens
-     * correctly in Excel/most spreadsheet tools since they sniff CSV
-     * content, though it is not a real OOXML file). Same approach as
-     * WeighbridgeRecordService::fileMetaFor() — see implementation_notes.
+     * format=excel is a real .xlsx written by App\Support\SheetWriter (temuan
+     * audit 2026-10-04 #1 — previously a CSV body under an xlsx name).
      *
      * @return array{0: string, 1: string}
      */

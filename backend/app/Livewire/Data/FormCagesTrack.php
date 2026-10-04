@@ -3,6 +3,7 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
+use App\Livewire\Data\Concerns\GuardsRecordIdShape;
 use App\Services\CagesTrackRecordService;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -53,6 +54,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.cages-track-form')]
 class FormCagesTrack extends Component
 {
+    use GuardsRecordIdShape;
     use ScopesToActorMill;
 
     protected const FIELDS = [
@@ -123,6 +125,14 @@ class FormCagesTrack extends Component
 
         $this->id = $id;
         $this->isEdit = true;
+
+        if (! $this->isRecordIdShapeValid($id)) {
+            // id bukan UUID tidak boleh sampai ke SQL (PostgreSQL: 22P02),
+            // perlakukan sama dengan UUID yang tidak dikenal.
+            $this->notFound = true;
+
+            return;
+        }
 
         try {
             $record = app(CagesTrackRecordService::class)->getDetail($id);

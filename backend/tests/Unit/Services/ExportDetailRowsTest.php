@@ -98,7 +98,7 @@ dataset('stations', [
     'cpo dispatch' => [CpoDispatchRecordService::class, CpoDispatchRecord::class, CpoDispatchDetail::class, 'cpo_dispatch_record_id', 'Net Weight (MT)', 8, 21],
     'kernel dispatch' => [KernelDispatchRecordService::class, KernelDispatchRecord::class, KernelDispatchDetail::class, 'kernel_dispatch_record_id', 'Net Weight (MT)', 8, 21],
     'solid waste disposal' => [SolidWasteDisposalRecordService::class, SolidWasteDisposalRecord::class, SolidWasteDisposalDetail::class, 'solid_waste_disposal_record_id', 'Net Weight (MT)', 8, 17],
-    'grading' => [GradingRecordService::class, GradingRecord::class, GradingDetail::class, 'grading_record_id', 'Quality Parameter', 14, 4],
+    'grading' => [GradingRecordService::class, GradingRecord::class, GradingDetail::class, 'grading_record_id', 'Quality Parameter', 13, 4], // 13: tanpa 'Checked By' (temuan audit 2026-10-04 #8)
     'cages track' => [CagesTrackRecordService::class, CagesTrackRecord::class, CagesTippedTime::class, 'cages_track_record_id', 'Total Cages', 12, 4],
 ]);
 

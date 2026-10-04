@@ -232,7 +232,7 @@ it('uploads a valid logo image successfully and stores the file', function () {
         ->call('openCreateForm')
         ->set('form.corporate_code', 'COR-LW-LOGO-001')
         ->set('form.name', 'PT Berlogo')
-        ->set('logo', UploadedFile::fake()->create('logo.jpg', 500, 'image/jpeg'))
+        ->set('logo', fakeRealImage('logo.jpg', 500))
         ->call('save')
         ->assertHasNoErrors()
         ->assertSet('showForm', false);
@@ -265,7 +265,7 @@ it('shows a validation error under logo when the file exceeds the max size', fun
         ->call('openCreateForm')
         ->set('form.corporate_code', 'COR-LW-LOGO-003')
         ->set('form.name', 'PT Logo Besar')
-        ->set('logo', UploadedFile::fake()->create('logo.jpg', 3000, 'image/jpeg'))
+        ->set('logo', fakeRealImage('logo.jpg', 3000))
         ->call('save')
         ->assertHasErrors(['logo'])
         ->assertSet('showForm', true);

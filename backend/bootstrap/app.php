@@ -2,6 +2,7 @@
 
 use App\Exceptions\ApiExceptionHandler;
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +21,16 @@ return Application::configure(basePath: dirname(__DIR__))
         // token-based for mobile) — implemented in shared-modules' auth-middleware.
         $middleware->api(prepend: [
             EnsureFrontendRequestsAreStateful::class,
+        ]);
+
+        // Sesi milik akun yang dinonaktifkan di tengah jalan dikeluarkan pada
+        // request berikutnya (web, /livewire/update, dan API stateful).
+        // Di-append (setelah StartSession) supaya sesi sudah termuat.
+        $middleware->web(append: [
+            EnsureUserIsActive::class,
+        ]);
+        $middleware->api(append: [
+            EnsureUserIsActive::class,
         ]);
 
         // Role-based route guard (auth-middleware, shared-modules) — every

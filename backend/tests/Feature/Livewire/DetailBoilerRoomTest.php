@@ -40,7 +40,8 @@ it('berhasil: renders all header fields and the Boiler Room Detail grid, read-on
     Livewire::actingAs($this->user)
         ->test(DetailBoilerRoom::class, ['id' => $record->id])
         ->assertSee($record->boiler_room_id)
-        ->assertSee('12.5')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('12,5')
         ->assertDontSee('Record tidak ditemukan');
 });
 

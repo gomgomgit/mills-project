@@ -156,10 +156,11 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <input type="text" value="{{ $this->rowTotalCages($index) }}" class="fc-input" data-testid="detail-total-cages-{{ $index }}" disabled>
+                                        {{-- Nilai terhitung ditampilkan sebagai teks, bukan input disabled (konvensi web). --}}
+                                        <span class="fc-computed-value" data-testid="detail-total-cages-{{ $index }}">{{ $this->rowTotalCages($index) }}</span>
                                     </td>
                                     <td>
-                                        <input type="text" value="{{ $this->rowCagesRemain($index) }}" class="fc-input" data-testid="detail-cages-remain-{{ $index }}" disabled>
+                                        <span class="fc-computed-value" data-testid="detail-cages-remain-{{ $index }}">{{ $this->rowCagesRemain($index) }}</span>
                                     </td>
                                     <td>
                                         <button type="button" wire:click="removeDetailRow({{ $index }})" class="fc-button fc-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button>
@@ -223,7 +224,7 @@
         .fc-field__error { font-size: 12px; color: #b91c1c; }
         .fc-required { color: #b91c1c; }
         .fc-input { padding: 8px 12px; border: 1px solid var(--color-border, #d1d5db); border-radius: var(--radius-input, 6px); font-size: 14px; font-family: inherit; width: 100%; }
-        .fc-input:disabled { background: #f3f4f6; color: var(--color-text-muted, #6b7280); }
+        .fc-computed-value { display: inline-block; min-width: 80px; padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--color-text, #1f2937); background: #f3f4f6; border-radius: var(--radius-input, 6px); box-sizing: border-box; }
         .fc-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; }
         .fc-checkbox--cage { display: inline-flex; padding: 2px 6px; }
         .fc-cage-grid { display: flex; flex-wrap: wrap; gap: 4px; max-width: 360px; }

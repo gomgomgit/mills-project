@@ -40,7 +40,8 @@ it('berhasil: renders all header fields and the Process Quality Control Detail g
     Livewire::actingAs($this->user)
         ->test(DetailProcessQualityControl::class, ['id' => $record->id])
         ->assertSee($record->process_qc_id)
-        ->assertSee('0.85')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('0,85')
         ->assertDontSee('Record tidak ditemukan');
 });
 

@@ -396,7 +396,7 @@ it('sets updated_by from the authenticated user and ignores a spoofed updated_by
 it('stores an uploaded logo file under business-unit-logos/ and returns a logo_url in the row', function () {
     Storage::fake(BusinessUnitService::LOGO_DISK);
     $company = Company::factory()->create();
-    $logo = UploadedFile::fake()->create('logo.jpg', 500, 'image/jpeg');
+    $logo = fakeRealImage('logo.jpg', 500);
 
     $result = $this->service->create([
         'company_id' => $company->id,
@@ -430,7 +430,7 @@ it('creates a business unit without a logo successfully', function () {
 it('throws a ValidationException when the logo file exceeds the max size', function () {
     Storage::fake(BusinessUnitService::LOGO_DISK);
     $company = Company::factory()->create();
-    $logo = UploadedFile::fake()->create('logo.jpg', 3000, 'image/jpeg');
+    $logo = fakeRealImage('logo.jpg', 3000);
 
     try {
         $this->service->create([
@@ -476,7 +476,7 @@ it('replaces the stored logo on update when a new file is provided', function ()
         'code' => 'BU-900',
         'logo' => 'business-unit-logos/old.jpg',
     ]);
-    $newLogo = UploadedFile::fake()->create('new-logo.png', 400, 'image/png');
+    $newLogo = fakeRealImage('new-logo.png', 400);
 
     $result = $this->service->update($businessUnit->id, [
         'company_id' => $company->id,

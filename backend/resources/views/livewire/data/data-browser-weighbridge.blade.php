@@ -110,9 +110,9 @@
                         <td>{{ $record['vehicle_number'] }}</td>
                         <td>{{ $record['driver_name'] }}</td>
                         <td>{{ $record['destination'] ?: '-' }}</td>
-                        <td>{{ $record['net_weight'] !== null ? number_format($record['net_weight'], 2) : '-' }}</td>
+                        <td>{{ $record['net_weight'] !== null ? \App\Support\Display::number($record['net_weight'], 2) : '-' }}</td>
                         <td>
-                            <span class="wb-badge wb-badge--{{ $record['status'] }}">{{ $record['status'] }}</span>
+                            <span class="wb-badge wb-badge--{{ $record['status'] }}">{{ \App\Support\Display::status($record['status']) }}</span>
                         </td>
                     </tr>
                 @empty

@@ -119,7 +119,7 @@
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.seal_no_bottom" class="cf-input"></td>
                                     <td><input type="number" step="0.01" wire:model.live="detailRows.{{ $index }}.gross_weight_mt" class="cf-input" data-testid="detail-gross-weight-{{ $index }}"></td>
                                     <td><input type="number" step="0.01" wire:model.live="detailRows.{{ $index }}.tare_weight_mt" class="cf-input" data-testid="detail-tare-weight-{{ $index }}"></td>
-                                    <td><input type="text" value="{{ $this->rowNetWeight($index) ?? '-' }}" class="cf-input" data-testid="detail-net-weight-{{ $index }}" disabled></td>
+                                    <td>{{-- Nilai terhitung ditampilkan sebagai teks, bukan input disabled (konvensi web). --}}<span class="cf-computed-value" data-testid="detail-net-weight-{{ $index }}">{{ $this->rowNetWeight($index) ?? '-' }}</span></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.ffa_percent" class="cf-input"></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.moisture_percent" class="cf-input"></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.impurities_percent" class="cf-input"></td>
@@ -188,7 +188,7 @@
         .cf-field__error { font-size: 12px; color: #b91c1c; }
         .cf-required { color: #b91c1c; }
         .cf-input { padding: 8px 12px; border: 1px solid var(--color-border, #d1d5db); border-radius: var(--radius-input, 6px); font-size: 14px; font-family: inherit; width: 100%; box-sizing: border-box; }
-        .cf-input:disabled { background: #f3f4f6; color: var(--color-text-muted, #6b7280); }
+        .cf-computed-value { display: inline-block; min-width: 80px; padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--color-text, #1f2937); background: #f3f4f6; border-radius: var(--radius-input, 6px); box-sizing: border-box; }
         .cf-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; }
         .cf-actions { display: flex; justify-content: flex-end; }
         .cf-table-wrap { width: 100%; overflow-x: auto; }

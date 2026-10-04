@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DepricarpingRecordController;
 use App\Http\Controllers\Api\EffluentPlantRecordController;
 use App\Http\Controllers\Api\EngineRoomRecordController;
+use App\Http\Controllers\Api\GradingParameterController;
 use App\Http\Controllers\Api\GradingRecordController;
 use App\Http\Controllers\Api\KernelDispatchRecordController;
 use App\Http\Controllers\Api\KernelPlantRecordController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\Api\ProcessQualityControlRecordController;
 use App\Http\Controllers\Api\ProcessWaterRecordController;
 use App\Http\Controllers\Api\ProductionLineController;
 use App\Http\Controllers\Api\RecordVerificationController;
+use App\Http\Controllers\Api\RecordVerificationStatusController;
 use App\Http\Controllers\Api\SolidWasteDisposalRecordController;
 use App\Http\Controllers\Api\StationController;
 use App\Http\Controllers\Api\StationReportController;
@@ -1262,5 +1264,25 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
     Route::get('/weighbridge-reports/summary', [WeighbridgeReportController::class, 'summary']);
     Route::get('/weighbridge-reports/export', [WeighbridgeReportController::class, 'export']);
 });
+
+// === ENDPOINT BACA MOBILE (audit 2026-10-04) ===
+// Dua endpoint baca yang dibutuhkan aplikasi mobile; mobile sudah memanggil
+// keduanya dan menurun dengan aman bila belum tersedia.
+//
+// GET /grading-parameters — master Quality Parameter (global, tidak terikat
+// mill) untuk memetakan id buatan lokal ke id server
+// (mobile/src/services/gradingParameterSync.ts).
+Route::middleware(['auth:web,sanctum', 'role:admin,supervisor,mill_management,operator'])
+    ->get('/grading-parameters', [GradingParameterController::class, 'index']);
+
+// GET /records/{stationType}/verification?ids[]=… — pasangan baca dari PATCH
+// /records/{stationType}/{id}/verification di atas (whitelist jenis stasiun
+// yang sama). BEDA dengan PATCH-nya, 'operator' IKUT: membaca status
+// verifikasi record sendiri bukan memverifikasi. Cakupan mill ditegakkan di
+// RecordVerificationStatusService (id mill lain tidak muncul di hasil).
+// Jumlah segmen berbeda dari PATCH (3 vs 4), jadi tidak bertabrakan.
+Route::middleware(['auth:web,sanctum', 'role:admin,supervisor,mill_management,operator'])
+    ->get('/records/{stationType}/verification', [RecordVerificationStatusController::class, 'index']);
+// === AKHIR ENDPOINT BACA MOBILE ===
 
 // === ASDLC_ROUTES_END ===

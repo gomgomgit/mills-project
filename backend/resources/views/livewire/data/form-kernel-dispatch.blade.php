@@ -117,7 +117,7 @@
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.destination_buyer" class="kf-input"></td>
                                     <td><input type="number" step="0.01" wire:model.live="detailRows.{{ $index }}.gross_weight_mt" class="kf-input" data-testid="detail-gross-weight-{{ $index }}"></td>
                                     <td><input type="number" step="0.01" wire:model.live="detailRows.{{ $index }}.tare_weight_mt" class="kf-input" data-testid="detail-tare-weight-{{ $index }}"></td>
-                                    <td><input type="text" value="{{ $this->rowNetWeight($index) ?? '-' }}" class="kf-input" data-testid="detail-net-weight-{{ $index }}" disabled></td>
+                                    <td>{{-- Nilai terhitung ditampilkan sebagai teks, bukan input disabled (konvensi web). --}}<span class="kf-computed-value" data-testid="detail-net-weight-{{ $index }}">{{ $this->rowNetWeight($index) ?? '-' }}</span></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.kernel_moisture_percent" class="kf-input"></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.dirt_impurities_percent" class="kf-input"></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.ffa_percent" class="kf-input"></td>
@@ -194,7 +194,7 @@
         .kf-field__error { font-size: 12px; color: #b91c1c; }
         .kf-required { color: #b91c1c; }
         .kf-input { padding: 8px 12px; border: 1px solid var(--color-border, #d1d5db); border-radius: var(--radius-input, 6px); font-size: 14px; font-family: inherit; width: 100%; box-sizing: border-box; }
-        .kf-input:disabled { background: #f3f4f6; color: var(--color-text-muted, #6b7280); }
+        .kf-computed-value { display: inline-block; min-width: 80px; padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--color-text, #1f2937); background: #f3f4f6; border-radius: var(--radius-input, 6px); box-sizing: border-box; }
         .kf-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; }
         .kf-actions { display: flex; justify-content: flex-end; }
         .kf-table-wrap { width: 100%; overflow-x: auto; }

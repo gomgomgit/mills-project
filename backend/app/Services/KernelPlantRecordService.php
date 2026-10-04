@@ -13,10 +13,13 @@ use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
+use App\Support\ExportValue;
 use App\Support\Pagination;
+use App\Support\SheetWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -122,6 +125,8 @@ class KernelPlantRecordService
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
         // penolakan tidak menyisakan induk tanpa detail. Jenis stasiun dan mill
         // diambil dari stasiun yang SUDAH di-resolve, bukan dari request.
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('kernel-plant', $station->business_unit_id, $attributes['date'] ?? null);
 
         $attributes['station_id'] = $station->id;
@@ -189,6 +194,8 @@ class KernelPlantRecordService
         $periodLockMillId = $record->station->business_unit_id;
 
         $this->assertPeriodOpenForWrite('kernel-plant', $periodLockMillId, optional($record->date)->toDateString());
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('kernel-plant', $periodLockMillId, $attributes['date'] ?? null);
 
         $this->applyVerification($attributes, $data, $actor);
@@ -364,7 +371,7 @@ class KernelPlantRecordService
                 'findings' => $row['findings'],
             ];
 
-            if (! empty($row['id']) && KernelPlantDetail::where('id', $row['id'])->where('kernel_plant_record_id', $record->id)->exists()) {
+            if (! empty($row['id']) && Str::isUuid((string) $row['id']) && KernelPlantDetail::where('id', $row['id'])->where('kernel_plant_record_id', $record->id)->exists()) {
                 KernelPlantDetail::where('id', $row['id'])->update($detailAttributes);
             } else {
                 KernelPlantDetail::create($detailAttributes);
@@ -461,14 +468,13 @@ class KernelPlantRecordService
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($query) {
-                $handle = fopen('php://output', 'w');
+            return response()->streamDownload(function () use ($query, $format) {
+                $handle = SheetWriter::open($format);
 
-                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
-                // deprecates relying on fputcsv()'s default $escape). The
+                // Header row. The
                 // record's context columns repeat on every detail line, so the
                 // file can be pivoted and filtered directly in a spreadsheet.
-                fputcsv($handle, [
+                $handle->row([
                     'Production Line',
                     'Kernel Plant ID',
                     'Date',
@@ -486,7 +492,7 @@ class KernelPlantRecordService
                     'Shell Loss (%)',
                     'Downtime (Mins)',
                     'Findings',
-                ], ',', '"', '\\');
+                ]);
 
                 $query->chunk(200, function ($records) use ($handle) {
                     foreach ($records as $record) {
@@ -498,21 +504,21 @@ class KernelPlantRecordService
                             $record->note,
                             $record->checkedBy?->name,
                             $record->acknowledgedBy?->name,
-                            $record->status?->value,
+                            ExportValue::status($record->status),
                         ];
 
                         $details = $record->kernelPlantDetails;
 
                         if ($details->isEmpty()) {
-                            fputcsv($handle, array_merge($context, array_fill(0, 10, null)), ',', '"', '\\');
+                            $handle->row(array_merge($context, array_fill(0, 10, null)));
 
                             continue;
                         }
 
                         foreach ($details as $detail) {
                             /** @var KernelPlantDetail $detail */
-                            fputcsv($handle, array_merge($context, [
-                                $detail->time_slot,
+                            $handle->row(array_merge($context, [
+                                ExportValue::time($detail->time_slot),
                                 $detail->ripple_mill_1_amps,
                                 $detail->ripple_mill_2_amps,
                                 $detail->claybath_hydro_sg,
@@ -522,12 +528,12 @@ class KernelPlantRecordService
                                 $detail->shell_loss_percent,
                                 $detail->downtime_minutes,
                                 $detail->findings,
-                            ]), ',', '"', '\\');
+                            ]));
                         }
                     }
                 });
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);

@@ -721,7 +721,10 @@ it('export writes one line per CYCLE with the record context columns repeated on
     $lines = array_values(array_filter(explode("\n", trim($body))));
 
     expect($lines)->toHaveCount(4); // header + 3 cycles
-    expect($lines[0])->toContain('Sterilizer ID');
+    // Judul kolom Bahasa Indonesia + konteks Periode/Mill/Line (temuan
+    // audit 2026-10-04 #8a/#8b).
+    expect(str_getcsv($lines[0], ',', '"', '\\'))->toBe(SterilizerReportService::EXPORT_HEADER);
+    expect($lines[0])->not->toContain('Sterilizer ID');
 
     foreach (array_slice($lines, 1) as $line) {
         // Context columns repeated verbatim on every cycle line, so the

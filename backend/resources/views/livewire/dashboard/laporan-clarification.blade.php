@@ -146,15 +146,20 @@
             $lcLo -= 1;
             $lcHi += 1;
         }
+
+        // Sumbu "angka bulat" (temuan audit 2026-10-04 #6): label berjarak
+        // sama dengan desimal mengikuti langkahnya — bukan 90, 92, 93, 95, 96.
+        $sumbuSuhu = \App\Support\ChartAxis::nice($lcLo, $lcHi);
+        [$lcLo, $lcHi] = [$sumbuSuhu['lo'], $sumbuSuhu['hi']];
     }
 
     $lcJumlah = count($daily);
     $lcX = function (int $i) use ($lcJumlah) {
         if ($lcJumlah <= 1) {
-            return 396.0;
+            return 409.0;
         }
 
-        return round(46 + 700 * $i / ($lcJumlah - 1), 1);
+        return round(72 + 674 * $i / ($lcJumlah - 1), 1);
     };
     $lcY = function ($value) use ($lcLo, $lcHi) {
         return round(260 - 216 * (((float) $value) - $lcLo) / ($lcHi - $lcLo), 1);
@@ -190,6 +195,9 @@
                 @if ($selectedPeriod)
                     {{ $summary['period']['business_unit_name'] ?? '' }}
                     @if (! empty($summary['period']['business_unit_name'])) &middot; @endif
+                    {{-- Nama line di hero, sama seperti Laporan Weighbridge
+                         (temuan audit 2026-10-04 #10). --}}
+                    @if ($selectedProductionLine) {{ $selectedProductionLine['name'] }} &middot; @endif
                     {{ $tgl($selectedPeriod['start_date']) }} &ndash; {{ $tgl($selectedPeriod['end_date']) }}
                 @else
                     Produksi minyak murni, downtime, dan suhu antar tangki sepanjang satu Periode Pelaporan
@@ -428,13 +436,26 @@
                     <div class="md-budget__label">
                         <span>Slot waktu terisi sepanjang periode</span>
                         <span class="md-budget__nums">
-                            <strong data-testid="coverage-filled-slots">{{ $cacah($coverage['filled_slots']) }}</strong>
-                            dari <span data-testid="coverage-expected-slots">{{ $cacah($coverage['expected_slots']) }}</span> slot
+                            @if ($coverage['expected_slots'] === 0)
+                                <span data-testid="coverage-no-expected">belum ada slot yang diharapkan</span>
+                            @else
+                                <strong data-testid="coverage-filled-slots">{{ $cacah($coverage['filled_slots']) }}</strong>
+                                dari <span data-testid="coverage-expected-slots">{{ $cacah($coverage['expected_slots']) }}</span> slot
+                            @endif
                         </span>
                     </div>
-                    <span class="md-budget__pct" data-testid="coverage-percent">{{ $nilai($coverage['coverage_percent'], 1) }}%</span>
+                    {{-- Penyebut 0 (belum ada unit tercatat / periode belum mulai) →
+                         "—", bukan "0,0%": null bukan 0 (temuan audit 2026-10-04 #9).
+                         Persen 1 desimal di semua laporan (#10). --}}
+                    <span class="md-budget__pct" data-testid="coverage-percent">{{ $coverage['expected_slots'] === 0 ? '—' : $nilai($coverage['coverage_percent'], 1).'%' }}</span>
                     <div class="md-bar md-bar--lg"><span style="width: {{ min(100, max(0, (float) $coverage['coverage_percent'])) }}%"></span></div>
                 </div>
+                @if ($coverage['period_running'])
+                    <p class="md-budget__note" data-testid="period-running-note">
+                        Dihitung sampai hari ini, periode masih berjalan
+                        ({{ $cacah($coverage['days_counted']) }} dari {{ $cacah($coverage['days_in_period']) }} hari periode sudah lewat).
+                    </p>
+                @endif
             </div>
             @if ($coverage['expected_slots'] > $coverage['filled_slots'])
                 {{-- Penekanan atas slot yang TIDAK terisi. Ini bukan penandaan
@@ -450,7 +471,7 @@
                         yang bolong menurunkan angka produksinya secara langsung.
                         <small>
                             Slot yang diharapkan = {{ $cacah($coverage['unit_count']) }} unit clarification
-                            &times; {{ $cacah($coverage['days_in_period']) }} hari
+                            &times; {{ $cacah($coverage['days_counted']) }} hari{{ $coverage['period_running'] ? ' (sampai hari ini)' : '' }}
                             &times; {{ $cacah($coverage['slots_per_unit_per_day']) }} slot.
                         </small>
                     </span>
@@ -614,15 +635,14 @@
                     <div class="md-lc" data-testid="tank-temperature-chart">
                         <svg class="md-lc__svg" viewBox="0 0 760 300" role="img"
                              aria-label="Tren harian suhu tangki clarification, tangki minyak, dan tangki sludge sepanjang {{ count($daily) }} tanggal">
-                            @for ($k = 0; $k < 5; $k++)
+                            @foreach ($sumbuSuhu['ticks'] as $tickNilai)
                                 @php
-                                    $tickNilai = $lcLo + ($lcHi - $lcLo) * $k / 4;
-                                    $tickY = round(260 - 216 * $k / 4, 1);
+                                    $tickY = round(260 - 216 * ($tickNilai - $lcLo) / ($lcHi - $lcLo), 1);
                                 @endphp
-                                <line class="md-lc__grid" x1="46" y1="{{ $tickY }}" x2="746" y2="{{ $tickY }}"/>
-                                <text class="md-lc__ytick" x="38" y="{{ $tickY + 4 }}" text-anchor="end">{{ $nilai($tickNilai, 0) }}</text>
-                            @endfor
-                            <line class="md-lc__axis" x1="46" y1="260" x2="746" y2="260"/>
+                                <line class="md-lc__grid" x1="72" y1="{{ $tickY }}" x2="746" y2="{{ $tickY }}"/>
+                                <text class="md-lc__ytick" x="64" y="{{ $tickY + 4 }}" text-anchor="end">{{ $nilai($tickNilai, $sumbuSuhu['decimals']) }}</text>
+                            @endforeach
+                            <line class="md-lc__axis" x1="72" y1="260" x2="746" y2="260"/>
                             @foreach ($daily as $i => $row)
                                 <text class="md-lc__xtick" x="{{ $lcX($i) }}" y="280" text-anchor="middle">{{ $tglAngka($row['date']) }}</text>
                             @endforeach
@@ -652,6 +672,12 @@
                             @endforeach
                         </svg>
                     </div>
+                    {{-- Petunjuk gulir — tampil HANYA bila kartu lebih sempit dari grafiknya
+                         (container query di report-styles), temuan audit 2026-10-04 #7. --}}
+                    <p class="md-scrollhint md-scrollhint--lc">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M15 8l4 4-4 4M9 8l-4 4 4 4"/></svg>
+                        Geser mendatar untuk melihat seluruh tanggal.
+                    </p>
                     <ul class="md-legend">
                         @foreach ($seri as $s)
                             <li class="md-legend__item">
@@ -686,8 +712,11 @@
                 @endif
             </section>
 
-            {{-- ============ 7 & 8. Tren produksi + rekap per unit ============ --}}
-            <div class="md-row md-row--2">
+            {{-- ============ 7 & 8. Tren produksi + rekap per unit ============
+                 Ditumpuk SATU KOLOM (temuan audit 2026-10-04 #7): tabel per
+                 unit punya 8 kolom dan terpotong di setengah lebar halaman;
+                 tren 29 tanggal juga lebih terbaca selebar halaman. --}}
+            <div class="md-row">
                 <section class="md-card" data-testid="daily-trend">
                     <header class="md-card__head">
                         <h3>Tren Harian Produksi</h3>
@@ -695,7 +724,7 @@
                             Minyak murni per tanggal, dalam ton &middot; {{ count($daily) }} tanggal berdata
                         </span>
                     </header>
-                    <div class="md-trendchart">
+                    <div class="md-trendchart md-trendchart--days">
                         @foreach ($daily as $row)
                             {{-- Tanpa modifier warna apa pun: tidak ada batang
                                  yang ditandai "rendah" atau "tinggi" di layar
@@ -708,6 +737,12 @@
                             </div>
                         @endforeach
                     </div>
+                    @if (count($daily) > 10)
+                        <p class="md-scrollhint" data-testid="scroll-hint">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M15 8l4 4-4 4M9 8l-4 4 4 4"/></svg>
+                            Geser mendatar untuk melihat seluruh tanggal.
+                        </p>
+                    @endif
                     <ul class="md-legend">
                         <li class="md-legend__item">
                             Terendah {{ $nilai($produksiMin, 1) }} ton &middot; tertinggi {{ $nilai($produksiMaks, 1) }} ton

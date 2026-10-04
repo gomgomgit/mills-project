@@ -246,9 +246,23 @@ it('returns a StreamedResponse with the correct content-type for csv and excel f
 
     ob_start();
     $response->sendContent();
-    $body = ob_get_clean();
+    $raw = ob_get_clean();
+    // Temuan audit 2026-10-04 #1: excel harus file xlsx SUNGGUHAN (zip "PK"
+    // berisi xl/worksheets/sheet1.xml), bukan byte CSV berlabel .xlsx.
+    if ($format === 'excel') {
+        expect($raw)->toStartWith('PK');
+        expect(xlsxRows($raw))->not->toBeEmpty();
+    }
+    $body = exportBodyAsCsv($raw);
 
-    expect($body)->toContain('WB Card Number');
+    // Judul kolom = label layar Detail Weighbridge, termasuk Checked By /
+    // Acknowledged By (temuan audit 2026-10-04 #8); status berlabel Indonesia.
+    expect($body)->toContain('No. WB Card')
+        ->toContain('Checked By')
+        ->toContain('Acknowledged By')
+        ->toContain('Tersimpan')
+        ->not->toContain('WB Card Number')
+        ->not->toContain(',saved');
     // 1 header row + 2 data rows.
     expect(substr_count($body, "\n"))->toBeGreaterThanOrEqual(2);
 })->with([

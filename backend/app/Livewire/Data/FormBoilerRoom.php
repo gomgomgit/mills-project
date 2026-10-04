@@ -3,6 +3,7 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
+use App\Livewire\Data\Concerns\GuardsRecordIdShape;
 use App\Services\BoilerRoomRecordService;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -51,6 +52,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.boiler-room-form')]
 class FormBoilerRoom extends Component
 {
+    use GuardsRecordIdShape;
     use ScopesToActorMill;
 
     protected const FIELDS = ['production_line_id', 'boiler_room_id', 'date', 'note'];
@@ -121,6 +123,14 @@ class FormBoilerRoom extends Component
 
         $this->id = $id;
         $this->isEdit = true;
+
+        if (! $this->isRecordIdShapeValid($id)) {
+            // id bukan UUID tidak boleh sampai ke SQL (PostgreSQL: 22P02),
+            // perlakukan sama dengan UUID yang tidak dikenal.
+            $this->notFound = true;
+
+            return;
+        }
 
         try {
             $record = app(BoilerRoomRecordService::class)->getDetail($id);

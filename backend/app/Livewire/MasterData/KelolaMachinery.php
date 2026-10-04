@@ -3,9 +3,12 @@
 namespace App\Livewire\MasterData;
 
 use App\Exceptions\MachineryGroupHasMachineryException;
+use App\Livewire\Concerns\ValidatesUploadOnSelect;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\Station;
+use App\Rules\RealImage;
+use App\Rules\UniqueCaseInsensitive;
 use App\Services\MachineryGroupService;
 use App\Services\MachineryService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -64,6 +67,7 @@ use Livewire\WithFileUploads;
 #[Layout('master-data.machinery')]
 class KelolaMachinery extends Component
 {
+    use ValidatesUploadOnSelect;
     use WithFileUploads;
 
     protected const TECH_TEXT_FIELDS = [
@@ -168,6 +172,9 @@ class KelolaMachinery extends Component
     public ?string $confirmingDeleteGroupId = null;
 
     public ?string $deleteGroupErrorMessage = null;
+
+    /** Umpan balik sukses simpan/hapus mesin & grup (temuan audit #12). */
+    public ?string $successMessage = null;
 
     public function mount(): void
     {
@@ -275,7 +282,7 @@ class KelolaMachinery extends Component
      */
     protected function buildValidator(): \Illuminate\Validation\Validator
     {
-        $equipmentCodeUniqueRule = Rule::unique('machinery', 'equipment_code');
+        $equipmentCodeUniqueRule = UniqueCaseInsensitive::on('machinery', 'equipment_code');
 
         if ($this->editingId !== null) {
             $equipmentCodeUniqueRule = $equipmentCodeUniqueRule->ignore($this->editingId);
@@ -308,13 +315,24 @@ class KelolaMachinery extends Component
         return Validator::make($payload, $rules, $messages);
     }
 
-    public function openCreateForm(): void
+    /**
+     * $groupId: tombol "+ Mesin" di baris grup langsung memilih grup itu
+     * (temuan audit #9a — dulu form terbuka dengan grup kosong).
+     */
+    public function openCreateForm(?string $groupId = null): void
     {
+        $this->clearFeedback();
         $this->resetValidation();
         $this->editingId = null;
         $this->machinery_group_id = '';
         $this->selectedStationName = null;
         $this->selectedProductionLineName = null;
+
+        if ($groupId !== null && MachineryGroup::whereKey($groupId)->exists()) {
+            $this->machinery_group_id = $groupId;
+            $this->updatedMachineryGroupId($groupId);
+        }
+
         $this->form = $this->emptyForm();
         $this->picture = null;
         $this->existingPictureUrl = null;
@@ -329,6 +347,7 @@ class KelolaMachinery extends Component
         $machinery = Machinery::with(['machineryGroup.station', 'machineryGroup.productionLine', 'insurances', 'taxPurchases'])
             ->findOrFail($id);
 
+        $this->clearFeedback();
         $this->resetValidation();
         $this->formErrorMessage = null;
         $this->editingId = $machinery->id;
@@ -399,6 +418,30 @@ class KelolaMachinery extends Component
     }
 
     /**
+     * @return array{0: array<string, mixed>, 1: array<string, string>}
+     */
+    protected function pictureValidation(): array
+    {
+        return [[
+            'picture' => ['file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Gambar')],
+        ], [
+            'picture.file' => 'Gambar harus berupa file gambar.',
+            'picture.mimes' => 'Gambar harus berformat JPG atau PNG.',
+            'picture.max' => 'Ukuran gambar maksimal 2MB.',
+        ]];
+    }
+
+    /**
+     * Gambar mesin dicek saat dipilih — lihat ValidatesUploadOnSelect.
+     */
+    public function updatedPicture(): void
+    {
+        if ($this->picture !== null) {
+            $this->validateUploadNow('picture', ...$this->pictureValidation());
+        }
+    }
+
+    /**
      * "Simpan" — create or update, per whether $editingId is set.
      * `insurances`/`taxPurchases` are always sent (replace-all semantics
      * — MachineryService::update() replaces child rows whenever the key
@@ -408,16 +451,12 @@ class KelolaMachinery extends Component
     public function save(): void
     {
         $this->formErrorMessage = null;
+        $this->successMessage = null;
 
         $this->buildValidator()->validate();
 
         if ($this->picture !== null) {
-            $this->validate([
-                'picture' => ['file', 'mimes:jpg,jpeg,png', 'max:2048'],
-            ], [
-                'picture.mimes' => 'Gambar harus berformat JPG atau PNG.',
-                'picture.max' => 'Ukuran gambar maksimal 2MB.',
-            ]);
+            $this->validate(...$this->pictureValidation());
         }
 
         $service = app(MachineryService::class);
@@ -447,14 +486,24 @@ class KelolaMachinery extends Component
 
             return;
         } catch (ValidationException $e) {
+            // Error baris Asuransi / Pajak & Pembelian datang berkunci
+            // 'insurances.0.premium' / 'tax_purchases.0.purchase_cost'. Dulu
+            // semuanya dipetakan ke 'form.<kunci>' yang tidak pernah
+            // dirender view — Simpan gagal tanpa pesan apa pun (temuan
+            // audit #9b). Sekarang dipetakan ke properti yang di-bind input
+            // itu (insurances.0.* / taxPurchases.0.*), dan view merendernya.
             foreach ($e->errors() as $field => $messages) {
-                $key = $field === 'machinery_group_id' ? $field : "form.$field";
-                $this->addError($key, $messages[0] ?? 'Validasi gagal.');
+                $this->addError($this->formErrorKey($field), $messages[0] ?? 'Validasi gagal.');
             }
+
+            $this->formErrorMessage = 'Data belum tersimpan — periksa kembali isian yang ditandai.';
 
             return;
         }
 
+        $this->successMessage = $this->editingId !== null ? 'Mesin berhasil diperbarui.' : 'Mesin berhasil ditambahkan.';
+        $this->deleteErrorMessage = null;
+        $this->deleteGroupErrorMessage = null;
         $this->showForm = false;
         $this->editingId = null;
         $this->machinery_group_id = '';
@@ -468,10 +517,42 @@ class KelolaMachinery extends Component
         $this->resetValidation();
     }
 
+    /**
+     * Kunci error service → kunci properti yang di-bind view.
+     */
+    protected function formErrorKey(string $field): string
+    {
+        if ($field === 'machinery_group_id' || $field === 'picture') {
+            return $field;
+        }
+
+        if (str_starts_with($field, 'insurances.')) {
+            return $field;
+        }
+
+        if (str_starts_with($field, 'tax_purchases.')) {
+            return 'taxPurchases.'.substr($field, strlen('tax_purchases.'));
+        }
+
+        return "form.$field";
+    }
+
+    /**
+     * Pesan sukses/gagal lama dihapus begitu pengguna memulai aksi baru —
+     * dulu pesan error hapus tetap terpampang setelah aksi berikutnya
+     * berhasil (temuan audit #12).
+     */
+    protected function clearFeedback(): void
+    {
+        $this->successMessage = null;
+        $this->deleteErrorMessage = null;
+        $this->deleteGroupErrorMessage = null;
+    }
+
     public function askDelete(string $id): void
     {
+        $this->clearFeedback();
         $this->confirmingDeleteId = $id;
-        $this->deleteErrorMessage = null;
     }
 
     public function cancelDelete(): void
@@ -497,6 +578,7 @@ class KelolaMachinery extends Component
             $service->delete($this->confirmingDeleteId);
             $this->confirmingDeleteId = null;
             $this->deleteErrorMessage = null;
+            $this->successMessage = 'Mesin berhasil dihapus.';
         } catch (ModelNotFoundException) {
             $this->confirmingDeleteId = null;
             $this->deleteErrorMessage = 'Machinery tidak ditemukan, mungkin sudah dihapus.';
@@ -597,7 +679,7 @@ class KelolaMachinery extends Component
 
     protected function buildGroupValidator(): \Illuminate\Validation\Validator
     {
-        $groupCodeUniqueRule = Rule::unique('machinery_groups', 'group_code');
+        $groupCodeUniqueRule = UniqueCaseInsensitive::on('machinery_groups', 'group_code');
 
         if ($this->editingGroupId !== null) {
             $groupCodeUniqueRule = $groupCodeUniqueRule->ignore($this->editingGroupId);
@@ -640,6 +722,7 @@ class KelolaMachinery extends Component
 
     public function openCreateGroupForm(): void
     {
+        $this->clearFeedback();
         $this->resetValidation();
         $this->editingGroupId = null;
         $this->station_id = '';
@@ -653,6 +736,7 @@ class KelolaMachinery extends Component
     {
         $machineryGroup = MachineryGroup::with('productionLine')->findOrFail($id);
 
+        $this->clearFeedback();
         $this->resetValidation();
         $this->groupFormErrorMessage = null;
         $this->editingGroupId = $machineryGroup->id;
@@ -684,6 +768,7 @@ class KelolaMachinery extends Component
     public function saveGroup(): void
     {
         $this->groupFormErrorMessage = null;
+        $this->successMessage = null;
 
         $this->buildGroupValidator()->validate();
 
@@ -719,6 +804,9 @@ class KelolaMachinery extends Component
             return;
         }
 
+        $this->successMessage = $this->editingGroupId !== null ? 'Machinery Group berhasil diperbarui.' : 'Machinery Group berhasil ditambahkan.';
+        $this->deleteErrorMessage = null;
+        $this->deleteGroupErrorMessage = null;
         $this->showGroupForm = false;
         $this->editingGroupId = null;
         $this->station_id = '';
@@ -729,8 +817,8 @@ class KelolaMachinery extends Component
 
     public function askDeleteGroup(string $id): void
     {
+        $this->clearFeedback();
         $this->confirmingDeleteGroupId = $id;
-        $this->deleteGroupErrorMessage = null;
     }
 
     public function cancelDeleteGroup(): void
@@ -750,6 +838,7 @@ class KelolaMachinery extends Component
             $service->delete($this->confirmingDeleteGroupId);
             $this->confirmingDeleteGroupId = null;
             $this->deleteGroupErrorMessage = null;
+            $this->successMessage = 'Machinery Group berhasil dihapus.';
         } catch (MachineryGroupHasMachineryException $e) {
             $this->confirmingDeleteGroupId = null;
             $this->deleteGroupErrorMessage = $e->getMessage();
@@ -820,6 +909,13 @@ class KelolaMachinery extends Component
         $ungroupedRows = $ungroupedCount > 0
             ? $machineryService->listMachinery(1, 100, null, true, $search)['data']
             : [];
+
+        // Saat mencari, wadah "Tanpa grup" hanya tampil bila ADA mesin tanpa
+        // grup yang cocok, dan jumlahnya = yang cocok (temuan audit #15 —
+        // dulu tampil dengan jumlah total walau tak satu pun cocok).
+        if ($search !== null) {
+            $ungroupedCount = count($ungroupedRows);
+        }
 
         return view('livewire.master-data.kelola-machinery', [
             'viewMode' => 'grup',

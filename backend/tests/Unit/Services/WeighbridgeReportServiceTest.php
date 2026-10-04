@@ -1825,7 +1825,7 @@ it('case 49 — happy path: seluruh kondisi terpenuhi, payload lengkap dan tanpa
     expect(array_keys($summary['business_unit']))->toBe(['id', 'name']);
     expect(array_keys($summary['production_line']))->toBe(['id', 'name']);
     expect(array_keys($summary['period']))->toBe(['id', 'name', 'start_date', 'end_date', 'status']);
-    expect(array_keys($summary['completeness']))->toBe(['days_in_period', 'days_with_trip']);
+    expect(array_keys($summary['completeness']))->toBe(['days_in_period', 'days_with_trip', 'days_counted', 'period_running']);
 
     // ---- receive ----
     expect($summary['receive']['trip_count'])->toBe(4);

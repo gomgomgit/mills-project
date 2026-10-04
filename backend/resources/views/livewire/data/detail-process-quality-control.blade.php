@@ -34,7 +34,7 @@
                 </div>
                 <div class="pqc-detail-field">
                     <span class="pqc-detail-field__label">Tanggal</span>
-                    <span class="pqc-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="pqc-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="pqc-detail-field">
                     <span class="pqc-detail-field__label">Station</span>
@@ -76,22 +76,22 @@
                         @forelse ($record['details'] as $row)
                             <tr data-testid="process-quality-control-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['shift'] ?? '-' }}</td>
-                                <td>{{ $row['fruit_press_oil_loss_in_sludge_percent'] ?? '-' }}</td>
-                                <td>{{ $row['fruit_press_oil_loss_in_fibre_percent'] ?? '-' }}</td>
-                                <td>{{ $row['purifier_clarification_balance_inlet_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['purifier_clarification_balance_backpressure_bar'] ?? '-' }}</td>
-                                <td>{{ $row['vacuum_drying_station_drier_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['vacuum_drying_station_vacuum_pressure_bar'] ?? '-' }}</td>
-                                <td>{{ $row['decanter_centrifuge_feed_rate_mth'] ?? '-' }}</td>
-                                <td>{{ $row['decanter_centrifuge_oil_loss_in_cake_percent'] ?? '-' }}</td>
-                                <td>{{ $row['final_storage_ffa_percent'] ?? '-' }}</td>
-                                <td>{{ $row['final_storage_moisture_content_percent'] ?? '-' }}</td>
-                                <td>{{ $row['final_storage_impurities_dirt_percent'] ?? '-' }}</td>
-                                <td>{{ $row['final_storage_dobi_index'] ?? '-' }}</td>
-                                <td>{{ $row['qc_inspector_id'] ?? '-' }}</td>
-                                <td>{{ $row['qc_engineering_corrective_actions'] ?? '-' }}</td>
-                                <td>{{ $row['findings'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['shift']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['fruit_press_oil_loss_in_sludge_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['fruit_press_oil_loss_in_fibre_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['purifier_clarification_balance_inlet_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['purifier_clarification_balance_backpressure_bar']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['vacuum_drying_station_drier_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['vacuum_drying_station_vacuum_pressure_bar']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['decanter_centrifuge_feed_rate_mth']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['decanter_centrifuge_oil_loss_in_cake_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['final_storage_ffa_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['final_storage_moisture_content_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['final_storage_impurities_dirt_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['final_storage_dobi_index']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['qc_inspector_id']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['qc_engineering_corrective_actions']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>
                         @empty
                             <tr data-testid="process-quality-control-detail-rows-empty">
@@ -120,7 +120,7 @@
                 </div>
                 <div class="pqc-detail-field">
                     <span class="pqc-detail-field__label">Status</span>
-                    <span class="pqc-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="pqc-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

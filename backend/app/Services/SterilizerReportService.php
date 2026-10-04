@@ -13,6 +13,8 @@ use App\Models\ProductionLine;
 use App\Models\StationType;
 use App\Models\SterilizerDetail;
 use App\Models\SterilizerRecord;
+use App\Support\ExportValue;
+use App\Support\SheetWriter;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -54,6 +56,37 @@ use Throwable;
  */
 class SterilizerReportService
 {
+    /**
+     * Judul kolom ekspor — Bahasa Indonesia seperti kelima laporan stasiun
+     * lain, dengan kolom konteks Periode/Mill/Production Line di depan
+     * (temuan audit 2026-10-04 #8). Satu baris per siklus.
+     */
+    public const EXPORT_HEADER = [
+        'Periode',
+        'Mill',
+        'Production Line',
+        'Tanggal',
+        'ID Sterilizer',
+        'Catatan',
+        'Diperiksa Oleh',
+        'Diketahui Oleh',
+        'Status',
+        'No. Sterilizer',
+        'Jam Tutup Pintu',
+        'Jam Puncak 1',
+        'Jam Buang 1',
+        'Jam Puncak 2',
+        'Jam Buang 2',
+        'Jam Puncak 3',
+        'Jam Buang 3',
+        'Jam Buka Pintu',
+        'Durasi (menit)',
+        'Jumlah Lori',
+        'Status Lori',
+        'Diperiksa SPV',
+        'Keterangan',
+    ];
+
     /**
      * Export row ceiling, counted in EXPORTED LINES (= sterilization
      * cycles), not header records — one daily record can carry a dozen
@@ -397,69 +430,55 @@ class SterilizerReportService
 
             [$contentType, $filename] = $this->fileMetaFor($format, $period);
 
-            return response()->streamDownload(function () use ($query) {
-                $handle = fopen('php://output', 'w');
+            // Kolom konteks (Periode/Mill/Production Line) diulang di setiap
+            // baris seperti ekspor Laporan Weighbridge; judul kolom Bahasa
+            // Indonesia seperti kelima laporan lain; status berlabel
+            // Indonesia; jam HH:MM (temuan audit 2026-10-04 #8a–d).
+            $exportContext = [
+                (string) $period->name,
+                (string) ($period->businessUnit?->name ?? ''),
+                (string) ($this->productionLineInfo($productionLineId)['name'] ?? ''),
+            ];
 
-                // Explicit $separator/$enclosure/$escape — PHP 8.4 deprecates
-                // relying on fputcsv()'s default $escape.
-                fputcsv($handle, [
-                    'Sterilizer ID',
-                    'Date',
-                    'Note',
-                    'Checked By',
-                    'Acknowledged By',
-                    'Status',
-                    'Sterilizer No',
-                    'Close Door Time',
-                    'Peak 1 Time',
-                    'Exhaust 1 Time',
-                    'Peak 2 Time',
-                    'Exhaust 2 Time',
-                    'Peak 3 Time',
-                    'Exhaust 3 Time',
-                    'Open Door Time',
-                    'Duration (Minutes)',
-                    'Number of Cages',
-                    'Cages Status',
-                    'Checked by SPV',
-                    'Remarks',
-                ], ',', '"', '\\');
+            return response()->streamDownload(function () use ($query, $format, $exportContext) {
+                $handle = SheetWriter::open($format);
+                $handle->row(self::EXPORT_HEADER);
 
-                $query->chunk(200, function ($records) use ($handle) {
+                $query->chunk(200, function ($records) use ($handle, $exportContext) {
                     foreach ($records as $record) {
                         /** @var SterilizerRecord $record */
-                        $context = [
-                            $record->sterilizer_id,
+                        $context = array_merge($exportContext, [
                             optional($record->date)->toDateString(),
+                            $record->sterilizer_id,
                             $record->note,
                             $record->checkedBy?->name,
                             $record->acknowledgedBy?->name,
-                            $record->status?->value,
-                        ];
+                            ExportValue::status($record->status),
+                        ]);
 
                         foreach ($record->sterilizerDetails as $detail) {
                             /** @var SterilizerDetail $detail */
-                            fputcsv($handle, array_merge($context, [
+                            $handle->row(array_merge($context, [
                                 $detail->sterilizer_no,
-                                $detail->close_door_time,
-                                $detail->peak_1_time,
-                                $detail->exhaust_1_time,
-                                $detail->peak_2_time,
-                                $detail->exhaust_2_time,
-                                $detail->peak_3_time,
-                                $detail->exhaust_3_time,
-                                $detail->open_door_time,
+                                ExportValue::time($detail->close_door_time),
+                                ExportValue::time($detail->peak_1_time),
+                                ExportValue::time($detail->exhaust_1_time),
+                                ExportValue::time($detail->peak_2_time),
+                                ExportValue::time($detail->exhaust_2_time),
+                                ExportValue::time($detail->peak_3_time),
+                                ExportValue::time($detail->exhaust_3_time),
+                                ExportValue::time($detail->open_door_time),
                                 $detail->duration_minutes,
                                 $detail->number_of_cages,
                                 $detail->cages_status,
-                                $detail->checked_by_spv,
+                                ExportValue::yesNo($detail->checked_by_spv),
                                 $detail->remarks,
-                            ]), ',', '"', '\\');
+                            ]));
                         }
                     }
                 });
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);
@@ -975,8 +994,8 @@ class SterilizerReportService
 
     /**
      * Same Content-Type/filename convention as every other export in this
-     * codebase — no XLSX writer package is installed, so format=excel
-     * serves a CSV body under the xlsx mimetype/extension.
+     * codebase. format=excel is a real .xlsx written by App\Support\SheetWriter (temuan
+     * audit 2026-10-04 #1 — previously a CSV body under an xlsx name).
      *
      * @return array{0: string, 1: string}
      */

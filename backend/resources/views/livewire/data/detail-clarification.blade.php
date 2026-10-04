@@ -34,7 +34,7 @@
                 </div>
                 <div class="cl-detail-field">
                     <span class="cl-detail-field__label">Tanggal</span>
-                    <span class="cl-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="cl-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="cl-detail-field">
                     <span class="cl-detail-field__label">Station</span>
@@ -67,13 +67,13 @@
                         @forelse ($record['details'] as $row)
                             <tr data-testid="clarification-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['clarification_tank_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['oil_tank_temperature_c'] ?? '-' }}</td>
-                                <td>{{ $row['sludge_tank_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['buffer_tank_level_percent'] ?? '-' }}</td>
-                                <td>{{ $row['pure_oil_production_rate_ton_hour'] ?? '-' }}</td>
-                                <td>{{ $row['downtime_mins'] ?? '-' }}</td>
-                                <td>{{ $row['findings'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['clarification_tank_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['oil_tank_temperature_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['sludge_tank_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['buffer_tank_level_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['pure_oil_production_rate_ton_hour']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['downtime_mins']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>
                         @empty
                             <tr data-testid="clarification-detail-rows-empty">
@@ -102,7 +102,7 @@
                 </div>
                 <div class="cl-detail-field">
                     <span class="cl-detail-field__label">Status</span>
-                    <span class="cl-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="cl-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

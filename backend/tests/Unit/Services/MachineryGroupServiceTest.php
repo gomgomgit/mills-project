@@ -435,17 +435,26 @@ it('filters the list by station_id when provided', function () {
     expect(collect($result['data'])->pluck('group_code')->sort()->values()->all())->toBe(['MG-A1', 'MG-A2']);
 });
 
-// stationOptions(): returns a populated list, ordered by name, with
-// production_line_id per row, when stations exist.
-it('returns a populated station options list ordered by name with production_line_id per row', function () {
+// stationOptions(): returns a populated list with production_line_id and a
+// "Mill — Line — Station" label per row, ordered by that label (temuan audit
+// 2026-10-04 #9c — tiap line punya set nama station yang sama, jadi nama saja
+// tidak membedakan opsi). Kedua station di line yang sama supaya urutannya
+// ditentukan oleh nama station, bukan nama mill acak dari factory.
+it('returns a populated station options list ordered by label with production_line_id per row', function () {
     $stationZulu = Station::factory()->create(['name' => 'Weighbridge Zulu']);
-    Station::factory()->create(['name' => 'Weighbridge Alpha']);
+    Station::factory()->create([
+        'name' => 'Weighbridge Alpha',
+        'production_line_id' => $stationZulu->production_line_id,
+        'business_unit_id' => $stationZulu->business_unit_id,
+    ]);
 
-    $result = $this->service->stationOptions();
+    $result = collect($this->service->stationOptions())
+        ->where('production_line_id', $stationZulu->production_line_id)
+        ->values();
 
-    expect(collect($result)->pluck('name')->all())->toBe(['Weighbridge Alpha', 'Weighbridge Zulu']);
-    expect($result[1])->toHaveKeys(['id', 'name', 'production_line_id']);
-    expect($result[1]['production_line_id'])->toBe($stationZulu->production_line_id);
+    expect($result->pluck('name')->all())->toBe(['Weighbridge Alpha', 'Weighbridge Zulu']);
+    expect($result[1])->toHaveKeys(['id', 'name', 'production_line_id', 'label']);
+    expect($result[1]['label'])->toEndWith('Weighbridge Zulu');
 });
 
 // stationOptions(): "No Station exists yet" edge case -> empty list.

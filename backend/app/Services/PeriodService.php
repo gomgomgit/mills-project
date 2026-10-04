@@ -5,12 +5,14 @@ namespace App\Services;
 use App\Enums\PeriodStatus;
 use App\Enums\StationType as StationTypeEnum;
 use App\Exceptions\PeriodClosedImmutableException;
+use App\Exceptions\PeriodHasRecordsException;
 use App\Exceptions\PeriodOverlapException;
 use App\Models\BusinessUnit;
 use App\Models\Period;
 use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\StationType;
+use App\Models\WeighbridgeRecord;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
@@ -493,8 +495,78 @@ class PeriodService
         $period = Period::findOrFail($id);
 
         $this->guardAgainstClosedStation($period);
+        $this->guardAgainstFramedRecords($period);
 
         $period->delete();
+    }
+
+    /**
+     * PERIODE YANG BERISI DATA TIDAK BOLEH DIHAPUS (2026-10-04). Audit
+     * menemukan periode "AUDIT-Daily BU D Okt" terhapus padahal berisi
+     * record. Untuk setiap jenis stasiun milik periode ini, dicek apakah ada
+     * record mill ini yang tanggal kejadiannya — tanggal header, atau
+     * `event_date` baris detail pada tiga stasiun log-kejadian — jatuh di
+     * dalam rentang periode (inklusif). Satu saja cukup untuk menolak.
+     *
+     * whereDate() dan bukan where(): lihat findOverlapping() — perangkap
+     * SQLite '2026-10-01 00:00:00'.
+     *
+     * @throws PeriodHasRecordsException
+     */
+    protected function guardAgainstFramedRecords(Period $period): void
+    {
+        $start = optional($period->start_date)->toDateString();
+        $end = optional($period->end_date)->toDateString();
+
+        if ($start === null || $end === null) {
+            return;
+        }
+
+        $verification = app(RecordVerificationService::class);
+        $found = [];
+
+        foreach ($period->stations()->pluck('station_type')->unique() as $stationType) {
+            $modelClass = $verification->modelForStationType((string) $stationType);
+
+            if ($modelClass === null) {
+                continue;
+            }
+
+            $dateColumn = $modelClass === WeighbridgeRecord::class ? 'record_datetime' : 'date';
+            $detailRelation = match ((string) $stationType) {
+                'cpo-dispatch' => 'cpoDispatchDetails',
+                'kernel-dispatch' => 'kernelDispatchDetails',
+                'solid-waste-disposal' => 'solidWasteDisposalDetails',
+                default => null,
+            };
+
+            $exists = $modelClass::query()
+                ->whereHas('station', fn ($station) => $station->where('business_unit_id', $period->business_unit_id))
+                ->where(function ($query) use ($dateColumn, $detailRelation, $start, $end) {
+                    $query->where(fn ($header) => $header
+                        ->whereDate($dateColumn, '>=', $start)
+                        ->whereDate($dateColumn, '<=', $end));
+
+                    if ($detailRelation !== null) {
+                        $query->orWhereHas($detailRelation, fn ($detail) => $detail
+                            ->whereDate('event_date', '>=', $start)
+                            ->whereDate('event_date', '<=', $end));
+                    }
+                })
+                ->exists();
+
+            if ($exists) {
+                $found[] = $this->stationTypeLabel((string) $stationType);
+            }
+        }
+
+        if ($found !== []) {
+            throw new PeriodHasRecordsException(sprintf(
+                'Periode "%s" tidak dapat dihapus karena sudah berisi data stasiun (%s). Hanya periode yang belum berisi data yang dapat dihapus.',
+                $period->name,
+                implode(', ', $found),
+            ));
+        }
     }
 
     /**

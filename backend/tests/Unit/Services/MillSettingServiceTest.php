@@ -21,6 +21,7 @@
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\MillSetting;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\MillSettingService;
@@ -91,7 +92,7 @@ it('updates app_name on update()', function () {
 
 it('stores an uploaded logo file and returns a resolved logo URL', function () {
     Storage::fake(MillSettingService::LOGO_DISK);
-    $logo = UploadedFile::fake()->create('logo.jpg', 500, 'image/jpeg');
+    $logo = fakeRealImage('logo.jpg', 500);
 
     $result = $this->service->update($this->admin, $this->businessUnit->id, [], $logo);
 
@@ -132,9 +133,12 @@ it('throws an AuthorizationException when a Mill Management user updates a busin
 
 // --- listStations() -------------------------------------------------------
 
+// Sejak audit 2026-10-04 #10 urutannya per Production Line lalu nama (tiap
+// line punya set station yang sama) — kedua station di sini satu line.
 it('lists stations belonging to the business unit ordered by name, each with its icon', function () {
-    Station::factory()->forBusinessUnit($this->businessUnit)->withIcon('truck')->create(['name' => 'Weighbridge Z']);
-    Station::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Weighbridge A']);
+    $line = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    Station::factory()->forProductionLine($line)->withIcon('truck')->create(['name' => 'Weighbridge Z']);
+    Station::factory()->forProductionLine($line)->create(['name' => 'Weighbridge A']);
     Station::factory()->create(['name' => 'Weighbridge Lain']); // different business unit
 
     $result = $this->service->listStations($this->admin, $this->businessUnit->id);
@@ -194,4 +198,16 @@ it('throws an AuthorizationException for a Mill Management user setting a statio
 
     expect(fn () => $this->service->setStationIcon($this->millManagement, $otherBusinessUnit->id, $station->id, 'truck'))
         ->toThrow(AuthorizationException::class);
+});
+
+it('mengurutkan station per Production Line lalu nama, dengan production_line_name (audit #10)', function () {
+    $lineB = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Line B']);
+    $lineA = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Line A']);
+    Station::factory()->forProductionLine($lineB)->create(['name' => 'Aaa']);
+    Station::factory()->forProductionLine($lineA)->create(['name' => 'Zzz']);
+
+    $result = $this->service->listStations($this->admin, $this->businessUnit->id);
+
+    expect(collect($result)->map(fn ($s) => $s['production_line_name'].'/'.$s['name'])->all())
+        ->toBe(['Line A/Zzz', 'Line B/Aaa']);
 });

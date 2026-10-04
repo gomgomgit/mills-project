@@ -93,7 +93,7 @@ class GradingRecordController extends Controller
     /**
      * export() — GET /api/grading-records/export. business_logic
      * steps 1-2 (same filters, no pagination) + 5-6: generate a file
-     * stream (CSV, or CSV-as-xlsx fallback for format=excel — see
+     * stream (CSV, or real .xlsx for format=excel via App\Support\SheetWriter — see
      * GradingRecordService::fileMetaFor()) and return it for download.
      * NOT a JSON response.
      */

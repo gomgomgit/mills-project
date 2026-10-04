@@ -13,6 +13,9 @@ use App\Models\Period;
 use App\Models\PeriodStation;
 use App\Models\ProductionLine;
 use App\Models\StationType;
+use App\Support\ExportValue;
+use App\Support\ReportPeriodDays;
+use App\Support\SheetWriter;
 use DateTimeInterface;
 use Generator;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -248,6 +251,11 @@ class ClarificationReportService
      * @var array<int, string>
      */
     public const EXPORT_HEADER = [
+        // Kolom konteks diulang di setiap baris, sama dengan ekspor Laporan
+        // Weighbridge (temuan audit 2026-10-04 #8b).
+        'Periode',
+        'Mill',
+        'Production Line',
         'Tanggal',
         'Unit Clarification',
         'Status',
@@ -576,7 +584,11 @@ class ClarificationReportService
         // makes "one reading = one hour" true, which is what licenses the
         // derived-production sum.
         $slotsPerUnitPerDay = count(ClarificationRecordService::canonicalTimeSlots());
-        $expectedSlots = $unitCount * $daysInPeriod * $slotsPerUnitPerDay;
+        // PENYEBUT BERHENTI DI HARI INI untuk periode yang masih berjalan
+        // (temuan audit 2026-10-04 #3) — hari yang belum terjadi tidak mungkin
+        // tercatat. Lihat App\Support\ReportPeriodDays.
+        $daysCounted = ReportPeriodDays::counted($period);
+        $expectedSlots = $unitCount * $daysCounted * $slotsPerUnitPerDay;
 
         return [
             'period' => [
@@ -617,6 +629,10 @@ class ClarificationReportService
                 'unit_count' => $unitCount,
                 'slots_per_unit_per_day' => $slotsPerUnitPerDay,
                 'days_in_period' => $daysInPeriod,
+                // Hari yang dipakai penyebut: = days_in_period untuk periode
+                // yang sudah selesai, sampai hari ini untuk yang masih berjalan.
+                'days_counted' => $daysCounted,
+                'period_running' => ReportPeriodDays::isRunning($period),
             ],
             'production' => $this->productionOf($filledRows, $daysWithRecords),
             'downtime' => $this->downtimeOf($filledRows, $daysWithRecords),
@@ -684,7 +700,13 @@ class ClarificationReportService
             throw new ExportFailedException;
         }
 
-        return $this->streamExportRows($recordQuery);
+        $exportContext = [
+            (string) $period->name,
+            (string) ($period->businessUnit?->name ?? ''),
+            (string) ($this->productionLineInfo($productionLineId)['name'] ?? ''),
+        ];
+
+        return $this->streamExportRows($recordQuery, $exportContext);
     }
 
     /**
@@ -713,18 +735,15 @@ class ClarificationReportService
         try {
             [$contentType, $filename] = $this->fileMetaFor($format, $resolvedPeriod);
 
-            return response()->streamDownload(function () use ($rows) {
-                $handle = fopen('php://output', 'w');
-
-                // Explicit $separator/$enclosure/$escape — PHP 8.4 deprecates
-                // relying on fputcsv()'s default $escape.
-                fputcsv($handle, self::EXPORT_HEADER, ',', '"', '\\');
+            return response()->streamDownload(function () use ($rows, $format) {
+                $handle = SheetWriter::open($format);
+                $handle->row(self::EXPORT_HEADER);
 
                 foreach ($rows as $row) {
-                    fputcsv($handle, $row, ',', '"', '\\');
+                    $handle->row($row);
                 }
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);
@@ -1229,7 +1248,7 @@ class ClarificationReportService
      *
      * @return Generator<int, array<int, string|float|null>>
      */
-    protected function streamExportRows(Builder $recordQuery): Generator
+    protected function streamExportRows(Builder $recordQuery, array $exportContext = ['', '', '']): Generator
     {
         $query = (clone $recordQuery)
             ->with(['clarificationDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot')])
@@ -1239,16 +1258,18 @@ class ClarificationReportService
 
         foreach ($query->lazy(200) as $record) {
             /** @var ClarificationRecord $record */
-            $context = [
+            $context = array_merge($exportContext, [
                 optional($record->date)->toDateString(),
                 $record->clarification_id,
-                $this->recordStatusValue($record),
+                // Label Indonesia, bukan enum mentah (temuan audit 2026-10-04 #8c).
+                ExportValue::status($this->recordStatusValue($record)),
                 $record->note,
-            ];
+            ]);
 
             foreach ($record->clarificationDetails as $detail) {
                 /** @var ClarificationDetail $detail */
-                $reading = [(string) $detail->time_slot];
+                // Slot selalu HH:MM (temuan audit 2026-10-04 #8d).
+                $reading = [ExportValue::time($detail->time_slot)];
 
                 foreach (ClarificationRecordService::READING_FIELDS as $field) {
                     // VERBATIM, including `findings` — no rounding, no
@@ -1577,8 +1598,8 @@ class ClarificationReportService
 
     /**
      * Same Content-Type/filename convention as every other export in this
-     * codebase — no XLSX writer package is installed, so format=excel
-     * serves a CSV body under the xlsx mimetype/extension.
+     * codebase. format=excel is a real .xlsx written by App\Support\SheetWriter (temuan
+     * audit 2026-10-04 #1 — previously a CSV body under an xlsx name).
      *
      * @return array{0: string, 1: string}
      */

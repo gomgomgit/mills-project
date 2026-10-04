@@ -34,7 +34,7 @@
                 </div>
                 <div class="dg-detail-field">
                     <span class="dg-detail-field__label">Tanggal</span>
-                    <span class="dg-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="dg-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="dg-detail-field">
                     <span class="dg-detail-field__label">No. WB Card</span>
@@ -80,11 +80,11 @@
             <div class="dg-detail-grid">
                 <div class="dg-detail-field">
                     <span class="dg-detail-field__label">Netto (kg)</span>
-                    <span class="dg-detail-field__value">{{ $record['netto'] }}</span>
+                    <span class="dg-detail-field__value">{{ \App\Support\Display::value($record['netto']) }}</span>
                 </div>
                 <div class="dg-detail-field">
                     <span class="dg-detail-field__label">Quantity (bunch)</span>
-                    <span class="dg-detail-field__value">{{ $record['quantity'] }}</span>
+                    <span class="dg-detail-field__value">{{ \App\Support\Display::value($record['quantity']) }}</span>
                 </div>
                 <div class="dg-detail-field">
                     <span class="dg-detail-field__label">Note</span>
@@ -110,9 +110,9 @@
                             @foreach ($record['details'] as $detail)
                                 <tr>
                                     <td>{{ $detail['grading_parameter_name'] ?: '-' }}</td>
-                                    <td>{{ $detail['quantity'] }}</td>
+                                    <td>{{ \App\Support\Display::value($detail['quantity']) }}</td>
                                     <td>{{ $detail['uom'] }}</td>
-                                    <td>{{ $detail['percentage'] }}%</td>
+                                    <td>{{ \App\Support\Display::value($detail['percentage']) }}%</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -132,7 +132,7 @@
                 </div>
                 <div class="dg-detail-field">
                     <span class="dg-detail-field__label">Status</span>
-                    <span class="dg-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="dg-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

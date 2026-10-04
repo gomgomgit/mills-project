@@ -34,7 +34,7 @@
                 </div>
                 <div class="kd-detail-field">
                     <span class="kd-detail-field__label">Tanggal</span>
-                    <span class="kd-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="kd-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="kd-detail-field">
                     <span class="kd-detail-field__label">Station</span>
@@ -89,13 +89,13 @@
                                     <td>{{ $row['driver_name'] ?: '-' }}</td>
                                     <td>{{ $row['silo_source_id'] ?: '-' }}</td>
                                     <td>{{ $row['destination_buyer'] ?: '-' }}</td>
-                                    <td>{{ $row['gross_weight_mt'] ?? '-' }}</td>
-                                    <td>{{ $row['tare_weight_mt'] ?? '-' }}</td>
-                                    <td>{{ $row['net_weight_mt'] ?? '-' }}</td>
-                                    <td>{{ $row['kernel_moisture_percent'] ?? '-' }}</td>
-                                    <td>{{ $row['dirt_impurities_percent'] ?? '-' }}</td>
-                                    <td>{{ $row['ffa_percent'] ?? '-' }}</td>
-                                    <td>{{ $row['broken_kernel_percent'] ?? '-' }}</td>
+                                    <td>{{ \App\Support\Display::value($row['gross_weight_mt']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['tare_weight_mt']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['net_weight_mt']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['kernel_moisture_percent']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['dirt_impurities_percent']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['ffa_percent']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['broken_kernel_percent']) }}</td>
                                     <td>{{ $row['security_seal_no_top'] ?: '-' }}</td>
                                     <td>{{ $row['security_seal_no_bottom'] ?: '-' }}</td>
                                     <td>{{ $row['weighbridge_operator_id'] ?: '-' }}</td>
@@ -128,7 +128,7 @@
                 </div>
                 <div class="kd-detail-field">
                     <span class="kd-detail-field__label">Status</span>
-                    <span class="kd-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="kd-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

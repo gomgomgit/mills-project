@@ -21,6 +21,7 @@
 use App\Enums\UserRole;
 use App\Livewire\MasterData\KelolaProductionLine;
 use App\Models\BusinessUnit;
+use App\Models\MachineryGroup;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
@@ -100,8 +101,12 @@ it('Hapus berhasil: removes the row from the list after confirmation', function 
 
 // Scenario "Kelola Production Line — Hapus — ditolak (Station)"
 it('Hapus ditolak: shows an inline error and keeps the row when it has related Station', function () {
+    // Sejak audit 2026-10-04 #5 line yang station-nya masih kosong ikut
+    // terhapus bersama station-nya; yang ditolak adalah line yang
+    // station-nya sudah punya data (di sini: Machinery Group).
     $productionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
-    Station::factory()->forProductionLine($productionLine)->create();
+    $station = Station::factory()->forProductionLine($productionLine)->create();
+    MachineryGroup::factory()->forStation($station)->create();
 
     Livewire::actingAs($this->admin)
         ->test(KelolaProductionLine::class)

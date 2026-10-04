@@ -6,6 +6,7 @@ use App\Exceptions\AccountInactiveException;
 use App\Exceptions\BusinessAreaMismatchException;
 use App\Exceptions\InvalidCredentialsException;
 use App\Services\AuthService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -31,6 +32,26 @@ class LoginForm extends Component
     public string $password = '';
 
     public ?string $errorMessage = null;
+
+    /**
+     * /login saat SUDAH login dulu menampilkan form lagi — sekarang langsung
+     * dialihkan ke beranda peran itu (AuthService::redirectFor()).
+     *
+     * Pesan dari EnsureUserIsActive (akun dinonaktifkan saat sesi masih
+     * berjalan) dibawa lewat flash 'auth_error' dan ditampilkan di kartu.
+     */
+    public function mount(): void
+    {
+        $user = Auth::guard('web')->user();
+
+        if ($user) {
+            $this->redirect(app(AuthService::class)->redirectFor($user->role->value), navigate: false);
+
+            return;
+        }
+
+        $this->errorMessage = session('auth_error');
+    }
 
     /**
      * Mirrors AuthService's business_logic step 1 (required fields) and

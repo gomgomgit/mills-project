@@ -34,7 +34,7 @@
                 </div>
                 <div class="pr-detail-field">
                     <span class="pr-detail-field__label">Tanggal</span>
-                    <span class="pr-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="pr-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="pr-detail-field">
                     <span class="pr-detail-field__label">Station</span>
@@ -66,12 +66,12 @@
                         @foreach ($record['details'] as $row)
                             <tr data-testid="pressing-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['digester_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['digester_level_percent'] ?? '-' }}</td>
-                                <td>{{ $row['press_motor_current_amps'] ?? '-' }}</td>
-                                <td>{{ $row['cone_hydraulic_pressure_bar'] ?? '-' }}</td>
-                                <td>{{ $row['dilution_water_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['downtime_reason'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['digester_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['digester_level_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['press_motor_current_amps']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['cone_hydraulic_pressure_bar']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['dilution_water_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['downtime_reason']) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -120,7 +120,7 @@
                 </div>
                 <div class="pr-detail-field">
                     <span class="pr-detail-field__label">Status</span>
-                    <span class="pr-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="pr-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

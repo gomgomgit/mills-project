@@ -46,7 +46,8 @@ it('berhasil: renders all header fields, the 24-row Depricarping Detail grid, an
     Livewire::actingAs($this->user)
         ->test(DetailDepricarping::class, ['id' => $record->id])
         ->assertSee($record->presser_id)
-        ->assertSee('45.5')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('45,5')
         ->assertSee('Fan Static Pressure')
         ->assertSee('40 - 50 mmH2O')
         ->assertSee('Low pressure drops fibre early')

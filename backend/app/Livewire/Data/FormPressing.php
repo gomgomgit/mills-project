@@ -3,6 +3,7 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
+use App\Livewire\Data\Concerns\GuardsRecordIdShape;
 use App\Models\PressingOperationalTarget;
 use App\Services\PressingRecordService;
 use App\Support\Concerns\ScopesToActorMill;
@@ -52,6 +53,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.pressing-form')]
 class FormPressing extends Component
 {
+    use GuardsRecordIdShape;
     use ScopesToActorMill;
 
     protected const FIELDS = ['production_line_id', 'presser_id', 'date', 'note'];
@@ -111,6 +113,14 @@ class FormPressing extends Component
 
         $this->id = $id;
         $this->isEdit = true;
+
+        if (! $this->isRecordIdShapeValid($id)) {
+            // id bukan UUID tidak boleh sampai ke SQL (PostgreSQL: 22P02),
+            // perlakukan sama dengan UUID yang tidak dikenal.
+            $this->notFound = true;
+
+            return;
+        }
 
         try {
             $record = app(PressingRecordService::class)->getDetail($id);

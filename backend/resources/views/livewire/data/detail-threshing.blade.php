@@ -34,7 +34,7 @@
                 </div>
                 <div class="th-detail-field">
                     <span class="th-detail-field__label">Tanggal</span>
-                    <span class="th-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="th-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="th-detail-field">
                     <span class="th-detail-field__label">Station</span>
@@ -66,12 +66,12 @@
                         @foreach ($record['details'] as $row)
                             <tr data-testid="threshing-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['ffb_throughput_mt_hour'] ?? '-' }}</td>
-                                <td>{{ $row['thresher_drum_speed_rpm'] ?? '-' }}</td>
-                                <td>{{ $row['motor_current_amps'] ?? '-' }}</td>
-                                <td>{{ $row['unstripped_bunch_count_percent'] ?? '-' }}</td>
-                                <td>{{ $row['empty_bunch_oil_loss_percent'] ?? '-' }}</td>
-                                <td>{{ $row['downtime_reason'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['ffb_throughput_mt_hour']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['thresher_drum_speed_rpm']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['motor_current_amps']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['unstripped_bunch_count_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['empty_bunch_oil_loss_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['downtime_reason']) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -120,7 +120,7 @@
                 </div>
                 <div class="th-detail-field">
                     <span class="th-detail-field__label">Status</span>
-                    <span class="th-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="th-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

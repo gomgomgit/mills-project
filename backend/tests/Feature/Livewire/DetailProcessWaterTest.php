@@ -40,7 +40,8 @@ it('berhasil: renders all header fields and the Process Water Detail grid, read-
     Livewire::actingAs($this->user)
         ->test(DetailProcessWater::class, ['id' => $record->id])
         ->assertSee($record->process_water_id)
-        ->assertSee('42.5')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('42,5')
         ->assertDontSee('Record tidak ditemukan');
 });
 

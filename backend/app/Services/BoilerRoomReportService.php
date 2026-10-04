@@ -13,6 +13,9 @@ use App\Models\Period;
 use App\Models\PeriodStation;
 use App\Models\ProductionLine;
 use App\Models\StationType;
+use App\Support\ExportValue;
+use App\Support\ReportPeriodDays;
+use App\Support\SheetWriter;
 use DateTimeInterface;
 use Generator;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -227,6 +230,11 @@ class BoilerRoomReportService
      * @var array<int, string>
      */
     public const EXPORT_HEADER = [
+        // Kolom konteks diulang di setiap baris, sama dengan ekspor Laporan
+        // Weighbridge (temuan audit 2026-10-04 #8b).
+        'Periode',
+        'Mill',
+        'Production Line',
         'Tanggal',
         'Unit Boiler',
         'Status',
@@ -557,7 +565,11 @@ class BoilerRoomReportService
         // (BoilerRoomRecordService::canonicalTimeSlots()), not from a number
         // invented here — one definition, one answer.
         $slotsPerUnitPerDay = count(BoilerRoomRecordService::canonicalTimeSlots());
-        $expectedSlots = $boilerUnitCount * $daysInPeriod * $slotsPerUnitPerDay;
+        // PENYEBUT BERHENTI DI HARI INI untuk periode yang masih berjalan
+        // (temuan audit 2026-10-04 #3) — hari yang belum terjadi tidak mungkin
+        // tercatat. Lihat App\Support\ReportPeriodDays.
+        $daysCounted = ReportPeriodDays::counted($period);
+        $expectedSlots = $boilerUnitCount * $daysCounted * $slotsPerUnitPerDay;
 
         return [
             'period' => [
@@ -593,6 +605,10 @@ class BoilerRoomReportService
                 'boiler_unit_count' => $boilerUnitCount,
                 'slots_per_unit_per_day' => $slotsPerUnitPerDay,
                 'days_in_period' => $daysInPeriod,
+                // Hari yang dipakai penyebut: = days_in_period untuk periode
+                // yang sudah selesai, sampai hari ini untuk yang masih berjalan.
+                'days_counted' => $daysCounted,
+                'period_running' => ReportPeriodDays::isRunning($period),
             ],
             'metrics' => $this->metricsOf($filledRows),
             'maintenance' => $this->maintenanceOf($filledRows, $daysWithRecords),
@@ -660,7 +676,13 @@ class BoilerRoomReportService
             throw new ExportFailedException;
         }
 
-        return $this->streamExportRows($recordQuery);
+        $exportContext = [
+            (string) $period->name,
+            (string) ($period->businessUnit?->name ?? ''),
+            (string) ($this->productionLineInfo($productionLineId)['name'] ?? ''),
+        ];
+
+        return $this->streamExportRows($recordQuery, $exportContext);
     }
 
     /**
@@ -689,18 +711,15 @@ class BoilerRoomReportService
         try {
             [$contentType, $filename] = $this->fileMetaFor($format, $resolvedPeriod);
 
-            return response()->streamDownload(function () use ($rows) {
-                $handle = fopen('php://output', 'w');
-
-                // Explicit $separator/$enclosure/$escape — PHP 8.4 deprecates
-                // relying on fputcsv()'s default $escape.
-                fputcsv($handle, self::EXPORT_HEADER, ',', '"', '\\');
+            return response()->streamDownload(function () use ($rows, $format) {
+                $handle = SheetWriter::open($format);
+                $handle->row(self::EXPORT_HEADER);
 
                 foreach ($rows as $row) {
-                    fputcsv($handle, $row, ',', '"', '\\');
+                    $handle->row($row);
                 }
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);
@@ -1093,7 +1112,7 @@ class BoilerRoomReportService
      *
      * @return Generator<int, array<int, string|float|null>>
      */
-    protected function streamExportRows(Builder $recordQuery): Generator
+    protected function streamExportRows(Builder $recordQuery, array $exportContext = ['', '', '']): Generator
     {
         $query = (clone $recordQuery)
             ->with(['boilerRoomDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot')])
@@ -1103,22 +1122,31 @@ class BoilerRoomReportService
 
         foreach ($query->lazy(200) as $record) {
             /** @var BoilerRoomRecord $record */
-            $context = [
+            $context = array_merge($exportContext, [
                 optional($record->date)->toDateString(),
                 $record->boiler_room_id,
-                $this->recordStatusValue($record),
+                // Label Indonesia, bukan enum mentah (temuan audit 2026-10-04 #8c).
+                ExportValue::status($this->recordStatusValue($record)),
                 $record->note,
-            ];
+            ]);
 
             foreach ($record->boilerRoomDetails as $detail) {
                 /** @var BoilerRoomDetail $detail */
-                $reading = [(string) $detail->time_slot];
+                // Slot selalu HH:MM (temuan audit 2026-10-04 #8d).
+                $reading = [ExportValue::time($detail->time_slot)];
 
                 foreach (BoilerRoomRecordService::READING_FIELDS as $field) {
                     // VERBATIM: the three free-text columns pass through
                     // with no unit normalisation and no rounding, exactly as
-                    // the Operator typed them.
-                    $reading[] = $detail->{$field};
+                    // the Operator typed them. Blowdown/sootblowing 'y'/'n'
+                    // are written as Ya/Tidak (temuan audit 2026-10-04 #8c).
+                    $reading[] = in_array($field, ['blowdown_executed', 'sootblowing_executed'], true)
+                        ? match ($this->enumValueOf($detail->{$field})) {
+                            'y' => 'Ya',
+                            'n' => 'Tidak',
+                            default => null,
+                        }
+                    : $detail->{$field};
                 }
 
                 yield array_merge($context, $reading);
@@ -1437,8 +1465,8 @@ class BoilerRoomReportService
 
     /**
      * Same Content-Type/filename convention as every other export in this
-     * codebase — no XLSX writer package is installed, so format=excel
-     * serves a CSV body under the xlsx mimetype/extension.
+     * codebase. format=excel is a real .xlsx written by App\Support\SheetWriter (temuan
+     * audit 2026-10-04 #1 — previously a CSV body under an xlsx name).
      *
      * @return array{0: string, 1: string}
      */

@@ -34,13 +34,21 @@
                     </div>
 
                     <div class="fw-field">
-                        <label class="fw-field__label" for="production_line_id">Production Line <span class="fw-required">*</span></label>
-                        <select id="production_line_id" wire:model="form.production_line_id" class="fw-input" data-testid="production-line-select" @disabled(empty($productionLineOptions))>
-                            <option value="">Pilih Production Line</option>
-                            @foreach ($productionLineOptions as $option)
-                                <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
-                            @endforeach
-                        </select>
+                        {{-- Belum ada pilihan line (Business Unit belum dipilih, atau
+                             BU-nya belum punya Production Line): tampilkan TEKS, bukan
+                             <select> disabled (konvensi web: tidak ada input disabled). --}}
+                        @if (empty($productionLineOptions))
+                            <span class="fw-field__label">Production Line <span class="fw-required">*</span></span>
+                            <span class="fw-field__readonly" data-testid="production-line-empty">{{ ($form['business_unit_id'] ?? '') === '' ? 'Pilih Business Unit terlebih dahulu.' : 'Business Unit ini belum memiliki Production Line.' }}</span>
+                        @else
+                            <label class="fw-field__label" for="production_line_id">Production Line <span class="fw-required">*</span></label>
+                            <select id="production_line_id" wire:model="form.production_line_id" class="fw-input" data-testid="production-line-select">
+                                <option value="">Pilih Production Line</option>
+                                @foreach ($productionLineOptions as $option)
+                                    <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                         @if (isset($errors_['production_line_id']))
                             <span class="fw-field__error">{{ $errors_['production_line_id'] }}</span>
                         @endif
@@ -49,6 +57,11 @@
                     <div class="fw-field">
                         <span class="fw-field__label">Business Unit</span>
                         <span class="fw-field__readonly" data-testid="business-unit-readonly">{{ $businessUnitName ?? '-' }}</span>
+                    </div>
+
+                    <div class="fw-field">
+                        <span class="fw-field__label">Production Line</span>
+                        <span class="fw-field__readonly" data-testid="production-line-readonly">{{ $productionLineName ?? '-' }}</span>
                     </div>
                 @endif
 
@@ -138,8 +151,11 @@
                     <input id="tare_weight" type="number" step="any" wire:model.live="form.tare_weight" class="fw-input" data-testid="tare-weight-input">
                 </div>
                 <div class="fw-field">
-                    <label class="fw-field__label" for="net_weight_preview">Net Weight (kg)</label>
-                    <input id="net_weight_preview" type="text" value="{{ is_numeric($form['gross_weight']) && is_numeric($form['tare_weight']) ? $form['gross_weight'] - $form['tare_weight'] : '' }}" class="fw-input" data-testid="net-weight-preview" disabled>
+                    {{-- Teks, BUKAN input disabled (konvensi web: tidak ada input
+                         disabled). Nilainya selalu dihitung ulang server dari
+                         Gross − Tare, jadi tidak ada yang bisa diisi di sini. --}}
+                    <span class="fw-field__label">Net Weight (kg)</span>
+                    <span class="fw-field__readonly" data-testid="net-weight-preview">{{ is_numeric($form['gross_weight']) && is_numeric($form['tare_weight']) ? \App\Support\Display::number((float) $form['gross_weight'] - (float) $form['tare_weight'], 2) : '-' }}</span>
                     <span class="fw-field__hint">Dihitung otomatis dari Gross &minus; Tare, tidak dapat diubah manual.</span>
                 </div>
                 <div class="fw-field">

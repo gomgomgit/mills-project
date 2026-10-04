@@ -13,10 +13,13 @@ use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
+use App\Support\ExportValue;
 use App\Support\Pagination;
+use App\Support\SheetWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -116,6 +119,8 @@ class ProcessQualityControlRecordService
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
         // penolakan tidak menyisakan induk tanpa detail. Jenis stasiun dan mill
         // diambil dari stasiun yang SUDAH di-resolve, bukan dari request.
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('process-quality-control', $station->business_unit_id, $attributes['date'] ?? null);
 
         $attributes['station_id'] = $station->id;
@@ -175,6 +180,8 @@ class ProcessQualityControlRecordService
         $periodLockMillId = $record->station->business_unit_id;
 
         $this->assertPeriodOpenForWrite('process-quality-control', $periodLockMillId, optional($record->date)->toDateString());
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('process-quality-control', $periodLockMillId, $attributes['date'] ?? null);
 
         $this->applyVerification($attributes, $data, $actor);
@@ -349,7 +356,7 @@ class ProcessQualityControlRecordService
                 $detailAttributes[$field] = $row[$field];
             }
 
-            if (! empty($row['id']) && ProcessQualityControlDetail::where('id', $row['id'])->where('process_quality_control_record_id', $record->id)->exists()) {
+            if (! empty($row['id']) && Str::isUuid((string) $row['id']) && ProcessQualityControlDetail::where('id', $row['id'])->where('process_quality_control_record_id', $record->id)->exists()) {
                 ProcessQualityControlDetail::where('id', $row['id'])->update($detailAttributes);
             } else {
                 ProcessQualityControlDetail::create($detailAttributes);
@@ -441,14 +448,13 @@ class ProcessQualityControlRecordService
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($query) {
-                $handle = fopen('php://output', 'w');
+            return response()->streamDownload(function () use ($query, $format) {
+                $handle = SheetWriter::open($format);
 
-                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
-                // deprecates relying on fputcsv()'s default $escape). The
+                // Header row. The
                 // record's context columns repeat on every detail line, so the
                 // file can be pivoted and filtered directly in a spreadsheet.
-                fputcsv($handle, [
+                $handle->row([
                     'Production Line',
                     'Process QC ID',
                     'Date',
@@ -473,7 +479,7 @@ class ProcessQualityControlRecordService
                     'QC Inspector ID',
                     'QC Engineering Corrective Actions/Remarks',
                     'Findings',
-                ], ',', '"', '\\');
+                ]);
 
                 $query->chunk(200, function ($records) use ($handle) {
                     foreach ($records as $record) {
@@ -485,21 +491,21 @@ class ProcessQualityControlRecordService
                             $record->note,
                             $record->checkedBy?->name,
                             $record->acknowledgedBy?->name,
-                            $record->status?->value,
+                            ExportValue::status($record->status),
                         ];
 
                         $details = $record->processQualityControlDetails;
 
                         if ($details->isEmpty()) {
-                            fputcsv($handle, array_merge($context, array_fill(0, 17, null)), ',', '"', '\\');
+                            $handle->row(array_merge($context, array_fill(0, 17, null)));
 
                             continue;
                         }
 
                         foreach ($details as $detail) {
                             /** @var ProcessQualityControlDetail $detail */
-                            fputcsv($handle, array_merge($context, [
-                                $detail->time_slot,
+                            $handle->row(array_merge($context, [
+                                ExportValue::time($detail->time_slot),
                                 $detail->shift,
                                 $detail->fruit_press_oil_loss_in_sludge_percent,
                                 $detail->fruit_press_oil_loss_in_fibre_percent,
@@ -516,12 +522,12 @@ class ProcessQualityControlRecordService
                                 $detail->qc_inspector_id,
                                 $detail->qc_engineering_corrective_actions,
                                 $detail->findings,
-                            ]), ',', '"', '\\');
+                            ]));
                         }
                     }
                 });
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);

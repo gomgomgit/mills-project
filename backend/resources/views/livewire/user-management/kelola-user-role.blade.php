@@ -10,6 +10,12 @@
         </button>
     </div>
 
+    @if ($successMessage)
+        <div class="kc-alert kc-alert--success" role="status" data-testid="success-message">
+            {{ $successMessage }}
+        </div>
+    @endif
+
     @if ($statusErrorMessage)
         <div class="kc-alert" role="alert">
             {{ $statusErrorMessage }}
@@ -21,7 +27,7 @@
         <x-searchable-select
             id="filterRole"
             wire:model.live="filterRole"
-            :options="collect($roleOptions)->map(fn ($role) => ['value' => $role->value, 'label' => ucfirst(str_replace('_', ' ', $role->value))])->all()"
+            :options="collect($roleOptions)->map(fn ($role) => ['value' => $role->value, 'label' => $role->label()])->all()"
             placeholder="Semua Role"
             class="kc-form-field__input kc-filter__select"
         />
@@ -54,7 +60,7 @@
                     <tr class="kc-table__row" wire:key="user-{{ $user['id'] }}">
                         <td>{{ $user['username'] }}</td>
                         <td>{{ $user['name'] }}</td>
-                        <td>{{ ucfirst(str_replace('_', ' ', $user['role'])) }}</td>
+                        <td>{{ \App\Enums\UserRole::tryFrom($user['role'])?->label() ?? $user['role'] }}</td>
                         <td>{{ $user['business_unit_name'] ?? '-' }}</td>
                         <td>
                             @if ($user['is_active'])
@@ -72,6 +78,7 @@
                                 <button
                                     type="button"
                                     wire:click="toggleStatus('{{ $user['id'] }}', false)"
+                                    wire:confirm="Nonaktifkan user {{ $user['username'] }}? User ini tidak akan bisa login dan sesinya yang sedang berjalan akan diakhiri."
                                     class="kc-button kc-button--ghost kc-button--sm kc-button--danger-text"
                                     @if ($user['id'] === $currentUserId) disabled title="Anda tidak dapat menonaktifkan akun sendiri" @endif
                                 >
@@ -146,14 +153,20 @@
                                     <label for="username" class="kc-form-field__label">
                                         Username <span class="kc-form-field__required">*</span>
                                     </label>
-                                    <input
-                                        type="text"
-                                        id="username"
-                                        wire:model="form.username"
-                                        class="kc-form-field__input @error('form.username') kc-form-field__input--error @enderror"
-                                        autofocus
-                                        @if ($editingId !== null) disabled @endif
-                                    >
+                                    {{-- Username tidak bisa diubah setelah dibuat: di mode Edit
+                                         ditampilkan sebagai teks, bukan input disabled (konvensi web). --}}
+                                    @if ($editingId !== null)
+                                        <p class="kc-form-field__static" id="username" data-testid="username-static">{{ $form['username'] }}</p>
+                                    @else
+                                        <input
+                                            type="text"
+                                            id="username"
+                                            wire:model="form.username"
+                                            class="kc-form-field__input @error('form.username') kc-form-field__input--error @enderror"
+                                            autofocus
+                                        >
+                                        <p class="kc-form-field__hint">Tanpa spasi. Tidak membedakan huruf besar/kecil saat dicek keunikannya.</p>
+                                    @endif
                                     @error('form.username')
                                         <p class="kc-form-field__error">{{ $message }}</p>
                                     @enderror
@@ -176,7 +189,7 @@
                                     <x-searchable-select
                                         id="role"
                                         wire:model.live="form.role"
-                                        :options="collect($roleOptions)->map(fn ($role) => ['value' => $role->value, 'label' => ucfirst(str_replace('_', ' ', $role->value))])->all()"
+                                        :options="collect($roleOptions)->map(fn ($role) => ['value' => $role->value, 'label' => $role->label()])->all()"
                                         placeholder="-- Pilih Role --"
                                         :class="'kc-form-field__input'.($errors->has('form.role') ? ' kc-form-field__input--error' : '')"
                                     />
@@ -210,7 +223,16 @@
                                             Password Awal <span class="kc-form-field__required">*</span>
                                         </label>
                                         <input type="password" id="password" wire:model="form.password" class="kc-form-field__input @error('form.password') kc-form-field__input--error @enderror">
-                                        <p class="kc-form-field__hint">Minimal 6 karakter. User dapat menggantinya sendiri setelah login pertama.</p>
+                                        <p class="kc-form-field__hint">Minimal 6 karakter, kombinasi huruf/angka serta simbol. User dapat menggantinya sendiri setelah login pertama.</p>
+                                        @error('form.password')
+                                            <p class="kc-form-field__error">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                @else
+                                    <div class="kc-form-field kc-form-field--span2">
+                                        <label for="password" class="kc-form-field__label">Reset Password</label>
+                                        <input type="password" id="password" wire:model="form.password" autocomplete="new-password" class="kc-form-field__input @error('form.password') kc-form-field__input--error @enderror">
+                                        <p class="kc-form-field__hint">Opsional — kosongkan bila password tidak diubah. Minimal 6 karakter, kombinasi huruf/angka serta simbol.</p>
                                         @error('form.password')
                                             <p class="kc-form-field__error">{{ $message }}</p>
                                         @enderror
@@ -284,6 +306,22 @@
             border: 1px solid var(--kc-destructive);
             color: var(--kc-destructive);
             font-size: 14px;
+        }
+
+        .kc-alert--success {
+            background: #ecfdf5;
+            border-color: var(--kc-brand);
+            color: var(--kc-brand-hover);
+        }
+
+        /* Nilai yang tidak bisa diubah di form ditampilkan sebagai teks
+           (konvensi web: tidak ada input disabled/readonly). */
+        .kc-form-field__static {
+            margin: 0;
+            padding: 9px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--kc-text);
         }
 
         .kc-filter {

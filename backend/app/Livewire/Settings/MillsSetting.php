@@ -3,8 +3,11 @@
 namespace App\Livewire\Settings;
 
 use App\Enums\UserRole;
+use App\Livewire\Concerns\ValidatesUploadOnSelect;
 use App\Models\BusinessUnit;
+use App\Rules\RealImage;
 use App\Services\MillSettingService;
+use App\Services\StationService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
@@ -40,6 +43,7 @@ use Livewire\WithFileUploads;
 #[Layout('settings.mill-settings')]
 class MillsSetting extends Component
 {
+    use ValidatesUploadOnSelect;
     use WithFileUploads;
 
     public bool $isAdmin = false;
@@ -79,6 +83,16 @@ class MillsSetting extends Component
     public ?string $formErrorMessage = null;
 
     public ?string $successMessage = null;
+
+    /**
+     * Pilihan icon per station, di-bind ke x-searchable-select per baris
+     * (`stationIcons.<id>`) — menggantikan <select wire:change> biasa
+     * (temuan audit #15). Perubahan langsung disimpan lewat
+     * updatedStationIcons() → setStationIcon(), sama seperti dulu.
+     *
+     * @var array<string, string>
+     */
+    public array $stationIcons = [];
 
     /**
      * Extensions Livewire can safely call ->temporaryUrl() on — mirrors
@@ -134,6 +148,7 @@ class MillsSetting extends Component
         try {
             $millSetting = $service->getOrCreate(auth()->user(), $this->selectedBusinessUnitId);
             $this->stations = $service->listStations(auth()->user(), $this->selectedBusinessUnitId);
+            $this->syncStationIcons();
         } catch (ModelNotFoundException) {
             $this->formErrorMessage = 'Mill tidak ditemukan.';
             $this->resetForm();
@@ -163,6 +178,59 @@ class MillsSetting extends Component
         $this->logo = null;
         $this->home_page_image = null;
         $this->stations = [];
+        $this->stationIcons = [];
+    }
+
+    /**
+     * Aturan form — cermin MillSettingService::update(). app_name WAJIB
+     * (business spec screen-034: "nama aplikasi tidak pernah kosong");
+     * dulu nullable, sehingga mengosongkannya tetap berbuah "berhasil
+     * disimpan" padahal nilai lama diam-diam dipertahankan.
+     */
+    protected function rules(): array
+    {
+        return [
+            'app_name' => ['required', 'string', 'max:255'],
+            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Logo')],
+            'home_page_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Gambar halaman utama')],
+            'immediate_sync_enabled' => ['boolean'],
+        ];
+    }
+
+    /**
+     * Seluruh pesan berbahasa Indonesia (dulu sebagian jatuh ke pesan
+     * bawaan Laravel: "The app name field must not be greater than 255
+     * characters.").
+     */
+    protected function messages(): array
+    {
+        return [
+            'app_name.required' => 'Nama aplikasi wajib diisi.',
+            'app_name.string' => 'Nama aplikasi harus berupa teks.',
+            'app_name.max' => 'Nama aplikasi maksimal 255 karakter.',
+            'logo.file' => 'Logo harus berupa file gambar.',
+            'logo.mimes' => 'Logo harus berformat JPG atau PNG.',
+            'logo.max' => 'Ukuran logo maksimal 2MB.',
+            'home_page_image.file' => 'Gambar halaman utama harus berupa file gambar.',
+            'home_page_image.mimes' => 'Gambar halaman utama harus berformat JPG atau PNG.',
+            'home_page_image.max' => 'Ukuran gambar halaman utama maksimal 2MB.',
+            'immediate_sync_enabled.boolean' => 'Pilihan sinkronisasi langsung tidak valid.',
+        ];
+    }
+
+    /**
+     * File dicek SAAT DIPILIH (bukan baru saat Simpan): file yang bukan
+     * gambar sungguhan langsung ditolak dan dibuang dari form, jadi tidak
+     * ada pratinjau rusak dan tidak ada yang bisa tersimpan.
+     */
+    public function updatedLogo(): void
+    {
+        $this->validateUploadNow('logo');
+    }
+
+    public function updatedHomePageImage(): void
+    {
+        $this->validateUploadNow('home_page_image');
     }
 
     /**
@@ -176,17 +244,7 @@ class MillsSetting extends Component
         $this->formErrorMessage = null;
         $this->successMessage = null;
 
-        $this->validate([
-            'app_name' => ['nullable', 'string', 'max:255'],
-            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
-            'home_page_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
-            'immediate_sync_enabled' => ['boolean'],
-        ], [
-            'logo.mimes' => 'Logo harus berformat JPG atau PNG.',
-            'logo.max' => 'Ukuran logo maksimal 2MB.',
-            'home_page_image.mimes' => 'Gambar halaman utama harus berformat JPG atau PNG.',
-            'home_page_image.max' => 'Ukuran gambar halaman utama maksimal 2MB.',
-        ]);
+        $this->validate();
 
         $service = app(MillSettingService::class);
 
@@ -254,7 +312,28 @@ class MillsSetting extends Component
         }
 
         $this->stations = $service->listStations(auth()->user(), $this->selectedBusinessUnitId);
+        $this->syncStationIcons();
         $this->successMessage = 'Icon station berhasil disimpan.';
+    }
+
+    protected function syncStationIcons(): void
+    {
+        $this->stationIcons = collect($this->stations)
+            ->mapWithKeys(fn (array $station) => [$station['id'] => (string) ($station['icon'] ?? '')])
+            ->all();
+    }
+
+    /**
+     * Hook pemilih icon per baris: kunci = id station.
+     */
+    public function updatedStationIcons(mixed $value, string $stationId): void
+    {
+        $this->setStationIcon($stationId, (string) $value);
+
+        if ($this->formErrorMessage !== null) {
+            // Gagal → kembalikan pilihan ke nilai tersimpan.
+            $this->syncStationIcons();
+        }
     }
 
     /**
@@ -280,6 +359,7 @@ class MillsSetting extends Component
             'businessUnitOptions' => $businessUnitOptions,
             'iconOptions' => $this->iconOptions(),
             'previewableExtensions' => self::PREVIEWABLE_EXTENSIONS,
+            'typeLabels' => StationService::typeLabels(),
         ]);
     }
 }

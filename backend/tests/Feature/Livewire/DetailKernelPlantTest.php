@@ -47,7 +47,8 @@ it('berhasil: renders all header fields, the 24-row Kernel Plant Detail grid, an
     Livewire::actingAs($this->user)
         ->test(DetailKernelPlant::class, ['id' => $record->id])
         ->assertSee($record->kernel_plant_id)
-        ->assertSee('23.5')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('23,5')
         ->assertSee('Ripple Mill (Cracker)')
         ->assertSee('20 - 25 Amps')
         ->assertSee('Adjust rotor-vane clearance')

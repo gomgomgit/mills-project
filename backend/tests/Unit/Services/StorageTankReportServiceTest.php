@@ -159,7 +159,7 @@ class StorageTankReportAllBusinessUnitsSpy extends StorageTankReportService
  */
 class StorageTankReportFailingStreamService extends StorageTankReportService
 {
-    protected function streamExportRows(Builder $recordQuery): Generator
+    protected function streamExportRows(Builder $recordQuery, array $exportContext = ['', '', '']): Generator
     {
         yield array_fill(0, count(self::EXPORT_HEADER), 'x');
 
@@ -1166,10 +1166,11 @@ it('case 27 — kolom enum dan teks HANYA muncul pada ekspor, satu baris per slo
     // that record's time-slot lines, so the file pivots in a spreadsheet.
     $context = StorageTankReportService::EXPORT_CONTEXT_COLUMN_COUNT;
     expect(array_slice($first, 0, $context))->toBe(array_slice($second, 0, $context));
-    // The spec's context block is exactly four columns — tanggal, tangki,
-    // status, catatan — matching all four sibling station report services.
-    expect(array_slice($first, 0, $context))
-        ->toBe(['2026-09-04', 'TK-01', 'synced', 'catatan record']);
+    // Context block: Periode/Mill/Production Line (temuan audit 2026-10-04
+    // #8b) then tanggal, tangki, status (label Indonesia, #8c), catatan.
+    expect(array_slice($first, 3, $context - 3))
+        ->toBe(['2026-09-04', 'TK-01', 'Tersinkron', 'catatan record']);
+    expect($first[0])->toBe((string) $this->periodA->name);
 
     // time_slot as hour-and-minute, right after the context block.
     expect($first[$context])->toBe('07:00');
@@ -1177,7 +1178,8 @@ it('case 27 — kolom enum dan teks HANYA muncul pada ekspor, satu baris per slo
 
     // The four columns the summary never carries, at the positions
     // READING_FIELDS puts them in.
-    foreach (['steam_heating_valve_status' => 'open_1_2',
+    // Katup memakai label form ("Open 1/2"), bukan enum mentah (#8c).
+    foreach (['steam_heating_valve_status' => 'Open 1/2',
         'tank_structural_condition' => 'baik',
         'inspector_name' => 'Budi',
         'findings' => 'tidak ada kebocoran'] as $field => $value) {
@@ -1909,6 +1911,8 @@ it('case 44 — happy path: seluruh kondisi terpenuhi, payload lengkap', functio
     expect(array_keys($summary['coverage']))->toBe([
         'filled_slots', 'expected_slots', 'coverage_percent',
         'tank_count', 'slots_per_tank_per_day', 'days_in_period',
+        // Temuan audit 2026-10-04 #3 — penyebut berhenti di hari ini.
+        'days_counted', 'period_running',
     ]);
     expect(array_keys($summary['stock']))->toBe([
         'opening_mt', 'opening_at', 'closing_mt', 'closing_at',

@@ -12,12 +12,16 @@ use App\Models\CagesTrackRecord;
 use App\Models\Machinery;
 use App\Models\Station;
 use App\Models\User;
+use App\Support\AppTime;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
+use App\Support\ExportValue;
 use App\Support\Pagination;
+use App\Support\SheetWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -102,6 +106,8 @@ class CagesTrackRecordService
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
         // penolakan tidak menyisakan induk tanpa detail. Jenis stasiun dan mill
         // diambil dari stasiun yang SUDAH di-resolve, bukan dari request.
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('cages-track', $station->business_unit_id, $attributes['date'] ?? null);
 
         $attributes['station_id'] = $station->id;
@@ -171,6 +177,8 @@ class CagesTrackRecordService
         $periodLockMillId = $record->station->business_unit_id;
 
         $this->assertPeriodOpenForWrite('cages-track', $periodLockMillId, optional($record->date)->toDateString());
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('cages-track', $periodLockMillId, $attributes['date'] ?? null);
 
         $this->applyVerification($attributes, $data, $actor);
@@ -232,6 +240,12 @@ class CagesTrackRecordService
         foreach (self::FORM_FIELDS as $field) {
             $attributes[$field] = $data[$field] ?? null;
         }
+
+        // ZONA WAKTU: input ber-offset (mis. "...Z" dari mobile) dikonversi
+        // ke jam WIB sebelum disimpan — Eloquent tidak mengonversinya.
+        // Lihat App\Support\AppTime.
+        $attributes['tippler_start_time'] = AppTime::normalizeClientDateTime($attributes['tippler_start_time']);
+        $attributes['tippler_stop_time'] = AppTime::normalizeClientDateTime($attributes['tippler_stop_time']);
 
         return $attributes;
     }
@@ -358,7 +372,7 @@ class CagesTrackRecordService
                 'cages_remain' => $jumlahCages - $totalCages,
             ];
 
-            if (! empty($row['id']) && CagesTippedTime::where('id', $row['id'])->where('cages_track_record_id', $record->id)->exists()) {
+            if (! empty($row['id']) && Str::isUuid((string) $row['id']) && CagesTippedTime::where('id', $row['id'])->where('cages_track_record_id', $record->id)->exists()) {
                 CagesTippedTime::where('id', $row['id'])->update($detailAttributes);
             } else {
                 CagesTippedTime::create($detailAttributes);
@@ -414,7 +428,7 @@ class CagesTrackRecordService
     /**
      * export() — business_logic step 5-6: re-run the same filter query
      * (no pagination, still with tipped_time_count computed), enforce the
-     * row limit, generate a CSV (or CSV-served-as-xlsx fallback — see
+     * row limit, generate a CSV (or real .xlsx via App\Support\SheetWriter — see
      * implementation_notes) body, and return it as a StreamedResponse for
      * download.
      *
@@ -450,14 +464,13 @@ class CagesTrackRecordService
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($query) {
-                $handle = fopen('php://output', 'w');
+            return response()->streamDownload(function () use ($query, $format) {
+                $handle = SheetWriter::open($format);
 
-                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
-                // deprecates relying on fputcsv()'s default $escape). The
+                // Header row. The
                 // record's context columns repeat on every detail line, so the
                 // file can be pivoted and filtered directly in a spreadsheet.
-                fputcsv($handle, [
+                $handle->row([
                     'Production Line',
                     'Cages Track Number',
                     'Date',
@@ -474,7 +487,7 @@ class CagesTrackRecordService
                     'Cage Dicentang',
                     'Total Cages',
                     'Cages Remain',
-                ], ',', '"', '\\');
+                ]);
 
                 $query->chunk(200, function ($records) use ($handle) {
                     foreach ($records as $record) {
@@ -483,38 +496,39 @@ class CagesTrackRecordService
                             $record->productionLine?->name,
                             $record->cages_track_number,
                             optional($record->date)->toDateString(),
-                            optional($record->tippler_start_time)->toDateTimeString(),
-                            optional($record->tippler_stop_time)->toDateTimeString(),
+                            ExportValue::dateTime($record->tippler_start_time),
+                            ExportValue::dateTime($record->tippler_stop_time),
                             $record->cages_out,
                             $record->cages_tipped,
                             $record->note,
                             $record->checkedBy?->name,
                             $record->acknowledgedBy?->name,
                             $record->cages_tipped_times_count,
-                            $record->status?->value,
+                            ExportValue::status($record->status),
                         ];
 
                         $details = $record->cagesTippedTimes;
 
                         if ($details->isEmpty()) {
-                            fputcsv($handle, array_merge($context, array_fill(0, 4, null)), ',', '"', '\\');
+                            $handle->row(array_merge($context, array_fill(0, 4, null)));
 
                             continue;
                         }
 
                         foreach ($details as $detail) {
                             /** @var CagesTippedTime $detail */
-                            fputcsv($handle, array_merge($context, [
-                                $detail->tipped_hour,
+                            $handle->row(array_merge($context, [
+                                // "07:00" seperti layar Detail (temuan audit 2026-10-04 #8d).
+                                $detail->tipped_hour === null ? null : sprintf('%02d:00', (int) $detail->tipped_hour),
                                 $detail->checked_cage_numbers,
                                 $detail->total_cages,
                                 $detail->cages_remain,
-                            ]), ',', '"', '\\');
+                            ]));
                         }
                     }
                 });
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);
@@ -533,14 +547,8 @@ class CagesTrackRecordService
     /**
      * Resolves the Content-Type + filename for the requested export format.
      *
-     * No XLSX writer package is present in composer.json (spatie/laravel-excel
-     * or maatwebsite/excel), and the tech-spec explicitly says not to add
-     * one unless strictly necessary — so format=excel falls back to a CSV
-     * body served with the xlsx mimetype/extension (pragmatic MVP; opens
-     * correctly in Excel/most spreadsheet tools since they sniff CSV
-     * content, though it is not a real OOXML file). Same approach as
-     * GradingRecordService::fileMetaFor() / WeighbridgeRecordService::fileMetaFor()
-     * — see implementation_notes.
+     * format=excel is a real .xlsx written by App\Support\SheetWriter (temuan
+     * audit 2026-10-04 #1 — previously a CSV body under an xlsx name).
      *
      * @return array{0: string, 1: string}
      */

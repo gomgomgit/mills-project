@@ -7,9 +7,13 @@ use App\Exceptions\InvalidDateRangeException;
 use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
 use App\Models\GradingRecord;
+use App\Models\ProductionLine;
 use App\Models\WeighbridgeRecord;
+use App\Support\SheetWriter;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
@@ -33,6 +37,15 @@ use Throwable;
  */
 class ManagementReportService
 {
+    /** Judul kolom ekspor (setelah kolom konteks Production Line). */
+    public const EXPORT_HEADER = [
+        'Tanggal',
+        'Weighbridge Masuk — Jumlah Trip', 'Weighbridge Masuk — Berat Bersih (kg)',
+        'Weighbridge Keluar — Jumlah Trip', 'Weighbridge Keluar — Berat Bersih (kg)',
+        'Grading — Jumlah Record', 'Grading — Netto (kg)', 'Grading — Jumlah Tandan',
+        'Cages Track — Jumlah Record', 'Cages Track — Lori Ditumpahkan',
+    ];
+
     /**
      * getBreakdown() — business_logic steps 1-6: validate date range →
      * default to start-of-month..today if not provided → aggregate
@@ -43,7 +56,7 @@ class ManagementReportService
      *
      * @throws InvalidDateRangeException
      */
-    public function getBreakdown(string $businessUnitId, ?string $dateFrom, ?string $dateTo): array
+    public function getBreakdown(string $businessUnitId, ?string $dateFrom, ?string $dateTo, ?string $productionLineId = null): array
     {
         [$from, $to] = $this->resolveDateRange($dateFrom, $dateTo);
 
@@ -55,9 +68,9 @@ class ManagementReportService
 
             $rows[] = [
                 'date' => $date,
-                'weighbridge' => $this->weighbridgeSummary($date, $businessUnitId),
-                'grading' => $this->gradingSummary($date, $businessUnitId),
-                'cages_track' => $this->cagesTrackSummary($date, $businessUnitId),
+                'weighbridge' => $this->weighbridgeSummary($date, $businessUnitId, $productionLineId),
+                'grading' => $this->gradingSummary($date, $businessUnitId, $productionLineId),
+                'cages_track' => $this->cagesTrackSummary($date, $businessUnitId, $productionLineId),
             ];
 
             $cursor->addDay();
@@ -72,36 +85,38 @@ class ManagementReportService
     /**
      * export() — business_logic steps 1-6 (same as getBreakdown(), no
      * pagination concern since rows are already bounded by the date
-     * range) + generate a CSV (or CSV-as-xlsx fallback) body with one row
-     * per date plus a final Total row, returned as a StreamedResponse.
+     * range) + generate a CSV or real .xlsx body (App\Support\SheetWriter)
+     * with one row per date plus a final Total row, returned as a
+     * StreamedResponse.
      *
      * @throws InvalidDateRangeException
      * @throws ExportFailedException
      */
-    public function export(string $businessUnitId, ?string $dateFrom, ?string $dateTo, string $format): StreamedResponse
+    public function export(string $businessUnitId, ?string $dateFrom, ?string $dateTo, string $format, ?string $productionLineId = null): StreamedResponse
     {
-        $breakdown = $this->getBreakdown($businessUnitId, $dateFrom, $dateTo);
+        $breakdown = $this->getBreakdown($businessUnitId, $dateFrom, $dateTo, $productionLineId);
+        $lineName = $productionLineId !== null
+            ? (string) ProductionLine::query()->whereKey($productionLineId)->value('name')
+            : '';
 
         try {
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($breakdown) {
-                $handle = fopen('php://output', 'w');
+            return response()->streamDownload(function () use ($breakdown, $format, $lineName) {
+                $handle = SheetWriter::open($format);
 
-                fputcsv($handle, [
-                    'Tanggal',
-                    'WB Count', 'WB Total Net Weight',
-                    'Grading Count', 'Grading Total Netto', 'Grading Total Quantity',
-                    'Cages Track Count', 'Cages Track Total Cages Tipped',
-                ], ',', '"', '\\');
+                // Judul kolom Bahasa Indonesia, sama dengan layar. Arus masuk
+                // dan arus keluar Weighbridge DIPISAH (tidak pernah
+                // dijumlahkan) — sama seperti Laporan Weighbridge.
+                $handle->row(array_merge(['Production Line'], self::EXPORT_HEADER));
 
                 foreach ($breakdown['rows'] as $row) {
-                    fputcsv($handle, $this->rowToCsvLine($row), ',', '"', '\\');
+                    $handle->row(array_merge([$lineName], $this->rowToCsvLine($row)));
                 }
 
-                fputcsv($handle, $this->rowToCsvLine(['date' => 'TOTAL'] + $breakdown['total']), ',', '"', '\\');
+                $handle->row(array_merge([$lineName], $this->rowToCsvLine(['date' => 'Total'] + $breakdown['total'])));
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);
@@ -118,8 +133,10 @@ class ManagementReportService
     {
         return [
             $row['date'],
-            $row['weighbridge']['count'],
-            $row['weighbridge']['total_net_weight'],
+            $row['weighbridge']['receive']['count'],
+            $row['weighbridge']['receive']['total_net_weight'],
+            $row['weighbridge']['dispatch']['count'],
+            $row['weighbridge']['dispatch']['total_net_weight'],
             $row['grading']['count'],
             $row['grading']['total_netto'],
             $row['grading']['total_quantity'],
@@ -134,14 +151,16 @@ class ManagementReportService
     protected function totalOf(array $rows): array
     {
         $total = [
-            'weighbridge' => ['count' => 0, 'total_net_weight' => 0.0],
+            'weighbridge' => self::emptyWeighbridge(),
             'grading' => ['count' => 0, 'total_netto' => 0.0, 'total_quantity' => 0.0],
             'cages_track' => ['count' => 0, 'total_cages_tipped' => 0],
         ];
 
         foreach ($rows as $row) {
-            $total['weighbridge']['count'] += $row['weighbridge']['count'];
-            $total['weighbridge']['total_net_weight'] += $row['weighbridge']['total_net_weight'];
+            foreach (['receive', 'dispatch'] as $flow) {
+                $total['weighbridge'][$flow]['count'] += $row['weighbridge'][$flow]['count'];
+                $total['weighbridge'][$flow]['total_net_weight'] += $row['weighbridge'][$flow]['total_net_weight'];
+            }
             $total['grading']['count'] += $row['grading']['count'];
             $total['grading']['total_netto'] += $row['grading']['total_netto'];
             $total['grading']['total_quantity'] += $row['grading']['total_quantity'];
@@ -175,26 +194,57 @@ class ManagementReportService
     }
 
     /**
-     * @return array{count: int, total_net_weight: float}
+     * Breakdown Weighbridge kosong — bentuk yang sama dengan
+     * weighbridgeSummary(), dipakai untuk baris Total dan keadaan galat.
+     *
+     * @return array{receive: array{count: int, total_net_weight: float}, dispatch: array{count: int, total_net_weight: float}}
      */
-    protected function weighbridgeSummary(string $date, string $businessUnitId): array
+    public static function emptyWeighbridge(): array
+    {
+        return [
+            'receive' => ['count' => 0, 'total_net_weight' => 0.0],
+            'dispatch' => ['count' => 0, 'total_net_weight' => 0.0],
+        ];
+    }
+
+    /**
+     * ARUS MASUK DAN ARUS KELUAR DIPISAH, TIDAK PERNAH DIJUMLAHKAN (temuan
+     * audit 2026-10-04 #2a). Sebelumnya satu "Count"/"Net Weight"
+     * menjumlahkan trip TBS masuk dengan pengiriman CPO/kernel keluar —
+     * dua satuan muatan yang tidak sebanding (lihat
+     * WeighbridgeReportService). `weighbridge_type` di luar receive/dispatch
+     * diperlakukan sebagai receive, default kolomnya sendiri — sama dengan
+     * WeighbridgeReportService::flowOf().
+     *
+     * @return array{receive: array{count: int, total_net_weight: float}, dispatch: array{count: int, total_net_weight: float}}
+     */
+    protected function weighbridgeSummary(string $date, string $businessUnitId, ?string $productionLineId = null): array
     {
         $query = WeighbridgeRecord::query()->whereDate('record_datetime', $date);
-        $this->scopeByBusinessUnit($query, $businessUnitId);
+        $this->scopeByBusinessUnit($query, $businessUnitId, $productionLineId);
+
+        $dispatch = (clone $query)->where('weighbridge_type', 'dispatch');
+        $receive = (clone $query)->where(fn (Builder $q) => $q->where('weighbridge_type', '!=', 'dispatch')->orWhereNull('weighbridge_type'));
 
         return [
-            'count' => (int) $query->count(),
-            'total_net_weight' => (float) ($query->sum('net_weight') ?? 0),
+            'receive' => [
+                'count' => (int) $receive->count(),
+                'total_net_weight' => (float) ($receive->sum('net_weight') ?? 0),
+            ],
+            'dispatch' => [
+                'count' => (int) $dispatch->count(),
+                'total_net_weight' => (float) ($dispatch->sum('net_weight') ?? 0),
+            ],
         ];
     }
 
     /**
      * @return array{count: int, total_netto: float, total_quantity: float}
      */
-    protected function gradingSummary(string $date, string $businessUnitId): array
+    protected function gradingSummary(string $date, string $businessUnitId, ?string $productionLineId = null): array
     {
         $query = GradingRecord::query()->whereDate('date', $date);
-        $this->scopeByBusinessUnit($query, $businessUnitId);
+        $this->scopeByBusinessUnit($query, $businessUnitId, $productionLineId);
 
         return [
             'count' => (int) $query->count(),
@@ -209,10 +259,10 @@ class ManagementReportService
      *
      * @return array{count: int, total_cages_tipped: int}
      */
-    protected function cagesTrackSummary(string $date, string $businessUnitId): array
+    protected function cagesTrackSummary(string $date, string $businessUnitId, ?string $productionLineId = null): array
     {
         $headerQuery = CagesTrackRecord::query()->whereDate('date', $date);
-        $this->scopeByBusinessUnit($headerQuery, $businessUnitId);
+        $this->scopeByBusinessUnit($headerQuery, $businessUnitId, $productionLineId);
 
         $headerIds = (clone $headerQuery)->pluck('id');
 
@@ -226,16 +276,81 @@ class ManagementReportService
         ];
     }
 
-    protected function scopeByBusinessUnit(Builder $query, string $businessUnitId): void
+    /**
+     * Cakupan mill, lalu (bila dipilih) cakupan PRODUCTION LINE. Line dibaca
+     * dari kolom `production_line_id` milik RECORD sendiri — sumber
+     * kebenaran yang sama dengan laporan stasiun dan Data Browser, bukan
+     * line stasiun hari ini.
+     */
+    protected function scopeByBusinessUnit(Builder $query, string $businessUnitId, ?string $productionLineId = null): void
     {
         $query->whereHas('station', fn (Builder $stationQuery) => $stationQuery->where('business_unit_id', $businessUnitId));
+
+        if ($productionLineId !== null) {
+            $query->where($query->getModel()->getTable().'.production_line_id', $productionLineId);
+        }
+    }
+
+    /**
+     * Opsi Production Line untuk pemilih di layar — SELALU dibatasi mill
+     * yang berlaku, jadi line mill lain tidak pernah menjadi opsi.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function productionLineOptions(string $businessUnitId): array
+    {
+        return ProductionLine::query()
+            ->where('business_unit_id', $businessUnitId)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ProductionLine $line) => ['id' => (string) $line->id, 'name' => (string) $line->name])
+            ->all();
+    }
+
+    /**
+     * Line yang sah untuk mill ini, atau null (kosong / milik mill lain).
+     */
+    public function resolveProductionLineOrNull(string $businessUnitId, ?string $productionLineId): ?string
+    {
+        // Str::isUuid() DULU: nilai bukan-UUID tidak boleh sampai ke SQL
+        // (PostgreSQL: SQLSTATE 22P02 → 500).
+        if ($productionLineId === null || $productionLineId === '' || ! Str::isUuid($productionLineId)) {
+            return null;
+        }
+
+        return ProductionLine::query()
+            ->whereKey($productionLineId)
+            ->where('business_unit_id', $businessUnitId)
+            ->exists() ? $productionLineId : null;
+    }
+
+    /**
+     * Jalur API: line WAJIB dan harus milik mill pemanggil — laporan
+     * menghasilkan angka gabungan, dan total yang mencampur semua line bukan
+     * angka yang bisa ditindaklanjuti (aturan yang sama dengan laporan
+     * stasiun). 422 untuk kosong maupun line mill lain — tidak pernah
+     * mengonfirmasi bahwa line mill lain itu ada.
+     *
+     * @throws ValidationException
+     */
+    public function resolveProductionLine(string $businessUnitId, ?string $productionLineId): string
+    {
+        $resolved = $this->resolveProductionLineOrNull($businessUnitId, $productionLineId);
+
+        if ($resolved === null) {
+            throw ValidationException::withMessages([
+                'production_line_id' => [$productionLineId === null || $productionLineId === ''
+                    ? 'Production Line wajib dipilih untuk menampilkan laporan.'
+                    : 'Production Line yang dipilih tidak valid.'],
+            ]);
+        }
+
+        return $resolved;
     }
 
     /**
      * Resolves the Content-Type + filename for the requested export
-     * format — same fallback convention as WeighbridgeRecordService
-     * (no XLSX writer package present; format=excel serves a CSV body
-     * with the xlsx mimetype/extension).
+     * format (format=excel → real .xlsx via App\Support\SheetWriter).
      *
      * @return array{0: string, 1: string}
      */

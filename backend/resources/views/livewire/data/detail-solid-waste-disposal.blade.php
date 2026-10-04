@@ -34,7 +34,7 @@
                 </div>
                 <div class="sw-detail-field">
                     <span class="sw-detail-field__label">Tanggal</span>
-                    <span class="sw-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="sw-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="sw-detail-field">
                     <span class="sw-detail-field__label">Station</span>
@@ -83,9 +83,9 @@
                                     <td>{{ $row['driver_name'] ?: '-' }}</td>
                                     <td>{{ $row['solid_waste_type'] ?: '-' }}</td>
                                     <td>{{ $row['source_station'] ?: '-' }}</td>
-                                    <td>{{ $row['gross_weight_mt'] ?? '-' }}</td>
-                                    <td>{{ $row['tare_weight_mt'] ?? '-' }}</td>
-                                    <td>{{ $row['net_weight_mt'] ?? '-' }}</td>
+                                    <td>{{ \App\Support\Display::value($row['gross_weight_mt']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['tare_weight_mt']) }}</td>
+                                    <td>{{ \App\Support\Display::value($row['net_weight_mt']) }}</td>
                                     <td>{{ $row['disposal_utilization_site'] ?: '-' }}</td>
                                     <td>{{ $row['purpose_end_use'] ?: '-' }}</td>
                                     <td>{{ $row['gate_pass_no'] ?: '-' }}</td>
@@ -120,7 +120,7 @@
                 </div>
                 <div class="sw-detail-field">
                     <span class="sw-detail-field__label">Status</span>
-                    <span class="sw-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="sw-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

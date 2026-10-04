@@ -40,7 +40,8 @@ it('berhasil: renders all header fields and the Effluent Plant Detail grid, read
     Livewire::actingAs($this->user)
         ->test(DetailEffluentPlant::class, ['id' => $record->id])
         ->assertSee($record->effluent_plant_id)
-        ->assertSee('42.5')
+        // Angka format id-ID sejak 2026-10-04 (App\\Support\\Display).
+        ->assertSee('42,5')
         ->assertDontSee('Record tidak ditemukan');
 });
 

@@ -22,6 +22,7 @@
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
+use App\Models\MachineryGroup;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
@@ -110,8 +111,12 @@ it('Hapus berhasil: deletes a production line with no related stations, returns 
 });
 
 it('Hapus ditolak: returns 409 PRODUCTION_LINE_HAS_STATIONS and keeps the row when it has related Station', function () {
+    // Sejak audit 2026-10-04 #5 line yang station-nya masih kosong ikut
+    // terhapus bersama station-nya; yang ditolak adalah line yang
+    // station-nya sudah punya data (di sini: Machinery Group).
     $productionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
-    Station::factory()->forProductionLine($productionLine)->create();
+    $station = Station::factory()->forProductionLine($productionLine)->create();
+    MachineryGroup::factory()->forStation($station)->create();
 
     $response = $this->actingAs($this->admin, 'web')->deleteJson("/api/production-lines/{$productionLine->id}");
 

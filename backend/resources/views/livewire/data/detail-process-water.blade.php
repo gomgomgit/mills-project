@@ -34,7 +34,7 @@
                 </div>
                 <div class="pw-detail-field">
                     <span class="pw-detail-field__label">Tanggal</span>
-                    <span class="pw-detail-field__value">{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d M Y') : '-' }}</span>
+                    <span class="pw-detail-field__value">{{ \App\Support\Display::date($record['date']) }}</span>
                 </div>
                 <div class="pw-detail-field">
                     <span class="pw-detail-field__label">Station</span>
@@ -73,19 +73,19 @@
                         @forelse ($record['details'] as $row)
                             <tr data-testid="process-water-detail-row-{{ $row['id'] }}">
                                 <td>{{ $row['time_slot'] }}</td>
-                                <td>{{ $row['shift'] ?? '-' }}</td>
-                                <td>{{ $row['inspector_id'] ?? '-' }}</td>
-                                <td>{{ $row['raw_water_flow_m3h'] ?? '-' }}</td>
-                                <td>{{ $row['clarified_water_flow_m3h'] ?? '-' }}</td>
-                                <td>{{ $row['softener_inlet_ph'] ?? '-' }}</td>
-                                <td>{{ $row['softener_outlet_hardness_ppm'] ?? '-' }}</td>
-                                <td>{{ $row['alum_dosing_kgh'] ?? '-' }}</td>
-                                <td>{{ $row['polymer_dosing_gh'] ?? '-' }}</td>
-                                <td>{{ $row['boiler_feed_tank_temp_c'] ?? '-' }}</td>
-                                <td>{{ $row['boiler_feed_water_ph'] ?? '-' }}</td>
-                                <td>{{ $row['boiler_feed_tds_ppm'] ?? '-' }}</td>
-                                <td>{{ $row['action_taken_status'] ?? '-' }}</td>
-                                <td>{{ $row['findings'] ?? '-' }}</td>
+                                <td>{{ \App\Support\Display::value($row['shift']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['inspector_id']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['raw_water_flow_m3h']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['clarified_water_flow_m3h']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['softener_inlet_ph']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['softener_outlet_hardness_ppm']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['alum_dosing_kgh']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['polymer_dosing_gh']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['boiler_feed_tank_temp_c']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['boiler_feed_water_ph']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['boiler_feed_tds_ppm']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['action_taken_status']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>
                         @empty
                             <tr data-testid="process-water-detail-rows-empty">
@@ -114,7 +114,7 @@
                 </div>
                 <div class="pw-detail-field">
                     <span class="pw-detail-field__label">Status</span>
-                    <span class="pw-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="pw-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

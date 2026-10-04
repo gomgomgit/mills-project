@@ -362,8 +362,10 @@
         .md-millcurrent svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--md-brand); }
         .md-millcurrent strong { color: var(--md-ink); font-weight: 600; }
 
-        /* Grid stasiun: 3 kolom TETAP di setiap lebar. */
-        .station-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; max-width: 640px; }
+        /* Grid stasiun: kolom auto-fill responsif (temuan audit 2026-10-04
+           #10 — sebelumnya 3 kolom TETAP dengan max-width 640px sehingga
+           sisa lebar halaman kosong). Tile minimal 150px. */
+        .station-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
         .station-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
                         min-height: 44px; padding: 20px 12px; border: 1px solid transparent; border-radius: 12px;
                         box-shadow: 0 1px 2px rgba(15,23,42,.06); font-size: 13px; font-weight: 600; line-height: 1.25;
@@ -474,6 +476,51 @@
         .md-explain b { color: var(--md-ink); }
         .md-explain svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--md-brand); }
 
+
+        /* ================================================================
+           TAMBAHAN 2026-10-04 — perbaikan temuan audit laporan.
+
+           Murni aditif kecuali satu aturan .station-grid (#10) yang
+           DIGANTI. Ditulis SEBELUM blok @media di bawah supaya aturan
+           responsif yang sudah ada tetap menang di layar sempit.
+           ================================================================ */
+
+        /* #4 — ikon info di kotak .md-threshold tidak punya aturan ukuran,
+           sehingga SVG tanpa atribut width/height melebar ~290-450px. */
+        .md-threshold svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--md-brand); }
+
+        /* #5 — angka utama KPI yang dibungkus <span data-testid> ikut
+           terkena `.md-kpi__value span` (gaya SATUAN, 13px). Angkanya
+           dikembalikan ke ukuran penuh; span satuan (tanpa data-testid)
+           tetap kecil. */
+        .md-kpi__value > span[data-testid] { font-size: inherit; font-weight: inherit; color: inherit; }
+
+        /* #3 — keterangan "dihitung sampai hari ini" di bawah bilah
+           kelengkapan untuk periode yang masih berjalan. */
+        .md-budget__note { margin: -6px 0 0; font-size: 12px; color: var(--md-muted); }
+
+        /* #7 — petunjuk gulir untuk grafik/tabel yang lebih lebar dari
+           kartunya (sama dengan petunjuk "Geser mendatar…" di mobile). */
+        .md-scrollhint { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; font-size: 12px; color: var(--md-muted); }
+        .md-scrollhint svg { width: 14px; height: 14px; flex-shrink: 0; }
+        /* Grafik batang harian: tiap kolom selebar labelnya ("01 Sep",
+           "2.050"), sehingga label tanggal/nilai tidak pernah bertumpuk;
+           yang tidak muat menggulir di dalam kartu, dengan petunjuk di
+           bawahnya. */
+        .md-trendchart--days { gap: 4px; }
+        .md-trendchart--days .md-trendchart__col { flex: 1 0 44px; min-width: 44px; }
+        .md-trendchart--days .md-trendchart__val { font-size: 10px; }
+        /* Grafik garis (.md-lc, min-width 620px): petunjuk gulir hanya
+           ketika kartunya memang lebih sempit dari grafik. */
+        .md-card:has(> .md-lc) { container-type: inline-size; }
+        .md-scrollhint--lc { display: none; }
+        @container (max-width: 660px) { .md-scrollhint--lc { display: flex; } }
+        /* Tabel rekap: judul kolom BOLEH membungkus (isi sel tetap satu
+           baris), sehingga tabel per unit/rekap muat di kartunya dan kolom
+           terakhir tidak terpotong di tepi kanan. Bila tetap lebih lebar
+           (layar sempit) tabel menggulir di dalam kartunya. */
+        .md-table thead th { white-space: normal; vertical-align: bottom; line-height: 1.3; min-width: 56px; }
+
         @media (max-width: 1100px) {
             .md-kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .md-kpis--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -509,7 +556,7 @@
             /* screen-140: grid stasiun tetap 3 kolom di bawah 767px —
                melebar penuh, jarak dan padding mengecil, sehingga halaman
                tidak pernah punya gulir horizontal. */
-            .station-grid { max-width: none; gap: 12px; }
+            .station-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
             .station-tile { padding: 16px 8px; font-size: 12px; }
         }
     </style>

@@ -38,7 +38,7 @@
                 </div>
                 <div class="dw-detail-field">
                     <span class="dw-detail-field__label">{{ $record['weighbridge_type'] === 'dispatch' ? 'Tanggal & Waktu Dispatch' : 'Tanggal & Waktu Arrival' }}</span>
-                    <span class="dw-detail-field__value" data-testid="detail-record-datetime">{{ $record['record_datetime'] ? \Illuminate\Support\Carbon::parse($record['record_datetime'])->format('d M Y H:i') : '-' }}</span>
+                    <span class="dw-detail-field__value" data-testid="detail-record-datetime">{{ \App\Support\Display::dateTime($record['record_datetime']) }}</span>
                 </div>
                 @if ($record['weighbridge_type'] === 'dispatch')
                     <div class="dw-detail-field">
@@ -90,19 +90,19 @@
             <div class="dw-detail-grid">
                 <div class="dw-detail-field">
                     <span class="dw-detail-field__label">Berat Kotor (Gross Weight) (kg)</span>
-                    <span class="dw-detail-field__value">{{ $record['gross_weight'] }}</span>
+                    <span class="dw-detail-field__value">{{ \App\Support\Display::value($record['gross_weight']) }}</span>
                 </div>
                 <div class="dw-detail-field">
                     <span class="dw-detail-field__label">Berat Kosong (Tare Weight) (kg)</span>
-                    <span class="dw-detail-field__value">{{ $record['tare_weight'] ?? '-' }}</span>
+                    <span class="dw-detail-field__value">{{ \App\Support\Display::value($record['tare_weight']) }}</span>
                 </div>
                 <div class="dw-detail-field">
                     <span class="dw-detail-field__label">Berat Bersih (Net Weight) (kg)</span>
-                    <span class="dw-detail-field__value">{{ $record['net_weight'] ?? '-' }}</span>
+                    <span class="dw-detail-field__value">{{ \App\Support\Display::value($record['net_weight']) }}</span>
                 </div>
                 <div class="dw-detail-field">
                     <span class="dw-detail-field__label">Kuantitas (tandan)</span>
-                    <span class="dw-detail-field__value">{{ $record['quantity'] ?? '-' }}</span>
+                    <span class="dw-detail-field__value">{{ \App\Support\Display::value($record['quantity']) }}</span>
                 </div>
             </div>
         </div>
@@ -120,7 +120,7 @@
                 </div>
                 <div class="dw-detail-field">
                     <span class="dw-detail-field__label">Status</span>
-                    <span class="dw-detail-field__value">{{ $record['status'] }}</span>
+                    <span class="dw-detail-field__value">{{ \App\Support\Display::status($record['status']) }}</span>
                 </div>
             </div>
         </div>

@@ -35,7 +35,7 @@
 
                     <div class="fg-field">
                         <label class="fg-field__label" for="production_line_id">Production Line <span class="fg-required">*</span></label>
-                        <select id="production_line_id" wire:model="form.production_line_id" class="fg-input" data-testid="production-line-select" @disabled(empty($productionLineOptions))>
+                        <select id="production_line_id" wire:model="form.production_line_id" class="fg-input" data-testid="production-line-select">
                             <option value="">Pilih Production Line</option>
                             @foreach ($productionLineOptions as $option)
                                 <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
@@ -171,10 +171,11 @@
                                         <input type="number" step="any" wire:model.live="detailRows.{{ $index }}.quantity" class="fg-input" data-testid="detail-quantity-input-{{ $index }}">
                                     </td>
                                     <td>
-                                        <input type="text" value="{{ $this->rowUom($index) }}" class="fg-input" data-testid="detail-uom-{{ $index }}" disabled>
+                                        {{-- Nilai terhitung ditampilkan sebagai teks, bukan input disabled (konvensi web). --}}
+                                        <span class="fg-computed-value" data-testid="detail-uom-{{ $index }}">{{ $this->rowUom($index) }}</span>
                                     </td>
                                     <td>
-                                        <input type="text" value="{{ $this->rowPercentage($index) }}" class="fg-input" data-testid="detail-percentage-{{ $index }}" disabled>
+                                        <span class="fg-computed-value" data-testid="detail-percentage-{{ $index }}">{{ $this->rowPercentage($index) }}</span>
                                     </td>
                                     <td>
                                         <button type="button" wire:click="removeDetailRow({{ $index }})" class="fg-button fg-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button>
@@ -227,7 +228,7 @@
         .fg-field__error { font-size: 12px; color: #b91c1c; }
         .fg-required { color: #b91c1c; }
         .fg-input { padding: 8px 12px; border: 1px solid var(--color-border, #d1d5db); border-radius: var(--radius-input, 6px); font-size: 14px; font-family: inherit; width: 100%; }
-        .fg-input:disabled { background: #f3f4f6; color: var(--color-text-muted, #6b7280); }
+        .fg-computed-value { display: inline-block; min-width: 80px; padding: 8px 12px; font-size: 14px; font-weight: 500; color: var(--color-text, #1f2937); background: #f3f4f6; border-radius: var(--radius-input, 6px); box-sizing: border-box; }
         .fg-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; }
         .fg-actions { display: flex; justify-content: flex-end; }
         .fg-table-scroll { width: 100%; overflow-x: auto; }

@@ -10,6 +10,12 @@
         </button>
     </div>
 
+    @if ($successMessage)
+        <div class="kc-alert kc-alert--success" role="status" data-testid="success-message">
+            {{ $successMessage }}
+        </div>
+    @endif
+
     @if ($deleteErrorMessage)
         <div class="kc-alert" role="alert" data-testid="delete-error">
             {{ $deleteErrorMessage }}
@@ -52,7 +58,7 @@
                         <td class="kc-table__actions">
                             @if ($confirmingDeleteId === $productionLine['id'])
                                 <span class="kc-confirm">
-                                    <span class="kc-confirm__label">Yakin hapus?</span>
+                                    <span class="kc-confirm__label">{{ $productionLine['station_count'] > 0 ? 'Hapus beserta '.$productionLine['station_count'].' station-nya?' : 'Yakin hapus?' }}</span>
                                     <button type="button" wire:click="confirmDelete" class="kc-button kc-button--danger kc-button--sm" data-testid="confirm-delete-button">
                                         Ya, Hapus
                                     </button>
@@ -261,6 +267,12 @@
             border: 1px solid var(--kc-destructive);
             color: var(--kc-destructive);
             font-size: 14px;
+        }
+
+        .kc-alert--success {
+            background: #ecfdf5;
+            border-color: var(--kc-brand);
+            color: var(--kc-brand-hover);
         }
 
         .kc-filter {

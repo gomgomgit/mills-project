@@ -333,7 +333,7 @@ it('uploads a valid logo image and returns a logo_url, storing the file under bu
         'company_id' => $company->id,
         'code' => 'BU-API-LOGO-001',
         'name' => 'Mill Berlogo',
-        'logo' => UploadedFile::fake()->create('logo.jpg', 500, 'image/jpeg'),
+        'logo' => fakeRealImage('logo.jpg', 500),
     ]);
 
     $response->assertStatus(201);
@@ -368,7 +368,7 @@ it('returns 422 with errors.logo when the logo file exceeds the max size', funct
         'company_id' => $company->id,
         'code' => 'BU-API-LOGO-003',
         'name' => 'Mill Logo Besar',
-        'logo' => UploadedFile::fake()->create('logo.jpg', 3000, 'image/jpeg'),
+        'logo' => fakeRealImage('logo.jpg', 3000),
     ]);
 
     $response->assertStatus(422);
@@ -400,7 +400,7 @@ it('replaces the stored logo on update when a new file is provided', function ()
         'code' => 'BU-API-LOGO-005',
         'logo' => 'business-unit-logos/old.jpg',
     ]);
-    $newLogo = UploadedFile::fake()->create('new-logo.png', 400, 'image/png');
+    $newLogo = fakeRealImage('new-logo.png', 400);
 
     $response = $this->actingAs($this->admin, 'web')->post("/api/business-units/{$businessUnit->id}", [
         '_method' => 'PATCH',

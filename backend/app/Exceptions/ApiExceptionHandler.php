@@ -5,6 +5,7 @@ namespace App\Exceptions;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -117,6 +118,30 @@ class ApiExceptionHandler
             }
 
             return response()->json($payload, $status);
+        }
+
+        // QueryException — JARING PENGAMAN, TIDAK PERNAH membocorkan teks SQL,
+        // juga saat APP_DEBUG=true (2026-10-04: POST /api/grading-records
+        // dengan UUID tidak valid menampilkan SQLSTATE lengkap ke pengguna).
+        // Detailnya tetap tercatat di log lewat report() bawaan Laravel.
+        //
+        // SQLSTATE 22P02 (invalid_text_representation) dan 22007/22008
+        // (format tanggal/waktu) di PostgreSQL berarti NILAI KIRIMAN klien
+        // berformat salah (mis. id bukan UUID) — kesalahan input, jadi 422,
+        // bukan 500. Validasi eksplisit di service adalah garis depannya;
+        // ini hanya menangkap jalur yang terlewat.
+        if ($e instanceof QueryException) {
+            if (in_array((string) $e->getCode(), ['22P02', '22007', '22008'], true)) {
+                return response()->json([
+                    'message' => 'Data yang dikirim tidak valid (format ID atau nilai tidak dikenali).',
+                    'code' => 'VALIDATION_ERROR',
+                    'errors' => (object) [],
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan pada server.',
+            ], 500);
         }
 
         // Generic/unhandled throwable — never leak internals in production.

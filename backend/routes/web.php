@@ -76,6 +76,7 @@ use App\Livewire\MasterData\MasterDataTreeView;
 use App\Livewire\Settings\ChangePasswordForm;
 use App\Livewire\Settings\MillsSetting;
 use App\Livewire\UserManagement\KelolaUserRole;
+use App\Services\AuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -89,6 +90,28 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/health', fn () => response()->json(['status' => 'ok']));
+
+// Akar situs — dulu 404. Infrastruktur (bukan layar ASDLC), jadi di luar
+// blok ASDLC seperti /health: user yang sudah login dialihkan ke beranda
+// perannya (Operator → /beranda), selain itu ke Login.
+Route::get('/', function () {
+    $user = Auth::guard('web')->user();
+
+    if ($user) {
+        return redirect(app(AuthService::class)->redirectFor($user->role->value));
+    }
+
+    return redirect()->route('login');
+})->name('home');
+
+// Beranda Operator — halaman pendaratan sementara untuk login web Operator
+// (keputusan produk 2026-10-04: Operator BOLEH login web dengan akses
+// terbatas; layar "lihat data sendiri" akan dispesifikasikan terpisah lewat
+// alur ASDLC). Sebelumnya Operator mendarat di /dashboard yang menjawab 403
+// tanpa jalan keluar. Di luar blok ASDLC karena belum punya tech-spec.
+Route::middleware(['auth', 'role:operator'])
+    ->get('/beranda', fn () => view('operator.home'))
+    ->name('operator.home');
 
 // Logout — not a screen route (no tech-spec entry), infrastructure like
 // /health above, so it lives outside the ASDLC-managed block. POST +
@@ -121,7 +144,11 @@ Route::middleware(['auth', 'role:mill_management'])
 Route::get('/login', LoginForm::class)->name('login');
 
 // screen-003--ganti-password-web
-Route::middleware(['auth', 'role:admin,supervisor,mill_management'])
+// 'operator' ditambahkan 2026-10-04: Operator kini boleh login web
+// (akses terbatas), dan Ganti Password adalah salah satu menu yang
+// diizinkan untuknya — API ganti password-nya (screen-004) sudah menerima
+// operator sejak awal, logikanya sama (AuthService::changePassword()).
+Route::middleware(['auth', 'role:admin,supervisor,mill_management,operator'])
     ->get('/settings/password', ChangePasswordForm::class)
     ->name('settings.password');
 

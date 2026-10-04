@@ -11,11 +11,14 @@ use App\Models\SterilizerRecord;
 use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
+use App\Support\ExportValue;
 use App\Support\Pagination;
+use App\Support\SheetWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
@@ -77,6 +80,8 @@ class SterilizerRecordService
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
         // penolakan tidak menyisakan induk tanpa detail. Jenis stasiun dan mill
         // diambil dari stasiun yang SUDAH di-resolve, bukan dari request.
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('sterilizer', $station->business_unit_id, $attributes['date'] ?? null);
 
         $attributes['station_id'] = $station->id;
@@ -92,9 +97,9 @@ class SterilizerRecordService
         $attributes['status'] = 'saved';
         $this->applyVerification($attributes, $data, $actor);
 
-        $record = DB::transaction(function () use ($attributes, $details) {
+        $record = DB::transaction(function () use ($attributes, $details, $actor) {
             $record = SterilizerRecord::create($attributes);
-            $this->upsertDetails($record, $details);
+            $this->upsertDetails($record, $details, $actor);
 
             return $record;
         });
@@ -134,13 +139,15 @@ class SterilizerRecordService
         $millId = $record->station->business_unit_id;
 
         $this->assertPeriodOpenForWrite('sterilizer', $millId, optional($record->date)->toDateString());
+        // BATAS ATAS TANGGAL (2026-10-04) — lihat EnforcesPeriodLock::assertEventDateNotTooFarAhead().
+        $this->assertEventDateNotTooFarAhead($attributes['date'] ?? null, 'date', 'Tanggal');
         $this->assertPeriodOpenForWrite('sterilizer', $millId, $attributes['date'] ?? null);
 
         $this->applyVerification($attributes, $data, $actor);
 
-        DB::transaction(function () use ($record, $attributes, $details) {
+        DB::transaction(function () use ($record, $attributes, $details, $actor) {
             $record->update($attributes);
-            $this->upsertDetails($record, $details);
+            $this->upsertDetails($record, $details, $actor);
         });
 
         $record->load(['station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'sterilizerDetails']);
@@ -246,9 +253,17 @@ class SterilizerRecordService
      * `checked_by_spv` is coerced to a plain boolean (never left as an
      * empty-string, which SQLite would reject for a BOOLEAN/INTEGER
      * column).
+     *
+     * `checked_by_spv` HANYA BOLEH DISET/DIUBAH SUPERVISOR (keputusan user
+     * 2026-10-04). Dari peran lain nilai kiriman DIABAIKAN, bukan ditolak —
+     * menolak seluruh simpan karena satu kotak centang akan membuat Operator
+     * tidak bisa menyimpan log-nya sama sekali. Baris lama mempertahankan
+     * nilainya yang tersimpan; baris baru selalu false.
      */
-    protected function upsertDetails(SterilizerRecord $record, array $details): void
+    protected function upsertDetails(SterilizerRecord $record, array $details, ?User $actor = null): void
     {
+        $actorIsSupervisor = $actor?->role === UserRole::Supervisor;
+
         $validRows = collect($details)->filter(fn ($row) => filled($row['close_door_time'] ?? null));
 
         $keptIds = [];
@@ -276,7 +291,15 @@ class SterilizerRecordService
                 'remarks' => $row['remarks'],
             ];
 
-            if (! empty($row['id']) && SterilizerDetail::where('id', $row['id'])->where('sterilizer_record_id', $record->id)->exists()) {
+            $existing = ! empty($row['id']) && Str::isUuid((string) $row['id'])
+                ? SterilizerDetail::where('id', $row['id'])->where('sterilizer_record_id', $record->id)->first(['id', 'checked_by_spv'])
+                : null;
+
+            if (! $actorIsSupervisor) {
+                $detailAttributes['checked_by_spv'] = $existing !== null ? (bool) $existing->checked_by_spv : false;
+            }
+
+            if ($existing !== null) {
                 SterilizerDetail::where('id', $row['id'])->update($detailAttributes);
                 $keptIds[] = $row['id'];
             } else {
@@ -369,14 +392,13 @@ class SterilizerRecordService
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($query) {
-                $handle = fopen('php://output', 'w');
+            return response()->streamDownload(function () use ($query, $format) {
+                $handle = SheetWriter::open($format);
 
-                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
-                // deprecates relying on fputcsv()'s default $escape). The
+                // Header row. The
                 // record's context columns repeat on every detail line, so the
                 // file can be pivoted and filtered directly in a spreadsheet.
-                fputcsv($handle, [
+                $handle->row([
                     'Production Line',
                     'Sterilizer ID',
                     'Date',
@@ -399,7 +421,7 @@ class SterilizerRecordService
                     'Cages Status',
                     'Checked by SPV',
                     'Remarks',
-                ], ',', '"', '\\');
+                ]);
 
                 $query->chunk(200, function ($records) use ($handle) {
                     foreach ($records as $record) {
@@ -412,40 +434,40 @@ class SterilizerRecordService
                             $record->checkedBy?->name,
                             $record->acknowledgedBy?->name,
                             $record->sterilizer_details_count,
-                            $record->status?->value,
+                            ExportValue::status($record->status),
                         ];
 
                         $details = $record->sterilizerDetails;
 
                         if ($details->isEmpty()) {
-                            fputcsv($handle, array_merge($context, array_fill(0, 14, null)), ',', '"', '\\');
+                            $handle->row(array_merge($context, array_fill(0, 14, null)));
 
                             continue;
                         }
 
                         foreach ($details as $detail) {
                             /** @var SterilizerDetail $detail */
-                            fputcsv($handle, array_merge($context, [
+                            $handle->row(array_merge($context, [
                                 $detail->sterilizer_no,
-                                $detail->close_door_time,
-                                $detail->peak_1_time,
-                                $detail->exhaust_1_time,
-                                $detail->peak_2_time,
-                                $detail->exhaust_2_time,
-                                $detail->peak_3_time,
-                                $detail->exhaust_3_time,
-                                $detail->open_door_time,
+                                ExportValue::time($detail->close_door_time),
+                                ExportValue::time($detail->peak_1_time),
+                                ExportValue::time($detail->exhaust_1_time),
+                                ExportValue::time($detail->peak_2_time),
+                                ExportValue::time($detail->exhaust_2_time),
+                                ExportValue::time($detail->peak_3_time),
+                                ExportValue::time($detail->exhaust_3_time),
+                                ExportValue::time($detail->open_door_time),
                                 $detail->duration_minutes,
                                 $detail->number_of_cages,
                                 $detail->cages_status,
-                                $detail->checked_by_spv,
+                                ExportValue::yesNo($detail->checked_by_spv),
                                 $detail->remarks,
-                            ]), ',', '"', '\\');
+                            ]));
                         }
                     }
                 });
 
-                fclose($handle);
+                $handle->close();
             }, $filename, [
                 'Content-Type' => $contentType,
             ]);

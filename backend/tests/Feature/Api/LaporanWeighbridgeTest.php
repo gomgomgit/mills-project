@@ -1695,7 +1695,7 @@ it('skenario 34 — kelengkapan pencatatan: keempat keadaan dilaporkan di satu t
 
     $summary->assertJsonPath('completeness.days_in_period', 30);
     $summary->assertJsonPath('completeness.days_with_trip', 4);
-    expect(array_keys($summary->json('completeness')))->toBe(['days_in_period', 'days_with_trip']);
+    expect(array_keys($summary->json('completeness')))->toBe(['days_in_period', 'days_with_trip', 'days_counted', 'period_running']);
 });
 
 // =====================================================================

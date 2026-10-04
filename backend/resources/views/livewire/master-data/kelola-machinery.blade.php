@@ -56,6 +56,12 @@
         @endif
     </div>
 
+    @if ($successMessage)
+        <div class="kc-alert kc-alert--success" role="status" data-testid="success-message">
+            {{ $successMessage }}
+        </div>
+    @endif
+
     @if ($deleteErrorMessage)
         <div class="kc-alert" role="alert">
             {{ $deleteErrorMessage }}
@@ -74,7 +80,7 @@
             <x-searchable-select
                 id="filterMachineryGroupId"
                 wire:model.live="filterMachineryGroupId"
-                :options="collect($machineryGroupOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['group_code']])->all()"
+                :options="collect($machineryGroupOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['label']])->all()"
                 placeholder="Semua Machinery Group"
                 class="kc-form-field__input kc-filter__select"
             />
@@ -83,7 +89,7 @@
             <x-searchable-select
                 id="filterStationId"
                 wire:model.live="filterStationId"
-                :options="collect($stationOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
+                :options="collect($stationOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['label']])->all()"
                 placeholder="Semua Station"
                 class="kc-form-field__input kc-filter__select"
             />
@@ -104,6 +110,7 @@
                     <tr>
                         <th class="kc-table__toggle-head"><span class="kc-sr-only">Buka</span></th>
                         <th>Kode Grup</th>
+                        <th>Business Unit</th>
                         <th>Station</th>
                         <th>Production Line</th>
                         <th>Jumlah Mesin</th>
@@ -129,6 +136,7 @@
                                 >{{ $isOpen ? '▾' : '▸' }}</button>
                             </td>
                             <td>{{ $group['group_code'] }}</td>
+                            <td>{{ $group['business_unit_name'] ?? '-' }}</td>
                             <td>{{ $group['station_name'] ?? '-' }}</td>
                             <td>{{ $group['production_line_name'] ?? '-' }}</td>
                             <td>{{ $group['machinery_count'] }}</td>
@@ -144,7 +152,7 @@
                                         </button>
                                     </span>
                                 @else
-                                    <button type="button" wire:click="openCreateForm" class="kc-button kc-button--ghost kc-button--sm" data-testid="add-machinery-in-group">
+                                    <button type="button" wire:click="openCreateForm('{{ $group['id'] }}')" class="kc-button kc-button--ghost kc-button--sm" data-testid="add-machinery-in-group">
                                         + Mesin
                                     </button>
                                     <button type="button" wire:click="openEditGroupForm('{{ $group['id'] }}')" class="kc-button kc-button--ghost kc-button--sm">
@@ -160,7 +168,7 @@
                         @if ($isOpen)
                             {{-- Kolom grup yang jarang dibaca pindah ke sini, bukan dihapus. --}}
                             <tr class="kc-table__row kc-table__row--static kc-table__row--panel" wire:key="group-panel-{{ $group['id'] }}">
-                                <td colspan="6">
+                                <td colspan="7">
                                     <dl class="kc-detail-panel" data-testid="group-panel">
                                         <div><dt>Deskripsi</dt><dd>{{ $group['description'] ?? '-' }}</dd></div>
                                         <div><dt>Unit</dt><dd>{{ $group['unit'] ?? '-' }}</dd></div>
@@ -175,7 +183,7 @@
                                 <tr class="kc-table__row kc-table__row--child" wire:key="child-{{ $machinery['id'] }}" data-testid="machinery-row">
                                     <td></td>
                                     <td>{{ $machinery['equipment_code'] }}</td>
-                                    <td colspan="2">{{ $machinery['name'] }}</td>
+                                    <td colspan="3">{{ $machinery['name'] }}</td>
                                     <td>{{ $machinery['equipment_type'] ?? '-' }} &middot; {{ $machinery['brand'] ?? '-' }}</td>
                                     <td class="kc-table__actions">
                                         @if ($confirmingDeleteId === $machinery['id'])
@@ -192,7 +200,7 @@
                                 </tr>
                             @empty
                                 <tr class="kc-table__row kc-table__row--static kc-table__row--panel" wire:key="child-empty-{{ $group['id'] }}">
-                                    <td colspan="6">
+                                    <td colspan="7">
                                         <p class="kc-empty__subtitle kc-empty__subtitle--nested" data-testid="group-empty">Grup ini belum berisi mesin.</p>
                                     </td>
                                 </tr>
@@ -200,7 +208,7 @@
                         @endif
                     @empty
                         <tr class="kc-table__row kc-table__row--static">
-                            <td colspan="6">
+                            <td colspan="7">
                                 <div class="kc-empty">
                                     <div class="kc-empty__illustration" aria-hidden="true">&#9881;&#65039;</div>
                                     <p class="kc-empty__title">
@@ -223,13 +231,15 @@
                         <tr class="kc-table__row kc-table__row--group" wire:key="ungrouped-header" data-testid="ungrouped-bucket">
                             <td></td>
                             <td colspan="4"><strong>Tanpa grup</strong></td>
+                            {{-- Jumlah di kolom "Jumlah Mesin", bukan di kolom Aksi. --}}
                             <td>{{ $ungroupedCount }}</td>
+                            <td></td>
                         </tr>
                         @foreach ($ungroupedRows as $machinery)
                             <tr class="kc-table__row kc-table__row--child" wire:key="ungrouped-{{ $machinery['id'] }}" data-testid="machinery-row">
                                 <td></td>
                                 <td>{{ $machinery['equipment_code'] }}</td>
-                                <td colspan="2">{{ $machinery['name'] }}</td>
+                                <td colspan="3">{{ $machinery['name'] }}</td>
                                 <td>{{ $machinery['equipment_type'] ?? '-' }} &middot; {{ $machinery['brand'] ?? '-' }}</td>
                                 <td class="kc-table__actions">
                                     <button type="button" wire:click="openEditForm('{{ $machinery['id'] }}')" class="kc-button kc-button--ghost kc-button--sm">Edit</button>
@@ -360,7 +370,7 @@
                         <x-searchable-select
                             id="group_station_id"
                             wire:model.live="station_id"
-                            :options="collect($stationOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
+                            :options="collect($stationOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['label']])->all()"
                             placeholder="-- Pilih Station --"
                             empty-message="Belum ada Station. Buat Station terlebih dahulu."
                             :class="'kc-form-field__input'.($errors->has('station_id') ? ' kc-form-field__input--error' : '')"
@@ -372,13 +382,7 @@
 
                     <div class="kc-form-field">
                         <label for="group_production_line_display" class="kc-form-field__label">Production Line</label>
-                        <input
-                            type="text"
-                            id="group_production_line_display"
-                            value="{{ $selectedGroupProductionLineName ?? '-' }}"
-                            class="kc-form-field__input"
-                            disabled
-                        >
+                        <p class="kc-form-field__static" id="group_production_line_display">{{ $selectedGroupProductionLineName ?? '-' }}</p>
                         <p class="kc-form-field__hint">Otomatis mengikuti Production Line dari Station yang dipilih.</p>
                     </div>
 
@@ -492,7 +496,7 @@
                                     <x-searchable-select
                                         id="machinery_group_id"
                                         wire:model.live="machinery_group_id"
-                                        :options="collect($machineryGroupOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['group_code']])->all()"
+                                        :options="collect($machineryGroupOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['label']])->all()"
                                         placeholder="-- Pilih Machinery Group --"
                                         empty-message="Belum ada Machinery Group. Buat Machinery Group terlebih dahulu."
                                         :class="'kc-form-field__input'.($errors->has('machinery_group_id') ? ' kc-form-field__input--error' : '')"
@@ -504,13 +508,13 @@
 
                                 <div class="kc-form-field">
                                     <label for="station_display" class="kc-form-field__label">Station</label>
-                                    <input type="text" id="station_display" value="{{ $selectedStationName ?? '-' }}" class="kc-form-field__input" disabled>
+                                    <p class="kc-form-field__static" id="station_display">{{ $selectedStationName ?? '-' }}</p>
                                     <p class="kc-form-field__hint">Otomatis mengikuti Station dari Machinery Group.</p>
                                 </div>
 
                                 <div class="kc-form-field">
                                     <label for="production_line_display" class="kc-form-field__label">Production Line</label>
-                                    <input type="text" id="production_line_display" value="{{ $selectedProductionLineName ?? '-' }}" class="kc-form-field__input" disabled>
+                                    <p class="kc-form-field__static" id="production_line_display">{{ $selectedProductionLineName ?? '-' }}</p>
                                     <p class="kc-form-field__hint">Otomatis mengikuti Production Line dari Machinery Group.</p>
                                 </div>
 
@@ -549,7 +553,7 @@
                                         <p class="kc-form-field__error">{{ $message }}</p>
                                     @enderror
 
-                                    @if ($picture)
+                                    @if ($picture && ! $errors->has('picture') && in_array(strtolower($picture->getClientOriginalExtension()), ['jpg', 'jpeg', 'png'], true))
                                         <img src="{{ $picture->temporaryUrl() }}" alt="Preview" class="kc-picture-preview">
                                     @elseif ($existingPictureUrl)
                                         <img src="{{ $existingPictureUrl }}" alt="Gambar tersimpan" class="kc-picture-preview">
@@ -626,8 +630,11 @@
                                             @if ($type === 'decimal') inputmode="decimal" @endif
                                             id="insurance_{{ $field }}"
                                             wire:model="insurances.0.{{ $field }}"
-                                            class="kc-form-field__input"
+                                            class="kc-form-field__input @error('insurances.0.'.$field) kc-form-field__input--error @enderror"
                                         >
+                                        @error('insurances.0.'.$field)
+                                            <p class="kc-form-field__error">{{ $message }}</p>
+                                        @enderror
                                     </div>
                                 @endforeach
                             </div>
@@ -654,8 +661,11 @@
                                             @if ($type === 'decimal') inputmode="decimal" @endif
                                             id="tax_{{ $field }}"
                                             wire:model="taxPurchases.0.{{ $field }}"
-                                            class="kc-form-field__input"
+                                            class="kc-form-field__input @error('taxPurchases.0.'.$field) kc-form-field__input--error @enderror"
                                         >
+                                        @error('taxPurchases.0.'.$field)
+                                            <p class="kc-form-field__error">{{ $message }}</p>
+                                        @enderror
                                     </div>
                                 @endforeach
                             </div>
@@ -726,6 +736,22 @@
             border: 1px solid var(--kc-destructive);
             color: var(--kc-destructive);
             font-size: 14px;
+        }
+
+        .kc-alert--success {
+            background: #ecfdf5;
+            border-color: var(--kc-brand);
+            color: var(--kc-brand-hover);
+        }
+
+        /* Nilai yang tidak bisa diubah di form ditampilkan sebagai teks
+           (konvensi web: tidak ada input disabled/readonly). */
+        .kc-form-field__static {
+            margin: 0;
+            padding: 9px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--kc-text);
         }
 
         .kc-filter {

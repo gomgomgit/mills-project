@@ -3,6 +3,7 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
+use App\Livewire\Data\Concerns\GuardsRecordIdShape;
 use App\Services\StationService;
 use App\Services\WeighbridgeRecordService;
 use App\Support\Concerns\ScopesToActorMill;
@@ -33,8 +34,9 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *    no draft/pause/lock concept on web; Simpan always results in
  *    status=saved.
  *
- * Net Weight is NOT bound as an editable input despite uiux-spec's
- * 'web-form-input' convention (no disabled fields) — see
+ * Net Weight is NOT an input at all: it is rendered as read-only text
+ * (2026-10-04 — previously a disabled input, against uiux-spec's
+ * 'web-form-input' convention of no disabled fields) — see
  * WeighbridgeRecordService::create()'s docblock for why this field is a
  * deliberate exception (the model's `saving` event always recomputes it
  * from gross/tare, so an editable field would silently discard the
@@ -43,6 +45,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.weighbridge-form')]
 class FormWeighbridge extends Component
 {
+    use GuardsRecordIdShape;
     use ScopesToActorMill;
 
     protected const FIELDS = [
@@ -94,6 +97,9 @@ class FormWeighbridge extends Component
 
     public ?string $stationName = null;
 
+    /** Read-only display for edit mode (line di-snapshot pada record saat create). */
+    public ?string $productionLineName = null;
+
     /** @var array<int, array{id: string, name: string}> */
     public array $businessUnitOptions = [];
 
@@ -119,6 +125,14 @@ class FormWeighbridge extends Component
         $this->id = $id;
         $this->isEdit = true;
 
+        if (! $this->isRecordIdShapeValid($id)) {
+            // id bukan UUID tidak boleh sampai ke SQL (PostgreSQL: 22P02),
+            // perlakukan sama dengan UUID yang tidak dikenal.
+            $this->notFound = true;
+
+            return;
+        }
+
         try {
             $record = app(WeighbridgeRecordService::class)->getDetail($id);
         } catch (ModelNotFoundException|ValidationException) {
@@ -143,11 +157,16 @@ class FormWeighbridge extends Component
             $this->form[$field] = $record[$field] ?? '';
         }
 
+        // setTimezone() eksplisit: nilai API ber-offset, dan input
+        // datetime-local harus menampilkan jam dinding WIB (zona aplikasi).
         $this->form['record_datetime'] = $record['record_datetime']
-            ? Carbon::parse($record['record_datetime'])->format('Y-m-d\TH:i')
+            ? Carbon::parse($record['record_datetime'])->setTimezone(config('app.timezone'))->format('Y-m-d\TH:i')
             : '';
 
-        $this->businessUnitName = $record['station_name'] ?? null;
+        // Sampai 2026-10-04 label "Business Unit" diisi NAMA STASIUN
+        // (station_name) dan Production Line tidak tampil sama sekali.
+        $this->businessUnitName = $record['business_unit_name'] ?? null;
+        $this->productionLineName = $record['production_line_name'] ?? null;
         $this->stationName = $record['station_name'] ?? null;
         $this->checked = filled($record['checked_by_name']);
         $this->acknowledged = filled($record['acknowledged_by_name']);

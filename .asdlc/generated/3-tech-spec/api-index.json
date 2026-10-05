@@ -1,5 +1,5 @@
 {
-  "ver": 66,
+  "ver": 67,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-05"
@@ -2049,11 +2049,12 @@
     {
       "method": "GET",
       "path": "/api/weighbridge-reports/periods",
-      "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Weighbridge pada mill yang dilihat",
+      "description": "Daftar Periode Pelaporan yang mencakup stasiun Weighbridge pada satu mill; status per baris period_stations. Dipakai bersama oleh screen-143 (web) dan screen-144 (mobile) — Operator ditambahkan 2026-10-05 untuk screen-144; business_unit_id diabaikan untuk seluruh peran terikat mill.",
       "screen_id": "screen-143--laporan-weighbridge-web",
       "usecase_id": "usecase-146--laporan-weighbridge-web",
       "auth_required": true,
       "actor_ids": [
+        "actor-station-operator",
         "actor-supervisor",
         "actor-mill-management",
         "actor-admin"
@@ -2062,11 +2063,12 @@
     {
       "method": "GET",
       "path": "/api/weighbridge-reports/summary",
-      "description": "Seluruh angka Laporan Weighbridge untuk satu periode, DIPISAH per jenis lalu lintas timbangan: jumlah trip, total dan rata-rata berat bersih beserta jumlah trip pendukungnya, rekap per estate/supplier untuk arus masuk dan per tujuan untuk arus keluar, sebaran trip per jam beserta jam tersibuk dan jumlah jam kosong, jumlah trip yang penimbangannya belum selesai, jumlah trip draft, jumlah trip tanpa penanda waktu, rekap harian, dan kelengkapan. NOL angka gabungan kedua arus dihasilkan — 'berapa ton ditimbang' bukan pertanyaan yang berguna. TIDAK ADA angka lama kendaraan di pabrik: tiap trip hanya menyimpan satu penanda waktu sejak arrival_datetime dan dispatch_datetime digabung jadi record_datetime oleh migrasi 2026-08-19, sehingga durasi mustahil dihitung. production_line_id dan period_id WAJIB; tanpa line, 422, bukan angka seluruh mill. Keanggotaan periode ditentukan record_datetime (waktu kejadian penimbangan), bukan created_at maupun waktu sinkronisasi. Penyaringan line memakai kolom production_line_id pada tabel record, bukan join ke stations, sehingga record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
+      "description": "Seluruh angka laporan periode Weighbridge pada satu Production Line, dipisah per jenis arus (receive/dispatch) dan tidak pernah dijumlahkan. period_id DAN production_line_id keduanya WAJIB (422 bila absen). Dipakai bersama oleh screen-143 (web) dan screen-144 (mobile) — Operator ditambahkan 2026-10-05 untuk screen-144.",
       "screen_id": "screen-143--laporan-weighbridge-web",
       "usecase_id": "usecase-146--laporan-weighbridge-web",
       "auth_required": true,
       "actor_ids": [
+        "actor-station-operator",
         "actor-supervisor",
         "actor-mill-management",
         "actor-admin"
@@ -2075,11 +2077,12 @@
     {
       "method": "GET",
       "path": "/api/weighbridge-reports/export",
-      "description": "Ekspor seluruh trip timbang sepanjang periode ke CSV, satu baris per trip dengan kolom konteks (periode, mill, Production Line, jenis arus) diulang tiap baris. Trip yang berat bersihnya belum terisi tetap ikut sebagai baris bernilai kosong, bukan dibuang. Berkas TIDAK memuat kolom durasi maupun lama kendaraan di pabrik.",
+      "description": "Ekspor seluruh trip periode Weighbridge pada satu Production Line, satu baris per trip, streaming CSV/XLSX. period_id DAN production_line_id keduanya WAJIB. Dipakai bersama oleh screen-143 (web, csv+excel) dan screen-144 (mobile, csv) — Operator ditambahkan 2026-10-05 untuk screen-144.",
       "screen_id": "screen-143--laporan-weighbridge-web",
       "usecase_id": "usecase-146--laporan-weighbridge-web",
       "auth_required": true,
       "actor_ids": [
+        "actor-station-operator",
         "actor-supervisor",
         "actor-mill-management",
         "actor-admin"

@@ -76,18 +76,28 @@ const infoMessage = ref<string | null>(null)
  * ada di peta ini atau tidak. Tidak ada hubungannya dengan
  * StationSlot.isActive (lihat komentar kepala berkas).
  *
- * Hari ini baru Sterilizer (screen-135--laporan-sterilizer-mobile),
- * Cages & Tracks (screen-136--laporan-cages-track-mobile), Boiler Room
- * (screen-137--laporan-boiler-room-mobile), dan Clarification
- * (screen-138--laporan-clarification-mobile) yang layar laporan mobile-nya
- * sudah dibangun; 14 stasiun lain menunggu layar laporannya masing-masing
- * dan tetap ditampilkan dalam keadaan nonaktif, bukan disembunyikan.
+ * Hari ini baru ENAM stasiun yang layar laporan mobile-nya sudah dibangun —
+ * Weighbridge (screen-144--laporan-weighbridge-mobile), Sterilizer
+ * (screen-135), Cages & Tracks (screen-136), Boiler Room (screen-137),
+ * Clarification (screen-138), dan Storage Tank (screen-139); 12 stasiun lain
+ * menunggu layar laporannya masing-masing dan tetap ditampilkan dalam keadaan
+ * nonaktif, bukan disembunyikan.
+ *
+ * URUTAN PETA INI TIDAK MENENTUKAN URUTAN TILE — grid mengikuti
+ * station_types.sort_order dari server. Weighbridge ditulis pertama di sini
+ * hanya karena sort_order-nya (10) memang paling awal, sehingga peta ini
+ * mudah dibaca berdampingan dengan grid-nya.
  *
  * Kunci 'cages-track' dan 'boiler-room' ditulis dalam tanda kutip karena
  * StationType memakai tanda hubung; itu kode stasiun yang sama dengan yang
  * dipakai stationRepo dan periode pelaporan.
  */
 const REPORT_ROUTES: Partial<Record<StationType, string>> = {
+  // screen-144--laporan-weighbridge-mobile. SATU BARIS yang menentukan tile
+  // Weighbridge hidup atau mati: tanpanya layar itu ada, rutenya ada, seluruh
+  // test-nya lulus, dan tile-nya tetap kelabu — pola kegagalan yang sudah
+  // terjadi sekali pada laporan Cages & Tracks versi web.
+  weighbridge: 'report-weighbridge',
   sterilizer: 'report-sterilizer',
   'cages-track': 'report-cages-track',
   'boiler-room': 'report-boiler-room',

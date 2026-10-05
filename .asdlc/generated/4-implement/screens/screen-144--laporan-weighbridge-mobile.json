@@ -1,0 +1,91 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-05"
+  },
+  "id": "screen-144--laporan-weighbridge-mobile",
+  "name": "Laporan Weighbridge (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [
+    "backend/routes/api.php",
+    "backend/app/Services/WeighbridgeReportService.php",
+    "backend/app/Http/Controllers/Api/WeighbridgeReportController.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/WeighbridgeReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanWeighbridgeTest.php",
+    "backend/tests/Feature/Livewire/LaporanWeighbridgeTest.php"
+  ],
+  "fe_files_generated": [
+    "mobile/src/services/weighbridgeReportRepo.ts",
+    "mobile/src/views/LaporanWeighbridgeView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/weighbridgeReportRepo.spec.ts",
+    "mobile/tests/LaporanWeighbridgeView.spec.ts",
+    "mobile/tests/e2e/laporan-weighbridge.spec.ts",
+    "mobile/tests/ReportingPilihStasiunView.spec.ts"
+  ],
+  "implementation_notes": [
+    "NOL ENDPOINT BARU. Keempat endpoint /api/weighbridge-reports/* milik screen-143 dipakai ulang apa adanya; tidak ada controller, service, maupun rute API baru. Satu-satunya perubahan backend adalah SIAPA yang boleh memanggil.",
+    "PERLUASAN AKSES OPERATOR — TEPAT TIGA PERUBAHAN, mendarat bersama: (1) routes/api.php grup weighbridge-reports menjadi 'role:supervisor,mill_management,admin,operator' ('auth:web,sanctum' sudah ada sebelumnya dan TIDAK berubah); (2) WeighbridgeReportService::guardAccess() menerima UserRole::Operator; (3) WeighbridgeReportService::resolveBusinessUnit() memasukkan Operator ke cabang TERIKAT MILL. Yang ketiga adalah yang menanggung beban: tanpanya Operator jatuh ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI, dan Operator dapat membaca laporan mill mana pun dengan menyebut id-nya.",
+    "TIGA DOCBLOCK YANG MEMPERINGATKAN PERLUASAN INI IKUT DIPERBARUI, bukan dibiarkan: kepala WeighbridgeReportService, docblock guardAccess(), docblock resolveBusinessUnit(), komentar grup rute di routes/api.php, dan kepala WeighbridgeReportController. Peringatan yang sudah usang lebih berbahaya daripada tidak ada peringatan — pembaca berikutnya akan memercayainya.",
+    "/business-units/options TIDAK DILEBARKAN dan tetap menjawab 403 untuk Operator. Penjagaannya ada di dalam service (businessUnitOptions()), bukan di middleware, sehingga melebarkan daftar peran rute tidak melonggarkannya. Ada test khususnya (case 5) supaya perubahan middleware berikutnya tidak menghapus penjagaan ini tanpa menghasilkan kegagalan.",
+    "RUTE WEB /reports/weighbridge TIDAK DILEBARKAN. Komponen Livewire LaporanWeighbridge punya daftar perannya SENDIRI (canAccess()) dan tidak meminjam guardAccess(), jadi perluasan service tidak dapat melebarkan layar web secara tidak sengaja. Test skenario 20 pada LaporanWeighbridgeTest.php (Livewire) mengunci itu, dan komentarnya kini menyatakan mengapa ia tetap ada.",
+    "TEST LAMA BERUBAH ARAH, BUKAN DIHAPUS. Skenario 20 pada tests/Feature/Api/LaporanWeighbridgeTest.php sebelumnya mengasersi 'Operator 403 pada keempat rute'. Sekarang ia mengasersi tiga hal sekaligus: Operator diterima pada ketiga rute data dan membaca data mill SENDIRI; Operator yang mengirim business_unit_id mill lain tetap menerima 200 berisi data mill sendiri (asersi yang gagal bila perubahan ketiga terlewat); dan /business-units/options tetap 403. Menghapus asersi lama tanpa menggantinya akan menghapus justru satu-satunya penjaga terhadap kebocoran yang paling mungkin terjadi di sini.",
+    "CASE 14 PADA UNIT TEST DIUBAH DARI OPERATOR MENJADI TAMU. Kasus itu membuktikan gate berjalan SEBELUM lookup periode dengan memakai 'pemanggil yang ditolak'; setelah perluasan, keempat peran aplikasi diterima sehingga tidak ada lagi peran yang dapat memerankannya. Sesi yang tidak ada memerankannya lebih baik — gate yang sama, cabang satu lapis lebih awal, dan berlaku untuk siapa pun.",
+    "GRUP TEST BARU: GROUP J (case 50-55) pada WeighbridgeReportServiceTest.php. Case 51 adalah intinya — ia mengasersi HASIL ('Operator yang mengirim id mill lain tetap menerima data mill sendiri'), bukan penerimaan perannya, karena asersi 'peran diterima' akan tetap hijau walau perubahan ketiga terlewat.",
+    "LAPISAN KLIEN: weighbridgeReportRepo.ts sejajar kelima repo laporan lain. scopeParams() tidak pernah mengirim business_unit_id untuk peran terikat mill (pertahanan berlapis di atas penjagaan server), productionLineParams() hanya mengirim ke /summary dan /export, dan unwrap() menerima respons dengan maupun tanpa pembungkus 'data'.",
+    "NOL ARITMETIKA DI KLIEN, DAN FIXTURE TEST YANG MEMBUKTIKANNYA. Angka pada weighbridgeReportRepo.spec.ts sengaja dibuat BERTENTANGAN dengan sumbernya (net_weight_avg bukan total/penyebut, missing bukan trip_count minus terisi, busiest_hour bukan jam tertinggi, dan seterusnya) sehingga repo yang menghitung sendiri PASTI gagal. Dengan payload yang konsisten, test 'tidak menghitung ulang' tidak membuktikan apa pun.",
+    "DUA PERBEDAAN PAYLOAD YANG MUDAH SALAH DISALIN dari lima laporan sebelumnya, keduanya ditangani dan diuji: nama mill ada di blok business_unit (BUKAN period.business_unit_name), dan TIDAK ADA kunci has_data — 'periode kosong' diturunkan dari kedua trip_count, bukan dari panjang daily (periode bisa memuat trip yang seluruhnya tak bertanggal, dan itu bukan 'ada data').",
+    "DUA BENTUK 'BELUM DIISI' DALAM SATU PAYLOAD: estate_supplier kosong datang sebagai STRING KOSONG (server memakai keepNull=false) sementara destination kosong tetap NULL (keepNull=true). formatGroupLabel() menangani keduanya dengan label yang sama, dan ada test untuk masing-masing — menangani hanya salah satunya menghasilkan baris tanpa label pada salah satu rekap.",
+    "SKALA GRAFIK DIBAGI KEDUA ARUS, dan itu dinyatakan pada catatan grafiknya. Dua grafik 24 jam yang bertumpuk dengan skala masing-masing akan dibaca sebagai perbandingan tinggi batang, dan itu perbandingan yang salah. Ini pengecualian yang disengaja terhadap 'arus tidak pernah dijumlahkan' — yang dibagi adalah skala visual, bukan angka. Ada test yang memeriksa tinggi batang dispatch 56% terhadap nilai tertinggi lintas arus; skala per-arus akan membuatnya 100% dan test gagal.",
+    "PRODUCTION LINE WAJIB, dan penjagaannya ada di FUNGSI loadSummary(), bukan hanya di template — supaya jalur retry, ganti periode, dan ganti mill tidak melewatinya. Berbeda dari kelima laporan sebelumnya, server pun menolak 422 bila parameter itu absen, jadi melewatinya bukan 'angka seluruh mill' melainkan galat.",
+    "ASERSI 'NOL DURASI' BERUPA PENYISIRAN TEKS, bukan pemeriksaan satu tempat. Baik unit test maupun browser test menyisir seluruh teks terender terhadap kosakata durasi ('durasi', 'turnaround', 'lama di pabrik', 'dwell', 'lama kendaraan'). Memeriksa 'kartu durasi tidak ada' akan selalu hijau.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri weighbridge pada REPORT_ROUTES di ReportingPilihStasiunView.vue, dan ada browser test khusus yang menekan tile itu lewat klik (bukan page.goto) setelah menyemai tabel station lokal. Tanpa test itu layar ini bisa lengkap, seluruh test lain hijau, dan tile-nya tetap kelabu.",
+    "SATU TEST LAMA DI SPEC LAIN IKUT DIPERBAIKI: tests/ReportingPilihStasiunView.spec.ts memakai Weighbridge sebagai contoh 'tile tanpa laporan'. Contohnya dipindahkan ke Engine Room, dengan catatan bahwa kalau Engine Room pun dibuatkan laporan, test itu akan gagal lagi — dan itu benar: ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.",
+    "api-index DIPERBARUI pada ketiga endpoint data weighbridge (actor_ids + deskripsi). DITEMUKAN SAAT ITU: kelima prefix laporan saudaranya (sterilizer, cages-track, boiler-room, clarification, storage-tank) masih tercatat tanpa actor-station-operator pada api-index padahal kodenya sudah menerima Operator sejak screen-135..139 — drift artefak yang TIDAK diperbaiki di sini karena di luar cakupan layar ini, dan dicatat di known_issues."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "DRIFT ARTEFAK DI LUAR CAKUPAN LAYAR INI: pada project.3-tech-spec.api-index, kelima prefix laporan saudaranya (/api/sterilizer-reports/*, /api/cages-track-reports/*, /api/boiler-room-reports/*, /api/clarification-reports/*, /api/storage-tank-reports/*) masih mencantumkan actor_ids tanpa actor-station-operator, padahal routes/api.php dan service masing-masing sudah menerima Operator sejak screen-135..139 dibangun. Hanya ketiga endpoint weighbridge yang diperbarui di sini. Memperbaiki kelima sisanya adalah satu patch kecil pada api-index, tetapi ia menyentuh artefak lima layar lain, jadi dibiarkan sebagai temuan alih-alih diselipkan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage unit test tidak terukur — tidak ada provider coverage terpasang di package mobile. Gap pre-existing project-wide, bukan diperkenalkan layar ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "Ekspor .xlsx tidak tersedia di layar mobile (hanya CSV), sementara layar web screen-143 menawarkan keduanya. Disengaja: menyimpan dan membuka .xlsx di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-05T16:55:12Z",
+      "passed": 80,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-05T16:55:12Z",
+      "passed": 46,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-05T16:49:00Z",
+      "passed": 48,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-05T16:52:00Z",
+      "passed": 22,
+      "failed": 0
+    }
+  }
+}

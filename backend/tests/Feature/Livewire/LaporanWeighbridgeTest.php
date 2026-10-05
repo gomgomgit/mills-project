@@ -1032,8 +1032,15 @@ it('skenario 20 — Operator: rute menolak sebelum mount, dan mount() sendiri ju
     $response->assertDontSee('Estate Rahasia');
 
     // Component layer — mount()'s abort_unless(403) covers the component being
-    // mounted directly, which is exactly how this scenario exercises it. There
-    // is no Operator widening on this screen: screen-144 (mobile) is unbuilt.
+    // mounted directly, which is exactly how this scenario exercises it.
+    //
+    // THIS REFUSAL SURVIVED THE screen-144 WIDENING (2026-10-05), and that is
+    // the point of keeping this assertion: the four /api/weighbridge-reports/*
+    // routes now admit Operator for the mobile report, while this WEB screen
+    // does not. The component has its own role list (canAccess()) rather than
+    // borrowing WeighbridgeReportService::guardAccess(), so widening the
+    // service could not widen this screen by accident — and if someone ever
+    // makes canAccess() delegate to the service, this test fails.
     $html = Livewire::actingAs($this->operator)->test(LaporanWeighbridge::class)->html();
 
     expect($html)->toContain('Forbidden');

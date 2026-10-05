@@ -914,6 +914,33 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanStorageTankView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-144--laporan-weighbridge-mobile /
+    // usecase-147--laporan-weighbridge-mobile "Lihat Laporan Periode
+    // Weighbridge (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor, mill_management, admin) — the global auth guard below is
+    // exactly the "penjagaan sesi" business_logic step 1 refers to.
+    //
+    // Operator termasuk di dalamnya, dan itu memang perluasan yang dikerjakan
+    // layar ini: keempat rute /api/weighbridge-reports/* dilebarkan dengan
+    // peran `operator` (guard 'auth:web,sanctum' sudah ada sebelumnya),
+    // sementara rute WEB /reports/weighbridge (screen-143) sengaja tetap
+    // tanpa Operator. Satu endpoint pada prefix itu TIDAK dilebarkan —
+    // /business-units/options tetap Admin saja, karena peran yang terikat satu
+    // mill tidak punya pemilih.
+    //
+    // Pintu masuknya sudah ada sejak awal: rute 'report-stations' di atas
+    // (screen-141) menampilkan grid stasiun, dan tile Weighbridge-lah yang
+    // menavigasi ke sini — entri 'weighbridge' pada REPORT_ROUTES di
+    // ReportingPilihStasiunView.vue adalah satu-satunya penentu tile itu hidup
+    // atau mati. Tile itu juga membawa ?production_line_id=, yang di layar ini
+    // menjadi nilai pertama pada urutan penentuan line.
+    path: '/reports/weighbridge',
+    name: 'report-weighbridge',
+    component: () => import('@/views/LaporanWeighbridgeView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

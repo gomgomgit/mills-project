@@ -170,17 +170,26 @@ use Throwable;
  * allBusinessUnits(), which is public and deliberately trivial so a spy can
  * prove it was never called.
  *
- * OPERATOR IS NOT ADMITTED, and that is a decision with a date on it. The
- * five sibling report services admit Operator because their MOBILE twin
- * (screen-135..139) reuses these very endpoints. The mobile Weighbridge
- * report is screen-144 and DOES NOT EXIST YET. Widening to Operator happens
- * when screen-144 is built, as an explicit reviewable step, and it is always
- * THREE changes that land together: routes/api.php, guardAccess() below, and
- * — the one that is easy to miss — the MILL-BOUND branch of
- * resolveBusinessUnit(). Widening the first two alone would drop Operator
- * into the Admin branch, where the client's business_unit_id IS honoured, and
- * an Operator could read any mill's report by naming it. That is a cross-mill
- * leak, not a display defect.
+ * OPERATOR IS ADMITTED SINCE 2026-10-05, when screen-144 (the mobile
+ * Weighbridge report) was built on these very endpoints — the same reason the
+ * five sibling report services already admitted it. The widening was the
+ * THREE changes this docblock had warned about, and they landed together:
+ * routes/api.php, guardAccess() below, and — the one that is easy to miss —
+ * the MILL-BOUND branch of resolveBusinessUnit(). THAT THIRD ONE IS WHAT
+ * MAKES THE OTHER TWO SAFE: resolveBusinessUnit() branches on
+ * `Supervisor || MillManagement` and treats everything else as Admin, so
+ * widening only the guard would have dropped Operator into the Admin branch,
+ * where the client's business_unit_id IS honoured — and an Operator could
+ * then read any mill's report by naming it. That is a cross-mill leak, not a
+ * display defect, which is why the unit test asserts the OUTCOME ('Operator
+ * sending another mill's id still gets its own data') rather than merely that
+ * the role is accepted.
+ *
+ * WHAT WAS NOT WIDENED, on purpose: businessUnitOptions() still refuses
+ * Operator with 403 — a role bound to one mill has no picker, and handing it
+ * the list of every mill is precisely the leak this widening avoids. The WEB
+ * route /reports/weighbridge (screen-143) was not widened either; Operator has
+ * no web report UI. Only the four /api/weighbridge-reports/* routes changed.
  *
  * ------------------------------------------------------------------
  * ALL AGGREGATION HAPPENS IN PHP, NONE OF IT IN SQL
@@ -311,10 +320,12 @@ class WeighbridgeReportService
     /**
      * business_logic step 1 — which mill the caller is allowed to look at.
      *
-     * Supervisor / Mill Management: ALWAYS their own business_unit_id; the
-     * `business_unit_id` argument is ignored outright, so probing another
-     * mill's id is a no-op that still returns the caller's own data with
-     * HTTP 200.
+     * Operator / Supervisor / Mill Management: ALWAYS their own
+     * business_unit_id; the `business_unit_id` argument is ignored outright, so
+     * probing another mill's id is a no-op that still returns the caller's own
+     * data with HTTP 200. Operator joined this branch on 2026-10-05 together
+     * with the guardAccess() widening for screen-144 — and it had to, because
+     * the `else` below is the ADMIN branch, where the argument IS honoured.
      *
      * Admin: the value MUST come from the caller. Missing is 422
      * VALIDATION_ERROR with errors.business_unit_id — never a silent null and
@@ -343,7 +354,11 @@ class WeighbridgeReportService
         $role = $this->guardAccess();
 
         if ($role === UserRole::Supervisor->value
-            || $role === UserRole::MillManagement->value) {
+            || $role === UserRole::MillManagement->value
+            // screen-144 (mobile Weighbridge report). Operator belongs HERE
+            // and nowhere else: the branch below treats whatever reaches it
+            // as Admin and honours the client's business_unit_id.
+            || $role === UserRole::Operator->value) {
             // Client-supplied business_unit_id is deliberately DISCARDED —
             // not validated, not compared, discarded.
             $businessUnitId = (string) (auth()->user()->business_unit_id ?? '');
@@ -358,8 +373,8 @@ class WeighbridgeReportService
         }
 
         // Admin — the only role not bound to one mill, and the only role that
-        // can reach this point: guardAccess() admits exactly three roles and
-        // the other two are handled above.
+        // can reach this point: guardAccess() admits exactly four roles and
+        // the other three are handled above.
         if ($requestedBusinessUnitId === null || $requestedBusinessUnitId === '') {
             // Incomplete input, not refused access — 422, never 403.
             throw ValidationException::withMessages([
@@ -1318,14 +1333,18 @@ class WeighbridgeReportService
      * This gate sits two layers deeper than the route middleware on purpose:
      * clearing the middleware must never be enough by itself.
      *
-     * OPERATOR IS NOT ADMITTED. The mobile Weighbridge report (screen-144)
-     * does not exist yet, so there is no mobile caller to serve; widening
-     * happens when it is built, and it is always THREE changes together —
-     * routes/api.php, this method, and the MILL-BOUND branch of
-     * resolveBusinessUnit(). Widening the first two alone drops Operator into
-     * the Admin branch where the client's business_unit_id IS honoured: a
-     * cross-mill leak, not a display defect. That is the lesson from
-     * screen-129/135.
+     * OPERATOR IS ADMITTED SINCE 2026-10-05 — screen-144, the mobile
+     * Weighbridge report, calls these endpoints. It was THREE changes
+     * together: routes/api.php, this method, and the MILL-BOUND branch of
+     * resolveBusinessUnit(). This method alone would have dropped Operator
+     * into the Admin branch where the client's business_unit_id IS honoured:
+     * a cross-mill leak, not a display defect. That was the lesson from
+     * screen-129/135, and it is why the two edits are commented as halves of
+     * one change rather than two independent additions.
+     *
+     * businessUnitOptions() is the one entry point that still refuses
+     * Operator, and it refuses it HERE's successor layer — its own check —
+     * precisely because this gate now lets Operator through.
      *
      * @return string the caller's role
      *
@@ -1346,6 +1365,11 @@ class WeighbridgeReportService
             UserRole::Supervisor->value,
             UserRole::MillManagement->value,
             UserRole::Admin->value,
+            // screen-144 (mobile). Admitting the role here is only HALF the
+            // widening — see resolveBusinessUnit(), which must also place
+            // Operator in the mill-bound branch, or this line opens a
+            // cross-mill read.
+            UserRole::Operator->value,
         ], true)) {
             throw new AuthorizationException('Anda tidak memiliki akses untuk aksi ini.');
         }

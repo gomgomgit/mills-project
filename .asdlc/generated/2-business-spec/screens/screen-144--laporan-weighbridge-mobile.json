@@ -1,0 +1,182 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-05"
+  },
+  "id": "screen-144--laporan-weighbridge-mobile",
+  "name": "Laporan Weighbridge (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Weighbridge versi ponsel — pasangan mobile dari laporan versi web (screen-143), menampilkan angka yang sama persis karena diambil dari endpoint yang sama. Berbeda dari lima laporan mobile sebelumnya yang meringkas PEMBACAAN berkala dari satu alat, laporan ini meringkas TRANSAKSI: tiap baris adalah satu kali kendaraan ditimbang. Karena itu seluruh laporan dipisah menurut jenis lalu lintas timbangan — 'arus masuk' adalah FFB yang datang dari estate atau supplier, 'arus keluar' adalah kiriman yang meninggalkan pabrik menuju suatu tujuan — dan keduanya tidak pernah dijumlahkan, karena 'berapa ton yang ditimbang' bukan pertanyaan yang berguna bagi siapa pun. Satu hal yang TIDAK dapat dilaporkan: lama kendaraan berada di pabrik. Tiap trip hanya menyimpan satu penanda waktu sejak kedua kolom waktu digabung pada 2026-08-19, dan durasi menuntut dua. Sebagai gantinya laporan menampilkan sebaran trip per jam, yang memang dapat dihitung dari satu penanda waktu. Layar ini dibuka Operator yang menginput datanya sendiri — versi web menolak Operator, versi mobile menerimanya — dan karena Operator kerap bekerja di area tanpa sinyal, kegagalan memuat harus dikatakan terus terang berikut cara mencobanya lagi, bukan layar kosong dan bukan diam.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu Reporting di dalam Dashboard & Reporting, lalu memilih tile Weighbridge pada layar pemilih stasiun (screen-141), yang ikut membawa Production Line yang berlaku di sana",
+    "Rute mobile '/reports/weighbridge' dengan nama rute report-weighbridge",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih berlaku"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Weighbridge, yaitu yang mendaftarkan Weighbridge sebagai salah satu stasiunnya; status yang tertera adalah status Weighbridge pada periode itu (Draft / Terbuka / Tertutup), bukan status periode secara keseluruhan",
+    "Pemilih Mill — hanya bagi Admin, yang tidak terikat satu mill; tidak dirender sama sekali bila server menolak daftar mill",
+    "Nama mill yang sedang berlaku, sebagai keterangan bagi pengguna yang terikat satu mill",
+    "Pemilih Production Line — wajib berlaku; dirender ketika mill punya lebih dari satu line, dan tidak ada satu angka pun ditampilkan sebelum sebuah line berlaku",
+    "Nama Production Line yang menyertai angka yang sedang tampil, diambil dari jawaban server dan bukan hanya dari daftar lokal",
+    "Rentang tanggal dan status periode yang sedang dilihat, beserta keterangan bahwa status periode mengatur penulisan data dan bukan pembacaan laporan",
+    "Arus masuk — jumlah trip sepanjang periode",
+    "Arus masuk — total berat bersih, beserta jumlah trip yang beratnya benar-benar terisi",
+    "Arus masuk — berat bersih rata-rata per trip, dihitung hanya atas trip yang beratnya terisi, dengan penyebutnya dinyatakan di samping angkanya",
+    "Arus masuk — jumlah trip yang berat bersihnya belum terisi",
+    "Arus keluar — jumlah trip sepanjang periode",
+    "Arus keluar — total berat bersih, beserta jumlah trip yang beratnya benar-benar terisi",
+    "Arus keluar — berat bersih rata-rata per trip, dihitung hanya atas trip yang beratnya terisi, dengan penyebutnya dinyatakan di samping angkanya",
+    "Arus keluar — jumlah trip yang berat bersihnya belum terisi",
+    "Rekap arus masuk per estate/supplier: jumlah trip dan total berat bersih per asal, diurutkan dari yang terbesar",
+    "Rekap arus keluar per tujuan: jumlah trip dan total berat bersih per tujuan, diurutkan dari yang terbesar, dengan kelompok tersendiri bagi trip yang tujuannya belum diisi",
+    "Sebaran trip per jam dalam sehari (00–23) sebagai grafik yang menggulir di dalam kartunya sendiri, dipisah per jenis arus",
+    "Jam tersibuk per jenis arus beserta jumlah tripnya, dan jumlah jam dalam sehari yang tidak pernah memuat satu trip pun",
+    "Jumlah trip yang masih berstatus draft dan tetap ikut terhitung dalam angka di atas",
+    "Jumlah trip pada Production Line itu yang penanda waktunya kosong sehingga tidak dapat ditempatkan pada periode mana pun, dan karena itu TIDAK ikut terhitung di angka mana pun",
+    "Rekap per hari — jumlah trip dan total berat bersih dipisah per jenis arus — dibungkus bagian yang dapat dibuka dan ditutup, tertutup secara bawaan, dengan baris total periode",
+    "Kelengkapan: berapa hari yang memuat minimal satu trip dibanding hari periode yang SUDAH lewat; untuk periode yang masih berjalan penyebutnya berhenti di hari ini disertai keterangan 'sampai hari ini', dan periode yang belum mulai menampilkan '—' bukan 0%",
+    "Keterangan ketika periode tidak memuat data sama sekali",
+    "Keterangan ketika mill belum punya satu pun periode yang mencakup Weighbridge",
+    "Keterangan ketika mill belum punya satu pun Production Line, dibedakan dari pesan kegagalan memuat daftar line",
+    "Pesan kegagalan jaringan beserta tombol untuk mencoba lagi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode mana yang dilihat. Mengganti periode memuat ulang seluruh angka pada layar.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan Production Line yang angkanya dilihat. Wajib — laporan tidak menampilkan angka apa pun sebelum sebuah line berlaku, dan tidak ada opsi gabungan lintas line. Pilihan ini diingat perangkat untuk pengguna itu dan dibagi dengan layar Daftar Stasiun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill mana yang dilihat. Hanya bagi Admin yang tidak terikat satu mill. Mengganti mill mengosongkan Production Line yang terpilih, karena line milik mill lama tidak berlaku di mill baru.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rekap per hari, yang pada periode panjang memakan hampir seluruh layar ponsel. Murni penyingkapan — tidak memicu permintaan jaringan dan tidak mengubah angka mana pun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian seluruh trip sepanjang periode sebagai CSV, satu baris per trip dengan kolom konteks Periode/Mill/Production Line/jenis arus diulang — isinya sama persis dengan ekspor dari laporan versi web karena dibentuk server dari endpoint yang sama. Selama berkas disiapkan tombolnya terkunci dan bertuliskan 'Mengekspor…', sehingga ketukan ganda hanya menghasilkan satu unduhan.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Coba lagi",
+      "description": "Mengulang pemuatan setelah kegagalan jaringan, tanpa harus keluar dan masuk kembali ke layar, dan tanpa kehilangan periode yang sudah dipilih.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada satu pun aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Semua peran yang dapat masuk ke aplikasi mobile boleh melihat laporan ini, TERMASUK Operator. Ini keputusan produk yang sama dengan laporan mobile stasiun lain: orang yang menginput data berhak melihat hasilnya. Versi web menolak Operator; versi mobile menerimanya.",
+    "Pengguna hanya melihat data mill-nya sendiri. Operator, Supervisor, dan Mill Management terikat pada mill di akunnya dan tidak dapat melihat mill lain, bahkan bila mencoba memaksanya lewat permintaan. Admin tidak terikat sehingga ia memilih.",
+    "Angka pada layar ini berasal dari endpoint yang sama dengan laporan Weighbridge versi web. Tidak ada endpoint mobile tersendiri dan tidak boleh ada perhitungan kedua di sisi ponsel, karena dua perhitungan yang terpisah pasti akan menyimpang tanpa ketahuan.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Weighbridge — yaitu yang mendaftarkan Weighbridge sebagai salah satu stasiunnya. Konsep 'periode yang berlaku untuk semua jenis stasiun' tidak ada lagi sejak 2026-09-25.",
+    "Status periode tidak membatasi apa pun di layar ini. Periode tertutup tetap dapat dilihat dan diekspor; kunci periode mengatur penulisan data, bukan pembacaan laporan.",
+    "Rentang periode bersifat inklusif: trip pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "Production Line WAJIB berlaku. Laporan menghasilkan angka gabungan, dan menggabungkan beberapa line membuat angkanya tidak dapat ditindaklanjuti — pembaca tidak tahu line mana yang sebenarnya berkinerja demikian. Sebelum sebuah line berlaku, tidak ada angka yang ditampilkan, bukan angka seluruh mill.",
+    "Line yang berlaku ditentukan berurutan: dari parameter rute yang dibawa tile stasiun, lalu dari ingatan pilihan terakhir pengguna di perangkat ini, lalu dari satu-satunya line bila mill hanya punya satu. Nilai dari rute maupun ingatan hanya dipakai bila masih ada pada daftar line yang baru diambil dari server — line yang dihapus atau pengguna yang dipindah mill memunculkan pemilih kembali.",
+    "Ingatan pilihan line dibagi dengan layar Daftar Stasiun dan dimuati identitas pengguna, karena line adalah konteks kerja satu orang pada satu shift dan bukan pengaturan per layar. Pilihan pengguna lain pada perangkat yang sama tidak boleh terbawa.",
+    "Penyaringan line memakai Production Line yang MELEKAT PADA TRIP ITU SENDIRI, bukan line stasiun tempat trip itu tercatat sekarang. Memindahkan sebuah stasiun ke line lain tidak boleh menulis ulang riwayat trip yang sudah terjadi.",
+    "KEANGGOTAAN PERIODE ditentukan oleh penanda waktu trip itu sendiri — waktu kejadian penimbangan — bukan oleh waktu baris itu dibuat maupun waktu sinkronisasi dari mobile. Trip yang tersinkron terlambat tetap milik periode tempat ia benar-benar terjadi.",
+    "LAMA KENDARAAN DI PABRIK TIDAK DILAPORKAN, dan itu bukan kelalaian. Tiap trip hanya menyimpan SATU penanda waktu sejak penggabungan dua kolom waktu pada 2026-08-19. Durasi menuntut dua penanda waktu pada trip yang sama, dan data itu tidak ada. Laporan tidak boleh menampilkan durasi yang diturunkan dari satu penanda waktu, karena angka semacam itu terbaca sah padahal tidak punya dasar.",
+    "Sebagai gantinya laporan menampilkan SEBARAN TRIP PER JAM, yang memang dapat dihitung dari satu penanda waktu, dan menjawab pertanyaan operasional yang berdekatan: kapan timbangan menumpuk.",
+    "Trip yang penanda waktunya kosong tidak dapat ditempatkan pada periode mana pun, sehingga TIDAK ikut terhitung di angka mana pun. Jumlahnya ditampilkan tersendiri — trip yang dikecualikan diam-diam adalah selisih yang tidak dapat dijelaskan oleh pembaca.",
+    "ARUS MASUK DAN ARUS KELUAR TIDAK PERNAH DIJUMLAHKAN. Keduanya ditampilkan sebagai dua kelompok angka yang terpisah, dan laporan tidak menyediakan satu pun angka gabungan keduanya — bukan total trip, bukan total berat. Pada layar ponsel kedua kelompok itu bertumpuk, bukan berdampingan, tetapi tetap tidak pernah bertemu dalam satu angka.",
+    "SETIAP metrik dihitung dari trip yang metriknya benar-benar terisi, dengan jumlah tripnya masing-masing. Satu trip dapat punya berat bersih tetapi tidak punya tujuan.",
+    "Berat bersih rata-rata dihitung hanya atas trip yang berat bersihnya terisi, dan jumlah trip itu ditampilkan bersama angkanya. Membagi total berat dengan seluruh jumlah trip akan menurunkan rata-rata secara palsu setiap kali ada penimbangan yang belum selesai.",
+    "Trip yang berat bersihnya belum terisi — karena berat kosong kendaraan belum ditimbang — dihitung dan DITAMPILKAN sebagai angka tersendiri per jenis arus. Trip semacam itu tidak menurunkan rata-rata, ia menghilang darinya, sehingga satu-satunya cara pembaca tahu ada yang hilang adalah bila jumlahnya dinyatakan.",
+    "Rekap arus keluar per tujuan menyertakan kelompok tersendiri bagi trip yang tujuannya belum diisi. Trip itu tidak dibuang dari rekap, karena membuangnya membuat jumlah trip per tujuan tidak lagi menjumlah ke total arus keluar.",
+    "TRIP BERSTATUS DRAFT IKUT TERHITUNG, dan jumlahnya ditampilkan — mengikuti kelima laporan stasiun yang sudah ada, tidak satu pun di antaranya menyaring status record.",
+    "Nilai yang tidak dapat dihitung ditampilkan sebagai keterangan, TIDAK PERNAH sebagai 0. 'Total berat 0' adalah klaim bahwa sesuatu ditimbang dan hasilnya nol; 'tidak tersedia' adalah pernyataan bahwa tidak ada yang pernah ditimbang sampai selesai. Dua fakta yang berbeda, dan yang satu menyesatkan.",
+    "Laporan ini tidak menandai nilai di luar batas. Weighbridge tidak punya master target operasional, dan menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas resmi padahal bukan.",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki.",
+    "KELENGKAPAN UNTUK PERIODE BERJALAN: persen hari bertrip dihitung terhadap hari periode yang sudah terjadi sampai hari ini (WIB); periode yang sudah selesai memakai seluruh harinya; periode belum mulai → penyebut 0 → '—', bukan 0%.",
+    "Layar ini membutuhkan jaringan dan tidak punya jalur offline. Kegagalan memuat harus dinyatakan dengan jelas beserta tombol mencoba lagi, dan periode yang sudah dipilih tidak boleh hilang — tidak boleh layar kosong tanpa penjelasan, dan tidak boleh diam.",
+    "Akun yang terikat mill tetapi mill-nya kosong menghentikan layar tanpa satu pun permintaan jaringan — termasuk tanpa meminta daftar mill, yang justru akan membentuk daftar seluruh mill di perangkat orang yang tidak berhak melihat satu pun di antaranya.",
+    "Sesi yang sudah tidak berlaku mengarahkan pengguna ke layar Login, sama seperti layar mobile lain — bukan ditampilkan sebagai kegagalan jaringan dengan tombol mencoba lagi yang pasti gagal.",
+    "Hanya jawaban permintaan TERBARU yang berlaku. Mengganti periode, line, atau mill lebih cepat daripada jawabannya tidak boleh membuat jawaban lama menimpa angka baru, memunculkan galat basi, atau menghentikan tanda memuat milik pilihan baru.",
+    "Tata letak ponsel: satu kolom, sasaran sentuh minimal 44 piksel, dan halaman tidak pernah menggulir mendatar. Grafik 24 jam dan tabel rekap harian menggulir di dalam kartunya sendiri, bukan menggeser seluruh halaman.",
+    "Rekap harian tertutup secara bawaan agar angka utama dan grafik tetap terbaca pada layar ponsel."
+  ],
+  "usecase_ids": [
+    "usecase-147--laporan-weighbridge-mobile"
+  ],
+  "edge_cases": [
+    "Production Line belum berlaku — tidak ada angka yang ditampilkan, diganti arahan memilih line lebih dulu beserta alasannya; bukan angka seluruh mill.",
+    "Line yang dibawa rute atau yang diingat perangkat sudah tidak ada pada daftar line mill ini — nilai itu tidak dipakai, pemilih ditampilkan kembali, dan sistem tidak menebak line lain sebagai penggantinya.",
+    "Mill belum punya satu pun Production Line — dinyatakan sebagai arahan menghubungi Admin, dan dibedakan dengan jelas dari kegagalan memuat daftar line.",
+    "Daftar Production Line gagal dimuat karena jaringan — dinyatakan sebagai kegagalan memuat dengan tombol mencoba lagi khusus daftar itu, bukan sebagai 'mill tidak punya line', dan tidak menimpa penanganan galat ringkasan laporan.",
+    "Admin mengganti mill setelah memilih line — line yang terpilih dikosongkan, karena line milik mill lama tidak ada di mill baru.",
+    "Mill hanya punya satu Production Line — line itu berlaku tanpa pemilih, tetapi namanya tetap ditampilkan berdampingan dengan angkanya sehingga pembaca selalu tahu angka itu milik line mana.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu, dan tidak ada permintaan daftar line maupun daftar periode yang dikirim.",
+    "Akun Operator, Supervisor, atau Mill Management yang belum terhubung ke mill mana pun — pesan jelas menghubungi Admin, tanpa satu pun permintaan jaringan, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Server menolak daftar mill untuk peran ini — pemilih mill tidak dirender sama sekali; menawarkan pemilih yang pasti gagal adalah kebohongan kepada pengguna.",
+    "Mill belum punya satu pun periode yang mencakup Weighbridge — pemilih periode kosong dengan arahan menghubungi Admin, dan arahan itu tidak muncul selama daftar periode masih dimuat.",
+    "Periode tidak memuat satu pun trip — seluruh angka ditampilkan tidak tersedia dengan keterangan belum ada data, bukan nol, dan grafik tidak dirender sebagai kotak kosong.",
+    "Periode hanya memuat arus masuk dan nol arus keluar — kelompok arus keluar tetap ditampilkan dengan nilai tidak tersedia, bukan disembunyikan walau layar ponsel sempit.",
+    "Seluruh trip pada periode berat bersihnya kosong — total dan rata-rata berat dinyatakan tidak tersedia dengan jumlah trip terisi nol, sementara jumlah trip tetap ditampilkan apa adanya.",
+    "Sebagian trip beratnya kosong — rata-rata memakai penyebut trip terisi saja, penyebutnya dinyatakan, dan jumlah trip tanpa berat ditampilkan tersendiri per arus.",
+    "Terdapat trip pada line itu yang penanda waktunya kosong — trip itu tidak ikut terhitung di angka mana pun, dan jumlahnya ditampilkan tersendiri supaya selisihnya dapat dijelaskan.",
+    "Seluruh trip arus keluar tujuannya belum diisi — rekap per tujuan hanya berisi satu kelompok 'belum diisi', dan jumlahnya tetap menjumlah ke total arus keluar.",
+    "Satu estate/supplier menyumbang hampir seluruh arus masuk — rekap tetap menampilkan seluruh asal, tidak dipangkas, agar penyumbang kecil tidak lenyap.",
+    "Seluruh trip pada periode terjadi pada satu jam yang sama — sebaran per jam menampilkan satu jam berisi dan 23 jam kosong, dan jam tersibuk menunjuk jam itu; sebaran tidak disembunyikan karena dianggap tidak informatif.",
+    "Seluruh trip pada periode berstatus draft — angka tetap ditampilkan, dan jumlah draft sama dengan jumlah seluruh trip sehingga pembaca langsung melihat bahwa laporan ini sepenuhnya berdiri di atas data yang belum selesai.",
+    "Grafik 24 jam dan tabel rekap harian lebih lebar daripada layar ponsel — keduanya menggulir mendatar di dalam kartunya sendiri, tanpa membuat seluruh halaman ikut bergeser.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap tertutup secara bawaan dan dapat dibuka, tanpa memicu permintaan jaringan apa pun.",
+    "Perangkat kehilangan jaringan saat memuat — pesan kegagalan beserta tombol coba lagi, tanpa kehilangan periode yang sudah dipilih, dan tombol itu mengulang tepat aksi yang gagal.",
+    "Sesi berakhir saat layar terbuka — pengguna diarahkan ke Login, bukan ditampilkan sebagai kegagalan jaringan.",
+    "Pengguna mengganti periode, Production Line, atau mill lebih cepat daripada jawabannya — yang tampil selalu jawaban pilihan TERAKHIR; jawaban pilihan lama yang datang belakangan diabaikan. Bila pilihan periode dikosongkan saat ringkasan masih dimuat, tidak ada angka yang muncul kemudian.",
+    "Pengguna mengganti periode selagi berkas ekspor masih diunduh — nama berkas tetap mengikuti periode yang DIEKSPOR, bukan periode yang terpilih saat berkas tiba; tombol Ekspor terkunci selama ekspor berjalan sehingga ketukan ganda hanya menghasilkan satu unduhan.",
+    "Permintaan membawa identitas mill atau Production Line milik mill lain — aplikasi tidak pernah mengirim identitas mill untuk peran yang terikat mill, server memakai mill pada akun, dan line yang bukan milik mill yang berlaku ditolak.",
+    "Periode masih berjalan — persen hari bertrip dihitung sampai hari ini dan keterangan 'sampai hari ini' ditampilkan, sehingga hari yang belum terjadi tidak menurunkan persen.",
+    "Periode belum mulai (0 hari sudah lewat) — persen hari bertrip '—', bukan 0%."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Weighbridge tidak punya master target operasional, jadi laporan ini tidak menandai nilai di luar batas. Bila nanti ada standar kapasitas angkut yang resmi, laporan versi web dan versi mobile perlu ditinjau ulang bersamaan agar penyimpangan dapat ditandai.",
+    "LINTAS LAPORAN, bukan khusus layar ini: trip berstatus draft ikut terhitung di sini karena keenam laporan stasiun yang sudah ada juga tidak menyaring status record. Pertanyaannya tetap terbuka — apakah laporan periode, sebagai rekap resmi, seharusnya mengecualikan data yang belum selesai diisi? Menjawabnya mengubah seluruh laporan sekaligus, jadi ini bukan keputusan yang boleh diambil per stasiun.",
+    "Kolom jumlah muatan (quantity) ada pada data Weighbridge tetapi tidak dilaporkan di sini, karena satuan dan maknanya belum dipastikan — jumlah janjang, jumlah karung, atau yang lain. Pertanyaan ini diwarisi dari screen-143 dan jawabannya berlaku untuk kedua layar sekaligus.",
+    "LAMA KENDARAAN DI PABRIK tidak dapat dilaporkan karena datanya tidak ada. Bila metrik itu memang dibutuhkan, yang diperlukan bukan perubahan laporan melainkan perubahan DATA: mengembalikan dua penanda waktu pada form Weighbridge, yang berarti migrasi, perubahan form input mobile dan web, dan keputusan tentang trip lama yang hanya punya satu penanda waktu."
+  ]
+}

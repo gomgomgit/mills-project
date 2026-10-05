@@ -1021,64 +1021,113 @@ it('skenario 19 — lintas mill: business_unit_id klien diabaikan (200, data sen
 // =====================================================================
 // Scenario 20: "Operator mencoba membuka layar web ini"
 //
-// Operator is refused on ALL FOUR routes, and the refusal is closed TWICE:
-// the route middleware ('role:supervisor,mill_management,admin') stops it
-// first, and WeighbridgeReportService::guardAccess() refuses it two layers
-// deeper as well. There is no Operator widening on this screen — the mobile
-// Weighbridge report (screen-144) does not exist yet, and widening it would
-// have to touch routes/api.php, guardAccess() AND the mill-bound branch of
-// resolveBusinessUnit() together, or Operator falls into the Admin branch
-// where the client's business_unit_id IS honoured.
+// SKENARIO INI BERUBAH ARAH PADA 2026-10-05, dan arah barunya justru lebih
+// menuntut. Sampai hari itu Operator ditolak pada keempat rute karena laporan
+// Weighbridge versi mobile (screen-144) belum ada. screen-144 kemudian
+// dibangun di atas endpoint yang SAMA alih-alih punya endpoint sendiri, jadi
+// ketiga rute data dilebarkan untuk menerima Operator.
 //
-// The 403 raised by EnsureRole carries `message` only, no `code`: that
-// middleware builds its own JSON response and never reaches
-// ApiExceptionHandler. That is a repo-wide documented known issue (screen-128),
-// not a defect of this screen, so the assertion is on the status and the
-// message. The code-carrying, SERVICE-raised FORBIDDEN is asserted in the unit
-// test file.
+// Yang diasersi sekarang ada TIGA, dan ketiganya harus benar bersamaan:
+//
+//   1. Operator DITERIMA pada /periods, /summary, dan /export — dan yang
+//      dibaca adalah data MILL SENDIRI;
+//   2. Operator yang mengirim business_unit_id mill lain TETAP menerima 200
+//      berisi data mill sendiri. Inilah asersi yang gagal bila cabang
+//      TERIKAT MILL pada resolveBusinessUnit() terlewat dari perluasan,
+//      sementara asersi "peran diterima" akan tetap hijau — Operator akan
+//      jatuh ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI;
+//   3. /business-units/options TETAP 403 untuk Operator. Peran yang terikat
+//      satu mill tidak punya pemilih, dan menyerahkan daftar seluruh mill
+//      kepadanya adalah justru kebocoran yang dihindari perluasan ini.
+//
+// Rute WEB /reports/weighbridge tidak ikut dilebarkan; penolakannya diasersi
+// di tests/Feature/Livewire/LaporanWeighbridgeTest.php, yang memakai daftar
+// peran komponennya sendiri (canAccess()) dan bukan guardAccess().
+//
+// Tamu tetap 401 pada seluruh rute, dan itu diasersi lebih dulu: actingAs()
+// bertahan sepanjang satu kasus test, jadi permintaan tamu yang dibuat
+// SETELAHNYA diam-diam menjadi permintaan terautentikasi.
 // =====================================================================
-it('skenario 20 — Operator: 403 pada keempat rute dan tidak satu angka Weighbridge pun terlihat', function () {
-    laporanWeighbridgeReceive($this->stationA, '2026-09-04 08:00', 1000.0, 'Estate Rahasia');
+it('skenario 20 — Operator: diterima pada ketiga rute data untuk mill sendiri, 403 pada pemilih mill', function () {
+    laporanWeighbridgeReceive($this->stationA, '2026-09-04 08:00', 1000.0, 'Estate Alpha');
 
-    // THE GUEST CASE RUNS FIRST, ON PURPOSE: actingAs() persists for the rest
-    // of the test case, so a request made after it would silently be an
-    // authenticated one and would answer 403 where 401 is meant.
+    // Data mill LAIN, untuk membuktikan ia tidak pernah ikut terbaca.
+    laporanWeighbridgeReceive($this->stationB, '2026-09-05 08:00', 9999.0, 'Estate Rahasia');
+
+    $periodB = Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('weighbridge')
+        ->range('2026-09-01', '2026-09-30')->named('Periode September Beta')->create();
+
+    // TAMU LEBIH DULU, SENGAJA: actingAs() bertahan sepanjang kasus ini, jadi
+    // permintaan tamu yang dibuat setelahnya diam-diam menjadi permintaan
+    // terautentikasi dan akan menjawab 200 di tempat 401 dimaksudkan.
     $this->getJson(laporanWeighbridgeUrl('periods'))->assertStatus(401);
     $this->getJson(laporanWeighbridgeUrl('summary', [
         'period_id' => (string) $this->periodA->id,
         'production_line_id' => $this->lineA,
     ]))->assertStatus(401);
 
-    // Step 1 — GET /periods
+    // Step 1 — GET /periods: diterima, dan hanya periode mill sendiri.
     $periods = $this->actingAs($this->operator, 'web')->getJson(laporanWeighbridgeUrl('periods'));
-    $periods->assertStatus(403);
-    $periods->assertJsonMissingPath('data');
-    expect($periods->json('message'))->toBe('Anda tidak memiliki akses untuk aksi ini.');
+    $periods->assertOk();
 
-    // Step 2 — GET /summary
+    $periodIds = collect($periods->json('data'))->pluck('id')->all();
+    expect($periodIds)->toContain((string) $this->periodA->id);
+    expect($periodIds)->not->toContain((string) $periodB->id);
+
+    // Step 2 — GET /summary: diterima, dan angkanya milik mill sendiri.
     $summary = $this->actingAs($this->operator, 'web')->getJson(laporanWeighbridgeUrl('summary', [
         'period_id' => (string) $this->periodA->id,
         'production_line_id' => $this->lineA,
     ]));
-    $summary->assertStatus(403);
-    $summary->assertJsonMissingPath('receive');
-    $summary->assertJsonMissingPath('dispatch');
-    $summary->assertJsonMissingPath('daily');
+    $summary->assertOk();
+    expect($summary->json('receive.trip_count'))->toBe(1);
+    expect($summary->json('receive.net_weight_total'))->toEqual(1000.0);
     expect($summary->content())->not->toContain('Estate Rahasia');
 
-    // Step 3 — GET /export
-    $export = $this->actingAs($this->operator, 'web')->getJson(laporanWeighbridgeUrl('export', [
+    // Step 3 — business_unit_id MILL LAIN: 200 berisi data mill sendiri,
+    // SENGAJA bukan 403. Inilah asersi yang gagal bila cabang terikat mill
+    // pada resolveBusinessUnit() terlewat dari perluasan.
+    $probe = $this->actingAs($this->operator, 'web')->getJson(laporanWeighbridgeUrl('summary', [
+        'period_id' => (string) $this->periodA->id,
+        'production_line_id' => $this->lineA,
+        'business_unit_id' => (string) $this->businessUnitB->id,
+    ]));
+    $probe->assertOk();
+    expect($probe->json('business_unit.id'))->toBe((string) $this->businessUnitA->id);
+    expect($probe->json('receive.trip_count'))->toBe(1);
+    expect($probe->content())->not->toContain('Estate Rahasia');
+
+    // Step 4 — line dan periode milik mill lain TETAP 403: di sana ada
+    // pegangan nyata atas data mill lain, bukan parameter yang diabaikan.
+    $this->actingAs($this->operator, 'web')->getJson(laporanWeighbridgeUrl('summary', [
+        'period_id' => (string) $this->periodA->id,
+        'production_line_id' => $this->lineB,
+    ]))->assertStatus(403);
+
+    $this->actingAs($this->operator, 'web')->getJson(laporanWeighbridgeUrl('summary', [
+        'period_id' => (string) $periodB->id,
+        'production_line_id' => $this->lineA,
+    ]))->assertStatus(403);
+
+    // Step 5 — GET /export: diterima, dan isinya milik mill sendiri.
+    $export = $this->actingAs($this->operator, 'web')->get(laporanWeighbridgeUrl('export', [
         'period_id' => (string) $this->periodA->id,
         'production_line_id' => $this->lineA,
         'format' => 'csv',
     ]));
-    $export->assertStatus(403);
-    expect($export->content())->not->toContain('Estate Rahasia');
+    $export->assertOk();
 
-    // The fourth route, the Admin-only mill picker, is refused too.
-    $this->actingAs($this->operator, 'web')
-        ->getJson(laporanWeighbridgeUrl('business-units/options'))
-        ->assertStatus(403);
+    $body = laporanWeighbridgeStreamed($export);
+    expect($body)->toContain('Estate Alpha');
+    expect($body)->not->toContain('Estate Rahasia');
+
+    // Step 6 — pemilih mill TETAP 403. Satu-satunya rute pada prefix ini yang
+    // perluasan screen-144 sengaja TIDAK buka.
+    $options = $this->actingAs($this->operator, 'web')
+        ->getJson(laporanWeighbridgeUrl('business-units/options'));
+    $options->assertStatus(403);
+    $options->assertJsonMissingPath('data');
+    expect($options->content())->not->toContain('Mill Beta');
 });
 
 // =====================================================================

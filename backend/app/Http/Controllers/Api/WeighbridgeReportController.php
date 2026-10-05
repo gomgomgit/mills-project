@@ -11,9 +11,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * WeighbridgeReportController — screen-143--laporan-weighbridge-web
- * (Laporan Periode Weighbridge). auth_requirement: authenticated,
- * Supervisor / Mill Management / Admin (see routes/api.php's
- * 'role:supervisor,mill_management,admin' middleware).
+ * (Laporan Periode Weighbridge) and, since 2026-10-05,
+ * screen-144--laporan-weighbridge-mobile. auth_requirement: authenticated,
+ * Operator / Supervisor / Mill Management / Admin (see routes/api.php's
+ * 'role:supervisor,mill_management,admin,operator' middleware).
  *
  * GET-ONLY BY DESIGN. There is no POST/PUT/PATCH/DELETE action here and none
  * on the /api/weighbridge-reports prefix — this screen is a read-only report
@@ -41,9 +42,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * weighbridge_records queries run. There is deliberately NO all-lines
  * fallback — unlike the five earlier station reports, where
  * production_line_id stayed optional at the API layer so their already-shipped
- * mobile twins would not break. Weighbridge has no shipped mobile twin
- * (screen-144 does not exist yet), so the parameter is required from day one,
- * exactly as the spec demands.
+ * mobile twins would not break. Weighbridge had no shipped mobile twin when
+ * this prefix was written, so the parameter was required from day one — and
+ * when screen-144 arrived it was built TO that stricter contract rather than
+ * the contract being relaxed for it.
  *
  * NOTE WHICH GUARD CLOSES WHICH HOLE — three different answers on purpose:
  *   - `business_unit_id` from the client is IGNORED for the mill-bound roles
@@ -54,15 +56,18 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *   - a `period_id` belonging to another mill IS refused with 403 in
  *     WeighbridgeReportService::authorizePeriod().
  *
- * OPERATOR IS REFUSED ON ALL FOUR ROUTES, and that absence has a date on it.
- * The sibling report prefixes all carry `operator` because their mobile twin
- * reuses them; screen-144 (mobile Weighbridge report) is not built yet, so
- * the role list here deliberately carries no `operator` and
- * WeighbridgeReportService::guardAccess() refuses it two layers deeper as
- * well. Widening is an explicit, reviewable step taken when screen-144 is
- * built, and it must always also add Operator to the MILL-BOUND branch of
- * resolveBusinessUnit() — otherwise it falls into the unbound Admin branch
- * where the client's business_unit_id IS honoured.
+ * OPERATOR IS ADMITTED ON THREE OF THE FOUR ROUTES SINCE 2026-10-05, when
+ * screen-144 (the mobile Weighbridge report) was built on them. The widening
+ * was three changes together — routes/api.php,
+ * WeighbridgeReportService::guardAccess(), and the MILL-BOUND branch of
+ * resolveBusinessUnit() — and the third is the load-bearing one: without it
+ * Operator falls into the unbound Admin branch where the client's
+ * business_unit_id IS honoured.
+ *
+ * THE FOURTH ROUTE, /business-units/options, STILL REFUSES OPERATOR with 403,
+ * raised by the service rather than by the middleware. A role bound to one
+ * mill has no picker, and handing it the list of every mill is exactly the
+ * leak the widening had to avoid.
  *
  * The production-line OPTION LIST is NOT here: GET
  * /api/production-lines/options-for-report (built for screen-135) is reused
@@ -76,8 +81,9 @@ class WeighbridgeReportController extends Controller
      * businessUnitOptions() — GET /api/weighbridge-reports/business-units/options.
      *
      * Admin-only mill picker; the service throws 403 FORBIDDEN for anyone
-     * else, since Supervisor and Mill Management are already bound to one mill
-     * and have no picker at all. Enforced in the SERVICE rather than by this
+     * else, since Operator, Supervisor and Mill Management are already bound to
+     * one mill and have no picker at all. This is the one route on the prefix
+     * that the screen-144 widening deliberately did NOT open. Enforced in the SERVICE rather than by this
      * route's middleware on purpose: the middleware admits all three roles for
      * the other endpoints, and handing a mill-bound role the list of every
      * mill is precisely the leak this screen must not open.

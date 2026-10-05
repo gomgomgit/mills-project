@@ -782,15 +782,22 @@ describe('ReportingPilihStasiunView — membawa Production Line ke laporan', () 
   })
 
   it('tile tanpa laporan tetap tidak berpindah rute, walau ada line aktif', async () => {
+    // STASIUN CONTOHNYA HARUS YANG BENAR-BENAR BELUM PUNYA LAPORAN. Sampai
+    // 2026-10-05 test ini memakai Weighbridge; screen-144 kemudian
+    // membangun laporan Weighbridge mobile, sehingga tile itu menjadi aktif
+    // dan test ini berhenti menguji apa pun. Engine Room dipakai sebagai
+    // gantinya — dan kalau suatu hari ia pun dibuatkan laporan, test ini
+    // akan gagal lagi, yang justru benar: ia memaksa contohnya diperbarui
+    // alih-alih diam-diam menjadi selalu hijau.
     window.localStorage.setItem('msl_production_line_user-1', 'pl-2')
     getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([
-      makeStation({ id: 'st-x', name: 'Weighbridge', type: 'weighbridge', isActive: true }),
+      makeStation({ id: 'st-x', name: 'Engine Room', type: 'engine-room', isActive: true }),
     ])
 
     const wrapper = mount(ReportingPilihStasiunView)
     await flushPromises()
 
-    await wrapper.get('[data-testid="station-tile-weighbridge"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-engine-room"]').trigger('click')
 
     expect(pushMock).not.toHaveBeenCalled()
     expect(wrapper.get('[data-testid="info-message"]').text()).toContain('belum tersedia')

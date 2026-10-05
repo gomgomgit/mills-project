@@ -1,0 +1,1909 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-05"
+  },
+  "id": "screen-144--laporan-weighbridge-mobile",
+  "name": "Laporan Weighbridge (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports/weighbridge",
+  "auth_requirement": "authenticated — seluruh peran mobile (operator, supervisor, mill_management, admin)",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien DIABAIKAN. Perluasan akses ini berlaku HANYA untuk 4 rute /api/weighbridge-reports/*, bukan untuk rute web /reports/weighbridge"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill lewat pemilih Mill sebelum daftar line dan daftar periode dimuat"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "usecase_name": "Lihat Laporan Periode Weighbridge (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/weighbridge-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — khusus Admin — DIPAKAI ULANG apa adanya dari screen-143; 403 untuk peran terikat mill termasuk Operator",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token Sanctum tidak ada atau tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan Admin — Operator, Supervisor, dan Mill Management terikat satu mill dan tidak punya pemilih; perluasan Operator pada screen-144 SENGAJA tidak menyentuh endpoint ini"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/weighbridge-reports/periods",
+          "description": "Daftar Periode Pelaporan yang PUNYA BARIS period_stations untuk jenis stasiun weighbridge — DIPAKAI ULANG apa adanya dari screen-143",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "WAJIB bagi Admin (422 bila absen); DIABAIKAN total bagi peran terikat mill — termasuk Operator setelah perluasan screen-144. production_line_id TIDAK PERNAH dikirim ke endpoint ini: periode milik MILL, bukan milik line"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string (draft|open|closed) — status BARIS period_stations weighbridge pada periode itu, bukan status periode",
+                  "station_type": "string — selalu 'weighbridge', tidak pernah null",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token Sanctum tidak ada atau tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar operator/supervisor/mill_management/admin"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tidak mengirim business_unit_id, atau akun terikat mill yang users.business_unit_id-nya NULL (pesan menghubungi Admin; daftar seluruh mill TIDAK pernah dibaca)"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/weighbridge-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode pada satu Production Line, DIPISAH per jenis arus — DIPAKAI ULANG apa adanya dari screen-143; tidak ada endpoint mobile terpisah",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Periode yang dilaporkan. Absen → 422 VALIDATION_ERROR dengan errors.period_id, bukan 404 dan bukan laporan kosong"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — berbeda dari lima laporan stasiun sebelumnya, di mana parameter ini opsional. Absen → 422 VALIDATION_ERROR dan NOL kueri weighbridge_records berjalan. TIDAK PERNAH di-default ke 'semua line mill': total lintas line bukan angka yang dapat ditindaklanjuti siapa pun. Penyaringan memakai kolom weighbridge_records.production_line_id, bukan join ke stations"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /periods: wajib bagi Admin, diabaikan bagi peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string (draft|open|closed) — status baris period_stations weighbridge"
+              },
+              "receive": {
+                "trip_count": "integer — SELURUH trip arus masuk, termasuk yang net_weight-nya null",
+                "net_weight_total": "float|null — null (BUKAN 0) bila tidak satu pun trip punya net_weight",
+                "net_weight_avg": "float|null — penyebutnya net_weight_trip_count, bukan trip_count",
+                "net_weight_trip_count": "integer — PENYEBUT, diterbitkan berdampingan dengan rata-ratanya",
+                "missing_net_weight_trip_count": "integer — trip_count minus net_weight_trip_count, PER ARUS",
+                "hourly": [
+                  {
+                    "hour": "integer 0..23",
+                    "trip_count": "integer"
+                  }
+                ],
+                "busiest_hour": "integer|null",
+                "busiest_hour_trip_count": "integer",
+                "empty_hour_count": "integer",
+                "by_origin": [
+                  {
+                    "estate_supplier": "string — '' untuk asal yang belum diisi",
+                    "trip_count": "integer",
+                    "net_weight_total": "float|null",
+                    "net_weight_trip_count": "integer"
+                  }
+                ]
+              },
+              "dispatch": {
+                "trip_count": "integer",
+                "net_weight_total": "float|null",
+                "net_weight_avg": "float|null",
+                "net_weight_trip_count": "integer",
+                "missing_net_weight_trip_count": "integer",
+                "hourly": [
+                  {
+                    "hour": "integer 0..23",
+                    "trip_count": "integer"
+                  }
+                ],
+                "busiest_hour": "integer|null",
+                "busiest_hour_trip_count": "integer",
+                "empty_hour_count": "integer",
+                "by_destination": [
+                  {
+                    "destination": "string|null — null adalah KELOMPOK TERSENDIRI 'belum diisi', bukan baris yang dibuang",
+                    "trip_count": "integer",
+                    "net_weight_total": "float|null",
+                    "net_weight_trip_count": "integer"
+                  }
+                ]
+              },
+              "draft_trip_count": "integer — melintasi kedua arus; penyingkapan, BUKAN penyaring",
+              "undated_trip_count": "integer — trip pada line itu yang record_datetime-nya NULL; tidak ikut terhitung di angka mana pun",
+              "daily": [
+                {
+                  "date": "date",
+                  "receive_trip_count": "integer",
+                  "receive_net_weight_total": "float|null",
+                  "dispatch_trip_count": "integer",
+                  "dispatch_net_weight_total": "float|null"
+                }
+              ],
+              "daily_total": {
+                "receive_trip_count": "integer",
+                "receive_net_weight_total": "float|null",
+                "dispatch_trip_count": "integer",
+                "dispatch_net_weight_total": "float|null"
+              },
+              "completeness": {
+                "days_in_period": "integer — seluruh hari periode (inklusif)",
+                "days_with_trip": "integer — jumlah tanggal ber-trip = panjang `daily`",
+                "days_counted": "integer — ReportPeriodDays::counted(): = days_in_period untuk periode selesai, start..hari ini (WIB) untuk periode berjalan, 0 bila belum mulai",
+                "period_running": "boolean"
+              },
+              "_note": "TIDAK SATU PUN kunci menjumlahkan kedua arus. draft_trip_count dan undated_trip_count melintasi keduanya tetapi keduanya adalah penghitung KELENGKAPAN, bukan metrik. TIDAK ADA kunci durasi kendaraan di pabrik di mana pun — weighbridge_records hanya punya satu record_datetime sejak migrasi 2026_08_19_000010"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token Sanctum tidak ada atau tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar keempat peran mobile; ATAU production_line_id milik mill lain (resolveProductionLine); ATAU period_id milik mill lain (authorizePeriod)"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen; Admin tidak mengirim business_unit_id; akun terikat mill tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — angka laporan harus mencerminkan keadaan saat dibaca",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/weighbridge-reports/export",
+          "description": "Ekspor seluruh trip sepanjang periode pada satu line, SATU BARIS PER TRIP — DIPAKAI ULANG apa adanya dari screen-143; respons streaming text/csv, bukan JSON",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB, sama seperti /summary — berkas yang mencampur line adalah bentuk kesalahan yang paling sulit dibantah setelah terkirim"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv|excel. Mobile mengirim 'csv' saja — ekspor .xlsx hanya ada di layar web"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_content_type": "text/csv — SATU BARIS PER TRIP, kolom konteks Periode/Mill/Production Line/jenis arus diulang verbatim di setiap baris; trip ber-net_weight NULL tetap satu baris dengan sel KOSONG, tidak dibuang dan tidak ditulis 0; header memuat TEPAT SATU kolom penanda waktu dan NOL kolom durasi"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token Sanctum tidak ada atau tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Sama seperti /summary — dicek EAGER sebelum streaming dimulai, supaya penolakan tidak sampai ke klien sebagai unduhan kosong yang berhasil"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen; format di luar csv|excel"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "Lebih dari 50.000 baris (EXPORT_ROW_LIMIT); tepat 50.000 masih diekspor"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "Daftar Production Line di dalam mill yang berlaku, untuk pemilih line — DIPAKAI ULANG apa adanya (dibangun untuk screen-135); TIDAK diduplikasi di bawah prefix weighbridge-reports",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya dihormati untuk Admin; untuk peran terikat mill nilainya dibuang server (ScopesToActorMill::resolveReadMillId) dan repo mobile pun tidak mengirimkannya"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token Sanctum tidak ada atau tidak berlaku"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "TIDAK ADA logika agregasi server baru. Keempat endpoint /api/weighbridge-reports/* milik screen-143 dipakai ulang apa adanya; seluruh langkah business_logic layar web berlaku tanpa perubahan. Yang berubah hanyalah SIAPA yang boleh memanggilnya.",
+        "PERLUASAN AKSES OPERATOR — TEPAT TIGA PERUBAHAN KODE, dan melewatkan salah satunya menimbulkan lubang: (1) routes/api.php: middleware grup weighbridge-reports menjadi ['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'] — guard sanctum sudah ada sebelumnya karena ponsel memakai token; (2) WeighbridgeReportService::guardAccess(): tambahkan UserRole::Operator ke daftar peran yang diterima; (3) WeighbridgeReportService::resolveBusinessUnit(): tambahkan Operator ke cabang TERIKAT MILL bersama Supervisor dan MillManagement.",
+        "MENGAPA (3) TIDAK BOLEH TERLEWAT — ini sudah ditulis sebagai peringatan di docblock WeighbridgeReportService sejak layar web dibangun: resolveBusinessUnit() bercabang 'if (Supervisor || MillManagement) { pakai business_unit_id akun } else { perlakukan sebagai Admin }'. Melebarkan guardAccess() saja menjatuhkan Operator ke cabang Admin, tempat business_unit_id dari klien DIHORMATI, sehingga Operator dapat membaca laporan mill mana pun dengan menyebutkan id-nya. Itu kebocoran lintas mill, bukan cacat tampilan. Pola ini sudah terbukti pada screen-135, screen-136, dan screen-139.",
+        "Perubahan keempat yang menyertainya bukan kode produk melainkan TEST: WeighbridgeReportServiceTest / rute API milik screen-143 mengasersi Operator ditolak 403 pada keempat endpoint. Asersi itu harus BERUBAH ARAH, bukan dihapus — menjadi 'Operator diterima dan terikat mill akunnya', ditambah asersi baru bahwa Operator yang mengirim business_unit_id mill lain tetap menerima data mill sendiri (bukti ia ada di cabang terikat mill).",
+        "/business-units/options TETAP ADMIN SAJA dan tetap menjawab 403 untuk Operator — penjagaan itu ada di dalam service (businessUnitOptions), bukan di middleware, sehingga melebarkan middleware tidak melonggarkannya. Peran yang terikat satu mill tidak punya pemilih, dan menyerahkan daftar seluruh mill kepadanya adalah justru kebocoran yang dihindari perluasan ini.",
+        "authorizePeriod() dan resolveProductionLine() TIDAK perlu diubah: keduanya membandingkan ke mill yang BERLAKU, dan karena (3) menempatkan Operator di cabang terikat mill, Operator otomatis tertutup dari periode maupun line mill lain — 403 pada keduanya.",
+        "RUTE WEB /reports/weighbridge TIDAK BERUBAH — tetap role:supervisor,mill_management,admin. Operator tidak punya UI web untuk laporan. Yang dilebarkan hanya 4 rute API.",
+        "Lapisan klien: mobile/src/services/weighbridgeReportRepo.ts, sejajar storageTankReportRepo.ts dan keempat repo laporan lain. Fungsi: fetchBusinessUnits(), fetchPeriods(scope?), fetchSummary(periodId, scope?), exportCsv(periodId, scope?), saveCsvFile(blob, filename), plus objek gabungan sebagai default export.",
+        "scopeParams(scope): mengembalikan {} bila !scope.isAdmin, dan {} bila Admin belum memilih mill; hanya { business_unit_id } bila Admin sudah memilih. Perangkat non-Admin TIDAK PERNAH mengirim business_unit_id — pertahanan berlapis di atas penjagaan server, bukan penggantinya.",
+        "productionLineParams(scope): mengembalikan { production_line_id } hanya bila nilainya ada, dan dikirim HANYA ke /summary dan /export. TIDAK PERNAH ke /periods — periode milik mill, bukan milik line, dan server pun tidak menerima parameter itu di sana. BERBEDA dari lima repo sebelumnya dalam satu hal: di sini parameter itu WAJIB, jadi view tidak boleh memanggil fetchSummary tanpa line; penjagaannya ada di view (loadSummary berhenti lebih awal) dan server menolak 422 bila lolos.",
+        "unwrap(payload): respons /summary dikirim controller TANPA pembungkus 'data', sementara /periods dan /business-units/options MEMAKAI pembungkus. Repo menerima kedua bentuk supaya tidak pecah bila pembungkusnya kelak diseragamkan.",
+        "TIDAK ADA perhitungan ulang di sisi ponsel. Repo hanya memanggil endpoint, membaca pembungkus, dan meneruskan. Tidak ada penjumlahan hourly, tidak ada perata-rataan, tidak ada pembulatan, tidak ada pengurutan ulang by_origin/by_destination, tidak ada penurunan missing_net_weight_trip_count dari trip_count − net_weight_trip_count. Satu unit test khusus mengunci ketiadaan aritmetika ini.",
+        "SATU-SATUNYA angka turunan di view adalah UKURAN BATANG grafik (persentase terhadap nilai tertinggi) — skala visual, bukan angka yang dibaca pengguna. Nilai yang dibaca tetap nilai server apa adanya.",
+        "NULL BUKAN NOL harus bertahan melewati lapisan klien: net_weight_total, net_weight_avg, busiest_hour, seluruh *_net_weight_total pada daily/daily_total, dan net_weight_total pada tiap baris by_origin/by_destination boleh null. Mengoersinya menjadi 0 di ponsel mengubah 'tidak pernah ditimbang sampai selesai' menjadi 'hasilnya nol'. Penerjemahan null menjadi teks terbaca adalah urusan view, bukan repo.",
+        "destination null adalah KELOMPOK, bukan baris yang dibuang: view merendernya dengan label 'Belum diisi'. estate_supplier yang kosong dirender 'Belum diisi' pula — server mengirim '' untuk asal yang belum diisi (groupedBreakdownOf dengan keepNull=false) dan null untuk tujuan yang belum diisi (keepNull=true). Kedua bentuk harus ditangani view.",
+        "Line yang berlaku ditentukan resolveProductionLine(lines) di view, berurutan: (1) route.query.production_line_id — dibawa tile screen-141; (2) localStorage 'msl_production_line_{userId}' — kunci yang SAMA PERSIS dengan yang ditulis StationListView.vue dan dibaca ReportingPilihStasiunView.vue; (3) satu-satunya line bila lines.length === 1; (4) selain itu null, pemilih tampil, NOL angka. Nilai dari (1) dan (2) hanya dipakai bila masih ada pada `lines` yang baru diambil dari server.",
+        "Urutan pemuatan bagi peran terikat mill: loadProductionLines() LALU loadPeriods(). Pemilih periode boleh terisi tanpa line, tetapi angkanya tidak — dan /periods memang tidak tersaring line. Bagi Admin: loadBusinessUnits() saja di onMounted; daftar line dan periode baru dimuat oleh onBusinessUnitChange().",
+        "Akun terikat mill dengan business_unit_id kosong: view menetapkan noMillForAccount dan BERHENTI — nol permintaan HTTP, termasuk tidak memanggil /business-units/options yang justru akan membentuk daftar seluruh mill di perangkat orang yang tidak berhak melihat satu pun di antaranya.",
+        "Penerjemahan galat ada di VIEW, bukan di repo. apiClient.normalizeError menolak dengan objek DATAR { message, errors?, status? } dan sudah MEMBUANG `response`, jadi `.response` tidak pernah ada pada galat yang sampai ke pemanggil. Urutan cabang handleError menentukan benar/salahnya layar: status 401 → router.push({ name: 'login' }), tanpa pesan jaringan dan tanpa tombol coba lagi; status undefined (penolakan tanpa respons = transport) → pesan jaringan + tombol coba lagi, dan selectedPeriodId SENGAJA tidak direset; sisanya → pesan yang dapat dibaca pengguna.",
+        "Kegagalan memuat daftar Production Line TIDAK memakai handleError(): ia punya penanda sendiri (productionLineFetchFailed) dengan tombol coba lagi sendiri, supaya tidak menyamar sebagai galat ringkasan dan tidak menimpa penanganan 401/jaringan milik laporan.",
+        "createLatestRequestGuard() mengunci bahwa hanya jawaban permintaan TERBARU yang berlaku: ganti periode/line/mill dengan cepat bisa membuat jawaban lama tiba belakangan; tanpa penjaga ini ia menimpa ringkasan baru, memunculkan galat basi, dan mematikan indikator muat milik permintaan baru. resetSummary() membatalkan yang sedang berjalan tanpa memulai yang baru.",
+        "Ekspor memakai responseType 'blob' lalu saveCsvFile() dengan anchor + object URL — konvensi web standar yang juga berlaku di WebView Capacitor. Nama berkas diambil SAAT ekspor diminta (bukan saat berkas tiba), supaya pengguna yang mengganti periode selama unduhan tetap mendapat nama yang cocok dengan isinya. Tombol terkunci selama exporting dan menampilkan BusyLabel 'Mengekspor…'.",
+        "Pintu masuk: entri 'weighbridge' pada REPORT_ROUTES di ReportingPilihStasiunView.vue — SATU BARIS yang menentukan tile Weighbridge hidup atau mati. Tanpa baris itu layar ini ada, test-nya lulus, dan tile-nya tetap kelabu; layarnya sama sekali tidak dapat dicapai dari UI.",
+        "Rute: path '/reports/weighbridge', name 'report-weighbridge', meta.public = false — penjagaan sesi global router.beforeEach-lah yang mewujudkan 'pengguna sudah masuk' pada preconditions."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Induk periode: rentang tanggal dan nama pada pemilih serta header ringkasan. Tidak menyimpan status maupun station_type — keduanya pindah ke period-station pada 2026-09-25."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Dibaca SERVER (bukan klien) sebagai penyaring daftar periode (station_type = 'weighbridge') dan sebagai sumber nilai status pada opsi periode serta header summary."
+        },
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "Satu baris per transaksi timbang — TIDAK ada tabel detail seperti stasiun lain. Lewat endpoint screen-143. Disaring pada kolom production_line_id milik record itu sendiri dan pada record_datetime di dalam rentang periode (inklusif); baris ber-record_datetime NULL dikecualikan dan dihitung tersendiri."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih Production Line lewat /api/production-lines/options-for-report, dan penamaan line pada blok production_line jawaban /summary."
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin, dan penamaan mill pada blok business_unit jawaban /summary."
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "users.business_unit_id dan users.role — penentu cabang terikat-mill vs Admin. Setelah perluasan, Operator berada di cabang terikat mill."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Production Line belum berlaku di view",
+          "handling": "loadSummary() berhenti lebih awal — nol permintaan /summary. Template menampilkan production-line-required-hint. Penjagaan ada di FUNGSI, bukan hanya di template, supaya tidak ada jalur pemanggilan (retry, ganti periode, ganti mill) yang bisa melewatinya"
+        },
+        {
+          "condition": "production_line_id lolos ke server tanpa nilai",
+          "handling": "422 VALIDATION_ERROR dengan errors.production_line_id dari WeighbridgeReportController::requireProductionLineId(); NOL kueri weighbridge_records berjalan. TIDAK di-default ke semua line"
+        },
+        {
+          "condition": "Line dari rute atau dari localStorage sudah tidak ada pada daftar line",
+          "handling": "resolveProductionLine() hanya menerima nilai yang ditemukan di dalam `lines`; selain itu selectedProductionLineId tetap null dan pemilih tampil. Tidak ada penebakan line lain"
+        },
+        {
+          "condition": "Mill tidak punya satu pun Production Line",
+          "handling": "productionLineBlocked true dengan pesan 'Mill ini belum memiliki Production Line…'; dibedakan dari productionLineFetchFailed yang menampilkan pesan 'Daftar Production Line tidak dapat dimuat…' plus tombol production-line-retry"
+        },
+        {
+          "condition": "Permintaan daftar Production Line gagal (jaringan/server)",
+          "handling": "Ditangkap terpisah dari handleError(): productionLineFetchFailed = true, tombol coba lagi khusus daftar line, dan pesan galat laporan tidak tertimpa"
+        },
+        {
+          "condition": "Admin mengganti mill setelah line terpilih",
+          "handling": "onBusinessUnitChange() mengosongkan productionLines dan selectedProductionLineId sebelum memuat ulang — line milik satu mill tidak boleh tertinggal di mill lain"
+        },
+        {
+          "condition": "Admin belum memilih mill",
+          "handling": "scopeParams mengembalikan {}; view tidak memanggil /periods, /summary, maupun options-for-report; mill-required-hint ditampilkan. Server akan menjawab 422 VALIDATION_ERROR bila dipanggil"
+        },
+        {
+          "condition": "Akun terikat mill tetapi users.business_unit_id NULL",
+          "handling": "View menetapkan noMillForAccount dan berhenti tanpa satu pun permintaan HTTP; pemilih Mill TIDAK dirender sebagai gantinya. Di server, resolveBusinessUnit() menjawab 422 VALIDATION_ERROR 'Hubungi Admin' dan allBusinessUnits() provably tidak pernah dipanggil"
+        },
+        {
+          "condition": "Server menolak /business-units/options dengan 403",
+          "handling": "millPickerForbidden = true; pemilih Mill tidak dirender sama sekali. Menawarkan pemilih yang pasti gagal adalah kebohongan kepada pengguna"
+        },
+        {
+          "condition": "Operator mengirim business_unit_id mill lain",
+          "handling": "Repo tidak mengirimkannya sejak awal (scopeParams); bila dipaksa, server MENGABAIKANNYA dan menjawab 200 berisi data mill sendiri — inilah asersi yang mengunci Operator berada di cabang TERIKAT MILL, bukan cabang Admin. Sengaja bukan 403: 403 akan membenarkan bahwa mill lain itu ada"
+        },
+        {
+          "condition": "production_line_id milik mill lain",
+          "handling": "403 FORBIDDEN dari resolveProductionLine() — di sini ADA pegangan nyata atas data mill lain, jadi penolakannya tegas. Berbeda dari lima service saudaranya yang mengembalikan null, karena di sana memilih line bersifat opsional sehingga null tidak dapat dibedakan dari 'tidak dikirim'"
+        },
+        {
+          "condition": "period_id milik mill lain",
+          "handling": "403 FORBIDDEN dari authorizePeriod(); period_id tidak ada → 404 NOT_FOUND"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup weighbridge",
+          "handling": "200 + { data: [] }, bukan 404. View menampilkan no-periods HANYA setelah periodsLoaded true dan loadingPeriods false — daftar kosong SELAMA memuat tidak boleh terbaca sebagai 'tidak ada periode'"
+        },
+        {
+          "condition": "Periode tidak memuat satu pun trip pada line itu",
+          "handling": "Seluruh blok tetap lengkap berisi null/0; view menetapkan emptyPeriod dari trip_count kedua arus === 0 dan tidak merender grafik sebagai kotak kosong"
+        },
+        {
+          "condition": "Periode hanya memuat satu jenis arus",
+          "handling": "Kedua kelompok tetap dirender; kelompok tanpa trip menampilkan 'tidak tersedia' pada total dan rata-rata. Kelompok TIDAK disembunyikan walau layar ponsel sempit"
+        },
+        {
+          "condition": "Sebagian trip net_weight NULL",
+          "handling": "net_weight_avg memakai penyebut net_weight_trip_count; view menampilkan penyebut itu di samping rata-ratanya, dan missing_net_weight_trip_count sebagai angka tersendiri per arus. Nilai-nilai itu dibaca dari payload, tidak diturunkan di klien"
+        },
+        {
+          "condition": "Seluruh trip net_weight NULL",
+          "handling": "net_weight_total dan net_weight_avg null → view menampilkan 'tidak tersedia' dengan gaya .metric-value--na, bukan angka besar bernilai 0; net_weight_trip_count 0 dan trip_count tetap apa adanya"
+        },
+        {
+          "condition": "destination NULL pada sebagian trip arus keluar",
+          "handling": "Server menyimpannya sebagai kelompok tersendiri (keepNull=true); view merendernya berlabel 'Belum diisi'. Jumlah trip seluruh kelompok tetap menjumlah ke dispatch.trip_count"
+        },
+        {
+          "condition": "record_datetime NULL pada sebagian trip",
+          "handling": "Trip dikecualikan dari seluruh angka dan dihitung pada undated_trip_count; view menampilkannya di bagian kelengkapan dengan keterangan bahwa trip itu tidak ikut terhitung"
+        },
+        {
+          "condition": "Seluruh trip berstatus draft",
+          "handling": "Tidak ada penyaringan status di kueri; draft_trip_count sama dengan jumlah seluruh trip dan ditampilkan sebagai penyingkapan"
+        },
+        {
+          "condition": "Seluruh trip terjadi pada satu jam yang sama",
+          "handling": "hourly tetap 24 entri dengan 23 di antaranya trip_count 0; empty_hour_count 23; busiest_hour menunjuk jam itu. Grafik tidak disembunyikan"
+        },
+        {
+          "condition": "Grafik 24 jam / tabel rekap lebih lebar daripada viewport ponsel",
+          "handling": "Keduanya dibungkus .chart-scroll / .detail-table-wrap yang overflow-x: auto, sementara halaman tetap overflow-x: hidden"
+        },
+        {
+          "condition": "Rekap harian puluhan baris",
+          "handling": "Dibungkus CollapsibleSection dan TERTUTUP secara bawaan; membuka/menutup murni penyingkapan karena datanya sudah ada di memori — nol permintaan jaringan"
+        },
+        {
+          "condition": "Perangkat kehilangan jaringan saat memuat",
+          "handling": "Galat transport naik sebagai objek DATAR { message } tanpa status; view menampilkan network-error + retry-button dan MEMPERTAHANKAN selectedPeriodId. retryAction menyimpan tepat aksi yang gagal"
+        },
+        {
+          "condition": "Sesi berakhir saat layar terbuka",
+          "handling": "401 UNAUTHENTICATED; view mengarahkan ke Login tanpa merender angka. BUKAN kasus coba lagi — pesan jaringan dan tombol coba lagi justru tidak boleh muncul"
+        },
+        {
+          "condition": "Pengguna mengganti periode/line/mill lebih cepat daripada jawabannya",
+          "handling": "createLatestRequestGuard(): hanya isLatest() yang boleh menulis summary, memasang galat, dan mematikan loadingSummary. resetSummary() meng-invalidate yang sedang berjalan ketika pilihan dikosongkan"
+        },
+        {
+          "condition": "Pengguna mengganti periode selagi ekspor berjalan",
+          "handling": "exportFilename() dipanggil SEBELUM await exportCsv(), sehingga nama berkas milik periode yang benar-benar diekspor; tombol terkunci oleh exporting sehingga ketukan ganda hanya menghasilkan satu unduhan"
+        },
+        {
+          "condition": "Ekspor melebihi 50.000 baris",
+          "handling": "422 EXPORT_FAILED dari service, diperiksa EAGER sebelum streaming; view menampilkannya sebagai errorMessage tanpa tombol coba lagi (retry null) karena mengulang hal yang sama tidak akan berhasil"
+        },
+        {
+          "condition": "Periode berstatus tertutup",
+          "handling": "Tidak ada gerbang status di mana pun: laporan tampil penuh, badge status ditampilkan sebagai keterangan, dan tombol Ekspor TIDAK dinonaktifkan"
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca — keempat endpoint GET-only dan prefix /api/weighbridge-reports tidak punya satu pun POST/PUT/PATCH/DELETE",
+        "Operator DITERIMA pada keempat rute API ini setelah perluasan tiga-perubahan, sementara rute web /reports/weighbridge tetap menolaknya",
+        "Operator, Supervisor, dan Mill Management terikat business_unit_id akunnya — business_unit_id dari klien diabaikan, dijaga di server (resolveBusinessUnit) DAN di repo (scopeParams)",
+        "/business-units/options tetap Admin saja, dijaga di dalam service sehingga melebarkan middleware tidak melonggarkannya",
+        "Angka berasal dari endpoint yang sama dengan laporan versi web — nol endpoint mobile baru, nol perhitungan kedua di sisi ponsel",
+        "Daftar periode hanya periode yang punya baris period_stations berjenis weighbridge; status yang ditampilkan adalah status baris itu, bukan status periode",
+        "Status periode tidak menggerbangi pembacaan maupun ekspor",
+        "Rentang periode inklusif di kedua ujung pada record_datetime",
+        "Production Line WAJIB — 422 bila absen, dan nol angka di view sebelum sebuah line berlaku; tidak ada opsi gabungan lintas line",
+        "Penyaringan line memakai weighbridge_records.production_line_id, bukan join ke stations",
+        "Keanggotaan periode ditentukan record_datetime, bukan created_at maupun waktu sinkronisasi",
+        "Tidak ada angka durasi kendaraan di pabrik di mana pun pada payload maupun CSV — datanya tidak ada sejak migrasi 2026_08_19_000010",
+        "Sebaran trip per jam adalah penggantinya, dihitung dari satu penanda waktu",
+        "Trip ber-record_datetime NULL dikecualikan dari semua angka dan dihitung pada undated_trip_count",
+        "Arus masuk dan arus keluar tidak pernah dijumlahkan — nol kunci jawaban yang menjumlahkan keduanya",
+        "Rata-rata berat memakai penyebut net_weight_trip_count, yang diterbitkan berdampingan dengan rata-ratanya",
+        "missing_net_weight_trip_count ditampilkan per arus",
+        "destination NULL adalah kelompok tersendiri, tidak dibuang dari rekap",
+        "Trip draft ikut terhitung dan draft_trip_count ditampilkan",
+        "null diteruskan sebagai null sampai ke view dan dirender sebagai keterangan, tidak pernah sebagai 0",
+        "Tidak ada penandaan nilai di luar batas",
+        "Kelengkapan memakai days_counted (berhenti di hari ini untuk periode berjalan, 0 bila belum mulai)",
+        "Sesi tidak berlaku mengarahkan ke Login; kegagalan jaringan menampilkan pesan + coba lagi tanpa kehilangan periode terpilih",
+        "Hanya jawaban permintaan terbaru yang berlaku",
+        "Satu kolom, sasaran sentuh 44px, halaman tanpa gulir mendatar — grafik dan tabel menggulir di dalam kartunya"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "fetchPeriods memanggil tepat GET /api/weighbridge-reports/periods dan tidak menyaring jenis stasiun di sisi klien",
+          "given": "apiClient.get di-mock mengembalikan { data: { data: [ { id, name, start_date, end_date, status, station_type: 'weighbridge', station_type_label } ] } }",
+          "expect": "apiClient.get dipanggil tepat satu kali dengan path '/api/weighbridge-reports/periods'; seluruh entri diteruskan apa adanya dalam urutan yang sama; TIDAK ada penyaringan station_type di repo"
+        },
+        {
+          "description": "fetchPeriods TIDAK PERNAH mengirim production_line_id",
+          "given": "weighbridgeReportRepo.fetchPeriods({ isAdmin: false, productionLineId: 'PL-1' }) dipanggil",
+          "expect": "params yang dikirim tidak memuat kunci production_line_id sama sekali — periode milik MILL, bukan milik line, dan server tidak menerima parameter itu di sana"
+        },
+        {
+          "description": "scopeParams tidak mengirim business_unit_id untuk peran terikat mill, termasuk Operator",
+          "given": "fetchPeriods({ isAdmin: false, businessUnitId: 'BU-A' }) dipanggil",
+          "expect": "params adalah objek KOSONG — kunci business_unit_id tidak ada sama sekali (bukan null, bukan string kosong), walau pemanggil menyertakan nilainya"
+        },
+        {
+          "description": "scopeParams mengirim business_unit_id hanya ketika Admin sudah memilih mill",
+          "given": "fetchPeriods({ isAdmin: true, businessUnitId: 'BU-B' }) dipanggil",
+          "expect": "params adalah { business_unit_id: 'BU-B' }"
+        },
+        {
+          "description": "scopeParams tidak mengirim business_unit_id ketika Admin belum memilih mill",
+          "given": "fetchPeriods({ isAdmin: true, businessUnitId: null }) dipanggil",
+          "expect": "params adalah objek kosong; repo tidak mengarang nilai mill dan tidak melempar galat sendiri — server yang menjawab 422"
+        },
+        {
+          "description": "fetchSummary mengirim period_id dan production_line_id ke /summary",
+          "given": "fetchSummary('P-1', { isAdmin: false, productionLineId: 'PL-9' }) dipanggil",
+          "expect": "apiClient.get dipanggil dengan path '/api/weighbridge-reports/summary' dan params { period_id: 'P-1', production_line_id: 'PL-9' } — tanpa business_unit_id"
+        },
+        {
+          "description": "fetchSummary tidak mengirim production_line_id kosong sebagai parameter kosong",
+          "given": "fetchSummary('P-1', { isAdmin: false, productionLineId: null }) dipanggil",
+          "expect": "params hanya { period_id: 'P-1' }; kunci production_line_id tidak ada. (View yang bertugas tidak memanggil tanpa line; bila lolos, server menjawab 422)"
+        },
+        {
+          "description": "fetchSummary meneruskan kedua kelompok arus apa adanya tanpa satu operasi aritmetika",
+          "given": "apiClient.get mengembalikan payload dengan receive.trip_count 10, receive.net_weight_trip_count 6, receive.net_weight_total 120.5, receive.net_weight_avg 20.08, receive.missing_net_weight_trip_count 4, dan blok dispatch dengan nilai berbeda",
+          "expect": "Seluruh nilai sama persis dengan payload; repo TIDAK menghitung 10 − 6, TIDAK membagi 120.5/6, dan TIDAK membuat satu pun kunci gabungan kedua arus"
+        },
+        {
+          "description": "fetchSummary meneruskan null sebagai null, bukan 0",
+          "given": "payload dengan receive.net_weight_total null, receive.net_weight_avg null, dispatch.busiest_hour null, daily[0].receive_net_weight_total null",
+          "expect": "Keempat nilai tetap null pada hasil; tidak satu pun dikoersi menjadi 0 atau string kosong"
+        },
+        {
+          "description": "fetchSummary meneruskan baris by_destination ber-destination null tanpa membuangnya",
+          "given": "payload dengan dispatch.by_destination = [{ destination: 'Pelabuhan', trip_count: 3, ... }, { destination: null, trip_count: 2, ... }]",
+          "expect": "Kedua baris diteruskan dalam urutan yang sama; baris ber-destination null TIDAK dibuang dan TIDAK diubah menjadi string"
+        },
+        {
+          "description": "fetchSummary meneruskan 24 entri hourly apa adanya termasuk yang bernilai 0",
+          "given": "payload dengan receive.hourly berisi 24 entri, 23 di antaranya trip_count 0",
+          "expect": "Ke-24 entri diteruskan dalam urutan yang sama; entri bernilai 0 tidak dibuang dan tidak dipadatkan"
+        },
+        {
+          "description": "fetchSummary menerima respons tanpa pembungkus data maupun dengan pembungkus",
+          "given": "Dua pemanggilan: satu dengan response.data = payload langsung, satu dengan response.data = { data: payload }",
+          "expect": "Keduanya menghasilkan ringkasan yang sama — unwrap() menerima kedua bentuk"
+        },
+        {
+          "description": "fetchSummary memakai nilai bawaan hanya ketika BLOK-nya tidak ada sama sekali",
+          "given": "response.data = {} (bentuk respons berubah di server)",
+          "expect": "receive dan dispatch berisi blok kosong bernilai null/0, daily [], completeness bernilai 0/false; dan nilai bawaan itu TIDAK dipakai untuk menambal medan yang dikirim null oleh server"
+        },
+        {
+          "description": "exportCsv mengirim format csv dan responseType blob",
+          "given": "exportCsv('P-1', { isAdmin: false, productionLineId: 'PL-9' }) dipanggil",
+          "expect": "apiClient.get dipanggil dengan path '/api/weighbridge-reports/export', params { period_id: 'P-1', format: 'csv', production_line_id: 'PL-9' }, dan responseType 'blob' — bukan 'json', dan bukan format 'excel'"
+        },
+        {
+          "description": "saveCsvFile memakai anchor + object URL lalu membersihkannya",
+          "given": "saveCsvFile(new Blob(['a,b']), 'laporan.csv') dipanggil",
+          "expect": "createObjectURL dipanggil, anchor dengan download = 'laporan.csv' diklik, anchor dilepas dari body, dan revokeObjectURL dipanggil"
+        },
+        {
+          "description": "fetchBusinessUnits memanggil endpoint options dan mengembalikan [] untuk respons tanpa data",
+          "given": "apiClient.get mengembalikan { data: {} }",
+          "expect": "Hasilnya array kosong, bukan undefined dan bukan galat"
+        },
+        {
+          "description": "repo tidak menangkap galat — penerjemahan ada di view",
+          "given": "apiClient.get menolak dengan { message: 'Network Error' } tanpa status",
+          "expect": "fetchSummary menolak dengan objek yang sama; repo tidak membungkusnya, tidak mengubah pesannya, dan tidak mengembalikan nilai bawaan"
+        },
+        {
+          "description": "WeighbridgeReportService::guardAccess menerima Operator setelah perluasan",
+          "given": "auth()->user() berperan operator dengan business_unit_id = BU-A",
+          "expect": "guardAccess() mengembalikan 'operator' tanpa melempar AuthorizationException"
+        },
+        {
+          "description": "resolveBusinessUnit menempatkan Operator di cabang TERIKAT MILL",
+          "given": "Operator dengan users.business_unit_id = 'BU-A' memanggil resolveBusinessUnit('BU-LAIN')",
+          "expect": "Mengembalikan 'BU-A' — nilai kiriman klien dibuang, TIDAK divalidasi dan TIDAK dibandingkan. Inilah asersi yang memisahkan perbaikan ini dari kebocoran lintas mill"
+        },
+        {
+          "description": "resolveBusinessUnit gagal tertutup untuk Operator tanpa mill",
+          "given": "Operator dengan users.business_unit_id NULL memanggil resolveBusinessUnit(null)",
+          "expect": "422 VALIDATION_ERROR dengan pesan menghubungi Admin; allBusinessUnits() tidak pernah dipanggil"
+        },
+        {
+          "description": "businessUnitOptions tetap menolak Operator",
+          "given": "Operator memanggil businessUnitOptions()",
+          "expect": "403 FORBIDDEN — perluasan screen-144 sengaja tidak menyentuh endpoint ini"
+        },
+        {
+          "description": "Operator ditolak 403 untuk production_line_id milik mill lain",
+          "given": "Operator pada BU-A memanggil buildSummary dengan production_line_id milik BU-B",
+          "expect": "403 FORBIDDEN dari resolveProductionLine(), dan nol kueri weighbridge_records berjalan"
+        },
+        {
+          "description": "Operator ditolak 403 untuk period_id milik mill lain",
+          "given": "Operator pada BU-A memanggil buildSummary dengan period_id milik BU-B dan line miliknya sendiri",
+          "expect": "403 FORBIDDEN dari authorizePeriod()"
+        },
+        {
+          "description": "Rute web /reports/weighbridge tetap menolak Operator",
+          "given": "Operator terautentikasi memanggil GET /reports/weighbridge",
+          "expect": "403 — perluasan hanya menyentuh 4 rute API, bukan rute web"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "weighbridge-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-143--laporan-weighbridge-web",
+      "reason": "Memakai ULANG keempat endpoint /api/weighbridge-reports/* milik layar itu. Perluasan akses Operator MENGUBAH berkas miliknya (routes/api.php, WeighbridgeReportService, dan testnya) — bukan hanya menambah; test yang mengasersi Operator ditolak 403 harus berubah arah"
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "Satu-satunya pintu masuk. Tile Weighbridge baru aktif setelah REPORT_ROUTES di ReportingPilihStasiunView.vue ditambah entri 'weighbridge'; layar ini juga membawa production_line_id lewat rute"
+    },
+    {
+      "screen_id": "screen-134--dashboard-reporting-mobile",
+      "reason": "Langkah sebelum pemilih stasiun pada rantai navigasi mobile"
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan yang mencakup Weighbridge, layar ini tidak punya apa pun untuk ditampilkan"
+    },
+    {
+      "screen_id": "screen-142--detail-periode-pelaporan",
+      "reason": "Status Weighbridge pada sebuah periode — yang ditampilkan sebagai badge di layar ini — ditetapkan di sana"
+    },
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Menulis ingatan pilihan Production Line pada localStorage 'msl_production_line_{userId}', yang dibaca layar ini sebagai nilai awal pemilih line"
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Memakai ulang GET /api/production-lines/options-for-report yang dibangun untuk layar itu, verbatim dan tanpa duplikasi di bawah prefix weighbridge-reports"
+    }
+  ],
+  "implementation_notes": [
+    "TIGA PERUBAHAN BACKEND, SATU TRANSAKSI. routes/api.php (tambah 'operator' pada grup weighbridge-reports), WeighbridgeReportService::guardAccess() (tambah UserRole::Operator), dan WeighbridgeReportService::resolveBusinessUnit() (tambah Operator ke cabang terikat mill) HARUS mendarat bersama. Dua yang pertama tanpa yang ketiga adalah kebocoran lintas mill: Operator jatuh ke cabang Admin tempat business_unit_id kiriman klien dihormati. Docblock service sudah memperingatkan ini sejak screen-143 dibangun — peringatan itu harus DIPERBARUI menjadi catatan bahwa perluasannya sudah terjadi, bukan dibiarkan menyatakan Operator ditolak.",
+    "TEST LAMA BERUBAH ARAH, BUKAN DIHAPUS. Asersi 'Operator ditolak 403' pada keempat rute weighbridge-reports menjadi 'Operator diterima dan terikat mill akunnya', ditambah asersi baru: Operator yang mengirim business_unit_id mill lain tetap menerima 200 berisi data mill sendiri. Menghapus asersi lama tanpa menggantinya akan menghapus justru satu-satunya penjaga terhadap kebocoran yang paling mungkin terjadi di sini.",
+    "/business-units/options TETAP 403 UNTUK OPERATOR, dan itu harus punya testnya sendiri. Penjagaannya ada di dalam service, bukan di middleware, sehingga melebarkan middleware tidak melonggarkannya — tetapi tanpa test, perubahan middleware berikutnya tidak akan menghasilkan satu pun kegagalan bila penjagaan itu ikut hilang.",
+    "SATU BARIS YANG MENENTUKAN LAYAR INI DAPAT DICAPAI: entri weighbridge: 'report-weighbridge' pada REPORT_ROUTES di ReportingPilihStasiunView.vue. Tanpa baris itu, layar ada, rutenya ada, seluruh test-nya lulus, dan tile Weighbridge tetap kelabu. Ini pola kegagalan yang sudah terjadi pada screen-130 dan dicatat di komentarnya.",
+    "PRODUCTION LINE WAJIB — DAN INILAH SATU-SATUNYA HAL YANG MEMBEDAKAN REPO INI DARI LIMA SAUDARANYA. Pada kelima repo laporan sebelumnya production_line_id opsional di lapisan API, sehingga view-nya boleh memanggil /summary tanpa line. Di sini tidak: loadSummary() HARUS berhenti lebih awal bila selectedProductionLineId null, dan penjagaannya ada di fungsi (bukan hanya di template) supaya jalur retry, ganti periode, dan ganti mill tidak melewatinya.",
+    "BENTUK PAYLOAD BERBEDA DARI STORAGE TANK pada dua hal yang mudah salah disalin: nama mill ada di blok business_unit.name (BUKAN period.business_unit_name seperti pada lima laporan sebelumnya), dan tidak ada kunci has_data — view menurunkan 'periode kosong' dari receive.trip_count === 0 && dispatch.trip_count === 0. Keduanya harus diuji, karena menyalin pola lama menghasilkan nama mill kosong dan grafik kosong yang terbaca sebagai pengukuran bernilai nol.",
+    "DUA BENTUK 'BELUM DIISI' DALAM SATU PAYLOAD. groupedBreakdownOf dipanggil dengan keepNull=false untuk estate_supplier (asal yang belum diisi menjadi string kosong) dan keepNull=true untuk destination (tujuan yang belum diisi tetap null). View harus menangani keduanya dengan label 'Belum diisi' yang sama; menangani hanya salah satunya menghasilkan baris tanpa label pada salah satu rekap.",
+    "NOL ARITMETIKA DI KLIEN, DAN ITU PUNYA TEST KHUSUS. Payload sudah membawa net_weight_avg, net_weight_trip_count, dan missing_net_weight_trip_count. Menurunkan yang ketiga dari trip_count − net_weight_trip_count di klien akan benar hari ini dan menyimpang tanpa ketahuan begitu server mengubah definisinya. Satu-satunya angka turunan yang boleh ada di view adalah persentase tinggi batang grafik.",
+    "SKALA GRAFIK PER ARUS, BUKAN BERSAMA. Dua grafik sebaran per jam (masuk dan keluar) harus diskalakan masing-masing terhadap nilai tertingginya sendiri, atau terhadap nilai tertinggi bersama — tetapi keputusan itu harus DINYATAKAN pada grafiknya. Dua grafik dengan skala berbeda yang diletakkan bertumpuk akan dibaca sebagai perbandingan tinggi batang, dan itu perbandingan yang salah bila skalanya tidak sama. Keputusan yang diambil: skala BERSAMA atas nilai tertinggi kedua arus, dinyatakan pada catatan grafik, supaya tinggi batang dapat dibandingkan langsung — ini pengecualian yang disengaja terhadap 'arus tidak pernah dijumlahkan', karena yang dibagi adalah SKALA, bukan angka.",
+    "ASERSI 'NOL DURASI' HARUS BERUPA PENCARIAN, BUKAN PEMERIKSAAN SATU TEMPAT. Test harus memastikan tidak ada kunci, label, maupun kolom CSV yang menyiratkan lama kendaraan di pabrik — sebuah asersi atas KETIADAAN. Cara yang bekerja: periksa daftar kunci payload dan seluruh teks terender terhadap kata kunci durasi, bukan memeriksa satu kartu yang kebetulan tidak ada.",
+    "PENYEBUT RATA-RATA DITAMPILKAN DENGAN SYARAT. Keterangan 'penyebutnya N trip' hanya bermakna bila N berbeda dari jumlah seluruh trip; menampilkannya selalu akan menjadi kebisingan yang dilatih diabaikan orang. Ikuti perilaku layar web: tambahkan ', bukan M' hanya ketika net_weight_trip_count !== trip_count.",
+    "LOADING STATE PUNYA TIGA PENANDA TERPISAH: loadingProductionLines, loadingPeriods, dan loadingSummary. periodsLoaded WAJIB ada sebagai penanda keempat — tanpanya 'Mill ini belum memiliki periode' tampil selama daftar masih dimuat, dan daftar kosong saat memuat terbaca sebagai 'tidak ada periode'. Ini temuan audit 2026-10-05 yang sudah mengenai kelima laporan mobile.",
+    "createLatestRequestGuard() WAJIB dipakai pada loadSummary(). Pada jaringan ponsel yang lambat, mengganti periode dua kali berturut-turut membuat jawaban pertama tiba setelah yang kedua; tanpa penjaga ini ia menimpa angka baru, memunculkan galat basi, dan mematikan indikator muat milik permintaan baru. resetSummary() meng-invalidate tanpa memulai yang baru.",
+    "NAMA BERKAS EKSPOR DIAMBIL SEBELUM AWAIT. exportFilename() dipanggil sebelum exportCsv(), bukan sesudah — kalau tidak, pengguna yang mengganti periode selama unduhan mendapat berkas berisi periode A dengan nama periode B. Temuan audit 2026-10-05, berlaku sama di kelima laporan mobile.",
+    "GALAT DAFTAR LINE TERPISAH DARI GALAT LAPORAN. Kegagalan loadProductionLines() TIDAK boleh memakai handleError(): ia akan menyamar sebagai galat ringkasan dan menimpa penanganan 401/jaringan milik laporan. Pakai productionLineFetchFailed dengan tombol coba lagi sendiri, dan BEDAKAN pesannya dari 'mill belum punya line' — dua keadaan yang menuntut tindakan berbeda dari pengguna.",
+    "AKUN TANPA MILL BERHENTI SEBELUM PERMINTAAN PERTAMA. noMillForAccount ditetapkan di onMounted sebelum satu pun pemanggilan jaringan, termasuk sebelum /business-units/options. Memanggil endpoint itu 'untuk berjaga-jaga' akan membentuk daftar seluruh mill di perangkat orang yang tidak berhak melihat satu pun di antaranya — dan ia akan 403, jadi tidak ada gunanya pula.",
+    "KOSAKATA VISUAL MOBILE, BUKAN KOSAKATA WEB. Pakai .detail-section / .metric-stack / .metric-card / .chart-scroll / .detail-table-wrap / .action-footer seperti kelima laporan mobile lain, BUKAN kosakata md-* laporan web — itu bahasa grid lebar yang tidak punya arti pada satu kolom selebar 360px. Halaman overflow-x: hidden; yang menggulir adalah isi kartu.",
+    "KEDUA KELOMPOK ARUS BERTUMPUK, TIDAK BERDAMPINGAN, dan masing-masing diberi judul yang menyebut artinya ('Arus Masuk — FFB dari estate/supplier', 'Arus Keluar — kiriman ke tujuan'). Pada layar sempit dua kelompok berdampingan akan terpotong, dan kelompok yang terpotong adalah kelompok yang tidak terbaca.",
+    "data-testid MENGIKUTI KOSAKATA LIMA LAPORAN MOBILE agar spec browser-nya dapat dibaca berdampingan: laporan-weighbridge-mobile, mill-select, mill-current, production-line-select, production-line-current, production-line-required-hint, production-line-unavailable, production-line-retry, period-select, period-meta, period-status-badge, no-periods, no-mill-for-account, mill-required-hint, network-error, retry-button, error-message, summary-loading, empty-period, export-button, back-button. Ditambah yang khusus layar ini: kpi-receive-trip-count, kpi-receive-net-weight-total, kpi-receive-net-weight-avg, kpi-receive-missing, kpi-dispatch-trip-count, kpi-dispatch-net-weight-total, kpi-dispatch-net-weight-avg, kpi-dispatch-missing, hourly-receive, hourly-dispatch, by-origin, by-destination, completeness, draft-trip-count, undated-trip-count, daily-recap.",
+    "TEST MOBILE BERJALAN DI VITEST + jsdom dengan @/services/weighbridgeReportRepo di-mock; spec browser Playwright berada di mobile/tests/e2e dan berjalan terhadap Vite dev server, mengikuti pola 72 spec yang sudah ada. Catatan ingatan proyek berlaku: layar mobile Capacitor MEMANG dapat diuji di browser lewat Vite dev server, jadi browser test tidak boleh ditunda sebagai 'khusus mobile'.",
+    "TEST MOCK localStorage SECARA NYATA, BUKAN HANYA MENGANGGAPNYA ADA. Penentuan line dari ingatan harus diuji dengan window.localStorage yang benar-benar diisi dan dengan kunci milik pengguna LAIN yang tidak boleh terbawa. Pembungkus try/catch pada pembacaan localStorage juga perlu diuji dengan getItem yang melempar (mode privat), karena gagal mengingat pilihan tidak boleh mematahkan layar.",
+    "COVERAGE TIDAK DAPAT DIUKUR di lingkungan ini (tidak ada provider coverage terpasang di package mobile) — gap pre-existing project-wide, bukan diperkenalkan layar ini."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — sukses sebagai Operator",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Operator (users.business_unit_id = BU-A); tanpa parameter business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "pasang komponen dengan auth store berperan operator dan business_unit_id terisi, repo di-mock mengembalikan satu line, daftar periode, lalu payload ringkasan dengan trip pada kedua arus; pilih periode pertama",
+        "assert": "pemilih Mill tidak dirender sama sekali, nama mill tampil sebagai keterangan dari business_unit.name, nama line tampil dari production_line.name, kedelapan kartu angka kedua arus terender dari payload apa adanya beserta penyebut rata-ratanya, rekap per asal dan per tujuan, kedua grafik sebaran per jam, draft_trip_count, undated_trip_count, kelengkapan, dan rekap harian tertutup; tidak ada satu pun kontrol tulis dan tidak ada angka gabungan kedua arus"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "masuk pada Vite dev server sebagai Operator, buka Dashboard & Reporting lalu Reporting, tekan tile Weighbridge, pilih periode pertama",
+        "assert": "seluruh bagian laporan tampil satu kolom, lebar konten tidak melampaui viewport sehingga tidak ada gulir horizontal halaman, pemilih Mill tidak tampil, dan tidak ada tombol simpan/ubah/hapus"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — sukses sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Supervisor (BU-A)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "pasang komponen dengan auth store berperan supervisor lalu mill_management, keduanya dengan business_unit_id terisi; pilih periode",
+        "assert": "perilakunya identik dengan Operator: tanpa pemilih Mill, dengan keterangan nama mill, dan seluruh angka terender dari payload"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "masuk sebagai Supervisor, buka laporan Weighbridge dari tile Reporting, pilih periode",
+        "assert": "laporan tampil penuh satu kolom; tombol Ekspor CSV terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — sukses sebagai Admin",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}",
+            "production_line_id": "{{step2.data[0].id}}",
+            "period_id": "{{step3.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "pasang komponen dengan auth store berperan admin tanpa business_unit_id; pilih mill, lalu line, lalu periode",
+        "assert": "pemilih Mill dirender; sebelum mill dipilih repo tidak dipanggil untuk daftar line maupun periode; setelah mill dipilih keduanya dimuat; angka yang tampil hanya milik mill dan line terpilih"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "masuk sebagai Admin, buka laporan Weighbridge, pilih mill lalu line lalu periode",
+        "assert": "pemilih Mill tampil; laporan tampil setelah ketiga pilihan lengkap"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — line dibawa dari tile stasiun",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A2",
+            "_context": "production_line_id yang dipakai berasal dari query rute, bukan dari ingatan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "pasang komponen dengan route.query.production_line_id = 'PL-A2' sementara localStorage menyimpan 'PL-A1'; daftar line memuat keduanya",
+        "assert": "selectedProductionLineId menjadi 'PL-A2' (rute mengalahkan ingatan), pemanggilan fetchSummary membawa production_line_id 'PL-A2', dan localStorage ditulis ulang menjadi 'PL-A2'"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge?production_line_id=PL-A2",
+        "action": "buka layar pemilih stasiun, pilih line kedua di sana, lalu tekan tile Weighbridge",
+        "assert": "chip Production Line menampilkan nama line kedua tanpa pengguna memilih ulang"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — line diambil dari ingatan perangkat",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "nilai dari localStorage msl_production_line_{userId}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "isi localStorage 'msl_production_line_user-1' = 'PL-A1' dan 'msl_production_line_user-2' = 'PL-B9'; pasang komponen sebagai user-1 dengan daftar line memuat PL-A1 dan PL-A3",
+        "assert": "selectedProductionLineId menjadi 'PL-A1'; nilai milik user-2 tidak pernah terbaca; dengan getItem yang melempar (mode privat) komponen tetap terender dan pemilih line ditampilkan"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "pilih sebuah line di layar Daftar Stasiun, lalu buka laporan Weighbridge lewat Reporting tanpa melewati tile berparameter",
+        "assert": "line yang sama sudah berlaku dan angka tampil setelah periode dipilih"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — line dari ingatan sudah tidak ada",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_context": "daftar line TIDAK memuat id yang tersimpan di localStorage"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "isi localStorage dengan 'PL-HILANG'; daftar line mengembalikan dua line lain",
+        "assert": "selectedProductionLineId tetap null, production-line-required-hint terender, fetchSummary TIDAK dipanggil sama sekali, dan tidak ada line lain yang dipilih sebagai pengganti"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan setelah line yang diingat dihapus dari master data",
+        "assert": "pemilih Production Line tampil kembali dan tidak ada angka di layar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — Production Line belum berlaku",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "_context": "production_line_id sengaja tidak dikirim — membuktikan penolakan server bila penjagaan view dilewati"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "pasang komponen dengan daftar line berisi tiga line, tanpa rute dan tanpa ingatan; pilih sebuah periode",
+        "assert": "production-line-required-hint terender beserta alasannya, fetchSummary TIDAK dipanggil, dan tidak ada angka gabungan seluruh line yang muncul sebagai pengganti sementara"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan pada mill bermuatan tiga line tanpa memilih line, lalu pilih periode",
+        "assert": "arahan memilih Production Line tampil dan tidak ada kartu angka di layar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — mill belum punya Production Line",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_context": "mill tanpa Production Line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "repo mengembalikan daftar line kosong",
+        "assert": "production-line-unavailable terender dengan pesan 'Mill ini belum memiliki Production Line…', tombol production-line-retry TIDAK dirender (karena ini bukan kegagalan memuat), dan fetchSummary tidak dipanggil"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan pada mill yang belum punya Production Line",
+        "assert": "arahan menghubungi Admin tampil, tanpa tombol coba lagi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — daftar Production Line gagal dimuat",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_context": "permintaan gagal di transport (tanpa status)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "productionLineRepo.fetchProductionLinesForReport di-mock menolak dengan { message: 'Network Error' }",
+        "assert": "production-line-unavailable terender dengan pesan 'Daftar Production Line tidak dapat dimuat…' DAN tombol production-line-retry; network-error milik laporan TIDAK terender sehingga penanganan galat laporan tidak tertimpa; menekan tombol memuat ulang daftar line saja"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan dengan endpoint daftar line diblokir",
+        "assert": "pesan kegagalan memuat daftar line tampil beserta tombol Coba Lagi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Operator dengan users.business_unit_id NULL — membuktikan penolakan server bila layar dilewati"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "pasang komponen dengan auth store berperan operator dan business_unit_id null",
+        "assert": "no-mill-for-account terender; TIDAK satu pun fungsi repo dipanggil — termasuk fetchBusinessUnits; pemilih Mill tidak dirender sebagai gantinya"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "masuk dengan akun Operator yang belum terhubung mill, buka laporan Weighbridge",
+        "assert": "pesan menghubungi Admin tampil dan tidak ada pemilih mill di layar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — mill belum punya periode pelaporan",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {
+            "_context": "mill tanpa periode yang punya baris period_stations weighbridge"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "repo mengembalikan daftar periode kosong; amati keadaan SELAMA memuat dan SETELAH selesai",
+        "assert": "selama loadingPeriods true, no-periods TIDAK terender (periods-loading yang tampil); setelah periodsLoaded true dan loading selesai, no-periods terender dengan arahan menghubungi Admin; pemilih periode tetap dirender dalam keadaan kosong, bukan hilang"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan pada mill tanpa periode Weighbridge",
+        "assert": "arahan menghubungi Admin tampil dan pemilih periode kosong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — periode tanpa data",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-KOSONG",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan receive.trip_count 0 dan dispatch.trip_count 0, seluruh total null, daily []",
+        "assert": "empty-period terender; kedua grafik sebaran per jam dan tren harian TIDAK dirender; total dan rata-rata tampil 'tidak tersedia' bergaya .metric-value--na, bukan 0"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "pilih periode yang tidak memuat satu pun trip pada line terpilih",
+        "assert": "keterangan belum ada data tampil dan tidak ada grafik kosong di layar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — arus masuk dan arus keluar tidak pernah dijumlahkan",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "periode memuat trip pada kedua arus"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan receive.trip_count 12 / net_weight_total 300 dan dispatch.trip_count 5 / net_weight_total 100; render seluruh layar",
+        "assert": "angka 17 dan angka 400 TIDAK muncul di mana pun pada teks terender; tidak ada kartu, baris rekap, maupun baris total yang menjumlahkan kedua arus; rekap harian punya kolom terpisah per arus dan baris totalnya pun terpisah"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan periode yang memuat kedua arus dan gulir seluruh halaman",
+        "assert": "tidak ada label 'Total' yang menggabungkan kedua arus di bagian mana pun"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — periode hanya memuat satu jenis arus",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-MASUK-SAJA",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan receive.trip_count 8 dan dispatch.trip_count 0 beserta seluruh total dispatch null",
+        "assert": "kelompok Arus Keluar TETAP terender dengan nilai 'tidak tersedia'; kelompok itu tidak disembunyikan dan tidak diciutkan; kelompok Arus Masuk menampilkan angkanya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "pilih periode yang hanya memuat arus masuk",
+        "assert": "kedua judul kelompok terlihat di layar, dengan kelompok Arus Keluar bernilai tidak tersedia"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — rata-rata berat hanya memakai trip yang beratnya terisi sebagai penyebut",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "satu arus: 10 trip, 6 di antaranya ber-net_weight"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan receive.trip_count 10, net_weight_trip_count 6, net_weight_total 120, net_weight_avg 20, missing_net_weight_trip_count 4",
+        "assert": "rata-rata terender 20 (bukan 12), keterangan penyebut menyebut 6 dan menambahkan ', bukan 10' karena keduanya berbeda, trip_count tetap 10, dan missing 4 terender sebagai angka tersendiri; tidak satu pun dari nilai itu dihitung di klien"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan periode dengan sebagian trip belum tertimbang penuh",
+        "assert": "rata-rata dan penyebutnya terbaca berdampingan di kartu yang sama"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — seluruh trip beratnya kosong",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "seluruh trip net_weight NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan net_weight_total null, net_weight_avg null, net_weight_trip_count 0, trip_count 7, missing_net_weight_trip_count 7 pada kedua arus",
+        "assert": "total dan rata-rata terender 'tidak tersedia', TIDAK 0 dan tidak '0,00'; trip_count tetap 7; missing 7 terender; penyebut rata-rata dinyatakan 0"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "pilih periode yang seluruh tripnya belum selesai ditimbang",
+        "assert": "kartu berat menampilkan keterangan tidak tersedia, bukan angka nol"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — tujuan belum diisi pada sebagian trip arus keluar",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "sebagian trip dispatch ber-destination NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan dispatch.by_destination = [{destination:'Pelabuhan',trip_count:3},{destination:null,trip_count:2}] dan dispatch.trip_count 5",
+        "assert": "kedua baris terender dalam urutan payload; baris ber-destination null berlabel 'Belum diisi' dan tidak dibuang; jumlah trip kedua baris menjumlah ke 5"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka rekap arus keluar per tujuan pada periode yang memuat trip tanpa tujuan",
+        "assert": "baris 'Belum diisi' terlihat pada rekap"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — trip tanpa penanda waktu penimbangan",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "pada line itu ada trip ber-record_datetime NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan undated_trip_count 3 sementara receive.trip_count 10 dan dispatch.trip_count 4",
+        "assert": "undated-trip-count terender bernilai 3 beserta keterangan bahwa trip itu TIDAK ikut terhitung di angka mana pun; nilai 3 tidak ditambahkan ke jumlah trip arus mana pun"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan pada line yang memuat trip tanpa penanda waktu",
+        "assert": "angka trip tanpa penanda waktu terlihat di bagian kelengkapan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — sebaran trip per jam menggulir di dalam kartunya",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan receive.hourly 24 entri (satu jam bernilai 9, sisanya 0), busiest_hour 7, busiest_hour_trip_count 9, empty_hour_count 23",
+        "assert": "ke-24 kolom terender termasuk yang bernilai 0; jam tersibuk terender '07.00' dan 9 trip; empty_hour_count 23 terender; tinggi batang diskalakan terhadap nilai tertinggi KEDUA arus dan skala bersama itu dinyatakan pada catatan grafik"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "pada viewport 360px, gulir grafik sebaran per jam ke samping",
+        "assert": "grafik menggulir di dalam kartunya sementara document.scrollWidth halaman tidak melebihi lebar viewport"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — rekap harian tertutup secara bawaan",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-PANJANG",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan daily berisi 30 baris dan daily_total terisi; render, lalu buka dan tutup rekap harian",
+        "assert": "saat pertama render isi tabel tidak tampak; setelah dibuka seluruh 30 baris beserta baris total periode tampak, dengan kolom terpisah per arus; membuka/menutup TIDAK memicu satu pun pemanggilan repo dan tidak mengubah satu angka pun"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan periode sebulan lalu ketuk judul Rekap Harian dua kali",
+        "assert": "tabel muncul lalu tersembunyi lagi; tidak ada permintaan jaringan baru pada panel Network"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — seluruh trip berstatus draft",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "seluruh trip berstatus draft_ongoing / draft_paused"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan draft_trip_count 14 sementara receive.trip_count + dispatch.trip_count juga 14",
+        "assert": "seluruh angka tetap terender; draft-trip-count terender 14 beserta keterangan bahwa trip draft IKUT terhitung; tidak ada bagian yang disembunyikan karena status draft"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan periode yang seluruh tripnya masih draft",
+        "assert": "angka draft terlihat dan laporan tetap tampil penuh"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — tidak ada angka lama kendaraan di pabrik di mana pun",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "render dengan payload penuh pada kedua arus, lalu periksa seluruh teks terender terhadap kata kunci durasi ('durasi', 'turnaround', 'lama di pabrik', 'jam kendaraan')",
+        "assert": "tidak satu pun kata kunci itu muncul; daftar kunci payload yang dipakai view tidak memuat kunci durasi apa pun; satu-satunya tampilan berbasis waktu adalah hourly beserta busiest_hour dan empty_hour_count"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "gulir seluruh laporan dan unduh CSV",
+        "assert": "tidak ada kartu, kolom, maupun grafik berlabel durasi; header CSV memuat tepat satu kolom penanda waktu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — kehilangan jaringan saat memuat",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "_context": "permintaan gagal di transport — penolakan tanpa status"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "fetchSummary di-mock menolak dengan { message: 'Network Error' } tanpa status setelah periode dipilih; lalu tekan retry-button dengan mock yang kali ini berhasil",
+        "assert": "network-error terender beserta retry-button; selectedPeriodId TETAP terisi; summary menjadi null; menekan Coba Lagi memanggil fetchSummary dengan periode dan line yang SAMA dan angka akhirnya terender"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "pilih periode dengan jaringan diblokir, lalu lepas blokir dan tekan Coba Lagi",
+        "assert": "pesan kegagalan jaringan tampil dengan periode masih terpilih; setelah Coba Lagi laporan tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — sesi berakhir saat layar terbuka",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "token sudah dicabut"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "fetchSummary di-mock menolak dengan { status: 401, message: 'Unauthenticated.' }",
+        "assert": "router.push({ name: 'login' }) dipanggil; network-error dan retry-button TIDAK terender; errorMessage null; summary null"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "cabut token dari penyimpanan lalu pilih periode",
+        "assert": "aplikasi berpindah ke layar Login tanpa menampilkan pesan jaringan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — mengganti pilihan lebih cepat daripada jawabannya",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-LAMA",
+            "production_line_id": "PL-A1",
+            "_context": "jawaban tiba BELAKANGAN"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-BARU",
+            "production_line_id": "PL-A1",
+            "_context": "jawaban tiba LEBIH DULU"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "fetchSummary di-mock sehingga permintaan pertama (P-LAMA) resolve setelah permintaan kedua (P-BARU); ganti periode dua kali berturut-turut; ulangi dengan permintaan pertama yang MENOLAK",
+        "assert": "summary akhirnya milik P-BARU; jawaban P-LAMA tidak menimpanya; galat dari permintaan lama tidak terender; loadingSummary tidak dimatikan oleh jawaban lama; dan bila pilihan periode dikosongkan saat ringkasan masih dimuat, tidak ada angka yang muncul kemudian"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "dengan jaringan dilambatkan, ganti periode tiga kali dengan cepat",
+        "assert": "angka yang akhirnya tampil milik periode terakhir yang dipilih"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — periode berstatus tertutup",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-TERTUTUP",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-TERTUTUP",
+            "production_line_id": "PL-A1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "payload dengan period.status 'closed' dan data terisi",
+        "assert": "period-status-badge terender 'Tertutup' beserta keterangan bahwa status mengatur penulisan bukan pembacaan; seluruh angka terender; export-button TIDAK disabled"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "pilih periode yang stasiun Weighbridge-nya sudah ditutup lalu tekan Ekspor CSV",
+        "assert": "laporan tampil penuh dengan badge Tertutup dan unduhan berjalan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — unduh rincian seluruh trip sebagai CSV",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "tekan export-button dengan exportCsv di-mock mengembalikan Blob; tekan dua kali berturut-turut",
+        "assert": "exportCsv dipanggil dengan period_id, production_line_id, dan format csv; saveCsvFile dipanggil dengan nama berkas berpola 'laporan-weighbridge_<slug-periode>.csv'; tombol disabled dan BusyLabel menampilkan 'Mengekspor…' selama berjalan sehingga ketukan kedua TIDAK menghasilkan pemanggilan kedua"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "tekan tombol Ekspor CSV",
+        "assert": "unduhan terpicu dan tombol sempat berlabel Mengekspor…"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — mengganti periode selagi ekspor berjalan",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-A",
+            "production_line_id": "PL-A1",
+            "format": "csv",
+            "_context": "pengguna mengganti ke P-B sebelum blob tiba"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "tekan export-button untuk periode A, ganti selectedPeriodId ke B sebelum exportCsv resolve",
+        "assert": "saveCsvFile menerima nama berkas berslug periode A, bukan B — karena exportFilename() dipanggil sebelum await; angka di layar menjadi milik periode B"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "tekan Ekspor CSV lalu segera ganti periode",
+        "assert": "berkas yang terunduh bernama sesuai periode yang diekspor"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — mencoba melihat mill atau Production Line milik mill lain",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-A",
+            "production_line_id": "PL-A1",
+            "business_unit_id": "BU-LAIN",
+            "_context": "Token Operator pada BU-A; business_unit_id mill lain DIABAIKAN"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-A",
+            "production_line_id": "PL-B9",
+            "_context": "line milik BU-LAIN"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-LAIN",
+            "production_line_id": "PL-A1",
+            "_context": "periode milik BU-LAIN"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Token Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "weighbridgeReportRepo",
+        "action": "panggil fetchSummary dengan scope { isAdmin: false, businessUnitId: 'BU-LAIN', productionLineId: 'PL-A1' }",
+        "assert": "params yang dikirim tidak memuat business_unit_id sama sekali — repo tidak pernah mengirimkannya untuk peran terikat mill, terlepas dari apa yang diminta pemanggil"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge?production_line_id=PL-B9",
+        "action": "buka laporan sebagai Operator BU-A dengan id line milik mill lain pada rute",
+        "assert": "line itu tidak berlaku karena tidak ada pada daftar line mill ini; pemilih line tampil dan tidak ada angka mill lain yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — penyaringan line memakai line yang melekat pada trip itu sendiri",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "trip tercatat dengan production_line_id PL-A1 sementara stasiunnya kini dipindah ke PL-A2"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A2"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "weighbridgeReportRepo",
+        "action": "panggil fetchSummary dua kali dengan production_line_id berbeda",
+        "assert": "kedua pemanggilan mengirim production_line_id apa adanya; repo tidak menurunkan line dari data stasiun mana pun"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "pindahkan stasiun Weighbridge ke line lain di master data, lalu buka laporan untuk line lama",
+        "assert": "trip lama tetap terhitung pada laporan line lama dan tidak muncul pada laporan line baru"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — angkanya sama dengan laporan versi web",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "Token Supervisor — endpoint yang SAMA dengan yang dipakai Livewire LaporanWeighbridge lewat WeighbridgeReportService"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "weighbridgeReportRepo",
+        "action": "bandingkan hasil fetchSummary terhadap payload mentah endpoint",
+        "assert": "setiap kunci angka bernilai identik dengan payload; repo tidak membulatkan, menjumlah, mengurutkan ulang, maupun menurunkan satu nilai pun — satu unit test khusus mengunci ketiadaan aritmetika ini"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "buka laporan mobile dan laporan web untuk periode dan line yang sama",
+        "assert": "jumlah trip, total dan rata-rata berat per arus, jumlah trip berbobot, jumlah trip tanpa berat, jam tersibuk, jumlah jam kosong, jumlah draft, dan jumlah trip tanpa penanda waktu bernilai sama pada kedua layar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Mobile) — layar hanya membaca",
+      "usecase_id": "usecase-147--laporan-weighbridge-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "prefix /api/weighbridge-reports GET-only — tidak ada POST/PUT/PATCH/DELETE terdaftar"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridgeView",
+        "action": "render penuh lalu ganti mill, line, dan periode, buka-tutup rekap harian, dan jalankan ekspor",
+        "assert": "tidak ada tombol simpan/ubah/hapus/ubah status di mana pun pada komponen; seluruh pemanggilan repo adalah fungsi baca (fetch*/export*)"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "jelajahi seluruh layar dan lakukan semua interaksi yang tersedia",
+        "assert": "hanya tombol Ekspor CSV dan Back yang ada di footer; tidak ada data stasiun yang berubah setelahnya"
+      }
+    }
+  ]
+}

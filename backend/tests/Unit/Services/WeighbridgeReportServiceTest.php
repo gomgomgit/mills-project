@@ -114,6 +114,7 @@ use App\Models\User;
 use App\Models\WeighbridgeRecord;
 use App\Services\WeighbridgeReportService;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
@@ -461,8 +462,13 @@ it('case 5 — businessUnitOptions menolak peran terikat mill walau middleware s
         expect(fn () => $spy->businessUnitOptions())->toThrow(AuthorizationException::class);
     }
 
-    // Operator is not admitted anywhere on this screen — screen-144 (mobile)
-    // does not exist yet, so there is no widening here at all.
+    // OPERATOR TOO — and since the screen-144 widening (2026-10-05) this is
+    // the sharpest assertion in the file about what did NOT change: Operator
+    // is now admitted by guardAccess() and reaches every other entry point,
+    // yet this one still refuses it. A role bound to one mill has no picker,
+    // and handing it the list of every mill is exactly the leak the widening
+    // had to avoid. The refusal lives in businessUnitOptions() itself, not in
+    // guardAccess(), which is why widening the gate could not open it.
     $this->actingAs($this->operatorA);
     expect(fn () => $spy->businessUnitOptions())->toThrow(AuthorizationException::class);
 
@@ -681,9 +687,16 @@ it('case 13 — authorizePeriod memulangkan 403 FORBIDDEN untuk periode mill lai
 // ---------------------------------------------------------------------
 // Case 14 — the ROLE GUARD runs BEFORE the period lookup
 // ---------------------------------------------------------------------
-it('case 14 — authorizePeriod menjalankan guard peran SEBELUM lookup, sehingga keberadaan id tidak bocor', function () {
-    $this->actingAs($this->operatorA);
-
+it('case 14 — authorizePeriod menjalankan gate sesi SEBELUM lookup, sehingga keberadaan id tidak bocor', function () {
+    // TAMU, bukan Operator. Sampai 2026-10-04 kasus ini memakai Operator
+    // sebagai "pemanggil yang ditolak"; sejak perluasan screen-144 keempat
+    // peran aplikasi diterima guardAccess(), sehingga tidak ada lagi peran
+    // yang dapat memerankan peran itu. Yang tersisa — dan yang justru lebih
+    // tajam, karena berlaku untuk siapa pun — adalah sesi yang tidak ada:
+    // gate yang sama, cabang yang satu lapis lebih awal.
+    //
+    // Yang diasersi tetap sama: gate berjalan SEBELUM lookup periode, jadi
+    // pemanggil yang ditolak tidak pernah belajar id mana yang ada.
     $missingId = (string) Str::uuid();
 
     $thrown = null;
@@ -696,9 +709,9 @@ it('case 14 — authorizePeriod menjalankan guard peran SEBELUM lookup, sehingga
         }
     });
 
-    // FORBIDDEN, not NOT_FOUND — the refused caller learns nothing about which
-    // period ids exist.
-    expect($thrown)->toBeInstanceOf(AuthorizationException::class);
+    // UNAUTHENTICATED, not NOT_FOUND — the refused caller learns nothing about
+    // which period ids exist.
+    expect($thrown)->toBeInstanceOf(AuthenticationException::class);
     expect($thrown)->not->toBeInstanceOf(ModelNotFoundException::class);
 
     // And the lookup provably never ran.
@@ -707,7 +720,7 @@ it('case 14 — authorizePeriod menjalankan guard peran SEBELUM lookup, sehingga
     }
 
     // The SAME id answers 404 for an ADMITTED caller — which is what makes the
-    // 403 above an ordering assertion rather than a coincidence.
+    // 401 above an ordering assertion rather than a coincidence.
     $this->actingAs($this->supervisorA);
     expect(fn () => $this->service->authorizePeriod($missingId))->toThrow(ModelNotFoundException::class);
 });
@@ -1874,4 +1887,170 @@ it('case 49 — happy path: seluruh kondisi terpenuhi, payload lengkap dan tanpa
 
     // summary() is an ALIAS of buildSummary(), never a second implementation.
     expect($this->service->summary($this->periodA, null, $this->lineA))->toEqual($summary);
+});
+
+// =====================================================================
+// GROUP J — PERLUASAN AKSES OPERATOR UNTUK screen-144 (cases 50-55)
+//
+// APA YANG DIJAGA GRUP INI. Pada 2026-10-05 keempat rute
+// /api/weighbridge-reports/* dilebarkan agar menerima Operator, karena
+// screen-144 (laporan Weighbridge versi mobile) memakai endpoint yang sama
+// dengan laporan versi web alih-alih punya endpoint sendiri. Perluasannya
+// TEPAT TIGA PERUBAHAN: routes/api.php, guardAccess(), dan cabang TERIKAT
+// MILL pada resolveBusinessUnit().
+//
+// YANG KETIGA ITULAH YANG MEMBUAT DUA PERTAMA AMAN, dan karena itu grup ini
+// TIDAK berhenti pada "peran diterima". resolveBusinessUnit() bercabang
+// `if (Supervisor || MillManagement) { pakai mill akun } else { perlakukan
+// sebagai Admin }`. Melebarkan guardAccess() SAJA akan membuat Operator
+// jatuh ke cabang `else`, tempat business_unit_id kiriman klien DIHORMATI —
+// dan Operator dapat membaca laporan mill mana pun dengan menyebut id-nya.
+// Itu kebocoran lintas mill, bukan cacat tampilan.
+//
+// Karena itu case 51 mengasersi HASILNYA, bukan penerimaannya: Operator yang
+// mengirim id mill lain tetap menerima data mill SENDIRI. Asersi itu gagal
+// bila perubahan ketiga terlewat, sementara asersi "peran diterima" justru
+// akan tetap hijau. Itu perbedaan antara test yang menjaga dan test yang
+// menemani.
+// =====================================================================
+
+// ---------------------------------------------------------------------
+// Case 50 — guardAccess menerima Operator
+// ---------------------------------------------------------------------
+it('case 50 — guardAccess menerima Operator dan memulangkan perannya', function () {
+    $this->actingAs($this->operatorA);
+
+    // Dibuktikan lewat pintu masuk publik: resolveBusinessUnit() memanggil
+    // guardAccess() sebagai langkah pertamanya, jadi tidak melempar =
+    // diterima. Tidak ada refleksi atas method protected di sini.
+    expect($this->service->resolveBusinessUnit(null))->toBe((string) $this->businessUnitA->id);
+});
+
+// ---------------------------------------------------------------------
+// Case 51 — Operator berada di cabang TERIKAT MILL, bukan cabang Admin
+// ---------------------------------------------------------------------
+it('case 51 — Operator: business_unit_id kiriman klien DIBUANG, bukan dihormati', function () {
+    $this->actingAs($this->operatorA);
+
+    // Inilah asersi yang gagal bila perubahan ketiga terlewat. Di cabang
+    // Admin nilai ini akan dipulangkan apa adanya; di cabang terikat mill ia
+    // tidak divalidasi, tidak dibandingkan, dan tidak dipakai.
+    expect($this->service->resolveBusinessUnit((string) $this->businessUnitB->id))
+        ->toBe((string) $this->businessUnitA->id);
+
+    // Dan 200-nya nyata, bukan sekadar nilai kembalian: ringkasan yang keluar
+    // adalah ringkasan mill sendiri. Sengaja BUKAN 403 — 403 akan
+    // membenarkan bahwa mill lain itu ada.
+    weighbridgeReportReceive($this->stationA, '2026-09-04 08:00', 1000.0, 'Estate Alpha');
+    weighbridgeReportReceive($this->stationB, '2026-09-05 08:00', 9999.0, 'Estate Beta');
+
+    $summary = $this->service->buildSummary(
+        $this->periodA,
+        (string) $this->businessUnitB->id,
+        $this->lineA,
+    );
+
+    expect($summary['business_unit']['name'])->toBe('Mill Alpha');
+    expect($summary['receive']['trip_count'])->toBe(1);
+    expect($summary['receive']['net_weight_total'])->toBe(1000.0);
+    expect(array_column($summary['receive']['by_origin'], 'estate_supplier'))->toBe(['Estate Alpha']);
+});
+
+// ---------------------------------------------------------------------
+// Case 52 — Operator tanpa mill GAGAL TERTUTUP
+// ---------------------------------------------------------------------
+it('case 52 — Operator tanpa business_unit_id: 422 menghubungi Admin, dan daftar seluruh mill tidak dibaca', function () {
+    $operatorWithoutMill = User::factory()->role(UserRole::Operator)->create(['business_unit_id' => null]);
+
+    $this->actingAs($operatorWithoutMill);
+
+    $spy = new WeighbridgeReportAllBusinessUnitsSpy;
+
+    expect(fn () => $spy->resolveBusinessUnit(null))->toThrow(ValidationException::class);
+
+    // Jatuh ke "seluruh mill" akan mengubah satu baris master data yang rusak
+    // menjadi kebocoran lintas mill. Spy membuktikan jalan itu tidak diambil.
+    expect($spy->allBusinessUnitsCalls)->toBe(0);
+});
+
+// ---------------------------------------------------------------------
+// Case 53 — Operator ditolak 403 untuk line milik mill lain
+// ---------------------------------------------------------------------
+it('case 53 — Operator: production_line_id milik mill lain ditolak 403, tanpa satu kueri record', function () {
+    $this->actingAs($this->operatorA);
+
+    weighbridgeReportReceive($this->stationB, '2026-09-05 08:00', 9999.0, 'Estate Beta');
+
+    $thrown = null;
+
+    $queries = weighbridgeReportQueriesDuring(function () use (&$thrown) {
+        try {
+            $this->service->buildSummary($this->periodA, null, $this->lineB);
+        } catch (Throwable $exception) {
+            $thrown = $exception;
+        }
+    });
+
+    expect($thrown)->toBeInstanceOf(AuthorizationException::class);
+
+    // Penolakannya TEGAS di sini — berbeda dari business_unit_id yang
+    // diabaikan — karena sebuah line id adalah pegangan nyata atas data mill
+    // lain, bukan parameter yang tidak dipakai.
+    foreach ($queries as $sql) {
+        expect($sql)->not->toContain('from "weighbridge_records"');
+    }
+});
+
+// ---------------------------------------------------------------------
+// Case 54 — Operator ditolak 403 untuk periode milik mill lain
+// ---------------------------------------------------------------------
+it('case 54 — Operator: period_id milik mill lain ditolak 403, bukan 404', function () {
+    $this->actingAs($this->operatorA);
+
+    $periodB = Period::factory()
+        ->forBusinessUnit($this->businessUnitB)
+        ->stationType('weighbridge')
+        ->range('2026-09-01', '2026-09-30')
+        ->open()
+        ->named('Periode September Beta')
+        ->create();
+
+    expect(fn () => $this->service->authorizePeriod((string) $periodB->id))
+        ->toThrow(AuthorizationException::class);
+
+    expect(fn () => $this->service->buildSummary((string) $periodB->id, null, $this->lineA))
+        ->toThrow(AuthorizationException::class);
+
+    expect(fn () => $this->service->export((string) $periodB->id, 'csv', null, $this->lineA))
+        ->toThrow(AuthorizationException::class);
+});
+
+// ---------------------------------------------------------------------
+// Case 55 — Operator membaca laporan mill sendiri, termasuk ekspornya
+// ---------------------------------------------------------------------
+it('case 55 — Operator: laporan dan ekspor mill sendiri terbaca penuh, sama seperti Supervisor', function () {
+    weighbridgeReportReceive($this->stationA, '2026-09-04 08:00', 1000.0, 'Estate Alpha');
+    weighbridgeReportDispatch($this->stationA, '2026-09-05 14:00', 2000.0, 'Refinery X');
+
+    $this->actingAs($this->supervisorA);
+    $asSupervisor = $this->service->buildSummary($this->periodA, null, $this->lineA);
+
+    $this->actingAs($this->operatorA);
+    $asOperator = $this->service->buildSummary($this->periodA, null, $this->lineA);
+
+    // SATU SUMBER ANGKA. Kalau keduanya pernah berbeda, laporan mobile dan
+    // laporan web akan menyimpang tanpa ketahuan — persis hal yang dicegah
+    // dengan memakai ulang endpoint yang sama alih-alih membuat yang baru.
+    expect($asOperator)->toEqual($asSupervisor);
+
+    // Ekspor pun terbuka bagi Operator: ia menjalankan guard yang sama secara
+    // eager sebelum streaming dimulai.
+    $response = $this->service->export($this->periodA, 'csv', null, $this->lineA);
+
+    expect($response)->toBeInstanceOf(StreamedResponse::class);
+
+    $body = weighbridgeReportStreamed($response);
+
+    expect($body)->toContain('Estate Alpha');
+    expect($body)->toContain('Refinery X');
 });

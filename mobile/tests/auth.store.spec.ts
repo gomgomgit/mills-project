@@ -157,3 +157,48 @@ describe('auth store — login() memuat master Grading', () => {
     expect(store.isAuthenticated).toBe(true)
   })
 })
+
+describe('auth store — logout() loading state (audit loading state 2026-10-05)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('loggingOut true selama POST /api/logout; ketukan kedua tidak mengirim POST kedua', async () => {
+    const apiClient = (await import('@/services/apiClient')).default
+    let release!: () => void
+    vi.mocked(apiClient.post).mockReturnValue(
+      new Promise((resolve) => {
+        release = () => resolve({ data: {} })
+      }) as never,
+    )
+
+    const store = useAuthStore()
+    store.$patch({ token: 't-1', user: STORED_USER as never })
+
+    const first = store.logout()
+    const second = store.logout()
+
+    expect(store.loggingOut).toBe(true)
+    expect(apiClient.post).toHaveBeenCalledTimes(1)
+
+    release()
+    await Promise.all([first, second])
+
+    expect(store.loggingOut).toBe(false)
+    expect(store.isAuthenticated).toBe(false)
+  })
+
+  it('loggingOut kembali false walau POST gagal (offline)', async () => {
+    const apiClient = (await import('@/services/apiClient')).default
+    vi.mocked(apiClient.post).mockRejectedValue(new Error('offline'))
+
+    const store = useAuthStore()
+    store.$patch({ token: 't-1', user: STORED_USER as never })
+
+    await store.logout()
+
+    expect(store.loggingOut).toBe(false)
+    expect(store.token).toBeNull()
+  })
+})

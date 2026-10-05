@@ -76,6 +76,7 @@ import { pullVerificationStatus } from '@/services/recordVerificationApi'
 import { toDateInputValue } from '@/utils/localDate'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
+import LoadingState from '@/components/loading/LoadingState.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -203,16 +204,23 @@ const detailLoadErrorMessage = ref<string | null>(null)
 const detailRecord = ref<BoilerRoomRecord | null>(null)
 const detailRows = ref<BoilerRoomDetailRow[]>([])
 
+// Audit loading state 2026-10-05 — penanda kecil "Memperbarui status
+// verifikasi…" selama tarikan latar belakang di bawah berjalan.
+const verificationRefreshing = ref(false)
+
 /**
  * Audit 2026-10-04 — tarik status verifikasi terbaru dari server (Supervisor/
  * Mill Management bisa memverifikasi lewat web) lalu muat ulang record ini
  * bila ada yang berubah. Senyap bila offline / endpoint tidak tersedia.
  */
 function refreshVerificationInBackground(recordId: string): void {
+  verificationRefreshing.value = true
   void pullVerificationStatus('boiler-room', 'boiler_room_record', currentUserId()).then(async (changed) => {
     if (changed === 0 || detailRecord.value?.id !== recordId) return
     const fresh = await boilerRoomRecordRepo.getDraftWithDetails(recordId)
     if (fresh && detailRecord.value?.id === recordId) detailRecord.value = fresh.record
+  }).finally(() => {
+    verificationRefreshing.value = false
   })
 }
 
@@ -429,7 +437,7 @@ function goToMonitorBoilerRoom(): void {
         @reset="onResetFilter"
       />
 
-      <p v-if="listLoading" class="status-text">Memuat daftar data boiler room lokal…</p>
+      <LoadingState v-if="listLoading" variant="list" test-id="list-loading">Memuat daftar data boiler room lokal…</LoadingState>
       <p v-else-if="listError" class="status-text status-text--error" role="alert">{{ listError }}</p>
 
       <section v-else class="record-list-section" aria-label="Daftar Data Boiler Room">
@@ -460,7 +468,7 @@ function goToMonitorBoilerRoom(): void {
 
     <!-- DETAIL mode -->
     <template v-else>
-      <p v-if="detailLoading" class="status-text">Memuat data boiler room…</p>
+      <LoadingState v-if="detailLoading" variant="form" :rows="4" test-id="detail-loading">Memuat data boiler room…</LoadingState>
       <p
         v-else-if="detailNotFound"
         class="status-text status-text--error"
@@ -490,6 +498,9 @@ function goToMonitorBoilerRoom(): void {
           :verifier-name="detailRecord.acknowledged_by_name"
           pending-label="Belum dikonfirmasi Mill Management"
         />
+        <LoadingState v-if="verificationRefreshing" compact test-id="verification-refreshing">
+          Memperbarui status verifikasi…
+        </LoadingState>
         <FormField :model-value="detailRecord.note" label="Catatan" disabled />
 
         <section class="detail-rows-section" aria-label="Boiler Room Detail">

@@ -12,7 +12,7 @@
  * per this suite's existing convention — no SQLite and no HTTP is touched.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
 vi.mock('@/services/localDb', () => ({ run: vi.fn() }))
@@ -246,5 +246,37 @@ describe('RecordVerificationStatus — read-only display on Data Preview', () =>
     const w = mountStatus({ verifierId: '9f8a-uuid-of-someone-else', verifierName: null })
     expect(w.text()).not.toContain('9f8a-uuid-of-someone-else')
     expect(w.text()).toContain('Sudah diverifikasi')
+  })
+})
+
+describe('RecordVerificationActions — loading state (audit loading state 2026-10-05)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setActivePinia(createPinia())
+  })
+
+  it('tombol yang sedang dikirim: aria-busy, spinner, "Menyimpan…"; ketukan ganda hanya satu PATCH', async () => {
+    let release!: (value: unknown) => void
+    vi.mocked(apiClient.patch).mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve
+      }) as never,
+    )
+
+    const w = mountWith('supervisor')
+    const button = w.get('[data-testid="toggle-checked-button"]')
+
+    void button.trigger('click')
+    void button.trigger('click')
+    await flushPromises()
+
+    expect(apiClient.patch).toHaveBeenCalledTimes(1)
+    expect(button.attributes('aria-busy')).toBe('true')
+    expect(button.text()).toBe('Menyimpan…')
+    expect(button.find('[data-testid="loading-spinner"]').exists()).toBe(true)
+
+    release({ data: { data: { checked_by: 'u-1', checked_by_name: 'User', checked_at: '2026-10-05T01:00:00Z' } } })
+    await flushPromises()
+    expect(button.attributes('aria-busy')).toBe('false')
   })
 })

@@ -40,6 +40,8 @@ import kernelDispatchRecordRepo, {
 } from '@/services/kernelDispatchRecordRepo'
 import FormField from '@/components/FormField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import LoadingState from '@/components/loading/LoadingState.vue'
+import BusyLabel from '@/components/loading/BusyLabel.vue'
 import { syncAfterSave } from '@/services/writeThroughSync'
 
 const route = useRoute()
@@ -266,6 +268,12 @@ function buildDetailPayload(): KernelDispatchDetailFormRow[] {
 }
 
 async function onSimpan(): Promise<void> {
+  // Penjaga aksi ganda (audit loading state 2026-10-05): ketukan kedua
+  // selama Simpan/Pause/Clear masih berjalan diabaikan.
+  if (actionInProgress.value) {
+    return
+  }
+
   actionErrorMessage.value = null
   detailRowsError.value = null
 
@@ -300,7 +308,7 @@ async function onSimpan(): Promise<void> {
       writeThroughRejection.value = outcome.rejection
       return
     }
-    router.push({ name: 'monitor-kernel-dispatch' })
+    await router.push({ name: 'monitor-kernel-dispatch' })
   } catch (err) {
     if (err instanceof KernelDispatchDetailRequiredError) {
       detailRowsError.value = err.message
@@ -313,6 +321,10 @@ async function onSimpan(): Promise<void> {
 }
 
 async function onPause(): Promise<void> {
+  if (actionInProgress.value) {
+    return
+  }
+
   actionErrorMessage.value = null
   pausing.value = true
 
@@ -324,7 +336,7 @@ async function onPause(): Promise<void> {
       pendingDeletionIds.value,
       authStore.currentUser?.role ?? null,
     )
-    router.push({ name: 'monitor-kernel-dispatch' })
+    await router.push({ name: 'monitor-kernel-dispatch' })
   } catch (err) {
     actionErrorMessage.value = err instanceof Error ? err.message : 'Gagal menyimpan progres kernel dispatch.'
   } finally {
@@ -337,12 +349,16 @@ function onClearClick(): void {
 }
 
 async function onClearConfirm(): Promise<void> {
+  if (actionInProgress.value) {
+    return
+  }
+
   clearDialogOpen.value = false
   clearing.value = true
 
   try {
     await kernelDispatchRecordRepo.deleteDraft(recordId)
-    router.push({ name: 'monitor-kernel-dispatch' })
+    await router.push({ name: 'monitor-kernel-dispatch' })
   } catch (err) {
     actionErrorMessage.value = err instanceof Error ? err.message : 'Gagal menghapus draft kernel dispatch.'
   } finally {
@@ -460,7 +476,7 @@ function goToMonitor() {
       <h1 class="screen-title">Form Kernel Dispatch</h1>
     </div>
 
-    <p v-if="loading" class="status-text">Memuat draft kernel dispatch…</p>
+    <LoadingState v-if="loading" variant="form" :rows="4" test-id="form-loading">Memuat draft kernel dispatch…</LoadingState>
     <p v-else-if="notFound" class="status-text status-text--error" role="alert" data-testid="record-not-found">Draft tidak ditemukan.</p>
     <p v-else-if="loadErrorMessage" class="status-text status-text--error" role="alert">{{ loadErrorMessage }}</p>
 
@@ -590,15 +606,15 @@ function goToMonitor() {
           <button type="button" class="action-button action-button--secondary" data-testid="back-button" :disabled="actionInProgress" @click="onBackClick">
             Back
           </button>
-          <button type="button" class="action-button action-button--warning" data-testid="pause-button" :disabled="actionInProgress" @click="onPause">
-            Pause
+          <button type="button" class="action-button action-button--warning" data-testid="pause-button" :disabled="actionInProgress" @click="onPause" :aria-busy="pausing">
+            <BusyLabel :busy="pausing" label="Pause" busy-label="Menyimpan…" icon-only />
           </button>
-          <button type="button" class="action-button action-button--secondary" data-testid="clear-button" :disabled="actionInProgress" @click="onClearClick">
-            Clear
+          <button type="button" class="action-button action-button--secondary" data-testid="clear-button" :disabled="actionInProgress" @click="onClearClick" :aria-busy="clearing">
+            <BusyLabel :busy="clearing" label="Clear" busy-label="Menghapus…" icon-only />
           </button>
         </div>
-        <button type="button" class="action-button action-button--primary" data-testid="save-button" :disabled="actionInProgress" @click="onSimpan">
-          Simpan
+        <button type="button" class="action-button action-button--primary" data-testid="save-button" :disabled="actionInProgress" @click="onSimpan" :aria-busy="saving">
+          <BusyLabel :busy="saving" label="Simpan" busy-label="Menyimpan…" />
         </button>
       </footer>
     </form>
@@ -664,4 +680,11 @@ function goToMonitor() {
 .action-button--warning { border: none; background: #d97706; color: #ffffff; }
 .action-button--primary { border: none; background: #249360; color: #ffffff; font-size: 16px; }
 .action-button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Tombol yang sedang bekerja tetap berwarna penuh (spinner terbaca);
+   tombol lain yang ikut terkunci tetap redup. */
+.action-button[aria-busy='true']:disabled {
+  opacity: 1;
+  cursor: progress;
+}
 </style>

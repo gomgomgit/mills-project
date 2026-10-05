@@ -796,3 +796,34 @@ describe('ReportingPilihStasiunView — membawa Production Line ke laporan', () 
     expect(wrapper.get('[data-testid="info-message"]').text()).toContain('belum tersedia')
   })
 })
+
+describe('ReportingPilihStasiunView — loading state (audit loading state 2026-10-05)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+    logoutMock.mockResolvedValue(undefined)
+    mockAuthUser('operator')
+  })
+
+  it('menampilkan LoadingState grid selama stasiun lokal dimuat, bukan layar kosong', async () => {
+    let release!: (value: StationSlot[]) => void
+    getActiveAndPlaceholderStationsMock.mockReturnValue(
+      new Promise<StationSlot[]>((resolve) => {
+        release = resolve
+      }),
+    )
+
+    const wrapper = mount(ReportingPilihStasiunView)
+    await flushPromises()
+
+    const loading = wrapper.get('[data-testid="station-grid-loading"]')
+    expect(loading.attributes('role')).toBe('status')
+    expect(loading.text()).toBe('Memuat daftar stasiun…')
+    expect(wrapper.find('[data-testid="no-stations"]').exists()).toBe(false)
+
+    release(THREE_STATIONS)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="station-grid-loading"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid^="station-tile-"]')).toHaveLength(3)
+  })
+})

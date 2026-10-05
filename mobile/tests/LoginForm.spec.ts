@@ -296,3 +296,34 @@ describe('LoginForm — sesi ditolak server (audit 2026-10-05 #3)', () => {
     expect(wrapper.find('[data-testid="session-revoked-banner"]').exists()).toBe(false)
   })
 })
+
+describe('LoginForm — loading state (audit loading state 2026-10-05)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    vi.mocked(tokenStorage.hasToken).mockReturnValue(true)
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
+  })
+
+  it('kirim ganda (dua submit sebelum render ulang) hanya mengirim SATU POST /api/login; tombol aria-busy + spinner', async () => {
+    const post = deferred<never>()
+    vi.mocked(apiClient.post).mockReturnValue(post.promise as unknown as Promise<never>)
+
+    const wrapper = await mountLoginForm()
+    await fillValidForm(wrapper)
+
+    void wrapper.find('form').trigger('submit')
+    void wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(apiClient.post).toHaveBeenCalledTimes(1)
+    const submitButton = wrapper.get('.submit-button')
+    expect(submitButton.attributes('aria-busy')).toBe('true')
+    expect(submitButton.text()).toBe('Memproses…')
+    expect(submitButton.find('[data-testid="loading-spinner"]').exists()).toBe(true)
+
+    post.reject({ message: 'Username atau password salah.', status: 401 })
+    await flushPromises()
+    expect(submitButton.text()).toBe('Login')
+  })
+})

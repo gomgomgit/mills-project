@@ -147,6 +147,7 @@ import { pullVerificationStatus } from '@/services/recordVerificationApi'
 import { toDateInputValue, toDateTimeLocalInputValue } from '@/utils/localDate'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
+import LoadingState from '@/components/loading/LoadingState.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -293,16 +294,23 @@ const detailLoadErrorMessage = ref<string | null>(null)
 const detailRecord = ref<CagesTrackRecord | null>(null)
 const detailRows = ref<CagesTippedTimeRow[]>([])
 
+// Audit loading state 2026-10-05 — penanda kecil "Memperbarui status
+// verifikasi…" selama tarikan latar belakang di bawah berjalan.
+const verificationRefreshing = ref(false)
+
 /**
  * Audit 2026-10-04 — tarik status verifikasi terbaru dari server (Supervisor/
  * Mill Management bisa memverifikasi lewat web) lalu muat ulang record ini
  * bila ada yang berubah. Senyap bila offline / endpoint tidak tersedia.
  */
 function refreshVerificationInBackground(recordId: string): void {
+  verificationRefreshing.value = true
   void pullVerificationStatus('cages-track', 'cages_track_record', currentUserId()).then(async (changed) => {
     if (changed === 0 || detailRecord.value?.id !== recordId) return
     const fresh = await cagesTrackRecordRepo.getDraftWithTippedTimes(recordId)
     if (fresh && detailRecord.value?.id === recordId) detailRecord.value = fresh.record
+  }).finally(() => {
+    verificationRefreshing.value = false
   })
 }
 
@@ -569,7 +577,7 @@ function goToMonitorCagesTrack(): void {
         @reset="onResetFilter"
       />
 
-      <p v-if="listLoading" class="status-text">Memuat daftar data cages track lokal…</p>
+      <LoadingState v-if="listLoading" variant="list" test-id="list-loading">Memuat daftar data cages track lokal…</LoadingState>
       <p v-else-if="listError" class="status-text status-text--error" role="alert">{{ listError }}</p>
 
       <section v-else class="record-list-section" aria-label="Daftar Data Cages Track">
@@ -600,7 +608,7 @@ function goToMonitorCagesTrack(): void {
 
     <!-- DETAIL mode -->
     <template v-else>
-      <p v-if="detailLoading" class="status-text">Memuat data cages track…</p>
+      <LoadingState v-if="detailLoading" variant="form" :rows="4" test-id="detail-loading">Memuat data cages track…</LoadingState>
       <p
         v-else-if="detailNotFound"
         class="status-text status-text--error"
@@ -634,6 +642,9 @@ function goToMonitorCagesTrack(): void {
           :verifier-name="detailRecord.acknowledged_by_name"
           pending-label="Belum dikonfirmasi Mill Management"
         />
+        <LoadingState v-if="verificationRefreshing" compact test-id="verification-refreshing">
+          Memperbarui status verifikasi…
+        </LoadingState>
         <FormField :model-value="detailRecord.note" label="Catatan" disabled />
 
         <!-- business_logic step 5 — cages_tipped_time rows, read-only.

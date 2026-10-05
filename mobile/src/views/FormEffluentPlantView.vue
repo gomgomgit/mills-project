@@ -95,6 +95,8 @@ import effluentPlantRecordRepo, {
 import FormField from '@/components/FormField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import SearchableSelect, { type SearchableSelectOption } from '@/components/SearchableSelect.vue'
+import LoadingState from '@/components/loading/LoadingState.vue'
+import BusyLabel from '@/components/loading/BusyLabel.vue'
 import { syncAfterSave } from '@/services/writeThroughSync'
 
 const route = useRoute()
@@ -462,6 +464,12 @@ function validateDetailRows(): boolean {
 
 // business_logic step 12 — 'Simpan'.
 async function onSimpan(): Promise<void> {
+  // Penjaga aksi ganda (audit loading state 2026-10-05): ketukan kedua
+  // selama Simpan/Pause/Clear masih berjalan diabaikan.
+  if (actionInProgress.value) {
+    return
+  }
+
   actionErrorMessage.value = null
 
   const headerValid = validateHeader()
@@ -491,7 +499,7 @@ async function onSimpan(): Promise<void> {
       writeThroughRejection.value = outcome.rejection
       return
     }
-    router.push({ name: 'monitor-effluent-plant' })
+    await router.push({ name: 'monitor-effluent-plant' })
   } catch (err) {
     if (err instanceof EffluentPlantDetailRequiredError) {
       // Defense-in-depth fallback — validateDetailRows() above should
@@ -510,6 +518,10 @@ async function onSimpan(): Promise<void> {
 // business_logic step 13 — 'Pause'. Checkpoint save, no required-field
 // validation.
 async function onPause(): Promise<void> {
+  if (actionInProgress.value) {
+    return
+  }
+
   actionErrorMessage.value = null
   pausing.value = true
 
@@ -521,7 +533,7 @@ async function onPause(): Promise<void> {
       [...pendingDeletionIds.value],
       authStore.currentUser?.role,
     )
-    router.push({ name: 'monitor-effluent-plant' })
+    await router.push({ name: 'monitor-effluent-plant' })
   } catch (err) {
     actionErrorMessage.value = err instanceof Error ? err.message : 'Gagal menyimpan progres (Pause).'
   } finally {
@@ -535,13 +547,17 @@ function onClearClick(): void {
 }
 
 async function onClearConfirm(): Promise<void> {
+  if (actionInProgress.value) {
+    return
+  }
+
   clearDialogOpen.value = false
   actionErrorMessage.value = null
   clearing.value = true
 
   try {
     await effluentPlantRecordRepo.deleteDraft(recordId)
-    router.push({ name: 'monitor-effluent-plant' })
+    await router.push({ name: 'monitor-effluent-plant' })
   } catch (err) {
     actionErrorMessage.value = err instanceof Error ? err.message : 'Gagal menghapus draft effluent plant.'
   } finally {
@@ -706,7 +722,7 @@ function goToMonitorEffluentPlant(): void {
       <h1 class="screen-title">Form Effluent Plant</h1>
     </div>
 
-    <p v-if="loading" class="status-text">Memuat draft effluent plant…</p>
+    <LoadingState v-if="loading" variant="form" :rows="4" test-id="form-loading">Memuat draft effluent plant…</LoadingState>
     <p v-else-if="notFound" class="status-text status-text--error" role="alert">
       Draft effluent plant tidak ditemukan.
     </p>
@@ -1008,8 +1024,9 @@ function goToMonitorEffluentPlant(): void {
           data-testid="pause-button"
           :disabled="actionInProgress"
           @click="onPause"
+          :aria-busy="pausing"
         >
-          {{ pausing ? 'Menyimpan…' : 'Pause' }}
+          <BusyLabel :busy="pausing" label="Pause" busy-label="Menyimpan…" icon-only />
         </button>
         <button
           type="button"
@@ -1017,8 +1034,9 @@ function goToMonitorEffluentPlant(): void {
           data-testid="clear-button"
           :disabled="actionInProgress"
           @click="onClearClick"
+          :aria-busy="clearing"
         >
-          {{ clearing ? 'Menghapus…' : 'Clear' }}
+          <BusyLabel :busy="clearing" label="Clear" busy-label="Menghapus…" icon-only />
         </button>
         <button
           type="button"
@@ -1026,8 +1044,9 @@ function goToMonitorEffluentPlant(): void {
           data-testid="save-button"
           :disabled="actionInProgress"
           @click="onSimpan"
+          :aria-busy="saving"
         >
-          {{ saving ? 'Menyimpan…' : 'Simpan' }}
+          <BusyLabel :busy="saving" label="Simpan" busy-label="Menyimpan…" icon-only />
         </button>
       </div>
     </footer>
@@ -1373,6 +1392,13 @@ function goToMonitorEffluentPlant(): void {
 .action-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Tombol yang sedang bekerja tetap berwarna penuh (spinner terbaca);
+   tombol lain yang ikut terkunci tetap redup. */
+.action-button[aria-busy='true']:disabled {
+  opacity: 1;
+  cursor: progress;
 }
 
 .action-button--icon {

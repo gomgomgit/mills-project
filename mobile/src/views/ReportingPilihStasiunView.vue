@@ -54,6 +54,7 @@ import { useAiAssistantStore } from '@/stores/aiAssistant'
 import { stationRepo, type StationSlot, type StationType } from '@/services/stationRepo'
 import { productionLineRepo } from '@/services/productionLineRepo'
 import { seedDefaultStationsIfNeeded } from '@/services/localSchema'
+import LoadingState from '@/components/loading/LoadingState.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -470,6 +471,11 @@ async function onLogout() {
         kesalahan teknis: pengguna yang baru masuk dan belum pernah membuka
         Daftar Stasiun memang belum punya data stasiun di perangkatnya.
       -->
+      <!-- Audit loading state 2026-10-05: pembacaan lokal + bootstrap dari
+           server (perangkat baru) dulu menampilkan layar kosong tanpa
+           tanda apa pun selama berjalan. -->
+      <LoadingState v-if="loading" variant="grid" :rows="6" test-id="station-grid-loading">Memuat daftar stasiun…</LoadingState>
+
       <p v-if="!loading && stations.length === 0" class="no-stations" data-testid="no-stations">
         Belum ada stasiun tersimpan di perangkat ini dan daftar stasiun belum bisa diambil dari
         server. Pastikan perangkat online, lalu buka layar Daftar Stasiun atau kembali ke sini.

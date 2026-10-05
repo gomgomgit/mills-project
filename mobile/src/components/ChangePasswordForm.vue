@@ -33,6 +33,7 @@ import { computed, reactive, ref } from 'vue'
 import apiClient, { type NormalizedApiError } from '@/services/apiClient'
 import { toDisplayMessage } from '@/services/errorHandler'
 import { useConnectivityGuard } from '@/composables/useConnectivityGuard'
+import BusyLabel from '@/components/loading/BusyLabel.vue'
 
 const OFFLINE_ACTION_MESSAGE = 'Tidak ada koneksi internet. Ganti password memerlukan koneksi internet.'
 
@@ -108,6 +109,11 @@ const OLD_PASSWORD_INCORRECT_MESSAGE = 'Password lama salah.'
 const PASSWORD_CONFIRMATION_MISMATCH_MESSAGE = 'Konfirmasi password tidak cocok dengan password baru.'
 
 async function onSubmit() {
+  // Penjaga kirim ganda (audit loading state 2026-10-05).
+  if (isSubmitting.value) {
+    return
+  }
+
   errorMessage.value = null
   successMessage.value = null
 
@@ -218,8 +224,8 @@ async function onSubmit() {
       </p>
     </div>
 
-    <button type="submit" class="submit-button" :disabled="isSubmitting">
-      {{ isSubmitting ? 'Memproses…' : 'Simpan' }}
+    <button type="submit" class="submit-button" :disabled="isSubmitting" :aria-busy="isSubmitting">
+      <BusyLabel :busy="isSubmitting" label="Simpan" busy-label="Memproses…" />
     </button>
   </form>
 </template>
@@ -290,6 +296,11 @@ input:disabled {
 .submit-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.submit-button[aria-busy='true']:disabled {
+  opacity: 1;
+  cursor: progress;
 }
 
 .banner {

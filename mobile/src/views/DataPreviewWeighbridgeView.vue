@@ -110,6 +110,7 @@ import { pullVerificationStatus } from '@/services/recordVerificationApi'
 import { toDateTimeLocalInputValue } from '@/utils/localDate'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
+import LoadingState from '@/components/loading/LoadingState.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -253,16 +254,23 @@ const detailNotFound = ref(false)
 const detailLoadErrorMessage = ref<string | null>(null)
 const detailRecord = ref<WeighbridgeRecord | null>(null)
 
+// Audit loading state 2026-10-05 — penanda kecil "Memperbarui status
+// verifikasi…" selama tarikan latar belakang di bawah berjalan.
+const verificationRefreshing = ref(false)
+
 /**
  * Audit 2026-10-04 — tarik status verifikasi terbaru dari server (Supervisor/
  * Mill Management bisa memverifikasi lewat web) lalu muat ulang record ini
  * bila ada yang berubah. Senyap bila offline / endpoint tidak tersedia.
  */
 function refreshVerificationInBackground(recordId: string): void {
+  verificationRefreshing.value = true
   void pullVerificationStatus('weighbridge', 'weighbridge_record', currentUserId()).then(async (changed) => {
     if (changed === 0 || detailRecord.value?.id !== recordId) return
     const fresh = await weighbridgeRecordRepo.getDraftById(recordId)
     if (fresh && detailRecord.value?.id === recordId) detailRecord.value = fresh
+  }).finally(() => {
+    verificationRefreshing.value = false
   })
 }
 
@@ -501,7 +509,7 @@ function goToMonitorWeighbridge(): void {
         @reset="onResetFilter"
       />
 
-      <p v-if="listLoading" class="status-text">Memuat daftar data timbangan lokal…</p>
+      <LoadingState v-if="listLoading" variant="list" test-id="list-loading">Memuat daftar data timbangan lokal…</LoadingState>
       <p v-else-if="listError" class="status-text status-text--error" role="alert">{{ listError }}</p>
 
       <section v-else class="record-list-section" aria-label="Daftar Data Timbangan">
@@ -532,7 +540,7 @@ function goToMonitorWeighbridge(): void {
 
     <!-- DETAIL mode -->
     <template v-else>
-      <p v-if="detailLoading" class="status-text">Memuat data timbangan…</p>
+      <LoadingState v-if="detailLoading" variant="form" :rows="4" test-id="detail-loading">Memuat data timbangan…</LoadingState>
       <p
         v-else-if="detailNotFound"
         class="status-text status-text--error"
@@ -584,6 +592,9 @@ function goToMonitorWeighbridge(): void {
           :verifier-name="detailRecord.acknowledged_by_name"
           pending-label="Belum dikonfirmasi Mill Management"
         />
+        <LoadingState v-if="verificationRefreshing" compact test-id="verification-refreshing">
+          Memperbarui status verifikasi…
+        </LoadingState>
       </div>
     </template>
 

@@ -4,12 +4,15 @@ import { watchEffect } from 'vue'
 import FloatingClock from '@/components/FloatingClock.vue'
 import AiAssistantPanel from '@/components/AiAssistantPanel.vue'
 import AiAssistantBubble from '@/components/AiAssistantBubble.vue'
+import LoadingOverlay from '@/components/loading/LoadingOverlay.vue'
 import { useAiAssistantStore } from '@/stores/aiAssistant'
+import { useAuthStore } from '@/stores/auth'
 import { useFloatingClockStore } from '@/stores/floatingClock'
 import { floatingSafeBottomPx } from '@/utils/floatingSafeArea'
 
 const aiAssistantStore = useAiAssistantStore()
 const floatingClockStore = useFloatingClockStore()
+const authStore = useAuthStore()
 
 // Ruang aman bawah untuk elemen mengambang (audit 2026-10-04): bubble AI
 // dan jam mengambang menutupi tombol footer (Load Data, Clear/Simpan),
@@ -41,6 +44,10 @@ watchEffect(() => {
   <FloatingClock />
   <AiAssistantBubble />
   <AiAssistantPanel />
+  <!-- Logout menunggu POST /api/logout dari menu yang sudah tertutup —
+       satu lapisan global alih-alih penanda di 49 layar (audit loading
+       state 2026-10-05). -->
+  <LoadingOverlay v-if="authStore.loggingOut" label="Keluar…" />
 </template>
 
 <style>

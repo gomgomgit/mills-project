@@ -73,6 +73,8 @@ import { sterilizerRecordRepo } from '@/services/sterilizerRecordRepo'
 import { syncAllRecords, type SyncSummary } from '@/services/syncService'
 import StationGrid from '@/components/StationGrid.vue'
 import SyncResultDialog from '@/components/SyncResultDialog.vue'
+import LoadingState from '@/components/loading/LoadingState.vue'
+import BusyLabel from '@/components/loading/BusyLabel.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -522,6 +524,12 @@ function goToHome() {
  * without disturbing the station grid underneath.
  */
 async function onSync() {
+  // Penjaga aksi ganda (audit loading state 2026-10-05): ketukan kedua
+  // selama sinkronisasi berjalan tidak memulai putaran sync kedua.
+  if (syncing.value) {
+    return
+  }
+
   syncing.value = true
   syncSummary.value = null
   syncErrorMessage.value = null
@@ -632,7 +640,7 @@ function closeSyncDialog() {
       </button>
     </div>
 
-    <p v-if="loading" class="status-text">Memuat daftar stasiun…</p>
+    <LoadingState v-if="loading" variant="grid" :rows="6" test-id="station-list-loading">Memuat daftar stasiun…</LoadingState>
     <p v-else-if="error" class="status-text status-text--error" role="alert">{{ error }}</p>
 
     <div v-else-if="showProductionLinePicker" class="production-line-picker" data-testid="production-line-picker">
@@ -677,9 +685,10 @@ function closeSyncDialog() {
         class="action-button action-button--primary"
         data-testid="sync-button"
         :disabled="syncing"
+        :aria-busy="syncing"
         @click="onSync"
       >
-        {{ syncing ? 'Menyinkronkan…' : 'Sinkronisasi' }}
+        <BusyLabel :busy="syncing" label="Sinkronisasi" busy-label="Menyinkronkan…" />
       </button>
     </footer>
 
@@ -852,6 +861,13 @@ function closeSyncDialog() {
 .action-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Tombol yang sedang bekerja tetap berwarna penuh (spinner terbaca);
+   tombol lain yang ikut terkunci tetap redup. */
+.action-button[aria-busy='true']:disabled {
+  opacity: 1;
+  cursor: progress;
 }
 
 .status-text {

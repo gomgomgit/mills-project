@@ -53,6 +53,12 @@ interface AuthState {
    * LoginForm menampilkan SESSION_REVOKED_MESSAGE selama ini true.
    */
   sessionRevoked: boolean
+  /**
+   * true selama logout() menunggu POST /api/logout (audit loading state
+   * 2026-10-05). App.vue menampilkan LoadingOverlay "Keluar…" selama ini
+   * true — menu navigasi sudah tertutup, jadi tanpa itu layar tampak diam.
+   */
+  loggingOut: boolean
 }
 
 /**
@@ -65,6 +71,9 @@ interface AuthState {
  * restoreSession() rehydrates this state from local storage on app start
  * without requiring network access.
  */
+/** Logout yang sedang berjalan — lihat logout(). */
+let pendingLogout: Promise<void> | null = null
+
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     user: null,
@@ -73,6 +82,7 @@ export const useAuthStore = defineStore('auth', {
     initialized: false,
     sessionExpiredOffline: false,
     sessionRevoked: false,
+    loggingOut: false,
   }),
 
   getters: {
@@ -150,20 +160,33 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async logout(): Promise<void> {
-      try {
-        if (this.token) {
-          await apiClient.post('/api/logout')
-        }
-      } catch {
-        // Best-effort — always clear local state even if the device is
-        // offline and can't reach the server to invalidate the token.
-      } finally {
-        this.user = null
-        this.token = null
-        this.businessUnit = null
-        this.sessionRevoked = false
-        tokenStorage.clear()
+      // Ketukan Logout kedua selama yang pertama masih berjalan menunggu
+      // logout yang sama — tidak mengirim POST /api/logout kedua.
+      if (pendingLogout) {
+        return pendingLogout
       }
+
+      this.loggingOut = true
+      pendingLogout = (async () => {
+        try {
+          if (this.token) {
+            await apiClient.post('/api/logout')
+          }
+        } catch {
+          // Best-effort — always clear local state even if the device is
+          // offline and can't reach the server to invalidate the token.
+        } finally {
+          this.user = null
+          this.token = null
+          this.businessUnit = null
+          this.sessionRevoked = false
+          tokenStorage.clear()
+          this.loggingOut = false
+          pendingLogout = null
+        }
+      })()
+
+      return pendingLogout
     },
 
     /**

@@ -138,6 +138,7 @@ import { pullVerificationStatus } from '@/services/recordVerificationApi'
 import { toDateInputValue, toLocalDateString } from '@/utils/localDate'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
+import LoadingState from '@/components/loading/LoadingState.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -305,16 +306,23 @@ function parameterName(row: GradingDetailRow): string {
   return parameterMap.value.get(row.grading_parameter_id)?.name ?? '-'
 }
 
+// Audit loading state 2026-10-05 — penanda kecil "Memperbarui status
+// verifikasi…" selama tarikan latar belakang di bawah berjalan.
+const verificationRefreshing = ref(false)
+
 /**
  * Audit 2026-10-04 — tarik status verifikasi terbaru dari server (Supervisor/
  * Mill Management bisa memverifikasi lewat web) lalu muat ulang record ini
  * bila ada yang berubah. Senyap bila offline / endpoint tidak tersedia.
  */
 function refreshVerificationInBackground(recordId: string): void {
+  verificationRefreshing.value = true
   void pullVerificationStatus('grading', 'grading_record', currentUserId()).then(async (changed) => {
     if (changed === 0 || detailRecord.value?.id !== recordId) return
     const fresh = await gradingRecordRepo.getDraftWithDetails(recordId)
     if (fresh && detailRecord.value?.id === recordId) detailRecord.value = fresh.record
+  }).finally(() => {
+    verificationRefreshing.value = false
   })
 }
 
@@ -554,7 +562,7 @@ function goToMonitorGrading(): void {
         @reset="onResetFilter"
       />
 
-      <p v-if="listLoading" class="status-text">Memuat daftar data grading lokal…</p>
+      <LoadingState v-if="listLoading" variant="list" test-id="list-loading">Memuat daftar data grading lokal…</LoadingState>
       <p v-else-if="listError" class="status-text status-text--error" role="alert">{{ listError }}</p>
 
       <section v-else class="record-list-section" aria-label="Daftar Data Grading">
@@ -585,7 +593,7 @@ function goToMonitorGrading(): void {
 
     <!-- DETAIL mode -->
     <template v-else>
-      <p v-if="detailLoading" class="status-text">Memuat data grading…</p>
+      <LoadingState v-if="detailLoading" variant="form" :rows="4" test-id="detail-loading">Memuat data grading…</LoadingState>
       <p
         v-else-if="detailNotFound"
         class="status-text status-text--error"
@@ -618,6 +626,9 @@ function goToMonitorGrading(): void {
           :verifier-name="detailRecord.acknowledged_by_name"
           pending-label="Belum dikonfirmasi Mill Management"
         />
+        <LoadingState v-if="verificationRefreshing" compact test-id="verification-refreshing">
+          Memperbarui status verifikasi…
+        </LoadingState>
 
         <!-- business_logic step 2 — grading_detail rows, read-only. A
              simple read-only list is enough for this screen's needs (the

@@ -812,6 +812,53 @@ describe('StationListView — draft-status-by-type detection', () => {
       expect(wrapper.find('[data-testid="sync-dialog-message"]').exists()).toBe(false)
     })
 
+    it('ketukan ganda Sinkronisasi memulai tepat satu sync; tombol aria-busy + spinner (audit loading state 2026-10-05)', async () => {
+      getActiveAndPlaceholderStationsMock.mockResolvedValue([])
+      let resolveSync!: (value: unknown) => void
+      syncAllRecordsMock.mockReturnValue(
+        new Promise((resolve) => {
+          resolveSync = resolve
+        }),
+      )
+
+      const wrapper = mount(StationListView)
+      await flushPromises()
+
+      const button = wrapper.get('[data-testid="sync-button"]')
+      void button.trigger('click')
+      void button.trigger('click')
+      await flushPromises()
+
+      expect(syncAllRecordsMock).toHaveBeenCalledTimes(1)
+      expect(button.attributes('aria-busy')).toBe('true')
+      expect(button.text()).toBe('Menyinkronkan…')
+      expect(button.find('[data-testid="loading-spinner"]').exists()).toBe(true)
+
+      resolveSync({ byStation: {}, items: [], syncedCount: 0, failedCount: 0 })
+      await flushPromises()
+      expect(button.attributes('aria-busy')).toBe('false')
+    })
+
+    it('menampilkan LoadingState grid selama daftar stasiun dimuat', async () => {
+      let resolveStations!: (value: unknown) => void
+      getActiveAndPlaceholderStationsMock.mockReturnValue(
+        new Promise((resolve) => {
+          resolveStations = resolve
+        }),
+      )
+
+      const wrapper = mount(StationListView)
+      await flushPromises()
+
+      const loading = wrapper.get('[data-testid="station-list-loading"]')
+      expect(loading.attributes('role')).toBe('status')
+      expect(loading.findAll('.loading-skeleton-block--grid')).toHaveLength(6)
+
+      resolveStations([])
+      await flushPromises()
+      expect(wrapper.find('[data-testid="station-list-loading"]').exists()).toBe(false)
+    })
+
     it('shows a combined success/failure summary with per-item reasons in the popup', async () => {
       getActiveAndPlaceholderStationsMock.mockResolvedValue([])
       syncAllRecordsMock.mockResolvedValue({

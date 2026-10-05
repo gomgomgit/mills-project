@@ -1710,3 +1710,101 @@ describe('LaporanSterilizerView — Production Line wajib (screen-135)', () => {
     expect(exists(wrapper, 'production-line-unavailable')).toBe(false)
   })
 })
+
+/* ------------------------------------------------------------------ */
+/* Loading state (audit loading state 2026-10-05)                      */
+/* ------------------------------------------------------------------ */
+
+describe('LaporanSterilizerView — loading state (audit loading state 2026-10-05)', () => {
+  /** Menahan GET yang URL-nya cocok sampai release() (opsional: payload data lain). */
+  function gate(kind: 'lines' | 'periods' | 'summary' | 'export') {
+    const fragment = {
+      lines: '/api/production-lines/options-for-report',
+      periods: '/periods',
+      summary: '/summary',
+      export: '/export',
+    }[kind]
+    const original = apiGetMock.getMockImplementation()!
+    let open!: () => void
+    const opened = new Promise<void>((resolve) => {
+      open = resolve
+    })
+    let override: unknown = undefined
+    let overridden = false
+    apiGetMock.mockImplementation(async (url: string, config?: { params?: Record<string, unknown> }) => {
+      if (String(url).includes(fragment)) {
+        await opened
+        if (overridden) return { data: override }
+      }
+      return original(url, config)
+    })
+    return {
+      release(value?: unknown) {
+        if (arguments.length > 0) {
+          overridden = true
+          override = { data: value }
+        }
+        open()
+      },
+    }
+  }
+
+  const exportCalls = () => apiGetMock.mock.calls.filter(([url]) => String(url).includes('/export')).length
+
+  it('selama daftar line/periode dimuat: LoadingState, BUKAN "belum memiliki periode"', async () => {
+    const lines = gate('lines')
+    const periods = gate('periods')
+    const wrapper = await mountView()
+
+    expect(exists(wrapper, 'no-periods')).toBe(false)
+    expect(exists(wrapper, 'production-lines-loading')).toBe(true)
+
+    lines.release()
+    await flushPromises()
+    expect(exists(wrapper, 'production-lines-loading')).toBe(false)
+    expect(exists(wrapper, 'periods-loading')).toBe(true)
+    expect(exists(wrapper, 'no-periods')).toBe(false)
+
+    periods.release([])
+    await flushPromises()
+    expect(exists(wrapper, 'periods-loading')).toBe(false)
+    // Setelah selesai dan memang kosong, arahan tetap muncul seperti biasa.
+    expect(exists(wrapper, 'no-periods')).toBe(true)
+  })
+
+  it('ringkasan: LoadingState variant card selama ringkasan periode dimuat', async () => {
+    const wrapper = await mountView()
+    const pending = gate('summary')
+    await wrapper.get('[data-testid="period-select"]').setValue('per-1')
+    await flushPromises()
+
+    const loading = wrapper.get('[data-testid="summary-loading"]')
+    expect(loading.attributes('role')).toBe('status')
+    expect(loading.find('.loading-skeleton-block--card').exists()).toBe(true)
+
+    pending.release()
+    await flushPromises()
+    expect(exists(wrapper, 'summary-loading')).toBe(false)
+  })
+
+  it('ketukan ganda Ekspor CSV hanya satu ekspor; tombol sibuk "Mengekspor…" dengan spinner', async () => {
+    const wrapper = await mountView()
+    await selectPeriod(wrapper, 'per-1')
+    const pending = gate('export')
+
+    const button = wrapper.get('[data-testid="export-button"]')
+    void button.trigger('click')
+    void button.trigger('click')
+    await flushPromises()
+
+    expect(exportCalls()).toBe(1)
+    expect(button.attributes('aria-busy')).toBe('true')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.text()).toBe('Mengekspor…')
+    expect(button.find('[data-testid="loading-spinner"]').exists()).toBe(true)
+
+    pending.release()
+    await flushPromises()
+    expect(button.text()).toBe('Ekspor CSV')
+  })
+})

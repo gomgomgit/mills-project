@@ -163,6 +163,8 @@ import { getMachineryCountForCagesTrackStation } from '@/services/stationRepo'
 import FormField from '@/components/FormField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import SearchableSelect, { type SearchableSelectOption } from '@/components/SearchableSelect.vue'
+import LoadingState from '@/components/loading/LoadingState.vue'
+import BusyLabel from '@/components/loading/BusyLabel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -637,6 +639,12 @@ function buildTippedTimeRowsPayload(): CagesTippedTimeFormRow[] {
 
 // business_logic step 11 — 'Simpan'.
 async function onSimpan(): Promise<void> {
+  // Penjaga aksi ganda (audit loading state 2026-10-05): ketukan kedua
+  // selama Simpan/Pause/Clear masih berjalan diabaikan.
+  if (actionInProgress.value) {
+    return
+  }
+
   actionErrorMessage.value = null
 
   const headerValid = validateHeader()
@@ -662,7 +670,7 @@ async function onSimpan(): Promise<void> {
       [...pendingDeletionIds.value],
       authStore.currentUser?.role,
     )
-    router.push({ name: 'monitor-cages-track' })
+    await router.push({ name: 'monitor-cages-track' })
   } catch (err) {
     if (err instanceof CagesTippedTimeRequiredError) {
       // Defense-in-depth fallback — validateTippedTimeRows() above should
@@ -683,6 +691,10 @@ async function onSimpan(): Promise<void> {
 // `form.tippler_stop_time` currently holds — blank on a fresh draft — is
 // persisted as-is).
 async function onPause(): Promise<void> {
+  if (actionInProgress.value) {
+    return
+  }
+
   actionErrorMessage.value = null
   pausing.value = true
 
@@ -694,7 +706,7 @@ async function onPause(): Promise<void> {
       [...pendingDeletionIds.value],
       authStore.currentUser?.role,
     )
-    router.push({ name: 'monitor-cages-track' })
+    await router.push({ name: 'monitor-cages-track' })
   } catch (err) {
     actionErrorMessage.value = err instanceof Error ? err.message : 'Gagal menyimpan progres (Pause).'
   } finally {
@@ -708,13 +720,17 @@ function onClearClick(): void {
 }
 
 async function onClearConfirm(): Promise<void> {
+  if (actionInProgress.value) {
+    return
+  }
+
   clearDialogOpen.value = false
   actionErrorMessage.value = null
   clearing.value = true
 
   try {
     await cagesTrackRecordRepo.deleteDraft(recordId)
-    router.push({ name: 'monitor-cages-track' })
+    await router.push({ name: 'monitor-cages-track' })
   } catch (err) {
     actionErrorMessage.value = err instanceof Error ? err.message : 'Gagal menghapus draft cages track.'
   } finally {
@@ -882,7 +898,7 @@ function goToMonitorCagesTrack(): void {
       <h1 class="screen-title">Form Cages Track</h1>
     </div>
 
-    <p v-if="loading" class="status-text">Memuat draft cages track…</p>
+    <LoadingState v-if="loading" variant="form" :rows="4" test-id="form-loading">Memuat draft cages track…</LoadingState>
     <p v-else-if="notFound" class="status-text status-text--error" role="alert">
       Draft cages track tidak ditemukan.
     </p>
@@ -1058,8 +1074,9 @@ function goToMonitorCagesTrack(): void {
           data-testid="pause-button"
           :disabled="actionInProgress"
           @click="onPause"
+          :aria-busy="pausing"
         >
-          {{ pausing ? 'Menyimpan…' : 'Pause' }}
+          <BusyLabel :busy="pausing" label="Pause" busy-label="Menyimpan…" icon-only />
         </button>
         <button
           type="button"
@@ -1067,8 +1084,9 @@ function goToMonitorCagesTrack(): void {
           data-testid="clear-button"
           :disabled="actionInProgress"
           @click="onClearClick"
+          :aria-busy="clearing"
         >
-          {{ clearing ? 'Menghapus…' : 'Clear' }}
+          <BusyLabel :busy="clearing" label="Clear" busy-label="Menghapus…" icon-only />
         </button>
         <button
           type="button"
@@ -1076,8 +1094,9 @@ function goToMonitorCagesTrack(): void {
           data-testid="save-button"
           :disabled="actionInProgress"
           @click="onSimpan"
+          :aria-busy="saving"
         >
-          {{ saving ? 'Menyimpan…' : 'Simpan' }}
+          <BusyLabel :busy="saving" label="Simpan" busy-label="Menyimpan…" icon-only />
         </button>
       </div>
     </footer>
@@ -1434,6 +1453,13 @@ function goToMonitorCagesTrack(): void {
 .action-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Tombol yang sedang bekerja tetap berwarna penuh (spinner terbaca);
+   tombol lain yang ikut terkunci tetap redup. */
+.action-button[aria-busy='true']:disabled {
+  opacity: 1;
+  cursor: progress;
 }
 
 .action-button--icon {

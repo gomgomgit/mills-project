@@ -26,6 +26,7 @@ import { type NormalizedApiError } from '@/services/apiClient'
 import { SESSION_REVOKED_MESSAGE, toDisplayMessage } from '@/services/errorHandler'
 import { useAuthStore } from '@/stores/auth'
 import { useConnectivityGuard } from '@/composables/useConnectivityGuard'
+import BusyLabel from '@/components/loading/BusyLabel.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -77,6 +78,11 @@ function validate(): boolean {
 const isSubmitting = computed(() => status.value === 'submitting')
 
 async function onSubmit() {
+  // Penjaga kirim ganda (audit loading state 2026-10-05).
+  if (isSubmitting.value) {
+    return
+  }
+
   errorMessage.value = null
 
   // "Tidak Ada Koneksi Saat Login Pertama" — client-side only, no API call.
@@ -184,8 +190,8 @@ async function onSubmit() {
       <p v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</p>
     </div>
 
-    <button type="submit" class="submit-button" :disabled="isSubmitting">
-      {{ isSubmitting ? 'Memproses…' : 'Login' }}
+    <button type="submit" class="submit-button" :disabled="isSubmitting" :aria-busy="isSubmitting">
+      <BusyLabel :busy="isSubmitting" label="Login" busy-label="Memproses…" />
     </button>
 
     <a href="#" class="forgot-password-link" aria-disabled="true" @click.prevent>
@@ -287,6 +293,11 @@ input:disabled {
 .submit-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.submit-button[aria-busy='true']:disabled {
+  opacity: 1;
+  cursor: progress;
 }
 
 .forgot-password-link {

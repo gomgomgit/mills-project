@@ -30,6 +30,9 @@ import {
   type KernelDispatchTodaySummary,
 } from '@/services/kernelDispatchRecordRepo'
 import StatusBadge from '@/components/StatusBadge.vue'
+import LoadingState from '@/components/loading/LoadingState.vue'
+import BusyLabel from '@/components/loading/BusyLabel.vue'
+import { useBusyAction } from '@/composables/useBusyAction'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -104,19 +107,27 @@ function draftLabel(draft: KernelDispatchDraftListItem): string {
   return draft.kernel_dispatch_id?.trim() ? draft.kernel_dispatch_id : 'Kernel Dispatch ID belum diisi'
 }
 
+// Audit loading state 2026-10-05 — ketukan ganda pada New Data dulu
+// membuat DUA draft kosong. useBusyAction menolak ketukan kedua selama
+// createDraft() + navigasi ke Form masih berjalan; tombolnya menampilkan
+// "Membuat…" selama itu.
+const { busy: creatingDraft, run: runCreateDraft } = useBusyAction()
+
 async function onNewData() {
-  const userId = currentUserId()
+  await runCreateDraft(async () => {
+    const userId = currentUserId()
 
-  if (!userId) {
-    return
-  }
+    if (!userId) {
+      return
+    }
 
-  try {
-    const id = await kernelDispatchRecordRepo.createDraft(userId)
-    router.push({ name: 'kernel-dispatch-form', params: { id } })
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Gagal membuat draft kernel dispatch baru.'
-  }
+    try {
+      const id = await kernelDispatchRecordRepo.createDraft(userId)
+      await router.push({ name: 'kernel-dispatch-form', params: { id } })
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Gagal membuat draft kernel dispatch baru.'
+    }
+  })
 }
 
 function onDraftClick(draft: KernelDispatchDraftListItem) {
@@ -225,7 +236,7 @@ function goToStationList() {
       </div>
     </section>
 
-    <p v-if="loading" class="status-text">Memuat daftar draft kernel dispatch lokal…</p>
+    <LoadingState v-if="loading" variant="list" test-id="draft-list-loading">Memuat daftar draft kernel dispatch lokal…</LoadingState>
     <p v-else-if="error" class="status-text status-text--error" role="alert">{{ error }}</p>
 
     <section v-else class="draft-list-section" aria-label="Daftar Draft Kernel Dispatch">
@@ -253,8 +264,8 @@ function goToStationList() {
         </button>
       </div>
 
-      <button type="button" class="action-button action-button--primary" data-testid="new-data-button" @click="onNewData">
-        New Data
+      <button type="button" class="action-button action-button--primary" data-testid="new-data-button" :disabled="creatingDraft" :aria-busy="creatingDraft" @click="onNewData">
+        <BusyLabel :busy="creatingDraft" label="New Data" busy-label="Membuat…" />
       </button>
     </footer>
   </main>
@@ -288,6 +299,14 @@ function goToStationList() {
 .action-footer { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
 .action-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .action-button { min-height: 44px; border-radius: 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; box-sizing: border-box; }
+.action-button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Tombol yang sedang bekerja tetap berwarna penuh (spinner terbaca);
+   tombol lain yang ikut terkunci tetap redup. */
+.action-button[aria-busy='true']:disabled {
+  opacity: 1;
+  cursor: progress;
+}
 .action-button--secondary { border: 1px solid #e5e7eb; background: #ffffff; color: #1f2937; }
 .action-button--primary { border: none; background: #249360; color: #ffffff; font-size: 16px; }
 </style>

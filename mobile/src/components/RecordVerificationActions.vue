@@ -16,6 +16,7 @@
  */
 import { computed, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import BusyLabel from '@/components/loading/BusyLabel.vue'
 import {
   isNetworkError,
   serverIdOf,
@@ -94,9 +95,10 @@ async function toggle(level: VerificationLevel): Promise<void> {
       :class="isChecked ? 'rv-actions__button--undo' : 'rv-actions__button--approve'"
       :disabled="busy !== null || notSynced"
       data-testid="toggle-checked-button"
+      :aria-busy="busy === 'checked'"
       @click="toggle('checked')"
     >
-      {{ isChecked ? 'Batalkan tanda diperiksa' : 'Tandai sudah diperiksa' }}
+      <BusyLabel :busy="busy === 'checked'" :label="isChecked ? 'Batalkan tanda diperiksa' : 'Tandai sudah diperiksa'" busy-label="Menyimpan…" />
     </button>
 
     <button
@@ -106,9 +108,10 @@ async function toggle(level: VerificationLevel): Promise<void> {
       :class="isAcknowledged ? 'rv-actions__button--undo' : 'rv-actions__button--approve'"
       :disabled="busy !== null || notSynced"
       data-testid="toggle-acknowledged-button"
+      :aria-busy="busy === 'acknowledged'"
       @click="toggle('acknowledged')"
     >
-      {{ isAcknowledged ? 'Batalkan tanda dikonfirmasi' : 'Tandai sudah dikonfirmasi' }}
+      <BusyLabel :busy="busy === 'acknowledged'" :label="isAcknowledged ? 'Batalkan tanda dikonfirmasi' : 'Tandai sudah dikonfirmasi'" busy-label="Menyimpan…" />
     </button>
 
     <p
@@ -154,6 +157,11 @@ async function toggle(level: VerificationLevel): Promise<void> {
 
 .rv-actions__button:disabled {
   opacity: 0.5;
+}
+
+.rv-actions__button[aria-busy='true']:disabled {
+  opacity: 1;
+  cursor: progress;
 }
 
 .rv-actions__note,

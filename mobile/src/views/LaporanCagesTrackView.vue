@@ -52,6 +52,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import FilterPanel from '@/components/filters/FilterPanel.vue'
+import LoadingState from '@/components/loading/LoadingState.vue'
+import BusyLabel from '@/components/loading/BusyLabel.vue'
 import FilterSelectField from '@/components/filters/FilterSelectField.vue'
 import FilterChip from '@/components/filters/FilterChip.vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -361,12 +363,20 @@ const selectedPeriodId = ref<string | null>(null)
 const summary = ref<CagesTrackReportSummary | null>(null)
 
 const loadingPeriods = ref(false)
+/**
+ * Daftar periode sudah pernah selesai dimuat untuk mill ini (audit loading
+ * state 2026-10-05). Tanpa ini "Mill ini belum memiliki periode" tampil
+ * selama daftar line/periode MASIH dimuat — daftar kosong saat memuat
+ * terbaca sebagai "tidak ada periode".
+ */
+const periodsLoaded = ref(false)
 const loadingSummary = ref(false)
 const exporting = ref(false)
 
 /** Daftar periode kosong — arahan menghubungi Admin, bukan pesan galat. */
 const noPeriods = computed(
   () =>
+    periodsLoaded.value &&
     !loadingPeriods.value &&
     !noMillForAccount.value &&
     !millRequired.value &&
@@ -509,6 +519,7 @@ async function loadPeriods(): Promise<void> {
     handleError(error, loadPeriods)
   } finally {
     loadingPeriods.value = false
+    periodsLoaded.value = true
   }
 }
 
@@ -547,6 +558,7 @@ async function onPeriodChange(): Promise<void> {
 async function onBusinessUnitChange(): Promise<void> {
   clearErrors()
   periods.value = []
+  periodsLoaded.value = false
   selectedPeriodId.value = null
   summary.value = null
   // Line milik mill LAMA tidak boleh tertinggal: sebuah Production Line
@@ -972,7 +984,8 @@ function onBack(): void {
         Silakan hubungi Admin untuk membuat periode pelaporan terlebih dahulu.
       </p>
 
-      <p v-if="loadingPeriods" class="status-text">Memuat daftar periode…</p>
+      <LoadingState v-if="loadingProductionLines" test-id="production-lines-loading">Memuat daftar Production Line…</LoadingState>
+      <LoadingState v-if="loadingPeriods" test-id="periods-loading">Memuat daftar periode…</LoadingState>
 
       <!-- Kegagalan jaringan: dikatakan terus terang, dengan cara mencoba
            lagi. Periode yang sudah dipilih tetap terpilih. -->
@@ -993,7 +1006,7 @@ function onBack(): void {
         {{ errorMessage }}
       </p>
 
-      <p v-if="loadingSummary" class="status-text">Memuat ringkasan periode…</p>
+      <LoadingState v-if="loadingSummary" variant="card" test-id="summary-loading">Memuat ringkasan periode…</LoadingState>
 
       <template v-if="hasReport">
         <!-- Keterangan periode: rentang tanggal + status sebagai catatan. -->
@@ -1291,10 +1304,11 @@ function onBack(): void {
           type="button"
           class="action-button action-button--primary"
           data-testid="export-button"
+          :disabled="exporting"
           :aria-busy="exporting"
           @click="onExport"
         >
-          Ekspor CSV
+          <BusyLabel :busy="exporting" label="Ekspor CSV" busy-label="Mengekspor…" />
         </button>
         <button type="button" class="action-button action-button--secondary" data-testid="back-button" @click="onBack">
           Back
@@ -1396,5 +1410,13 @@ function onBack(): void {
 .action-footer { display: flex; gap: 10px; margin-top: auto; }
 .action-button { min-height: 44px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; box-sizing: border-box; }
 .action-button--primary { border: 1px solid #249360; background: #249360; color: #ffffff; }
+.action-button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Tombol yang sedang bekerja tetap berwarna penuh (spinner terbaca);
+   tombol lain yang ikut terkunci tetap redup. */
+.action-button[aria-busy='true']:disabled {
+  opacity: 1;
+  cursor: progress;
+}
 .action-button--secondary { border: 1px solid #e5e7eb; background: #ffffff; color: #1f2937; }
 </style>

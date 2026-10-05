@@ -3,6 +3,7 @@
 namespace App\Livewire\MasterData;
 
 use App\Exceptions\BusinessUnitHasStationsException;
+use App\Livewire\Concerns\HasFilterReset;
 use App\Livewire\Concerns\ValidatesUploadOnSelect;
 use App\Models\BusinessUnit;
 use App\Rules\RealImage;
@@ -55,6 +56,7 @@ use Livewire\WithFileUploads;
 #[Layout('master-data.business-units')]
 class KelolaBusinessUnit extends Component
 {
+    use HasFilterReset;
     use ValidatesUploadOnSelect;
     use WithFileUploads;
 
@@ -434,6 +436,19 @@ class KelolaBusinessUnit extends Component
         if ($this->page > 1) {
             $this->page--;
         }
+    }
+
+    /**
+     * Bawaan filter untuk "Reset filter" (x-filter.bar) — sama dengan
+     * deklarasi properti di atas.
+     *
+     * @return array<string, string>
+     */
+    protected function filterDefaults(): array
+    {
+        return [
+            'filterCompanyId' => '',
+        ];
     }
 
     public function render()

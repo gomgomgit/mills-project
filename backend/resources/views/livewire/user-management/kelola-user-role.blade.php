@@ -22,25 +22,26 @@
         </div>
     @endif
 
-    <div class="kc-filter">
-        <label for="filterRole" class="kc-filter__label">Filter Role</label>
-        <x-searchable-select
-            id="filterRole"
-            wire:model.live="filterRole"
-            :options="collect($roleOptions)->map(fn ($role) => ['value' => $role->value, 'label' => $role->label()])->all()"
-            placeholder="Semua Role"
-            class="kc-form-field__input kc-filter__select"
-        />
-
-        <label for="filterBusinessUnitId" class="kc-filter__label">Filter Business Unit</label>
-        <x-searchable-select
-            id="filterBusinessUnitId"
-            wire:model.live="filterBusinessUnitId"
-            :options="collect($businessUnitOptions)->map(fn ($bu) => ['value' => $bu->id, 'label' => $bu->name])->all()"
-            placeholder="Semua Business Unit"
-            class="kc-form-field__input kc-filter__select"
-        />
-    </div>
+    <x-filter.bar label="Filter user" :total="$meta['total']" noun="user" :active="$this->activeFilterCount()" reset="resetFilters">
+        <x-filter.field label="Role" for="filterRole" icon="user">
+            <x-searchable-select
+                id="filterRole"
+                wire:model.live="filterRole"
+                :options="collect($roleOptions)->map(fn ($role) => ['value' => $role->value, 'label' => $role->label()])->all()"
+                placeholder="Semua Role"
+                class="fb-control"
+            />
+        </x-filter.field>
+        <x-filter.field label="Business Unit" for="filterBusinessUnitId" icon="mill" size="lg">
+            <x-searchable-select
+                id="filterBusinessUnitId"
+                wire:model.live="filterBusinessUnitId"
+                :options="collect($businessUnitOptions)->map(fn ($bu) => ['value' => $bu->id, 'label' => $bu->name])->all()"
+                placeholder="Semua Business Unit"
+                class="fb-control"
+            />
+        </x-filter.field>
+    </x-filter.bar>
 
     <div class="kc-table-wrap">
         <table class="kc-table">
@@ -322,24 +323,6 @@
             font-size: 14px;
             font-weight: 600;
             color: var(--kc-text);
-        }
-
-        .kc-filter {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-        }
-
-        .kc-filter__label {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--kc-text-muted);
-        }
-
-        .kc-filter__select {
-            max-width: 260px;
         }
 
         .kc-table-wrap {

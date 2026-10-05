@@ -5,6 +5,7 @@ namespace App\Livewire\MasterData;
 use App\Enums\PeriodStatus;
 use App\Exceptions\PeriodClosedImmutableException;
 use App\Exceptions\PeriodOverlapException;
+use App\Livewire\Concerns\HasFilterReset;
 use App\Models\Period;
 use App\Models\PeriodStation;
 use App\Services\PeriodService;
@@ -93,6 +94,8 @@ use Livewire\Component;
 #[Layout('master-data.periods')]
 class KelolaPeriodePelaporan extends Component
 {
+    use HasFilterReset;
+
     public int $page = 1;
 
     public int $perPage = 20;
@@ -389,6 +392,20 @@ class KelolaPeriodePelaporan extends Component
             ],
             $service->activeStationTypesForMill($this->business_unit_id)
         );
+    }
+
+    /**
+     * Bawaan filter untuk "Reset filter" (x-filter.bar) — sama dengan
+     * deklarasi properti di atas.
+     *
+     * @return array<string, string>
+     */
+    protected function filterDefaults(): array
+    {
+        return [
+            'filterBusinessUnitId' => '',
+            'filterStatus' => '',
+        ];
     }
 
     public function render()

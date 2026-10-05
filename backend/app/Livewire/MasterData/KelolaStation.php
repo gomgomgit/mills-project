@@ -4,6 +4,7 @@ namespace App\Livewire\MasterData;
 
 use App\Enums\StationType;
 use App\Exceptions\StationHasMachineryException;
+use App\Livewire\Concerns\HasFilterReset;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Rules\UniqueCaseInsensitive;
@@ -53,6 +54,8 @@ use Livewire\Component;
 #[Layout('master-data.stations')]
 class KelolaStation extends Component
 {
+    use HasFilterReset;
+
     public int $page = 1;
 
     public int $perPage = 20;
@@ -469,6 +472,20 @@ class KelolaStation extends Component
         if ($this->page > 1) {
             $this->page--;
         }
+    }
+
+    /**
+     * Bawaan filter untuk "Reset filter" (x-filter.bar) — sama dengan
+     * deklarasi properti di atas.
+     *
+     * @return array<string, string>
+     */
+    protected function filterDefaults(): array
+    {
+        return [
+            'filterBusinessUnitId' => '',
+            'filterProductionLineId' => '',
+        ];
     }
 
     public function render()

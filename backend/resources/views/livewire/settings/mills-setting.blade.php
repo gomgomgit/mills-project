@@ -15,16 +15,19 @@
     @endif
 
     @if ($isAdmin)
-        <div class="ms-filter">
-            <label for="selectedBusinessUnitId" class="ms-filter__label">Pilih Mill</label>
-            <x-searchable-select
-                id="selectedBusinessUnitId"
-                wire:model.live="selectedBusinessUnitId"
-                :options="collect($businessUnitOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
-                placeholder="— Pilih mill —"
-                class="ms-form-field__input ms-filter__select"
-            />
-        </div>
+        {{-- Pemilih mill HANYA untuk Admin (akun lain selalu mengatur mill
+             akunnya sendiri). Memakai x-filter.bar bersama. --}}
+        <x-filter.bar label="Pilih mill">
+            <x-filter.field label="Mill" for="selectedBusinessUnitId" icon="mill" size="lg">
+                <x-searchable-select
+                    id="selectedBusinessUnitId"
+                    wire:model.live="selectedBusinessUnitId"
+                    :options="collect($businessUnitOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
+                    placeholder="Pilih mill"
+                    class="fb-control"
+                />
+            </x-filter.field>
+        </x-filter.bar>
     @endif
 
     @if ($selectedBusinessUnitId === '')
@@ -162,8 +165,9 @@
            `ms-` prefix (Mills Setting) — class set adapted from
            kelola-business-unit.blade.php's `kc-` set (form-field/button/
            alert/empty/table patterns reused verbatim, renamed), plus new
-           `ms-image-field`/`ms-filter` rules specific to this screen's
-           dual-image-upload + Admin mill-picker layout. */
+           `ms-image-field` rules specific to this screen's dual-image-upload
+           layout. The Admin mill picker uses the shared x-filter.bar
+           (components/filter-assets.blade.php). */
         .ms-page {
             --ms-brand: #249360;
             --ms-brand-hover: #1d7a4e;
@@ -210,23 +214,6 @@
             background: #f0fdf4;
             border: 1px solid var(--ms-success);
             color: var(--ms-success);
-        }
-
-        .ms-filter {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .ms-filter__label {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--ms-text-muted);
-        }
-
-        .ms-filter__select {
-            max-width: 320px;
         }
 
         .ms-form-section {

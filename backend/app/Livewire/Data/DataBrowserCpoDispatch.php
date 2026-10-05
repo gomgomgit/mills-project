@@ -3,6 +3,7 @@
 namespace App\Livewire\Data;
 
 use App\Exceptions\InvalidDateRangeException;
+use App\Livewire\Concerns\HasFilterReset;
 use App\Services\CpoDispatchRecordService;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +18,7 @@ use Livewire\Component;
 #[Layout('data.cpo-dispatch')]
 class DataBrowserCpoDispatch extends Component
 {
+    use HasFilterReset;
     use ScopesToActorMill;
 
     public string $date_from = '';
@@ -65,6 +67,23 @@ class DataBrowserCpoDispatch extends Component
     public function updatedProductionLineId(): void
     {
         $this->resetToFirstPage();
+    }
+
+    /**
+     * Bawaan filter untuk "Reset filter" (x-filter.bar) — sama dengan
+     * deklarasi properti di atas. Mill akun terikat dipaku ulang oleh
+     * render(), jadi mengosongkannya di sini tidak melebarkan cakupan.
+     *
+     * @return array<string, string>
+     */
+    protected function filterDefaults(): array
+    {
+        return [
+            'date_from' => '',
+            'date_to' => '',
+            'business_unit_id' => '',
+            'production_line_id' => '',
+        ];
     }
 
     protected function resetToFirstPage(): void

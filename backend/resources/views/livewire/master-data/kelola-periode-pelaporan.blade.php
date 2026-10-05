@@ -69,27 +69,25 @@
         </div>
     @endif
 
-    <div class="kc-filter">
-        <div class="kc-filter__group">
-            <label for="filterBusinessUnitId" class="kc-filter__label">Business Unit</label>
+    <x-filter.bar label="Filter periode" :total="$meta['total']" noun="periode" :active="$this->activeFilterCount()" reset="resetFilters">
+        <x-filter.field label="Business Unit" for="filterBusinessUnitId" icon="mill" size="lg">
             <x-searchable-select
                 id="filterBusinessUnitId"
                 wire:model.live="filterBusinessUnitId"
                 :options="collect($businessUnitOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
                 placeholder="Semua Business Unit"
-                class="kc-form-field__input kc-filter__select"
+                class="fb-control"
                 data-testid="filter-business-unit"
             />
-        </div>
+        </x-filter.field>
 
-        <div class="kc-filter__group">
-            <label for="filterStatus" class="kc-filter__label">Status Stasiun</label>
-            {{--
-                The filter matches a period with AT LEAST ONE station in the
-                chosen status (PeriodService::listPeriods()), so one period can
-                appear under two values — the label says "Status Stasiun" to
-                stop it being read as a status of the period itself.
-            --}}
+        {{--
+            The filter matches a period with AT LEAST ONE station in the
+            chosen status (PeriodService::listPeriods()), so one period can
+            appear under two values — the label says "Status Stasiun" to
+            stop it being read as a status of the period itself.
+        --}}
+        <x-filter.field label="Status Stasiun" for="filterStatus" icon="status">
             <x-searchable-select
                 id="filterStatus"
                 wire:model.live="filterStatus"
@@ -99,11 +97,11 @@
                     ['value' => 'closed', 'label' => 'Tertutup'],
                 ]"
                 placeholder="Semua Status"
-                class="kc-form-field__input kc-filter__select"
+                class="fb-control"
                 data-testid="filter-status"
             />
-        </div>
-    </div>
+        </x-filter.field>
+    </x-filter.bar>
 
     {{--
         Panel "Periode Terbuka Hari Ini per Mill" (business spec v5).
@@ -545,31 +543,6 @@
             background: #ecfdf5;
             border-color: var(--kc-brand);
             color: var(--kc-brand-hover);
-        }
-
-        .kc-filter {
-            display: flex;
-            align-items: flex-end;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .kc-filter__group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .kc-filter__label {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--kc-text-muted);
-        }
-
-        .kc-filter__select {
-            min-width: 220px;
-            max-width: 260px;
         }
 
         .kc-table-wrap {

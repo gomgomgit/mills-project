@@ -4,6 +4,7 @@ namespace App\Livewire\UserManagement;
 
 use App\Enums\UserRole;
 use App\Exceptions\CannotDeactivateSelfException;
+use App\Livewire\Concerns\HasFilterReset;
 use App\Models\BusinessUnit;
 use App\Models\User;
 use App\Services\UserService;
@@ -36,6 +37,8 @@ use Livewire\Component;
 #[Layout('user-management.users')]
 class KelolaUserRole extends Component
 {
+    use HasFilterReset;
+
     public int $page = 1;
 
     public int $perPage = 20;
@@ -208,6 +211,20 @@ class KelolaUserRole extends Component
         if ($this->page > 1) {
             $this->page--;
         }
+    }
+
+    /**
+     * Bawaan filter untuk "Reset filter" (x-filter.bar) — sama dengan
+     * deklarasi properti di atas.
+     *
+     * @return array<string, string>
+     */
+    protected function filterDefaults(): array
+    {
+        return [
+            'filterRole' => '',
+            'filterBusinessUnitId' => '',
+        ];
     }
 
     public function render()

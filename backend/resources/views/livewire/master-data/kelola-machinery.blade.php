@@ -16,45 +16,72 @@
     </div>
 
     {{--
-        Alih mode + pencarian. Mode Grup (bawaan) hierarkis; mode Rata
-        mengembalikan daftar rata seluruh Machinery seperti layar lama —
-        tanpa mode itu, membandingkan mesin lintas grup hanya mungkin lewat
-        pencarian.
+        Alih mode + pencarian + filter dalam satu x-filter.bar. Mode Grup
+        (bawaan) hierarkis; mode Rata mengembalikan daftar rata seluruh
+        Machinery seperti layar lama — tanpa mode itu, membandingkan mesin
+        lintas grup hanya mungkin lewat pencarian. Filter ketiga mengikuti
+        mode: Station di mode Grup, Machinery Group di mode Rata; yang
+        dihitung "aktif" hanya filter yang tampil di mode itu.
     --}}
-    <div class="kc-toolbar" data-testid="view-toolbar">
-        <div class="kc-toolbar__modes" role="group" aria-label="Mode tampilan">
-            <button
-                type="button"
-                wire:click="setViewMode('grup')"
-                class="kc-button kc-button--sm {{ $viewMode === 'grup' ? 'kc-button--primary' : 'kc-button--ghost' }}"
-                data-testid="mode-grup"
-                @if ($viewMode === 'grup') aria-current="true" @endif
-            >Grup</button>
-            <button
-                type="button"
-                wire:click="setViewMode('rata')"
-                class="kc-button kc-button--sm {{ $viewMode === 'rata' ? 'kc-button--primary' : 'kc-button--ghost' }}"
-                data-testid="mode-rata"
-                @if ($viewMode === 'rata') aria-current="true" @endif
-            >Rata</button>
-        </div>
+    <x-filter.bar label="Filter mesin" testid="view-toolbar" :total="$meta['total']" :noun="$viewMode === 'grup' ? 'grup' : 'mesin'"
+                  :active="$this->activeFilterCount($viewMode === 'grup' ? ['filterMachineryGroupId'] : ['filterStationId'])" reset="resetFilters">
+        <x-filter.field label="Tampilan" size="auto">
+            <div class="fb-segment" role="group" aria-label="Mode tampilan">
+                <button
+                    type="button"
+                    wire:click="setViewMode('grup')"
+                    @class(['fb-segment__btn', 'fb-segment__btn--active' => $viewMode === 'grup'])
+                    data-testid="mode-grup"
+                    @if ($viewMode === 'grup') aria-current="true" @endif
+                ><x-filter.icon name="layers" />Grup</button>
+                <button
+                    type="button"
+                    wire:click="setViewMode('rata')"
+                    @class(['fb-segment__btn', 'fb-segment__btn--active' => $viewMode === 'rata'])
+                    data-testid="mode-rata"
+                    @if ($viewMode === 'rata') aria-current="true" @endif
+                ><x-filter.icon name="list" />Rata</button>
+            </div>
+        </x-filter.field>
 
-        <label for="search" class="kc-filter__label">Cari</label>
-        <input
-            id="search"
-            type="search"
-            wire:model.live.debounce.300ms="search"
-            placeholder="Kode atau nama grup / mesin"
-            class="kc-form-field__input"
-            data-testid="search-input"
-        />
+        <x-filter.field label="Cari" for="search" icon="search" size="grow">
+            <x-filter.search
+                id="search"
+                model="search"
+                :value="$search"
+                placeholder="Kode atau nama grup / mesin"
+                data-testid="search-input"
+            />
+        </x-filter.field>
+
+        @if ($viewMode === 'rata')
+            <x-filter.field label="Machinery Group" for="filterMachineryGroupId" icon="layers" size="lg">
+                <x-searchable-select
+                    id="filterMachineryGroupId"
+                    wire:model.live="filterMachineryGroupId"
+                    :options="collect($machineryGroupOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['label']])->all()"
+                    placeholder="Semua Machinery Group"
+                    class="fb-control"
+                />
+            </x-filter.field>
+        @else
+            <x-filter.field label="Station" for="filterStationId" icon="station" size="lg">
+                <x-searchable-select
+                    id="filterStationId"
+                    wire:model.live="filterStationId"
+                    :options="collect($stationOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['label']])->all()"
+                    placeholder="Semua Station"
+                    class="fb-control"
+                />
+            </x-filter.field>
+        @endif
 
         @if ($viewMode === 'grup' && $ungroupedCount > 0)
-            <span class="kc-badge" data-testid="ungrouped-count">
-                {{ $ungroupedCount }} mesin tanpa grup
-            </span>
+            <x-slot:note>
+                <span data-testid="ungrouped-count">{{ $ungroupedCount }} mesin tanpa grup</span> — tampil di wadah "Tanpa grup" di bawah daftar.
+            </x-slot:note>
         @endif
-    </div>
+    </x-filter.bar>
 
     @if ($successMessage)
         <div class="kc-alert kc-alert--success" role="status" data-testid="success-message">
@@ -74,27 +101,6 @@
         </div>
     @endif
 
-    <div class="kc-filter">
-        @if ($viewMode === 'rata')
-            <label for="filterMachineryGroupId" class="kc-filter__label">Filter Machinery Group</label>
-            <x-searchable-select
-                id="filterMachineryGroupId"
-                wire:model.live="filterMachineryGroupId"
-                :options="collect($machineryGroupOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['label']])->all()"
-                placeholder="Semua Machinery Group"
-                class="kc-form-field__input kc-filter__select"
-            />
-        @else
-            <label for="filterStationId" class="kc-filter__label">Filter Station</label>
-            <x-searchable-select
-                id="filterStationId"
-                wire:model.live="filterStationId"
-                :options="collect($stationOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['label']])->all()"
-                placeholder="Semua Station"
-                class="kc-form-field__input kc-filter__select"
-            />
-        @endif
-    </div>
 
     @if ($viewMode === 'grup')
         {{--
@@ -752,23 +758,6 @@
             font-size: 14px;
             font-weight: 600;
             color: var(--kc-text);
-        }
-
-        .kc-filter {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .kc-filter__label {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--kc-text-muted);
-        }
-
-        .kc-filter__select {
-            max-width: 260px;
         }
 
         .kc-table-wrap {

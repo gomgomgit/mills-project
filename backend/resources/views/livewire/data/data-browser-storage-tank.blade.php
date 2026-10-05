@@ -24,39 +24,49 @@
         </div>
     @endif
 
-    <div class="st-filterbar">
-        <div class="st-filterbar__field">
-            <label for="date_from" class="st-filterbar__label">Tanggal Dari</label>
-            <input type="date" id="date_from" wire:model.live="date_from" class="st-filterbar__input">
-        </div>
+    {{-- Filter bersama x-filter.bar (components/filter/*, CSS di
+         components/filter-assets.blade.php). Binding, id, dan opsi sama
+         persis dengan filterbar lama; yang berubah tampilannya:
+         - rentang tanggal dalam satu field (ketik manual + pemilih);
+         - Business Unit hanya PEMILIH bagi Admin — akun terikat mill
+           melihat keterangan mill-nya (bukan input disabled), karena
+           render() memang memaku filter itu ke mill akun;
+         - ringkasan jumlah data, jumlah filter aktif, dan Reset filter. --}}
+    @php
+        $fbIsAdmin = auth()->user()?->role === \App\Enums\UserRole::Admin;
+    @endphp
+    <x-filter.bar label="Filter data" :total="$meta['total']"
+                  :active="$this->activeFilterCount($fbIsAdmin ? [] : ['business_unit_id'])" reset="resetFilters">
+        <x-filter.field label="Tanggal" size="range">
+            <x-filter.date-range />
+        </x-filter.field>
 
-        <div class="st-filterbar__field">
-            <label for="date_to" class="st-filterbar__label">Tanggal Sampai</label>
-            <input type="date" id="date_to" wire:model.live="date_to" class="st-filterbar__input">
-        </div>
+        @if ($fbIsAdmin)
+            <x-filter.field label="Business Unit" for="business_unit_id" icon="mill">
+                <x-searchable-select
+                    id="business_unit_id"
+                    wire:model.live="business_unit_id"
+                    :options="collect($businessUnits)->map(fn ($businessUnit) => ['value' => $businessUnit->id, 'label' => $businessUnit->name])->all()"
+                    placeholder="Semua Business Unit"
+                    class="fb-control"
+                />
+            </x-filter.field>
+        @else
+            <x-filter.field label="Business Unit" icon="mill"
+                            :static="collect($businessUnits)->first()?->name ?? 'Belum terikat mill'"
+                            static-testid="business-unit-current" static-title="Mill mengikuti akun Anda" />
+        @endif
 
-        <div class="st-filterbar__field">
-            <label for="business_unit_id" class="st-filterbar__label">Business Unit</label>
-            <x-searchable-select
-                id="business_unit_id"
-                wire:model.live="business_unit_id"
-                :options="collect($businessUnits)->map(fn ($businessUnit) => ['value' => $businessUnit->id, 'label' => $businessUnit->name])->all()"
-                placeholder="Semua Business Unit"
-                class="st-filterbar__input"
-            />
-        </div>
-
-        <div class="st-filterbar__field">
-            <label for="production_line_id" class="st-filterbar__label">Production Line</label>
+        <x-filter.field label="Production Line" for="production_line_id" icon="line">
             <x-searchable-select
                 id="production_line_id"
                 wire:model.live="production_line_id"
                 :options="collect($productionLines)->map(fn ($line) => ['value' => $line['id'], 'label' => $line['name']])->all()"
                 placeholder="Semua Line"
-                class="st-filterbar__input"
+                class="fb-control"
             />
-        </div>
-    </div>
+        </x-filter.field>
+    </x-filter.bar>
 
     <div class="st-table-wrap">
         <table class="st-table">
@@ -157,18 +167,13 @@
 
         .st-browser--busy { opacity: 0.85; }
 
-        .st-browser__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+        .st-browser__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
         .st-browser__title { margin: 0 0 4px; font-size: 20px; font-weight: 700; }
         .st-browser__subtitle { margin: 0; font-size: 14px; color: var(--st-text-muted); }
-        .st-browser__export { display: flex; gap: 8px; flex-shrink: 0; }
+        .st-browser__export { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
 
         .st-alert { margin-bottom: 16px; padding: 10px 12px; border-radius: var(--st-radius-input); background: #fef2f2; border: 1px solid var(--st-destructive); color: var(--st-destructive); font-size: 14px; }
 
-        .st-filterbar { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; padding: 16px; background: #fff; border: 1px solid var(--st-border); border-radius: 10px; }
-        .st-filterbar__field { display: flex; flex-direction: column; gap: 6px; min-width: 180px; }
-        .st-filterbar__label { font-size: 13px; font-weight: 500; color: var(--st-text-muted); }
-        .st-filterbar__input { padding: 8px 10px; font-size: 14px; font-family: inherit; color: var(--st-text); border: 1px solid var(--st-border); border-radius: var(--st-radius-input); background: #fff; }
-        .st-filterbar__input:focus { outline: none; border-color: var(--st-brand); box-shadow: 0 0 0 3px rgba(36, 147, 96, 0.15); }
 
         .st-table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--st-border); border-radius: 10px; background: #fff; }
         .st-table { width: 100%; border-collapse: collapse; font-size: 14px; }

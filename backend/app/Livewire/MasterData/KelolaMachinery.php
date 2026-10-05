@@ -3,6 +3,7 @@
 namespace App\Livewire\MasterData;
 
 use App\Exceptions\MachineryGroupHasMachineryException;
+use App\Livewire\Concerns\HasFilterReset;
 use App\Livewire\Concerns\ValidatesUploadOnSelect;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
@@ -67,6 +68,7 @@ use Livewire\WithFileUploads;
 #[Layout('master-data.machinery')]
 class KelolaMachinery extends Component
 {
+    use HasFilterReset;
     use ValidatesUploadOnSelect;
     use WithFileUploads;
 
@@ -846,6 +848,30 @@ class KelolaMachinery extends Component
             $this->confirmingDeleteGroupId = null;
             $this->deleteGroupErrorMessage = 'Machinery Group tidak ditemukan, mungkin sudah dihapus.';
         }
+    }
+
+    /**
+     * Bawaan filter untuk "Reset filter" (x-filter.bar) — sama dengan
+     * deklarasi properti di atas.
+     *
+     * @return array<string, string>
+     */
+    protected function filterDefaults(): array
+    {
+        return [
+            'search' => '',
+            'filterMachineryGroupId' => '',
+            'filterStationId' => '',
+        ];
+    }
+
+    /**
+     * Sama dengan updatedSearch() / updatedFilterStationId(): grup yang
+     * terbuka milik hasil filter lama, jadi ikut dikosongkan.
+     */
+    protected function afterFilterReset(): void
+    {
+        $this->expandedGroupIds = [];
     }
 
     /**

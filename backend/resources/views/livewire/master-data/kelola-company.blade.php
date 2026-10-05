@@ -22,16 +22,17 @@
         </div>
     @endif
 
-    <div class="kc-filter">
-        <label for="filterCorporateId" class="kc-filter__label">Filter Corporate</label>
-        <x-searchable-select
-            id="filterCorporateId"
-            wire:model.live="filterCorporateId"
-            :options="collect($corporateOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
-            placeholder="Semua Corporate"
-            class="kc-form-field__input kc-filter__select"
-        />
-    </div>
+    <x-filter.bar label="Filter Company" :total="$meta['total']" :active="$this->activeFilterCount()" reset="resetFilters">
+        <x-filter.field label="Corporate" for="filterCorporateId" icon="building" size="lg">
+            <x-searchable-select
+                id="filterCorporateId"
+                wire:model.live="filterCorporateId"
+                :options="collect($corporateOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
+                placeholder="Semua Corporate"
+                class="fb-control"
+            />
+        </x-filter.field>
+    </x-filter.bar>
 
     <div class="kc-table-wrap">
         <table class="kc-table">
@@ -393,8 +394,8 @@
            scoped/non-colliding with other screens' inlined styles; this
            class set is reused verbatim (not duplicated-and-renamed) from
            kelola-corporate.blade.php to keep both master-data screens
-           visually consistent — only kc-filter__* (this screen's corporate
-           filter dropdown) has no Corporate equivalent. */
+           visually consistent. The Corporate filter uses the shared
+           x-filter.bar (components/filter-assets.blade.php), not kc-*. */
         .kc-page {
             --kc-brand: #249360;
             --kc-brand-hover: #1d7a4e;
@@ -446,23 +447,6 @@
             background: #ecfdf5;
             border-color: var(--kc-brand);
             color: var(--kc-brand-hover);
-        }
-
-        .kc-filter {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .kc-filter__label {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--kc-text-muted);
-        }
-
-        .kc-filter__select {
-            max-width: 260px;
         }
 
         .kc-table-wrap {

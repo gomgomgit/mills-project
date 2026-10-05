@@ -22,24 +22,29 @@
         </div>
     @endif
 
-    <div class="kc-filter">
-        <label for="filterBusinessUnitId" class="kc-filter__label">Filter Business Unit</label>
-        <x-searchable-select
-            id="filterBusinessUnitId"
-            wire:model.live="filterBusinessUnitId"
-            :options="collect($businessUnitOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
-            placeholder="Semua Business Unit"
-            class="kc-form-field__input kc-filter__select"
-        />
-        <label for="filterProductionLineId" class="kc-filter__label">Filter Production Line</label>
-        <x-searchable-select
-            id="filterProductionLineId"
-            wire:model.live="filterProductionLineId"
-            :options="$filterProductionLineOptions"
-            placeholder="Semua Production Line"
-            class="kc-form-field__input kc-filter__select"
-        />
-    </div>
+    {{-- Production Line bergantung pada Business Unit: memilih BU
+         mengosongkan pilihan line (updatedFilterBusinessUnitId) dan opsi
+         line menyempit ke BU itu. --}}
+    <x-filter.bar label="Filter Station" :total="$meta['total']" :active="$this->activeFilterCount()" reset="resetFilters">
+        <x-filter.field label="Business Unit" for="filterBusinessUnitId" icon="mill" size="lg">
+            <x-searchable-select
+                id="filterBusinessUnitId"
+                wire:model.live="filterBusinessUnitId"
+                :options="collect($businessUnitOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
+                placeholder="Semua Business Unit"
+                class="fb-control"
+            />
+        </x-filter.field>
+        <x-filter.field label="Production Line" for="filterProductionLineId" icon="line" size="lg">
+            <x-searchable-select
+                id="filterProductionLineId"
+                wire:model.live="filterProductionLineId"
+                :options="$filterProductionLineOptions"
+                placeholder="Semua Production Line"
+                class="fb-control"
+            />
+        </x-filter.field>
+    </x-filter.bar>
 
     <div class="kc-table-wrap">
         <table class="kc-table">
@@ -289,8 +294,8 @@
            with other screens' inlined styles; this class set is reused
            verbatim (not duplicated-and-renamed) from
            kelola-business-unit.blade.php to keep all four master-data
-           screens visually consistent — kc-filter__* is copied from that
-           same screen's Company filter dropdown pattern. Two NEW classes
+           screens visually consistent (filters use the shared x-filter.bar,
+           components/filter-assets.blade.php). Two NEW classes
            not present in the business-unit precedent are added at the
            end of this block: `kc-badge` (the Aktif/Nonaktif status pill,
            this screen's is_active column has no equivalent in
@@ -349,24 +354,6 @@
             background: #ecfdf5;
             border-color: var(--kc-brand);
             color: var(--kc-brand-hover);
-        }
-
-        .kc-filter {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .kc-filter__label {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--kc-text-muted);
-        }
-
-        .kc-filter__select {
-            max-width: 260px;
         }
 
         .kc-table-wrap {

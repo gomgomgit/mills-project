@@ -12,37 +12,43 @@
         </div>
     @endif
 
-    <div class="report-filterbar">
-        {{-- PRODUCTION LINE WAJIB DIPILIH (temuan audit 2026-10-04 #2b) —
-             sama dengan keenam laporan stasiun. Opsi hanya line di mill
-             Anda; tidak ada pilihan "semua line". --}}
-        <div class="report-filterbar__field">
-            <label for="production_line_id" class="report-filterbar__label">Production Line <small>wajib</small></label>
-            <select id="production_line_id" wire:model.live="productionLineId" class="report-filterbar__input" data-testid="production-line-select">
-                <option value="">&mdash; Pilih Production Line &mdash;</option>
+    {{-- Filter bersama x-filter.bar. PRODUCTION LINE WAJIB DIPILIH
+         (temuan audit 2026-10-04 #2b) — sama dengan keenam laporan stasiun.
+         Opsi hanya line di mill Anda; tidak ada pilihan "semua line". Mill
+         akun tampil sebagai keterangan, bukan pemilih (laporan ini memang
+         selalu memakai mill akun — ManagementReport::render()). Tidak ada
+         Reset filter: tanggal punya bawaan sendiri dan line wajib. --}}
+    <x-filter.bar label="Filter laporan">
+        <x-filter.field label="Mill" icon="mill" size="md"
+                        :static="auth()->user()?->businessUnit?->name ?? 'Belum terikat mill'"
+                        static-testid="mill-current" static-title="Mill mengikuti akun Anda" />
+
+        <x-filter.field label="Production Line" for="production_line_id" icon="line" size="lg" required>
+            <select id="production_line_id" wire:model.live="productionLineId" class="fb-control fb-control--select" data-testid="production-line-select">
+                <option value="">Pilih Production Line</option>
                 @foreach ($productionLineOptions as $option)
                     <option value="{{ $option['id'] }}" @selected($option['id'] === $productionLineId)>{{ $option['name'] }}</option>
                 @endforeach
             </select>
-        </div>
+        </x-filter.field>
 
-        <div class="report-filterbar__field">
-            <label for="date_from" class="report-filterbar__label">Tanggal Dari</label>
-            <input type="date" id="date_from" wire:model.live="date_from" class="report-filterbar__input">
-        </div>
-
-        <div class="report-filterbar__field">
-            <label for="date_to" class="report-filterbar__label">Tanggal Sampai</label>
-            <input type="date" id="date_to" wire:model.live="date_to" class="report-filterbar__input">
-        </div>
+        <x-filter.field label="Tanggal" size="range">
+            <x-filter.date-range />
+        </x-filter.field>
 
         @if ($breakdown !== null)
-            <div class="report-filterbar__actions">
-                <a href="{{ $this->exportUrl('csv') }}" class="report-export-btn" data-testid="report-export-csv">Ekspor CSV</a>
-                <a href="{{ $this->exportUrl('excel') }}" class="report-export-btn" data-testid="report-export-excel">Ekspor Excel</a>
-            </div>
+            <x-slot:actions>
+                <a href="{{ $this->exportUrl('csv') }}" class="fb-btn fb-btn--primary" data-testid="report-export-csv">
+                    <x-filter.icon name="download" />
+                    Ekspor CSV
+                </a>
+                <a href="{{ $this->exportUrl('excel') }}" class="fb-btn" data-testid="report-export-excel">
+                    <x-filter.icon name="sheet" />
+                    Ekspor Excel
+                </a>
+            </x-slot:actions>
         @endif
-    </div>
+    </x-filter.bar>
 
     @if ($productionLineId === '')
         <p class="report-empty" data-testid="select-production-line-hint">
@@ -126,13 +132,6 @@
         .report__subtitle { margin: 0; font-size: 14px; color: #6b7280; }
         .report-alert { background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; }
         .report-empty { color: #6b7280; font-size: 14px; margin: 0 0 16px; }
-        .report-filterbar { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 24px; }
-        .report-filterbar__field { display: flex; flex-direction: column; gap: 4px; }
-        .report-filterbar__label { font-size: 12px; color: #6b7280; }
-        .report-filterbar__input { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; min-width: 200px; }
-        .report-filterbar__actions { display: flex; gap: 8px; }
-        .report-export-btn { padding: 8px 14px; background: #249360; color: #fff; border-radius: 6px; text-decoration: none; font-size: 14px; }
-        .report-export-btn:hover { background: #1d7a4e; }
         .report-table-wrap { background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow-x: auto; }
         .report-table { width: 100%; border-collapse: collapse; }
         .report-table th, .report-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 13px; white-space: nowrap; }
@@ -141,7 +140,6 @@
         /* Judul kolom boleh membungkus supaya 10 kolom muat tanpa terpotong. */
         .report-table thead th { white-space: normal; vertical-align: bottom; }
         .report-table th.num, .report-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
-        .report-filterbar__label small { font-weight: 400; color: #9ca3af; }
         .report-context { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: #374151; }
         .report-note { margin: 8px 0 0; font-size: 12px; color: #6b7280; }
     </style>

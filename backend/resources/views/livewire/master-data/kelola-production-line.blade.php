@@ -22,16 +22,17 @@
         </div>
     @endif
 
-    <div class="kc-filter">
-        <label for="filterBusinessUnitId" class="kc-filter__label">Filter Business Unit</label>
-        <x-searchable-select
-            id="filterBusinessUnitId"
-            wire:model.live="filterBusinessUnitId"
-            :options="collect($businessUnitOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
-            placeholder="Semua Business Unit"
-            class="kc-form-field__input kc-filter__select"
-        />
-    </div>
+    <x-filter.bar label="Filter Production Line" :total="$meta['total']" :active="$this->activeFilterCount()" reset="resetFilters">
+        <x-filter.field label="Business Unit" for="filterBusinessUnitId" icon="mill" size="lg">
+            <x-searchable-select
+                id="filterBusinessUnitId"
+                wire:model.live="filterBusinessUnitId"
+                :options="collect($businessUnitOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
+                placeholder="Semua Business Unit"
+                class="fb-control"
+            />
+        </x-filter.field>
+    </x-filter.bar>
 
     <div class="kc-table-wrap">
         <table class="kc-table" data-testid="production-line-table">
@@ -273,23 +274,6 @@
             background: #ecfdf5;
             border-color: var(--kc-brand);
             color: var(--kc-brand-hover);
-        }
-
-        .kc-filter {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .kc-filter__label {
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--kc-text-muted);
-        }
-
-        .kc-filter__select {
-            max-width: 260px;
         }
 
         .kc-table-wrap {

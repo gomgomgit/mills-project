@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @livewireStyles
     <x-searchable-select-assets />
+    <x-filter-assets />
     <style>
         /* Shared page shell (sidebar + header) — single source of truth for
            every screen in resources/views/. Design tokens per uiux-spec v5

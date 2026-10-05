@@ -1,0 +1,1608 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-147--laporan-grading-mobile",
+  "name": "Laporan Grading (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports/grading",
+  "auth_requirement": "authenticated — seluruh peran mobile (operator, supervisor, mill_management, admin)",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien DIABAIKAN. Operator sudah diterima pada ketiga rute data /api/grading-reports/* sejak screen-146 dibangun, karena layar ini direncanakan dalam perubahan yang sama — jadi TIDAK ada pelebaran akses pada layar ini"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill sebelum daftar line dan daftar periode dimuat"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "usecase_name": "Lihat Laporan Periode Grading (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/grading-reports/business-units/options",
+          "description": "Pemilih Mill, ADMIN SAJA — DIPAKAI ULANG apa adanya dari screen-146; 403 untuk peran terikat mill termasuk Operator, dan layar ini memang tidak memanggilnya untuk mereka",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token Sanctum tidak ada atau tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan Admin. Satu-satunya rute pada prefix ini yang tidak terbuka bagi Operator, dan itu disengaja"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/grading-reports/periods",
+          "description": "Periode yang punya baris period_stations berjenis grading — DIPAKAI ULANG apa adanya dari screen-146",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "WAJIB bagi Admin; DIABAIKAN bagi peran terikat mill, termasuk Operator. production_line_id TIDAK PERNAH dikirim ke endpoint ini — periode milik MILL, bukan milik line"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string (draft|open|closed) — status baris period_stations grading",
+                  "station_type": "string — selalu 'grading'",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id, atau akun terikat mill yang users.business_unit_id-nya NULL"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/grading-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode pada satu Production Line, dengan DUA blok parameter per satuan — DIPAKAI ULANG apa adanya dari screen-146; bentuk payload lengkapnya ada pada tech spec layar itu",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Absen → 422 VALIDATION_ERROR"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — absen → 422 dan nol kueri grading_records. Tidak pernah di-default ke semua line"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Wajib bagi Admin, diabaikan bagi peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string"
+              },
+              "load_count": "integer",
+              "netto_total": "float|null",
+              "netto_avg": "float|null",
+              "bunch_total": "float|null",
+              "bunch_avg": "float|null",
+              "bunch": {
+                "quantity_total": "float|null",
+                "parameter_count": "integer",
+                "rows": [
+                  {
+                    "grading_parameter_id": "uuid",
+                    "name": "string",
+                    "quantity_total": "float",
+                    "share_percent": "float|null",
+                    "avg_percentage": "float|null",
+                    "load_count": "integer — PENYEBUT avg_percentage"
+                  }
+                ]
+              },
+              "kg": {
+                "quantity_total": "float|null",
+                "parameter_count": "integer",
+                "rows": "sama bentuknya dengan bunch.rows"
+              },
+              "by_estate_supplier": [
+                {
+                  "estate_supplier": "string — '' untuk asal belum diisi",
+                  "load_count": "integer",
+                  "netto_total": "float|null",
+                  "bunch_total": "float|null"
+                }
+              ],
+              "loads_without_detail": "integer",
+              "draft_load_count": "integer",
+              "loads_without_division": "integer",
+              "loads_not_checked": "integer",
+              "loads_not_acknowledged": "integer",
+              "daily": [
+                {
+                  "date": "date",
+                  "load_count": "integer",
+                  "netto_total": "float|null",
+                  "bunch_total": "float|null"
+                }
+              ],
+              "daily_total": {
+                "load_count": "integer",
+                "netto_total": "float|null",
+                "bunch_total": "float|null"
+              },
+              "completeness": {
+                "days_in_period": "integer",
+                "days_with_load": "integer",
+                "days_counted": "integer",
+                "period_running": "boolean"
+              },
+              "_note": "TIDAK SATU PUN kunci menjumlahkan janjang dengan kilogram. TIDAK ADA kunci has_data — layar menurunkan 'periode kosong' dari load_count === 0. Nama mill ada di blok business_unit, BUKAN di period.business_unit_name"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "production_line_id milik mill lain; ATAU period_id milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen; Admin tanpa mill; akun terikat mill tanpa mill"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/grading-reports/export",
+          "description": "Ekspor satu baris per parameter per muatan — DIPAKAI ULANG apa adanya; respons streaming text/csv. Mobile mengirim format 'csv' saja; .xlsx hanya ada di layar web",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "Mobile selalu 'csv'"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_content_type": "text/csv — satu baris per parameter per muatan, konteks diulang, kolom Satuan pada setiap baris, dan muatan tanpa baris parameter tetap satu baris berkolom parameter kosong"
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Sama seperti /summary — dicek EAGER sebelum streaming"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "Lebih dari 50.000 BARIS (bukan record)"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "Daftar Production Line mill yang berlaku — DIPAKAI ULANG apa adanya (dibangun untuk screen-135)",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya dihormati untuk Admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "NOL PERUBAHAN BACKEND. Ini satu-satunya laporan mobile yang tidak menyentuh satu baris pun kode server: keempat endpoint /api/grading-reports/* sudah menerima peran mobile sejak screen-146 dibangun, karena layar ini direncanakan dalam perubahan yang sama. Bandingkan dengan screen-144, yang harus melebarkan rute weighbridge-reports dengan tiga perubahan berpasangan — di sini pekerjaan itu sudah selesai, dan yang tersisa murni lapisan klien.",
+        "Satu-satunya hal yang perlu diperiksa ulang, dan ia punya testnya sendiri di backend: Operator sudah berada di cabang TERIKAT MILL pada GradingReportService::resolveBusinessUnit(), dan /business-units/options tetap menolaknya. Keduanya dikunci unit test case 2 dan case 5 pada screen-146.",
+        "Lapisan klien: mobile/src/services/gradingReportRepo.ts, sejajar keenam repo laporan lain. Fungsi: fetchBusinessUnits(), fetchPeriods(scope?), fetchSummary(periodId, scope?), exportCsv(periodId, scope?), saveCsvFile(blob, filename), plus objek gabungan sebagai default export.",
+        "scopeParams(scope): mengembalikan {} bila !scope.isAdmin, dan {} bila Admin belum memilih mill; hanya { business_unit_id } bila Admin sudah memilih. Perangkat non-Admin TIDAK PERNAH mengirim business_unit_id — pertahanan berlapis di atas penjagaan server.",
+        "productionLineParams(scope): { production_line_id } hanya bila nilainya ada, dan dikirim HANYA ke /summary dan /export. TIDAK PERNAH ke /periods. Di layar ini parameter itu WAJIB, jadi view berhenti lebih awal bila belum ada line — penjagaannya di fungsi loadSummary(), bukan hanya di template.",
+        "unwrap(payload): /summary dikirim TANPA pembungkus 'data' sementara /periods dan /business-units/options MEMAKAI pembungkus. Kedua bentuk diterima.",
+        "TIDAK ADA perhitungan ulang di sisi ponsel. Repo meneruskan setiap nilai apa adanya: tidak menjumlahkan quantity_total kedua satuan, tidak menurunkan share_percent, tidak merata-ratakan percentage, tidak mengurutkan ulang rows, dan tidak menurunkan loads_without_detail dari selisih apa pun. Satu unit test khusus mengunci ketiadaan aritmetika ini, dengan fixture yang SENGAJA tidak konsisten sehingga repo yang berhitung PASTI gagal.",
+        "DUA BLOK SATUAN DIRENDER SEBAGAI DUA BAGIAN BERTUMPUK lewat satu v-for atas dua kelompok — bukan satu tabel atas gabungan keduanya. Strukturnya sendiri yang mencegah terbentuknya kolom kuantitas gabungan, dan itu alasan yang sama dengan layar web-nya.",
+        "NULL BUKAN NOL harus bertahan melewati lapisan klien: netto_total, netto_avg, bunch_total, bunch_avg, quantity_total tiap blok, serta share_percent dan avg_percentage tiap baris boleh null. Penerjemahan null menjadi teks terbaca adalah urusan view.",
+        "PENYEBUT RATA-RATA DICETAK DI SEBELAH ANGKANYA, dalam bentuk 'N dari M muatan' — N dari rows[].load_count, M dari load_count periode. Keduanya dibaca dari payload; tidak satu pun diturunkan.",
+        "Line yang berlaku ditentukan resolveProductionLine(lines) di view, berurutan: (1) route.query.production_line_id — dibawa tile screen-141; (2) localStorage 'msl_production_line_{userId}' — kunci yang SAMA dengan StationListView.vue; (3) satu-satunya line bila lines.length === 1; (4) selain itu null, pemilih tampil, NOL angka. Nilai (1) dan (2) hanya dipakai bila masih ada pada daftar line dari server.",
+        "Urutan pemuatan bagi peran terikat mill: loadProductionLines() LALU loadPeriods(). Bagi Admin: loadBusinessUnits() saja di onMounted; sisanya oleh onBusinessUnitChange().",
+        "Akun terikat mill dengan business_unit_id kosong: view menetapkan noMillForAccount dan BERHENTI — nol permintaan HTTP, termasuk tidak memanggil /business-units/options.",
+        "Penerjemahan galat ada di VIEW: 401 → router.push({ name: 'login' }); status undefined (transport) → pesan jaringan + tombol coba lagi dengan selectedPeriodId SENGAJA tidak direset; sisanya → pesan yang dapat dibaca pengguna. apiClient.normalizeError menolak dengan objek DATAR { message, errors?, status? } — `.response` tidak pernah ada.",
+        "Kegagalan memuat daftar line TIDAK memakai handleError(): ia punya penanda sendiri (productionLineFetchFailed) dengan tombol coba lagi sendiri, supaya tidak menyamar sebagai galat ringkasan.",
+        "createLatestRequestGuard() mengunci bahwa hanya jawaban permintaan TERBARU yang berlaku; resetSummary() membatalkan yang sedang berjalan tanpa memulai yang baru.",
+        "Ekspor memakai responseType 'blob' lalu saveCsvFile() dengan anchor + object URL. Nama berkas diambil SAAT ekspor diminta, bukan saat berkas tiba.",
+        "Pintu masuk: entri 'grading' pada REPORT_ROUTES di ReportingPilihStasiunView.vue — satu baris yang menentukan tile Grading hidup atau mati. Tanpanya layar ini ada, test-nya lulus, dan tile-nya tetap kelabu.",
+        "Rute: path '/reports/grading', name 'report-grading', meta.public = false."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Lewat endpoint screen-146; nama dan rentang periode pada pemilih dan header."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Dibaca SERVER sebagai penyaring daftar periode (station_type = 'grading') dan sumber nilai status."
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "Lewat endpoint screen-146. Disaring pada kolom production_line_id record itu sendiri dan whereDate pada kolom date."
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "SELECT",
+          "description": "Lewat endpoint screen-146; percentage DIBACA, tidak pernah dihitung ulang — tidak di server, dan tidak di ponsel."
+        },
+        {
+          "entity_id": "grading-parameter",
+          "operation": "SELECT",
+          "description": "Nama parameter untuk label rekap, lewat relasi detail di server."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih line lewat /api/production-lines/options-for-report, dan penamaan line pada blok production_line."
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin, dan penamaan mill pada blok business_unit."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Production Line belum berlaku di view",
+          "handling": "loadSummary() berhenti lebih awal — nol permintaan /summary; template menampilkan production-line-required-hint. Penjagaan di FUNGSI, bukan hanya di template"
+        },
+        {
+          "condition": "production_line_id lolos ke server tanpa nilai",
+          "handling": "422 VALIDATION_ERROR dari GradingReportController::requireProductionLineId(); nol kueri grading_records"
+        },
+        {
+          "condition": "Line dari rute atau localStorage sudah tidak ada",
+          "handling": "resolveProductionLine() hanya menerima nilai yang ditemukan di dalam `lines`; selain itu tetap null dan pemilih tampil"
+        },
+        {
+          "condition": "Mill tidak punya Production Line",
+          "handling": "productionLineBlocked dengan pesan 'Mill ini belum memiliki Production Line…'; dibedakan dari productionLineFetchFailed yang menampilkan 'Daftar Production Line tidak dapat dimuat…' plus tombol coba lagi"
+        },
+        {
+          "condition": "Permintaan daftar line gagal",
+          "handling": "productionLineFetchFailed = true dengan tombol coba lagi khusus; pesan galat laporan tidak tertimpa"
+        },
+        {
+          "condition": "Admin mengganti mill setelah line terpilih",
+          "handling": "onBusinessUnitChange() mengosongkan productionLines dan selectedProductionLineId sebelum memuat ulang"
+        },
+        {
+          "condition": "Admin belum memilih mill",
+          "handling": "scopeParams {}; view tidak memanggil /periods, /summary, maupun options-for-report; mill-required-hint ditampilkan"
+        },
+        {
+          "condition": "Akun terikat mill tanpa business_unit_id",
+          "handling": "noMillForAccount, berhenti tanpa satu pun permintaan HTTP; pemilih Mill TIDAK dirender sebagai gantinya"
+        },
+        {
+          "condition": "Server menolak /business-units/options dengan 403",
+          "handling": "millPickerForbidden = true; pemilih Mill tidak dirender sama sekali"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup grading",
+          "handling": "200 + { data: [] }; no-periods ditampilkan HANYA setelah periodsLoaded true dan loadingPeriods false"
+        },
+        {
+          "condition": "Periode tanpa satu pun muatan",
+          "handling": "load_count 0 dan seluruh total null; view menetapkan emptyPeriod dari load_count === 0 (payload tidak punya has_data) dan tetap merender kedua bagian parameter dengan keterangan"
+        },
+        {
+          "condition": "Satu blok satuan tanpa baris",
+          "handling": "quantity_total null dan rows [] — bagian itu TETAP dirender dengan nilai 'tidak tersedia', tidak disembunyikan walau layar sempit"
+        },
+        {
+          "condition": "Parameter hanya dicatat pada sebagian muatan",
+          "handling": "avg_percentage memakai rows[].load_count sebagai penyebut, dan penyebut itu dicetak 'N dari M muatan'"
+        },
+        {
+          "condition": "share_percent atau avg_percentage null",
+          "handling": "Dirender sebagai 'tidak tersedia' bergaya non-angka, bukan 0"
+        },
+        {
+          "condition": "estate_supplier kosong",
+          "handling": "Dirender berlabel 'Belum diisi' — kelompok, bukan baris yang dibuang; jumlah muatan seluruh kelompok tetap menjumlah ke load_count"
+        },
+        {
+          "condition": "Muatan tanpa baris parameter",
+          "handling": "loads_without_detail dirender sebagai angka tersendiri beserta keterangan bahwa muatan itu tetap terhitung pada angka utama"
+        },
+        {
+          "condition": "Tabel lebih lebar daripada viewport ponsel",
+          "handling": "Dibungkus .detail-table-wrap dengan overflow-x: auto; halaman tetap overflow-x: hidden"
+        },
+        {
+          "condition": "Rekap harian puluhan baris",
+          "handling": "CollapsibleSection, TERTUTUP secara bawaan; membuka/menutup nol permintaan jaringan"
+        },
+        {
+          "condition": "Kehilangan jaringan",
+          "handling": "Galat datar tanpa status → network-error + retry-button, selectedPeriodId dipertahankan"
+        },
+        {
+          "condition": "Sesi berakhir",
+          "handling": "401 → router.push({ name: 'login' }); bukan pesan jaringan dan bukan tombol coba lagi"
+        },
+        {
+          "condition": "Ganti pilihan lebih cepat daripada jawabannya",
+          "handling": "createLatestRequestGuard(): hanya isLatest() yang boleh menulis summary, memasang galat, dan mematikan loadingSummary"
+        },
+        {
+          "condition": "Ganti periode selagi ekspor berjalan",
+          "handling": "exportFilename() dipanggil SEBELUM await exportCsv(); tombol terkunci oleh exporting"
+        },
+        {
+          "condition": "Periode tertutup",
+          "handling": "Tidak ada gerbang status: laporan penuh, badge status sebagai keterangan, tombol Ekspor tidak dinonaktifkan"
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca — keempat endpoint GET-only",
+        "Operator diterima pada ketiga rute data (sudah sejak screen-146); /business-units/options tetap 403 untuk Operator",
+        "Rute web /reports/grading tetap menolak Operator — tidak disentuh layar ini",
+        "Operator/Supervisor/Mill Management terikat business_unit_id akunnya; business_unit_id klien tidak pernah dikirim repo dan diabaikan server",
+        "Daftar periode hanya periode yang punya baris period_stations berjenis grading",
+        "Status periode tidak menggerbangi pembacaan maupun ekspor",
+        "Rentang periode inklusif di kedua ujung",
+        "Production Line wajib — nol angka sebelum sebuah line berlaku",
+        "Penyaringan line memakai kolom production_line_id record, bukan join ke stations",
+        "Keanggotaan periode ditentukan kolom date",
+        "Janjang dan kilogram tidak pernah dijumlahkan — dua bagian bertumpuk, dua penyebut",
+        "share_percent terhadap total satuannya sendiri; avg_percentage dengan penyebut muatan yang mencatatnya, dan penyebut itu dicetak",
+        "percentage diteruskan apa adanya",
+        "Muatan tanpa baris parameter tetap terhitung pada angka utama dan jumlahnya diterbitkan",
+        "Muatan draft ikut terhitung; status verifikasi adalah kelengkapan",
+        "null diteruskan sebagai null dan dirender sebagai keterangan",
+        "Tidak ada penandaan nilai di luar batas",
+        "Kelengkapan memakai days_counted",
+        "Sesi tidak berlaku mengarahkan ke Login; kegagalan jaringan menampilkan pesan + coba lagi tanpa kehilangan periode",
+        "Hanya jawaban permintaan terbaru yang berlaku",
+        "Satu kolom, sasaran sentuh 44px, halaman tanpa gulir mendatar"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "fetchPeriods memanggil tepat GET /api/grading-reports/periods dan tidak menyaring di klien",
+          "given": "apiClient.get di-mock mengembalikan daftar dua periode, salah satunya closed",
+          "expect": "Path tepat '/api/grading-reports/periods'; kedua entri diteruskan apa adanya dalam urutan yang sama — termasuk yang closed, karena status mengatur penulisan data bukan pembacaan laporan"
+        },
+        {
+          "description": "fetchPeriods TIDAK PERNAH mengirim production_line_id",
+          "given": "fetchPeriods({ isAdmin: false, productionLineId: 'pl-1' })",
+          "expect": "params tidak memuat kunci production_line_id sama sekali"
+        },
+        {
+          "description": "scopeParams tidak mengirim business_unit_id untuk peran terikat mill, termasuk Operator",
+          "given": "fetchPeriods({ isAdmin: false, businessUnitId: 'bu-lain' })",
+          "expect": "params objek KOSONG — kuncinya absen, bukan null"
+        },
+        {
+          "description": "scopeParams mengirim business_unit_id hanya ketika Admin sudah memilih mill",
+          "given": "fetchPeriods({ isAdmin: true, businessUnitId: 'bu-2' }) lalu ({ isAdmin: true, businessUnitId: null })",
+          "expect": "{ business_unit_id: 'bu-2' } lalu {}"
+        },
+        {
+          "description": "fetchSummary mengirim period_id dan production_line_id",
+          "given": "fetchSummary('per-1', { isAdmin: false, productionLineId: 'pl-9' })",
+          "expect": "params { period_id: 'per-1', production_line_id: 'pl-9' } tanpa business_unit_id"
+        },
+        {
+          "description": "fetchSummary meneruskan kedua blok satuan apa adanya tanpa satu operasi aritmetika",
+          "given": "payload dengan bunch.quantity_total 100 dan kg.quantity_total 40, serta baris ber-share_percent dan avg_percentage yang TIDAK dapat diturunkan dari kuantitasnya",
+          "expect": "Seluruh nilai sama persis dengan payload; TIDAK ada kunci bernilai 140; repo tidak menurunkan share_percent maupun avg_percentage"
+        },
+        {
+          "description": "fetchSummary TIDAK PERNAH membentuk angka yang menjumlahkan kedua satuan",
+          "given": "payload dengan kedua blok terisi",
+          "expect": "Daftar kunci hasil tepat sama dengan daftar kunci yang diharapkan; tidak ada 'quantity_total', 'parameter_total', maupun kunci gabungan lain"
+        },
+        {
+          "description": "fetchSummary meneruskan null sebagai null, bukan 0",
+          "given": "payload dengan netto_total null, bunch.quantity_total null, dan sebuah baris ber-share_percent null",
+          "expect": "Ketiganya tetap null"
+        },
+        {
+          "description": "fetchSummary meneruskan rows dalam urutan payload, tanpa mengurutkan ulang",
+          "given": "payload dengan tiga baris parameter dalam urutan tertentu",
+          "expect": "Urutan hasil identik"
+        },
+        {
+          "description": "fetchSummary meneruskan baris ber-estate_supplier string kosong tanpa mengubahnya",
+          "given": "payload by_estate_supplier memuat baris ber-estate_supplier ''",
+          "expect": "Baris itu diteruskan dengan '' apa adanya — penerjemahan ke label 'Belum diisi' adalah urusan view"
+        },
+        {
+          "description": "fetchSummary menerima respons dengan maupun tanpa pembungkus data",
+          "given": "Dua pemanggilan: response.data = payload, dan response.data = { data: payload }",
+          "expect": "Keduanya menghasilkan ringkasan yang sama"
+        },
+        {
+          "description": "fetchSummary memakai nilai bawaan hanya ketika BLOK-nya tidak ada sama sekali",
+          "given": "response.data = {}",
+          "expect": "Kedua blok satuan berisi quantity_total null dan rows []; daily []; completeness 0/false; dan nilai bawaan itu TIDAK dipakai untuk menambal medan yang dikirim null"
+        },
+        {
+          "description": "exportCsv mengirim format csv dan responseType blob",
+          "given": "exportCsv('per-1', { productionLineId: 'pl-9' })",
+          "expect": "Path '/api/grading-reports/export', params { period_id, format: 'csv', production_line_id }, responseType 'blob' — tidak pernah format 'excel'"
+        },
+        {
+          "description": "saveCsvFile memakai anchor + object URL lalu membersihkannya",
+          "given": "saveCsvFile(blob, 'laporan-grading_x.csv')",
+          "expect": "createObjectURL dipanggil, anchor ber-download diklik lalu dilepas, revokeObjectURL dipanggil"
+        },
+        {
+          "description": "fetchBusinessUnits meneruskan 403 apa adanya",
+          "given": "apiClient.get menolak dengan { status: 403, message: ... }",
+          "expect": "Galat yang sama naik — endpoint ini memang Admin saja, dan view yang memutuskan artinya"
+        },
+        {
+          "description": "repo tidak menangkap galat",
+          "given": "apiClient.get menolak dengan { message: 'Network Error' } tanpa status",
+          "expect": "fetchSummary menolak dengan objek yang sama, tanpa dibungkus dan tanpa nilai bawaan"
+        },
+        {
+          "description": "default export membawa kelima fungsi dengan nama yang sama seperti keenam repo laporan lain",
+          "given": "Object.keys(gradingReportRepo)",
+          "expect": "exportCsv, fetchBusinessUnits, fetchPeriods, fetchSummary, saveCsvFile"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-parameter",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-146--laporan-grading-web",
+      "reason": "Memakai ULANG keempat endpoint /api/grading-reports/* milik layar itu. BERBEDA dari screen-144: tidak ada pelebaran akses yang perlu dikerjakan di sini, karena Operator sudah diterima sejak layar itu dibangun — keduanya direncanakan dalam perubahan yang sama"
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "Satu-satunya pintu masuk. Tile Grading baru aktif setelah REPORT_ROUTES di ReportingPilihStasiunView.vue ditambah entri 'grading'; layar ini juga membawa production_line_id lewat rute"
+    },
+    {
+      "screen_id": "screen-134--dashboard-reporting-mobile",
+      "reason": "Langkah sebelum pemilih stasiun pada rantai navigasi mobile"
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan yang mencakup Grading, layar ini tidak punya apa pun untuk ditampilkan"
+    },
+    {
+      "screen_id": "screen-142--detail-periode-pelaporan",
+      "reason": "Status Grading pada sebuah periode — badge di layar ini — ditetapkan di sana"
+    },
+    {
+      "screen_id": "screen-011--form-grading",
+      "reason": "Sumber data: muatan, baris parameter, dan kolom percentage yang dibaca laporan ini ditetapkan di sana"
+    },
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Menulis ingatan pilihan Production Line pada localStorage 'msl_production_line_{userId}', yang dibaca layar ini sebagai nilai awal pemilih line"
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Memakai ulang GET /api/production-lines/options-for-report yang dibangun untuk layar itu"
+    }
+  ],
+  "implementation_notes": [
+    "NOL PERUBAHAN BACKEND, dan itu perbedaan terbesar dari screen-144. Laporan Weighbridge mobile harus melebarkan rute dengan tiga perubahan berpasangan karena kembarannya datang belakangan; di sini keempat endpoint sudah menerima peran mobile sejak screen-146, karena keduanya direncanakan dalam satu seri. Yang tetap harus diperiksa — dan sudah dikunci test di sisi web — adalah Operator berada di cabang terikat mill dan /business-units/options tetap menolaknya.",
+    "DUA BAGIAN SATUAN DIRENDER LEWAT SATU v-for ATAS DUA KELOMPOK, bukan satu tabel atas gabungan keduanya. Pada layar 360px keduanya bertumpuk; strukturnya sendiri yang mencegah terbentuknya kolom kuantitas gabungan, alasan yang sama dengan layar web-nya. Kalau suatu hari keduanya digabung menjadi satu tabel berkolom 'satuan', pembaca akan menjumlahkan kolom kuantitasnya — dan jumlah itu bukan bilangan apa pun.",
+    "BAGIAN SATUAN YANG KOSONG TETAP DIRENDER. Payload selalu mengirim kedua blok, dan view tidak boleh menyembunyikan yang kosong walau ruang layar sempit: bagian yang hilang terbaca sebagai 'tidak ada bagian ini', sedangkan bagian berisi 'tidak tersedia' terbaca sebagai 'tidak ada isinya' — dan hanya yang kedua benar.",
+    "PENYEBUT RATA-RATA WAJIB TERCETAK, dalam bentuk 'N dari M muatan' pada barisnya sendiri. Ini satu-satunya hal yang membedakan rata-rata itu dari angka periode, dan pada layar sempit ia yang paling mudah dikorbankan demi ruang — jadi ia punya testnya sendiri, di unit maupun di browser.",
+    "KETERANGAN PANGSA vs RATA-RATA TIDAK BOLEH DIPOTONG. Pada layar web keterangan itu satu paragraf; di sini ia tetap satu paragraf penuh, bukan tooltip dan bukan teks yang terpotong, karena dua angka yang membantah tanpa sebab yang dinyatakan lebih buruk daripada satu angka saja.",
+    "BENTUK PAYLOAD BERBEDA DARI LAPORAN MOBILE LAIN pada dua hal yang mudah salah disalin, keduanya sama seperti screen-144: nama mill ada di blok business_unit (BUKAN period.business_unit_name), dan tidak ada kunci has_data — 'periode kosong' diturunkan dari load_count === 0. Keduanya punya testnya sendiri.",
+    "NOL ARITMETIKA DI KLIEN, DENGAN FIXTURE YANG SENGAJA TIDAK KONSISTEN. share_percent dan avg_percentage pada fixture test dibuat tidak dapat diturunkan dari kuantitas barisnya, dan quantity_total kedua satuan dipilih supaya jumlahnya (140) adalah angka yang BISA terbentuk — sehingga asersi ketiadaannya bermakna.",
+    "PRODUCTION LINE WAJIB, dan penjagaannya ada di loadSummary(), bukan hanya di template — jalur retry, ganti periode, dan ganti mill tidak boleh melewatinya. Server menolak 422 bila lolos.",
+    "KOSAKATA VISUAL MOBILE (.detail-section / .metric-stack / .metric-card / .detail-table-wrap / .action-footer), bukan kosakata md-* laporan web. Halaman overflow-x: hidden; yang menggulir adalah isi kartu.",
+    "data-testid mengikuti kosakata enam laporan mobile lain, ditambah yang khusus layar ini: kpi-load-count, kpi-netto-total, kpi-netto-avg, kpi-bunch-total, kpi-bunch-avg, parameter-bunch, parameter-kg, parameter-share-note, by-estate-supplier, completeness, loads-without-detail, draft-load-count, loads-without-division, loads-not-checked, loads-not-acknowledged, daily-recap.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri grading: 'report-grading' pada REPORT_ROUTES di ReportingPilihStasiunView.vue, ditaruh setelah weighbridge mengikuti station_types.sort_order. Ada browser test yang menekan tile itu lewat klik setelah menyemai tabel station lokal.",
+    "COVERAGE TIDAK DAPAT DIUKUR di lingkungan ini (tidak ada provider coverage terpasang di package mobile) — gap pre-existing project-wide."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — sukses sebagai Operator",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Operator (BU-A); tanpa business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "pasang komponen sebagai operator dengan business_unit_id terisi, repo di-mock mengembalikan satu line, daftar periode, lalu payload dengan kedua satuan terisi; pilih periode pertama",
+        "assert": "pemilih Mill tidak dirender; nama mill dari business_unit.name; nama line dari production_line.name; jumlah muatan, netto total/rata-rata, janjang total/rata-rata, kedua bagian parameter beserta pangsa, rata-rata dan penyebutnya, rekap per asal, kelengkapan, dan rekap harian tertutup — semuanya terender dari payload apa adanya; tidak ada kontrol tulis"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "masuk pada Vite dev server sebagai Operator, buka Dashboard & Reporting lalu Reporting, tekan tile Grading, pilih periode pertama",
+        "assert": "seluruh bagian tampil satu kolom; halaman tidak menggulir mendatar; pemilih Mill tidak tampil; tidak ada tombol simpan/ubah/hapus"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — sukses sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "Token Supervisor"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "pasang sebagai supervisor lalu mill_management",
+        "assert": "perilakunya identik dengan Operator — tanpa pemilih Mill, dengan keterangan mill, dan seluruh angka terender"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "masuk sebagai Supervisor, buka laporan dari tile Reporting, pilih periode",
+        "assert": "laporan tampil penuh; tombol Ekspor CSV terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — sukses sebagai Admin",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Token Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}",
+            "period_id": "P-1",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "pasang sebagai admin tanpa business_unit_id; pilih mill, lalu line, lalu periode",
+        "assert": "pemilih Mill dirender; sebelum mill dipilih repo tidak dipanggil untuk daftar line maupun periode; setelah mill dipilih keduanya dimuat"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "masuk sebagai Admin, pilih mill lalu line lalu periode",
+        "assert": "pemilih Mill tampil; laporan tampil setelah ketiga pilihan lengkap"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — satuan janjang dan kilogram tidak pernah dijumlahkan",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "bunch total 100, kg total 40"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "payload dengan bunch.quantity_total 100 dan kg.quantity_total 40; render seluruh layar",
+        "assert": "dua bagian terender dengan total masing-masing; angka 140 tidak muncul pada teks terender; pangsa tiap baris dihitung server terhadap total bagiannya sendiri dan diteruskan apa adanya"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode yang memuat kedua satuan dan gulir seluruh halaman",
+        "assert": "tidak ada baris maupun kartu total yang menggabungkan janjang dengan kilogram"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — pangsa dan rata-rata persentase ditampilkan berdampingan",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "payload dengan sebuah parameter ber-share_percent 70 dan avg_percentage 12",
+        "assert": "kedua angka terender pada baris parameter yang sama; keterangan parameter-share-note terender UTUH, menyatakan pangsa berbobot menurut besar muatan sementara rata-rata memperlakukan tiap muatan sama"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan dan baca bagian parameter",
+        "assert": "kedua angka dan keterangannya terbaca pada viewport 390px tanpa terpotong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — penyebut rata-rata tercetak di sebelah angkanya",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "10 muatan, parameter dicatat 3 kali"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "payload dengan load_count 10 dan sebuah baris ber-load_count 3",
+        "assert": "baris itu mencetak '3 dari 10 muatan'; tidak ada angka yang menunjukkan penyebut 10 untuk parameter itu"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "baca bagian parameter pada periode yang memuat parameter jarang",
+        "assert": "penyebut tiap baris terbaca dalam bentuk 'N dari M muatan'"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — muatan tanpa satu pun baris parameter",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "3 muatan, 1 tanpa baris detail"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "payload dengan load_count 3 dan loads_without_detail 1",
+        "assert": "jumlah muatan tetap 3; loads-without-detail terender 1 beserta keterangan bahwa muatan itu tidak menyumbang pada komposisi mutu"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode yang memuat grading tanpa penilaian",
+        "assert": "angka muatan tanpa baris parameter terlihat pada bagian kelengkapan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — periode hanya memuat satu satuan",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-BUNCH-SAJA",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "payload dengan kg.quantity_total null dan kg.rows []",
+        "assert": "bagian kilogram TETAP terender dengan keterangan tidak tersedia; bagian janjang menampilkan angkanya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "pilih periode yang hanya memuat parameter janjang",
+        "assert": "kedua judul bagian parameter terlihat, dengan bagian kilogram bernilai tidak tersedia"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — periode tanpa data",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-KOSONG",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "payload dengan load_count 0 dan seluruh total null",
+        "assert": "empty-period terender; total dan rata-rata tampil 'tidak tersedia' bergaya non-angka, bukan 0; kedua bagian parameter tetap terender dengan keterangan; rekap harian tidak terender"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "pilih periode tanpa muatan",
+        "assert": "keterangan belum ada data tampil dan tidak ada tabel parameter berisi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — line dibawa dari tile stasiun",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A2",
+            "_context": "dari query rute"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "route.query.production_line_id = 'PL-A2' sementara localStorage menyimpan 'PL-A1'",
+        "assert": "rute mengalahkan ingatan; fetchSummary membawa PL-A2; localStorage ditulis ulang menjadi PL-A2"
+      },
+      "browser_test": {
+        "route": "/reports/grading?production_line_id=PL-A2",
+        "action": "pilih line kedua di layar pemilih stasiun lalu tekan tile Grading",
+        "assert": "chip Production Line menampilkan nama line kedua tanpa memilih ulang"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — line diambil dari ingatan perangkat",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "dari localStorage"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "isi localStorage untuk user-1 dan user-2 dengan line berbeda; pasang sebagai user-1",
+        "assert": "line user-1 yang dipakai; ingatan user-2 tidak pernah terbaca; getItem yang melempar (mode privat) tidak mematahkan layar"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "pilih line di Daftar Stasiun lalu buka laporan lewat Reporting",
+        "assert": "line yang sama sudah berlaku"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — line dari ingatan sudah tidak ada",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_context": "daftar line tidak memuat id yang diingat"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "localStorage berisi 'pl-hilang'; daftar line mengembalikan dua line lain",
+        "assert": "selectedProductionLineId null; production-line-required-hint terender; fetchSummary TIDAK dipanggil"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan setelah line yang diingat dihapus",
+        "assert": "pemilih Production Line tampil kembali dan tidak ada angka"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — Production Line belum berlaku",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "_context": "production_line_id tidak dikirim"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "daftar line berisi tiga line, tanpa rute dan tanpa ingatan; pilih periode",
+        "assert": "production-line-required-hint terender beserta alasannya; fetchSummary TIDAK dipanggil; tidak ada angka gabungan seluruh line"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan pada mill bermuatan beberapa line tanpa memilih line",
+        "assert": "arahan memilih line tampil dan tidak ada kartu angka"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — mill belum punya Production Line",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_context": "mill tanpa line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "repo mengembalikan daftar line kosong",
+        "assert": "production-line-unavailable dengan pesan 'belum memiliki Production Line'; tombol production-line-retry TIDAK dirender"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan pada mill tanpa Production Line",
+        "assert": "arahan menghubungi Admin tampil, tanpa tombol coba lagi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — daftar Production Line gagal dimuat",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_context": "gagal di transport"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "fetchProductionLinesForReport menolak dengan { message } tanpa status",
+        "assert": "pesan 'tidak dapat dimuat' DAN tombol coba lagi; network-error milik laporan TIDAK terender; menekan tombol memuat ulang daftar line saja"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan dengan endpoint daftar line diblokir",
+        "assert": "pesan kegagalan memuat daftar line tampil beserta tombol Coba Lagi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/periods"
+          },
+          "request_example": {
+            "_context": "Operator dengan users.business_unit_id NULL"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "pasang sebagai operator dengan business_unit_id null",
+        "assert": "no-mill-for-account terender; TIDAK satu pun fungsi repo dipanggil — termasuk fetchBusinessUnits; pemilih Mill tidak dirender"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "masuk dengan akun yang belum terhubung mill",
+        "assert": "pesan menghubungi Admin tampil dan tidak ada pemilih mill"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — mill belum punya periode pelaporan",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/periods"
+          },
+          "request_example": {
+            "_context": "mill tanpa baris period_stations grading"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "repo mengembalikan daftar periode kosong; amati keadaan SELAMA memuat dan setelah selesai",
+        "assert": "selama memuat, no-periods TIDAK terender (periods-loading yang tampil); setelah selesai, no-periods terender; pemilih periode tetap dirender dalam keadaan kosong"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan pada mill tanpa periode Grading",
+        "assert": "arahan menghubungi Admin tampil dan pemilih periode kosong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — rekap harian tertutup secara bawaan",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-PANJANG",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "payload dengan daily 30 baris dan daily_total terisi; render lalu buka dan tutup rekap",
+        "assert": "saat pertama render isi tabel tidak tampak; setelah dibuka 30 baris dan baris total tampak; membuka/menutup TIDAK memicu pemanggilan repo dan tidak mengubah angka"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode panjang lalu ketuk judul Rekap Harian dua kali",
+        "assert": "tabel muncul lalu tersembunyi lagi; tidak ada permintaan jaringan baru"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — tabel menggulir di dalam kartunya, halaman tidak",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "render dengan banyak baris parameter dan banyak tanggal",
+        "assert": "tabel parameter dan tabel rekap harian masing-masing dibungkus .detail-table-wrap"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "pada viewport 390px, gulir tabel parameter dan tabel rekap harian ke samping",
+        "assert": "tiap tabel menggulir di dalam kartunya (overflow-x auto/scroll, scrollWidth > clientWidth) sementara document.scrollWidth halaman tidak melebihi lebar viewport; kartu angka tersusun satu kolom; sasaran sentuh >= 44px"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — kehilangan jaringan saat memuat",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "_context": "gagal di transport, penolakan tanpa status"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "fetchSummary menolak dengan { message } tanpa status setelah periode dipilih; lalu tekan retry dengan mock yang berhasil",
+        "assert": "network-error + retry-button; selectedPeriodId TETAP terisi; Coba Lagi memanggil fetchSummary dengan periode dan line yang SAMA"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "pilih periode dengan jaringan diblokir lalu lepas blokir dan tekan Coba Lagi",
+        "assert": "pesan kegagalan tampil dengan periode masih terpilih; setelah Coba Lagi laporan tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — sesi berakhir saat layar terbuka",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "token dicabut"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "fetchSummary menolak dengan { status: 401 }",
+        "assert": "router.push({ name: 'login' }); network-error dan retry-button TIDAK terender; summary null"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "cabut token lalu pilih periode",
+        "assert": "aplikasi berpindah ke Login tanpa pesan jaringan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — mengganti pilihan lebih cepat daripada jawabannya",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-LAMA",
+            "production_line_id": "PL-A1",
+            "_context": "jawaban tiba BELAKANGAN"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-BARU",
+            "production_line_id": "PL-A1",
+            "_context": "jawaban tiba LEBIH DULU"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "mock sehingga permintaan pertama resolve setelah yang kedua; ganti periode dua kali; ulangi dengan permintaan pertama MENOLAK",
+        "assert": "summary akhirnya milik pilihan terakhir; jawaban lama tidak menimpanya; galat lama tidak terender; loadingSummary tidak dimatikan jawaban lama; mengosongkan periode saat memuat tidak memunculkan angka kemudian"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "dengan jaringan dilambatkan, ganti periode tiga kali dengan cepat",
+        "assert": "angka yang akhirnya tampil milik periode terakhir"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — periode berstatus tertutup",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-TERTUTUP",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-TERTUTUP",
+            "production_line_id": "PL-A1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "payload dengan period.status 'closed' dan data terisi",
+        "assert": "badge 'Tertutup' terender beserta keterangan bahwa status mengatur penulisan bukan pembacaan; seluruh angka terender; export-button TIDAK disabled"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "pilih periode yang stasiun Grading-nya sudah ditutup lalu tekan Ekspor CSV",
+        "assert": "laporan tampil penuh dengan badge Tertutup dan unduhan berjalan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — unduh rincian seluruh baris parameter sebagai CSV",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "tekan export-button dengan exportCsv di-mock mengembalikan Blob; tekan dua kali",
+        "assert": "exportCsv dipanggil dengan period_id, production_line_id, format csv; saveCsvFile menerima nama 'laporan-grading_<slug>.csv'; tombol disabled dan berlabel 'Mengekspor…' sehingga ketukan kedua tidak menghasilkan pemanggilan kedua"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "tekan tombol Ekspor CSV",
+        "assert": "unduhan terpicu dan tombol sempat berlabel Mengekspor…"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — mengganti periode selagi ekspor berjalan",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-A",
+            "production_line_id": "PL-A1",
+            "format": "csv",
+            "_context": "pengguna mengganti ke P-B sebelum blob tiba"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "tekan export untuk periode A lalu ganti selectedPeriodId ke B sebelum exportCsv resolve",
+        "assert": "saveCsvFile menerima nama berslug periode A, bukan B; angka di layar menjadi milik periode B"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "tekan Ekspor CSV lalu segera ganti periode",
+        "assert": "berkas yang terunduh bernama sesuai periode yang diekspor"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — mencoba melihat mill atau Production Line milik mill lain",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-A",
+            "production_line_id": "PL-A1",
+            "business_unit_id": "BU-LAIN",
+            "_context": "Token Operator BU-A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-A",
+            "production_line_id": "PL-B9"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "gradingReportRepo",
+        "action": "panggil fetchSummary dengan scope { isAdmin: false, businessUnitId: 'BU-LAIN', productionLineId: 'PL-A1' }",
+        "assert": "params tidak memuat business_unit_id sama sekali — repo tidak pernah mengirimkannya untuk peran terikat mill"
+      },
+      "browser_test": {
+        "route": "/reports/grading?production_line_id=PL-B9",
+        "action": "buka laporan sebagai Operator BU-A dengan id line milik mill lain pada rute",
+        "assert": "line itu tidak berlaku karena tidak ada pada daftar line mill ini; pemilih line tampil dan tidak ada angka mill lain"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — angkanya sama dengan laporan versi web",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "endpoint yang SAMA dengan yang dipakai Livewire LaporanGrading lewat GradingReportService"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "gradingReportRepo",
+        "action": "bandingkan hasil fetchSummary terhadap payload mentah endpoint",
+        "assert": "setiap kunci angka bernilai identik; repo tidak membulatkan, menjumlah, mengurutkan ulang, maupun menurunkan satu nilai pun"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan mobile dan laporan web untuk periode dan line yang sama",
+        "assert": "jumlah muatan, netto total/rata-rata, janjang total/rata-rata, total tiap satuan, pangsa dan rata-rata tiap parameter beserta penyebutnya, dan seluruh penghitung kelengkapan bernilai sama pada kedua layar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Mobile) — layar hanya membaca",
+      "usecase_id": "usecase-150--laporan-grading-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "prefix GET-only"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGradingView",
+        "action": "render penuh lalu ganti mill, line, dan periode, buka-tutup rekap harian, dan jalankan ekspor",
+        "assert": "tidak ada tombol simpan/ubah/hapus/ubah status pada komponen; seluruh pemanggilan repo adalah fungsi baca"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "jelajahi seluruh layar dan lakukan semua interaksi",
+        "assert": "hanya tombol Ekspor CSV dan Back yang ada di footer"
+      }
+    }
+  ]
+}

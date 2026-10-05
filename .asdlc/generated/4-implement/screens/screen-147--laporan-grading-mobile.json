@@ -1,0 +1,91 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-147--laporan-grading-mobile",
+  "name": "Laporan Grading (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/gradingReportRepo.ts",
+    "mobile/src/views/LaporanGradingView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/gradingReportRepo.spec.ts",
+    "mobile/tests/LaporanGradingView.spec.ts",
+    "mobile/tests/e2e/laporan-grading.spec.ts"
+  ],
+  "implementation_notes": [
+    "NOL PERUBAHAN BACKEND — BUKAN KEBETULAN, MELAINKAN HASIL DARI screen-146. Keempat endpoint /api/grading-reports/* dipakai ulang apa adanya: rutenya sudah 'role:supervisor,mill_management,admin,operator' sejak hari pertama, guardAccess() sudah menerima Operator, dan cabang TERIKAT MILL pada resolveBusinessUnit() sudah memuat Operator. Pasangan Weighbridge (screen-143 → screen-144) menuntut tiga perubahan backend yang mendarat bersama karena screen-143 dibangun sebelum ada pasangan mobile; screen-146 dibangun DENGAN pasangan ini sudah diketahui, jadi perluasannya tidak pernah perlu terjadi. Satu-satunya berkas backend yang disentuh layar ini: tidak ada.",
+    "KONSEKUENSI YANG HARUS DIINGAT: karena tidak ada perubahan backend, tidak ada test backend baru dan tidak ada test backend yang berubah arah. Suite backend dijalankan utuh sebagai regresi (2611 lolos), bukan sebagai bukti layar ini.",
+    "RUTE WEB /reports/grading TETAP TIGA PERAN WEB. Komponen Livewire LaporanGrading punya daftar perannya SENDIRI (canAccess()) dan tidak meminjam guardAccess(), jadi Operator yang kini membaca laporan di ponsel tetap tidak dapat membuka layar web-nya. Pemisahan itu sudah diuji pada screen-146 (Livewire skenario yang menolak Operator) dan tidak perlu diulang di sini.",
+    "/business-units/options TETAP MENOLAK PERAN TERIKAT MILL dengan 403 yang dibangkitkan SERVICE, bukan middleware. Layar ini karena itu tidak pernah memanggilnya untuk Operator/Supervisor/Mill Management — stub e2e menjawab 403 di sana dan satu asersi memeriksa pemanggilannya memang tidak terjadi, sebab memanggilnya hanya akan membentuk daftar seluruh mill di perangkat yang tidak berhak melihatnya.",
+    "LAPISAN KLIEN: gradingReportRepo.ts sejajar keenam repo laporan lain. scopeParams() tidak pernah mengirim business_unit_id untuk peran terikat mill (pertahanan berlapis di atas penjagaan server), productionLineParams() hanya mengirim ke /summary dan /export, dan unwrap() menerima respons dengan maupun tanpa pembungkus 'data'.",
+    "NOL ARITMETIKA DI KLIEN, DAN FIXTURE TEST YANG MEMBUKTIKANNYA. Angka pada gradingReportRepo.spec.ts sengaja dibuat BERTENTANGAN dengan sumbernya: share_percent 55 padahal 30/100, avg_percentage 77,5 dengan load_count 2 terhadap periode 10 muatan, bunch.quantity_total 100 padahal barisnya 30+60, netto_avg 123,45 padahal 8000/10, daily_total.load_count 99 padahal hariannya 3+4. Repo yang menghitung sendiri PASTI gagal; dengan payload yang konsisten, test 'tidak menghitung ulang' tidak membuktikan apa pun.",
+    "DUA SATUAN, DUA BAGIAN, DAN SATU ASERSI ATAS KETIADAAN YANG BENAR-BENAR MUNGKIN GAGAL. Grading melaporkan 13 parameter berbasis janjang dan 3 berbasis kilogram; keduanya TIDAK PERNAH dijumlahkan. Fixture memberi total 100 janjang dan 40 kg justru supaya angka 140 dapat terbentuk — tanpa itu, asersi 'tidak ada angka gabungan' selalu hijau dan tidak menjaga apa pun. Diasersi di ketiga lapis test (repo, komponen, browser).",
+    "BAGIAN SATUAN YANG KOSONG TETAP DIRENDER, dengan keterangannya sendiri dan totalnya 'tidak tersedia'. Bagian yang LENYAP terbaca sebagai 'tidak ada bagian ini', padahal yang benar adalah 'tidak ada isinya' — dan hanya yang kedua benar. Satu test komponen dan satu browser test mengunci ini dengan mengosongkan blok kg sementara blok janjang tetap berisi.",
+    "PENYEBUT RATA-RATA TERCETAK APA ADANYA, DAN ITULAH KOLOM YANG PALING MUDAH DIKORBANKAN DI LAYAR 390px. avg_percentage dibagi rows[].load_count (muatan yang BENAR-BENAR mencatat parameter itu), bukan load_count periode; tanpa penyebut tercetak, 12,50% terbaca sebagai rata-rata seluruh periode. Fixture memberi 'Mentah' pada 2 dari 10 muatan dan test mencari teks '2 dari 10 muatan' apa adanya, bukan hanya angkanya.",
+    "DUA ANGKA PER PARAMETER YANG BOLEH BERTENTANGAN, dan keterangannya dirender UTUH: share_percent berbobot menurut besar muatan, avg_percentage memberi tiap muatan bobot sama. Dua angka yang membantah tanpa sebab yang dinyatakan lebih buruk daripada satu angka saja, jadi test komponen memeriksa keempat frasa kunci kalimat penjelasnya ada, bukan sekadar elemennya terender.",
+    "NULL BUKAN NOL, DAN TERLIHAT: netto/janjang/persentase yang null dirender 'tidak tersedia' dengan kelas .metric-value--na supaya tidak pernah terbaca sekilas sebagai bilangan, dan sel tabel yang null dirender 'tidak tercatat'. Fixture memberi baris parameter dengan share_percent DAN avg_percentage keduanya null, dan hari pertama rekap harian dengan netto null.",
+    "TIDAK ADA PENGHITUNG 'TANPA TANGGAL' — grading_records.date NOT NULL, berbeda dari weighbridge yang record_datetime-nya nullable. Ketiadaannya DINYATAKAN di layar, bukan dibiarkan terbaca sebagai kelalaian. Konsekuensi test yang sempat menjatuhkan satu browser test: penyisiran seluruh innerText terhadap frasa 'tanpa tanggal' justru gagal pada kalimat yang membuktikan klaimnya, jadi asersinya disisir atas LABEL PENGHITUNG (.queue-label di dalam bagian kelengkapan, tepat enam buah) ditambah asersi kalimat penjelasnya hadir.",
+    "TIDAK ADA NILAI YANG DITANDAI DI LUAR BATAS: Grading tidak punya master target mutu, jadi penandaan visual apa pun akan menjadi penilaian tanpa dasar. Diuji sebagai KETIADAAN KELAS (.md-threshold, .is-danger, .is-warning, .md-chip--danger) alih-alih ketiadaan frasa, dengan alasan yang sama seperti di atas — kalimat yang menyatakan 'tidak ada yang ditandai di luar batas' memuat frasa itu.",
+    "PRODUCTION LINE WAJIB, dan penjagaannya ada di FUNGSI loadSummary(), bukan hanya di template — supaya jalur retry, ganti periode, dan ganti mill tidak melewatinya. Server pun menolak 422 bila parameter itu absen, jadi melewatinya bukan 'angka seluruh mill' melainkan galat. Ingatan line (msl_production_line_{userId}) dibagi dengan StationListView, dengan urutan penyelesaian rute → ingatan → satu-satunya line → tidak ada.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri 'grading' pada REPORT_ROUTES di ReportingPilihStasiunView.vue, dan ada browser test khusus yang menekan tile itu LEWAT KLIK (bukan page.goto — tabel station lokal hidup di memori sql.js dan hilang pada tiap muat ulang) setelah menyemai station lokal. Tanpa test itu layar ini bisa lengkap, seluruh test lain hijau, dan tile-nya tetap kelabu.",
+    "VIEWPORT 390x844, BUKAN 1280px BAWAAN PROYEK. Separuh klaim layar ini adalah klaim tata letak — satu kolom, tanpa gulir mendatar halaman, sasaran sentuh ≥44px, dua tabel parameter yang menggulir DI DALAM kartunya — dan seluruhnya hampa pada kanvas 1280px karena apa pun muat di sana.",
+    "REKAP HARIAN MEMAKAI v-show (CollapsibleSection), BUKAN v-if. Saat tertutup barisnya tetap ada di DOM dengan display:none, jadi keadaan tertutup diasersi toBeHidden() dan tidak pernah toHaveCount(0); dan membuka/menutupnya diasersi TIDAK memicu satu permintaan pun, karena datanya sudah ada di memori.",
+    "SPEC ReportingPilihStasiunView.spec.ts TIDAK PERLU DISENTUH kali ini. Pada screen-144 contoh 'tile tanpa laporan' harus dipindahkan dari Weighbridge ke Engine Room; Grading tidak pernah menjadi contoh itu, jadi mengaktifkan tile-nya tidak menjatuhkan test mana pun. Diverifikasi dengan menjalankan spec itu, bukan diasumsikan.",
+    "api-index TIDAK BERUBAH untuk layar ini. Keempat endpoint grading sudah tercatat dengan actor-station-operator pada v69 (ditulis bersama screen-146), karena Operator sudah menjadi pemanggil sah sejak awal. Tidak ada drift baru yang diperkenalkan."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "DRIFT ARTEFAK DI LUAR CAKUPAN LAYAR INI (dibawa dari screen-144, belum diperbaiki): pada project.3-tech-spec.api-index, kelima prefix laporan saudaranya (/api/sterilizer-reports/*, /api/cages-track-reports/*, /api/boiler-room-reports/*, /api/clarification-reports/*, /api/storage-tank-reports/*) masih mencantumkan actor_ids tanpa actor-station-operator, padahal routes/api.php dan service masing-masing sudah menerima Operator sejak screen-135..139. Endpoint weighbridge dan grading sudah benar. Memperbaiki kelima sisanya adalah satu patch kecil pada api-index, tetapi ia menyentuh artefak lima layar lain, jadi tetap dicatat alih-alih diselipkan ke sini.",
+      "severity": "minor"
+    },
+    {
+      "description": "Lingkungan e2e-web tidak memiliki satu pun stasiun bertipe grading (BrowserTestFixtureSeeder tidak menyemainya), sehingga e2e-web/tests/laporan-grading.spec.ts memakai asersi invarian yang diturunkan dari DOM alih-alih angka tetap. Tidak berdampak pada layar mobile ini — suite mobile menstub respons API di tingkat jaringan dan tidak bergantung pada fixture itu — tetapi dicatat ulang karena perbaikannya (satu stasiun grading pada seeder) akan menguatkan kedua suite sekaligus.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage unit test tidak terukur — tidak ada provider coverage terpasang di package mobile. Gap pre-existing project-wide, bukan diperkenalkan layar ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "Ekspor .xlsx tidak tersedia di layar mobile (hanya CSV), sementara layar web screen-146 menawarkan keduanya. Disengaja dan sama dengan keenam laporan mobile lain: menyimpan dan membuka .xlsx di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "DRIFT CSS PROJECT-WIDE, DITEMUKAN SAAT MENGAUDIT LAYAR INI: 14 view mobile memakai kelas .app-header-brand pada markup tanpa pernah mendefinisikannya di blok <style scoped> masing-masing (DataPreviewCpoDispatch, DataPreviewKernelDispatch, DataPreviewSolidWasteDisposal, DataPreviewSterilizer, LaporanBoilerRoom, LaporanCagesTrack, LaporanClarification, LaporanSterilizer, LaporanStorageTank, LaporanWeighbridge, MonitorCpoDispatch, MonitorKernelDispatch, MonitorSolidWasteDisposal, MonitorSterilizer). Karena <style> di Vue bersifat scoped, definisi di view lain tidak menjangkaunya. Dampak visualnya nihil hari ini — pembungkus itu hanya memuat satu anak (.brand-name), jadi block dan flex terender sama — dan itulah sebabnya ia tidak pernah terlihat. LaporanGradingView.vue diberi definisinya di sini (diverifikasi pada hasil compile lewat getComputedStyle di browser, bukan pada sumbernya), tetapi 14 berkas lain TIDAK disentuh: memperbaikinya menyentuh artefak belasan layar lain, jadi dicatat sebagai temuan alih-alih diselipkan ke cakupan layar ini.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-06T01:35:00Z",
+      "passed": 31,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-06T01:35:00Z",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-06T01:19:17Z",
+      "passed": 45,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-06T01:44:00Z",
+      "passed": 26,
+      "failed": 0
+    }
+  }
+}

@@ -941,6 +941,30 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanWeighbridgeView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-147--laporan-grading-mobile /
+    // usecase-150--laporan-grading-mobile "Lihat Laporan Periode Grading
+    // (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor, mill_management, admin).
+    //
+    // NOL PERUBAHAN BACKEND untuk layar ini, dan itu membedakannya dari
+    // report-weighbridge di atas: keempat rute /api/grading-reports/* sudah
+    // menerima peran mobile sejak screen-146 (laporan Grading web) dibangun,
+    // karena kedua layar direncanakan dalam satu seri. Yang TIDAK terbuka
+    // tetap tidak terbuka: /business-units/options Admin saja, dan rute WEB
+    // /reports/grading tanpa Operator.
+    //
+    // Pintu masuknya: rute 'report-stations' di atas (screen-141) menampilkan
+    // grid stasiun, dan tile Grading-lah yang menavigasi ke sini — entri
+    // 'grading' pada REPORT_ROUTES di ReportingPilihStasiunView.vue adalah
+    // satu-satunya penentu tile itu hidup atau mati. Tile itu juga membawa
+    // ?production_line_id=, nilai pertama pada urutan penentuan line.
+    path: '/reports/grading',
+    name: 'report-grading',
+    component: () => import('@/views/LaporanGradingView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

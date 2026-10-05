@@ -1,0 +1,437 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "usecase-150--laporan-grading-mobile",
+  "name": "Lihat Laporan Periode Grading (Mobile)",
+  "description": "Pengguna mobile — termasuk Operator yang menyortir muatannya sendiri — memilih Production Line dan periode pelaporan, lalu membaca komposisi mutu panen sepanjang periode itu di ponselnya. Angkanya sama persis dengan laporan versi web karena diambil dari endpoint yang sama. Inti laporannya adalah rekap per parameter mutu, yang menampilkan dua angka berbeda dan dapat bertentangan — pangsa terhadap total periode (berbobot menurut besar muatan) dan rata-rata persentase per muatan (tiap muatan berbobot sama) — beserta penjelasan bedanya. Satuan janjang dan kilogram tidak pernah dijumlahkan: keduanya dua bagian yang berdiri sendiri, bertumpuk pada layar sempit. Layar ini membutuhkan jaringan; karena Operator kerap bekerja di area tanpa sinyal, kegagalan memuat dikatakan terus terang berikut cara mencobanya lagi.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi mobile dengan peran Operator, Supervisor, Mill Management, atau Admin",
+    "Mill sudah punya minimal satu periode pelaporan yang mencakup stasiun Grading",
+    "Mill sudah punya minimal satu Production Line",
+    "Perangkat punya jaringan — laporan ini tidak punya jalur offline"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Pengguna membuka layar Laporan Grading dari tile Grading pada layar pemilih stasiun Reporting"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Sistem menetapkan mill dari akun pengguna; khusus Admin, sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Sistem memuat daftar Production Line milik mill itu dan menentukan line yang berlaku — dari parameter rute yang dibawa tile stasiun, lalu dari ingatan pilihan terakhir pengguna di perangkat ini, lalu dari satu-satunya line bila mill hanya punya satu; selain itu pemilih ditampilkan dan tidak ada angka"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Grading pada mill itu"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 6,
+      "actor": "actor-station-operator",
+      "description": "Sistem menyaring muatan berdasarkan Production Line yang MELEKAT PADA MUATAN ITU SENDIRI, dan menentukan keanggotaan periode dari tanggal muatan itu sendiri, inklusif di kedua ujung"
+    },
+    {
+      "step": 7,
+      "actor": "actor-station-operator",
+      "description": "Sistem mengelompokkan baris parameter menurut SATUANNYA dan tidak pernah menjumlahkan keduanya"
+    },
+    {
+      "step": 8,
+      "actor": "actor-station-operator",
+      "description": "Sistem menampilkan jumlah muatan, total dan rata-rata netto serta jumlah janjang, kedua rekap parameter per satuan beserta pangsa dan rata-rata persentase dengan penyebutnya, rekap per estate/supplier, kelengkapan pencatatan, dan rekap harian yang dapat ditutup — seluruhnya pada satu kolom ponsel"
+    },
+    {
+      "step": 9,
+      "actor": "actor-station-operator",
+      "description": "Pengguna dapat mengunduh rincian seluruh baris parameter sepanjang periode sebagai CSV, satu baris per parameter per muatan, dengan isi yang sama persis dengan ekspor laporan versi web"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Production Line belum berlaku",
+      "trigger": "Pada langkah 3, tidak ada line yang dapat ditentukan dari rute, ingatan, maupun dari satu-satunya line",
+      "steps": [
+        "Pemilih Production Line ditampilkan",
+        "Tidak ada angka yang ditampilkan",
+        "Sistem TIDAK menampilkan angka gabungan seluruh line pada mill itu"
+      ]
+    },
+    {
+      "name": "Line dari rute atau ingatan sudah tidak ada",
+      "trigger": "Pada langkah 3, line yang dibawa rute atau yang diingat perangkat tidak lagi ada pada daftar line mill ini",
+      "steps": [
+        "Nilai itu tidak dipakai",
+        "Pemilih Production Line ditampilkan kembali",
+        "Sistem tidak menebak line lain sebagai penggantinya"
+      ]
+    },
+    {
+      "name": "Mill belum punya Production Line",
+      "trigger": "Pada langkah 3, mill tidak punya satu pun Production Line",
+      "steps": [
+        "Sistem menyatakan mill ini belum punya Production Line dan mengarahkan menghubungi Admin",
+        "Keadaan ini dibedakan dari kegagalan memuat daftar line, yang justru menawarkan tombol mencoba lagi"
+      ]
+    },
+    {
+      "name": "Daftar Production Line gagal dimuat",
+      "trigger": "Pada langkah 3, permintaan daftar line gagal karena jaringan atau server",
+      "steps": [
+        "Sistem menyatakan daftar line tidak dapat dimuat, bukan menyatakan mill tidak punya line",
+        "Sistem menawarkan tombol mencoba lagi untuk daftar line itu sendiri",
+        "Kegagalan ini tidak menyamar sebagai kegagalan ringkasan laporan"
+      ]
+    },
+    {
+      "name": "Admin mengganti mill setelah line terpilih",
+      "trigger": "Pada langkah 2, Admin mengganti mill padahal sebuah Production Line sudah terpilih",
+      "steps": [
+        "Production Line yang terpilih dikosongkan",
+        "Sistem memuat ulang daftar line milik mill baru lalu daftar periodenya",
+        "Angka tidak ditampilkan sampai line berlaku kembali"
+      ]
+    },
+    {
+      "name": "Admin memilih mill lebih dulu",
+      "trigger": "Pada langkah 2, pengguna berperan Admin dan belum memilih mill",
+      "steps": [
+        "Sistem menampilkan pemilih Mill",
+        "Tidak ada satu pun permintaan daftar line maupun daftar periode yang dikirim",
+        "Sistem menampilkan arahan memilih mill terlebih dahulu"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun pengguna terikat mill tetapi mill-nya kosong",
+      "steps": [
+        "Layar berhenti di sini tanpa satu pun permintaan jaringan",
+        "Sistem menampilkan pesan menghubungi Admin",
+        "Sistem tidak menawarkan daftar seluruh mill sebagai jalan keluar"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode",
+      "trigger": "Pada langkah 4, mill tidak punya periode yang mencakup Grading",
+      "steps": [
+        "Pemilih periode kosong",
+        "Sistem menampilkan arahan menghubungi Admin",
+        "Arahan itu tidak muncul selama daftar periode masih dimuat"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 6, periode tidak memuat satu pun muatan pada line terpilih",
+      "steps": [
+        "Seluruh angka ditampilkan tidak tersedia dan bukan nol",
+        "Sistem menyatakan belum ada data pada periode itu",
+        "Kedua rekap parameter tetap ditampilkan dengan keterangan, bukan dihilangkan"
+      ]
+    },
+    {
+      "name": "Periode hanya memuat satu satuan",
+      "trigger": "Pada langkah 7, periode memuat parameter ber-satuan janjang tetapi nol parameter ber-satuan kilogram",
+      "steps": [
+        "Bagian kilogram tetap ditampilkan dengan nilai tidak tersedia",
+        "Bagian itu TIDAK disembunyikan walau layar ponsel sempit",
+        "Pembaca tahu brondolan memang tidak tercatat dan bukan mengira bagian itu tidak ada"
+      ]
+    },
+    {
+      "name": "Parameter hanya muncul pada sebagian muatan",
+      "trigger": "Pada langkah 8, sebuah parameter hanya dicatat pada sebagian muatan",
+      "steps": [
+        "Rata-rata persentasenya dihitung HANYA atas muatan yang mencatatnya",
+        "Jumlah muatan itu ditampilkan bersama rata-ratanya sebagai penyebut",
+        "Sistem TIDAK menganggap ketiadaan baris sebagai nilai nol"
+      ]
+    },
+    {
+      "name": "Muatan tanpa satu pun baris parameter",
+      "trigger": "Pada langkah 8, sebuah muatan tidak punya satu pun baris parameter mutu",
+      "steps": [
+        "Muatan itu TETAP terhitung pada jumlah muatan, netto, dan jumlah janjang",
+        "Muatan itu tidak menyumbang apa pun pada rekap parameter",
+        "Jumlah muatan semacam itu ditampilkan tersendiri sebagai kelengkapan"
+      ]
+    },
+    {
+      "name": "Kehilangan jaringan saat memuat",
+      "trigger": "Pada langkah 4, 5, atau 8, perangkat kehilangan jaringan",
+      "steps": [
+        "Sistem menampilkan pesan kegagalan beserta tombol mencoba lagi",
+        "Periode yang sudah dipilih TIDAK hilang",
+        "Tombol mencoba lagi mengulang tepat aksi yang gagal"
+      ]
+    },
+    {
+      "name": "Sesi berakhir saat layar terbuka",
+      "trigger": "Pada langkah 8, sesi pengguna sudah tidak berlaku di server",
+      "steps": [
+        "Pengguna diarahkan ke layar Login",
+        "Sistem tidak menampilkannya sebagai kegagalan jaringan dengan tombol mencoba lagi yang pasti gagal"
+      ]
+    },
+    {
+      "name": "Mengganti pilihan lebih cepat daripada jawabannya",
+      "trigger": "Pada langkah 5, pengguna mengganti periode atau line sebelum ringkasan sebelumnya selesai dimuat",
+      "steps": [
+        "Yang tampil selalu ringkasan milik pilihan TERAKHIR",
+        "Ringkasan pilihan lama yang datang belakangan diabaikan",
+        "Tanda memuat milik pilihan baru tidak dihentikan oleh jawaban pilihan lama"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 5, pengguna memilih periode yang stasiun Grading-nya sudah tertutup",
+      "steps": [
+        "Laporan tetap tampil penuh",
+        "Status tertutup ditampilkan sebagai keterangan",
+        "Ekspor tetap dapat dijalankan"
+      ]
+    },
+    {
+      "name": "Rekap harian panjang di layar ponsel",
+      "trigger": "Pada langkah 8, periode cukup panjang sehingga rekap hariannya puluhan baris",
+      "steps": [
+        "Rekap harian tertutup secara bawaan dan dapat dibuka pengguna",
+        "Membuka atau menutupnya tidak memicu permintaan jaringan apa pun",
+        "Angka utama dan kedua rekap parameter tetap terbaca tanpa gulir panjang"
+      ]
+    },
+    {
+      "name": "Mencoba melihat mill atau line milik mill lain",
+      "trigger": "Pada langkah 6, permintaan membawa mill atau Production Line milik mill lain",
+      "steps": [
+        "Server mengabaikan mill kiriman klien bagi peran yang terikat mill — termasuk Operator — dan memakai mill pada akun",
+        "Production Line yang bukan milik mill yang berlaku ditolak",
+        "Angka yang tampil tetap milik mill pengguna sendiri"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat komposisi mutu panen periode itu untuk Production Line yang berlaku di ponselnya",
+    "Tidak ada satu pun data stasiun yang berubah",
+    "Pilihan Production Line tersimpan sebagai ingatan perangkat untuk pengguna itu"
+  ],
+  "business_rules": [
+    "Layar hanya membaca; tidak ada aksi tulis",
+    "Semua peran yang dapat masuk ke aplikasi mobile boleh melihat laporan ini, TERMASUK Operator — orang yang menyortir berhak melihat hasilnya; versi web menolak Operator, versi mobile menerimanya",
+    "Operator, Supervisor, dan Mill Management terkunci pada mill akunnya; Admin memilih",
+    "Angka berasal dari endpoint yang sama dengan laporan Grading versi web; tidak ada endpoint mobile tersendiri dan tidak ada perhitungan kedua di sisi ponsel",
+    "Daftar periode hanya yang mencakup Grading",
+    "Status periode tidak membatasi pembacaan maupun ekspor",
+    "Rentang periode inklusif di kedua ujung",
+    "Production Line WAJIB berlaku; sebelum itu nol angka ditampilkan, bukan angka seluruh mill",
+    "Penyaringan line memakai line yang melekat pada muatan itu sendiri, bukan line stasiun saat ini",
+    "Keanggotaan periode ditentukan tanggal muatan, bukan waktu baris dibuat maupun waktu sinkronisasi",
+    "SATUAN JANJANG DAN KILOGRAM TIDAK PERNAH DIJUMLAHKAN — dua bagian yang berdiri sendiri, bertumpuk pada layar sempit",
+    "Pangsa parameter dihitung terhadap total kuantitas SATUANNYA SENDIRI",
+    "Rata-rata persentase dihitung hanya atas muatan yang mencatat parameter itu, dan jumlah muatan itu ditampilkan bersama angkanya",
+    "Ketiadaan baris parameter pada sebuah muatan BUKAN nilai nol",
+    "Pangsa dan rata-rata persentase ditampilkan berdampingan beserta penjelasan mengapa keduanya dapat berbeda",
+    "Laporan tidak menghitung ulang persentase baris parameter",
+    "Muatan tanpa satu pun baris parameter tetap terhitung pada jumlah muatan dan netto, dan jumlahnya ditampilkan tersendiri",
+    "Muatan berstatus draft ikut terhitung dan jumlahnya ditampilkan",
+    "Status verifikasi adalah kelengkapan, bukan penyaring",
+    "Nilai yang tidak dapat dihitung ditampilkan sebagai keterangan, TIDAK PERNAH sebagai 0",
+    "Tidak ada penandaan nilai di luar batas",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki",
+    "Layar ini membutuhkan jaringan; kegagalan dinyatakan terus terang beserta tombol mencoba lagi, dan periode yang sudah dipilih tidak hilang",
+    "Sesi yang sudah tidak berlaku mengarahkan pengguna ke Login",
+    "Hanya jawaban permintaan TERBARU yang berlaku",
+    "Tata letak ponsel: satu kolom, sasaran sentuh minimal 44 piksel, halaman tidak pernah menggulir mendatar — tabel yang lebih lebar dari layar menggulir di dalam kartunya sendiri"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — sukses sebagai Operator",
+      "given": "Pengguna sudah masuk ke aplikasi mobile sebagai Station Operator dengan akun yang terikat pada satu mill; mill itu punya periode pelaporan yang mencakup stasiun Grading dan sebuah Production Line yang sudah memuat muatan tersortir dengan parameter kedua satuan",
+      "when": "Pengguna membuka Dashboard & Reporting, menekan Reporting, menekan tile Grading, lalu memilih sebuah periode",
+      "then": "Layar laporan terbuka tanpa pemilih mill, mill diambil dari akun pengguna, dan Sistem menampilkan jumlah muatan, total dan rata-rata netto serta jumlah janjang, kedua bagian rekap parameter per satuan beserta pangsa dan rata-rata persentase dengan penyebutnya, rekap per estate/supplier, kelengkapan pencatatan, dan rekap harian yang tertutup secara bawaan — seluruhnya pada satu kolom; angka yang tampil sama persis dengan laporan versi web untuk periode dan line yang sama; tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — sukses sebagai Supervisor atau Mill Management",
+      "given": "Pengguna sudah masuk ke aplikasi mobile sebagai Supervisor atau Mill Management dengan akun terikat pada satu mill yang punya periode mencakup Grading dan minimal satu Production Line berisi data",
+      "when": "Pengguna membuka layar Laporan Grading dari tile Reporting lalu memilih sebuah periode",
+      "then": "Sistem memakai mill dari akun pengguna tanpa menawarkan pemilih mill, menampilkan nama mill dan nama Production Line yang menyertai angkanya, dan menampilkan seluruh rekap periode itu; unduhan CSV tersedia; tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — sukses sebagai Admin",
+      "given": "Pengguna sudah masuk ke aplikasi mobile sebagai Admin dan tidak terikat pada mill mana pun; tersedia beberapa mill yang masing-masing punya periode mencakup Grading dan minimal satu Production Line",
+      "when": "Pengguna membuka layar Laporan Grading, memilih sebuah mill, memilih satu Production Line milik mill itu, lalu memilih sebuah periode",
+      "then": "Sistem menampilkan pemilih Mill lebih dulu dan tidak memuat daftar line maupun daftar periode sebelum mill dipilih, kemudian memuat keduanya untuk mill yang dipilih, dan menampilkan rekap periode untuk line terpilih; seluruh angka yang tampil hanya milik mill dan line yang dipilih Admin"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — satuan janjang dan kilogram tidak pernah dijumlahkan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan periode serta line yang berlaku memuat parameter ber-satuan janjang maupun ber-satuan kilogram",
+      "when": "Pengguna menggulir seluruh laporan dari atas ke bawah",
+      "then": "Rekap parameter tampil sebagai DUA bagian bertumpuk yang masing-masing punya totalnya sendiri, tidak ada satu pun angka di bagian mana pun layar yang menjumlahkan kuantitas janjang dengan kuantitas kilogram, dan pangsa tiap parameter dihitung terhadap total bagian satuannya sendiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — pangsa dan rata-rata persentase ditampilkan berdampingan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line yang berlaku terdapat satu muatan sangat besar yang komposisinya berbeda jauh dari muatan kecil lainnya",
+      "when": "Pengguna membaca rekap parameter mutu",
+      "then": "Setiap parameter menampilkan pangsa dan rata-rata persentase sebagai dua angka berdampingan, keduanya berbeda karena yang pertama berbobot menurut besar muatan sementara yang kedua memperlakukan tiap muatan sama, Sistem menyatakan perbedaan itu dalam keterangan yang tetap terbaca pada layar sempit, dan Sistem tidak memilih salah satunya sebagai satu-satunya angka yang benar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — penyebut rata-rata tercetak di sebelah angkanya",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line yang berlaku terdapat sepuluh muatan yang hanya tiga di antaranya mencatat sebuah parameter",
+      "when": "Pengguna membaca rata-rata persentase parameter itu",
+      "then": "Rata-rata yang ditampilkan adalah rata-rata atas tiga muatan yang mencatatnya dan bukan atas sepuluh muatan, angka tiga ditampilkan berdampingan dengan rata-rata sebagai penyebut yang dipakai, dan Sistem tidak memperlakukan tujuh muatan tanpa baris parameter itu sebagai nol persen"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — muatan tanpa satu pun baris parameter",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line yang berlaku terdapat muatan yang sudah ditimbang dan dicatat tetapi belum punya satu pun baris parameter mutu",
+      "when": "Pengguna membaca laporan periode tersebut",
+      "then": "Muatan itu tetap terhitung pada jumlah muatan serta pada total dan rata-rata netto dan jumlah janjang, muatan itu tidak menyumbang apa pun pada kedua bagian parameter, dan jumlah muatan semacam itu ditampilkan sebagai angka tersendiri pada kelengkapan pencatatan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — periode hanya memuat satu satuan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan periode yang dibaca memuat parameter ber-satuan janjang tetapi nol parameter ber-satuan kilogram pada line yang berlaku",
+      "when": "Pengguna menggulir ke bagian parameter",
+      "then": "Bagian kilogram tetap ditampilkan utuh dengan nilainya dinyatakan tidak tersedia, bagian itu tidak disembunyikan walau layar ponsel sempit, dan bagian janjang menampilkan angkanya sendiri — sehingga pembaca tahu brondolan memang tidak tercatat pada periode itu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — periode tanpa data",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan periode yang akan dibaca tidak memuat satu pun muatan pada line yang berlaku",
+      "when": "Pengguna memilih periode tersebut",
+      "then": "Seluruh angka ditampilkan sebagai tidak tersedia dan bukan sebagai nol, Sistem menyatakan secara eksplisit bahwa belum ada data pada periode itu, dan kedua bagian parameter tetap ditampilkan dengan keterangan alih-alih dihilangkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — line dibawa dari tile stasiun",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada layar pemilih stasiun Reporting sebuah Production Line sudah berlaku",
+      "when": "Pengguna menekan tile Grading pada layar pemilih stasiun",
+      "then": "Layar laporan memakai Production Line yang dibawa dari tile itu tanpa meminta pengguna memilih ulang, nama line itu ditampilkan berdampingan dengan angkanya, dan pilihan itu ikut disimpan sebagai ingatan perangkat untuk pengguna tersebut"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — line diambil dari ingatan perangkat",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak, sebelumnya sudah memilih sebuah Production Line di layar Daftar Stasiun pada perangkat ini, dan line itu masih ada pada mill-nya",
+      "when": "Pengguna membuka layar Laporan Grading tanpa membawa pilihan line pada rutenya",
+      "then": "Sistem memakai Production Line yang diingat perangkat untuk pengguna itu, angka langsung ditampilkan setelah periode dipilih tanpa meminta pengguna memilih line lagi, dan ingatan milik pengguna lain pada perangkat yang sama tidak pernah terbawa"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — line dari ingatan sudah tidak ada",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan Production Line yang diingat perangkat sudah dihapus atau pengguna sudah dipindah ke mill lain",
+      "when": "Pengguna membuka layar Laporan Grading",
+      "then": "Nilai yang diingat itu tidak dipakai, pemilih Production Line ditampilkan kembali, tidak ada satu pun angka yang ditampilkan sebelum pengguna memilih line yang berlaku, dan Sistem tidak menebak line lain sebagai penggantinya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — Production Line belum berlaku",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak, mill punya beberapa Production Line, dan tidak ada line yang dapat ditentukan dari rute maupun ingatan perangkat",
+      "when": "Pengguna membuka layar Laporan Grading",
+      "then": "Pemilih Production Line ditampilkan, tidak ada satu pun angka yang ditampilkan, Sistem menampilkan arahan memilih Production Line terlebih dahulu beserta alasannya, dan Sistem sama sekali tidak menampilkan angka gabungan seluruh line sebagai pengganti sementara"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — mill belum punya Production Line",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan mill yang berlaku belum punya satu pun Production Line",
+      "when": "Pengguna membuka layar Laporan Grading",
+      "then": "Sistem menyatakan mill ini belum punya Production Line sehingga belum ada angka yang dapat dilaporkan dan mengarahkan pengguna menghubungi Admin, dan keadaan ini dibedakan dengan jelas dari kegagalan memuat daftar line"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — daftar Production Line gagal dimuat",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan permintaan daftar Production Line gagal karena jaringan atau server",
+      "when": "Pengguna membuka layar Laporan Grading",
+      "then": "Sistem menyatakan daftar Production Line tidak dapat dimuat dan menawarkan tombol mencoba lagi khusus untuk daftar itu, Sistem tidak menyatakan bahwa mill tidak punya line, dan kegagalan ini tidak ditampilkan sebagai kegagalan ringkasan laporan sehingga pesan galat laporan tidak tertimpa"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — akun belum terhubung ke mill",
+      "given": "Pengguna sudah masuk ke aplikasi mobile sebagai Operator, Supervisor, atau Mill Management tetapi akunnya belum terhubung ke mill mana pun",
+      "when": "Pengguna membuka layar Laporan Grading",
+      "then": "Sistem menampilkan pesan agar pengguna menghubungi Admin, tidak ada satu pun permintaan jaringan yang dikirim dari layar ini — termasuk permintaan daftar mill yang justru akan membentuk daftar seluruh mill di perangkat orang yang tidak berhak melihatnya — dan tidak ada angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — mill belum punya periode pelaporan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan mill yang berlaku punya Production Line tetapi tidak punya satu pun periode pelaporan yang mencakup stasiun Grading",
+      "when": "Pengguna membuka layar Laporan Grading",
+      "then": "Pemilih periode tampil kosong, Sistem menampilkan arahan menghubungi Admin untuk membuat periode pelaporan lebih dulu, arahan itu tidak muncul selama daftar periode masih dimuat, dan tidak ada satu pun angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — rekap harian tertutup secara bawaan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan periode yang dibaca cukup panjang sehingga rekap hariannya puluhan baris",
+      "when": "Pengguna membuka laporan lalu membuka dan menutup kembali rekap harian",
+      "then": "Rekap harian tertutup saat laporan pertama tampil sehingga angka utama dan kedua bagian parameter langsung terbaca, membukanya menampilkan tabel yang menggulir mendatar di dalam kartunya sendiri beserta baris total periode, menutup dan membukanya tidak memicu satu pun permintaan jaringan, dan tidak ada angka yang berubah karenanya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — tabel menggulir di dalam kartunya, halaman tidak",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak pada ponsel selebar sekitar 360 piksel dan periode yang dibaca memuat banyak parameter dan banyak tanggal",
+      "when": "Pengguna menggulir tabel parameter dan tabel rekap harian ke samping",
+      "then": "Setiap tabel menggulir mendatar di dalam kartunya sendiri sementara halaman tidak pernah menggulir mendatar, dan seluruh kartu angka tersusun satu kolom dengan sasaran sentuh minimal 44 piksel"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — kehilangan jaringan saat memuat",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak, sudah memilih sebuah periode, dan perangkat kehilangan jaringan",
+      "when": "Pemuatan ringkasan periode gagal karena jaringan",
+      "then": "Sistem menampilkan pesan kegagalan yang menyebut koneksi jaringan beserta tombol mencoba lagi, periode yang sudah dipilih tetap terpilih dan pengguna tidak dipaksa memilihnya dari awal, dan menekan tombol mencoba lagi mengulang tepat aksi yang gagal"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — sesi berakhir saat layar terbuka",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan sesinya sudah tidak berlaku lagi di server",
+      "when": "Layar mencoba memuat daftar periode atau ringkasan periode",
+      "then": "Pengguna diarahkan ke layar Login, Sistem tidak menampilkan pesan kegagalan jaringan maupun tombol mencoba lagi yang pasti gagal, dan tidak ada angka laporan yang tertinggal di layar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — mengganti pilihan lebih cepat daripada jawabannya",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan jaringannya lambat sehingga ringkasan periode butuh waktu untuk tiba",
+      "when": "Pengguna mengganti periode atau Production Line beberapa kali berturut-turut sebelum ringkasan sebelumnya selesai dimuat",
+      "then": "Yang akhirnya tampil selalu ringkasan milik pilihan terakhir, ringkasan pilihan lama yang datang belakangan diabaikan sehingga tidak menimpa angka baru dan tidak memunculkan pesan galat basi, tanda memuat milik pilihan baru tidak dihentikan oleh jawaban pilihan lama, dan bila pilihan periode dikosongkan saat ringkasan masih dimuat maka tidak ada angka yang muncul kemudian"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — periode berstatus tertutup",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan mill punya periode yang stasiun Grading-nya sudah tertutup beserta datanya",
+      "when": "Pengguna memilih periode yang berstatus tertutup itu",
+      "then": "Laporan tetap tampil penuh dengan seluruh angka dan rekap seperti periode terbuka, status tertutup ditampilkan sebagai keterangan beserta penjelasan bahwa status periode mengatur penulisan data dan bukan pembacaan laporan, dan unduhan CSV tetap dapat dijalankan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — unduh rincian seluruh baris parameter sebagai CSV",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan laporan sudah tampil untuk sebuah periode dan Production Line yang memuat muatan dengan banyak baris parameter",
+      "when": "Pengguna menekan tombol Ekspor CSV",
+      "then": "Berkas CSV memuat satu baris per parameter per muatan dengan isi yang sama persis dengan ekspor laporan versi web karena dibentuk server dari endpoint yang sama, konteks mill dan Production Line dan periode dan identitas muatan diulang pada setiap baris, satuan tiap baris ikut tertulis, muatan tanpa baris parameter tetap muncul sebagai satu baris dengan kolom parameter kosong, dan tombol Ekspor terkunci dengan tulisan Mengekspor selama berkas disiapkan sehingga ketukan ganda hanya menghasilkan satu unduhan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — mengganti periode selagi ekspor berjalan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan sebuah ekspor CSV sedang disiapkan untuk periode yang terpilih saat itu",
+      "when": "Pengguna mengganti pilihan periode sebelum berkas selesai diunduh",
+      "then": "Nama berkas tetap mengikuti periode yang benar-benar diekspor dan bukan periode yang terpilih saat berkas tiba, isi berkas tetap milik periode yang diekspor, dan layar tetap menampilkan angka periode yang baru dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — mencoba melihat mill atau Production Line milik mill lain",
+      "given": "Pengguna sudah masuk ke aplikasi mobile sebagai Operator, Supervisor, atau Mill Management dengan akun yang terikat pada satu mill, dan terdapat mill lain beserta Production Line miliknya",
+      "when": "Permintaan laporan yang dikirim dari layar membawa identitas mill lain atau Production Line yang bukan milik mill pengguna",
+      "then": "Aplikasi tidak pernah mengirimkan identitas mill dari sisi klien untuk peran yang terikat mill sehingga server selalu memakai mill yang melekat pada akun, Production Line yang bukan milik mill yang berlaku ditolak server, dan angka yang akhirnya tampil tetap hanya milik mill pengguna sendiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — angkanya sama dengan laporan versi web",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan seorang Supervisor membuka laporan Grading versi web untuk periode dan Production Line yang sama",
+      "when": "Kedua laporan dibaca berdampingan",
+      "then": "Setiap angka yang sama-sama ditampilkan kedua layar bernilai identik — jumlah muatan, total dan rata-rata netto dan jumlah janjang, total tiap satuan, pangsa dan rata-rata persentase tiap parameter beserta penyebutnya, rekap per asal, seluruh penghitung kelengkapan, dan setiap baris rekap harian — karena keduanya memakai endpoint yang sama dan aplikasi mobile tidak menghitung ulang satu angka pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Mobile) — layar hanya membaca",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan laporan sudah tampil untuk sebuah periode dan Production Line",
+      "when": "Pengguna berganti-ganti pilihan mill, Production Line, dan periode, menutup serta membuka rekap harian, lalu mengunduh CSV",
+      "then": "Layar tidak menyediakan satu pun aksi tulis — tidak ada simpan, ubah, hapus, maupun ubah status — dan setelah seluruh interaksi itu tidak ada satu pun data stasiun Grading yang berubah nilainya maupun statusnya"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-147--laporan-grading-mobile"
+  ]
+}

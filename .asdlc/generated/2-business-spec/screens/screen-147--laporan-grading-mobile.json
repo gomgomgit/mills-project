@@ -1,0 +1,174 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-147--laporan-grading-mobile",
+  "name": "Laporan Grading (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Grading versi ponsel — pasangan mobile dari laporan versi web (screen-146), menampilkan angka yang sama persis karena diambil dari endpoint yang sama. Yang dilaporkan bukan throughput melainkan MUTU PANEN: tiap record adalah satu muatan truk yang disortir, dan nilai yang dicari pembaca adalah komposisi kematangannya. Karena itu inti laporan ini adalah rekap per parameter mutu, yang menampilkan DUA angka yang dapat bertentangan — pangsa parameter terhadap total periode (berbobot menurut besar muatan) dan rata-rata persentase per muatan (tiap muatan berbobot sama) — dan menyatakan bedanya. SATUAN JANJANG DAN KILOGRAM TIDAK PERNAH DIJUMLAHKAN: tiga parameter brondolan diukur dalam kilogram sementara tiga belas parameter lainnya dalam janjang, dan pada layar ponsel keduanya BERTUMPUK sebagai dua bagian yang berdiri sendiri — bukan satu tabel berkolom satuan, yang akan mengundang pembaca menjumlahkan kolom kuantitasnya. Layar ini dibuka Operator yang menyortir muatannya sendiri — versi web menolak Operator, versi mobile menerimanya — dan karena Operator kerap bekerja di area tanpa sinyal, kegagalan memuat harus dikatakan terus terang berikut cara mencobanya lagi, bukan layar kosong dan bukan diam.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu Reporting di dalam Dashboard & Reporting, lalu memilih tile Grading pada layar pemilih stasiun (screen-141), yang ikut membawa Production Line yang berlaku di sana",
+    "Rute mobile '/reports/grading' dengan nama rute report-grading",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih berlaku"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Grading; status yang tertera adalah status Grading pada periode itu (Draft / Terbuka / Tertutup), bukan status periode secara keseluruhan",
+    "Pemilih Mill — hanya bagi Admin; tidak dirender sama sekali bila server menolak daftar mill",
+    "Nama mill yang sedang berlaku, sebagai keterangan bagi pengguna yang terikat satu mill",
+    "Pemilih Production Line — wajib berlaku; dirender ketika mill punya lebih dari satu line, dan tidak ada satu angka pun ditampilkan sebelum sebuah line berlaku",
+    "Nama Production Line yang menyertai angka yang sedang tampil, diambil dari jawaban server",
+    "Rentang tanggal dan status periode, beserta keterangan bahwa status periode mengatur penulisan data dan bukan pembacaan laporan",
+    "Jumlah muatan yang disortir sepanjang periode",
+    "Total netto seluruh muatan (kg) beserta rata-rata netto per muatan",
+    "Total jumlah janjang seluruh muatan beserta rata-ratanya per muatan",
+    "Rekap parameter mutu ber-satuan JANJANG: untuk tiap parameter — total janjang, pangsa terhadap total janjang periode, rata-rata persentase per muatan, dan jumlah muatan yang mencatat parameter itu sebagai penyebut rata-ratanya",
+    "Rekap parameter mutu ber-satuan KILOGRAM: untuk tiap parameter brondolan — angka yang sama, dengan penyebut pangsa kelompoknya sendiri",
+    "Keterangan yang menyatakan mengapa pangsa dan rata-rata persentase dapat berbeda: pangsa berbobot menurut besar muatan, rata-rata memperlakukan tiap muatan sama",
+    "Rekap per estate/supplier: jumlah muatan, total netto, dan total janjang per asal, dengan kelompok tersendiri bagi muatan yang asalnya belum diisi",
+    "Rekap per hari — jumlah muatan, total netto, total janjang — dibungkus bagian yang dapat dibuka dan ditutup, tertutup secara bawaan, dengan baris total periode",
+    "Kelengkapan: hari ber-muatan dibanding hari periode yang SUDAH lewat; untuk periode berjalan penyebutnya berhenti di hari ini disertai keterangan 'sampai hari ini', dan periode yang belum mulai menampilkan '—' bukan 0%",
+    "Kelengkapan: jumlah muatan tanpa satu pun baris parameter, jumlah muatan draft, jumlah muatan tanpa divisi, jumlah muatan belum diperiksa, dan jumlah muatan belum disahkan",
+    "Keterangan ketika periode tidak memuat data sama sekali",
+    "Keterangan ketika mill belum punya satu pun periode yang mencakup Grading",
+    "Keterangan ketika mill belum punya satu pun Production Line, dibedakan dari pesan kegagalan memuat daftar line",
+    "Pesan kegagalan jaringan beserta tombol untuk mencoba lagi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode mana yang dilihat. Mengganti periode memuat ulang seluruh angka pada layar.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan Production Line yang angkanya dilihat. Wajib — laporan tidak menampilkan angka apa pun sebelum sebuah line berlaku, dan tidak ada opsi gabungan lintas line. Pilihan ini diingat perangkat untuk pengguna itu dan dibagi dengan layar Daftar Stasiun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill mana yang dilihat. Hanya bagi Admin. Mengganti mill mengosongkan Production Line yang terpilih, karena line milik mill lama tidak berlaku di mill baru.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rekap per hari, yang pada periode panjang memakan hampir seluruh layar ponsel. Murni penyingkapan — tidak memicu permintaan jaringan dan tidak mengubah angka mana pun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian seluruh baris parameter sepanjang periode sebagai CSV, satu baris per parameter per muatan — isinya sama persis dengan ekspor dari laporan versi web karena dibentuk server dari endpoint yang sama. Selama berkas disiapkan tombolnya terkunci dan bertuliskan 'Mengekspor…'.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Coba lagi",
+      "description": "Mengulang pemuatan setelah kegagalan jaringan, tanpa harus keluar dan masuk kembali ke layar, dan tanpa kehilangan periode yang sudah dipilih.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada satu pun aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Semua peran yang dapat masuk ke aplikasi mobile boleh melihat laporan ini, TERMASUK Operator — orang yang menyortir berhak melihat hasilnya. Versi web menolak Operator; versi mobile menerimanya.",
+    "Pengguna hanya melihat data mill-nya sendiri. Operator, Supervisor, dan Mill Management terikat pada mill di akunnya; Admin tidak terikat sehingga ia memilih.",
+    "Angka pada layar ini berasal dari endpoint yang sama dengan laporan Grading versi web. Tidak ada endpoint mobile tersendiri dan tidak boleh ada perhitungan kedua di sisi ponsel.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Grading.",
+    "Status periode tidak membatasi apa pun di layar ini. Periode tertutup tetap dapat dilihat dan diekspor.",
+    "Rentang periode bersifat inklusif: muatan pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "Production Line WAJIB berlaku. Laporan menghasilkan angka gabungan, dan menggabungkan beberapa line membuat angkanya tidak dapat ditindaklanjuti. Sebelum sebuah line berlaku, tidak ada angka yang ditampilkan.",
+    "Line yang berlaku ditentukan berurutan: dari parameter rute yang dibawa tile stasiun, lalu dari ingatan pilihan terakhir pengguna di perangkat ini, lalu dari satu-satunya line bila mill hanya punya satu. Nilai dari rute maupun ingatan hanya dipakai bila masih ada pada daftar line yang baru diambil dari server.",
+    "Ingatan pilihan line dibagi dengan layar Daftar Stasiun dan dimuati identitas pengguna — pilihan pengguna lain pada perangkat yang sama tidak boleh terbawa.",
+    "Penyaringan line memakai Production Line yang MELEKAT PADA MUATAN ITU SENDIRI, bukan line stasiun tempat muatan itu tercatat sekarang.",
+    "KEANGGOTAAN PERIODE ditentukan oleh tanggal muatan itu sendiri, bukan oleh waktu baris itu dibuat maupun waktu sinkronisasi dari mobile.",
+    "SATUAN JANJANG DAN KILOGRAM TIDAK PERNAH DIJUMLAHKAN. Keduanya dua bagian yang berdiri sendiri, masing-masing dengan totalnya sendiri yang sekaligus menjadi penyebut pangsanya. Pada layar ponsel keduanya bertumpuk, bukan berdampingan, tetapi tetap tidak pernah bertemu dalam satu angka.",
+    "PANGSA sebuah parameter dihitung terhadap total kuantitas kelompok SATUANNYA SENDIRI.",
+    "RATA-RATA PERSENTASE dihitung hanya atas muatan yang MENCATAT parameter itu, dan jumlah muatan tersebut ditampilkan bersama angkanya sebagai penyebut. Ketiadaan baris parameter pada sebuah muatan BUKAN nilai nol.",
+    "PANGSA DAN RATA-RATA PERSENTASE DAPAT BERTENTANGAN, dan keduanya ditampilkan beserta penjelasan mengapa — pada layar sempit penjelasan itu tetap harus terbaca, bukan dipotong.",
+    "Laporan TIDAK menghitung ulang persentase baris parameter. Nilai itu ditetapkan layar input saat penyimpanan dan diteruskan apa adanya.",
+    "MUATAN TANPA SATU PUN BARIS PARAMETER tetap terhitung pada jumlah muatan, total netto, dan total janjang, tetapi tidak menyumbang apa pun pada kedua rekap parameter. Jumlahnya ditampilkan tersendiri.",
+    "MUATAN BERSTATUS DRAFT IKUT TERHITUNG, dan jumlahnya ditampilkan.",
+    "STATUS VERIFIKASI ADALAH KELENGKAPAN, BUKAN PENYARING.",
+    "Nilai yang tidak dapat dihitung ditampilkan sebagai keterangan, TIDAK PERNAH sebagai 0.",
+    "Laporan ini tidak menandai nilai di luar batas — Grading tidak punya master target mutu.",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki.",
+    "KELENGKAPAN UNTUK PERIODE BERJALAN: persen hari ber-muatan dihitung terhadap hari periode yang sudah terjadi sampai hari ini (WIB); periode belum mulai → penyebut 0 → '—', bukan 0%.",
+    "Layar ini membutuhkan jaringan dan tidak punya jalur offline. Kegagalan memuat harus dinyatakan dengan jelas beserta tombol mencoba lagi, dan periode yang sudah dipilih tidak boleh hilang.",
+    "Akun yang terikat mill tetapi mill-nya kosong menghentikan layar tanpa satu pun permintaan jaringan — termasuk tanpa meminta daftar mill.",
+    "Sesi yang sudah tidak berlaku mengarahkan pengguna ke layar Login.",
+    "Hanya jawaban permintaan TERBARU yang berlaku.",
+    "Tata letak ponsel: satu kolom, sasaran sentuh minimal 44 piksel, dan halaman tidak pernah menggulir mendatar. Tabel parameter dan tabel rekap harian menggulir di dalam kartunya sendiri.",
+    "Rekap harian tertutup secara bawaan agar angka utama dan kedua rekap parameter tetap terbaca pada layar ponsel."
+  ],
+  "usecase_ids": [
+    "usecase-150--laporan-grading-mobile"
+  ],
+  "edge_cases": [
+    "Production Line belum berlaku — tidak ada angka yang ditampilkan, diganti arahan memilih line lebih dulu beserta alasannya.",
+    "Line yang dibawa rute atau yang diingat perangkat sudah tidak ada pada daftar line mill ini — nilai itu tidak dipakai dan pemilih ditampilkan kembali.",
+    "Mill belum punya satu pun Production Line — arahan menghubungi Admin, dibedakan dari kegagalan memuat daftar line.",
+    "Daftar Production Line gagal dimuat — pesan kegagalan dengan tombol mencoba lagi khusus daftar itu, tidak menimpa penanganan galat ringkasan.",
+    "Admin mengganti mill setelah memilih line — line yang terpilih dikosongkan.",
+    "Mill hanya punya satu Production Line — line itu berlaku tanpa pemilih, tetapi namanya tetap ditampilkan berdampingan dengan angkanya.",
+    "Admin belum memilih mill — angka tidak ditampilkan, dan tidak ada permintaan daftar line maupun periode yang dikirim.",
+    "Akun Operator, Supervisor, atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, tanpa satu pun permintaan jaringan.",
+    "Server menolak daftar mill untuk peran ini — pemilih mill tidak dirender sama sekali.",
+    "Mill belum punya satu pun periode yang mencakup Grading — pemilih periode kosong dengan arahan menghubungi Admin, dan arahan itu tidak muncul selama daftar masih dimuat.",
+    "Periode tidak memuat satu pun muatan — seluruh angka ditampilkan tidak tersedia dengan keterangan belum ada data, bukan nol; kedua bagian parameter tetap ditampilkan dengan keterangan.",
+    "Periode hanya memuat parameter satu satuan — bagian satuan yang lain tetap ditampilkan dengan nilai tidak tersedia, bukan disembunyikan walau layar ponsel sempit.",
+    "Sebuah parameter hanya dicatat pada sebagian muatan — rata-ratanya memakai penyebut muatan yang mencatatnya, dan penyebut itu ditampilkan.",
+    "Sebuah parameter hanya dicatat pada satu muatan dari puluhan — penyebutnya 1 dan itu terlihat, sehingga angkanya tidak terbaca sebagai angka periode.",
+    "Muatan tanpa satu pun baris parameter — tetap terhitung pada angka utama, tidak menyumbang pada rekap parameter, dan jumlahnya ditampilkan tersendiri.",
+    "Seluruh muatan periode tanpa satu pun baris parameter — kedua rekap parameter kosong dengan keterangan, sementara jumlah muatan dan netto tetap tampil apa adanya.",
+    "Satu estate/supplier menyumbang hampir seluruh muatan — rekap tetap menampilkan seluruh asal, tidak dipangkas.",
+    "Seluruh muatan asalnya belum diisi — rekap per asal hanya berisi satu kelompok 'Belum diisi', dan jumlahnya tetap menjumlah ke jumlah muatan.",
+    "Seluruh muatan pada periode berstatus draft — angka tetap ditampilkan, dan jumlah draft sama dengan jumlah seluruh muatan.",
+    "Tabel parameter dan tabel rekap harian lebih lebar daripada layar ponsel — keduanya menggulir mendatar di dalam kartunya sendiri, tanpa membuat halaman ikut bergeser.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap tertutup secara bawaan dan dapat dibuka, tanpa memicu permintaan jaringan.",
+    "Perangkat kehilangan jaringan saat memuat — pesan kegagalan beserta tombol coba lagi, tanpa kehilangan periode yang sudah dipilih.",
+    "Sesi berakhir saat layar terbuka — pengguna diarahkan ke Login, bukan ditampilkan sebagai kegagalan jaringan.",
+    "Pengguna mengganti periode, Production Line, atau mill lebih cepat daripada jawabannya — yang tampil selalu jawaban pilihan TERAKHIR.",
+    "Pengguna mengganti periode selagi berkas ekspor masih diunduh — nama berkas tetap mengikuti periode yang DIEKSPOR.",
+    "Permintaan membawa identitas mill atau Production Line milik mill lain — aplikasi tidak pernah mengirim identitas mill untuk peran terikat mill, dan line mill lain ditolak server.",
+    "Periode masih berjalan — persen hari ber-muatan dihitung sampai hari ini dan keterangannya ditampilkan.",
+    "Periode belum mulai — persen hari ber-muatan '—', bukan 0%."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Grading tidak punya master target mutu, jadi laporan ini tidak menandai komposisi di luar batas. Bila nanti ada standar mutu panen yang resmi, laporan versi web dan versi mobile perlu ditinjau ulang bersamaan.",
+    "Pada layar ponsel, kedua bagian parameter memuat lima kolom (parameter, kuantitas, pangsa, rata-rata, penyebut) dan karenanya selalu menggulir mendatar. Apakah bentuk kartu-per-parameter akan lebih terbaca daripada tabel bergulir pada layar 360px adalah pertanyaan tampilan yang belum diuji ke pengguna — tabel dipilih lebih dulu karena ia menjaga kolom yang sama dengan laporan versi web, sehingga dua layar tidak menyusun ulang arti angka yang sama.",
+    "LINTAS LAPORAN: muatan berstatus draft ikut terhitung karena ketujuh laporan stasiun yang sudah ada juga tidak menyaring status record. Pertanyaannya tetap terbuka dan menjawabnya mengubah seluruh laporan sekaligus."
+  ]
+}

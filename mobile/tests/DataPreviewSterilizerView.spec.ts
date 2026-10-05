@@ -268,4 +268,32 @@ describe('DataPreviewSterilizerView', () => {
 
     expect(getDraftWithDetailsMock).toHaveBeenCalledWith('rec-1')
   })
+
+  /* Audit desain filter 2026-10-05 — ListFilterBar bersama. */
+  it('pintasan tanggal "Semua"/"Hari ini" mengubah filter tanggal yang sama dan ringkasan jumlah mengikutinya', async () => {
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    getAllRecordsMock.mockResolvedValueOnce([
+      makeRecord({ id: 'rec-today', date: `${today}T07:00:00` }),
+      makeRecord({ id: 'rec-old', date: '2020-01-01T07:00:00' }),
+    ])
+
+    const wrapper = mount(DataPreviewSterilizerView)
+    await flushPromises()
+
+    // Default tetap: hanya hari ini.
+    expect((wrapper.get('[data-testid="date-filter"]').element as HTMLInputElement).value).toBe(today)
+    expect(wrapper.find('[data-testid="record-item-rec-old"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="filter-result-count"]').text()).toBe('1 dari 2 data')
+
+    await wrapper.get('[data-testid="date-quick-all"]').trigger('click')
+    expect((wrapper.get('[data-testid="date-filter"]').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.find('[data-testid="record-item-rec-old"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="filter-result-count"]').text()).toBe('2 data')
+    expect(wrapper.find('[data-testid="reset-filter-button"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="date-quick-today"]').trigger('click')
+    expect(wrapper.find('[data-testid="record-item-rec-old"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="record-item-rec-today"]').exists()).toBe(true)
+  })
 })

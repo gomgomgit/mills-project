@@ -40,6 +40,9 @@
  * yang tidak punya arti pada satu kolom selebar 360px.
  */
 import { computed, onMounted, ref } from 'vue'
+import FilterPanel from '@/components/filters/FilterPanel.vue'
+import FilterSelectField from '@/components/filters/FilterSelectField.vue'
+import FilterChip from '@/components/filters/FilterChip.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { productionLineRepo, type ProductionLineOption } from '@/services/productionLineRepo'
@@ -821,28 +824,21 @@ function onBack(): void {
     </p>
 
     <template v-else>
-      <div class="filter-bar">
+      <FilterPanel aria-label="Filter laporan">
         <!-- Pemilih Mill — hanya Admin, dan tidak dirender sama sekali
              bila server menolak endpoint options dengan 403. -->
-        <label v-if="isAdmin && !millPickerForbidden" class="filter-field">
-          <span>Mill</span>
+        <FilterSelectField v-if="isAdmin && !millPickerForbidden" label="Mill" icon="mill">
           <select v-model="selectedBusinessUnitId" data-testid="mill-select" @change="onBusinessUnitChange">
             <option :value="null">Pilih Mill</option>
             <option v-for="unit in businessUnits" :key="unit.id" :value="unit.id">{{ unit.name }}</option>
           </select>
-        </label>
-
-        <!-- Keterangan mill bagi pengguna yang terikat satu mill. -->
-        <p v-else-if="!isAdmin" class="mill-current" data-testid="mill-current">
-          Mill: <strong>{{ currentMillName || '-' }}</strong>
-        </p>
+        </FilterSelectField>
 
         <!-- Pemilih Production Line — WAJIB, dan SENGAJA tanpa opsi
              "semua line". Hanya dirender ketika mill ini memang punya
              lebih dari satu line: dengan satu line tidak ada keputusan
              yang perlu diminta. -->
-        <label v-if="productionLines.length > 1" class="filter-field">
-          <span>Production Line</span>
+        <FilterSelectField v-if="productionLines.length > 1" label="Production Line" icon="line">
           <select
             v-model="selectedProductionLineId"
             data-testid="production-line-select"
@@ -851,30 +847,37 @@ function onBack(): void {
             <option :value="null">Pilih Production Line</option>
             <option v-for="line in productionLines" :key="line.id" :value="line.id">{{ line.name }}</option>
           </select>
-        </label>
-
-        <!-- Nama line yang menyertai angka yang sedang tampil — dirender
-             di kedua cabang (satu line maupun banyak), supaya tidak pernah
-             ada angka di layar ini yang tidak dapat ditelusuri ke satu
-             line tertentu. -->
-        <p v-if="activeProductionLineName" class="mill-current" data-testid="production-line-current">
-          Production Line: <strong>{{ activeProductionLineName }}</strong>
-        </p>
+        </FilterSelectField>
 
         <!-- Pemilih Periode selalu dirender (bukan v-if millRequired):
              bagi Admin yang belum memilih mill ia tampil KOSONG, bukan
              hilang — pemilih yang lenyap dan pemilih yang kosong
              menceritakan hal berbeda kepada pengguna. -->
-        <label class="filter-field">
-          <span>Periode Pelaporan</span>
+        <FilterSelectField label="Periode Pelaporan" icon="period">
           <select v-model="selectedPeriodId" data-testid="period-select" @change="onPeriodChange">
             <option :value="null">Pilih Periode</option>
             <option v-for="period in periods" :key="period.id" :value="period.id">
               {{ periodOptionLabel(period) }}
             </option>
           </select>
-        </label>
-      </div>
+        </FilterSelectField>
+
+        <template #chips>
+          <!-- Keterangan mill bagi pengguna yang terikat satu mill (bukan
+               Admin — Admin memilih mill lewat pemilih di atas). -->
+          <FilterChip v-if="!isAdmin" label="Mill" :value="currentMillName || '-'" data-testid="mill-current" />
+          <!-- Nama line yang menyertai angka yang sedang tampil — dirender
+               di kedua cabang (satu line maupun banyak), supaya tidak pernah
+               ada angka di layar ini yang tidak dapat ditelusuri ke satu
+               line tertentu. -->
+          <FilterChip
+            v-if="activeProductionLineName"
+            label="Production Line"
+            :value="activeProductionLineName"
+            data-testid="production-line-current"
+          />
+        </template>
+      </FilterPanel>
 
       <!-- Admin belum memilih mill: tidak ada angka, tidak ada permintaan. -->
       <p v-if="millRequired" class="notice" data-testid="mill-required-hint">
@@ -1213,11 +1216,6 @@ function onBack(): void {
 .breadcrumb-link { border: none; background: transparent; color: #6b7280; font-size: 12px; cursor: pointer; padding: 0; }
 .screen-title { margin: 0; font-size: 20px; font-weight: 600; color: #1f2937; }
 
-.filter-bar { display: flex; flex-direction: column; gap: 12px; }
-.filter-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #6b7280; }
-.filter-field select { min-height: 44px; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-family: inherit; background: #ffffff; }
-.mill-current { margin: 0; font-size: 13px; color: #6b7280; }
-.mill-current strong { color: #1f2937; }
 
 .period-meta { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; }
 .period-meta-name { font-size: 14px; font-weight: 600; color: #1f2937; }

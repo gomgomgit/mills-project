@@ -277,6 +277,14 @@ function onKeydown(event: KeyboardEvent): void {
       @keydown="onKeydown"
       @blur="onBlur"
     />
+    <!-- Chevron (audit desain filter 2026-10-05): tanpa ini kolom ini tampak
+         seperti input teks biasa, bukan pemilih — pengguna tidak tahu ada
+         daftar pilihan sebelum mengetuknya. Dekoratif, tak menangkap klik. -->
+    <span class="searchable-select-chevron" :class="{ 'searchable-select-chevron--open': isOpen }" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    </span>
 
     <ul v-if="isOpen" :id="listboxId" class="searchable-select-listbox" role="listbox">
       <li
@@ -284,13 +292,31 @@ function onKeydown(event: KeyboardEvent): void {
         :id="optionDomId(index)"
         :key="option.value"
         class="searchable-select-option"
-        :class="{ 'searchable-select-option--active': index === activeIndex }"
+        :class="{
+          'searchable-select-option--active': index === activeIndex,
+          'searchable-select-option--selected': option.value === modelValue,
+        }"
         role="option"
         :aria-selected="option.value === modelValue"
         :data-value="option.value"
         @mousedown.prevent="onOptionMouseDown(option)"
       >
-        {{ option.label }}
+        <span class="searchable-select-option-label">{{ option.label }}</span>
+        <svg
+          v-if="option.value === modelValue"
+          class="searchable-select-option-check"
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
       </li>
       <li v-if="filteredOptions.length === 0" class="searchable-select-empty" role="presentation">
         {{ options.length === 0 ? 'Tidak ada data tersedia.' : 'Tidak ada hasil yang cocok.' }}
@@ -310,7 +336,7 @@ function onKeydown(event: KeyboardEvent): void {
 .searchable-select-input {
   width: 100%;
   min-height: 44px;
-  padding: 0 12px;
+  padding: 0 40px 0 12px;
   background-color: #edebeb;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -327,6 +353,22 @@ function onKeydown(event: KeyboardEvent): void {
 
 .searchable-select-input:disabled {
   opacity: 0.6;
+}
+
+.searchable-select-chevron {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  color: #6b7280;
+  pointer-events: none;
+  transition: transform 0.15s ease;
+}
+
+.searchable-select-chevron--open {
+  transform: rotate(180deg);
 }
 
 .searchable-select--disabled {
@@ -352,7 +394,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 .searchable-select-option {
-  min-height: 40px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   padding: 0 10px;
@@ -360,6 +402,21 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: 15px;
   color: #1f2937;
   cursor: pointer;
+}
+
+.searchable-select-option-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.searchable-select-option-check {
+  flex-shrink: 0;
+  margin-left: 8px;
+  color: #249360;
+}
+
+.searchable-select-option--selected {
+  font-weight: 600;
 }
 
 .searchable-select-option--active {

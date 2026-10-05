@@ -419,6 +419,29 @@ describe('DataPreviewCagesTrackView', () => {
     expect(wrapper.find('[data-testid="record-item-rec-1"]').exists()).toBe(true)
   })
 
+  /* Audit desain filter 2026-10-05 — ListFilterBar bersama: Reset Filter
+   * kini berada di bar filter (bukan hanya di kotak kosong), tetap satu
+   * tombol per layar, dan tombol × pada kolom cari mengosongkan kata kunci. */
+  it('shows exactly one Reset Filter button in the filter bar while a filter is active, even when records match', async () => {
+    getAllRecordsMock.mockResolvedValueOnce([makeRecord({ id: 'rec-1', cages_track_number: 'CT-1001' })])
+
+    const wrapper = mount(DataPreviewCagesTrackView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="record-item-rec-1"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-testid="reset-filter-button"]')).toHaveLength(1)
+
+    await wrapper.find('[data-testid="search-filter-input"]').setValue('no-such')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="record-list-empty"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-testid="reset-filter-button"]')).toHaveLength(1)
+
+    await wrapper.get('[data-testid="search-filter-input-clear"]').trigger('click')
+    await flushPromises()
+    expect((wrapper.find('[data-testid="search-filter-input"]').element as HTMLInputElement).value).toBe('')
+    expect(wrapper.find('[data-testid="record-item-rec-1"]').exists()).toBe(true)
+  })
+
   it('does not show the Reset Filter button when no filter is active and the list is genuinely empty', async () => {
     getAllRecordsMock.mockResolvedValueOnce([])
 

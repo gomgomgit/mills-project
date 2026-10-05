@@ -27,6 +27,7 @@ import solidWasteDisposalRecordRepo, {
   type SolidWasteDisposalRecord,
 } from '@/services/solidWasteDisposalRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
+import ListFilterBar from '@/components/filters/ListFilterBar.vue'
 import SyncFailureHint from '@/components/SyncFailureHint.vue'
 import { pullVerificationStatus } from '@/services/recordVerificationApi'
 import { toDateInputValue } from '@/utils/localDate'
@@ -298,19 +299,18 @@ function goToMonitor() {
 
     <!-- LIST MODE -->
     <template v-if="!isDetailMode">
-      <div class="filter-bar">
-        <label class="filter-field">
-          <span>Tanggal</span>
-          <input type="date" v-model="dateFilter" data-testid="date-filter" />
-        </label>
-        <label class="filter-field">
-          <span>Cari (Solid Waste Disp. ID)</span>
-          <input type="text" v-model="searchFilter" data-testid="search-filter" />
-        </label>
-        <button v-if="hasActiveFilter" type="button" class="action-button action-button--secondary" data-testid="reset-filter-button" @click="onResetFilter">
-          Reset Filter
-        </button>
-      </div>
+      <ListFilterBar
+        v-model:date="dateFilter"
+        v-model:search="searchFilter"
+        date-test-id="date-filter"
+        search-test-id="search-filter"
+        search-placeholder="Solid Waste Disp. ID"
+        :filtered-count="filteredRecords.length"
+        :total-count="allRecords.length"
+        :show-count="!listLoading && !listError"
+        :active="hasActiveFilter"
+        @reset="onResetFilter"
+      />
 
       <p v-if="listLoading" class="status-text">Memuat daftar data solid waste disposal lokal…</p>
       <p v-else-if="listError" class="status-text status-text--error" role="alert">{{ listError }}</p>
@@ -437,9 +437,6 @@ function goToMonitor() {
 .breadcrumb { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: #6b7280; }
 .breadcrumb-link { border: none; background: transparent; color: #6b7280; font-size: 12px; cursor: pointer; padding: 0; }
 .screen-title { margin: 0; font-size: 20px; font-weight: 600; color: #1f2937; }
-.filter-bar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
-.filter-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #6b7280; }
-.filter-field input { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; font-family: inherit; }
 .status-text { font-size: 14px; color: #6b7280; }
 .status-text--error { color: #dc2626; }
 .empty-state { margin: 0; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; color: #6b7280; font-size: 14px; text-align: center; }

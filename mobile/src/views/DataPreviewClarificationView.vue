@@ -69,6 +69,7 @@ import clarificationRecordRepo, {
   type ClarificationRecord,
 } from '@/services/clarificationRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
+import ListFilterBar from '@/components/filters/ListFilterBar.vue'
 import FormField from '@/components/FormField.vue'
 import SyncFailureHint from '@/components/SyncFailureHint.vue'
 import { pullVerificationStatus } from '@/services/recordVerificationApi'
@@ -419,27 +420,18 @@ function goToMonitorClarification(): void {
 
     <!-- LIST mode -->
     <template v-if="!isDetailMode">
-      <div class="filter-row">
-        <label class="filter-field">
-          <span class="filter-label">Tanggal</span>
-          <input
-            v-model="dateFilter"
-            type="date"
-            class="filter-input"
-            data-testid="date-filter-input"
-          />
-        </label>
-        <label class="filter-field">
-          <span class="filter-label">Cari</span>
-          <input
-            v-model="searchFilter"
-            type="text"
-            class="filter-input"
-            placeholder="Clarification ID"
-            data-testid="search-filter-input"
-          />
-        </label>
-      </div>
+      <ListFilterBar
+        v-model:date="dateFilter"
+        v-model:search="searchFilter"
+        date-test-id="date-filter-input"
+        search-test-id="search-filter-input"
+        search-placeholder="Clarification ID"
+        :filtered-count="filteredRecords.length"
+        :total-count="allRecords.length"
+        :show-count="!listLoading && !listError"
+        :active="hasActiveFilter"
+        @reset="onResetFilter"
+      />
 
       <p v-if="listLoading" class="status-text">Memuat daftar data clarification lokal…</p>
       <p v-else-if="listError" class="status-text status-text--error" role="alert">{{ listError }}</p>
@@ -449,15 +441,6 @@ function goToMonitorClarification(): void {
           <p class="empty-state-text">
             {{ hasActiveFilter ? 'Tidak ada data yang cocok dengan filter.' : 'Belum ada data clarification.' }}
           </p>
-          <button
-            v-if="hasActiveFilter"
-            type="button"
-            class="reset-filter-button"
-            data-testid="reset-filter-button"
-            @click="onResetFilter"
-          >
-            Reset Filter
-          </button>
         </div>
 
         <ul v-else class="record-list" role="list" data-testid="record-list">
@@ -719,41 +702,6 @@ function goToMonitorClarification(): void {
   color: #dc2626;
 }
 
-.filter-row {
-  display: grid;
-  /* minmax(0, 1fr): tanpa ini lebar intrinsik <input type="date">/text
-     memaksa kolom melebar dan halaman bergeser horizontal di 390px. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-}
-
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.filter-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #6b7280;
-}
-
-.filter-input {
-  width: 100%;
-  min-width: 0;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background-color: #ffffff;
-  color: #1f2937;
-  font-size: 14px;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
 .record-list-section {
   display: flex;
   flex-direction: column;
@@ -777,19 +725,6 @@ function goToMonitorClarification(): void {
   margin: 0;
   color: #6b7280;
   font-size: 14px;
-}
-
-.reset-filter-button {
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background-color: #ffffff;
-  color: #249360;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
 }
 
 .record-list {

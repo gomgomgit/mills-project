@@ -1,0 +1,241 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-05"
+  },
+  "id": "usecase-148--lihat-data-saya",
+  "name": "Lihat Data Saya (Web, Operator & Supervisor)",
+  "description": "Operator atau Supervisor yang login ke web membuka layar Data Saya untuk melihat kembali record log sheet stasiun yang ia buat sendiri pada mill miliknya, lintas 18 stasiun. Ia menyaring daftar menurut rentang tanggal, stasiun, dan Production Line, membaca status record dan status verifikasi (Checked By / Acknowledged By) per baris, lalu membuka detail satu record secara read-only di layar yang sama. Tidak ada data yang berubah. Bagi Supervisor layar ini tambahan — Data Browser/Detail/Form yang ia pakai tetap ada.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "Operator atau Supervisor sudah login ke web dan akunnya terhubung ke sebuah mill (business unit)",
+    "Record yang ingin dilihat sudah tersimpan di server (diinput dari web, atau diinput lalu disinkronkan dari aplikasi mobile)"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka layar Data Saya — Operator dari tombol 'Lihat Data Saya' di Beranda Operator atau menu 'Data Saya' di sidebar; Supervisor dari menu 'Data Saya' di sidebar"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan daftar record yang dibuat user itu sendiri pada mill-nya, untuk 7 hari terakhir, Semua Stasiun, Semua Line — terbaru lebih dulu, 20 per halaman, lengkap dengan Production Line, Stasiun, ID Record, Tanggal, Status, Checked By, Acknowledged By, dan Diterima Server"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Mengubah filter rentang tanggal, Stasiun, dan/atau Production Line"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Memperbarui daftar sesuai filter — tetap hanya record buatan user itu di mill-nya — dan menampilkan jumlah record yang cocok"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Mengklik salah satu baris record"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menampilkan detail record tersebut di layar yang sama secara read-only: seluruh field header dan baris detail dengan label yang sama dengan layar Detail stasiun web, tabel Target Operasional bila stasiunnya memilikinya, serta bagian Verifikasi (Inputted By, Checked By, Acknowledged By, Status) — tanpa tombol Edit dan tanpa tombol verifikasi"
+    },
+    {
+      "step": 7,
+      "actor": "actor-station-operator",
+      "description": "Mengklik 'Kembali ke Daftar'"
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Kembali ke daftar dengan filter dan halaman yang sama seperti sebelum detail dibuka"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tidak ada data sesuai filter",
+      "trigger": "Langkah 2 atau 4 — tidak ada record buatan Operator yang cocok dengan filter",
+      "steps": [
+        "System menampilkan empty state 'Tidak ada data ditemukan' beserta pengingat bahwa data dari aplikasi mobile baru tampil setelah disinkronkan",
+        "Operator dapat menekan Reset Filter untuk kembali ke filter default"
+      ]
+    },
+    {
+      "name": "Rentang tanggal tidak valid",
+      "trigger": "Langkah 3 — Tanggal Dari diisi setelah Tanggal Sampai",
+      "steps": [
+        "System menampilkan pesan 'Tanggal Dari tidak boleh setelah Tanggal Sampai'",
+        "Daftar tidak disaring dengan rentang tersebut sampai rentangnya diperbaiki"
+      ]
+    },
+    {
+      "name": "Record tidak ditemukan atau bukan milik user",
+      "trigger": "Langkah 6 — record yang diminta (lewat tautan langsung) tidak ada, tautannya rusak, dibuat oleh user lain, atau berada di mill lain",
+      "steps": [
+        "System menampilkan pesan 'Record tidak ditemukan' tanpa mengonfirmasi bahwa record itu ada",
+        "System menampilkan tombol 'Kembali ke Daftar'"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Langkah 2 — akun Operator/Supervisor tidak memiliki mill",
+      "steps": [
+        "System menampilkan pesan 'Akun Anda belum terhubung ke mill. Hubungi Admin.'",
+        "Daftar tetap kosong"
+      ]
+    },
+    {
+      "name": "Production Line atau stasiun asing lewat tautan",
+      "trigger": "Langkah 3 — filter Production Line berisi line milik mill lain, atau filter Stasiun berisi stasiun yang tidak dikenal",
+      "steps": [
+        "System mengabaikan nilai tersebut tanpa pesan error dan memakai 'Semua Line' / 'Semua Stasiun'",
+        "Daftar tetap hanya berisi record buatan Operator di mill-nya"
+      ]
+    },
+    {
+      "name": "Stasiun record dipindah ke line lain",
+      "trigger": "Langkah 4 — Operator menyaring dengan Production Line asal sebuah record yang stasiunnya kemudian dipindah ke line lain",
+      "steps": [
+        "System tetap menampilkan record tersebut pada line asalnya",
+        "Kolom Production Line pada baris itu tetap menuliskan line asalnya"
+      ]
+    },
+    {
+      "name": "Record Grading",
+      "trigger": "Langkah 2/4/6 — record yang tampil berasal dari stasiun Grading",
+      "steps": [
+        "System menampilkan 'Tidak berlaku' pada Checked By, karena Grading tidak mengenal pemeriksaan Supervisor"
+      ]
+    },
+    {
+      "name": "Peran lain membuka Data Saya",
+      "trigger": "Langkah 1 — Mill Management atau Admin membuka layar Data Saya",
+      "steps": [
+        "System menampilkan halaman 403",
+        "Menu 'Data Saya' tidak tampil di sidebar peran tersebut"
+      ]
+    },
+    {
+      "name": "Operator membuka layar stasiun lain",
+      "trigger": "Langkah 6 — Operator mencoba membuka Data Browser, Detail, atau Form stasiun lewat URL",
+      "steps": [
+        "System tetap menampilkan halaman 403 seperti sebelumnya"
+      ]
+    },
+    {
+      "name": "Supervisor hanya melihat record buatannya sendiri",
+      "trigger": "Langkah 2/4 — Supervisor membuka Data Saya di mill yang juga berisi record buatan Operator-operatornya",
+      "steps": [
+        "System hanya menampilkan record dengan Inputted By = Supervisor itu",
+        "Record buatan Operator (dan user lain) tidak tampil di Data Saya Supervisor — Supervisor tetap melihatnya lewat Data Browser seperti biasa"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User (Operator atau Supervisor) melihat record buatannya sendiri beserta status verifikasinya; tidak ada data yang berubah"
+  ],
+  "business_rules": [
+    "Hanya record dengan Inputted By = user yang login (Operator atau Supervisor), pada mill akunnya",
+    "Mencakup 18 stasiun kanonis; read-only penuh — tanpa tambah/edit/hapus/verifikasi/ekspor",
+    "Filter tanggal default 7 hari terakhir (WIB), mengacu ke tanggal record",
+    "Production Line: default 'Semua Line', pilihan hanya line mill Operator, tiap baris menunjukkan line asalnya",
+    "Checked By: nama atau 'Belum diperiksa' (Grading: 'Tidak berlaku'); Acknowledged By: nama atau 'Belum dikonfirmasi'",
+    "Label detail sama dengan layar Detail stasiun web; format id-ID, tanggal WIB, kosong '-'",
+    "Hanya peran Operator dan Supervisor yang membuka layar ini; Mill Management dan Admin 403. Bagi Supervisor layar ini tambahan — layar Supervisor lain tidak berubah"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Data Saya — berhasil",
+      "given": "Operator sudah login ke web, akunnya terhubung ke sebuah mill, dan record log sheet buatannya sudah tersimpan di server (disinkronkan dari mobile)",
+      "when": "Operator membuka Data Saya dari Beranda atau sidebar, menyaring daftar menurut rentang tanggal, Stasiun, dan/atau Production Line, lalu membuka detail satu record dan kembali ke daftar",
+      "then": "Sistem menampilkan hanya record buatan Operator di mill-nya (default 7 hari terakhir WIB, Semua Stasiun, Semua Line, terbaru dulu, 20 per halaman) dengan kolom Production Line, Stasiun, ID Record, Tanggal, Status, Checked By, Acknowledged By, Diterima Server serta jumlah record; detail tampil read-only di layar yang sama dengan label yang sama dengan layar Detail stasiun web, Target Operasional bila ada, dan bagian Verifikasi (Inputted By, Checked By, Acknowledged By, Status) tanpa tombol Edit maupun tombol verifikasi; 'Kembali ke Daftar' mengembalikan filter dan halaman yang sama; tidak ada data yang berubah"
+    },
+    {
+      "scenario": "Lihat Data Saya — Tidak ada data sesuai filter",
+      "given": "Operator sudah login ke web, akunnya terhubung ke sebuah mill, dan record log sheet buatannya sudah tersimpan di server (disinkronkan dari mobile)",
+      "when": "Daftar default atau hasil filter tidak memuat satu pun record buatan Operator",
+      "then": "Sistem menampilkan empty state 'Tidak ada data ditemukan' beserta pengingat untuk menyinkronkan data dari mobile, dan tombol Reset Filter mengembalikan filter ke default"
+    },
+    {
+      "scenario": "Lihat Data Saya — Rentang tanggal tidak valid",
+      "given": "Operator sudah login ke web, akunnya terhubung ke sebuah mill, dan record log sheet buatannya sudah tersimpan di server (disinkronkan dari mobile)",
+      "when": "Operator mengisi Tanggal Dari yang lebih besar dari Tanggal Sampai",
+      "then": "Sistem menampilkan pesan 'Tanggal Dari tidak boleh setelah Tanggal Sampai' dan daftar tidak disaring dengan rentang tersebut"
+    },
+    {
+      "scenario": "Lihat Data Saya — Record tidak ditemukan atau bukan milik Operator",
+      "given": "Operator sudah login ke web, akunnya terhubung ke sebuah mill, dan record log sheet buatannya sudah tersimpan di server (disinkronkan dari mobile)",
+      "when": "Operator membuka detail record lewat tautan langsung yang mengarah ke record yang tidak ada, tautan rusak, record buatan user lain, atau record di mill lain",
+      "then": "Sistem menampilkan pesan 'Record tidak ditemukan' tanpa mengonfirmasi apakah record itu ada, beserta tombol 'Kembali ke Daftar'; tidak ada isi record yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Data Saya — Akun belum terhubung ke mill",
+      "given": "Operator sudah login ke web tetapi akunnya belum terhubung ke mill mana pun",
+      "when": "Operator membuka layar Data Saya",
+      "then": "Sistem menampilkan pesan 'Akun Anda belum terhubung ke mill. Hubungi Admin.' dan daftar tetap kosong"
+    },
+    {
+      "scenario": "Lihat Data Saya — Production Line atau stasiun asing lewat tautan",
+      "given": "Operator sudah login ke web, akunnya terhubung ke sebuah mill, dan record log sheet buatannya sudah tersimpan di server (disinkronkan dari mobile)",
+      "when": "Operator membuka Data Saya lewat tautan berisi Production Line milik mill lain atau stasiun yang tidak dikenal",
+      "then": "Sistem mengabaikan nilai tersebut tanpa error, memakai 'Semua Line'/'Semua Stasiun', dan tetap hanya menampilkan record buatan Operator di mill-nya"
+    },
+    {
+      "scenario": "Lihat Data Saya — Stasiun record dipindah ke line lain",
+      "given": "Operator sudah login ke web, akunnya terhubung ke sebuah mill, dan record log sheet buatannya sudah tersimpan di server (disinkronkan dari mobile)",
+      "when": "Stasiun tempat record dibuat telah dipindah ke Production Line lain dan Operator menyaring atau melihat daftar",
+      "then": "Record tetap tampil di bawah Production Line asalnya dan kolom Production Line tetap menunjukkan line asal record"
+    },
+    {
+      "scenario": "Lihat Data Saya — Record Grading",
+      "given": "Operator sudah login ke web, akunnya terhubung ke sebuah mill, dan record log sheet buatannya sudah tersimpan di server (disinkronkan dari mobile)",
+      "when": "Daftar atau detail memuat record stasiun Grading",
+      "then": "Checked By untuk record Grading bertuliskan 'Tidak berlaku', baik di daftar maupun di bagian Verifikasi pada detail"
+    },
+    {
+      "scenario": "Lihat Data Saya — Peran lain membuka Data Saya",
+      "given": "Mill Management atau Admin sudah login ke web",
+      "when": "Pengguna tersebut mencoba membuka layar Data Saya (misalnya lewat URL)",
+      "then": "Sistem menampilkan halaman 403, dan menu 'Data Saya' tidak tampil di sidebar mereka"
+    },
+    {
+      "scenario": "Lihat Data Saya — Operator membuka layar stasiun lain",
+      "given": "Operator sudah login ke web dan akunnya terhubung ke sebuah mill",
+      "when": "Operator mencoba membuka layar Data Browser, Detail, atau Form stasiun lewat URL",
+      "then": "Sistem tetap menampilkan halaman 403; Operator hanya dapat mengakses Beranda, Ganti Password, dan Data Saya"
+    },
+    {
+      "scenario": "Lihat Data Saya — Record Operator lain di mill/line yang sama tidak tampil",
+      "given": "Operator sudah login ke web, akunnya terhubung ke sebuah mill, dan di mill serta Production Line yang sama terdapat record buatan Operator lain selain record buatannya sendiri",
+      "when": "Operator membuka Data Saya dan menyaring daftar dengan stasiun, line, dan rentang tanggal yang juga mencakup record Operator lain",
+      "then": "Daftar dan jumlah record hanya memuat record dengan Inputted By = Operator yang login di mill akunnya; record Operator lain tidak tampil"
+    },
+    {
+      "scenario": "Lihat Data Saya — Upaya mengubah, memverifikasi, atau mengekspor data ditolak",
+      "given": "Operator sudah login ke web, akunnya terhubung ke sebuah mill, dan record log sheet buatannya sudah tersimpan di server (disinkronkan dari mobile)",
+      "when": "Operator mencoba menambah, mengedit, menghapus, memverifikasi, atau mengekspor record dari layar Data Saya, termasuk lewat permintaan langsung",
+      "then": "Tidak ada tombol untuk aksi tersebut di daftar maupun detail, permintaan itu ditolak, dan tidak ada data yang berubah"
+    },
+    {
+      "scenario": "Lihat Data Saya — Supervisor berhasil",
+      "given": "Supervisor sudah login ke web, akunnya terhubung ke sebuah mill, dan ada record log sheet yang ia buat sendiri (dari web atau mobile) tersimpan di server",
+      "when": "Supervisor membuka Data Saya dari menu sidebar, menyaring daftar, membuka detail satu record, lalu kembali ke daftar",
+      "then": "Sistem menampilkan hanya record buatan Supervisor itu di mill-nya dengan kolom dan filter yang sama seperti untuk Operator; detail tampil read-only di layar yang sama tanpa tombol Edit maupun tombol verifikasi; menu Data Browser, Laporan, dan layar Supervisor lain tetap tersedia"
+    },
+    {
+      "scenario": "Lihat Data Saya — Supervisor tidak melihat record Operator-nya",
+      "given": "Supervisor sudah login ke web dan di mill serta Production Line yang sama terdapat record buatan Operator-operatornya selain record buatan Supervisor sendiri",
+      "when": "Supervisor membuka Data Saya dengan filter yang mencakup record Operator tersebut",
+      "then": "Daftar dan jumlah record hanya memuat record dengan Inputted By = Supervisor itu; record buatan Operator tidak tampil di Data Saya (tetap terlihat di Data Browser)"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-145--data-saya-web"
+  ]
+}

@@ -27,3 +27,12 @@
 - `screens[screen-144--laporan-weighbridge-mobile].description` menyebut Production Line wajib dipilih ← user hanya menyatakan versi mobile mengikuti "persis pola screen-135/136/137/138/139". Bahwa itu berarti pemilih Production Line juga hadir di mobile adalah turunan agent dari pola kelima laporan mobile yang sudah ada, bukan pernyataan user. Dasarnya kuat (mobile justru yang pertama memakai pemilih line — `StationListView.vue` mengingatnya per akun), tapi tetap turunan.
 - Pilihan kata deskripsi kedua layar ← isi metriknya ditentukan user (jumlah trip, total/rata-rata berat bersih, rekap per estate/supplier dan per tujuan, lama kendaraan di pabrik, trip tanpa berat bersih). Perumusannya dalam bahasa bisnis — termasuk menyebut anomali trip tanpa berat bersih sebagai hal yang "harus terlihat, bukan tersembunyi di balik rata-rata" — adalah penekanan agent.
 - NOL entri baru di actor-index dan module-index ← user melarang menyentuh keduanya. Kedua layar baru dimasukkan ke `module-dashboard`, sebaris dengan kesepuluh layar laporan yang sudah ada; tidak ada modul baru dibuat.
+
+## v15 — 2026-10-05
+
+- screens[screen-145--data-saya-web].module_id = "module-web-station-data" ← agen menempatkan di modul Data Stasiun (Web), bukan modul baru; tidak dinyatakan user
+- screens[screen-145--data-saya-web].description = "detail record read-only dibuka di layar yang sama (bukan memakai 18 layar Detail yang ada)" ← keputusan agen: Operator tetap terkunci dari rute Detail/Data Browser (403); tidak dinyatakan user
+- screens[screen-145--data-saya-web].description = "filter tanggal, stasiun, Production Line; status sinkron/verifikasi per record; dicapai dari Beranda + sidebar Operator" ← diturunkan agen, tidak dinyatakan user
+
+## v16 — 2026-10-05
+- screens[screen-145--data-saya-web].name/description = Operator & Supervisor; MM/Admin 403; Supervisor lewat sidebar ← USER (Checkpoint 3b); penyebutan "Supervisor lewat sidebar" diturunkan agen

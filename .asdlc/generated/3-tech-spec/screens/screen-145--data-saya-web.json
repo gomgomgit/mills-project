@@ -1,0 +1,1270 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-05"
+  },
+  "id": "screen-145--data-saya-web",
+  "name": "Data Saya (Web, Operator & Supervisor)",
+  "module_id": "module-web-station-data",
+  "route": "/data-saya",
+  "auth_requirement": "role: operator, supervisor (session web — middleware ['auth', 'role:operator,supervisor'], nama rute 'operator.data-saya')",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Hanya record dengan created_by = id Operator yang login DAN stasiunnya berada di mill akun (stations.business_unit_id = users.business_unit_id). Read-only: tidak ada aksi tulis/verifikasi/ekspor. Akun tanpa business_unit_id gagal-tertutup (pesan 'Akun Anda belum terhubung ke mill. Hubungi Admin.')."
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Sama dengan Operator: hanya record created_by = Supervisor yang login, di mill akunnya; read-only. Tambahan — akses Supervisor ke Data Browser/Detail/Form/ekspor/verifikasi tidak berubah."
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "403 — memakai Data Browser per stasiun; menu Data Saya tidak tampil (RouteAccess)."
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": false,
+      "conditions": "403 — memakai Data Browser per stasiun; menu tidak tampil (RouteAccess)."
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "usecase_name": "Lihat Data Saya (Operator, Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/my-records",
+          "description": "Daftar record stasiun (18 jenis) yang dibuat user yang login (Operator/Supervisor), di mill akunnya, dengan filter tanggal/stasiun/Production Line dan pagination",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "date_from",
+                "type": "date (Y-m-d)",
+                "required": false,
+                "default": "hari ini - 6 hari (WIB, AppTime::zone())",
+                "description": "Batas awal tanggal record (inklusif). Dibandingkan ke kolom `date`; Weighbridge ke bagian tanggal `record_datetime` (whereDate)."
+              },
+              {
+                "name": "date_to",
+                "type": "date (Y-m-d)",
+                "required": false,
+                "default": "hari ini (WIB)",
+                "description": "Batas akhir tanggal record (inklusif)."
+              },
+              {
+                "name": "station_type",
+                "type": "enum(18 slug StationType kecuali 'other')",
+                "required": false,
+                "default": "\"\" (Semua Stasiun)",
+                "description": "Satu jenis stasiun. Nilai tak dikenal DIABAIKAN diam-diam = Semua Stasiun (bukan 422)."
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": false,
+                "default": "\"\" (Semua Line)",
+                "description": "Dijepit oleh ScopesToActorMill::clampProductionLineIdToMill() ke mill Operator: line mill lain / bukan UUID / tak dikenal = Semua Line tanpa error dan (untuk bukan-UUID) tanpa query."
+              },
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": "1",
+                "description": "Halaman"
+              },
+              {
+                "name": "per_page",
+                "type": "integer",
+                "required": false,
+                "default": "20",
+                "description": "Jumlah per halaman, maks 100 (shared-decisions.pagination)"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "station_type": "string (slug StationType, mis. 'threshing')",
+                  "station_label": "string (mis. 'Threshing')",
+                  "record_code_label": "string (label identitas sesuai layar Detail, mis. 'Thresher ID', 'No. WB Card')",
+                  "record_code": "string|null",
+                  "record_date": "date (Y-m-d) — untuk Weighbridge berisi tanggal record_datetime",
+                  "record_datetime": "timestamp|null — hanya Weighbridge",
+                  "production_line_id": "uuid",
+                  "production_line_name": "string|null",
+                  "station_name": "string|null",
+                  "status": "enum(draft_ongoing, draft_paused, saved, synced) — mentah",
+                  "checked_by_name": "string|null",
+                  "checked_by_applicable": "boolean — false hanya untuk Grading",
+                  "acknowledged_by_name": "string|null",
+                  "created_at": "timestamp (WIB) — 'Diterima Server'"
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer",
+                "total_pages": "integer"
+              },
+              "filters": {
+                "date_from": "date",
+                "date_to": "date",
+                "station_type": "string|null",
+                "production_line_id": "uuid|null — nilai SETELAH dijepit"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tidak ada sesi web"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan operator/supervisor (EnsureRole) — Mill Management, Admin"
+              },
+              {
+                "http_code": 422,
+                "error_code": "INVALID_DATE_RANGE",
+                "condition": "date_from > date_to"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "date_from/date_to bukan tanggal Y-m-d yang valid, atau akun Operator tanpa business_unit_id (errors.business_unit_id = 'Akun Anda belum terhubung ke mill. Hubungi Admin.')"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — status verifikasi harus selalu terbaru",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/my-records/{stationType}/{id}",
+          "description": "Detail lengkap satu record milik user yang login (Operator/Supervisor) — payload sama dengan GET /api/{stasiun}-records/{id} ditambah konteks Production Line & label stasiun",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "stationType",
+                "type": "string (slug StationType)",
+                "description": "Jenis stasiun; tak dikenal → 404 NOT_FOUND"
+              },
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "Id record; bukan UUID → 404 NOT_FOUND tanpa menyentuh SQL (Str::isUuid)"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": {
+                "station_type": "string",
+                "station_label": "string",
+                "production_line_name": "string|null",
+                "checked_by_applicable": "boolean",
+                "record": "object — PERSIS hasil {Station}RecordService::getDetail($id) (header + created_by_name/checked_by_name/acknowledged_by_name + status + details[])"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tidak ada sesi web"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan operator/supervisor — Mill Management, Admin"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "stationType tak dikenal, id bukan UUID, record tidak ada, created_by bukan Operator ini, atau stasiunnya di mill lain — satu jawaban yang sama untuk semua, agar keberadaan record orang lain tidak terkonfirmasi"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Akun Operator tanpa business_unit_id (gagal-tertutup actorReadMillId())"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Middleware ['auth', 'role:operator,supervisor'] (web) / ['auth:web', 'role:operator,supervisor'] (API) → bukan login: redirect Login / 401; Mill Management/Admin: 403 (errors/403.blade.php di web, JSON FORBIDDEN di API). Logika selanjutnya identik untuk kedua peran — 'milik sendiri' = created_by = auth()->id(), tanpa cabang per peran",
+        "2. Resolve mill aktor lewat ScopesToActorMill::actorReadMillId() → operator tanpa business_unit_id: ValidationException 422 VALIDATION_ERROR (Livewire menangkapnya menjadi pesan 'Akun Anda belum terhubung ke mill. Hubungi Admin.' + daftar kosong)",
+        "3. Normalisasi filter: date_from/date_to kosong → default [hari ini-6, hari ini] di zona AppTime::zone(); format bukan Y-m-d → API 422 VALIDATION_ERROR / Livewire pesan inline 'Format tanggal tidak valid' tanpa menjalankan query (cegah SQLSTATE 22007 di PostgreSQL); date_from > date_to → InvalidDateRangeException 422 INVALID_DATE_RANGE (Livewire: pesan 'Tanggal Dari tidak boleh setelah Tanggal Sampai', daftar tidak disaring dengan rentang itu)",
+        "4. station_type: tidak ada di peta MyRecordsService (turunan RecordVerificationService::modelForStationType(), tanpa menyalin daftar model) → null = Semua Stasiun; production_line_id → clampProductionLineIdToMill(value, millId) (bukan UUID / mill lain / tak dikenal → null = Semua Line)",
+        "5. Untuk setiap jenis stasiun dalam cakupan (1 bila station_type dipilih, 18 bila tidak) bangun SELECT ringan seragam dari tabel record-nya: id, '<slug>' AS station_type, <kolom identitas> AS record_code, <kolom tanggal> AS record_date (Weighbridge: record_datetime), production_line_id, station_id, status, checked_by, acknowledged_by, created_at — WHERE created_by = auth()->id() AND station_id IN (SELECT id FROM stations WHERE business_unit_id = millId) AND whereDate(<kolom tanggal>, '>=', date_from) AND whereDate(<kolom tanggal>, '<=', date_to) [AND production_line_id = ? bila ada]",
+        "6. Gabungkan dengan UNION ALL (query builder ->unionAll()), bungkus DB::query()->fromSub($union, 'r') → ORDER BY record_date DESC, created_at DESC, id DESC → paginate(per_page, page) sesuai shared-decisions.pagination",
+        "7. Hidrasi halaman hasil dengan 3 kueri batch (bukan N+1): nama production_lines by id, nama users untuk checked_by/acknowledged_by, nama stations by id; tambahkan station_label, record_code_label, checked_by_applicable = !RecordVerificationService::lacksCheckedBy(modelClass)",
+        "8. Return { data, meta, filters }",
+        "9. DETAIL — stationType → modelClass via peta yang sama → tak dikenal: 404; id → !Str::isUuid: 404 tanpa query",
+        "10. Cek kepemilikan: scopeQueryToActorMill(modelClass::query()->whereKey($id)->where('created_by', auth()->id()))->exists() → false: 404 NOT_FOUND (Livewire: state notFound 'Record tidak ditemukan')",
+        "11. Ambil payload lewat service stasiun yang sudah ada — app(<Station>RecordService)::getDetail($id) (sudah ber-cakupan mill) — sehingga isi detail identik dengan layar Detail Supervisor; tambahkan production_line_name (relasi productionLine milik record), station_label, checked_by_applicable",
+        "12. Livewire App\\Livewire\\Data\\DataSaya memanggil MyRecordsService yang sama (bukan HTTP); detail dirender di komponen yang sama lewat partial body per stasiun (lihat implementation_notes) tanpa tombol Edit dan tanpa <x-record-verification-actions>",
+        "13. Tidak ada endpoint/aksi tulis: komponen tidak punya method publik yang mengubah data. Untuk Operator rute web Form/Detail/Data Browser, ekspor, dan PATCH verifikasi tetap 403; untuk Supervisor rute-rute itu tetap seperti sebelumnya (di luar layar ini)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "SELECT ringan (id, wb_card_number, record_datetime, production_line_id, station_id, status, checked_by, acknowledged_by, created_at) WHERE created_by = aktor AND stasiun di mill aktor AND whereDate(record_datetime) dalam rentang; satu cabang UNION ALL. Pola yang sama berlaku untuk 17 tabel record lain di bawah ini dengan kolom identitasnya masing-masing dan kolom `date`"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas grading_number; checked_by_applicable = false (NO_CHECKED_BY_MODELS)"
+        },
+        {
+          "entity_id": "cages-track-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas cages_track_number"
+        },
+        {
+          "entity_id": "threshing-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas thresher_id"
+        },
+        {
+          "entity_id": "pressing-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas presser_id"
+        },
+        {
+          "entity_id": "depricarping-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas presser_id"
+        },
+        {
+          "entity_id": "kernel-plant-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas kernel_plant_id"
+        },
+        {
+          "entity_id": "solid-waste-disposal-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas solid_waste_disposal_id"
+        },
+        {
+          "entity_id": "process-water-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas process_water_id"
+        },
+        {
+          "entity_id": "kernel-dispatch-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas kernel_dispatch_id"
+        },
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas cpo_dispatch_id"
+        },
+        {
+          "entity_id": "effluent-plant-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas effluent_plant_id"
+        },
+        {
+          "entity_id": "storage-tank-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas storage_tank_id"
+        },
+        {
+          "entity_id": "engine-room-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas engine_room_id"
+        },
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas boiler_room_id"
+        },
+        {
+          "entity_id": "clarification-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas clarification_id"
+        },
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas process_qc_id"
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "SELECT",
+          "description": "Cabang UNION ALL — identitas sterilizer_id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Subquery id stasiun WHERE business_unit_id = mill aktor (cakupan mill); batch nama stasiun untuk baris halaman"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Opsi filter Production Line lewat productionLineOptionsForReadActor(user, millId) (hanya line mill Operator); clampProductionLineIdToMill() (kueri keberadaan nyata); batch nama line untuk baris halaman"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "Batch nama users untuk checked_by/acknowledged_by pada baris halaman"
+        },
+        {
+          "entity_id": "threshing-operational-target",
+          "operation": "SELECT",
+          "description": "Detail Threshing: orderBy('sort_order') — sama dengan DetailThreshing; pola sama untuk pressing-/depricarping-/kernel-plant-operational-target"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Tidak ada record sesuai filter / Operator belum punya record",
+          "handling": "200 data: [] total 0; Livewire menampilkan empty state 'Tidak ada data ditemukan' + tombol Reset Filter + pengingat sinkronisasi mobile"
+        },
+        {
+          "condition": "date_from > date_to",
+          "handling": "API 422 INVALID_DATE_RANGE; Livewire pesan 'Tanggal Dari tidak boleh setelah Tanggal Sampai', query tidak dijalankan dengan rentang itu (daftar sebelumnya tetap)"
+        },
+        {
+          "condition": "Tanggal diketik dengan format salah (mis. '2026-13-40')",
+          "handling": "API 422 VALIDATION_ERROR per-field; Livewire pesan 'Format tanggal tidak valid', tanpa query — mencegah SQLSTATE 22007 PostgreSQL yang ditelan SQLite"
+        },
+        {
+          "condition": "Detail: id bukan UUID / record tidak ada / created_by orang lain / stasiun mill lain / stationType tak dikenal",
+          "handling": "Satu jawaban: API 404 NOT_FOUND; Livewire state notFound 'Record tidak ditemukan' + tombol 'Kembali ke Daftar'. Tidak pernah 403 (yang akan mengonfirmasi record itu ada)"
+        },
+        {
+          "condition": "Akun Operator tanpa business_unit_id",
+          "handling": "actorReadMillId() 422; Livewire menangkap ValidationException → pesan 'Akun Anda belum terhubung ke mill. Hubungi Admin.' + daftar kosong + opsi line kosong"
+        },
+        {
+          "condition": "production_line_id milik mill lain / bukan UUID lewat query string atau properti Livewire",
+          "handling": "clampProductionLineIdToMill() → null; forcedProductionLineFilterValue() mengembalikan properti Livewire ke '' — 200, Semua Line, tanpa query untuk nilai bukan-UUID"
+        },
+        {
+          "condition": "station_type tak dikenal lewat query string / properti Livewire",
+          "handling": "Diperlakukan '' (Semua Stasiun) tanpa error"
+        },
+        {
+          "condition": "Stasiun record dipindah ke line lain setelah record dibuat",
+          "handling": "Filter & kolom memakai kolom record production_line_id (snapshot), bukan station.production_line_id — record tetap di line asal"
+        },
+        {
+          "condition": "Record Grading",
+          "handling": "checked_by_applicable=false → kolom Checked By 'Tidak berlaku' di daftar dan di ringkasan verifikasi detail"
+        },
+        {
+          "condition": "Mill Management/Admin membuka /data-saya atau /api/my-records",
+          "handling": "EnsureRole → 403; RouteAccess::allows('operator.data-saya') false → menu tidak dirender"
+        },
+        {
+          "condition": "Operator membuka Data Browser/Detail/Form stasiun, ekspor, atau PATCH verifikasi",
+          "handling": "Tidak berubah — middleware rute tersebut tidak memuat operator → 403"
+        },
+        {
+          "condition": "Record diverifikasi saat halaman terbuka",
+          "handling": "Tanpa cache; setiap render Livewire (ubah filter, ganti halaman, buka detail) membaca ulang checked_by/acknowledged_by"
+        },
+        {
+          "condition": "Record di luar jendela default 7 hari",
+          "handling": "Tidak tampil sampai Operator melebarkan rentang tanggal; tidak ada batas maksimum rentang"
+        },
+        {
+          "condition": "Supervisor membuka Data Saya di mill yang berisi record Operator-operatornya",
+          "handling": "Filter created_by = auth()->id() yang sama → hanya record buatan Supervisor; tidak ada perluasan cakupan per peran"
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya record created_by = user yang login (Operator atau Supervisor), di mill akunnya (stations.business_unit_id), lintas 18 tabel record",
+        "Read-only penuh — tidak ada aksi tulis, verifikasi, maupun ekspor; tidak ada tautan ke Data Browser/Detail/Form stasiun",
+        "Filter tanggal default 7 hari terakhir WIB, dibandingkan dengan whereDate pada kolom tanggal kejadian record (bukan created_at)",
+        "Production Line = konteks yang dipilih: default Semua Line, opsi hanya line mill Operator, nilai asing dijepit diam-diam, kolom/filter dari record.production_line_id",
+        "Checked By: nama / 'Belum diperiksa' / 'Tidak berlaku' (Grading); Acknowledged By: nama / 'Belum dikonfirmasi'",
+        "Detail memakai payload getDetail() dan partial body yang sama dengan 18 layar Detail — label identik",
+        "Tampilan lewat App\\Support\\Display (status Indonesia, tanggal bulan Indonesia WIB, angka id-ID, kosong '-')",
+        "Urutan record_date DESC, created_at DESC; 20 per halaman; ≤2 detik",
+        "Hanya peran operator dan supervisor yang boleh membuka layar & API ini; mill_management dan admin 403"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "list: returns paginated own records when all conditions pass",
+          "given": "operator with business_unit_id M1; 3 records created_by operator on M1 stations within the default window; no filters",
+          "expect": "returns {data: 3 rows with id, station_type, station_label, record_code_label, record_code, record_date, production_line_id, production_line_name, station_name, status (raw enum), checked_by_name, checked_by_applicable, acknowledged_by_name, created_at}, meta {page:1, per_page:20, total:3, total_pages:1}, filters {date_from: today-6 WIB, date_to: today WIB, station_type:null, production_line_id:null}"
+        },
+        {
+          "description": "list: throws VALIDATION_ERROR when operator has no business_unit_id",
+          "given": "auth user role operator, business_unit_id = null",
+          "expect": "throw ValidationException with errors.business_unit_id = 'Akun Anda belum terhubung ke mill. Hubungi Admin.'; no station table queried"
+        },
+        {
+          "description": "list: throws VALIDATION_ERROR when date_from is malformed",
+          "given": "date_from = '2026-13-45' (or '05/10/2026'), operator with mill",
+          "expect": "throw ValidationException (VALIDATION_ERROR) on date_from; no record SELECT in DB query log"
+        },
+        {
+          "description": "list: throws VALIDATION_ERROR when date_to is malformed",
+          "given": "date_to = 'abc', operator with mill",
+          "expect": "throw ValidationException (VALIDATION_ERROR) on date_to; no record SELECT executed"
+        },
+        {
+          "description": "list: throws INVALID_DATE_RANGE when date_from is after date_to",
+          "given": "date_from = '2026-10-05', date_to = '2026-10-01'",
+          "expect": "throw InvalidDateRangeException (422 INVALID_DATE_RANGE); no record SELECT executed"
+        },
+        {
+          "description": "list: applies 7-day WIB default window when dates are omitted",
+          "given": "Carbon::setTestNow('2026-10-04 18:30:00 UTC') (= 2026-10-05 01:30 WIB); no date params",
+          "expect": "filters.date_from = '2026-09-29', filters.date_to = '2026-10-05' (WIB date, not UTC); record dated 2026-09-28 excluded, 2026-09-29 included"
+        },
+        {
+          "description": "list: unknown station_type is ignored and all 18 stations are queried",
+          "given": "station_type = 'foo-station'; operator has records on weighbridge and grading",
+          "expect": "filters.station_type = null; rows from both weighbridge and grading returned; no exception"
+        },
+        {
+          "description": "list: known station_type restricts to that station table only",
+          "given": "station_type = 'grading'; operator has records on weighbridge and grading",
+          "expect": "only grading rows returned; filters.station_type = 'grading'"
+        },
+        {
+          "description": "list: production_line_id of another mill is clamped to null",
+          "given": "production_line_id = UUID of a line in mill M2; operator on M1",
+          "expect": "filters.production_line_id = null; all M1 own records across lines returned; no exception"
+        },
+        {
+          "description": "list: non-uuid production_line_id is clamped to null without being bound into any query",
+          "given": "production_line_id = 'bukan-uuid'; DB::listen collects bindings",
+          "expect": "filters.production_line_id = null; no SQL error; 'bukan-uuid' never appears among query bindings; all own records returned"
+        },
+        {
+          "description": "list: unknown uuid production_line_id is clamped to null",
+          "given": "production_line_id = random UUID that matches no line",
+          "expect": "filters.production_line_id = null; all own records returned"
+        },
+        {
+          "description": "list: own-mill production_line_id filters on record snapshot line",
+          "given": "production_line_id = L1 (M1); records on L1 and L2",
+          "expect": "only rows with record.production_line_id = L1 returned; filters.production_line_id = L1"
+        },
+        {
+          "description": "list: record keeps original line after station moved to another line",
+          "given": "record created with production_line_id = L1; station later updated to production_line_id = L2; filter production_line_id = L1",
+          "expect": "record returned under L1 with production_line_name = L1 name; filter L2 does not return it"
+        },
+        {
+          "description": "list: excludes records created by other users in the same mill and line",
+          "given": "same M1/L1/station: 2 records created_by auth operator, 3 records created_by another operator, 1 by supervisor",
+          "expect": "data contains only the 2 own records; meta.total = 2"
+        },
+        {
+          "description": "list: excludes own-created records on stations of another mill",
+          "given": "record created_by auth operator but station_id belongs to mill M2",
+          "expect": "record not in data; meta.total excludes it"
+        },
+        {
+          "description": "list: weighbridge filters on date part of record_datetime",
+          "given": "weighbridge record record_datetime = '2026-10-05 23:30:00'; date_from = date_to = '2026-10-05'",
+          "expect": "record included (whereDate on record_datetime, SQLite/PostgreSQL safe); record_date = '2026-10-05', record_datetime present only on weighbridge rows"
+        },
+        {
+          "description": "list: orders UNION result by record_date DESC, created_at DESC, id DESC",
+          "given": "records across 3 stations: two with same record_date but different created_at, two with identical record_date and created_at",
+          "expect": "ordered by record_date desc, then created_at desc, then id desc (deterministic)"
+        },
+        {
+          "description": "list: caps per_page at 100 and computes pagination meta",
+          "given": "per_page = 500, 120 own records; page = 2",
+          "expect": "meta.per_page = 100, meta.total = 120, meta.total_pages = 2, data length 20 on page 2"
+        },
+        {
+          "description": "list: Grading rows have checked_by_applicable false",
+          "given": "grading record and pressing record, both unverified",
+          "expect": "grading row checked_by_applicable = false; pressing row checked_by_applicable = true, checked_by_name = null, acknowledged_by_name = null"
+        },
+        {
+          "description": "list: hydrates verifier names in batch",
+          "given": "record with checked_by = supervisor S ('Budi'), acknowledged_by = MM user ('Sari')",
+          "expect": "checked_by_name = 'Budi', acknowledged_by_name = 'Sari'; names fetched with one batched users query (no N+1)"
+        },
+        {
+          "description": "list: returns empty result when no records match",
+          "given": "operator with mill, no records in range",
+          "expect": "data = [], meta.total = 0, meta.total_pages = 0; no exception"
+        },
+        {
+          "description": "detail: returns station getDetail payload for own record",
+          "given": "stationType = 'pressing', id = own pressing record in M1; PressingRecordService::getDetail(id) returns payload P",
+          "expect": "returns {station_type:'pressing', station_label:'Pressing', production_line_name, checked_by_applicable:true, record: P (identical to getDetail)}"
+        },
+        {
+          "description": "detail: throws NOT_FOUND for unknown stationType",
+          "given": "stationType = 'foo'",
+          "expect": "404 NOT_FOUND; no record query executed"
+        },
+        {
+          "description": "detail: throws NOT_FOUND without query for non-uuid id",
+          "given": "stationType = 'pressing', id = '123abc'",
+          "expect": "404 NOT_FOUND; DB query log contains no SELECT on pressing_records"
+        },
+        {
+          "description": "detail: throws NOT_FOUND when record does not exist",
+          "given": "stationType = 'pressing', id = random UUID",
+          "expect": "404 NOT_FOUND"
+        },
+        {
+          "description": "detail: throws NOT_FOUND when record created by another user",
+          "given": "own-mill pressing record with created_by = other operator",
+          "expect": "404 NOT_FOUND, identical to missing record"
+        },
+        {
+          "description": "detail: throws NOT_FOUND when record station belongs to another mill",
+          "given": "pressing record created_by auth operator but on M2 station (scopeQueryToActorMill excludes it)",
+          "expect": "404 NOT_FOUND"
+        },
+        {
+          "description": "detail: throws VALIDATION_ERROR for mill-less operator",
+          "given": "operator business_unit_id = null; valid stationType and id",
+          "expect": "throw ValidationException with errors.business_unit_id 'Akun Anda belum terhubung ke mill. Hubungi Admin.'"
+        },
+        {
+          "description": "detail: Grading detail returns checked_by_applicable false",
+          "given": "own grading record",
+          "expect": "checked_by_applicable = false"
+        },
+        {
+          "description": "list: verification done after first read is reflected on next call (no cache)",
+          "given": "call list() once; then set record.checked_by = supervisor; call list() again",
+          "expect": "second call returns checked_by_name = supervisor name"
+        },
+        {
+          "description": "list: supervisor sees only records they created, not their operators'",
+          "given": "auth user role supervisor on M1; 2 pressing records created_by the supervisor, 3 created_by an operator on the same M1 line and dates",
+          "expect": "data contains only the 2 supervisor records; meta.total = 2; same code path as operator (no role branch)"
+        },
+        {
+          "description": "detail: supervisor gets NOT_FOUND for an operator's record in the same mill",
+          "given": "auth supervisor on M1; stationType = 'pressing', id = operator-created M1 record",
+          "expect": "404 NOT_FOUND (ownership is created_by, not mill membership)"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-001--login-web",
+      "reason": "Operator harus login web (AuthService::redirectFor('operator') = /beranda)"
+    },
+    {
+      "screen_id": "operator.home (/beranda, Beranda Operator — di luar blok ASDLC)",
+      "reason": "Titik masuk: tombol 'Lihat Data Saya' ditambahkan ke resources/views/operator/home.blade.php"
+    },
+    {
+      "screen_id": "screen-019--detail-weighbridge-web",
+      "reason": "Sumber label & partial body detail Weighbridge (dan secara umum ke-18 layar Detail: screen-020, 021, 053–056, 101–110, 125) — body detail diekstrak menjadi partial yang dipakai bersama"
+    },
+    {
+      "screen_id": "screen-010--form-weighbridge (dan 17 Form mobile)",
+      "reason": "Record Operator berasal dari input mobile yang disinkronkan — layar ini hanya membaca apa yang sudah sampai server"
+    }
+  ],
+  "implementation_notes": [
+    "Rute web di blok ASDLC: Route::middleware(['auth', 'role:operator,supervisor'])->get('/data-saya', DataSaya::class)->name('operator.data-saya'). API (routes/api.php): Route::middleware(['auth:web', 'role:operator,supervisor']) → GET /api/my-records (MyRecordController@index) dan GET /api/my-records/{stationType}/{id} (MyRecordController@show). 'auth:web' saja (bukan sanctum) — layar web-only. Nama rute tetap 'operator.data-saya' (dipakai RouteAccess & sidebar) walau Supervisor ikut — nama rute bukan pembatas peran.",
+    "Komponen baru: App\\Livewire\\Data\\DataSaya (#[Layout('data.data-saya')] → resources/views/data/data-saya.blade.php = <x-layouts.app title=\"Data Saya\">), view resources/views/livewire/data/data-saya.blade.php; service baru App\\Services\\MyRecordsService (use ScopesToActorMill) dipakai Livewire DAN MyRecordController — satu jalur logika.",
+    "State Livewire ber-#[Url] supaya tautan & tombol Back browser bekerja dan 'Kembali ke Daftar' mempertahankan filter/halaman: date_from, date_to, station_type, production_line_id, page, detail_station, detail_id. Detail terbuka bila detail_station+detail_id terisi (openDetail($stationType, $id) / closeDetail()). mount() mengisi default 7 hari bila date_from/date_to kosong di URL.",
+    "Peta jenis stasiun → model DIPINJAM dari RecordVerificationService::modelForStationType() (tidak disalin). MyRecordsService hanya menambah peta presentasi per slug: kolom identitas + label (wb_card_number 'No. WB Card', grading_number 'Grading Number', cages_track_number 'Cages Track Number', thresher_id 'Thresher ID', presser_id 'Presser ID' (pressing & depricarping), kernel_plant_id 'Kernel Plant ID', solid_waste_disposal_id 'Solid Waste Disp. ID', process_water_id 'Process Water ID', kernel_dispatch_id 'Kernel Dispatch ID', cpo_dispatch_id 'CPO Dispatch ID', effluent_plant_id 'Effluent Plant ID', storage_tank_id 'Storage Tank ID', engine_room_id 'Engine Room ID', boiler_room_id 'Boiler Room ID', clarification_id 'Clarification ID', process_qc_id 'Process QC ID', sterilizer_id 'Sterilizer ID'), kolom tanggal (record_datetime untuk weighbridge, date untuk lainnya), label stasiun = judul layar Detail tanpa 'Detail ', dan service getDetail per slug. Urutan opsi Stasiun = urutan case StationType (kanonis), tanpa 'other'.",
+    "UNION ALL lintas tabel: kolom record_date bertipe date di 17 tabel dan timestamp di weighbridge — PostgreSQL me-resolve UNION ke timestamp (aman untuk ORDER BY); literal slug station_type dan kolom identitas di-CAST ke teks/varchar secara eksplisit (CAST(... AS VARCHAR)) agar resolusi tipe UNION tidak bergantung pada urutan cabang. Uji WAJIB lolos di PostgreSQL, bukan hanya SQLite (jebakan SQLite vs PostgreSQL).",
+    "Cakupan mill di cabang UNION memakai station_id IN (SELECT id FROM stations WHERE business_unit_id = ?) — setara scopeQueryToActorMill() (whereHas station) tetapi ringan per cabang; actorReadMillId() tetap dipanggil sekali sebagai sumber millId (gagal-tertutup).",
+    "DETAIL DI LAYAR YANG SAMA — ekstraksi partial: isi body (section identitas, grid/log detail, Target Operasional, Verifikasi) ke-18 view resources/views/livewire/data/detail-*.blade.php dipindah ke resources/views/livewire/data/partials/detail-body-<slug>.blade.php (input: $record, dan $operationalTargets untuk threshing/pressing/depricarping/kernel-plant), BESERTA aturan CSS ber-prefix stasiun yang dipakainya (setiap kelas yang dipakai markup wajib punya definisi di partial itu). Ke-18 layar Detail me-@include partial yang sama → tampilan Supervisor tidak berubah (dijaga uji Detail* yang sudah ada), dan label Data Saya identik by construction. Header aksi (Edit/Back) dan <x-record-verification-actions> TETAP di view Detail, tidak ikut ke partial.",
+    "Di atas partial, Data Saya merender ringkasan read-only sendiri: Stasiun, Production Line, Status (Display::status), Checked By ('Belum diperiksa' / 'Tidak berlaku'), Acknowledged By ('Belum dikonfirmasi') — sebagai teks, bukan input; tombol 'Kembali ke Daftar'.",
+    "Sidebar: tambahkan entri 'Data Saya' di components/layouts/app.blade.php dibungkus @if (RouteAccess::allows('operator.data-saya')) — otomatis tampil untuk Operator DAN Supervisor (dibaca dari middleware rute), tersembunyi untuk Mill Management/Admin. Beranda Operator (operator/home.blade.php) mendapat tombol 'Lihat Data Saya' dan teksnya diperbarui; Supervisor tidak punya Beranda (mendarat di /dashboard) sehingga titik masuknya hanya sidebar. Komentar rute /beranda yang menyebut layar ini 'akan dispesifikasikan' diperbarui. tests/Feature/WebAccessTest.php: asersi daftar tautan sidebar Operator (kini Beranda, Data Saya, Ganti Password) diperbarui, dan ditambah asersi Supervisor melihat 'Data Saya' sementara Mill Management/Admin tidak.",
+    "Filter tanggal: native <input type=\"date\"> (ketik manual + picker), tidak pernah disabled/readonly; filter Stasiun & Production Line memakai <x-searchable-select> seperti Data Browser (placeholder 'Semua Stasiun' / 'Semua Line').",
+    "Tabel: kolom pertama Production Line; Diterima Server = Display::dateTime(created_at); Tanggal = Display::date(record_date) atau Display::dateTime(record_datetime) untuk Weighbridge; Status = Display::status(); tabel dibungkus overflow-x:auto (component_patterns data-table). Baris dapat diklik (wire:click openDetail) dan juga berupa <a> ke ?detail_station=..&detail_id=.. agar bisa dibuka di tab baru.",
+    "Kinerja: dataset per Operator kecil dan default 7 hari; created_by belum ber-index di 18 tabel. Index komposit (created_by, date)/(created_by, record_datetime) TIDAK ditambahkan sekarang (perubahan skema = ranah entity-catalog / tech-1-core); tambahkan bila NFR ≤2 detik terlewati di data produksi.",
+    "Tidak ada ekspor, tidak ada aksi tulis, tidak ada EnforcesPeriodLock (read-only — kunci periode tidak relevan).",
+    "Catatan cakupan: Operator TETAP boleh POST/PATCH /api/{stasiun}-records (jalur sync mobile, auth:web,sanctum + role ...,operator) — itu bukan bagian layar ini dan tidak diubah. Data Saya tidak menambah jalur tulis apa pun; yang ditolak untuk Operator adalah rute web Form/Detail/Data Browser, ekspor, dan PATCH /api/records/{stationType}/{id}/verification.",
+    "Browser test 'Stasiun record dipindah ke line lain' sengaja dikosongkan: butuh mutasi master data (pindah stasiun) di tengah uji; dibuktikan di uji Livewire + API (snapshot record.production_line_id). Uji Playwright lain wajib memakai fixture bertanggal di dalam jendela default 7 hari (audit statis tanggal fixture), backend :8000/:8001 + seeder, dan assert URL lewat pathname/regex."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Data Saya — berhasil",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "date_from": "2026-09-01",
+            "date_to": "2026-10-05",
+            "station_type": "pressing",
+            "production_line_id": "{{own_line_uuid}}",
+            "page": 1,
+            "per_page": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "{{step2.data[0].station_type}}",
+            "id": "{{step2.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "mount as operator with own records (default filters); set date_from/date_to, station_type and production_line_id; call openDetail(stationType, id); call closeDetail()",
+        "assert": "default filters = today-6..today WIB, Semua Stasiun, Semua Line; table shows only own M1 records with columns Production Line, Stasiun, ID Record, Tanggal, Status, Checked By, Acknowledged By, Diterima Server and an 'N record' count; after filters the list and count update; detail shows 'Detail [Nama Stasiun]', the same labels as the station Detail screen, Target Operasional (Threshing/Pressing/Depricarping/Kernel Plant), the Verifikasi section, and no Edit/verification buttons; closeDetail restores the same filters and page; DB record counts unchanged"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as an operator with seeded records; on /beranda click 'Lihat Data Saya' (and separately use the sidebar 'Data Saya' entry); type Tanggal Dari/Sampai, pick a Stasiun and a Production Line; click a row; click 'Kembali ke Daftar'",
+        "assert": "URL path is /data-saya (assert with a regex/pathname, not toHaveURL('**/x')); table and count show only the operator's records, newest first; row click shows the detail on the same page with station labels and the Verifikasi section and no Edit/verification buttons; 'Kembali ke Daftar' returns to the list with the same filter values and page"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Tidak ada data sesuai filter",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "date_from": "2020-01-01",
+            "date_to": "2020-01-07"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "mount as operator with no records in range (or set a range with no records); call resetFilters()",
+        "assert": "'Tidak ada data ditemukan' empty state with the mobile-sync reminder and a Reset Filter button; after resetFilters date_from/date_to return to the 7-day WIB default and station_type/production_line_id to ''"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as an operator; type a past date range with no records into Tanggal Dari/Sampai; click Reset Filter",
+        "assert": "'Tidak ada data ditemukan' and the sync reminder are visible; after Reset Filter the date inputs show the default 7-day range and the selects show 'Semua Stasiun'/'Semua Line'"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Rentang tanggal tidak valid",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "date_from": "2026-10-05",
+            "date_to": "2026-10-01"
+          },
+          "expected_status": 422,
+          "expected_error_code": "INVALID_DATE_RANGE"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "date_from": "05/10/2026"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "set date_from = '2026-10-05' and date_to = '2026-10-01'; separately set date_from to a malformed value",
+        "assert": "'Tanggal Dari tidak boleh setelah Tanggal Sampai' shown and the list is not filtered by that range; malformed date shows 'Format tanggal tidak valid'; no exception"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as an operator; type a Tanggal Dari later than Tanggal Sampai",
+        "assert": "'Tanggal Dari tidak boleh setelah Tanggal Sampai' is visible; table not filtered by the invalid range; after fixing the range the message disappears and the list updates"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Record tidak ditemukan atau bukan milik Operator",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "pressing",
+            "id": "00000000-0000-4000-8000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "NOT_FOUND"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "pressing",
+            "id": "bukan-uuid"
+          },
+          "expected_status": 404,
+          "expected_error_code": "NOT_FOUND"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "pressing",
+            "id": "{{other_operator_record_uuid}}"
+          },
+          "expected_status": 404,
+          "expected_error_code": "NOT_FOUND"
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "pressing",
+            "id": "{{own_record_other_mill_uuid}}"
+          },
+          "expected_status": 404,
+          "expected_error_code": "NOT_FOUND"
+        },
+        {
+          "step": 5,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "foo-station",
+            "id": "{{own_record_uuid}}"
+          },
+          "expected_status": 404,
+          "expected_error_code": "NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "mount with #[Url] detail_station/detail_id pointing at: a missing UUID, a non-UUID id, another operator's record, a record in another mill, an unknown station type",
+        "assert": "every case renders 'Record tidak ditemukan' with a 'Kembali ke Daftar' button; no field of the foreign record appears; the message is identical for all cases"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as an operator; open /data-saya?detail_station=pressing&detail_id=<another operator's record id>, then &detail_id=rusak, then a random UUID; click 'Kembali ke Daftar'",
+        "assert": "'Record tidak ditemukan' visible each time with no record fields; 'Kembali ke Daftar' shows the list"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Akun belum terhubung ke mill",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "_auth": "operator with business_unit_id = null"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "pressing",
+            "id": "{{any_record_uuid}}",
+            "_auth": "operator with business_unit_id = null"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "mount as an operator whose business_unit_id is null",
+        "assert": "'Akun Anda belum terhubung ke mill. Hubungi Admin.' shown; table empty; Production Line options empty; no exception"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as a seeded mill-less operator; open /data-saya",
+        "assert": "'Akun Anda belum terhubung ke mill. Hubungi Admin.' visible and the table has no rows"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Production Line atau stasiun asing lewat tautan",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "production_line_id": "{{other_mill_line_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "production_line_id": "bukan-uuid",
+            "station_type": "foo-station"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "mount with URL params production_line_id = another mill's line and station_type = 'foo-station'",
+        "assert": "production_line_id property forced back to '' and station_type treated as '' (Semua Line / Semua Stasiun); no error message; list contains only own M1 records"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as an operator; open /data-saya?production_line_id=<other mill line uuid>&station_type=foo-station",
+        "assert": "no error shown; Production Line shows 'Semua Line', Stasiun shows 'Semua Stasiun'; rows are only the operator's own records"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Stasiun record dipindah ke line lain",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "production_line_id": "{{original_line_uuid}}",
+            "date_from": "2026-09-01",
+            "date_to": "2026-10-05"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "production_line_id": "{{new_line_uuid}}",
+            "date_from": "2026-09-01",
+            "date_to": "2026-10-05"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "seed a record on L1, then move its station to L2; set production_line_id = L1, then L2",
+        "assert": "with L1 the record is listed and its Production Line cell shows L1; with L2 it is not listed"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Record Grading",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "station_type": "grading"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "grading",
+            "id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "mount with an own grading record and an own unverified pressing record; open the grading detail",
+        "assert": "grading row Checked By = 'Tidak berlaku'; pressing row Checked By = 'Belum diperiksa'; Acknowledged By 'Belum dikonfirmasi' when null; grading detail summary Checked By = 'Tidak berlaku'"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as an operator with seeded Grading and Pressing records; choose Stasiun = Grading; click the Grading row",
+        "assert": "Checked By reads 'Tidak berlaku' in the list and in the detail summary (not 'Belum diperiksa')"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Peran lain membuka Data Saya",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "_auth": "mill_management"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "_auth": "admin"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "pressing",
+            "id": "{{operator_record_uuid}}",
+            "_auth": "mill_management"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "_auth": "none"
+          },
+          "expected_status": 401,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "GET /data-saya as mill_management and admin; render the shell sidebar for mill_management, admin, supervisor and operator",
+        "assert": "403 for mill_management and admin; 'Data Saya' sidebar entry hidden for them (RouteAccess::allows('operator.data-saya') false) and shown for operator and supervisor"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as mill_management (repeat for admin); look at the sidebar; open /data-saya directly",
+        "assert": "no 'Data Saya' entry in the sidebar; /data-saya shows the 403 page"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Operator membuka layar stasiun lain",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-records"
+          },
+          "request_example": {
+            "_auth": "operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-records/{id}"
+          },
+          "request_example": {
+            "id": "{{own_weighbridge_record_uuid}}",
+            "_auth": "operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "as operator, GET web routes /data/weighbridge, /data/weighbridge/{id}, /data/weighbridge/create, /data/pressing/{id}/edit; render the operator sidebar",
+        "assert": "each station route returns 403; the operator sidebar shows only Beranda, Data Saya and Ganti Password; DataSaya output contains no links to station Data Browser/Detail/Form routes"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as an operator; from /data-saya open /data/weighbridge, /data/weighbridge/{own record id} and /data/weighbridge/create directly",
+        "assert": "each shows the 403 page; the sidebar lists only Beranda, Data Saya and Ganti Password"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Record Operator lain di mill/line yang sama tidak tampil",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "station_type": "pressing",
+            "production_line_id": "{{shared_line_uuid}}",
+            "date_from": "2026-09-29",
+            "date_to": "2026-10-05"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "seed own pressing records and another operator's pressing records on the same M1 line and dates; set station_type = pressing, production_line_id = that line and a covering range",
+        "assert": "only own record codes rendered; the count equals the own-record count; none of the other operator's record codes appear"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as operator A; choose Stasiun = Pressing, the shared Production Line and a range covering both operators' seeded records (fixture dates inside the range, checked statically)",
+        "assert": "table shows only operator A's record IDs and the count matches; operator B's seeded record IDs are not visible"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Upaya mengubah, memverifikasi, atau mengekspor data ditolak",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "_auth": "operator"
+          },
+          "expected_status": 405,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/records/{stationType}/{id}/verification"
+          },
+          "request_example": {
+            "stationType": "pressing",
+            "id": "{{own_record_uuid}}",
+            "level": "checked",
+            "value": true,
+            "_auth": "operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-records/export"
+          },
+          "request_example": {
+            "format": "csv",
+            "_auth": "operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "render the list and a detail as operator; Livewire::test(DataSaya)->call('save'|'delete'|'verify'|'export')",
+        "assert": "no Tambah Data/Edit/Hapus/verification/Ekspor buttons in list or detail; calling undefined methods throws (MethodNotFoundException); record row counts and updated_at unchanged"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as an operator; inspect the list and open a record detail; open /data/weighbridge/{own record id}/edit directly",
+        "assert": "no Tambah Data, Edit, Hapus, verification or Ekspor buttons in list or detail; the edit URL shows the 403 page; reloading the detail shows unchanged values"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Supervisor berhasil",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "_auth": "supervisor"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "{{step1.data[0].station_type}}",
+            "id": "{{step1.data[0].id}}",
+            "_auth": "supervisor"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "mount as supervisor with own records (created via web form); filter; openDetail; closeDetail",
+        "assert": "only the supervisor's own records listed with the same columns/filters as for operator; detail read-only with no Edit/verification buttons; supervisor's other menus (Dashboard, Production Process Activity, Laporan Stasiun) still rendered in the sidebar"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as a supervisor with seeded own records; click the sidebar 'Data Saya' entry; click a row; click 'Kembali ke Daftar'; then open the Production Process Activity menu",
+        "assert": "path is /data-saya; list shows only the supervisor's records; detail shows on the same page without Edit/verification buttons; Production Process Activity still opens (200, no 403); no pageerror/console.error/response >= 400"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Saya — Supervisor tidak melihat record Operator-nya",
+      "usecase_id": "usecase-148--lihat-data-saya",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records"
+          },
+          "request_example": {
+            "station_type": "pressing",
+            "production_line_id": "{{shared_line_uuid}}",
+            "date_from": "2026-09-29",
+            "date_to": "2026-10-05",
+            "_auth": "supervisor"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/my-records/{stationType}/{id}"
+          },
+          "request_example": {
+            "stationType": "pressing",
+            "id": "{{operator_record_same_mill_uuid}}",
+            "_auth": "supervisor"
+          },
+          "expected_status": 404,
+          "expected_error_code": "NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DataSaya",
+        "action": "seed supervisor-created and operator-created pressing records on the same mill/line/dates; mount as supervisor with a covering filter; also mount with detail_station/detail_id pointing at the operator's record",
+        "assert": "only the supervisor's record codes rendered and the count equals them; the operator's record detail renders 'Record tidak ditemukan'"
+      },
+      "browser_test": {
+        "route": "/data-saya",
+        "action": "log in as the seeded supervisor; choose a range covering both the supervisor's and the operator's seeded records",
+        "assert": "only the supervisor's record IDs are visible; the operator's seeded record IDs are not"
+      }
+    }
+  ]
+}

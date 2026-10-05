@@ -16,3 +16,10 @@
 - `usecases[usecase-144--buka-periode-pelaporan].screen_ids` → `screen-142` ← alasan sama.
 - `usecases[+] = usecase-145--lihat-detail-periode-pelaporan` ← tidak diminta. Membuka periode untuk membaca daftar stasiun beserta statusnya adalah kemampuan baru yang tidak tercakup usecase mana pun: usecase-128 adalah CRUD periode, 140 dan 144 adalah aksi status. Tanpa usecase sendiri, layar 142 akan punya alur baca yang tidak pernah ter-spec.
 - `usecase-128--kelola-periode-pelaporan` SENGAJA tetap di screen-128 ← CRUD periode (tambah/ubah/hapus) tidak pindah; user menetapkan Edit/Hapus tetap ada di daftar maupun di detail, dan pemilik usecase-nya tetap layar daftar.
+
+## v20 — 2026-10-05
+
+- usecases[usecase-148--lihat-data-saya] = satu usecase untuk daftar + detail read-only ← pengelompokan oleh agen
+
+## v21 — 2026-10-05
+- usecases[usecase-148--lihat-data-saya].name = "Lihat Data Saya (Web, Operator & Supervisor)" ← mengikuti keputusan USER (Supervisor ikut)

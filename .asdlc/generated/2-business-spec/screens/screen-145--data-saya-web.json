@@ -1,0 +1,107 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-05"
+  },
+  "id": "screen-145--data-saya-web",
+  "name": "Data Saya (Web, Operator & Supervisor)",
+  "module_id": "module-web-station-data",
+  "description": "Layar web untuk Operator dan Supervisor melihat kembali — read-only — record log sheet stasiun yang ia buat sendiri, lintas 18 stasiun, pada mill (business unit) miliknya. Daftar dapat disaring menurut rentang tanggal (default 7 hari terakhir), stasiun, dan Production Line; setiap baris menunjukkan stasiun, Production Line, identitas record, tanggal, status record, dan status verifikasi (Checked By / Acknowledged By) sehingga user tahu apakah datanya sudah sampai di server dan sudah diperiksa. Detail satu record dibuka di layar yang sama — field dan labelnya sama persis dengan layar Detail stasiun, tetapi tanpa tombol Edit dan tanpa tombol verifikasi. Tidak ada input, edit, hapus, verifikasi, maupun ekspor. Bagi Operator, Data Browser/Detail/Form stasiun tetap tertutup (403); bagi Supervisor layar ini tambahan — seluruh layar Supervisor yang sudah ada tetap. Mill Management dan Admin tidak memakai layar ini (403).",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tombol 'Lihat Data Saya' di Beranda Operator (/beranda) — Operator",
+    "Menu 'Data Saya' di sidebar web — tampil untuk Operator dan Supervisor (peran yang diizinkan membuka layar ini)",
+    "Tombol 'Kembali ke Daftar' dari tampilan detail record kembali ke daftar dengan filter dan halaman yang sama"
+  ],
+  "information_displayed": [
+    "Judul 'Data Saya' dengan subjudul 'Record log sheet yang Anda input (read-only)'",
+    "Catatan informasi tetap: data yang diinput di aplikasi mobile baru tampil di sini setelah disinkronkan; draft yang masih di HP tidak tampil",
+    "Filter bar: Tanggal Dari dan Tanggal Sampai (dapat diketik manual maupun dipilih lewat kalender), Stasiun ('Semua Stasiun' + 18 stasiun kanonis dalam urutan tetap), Production Line ('Semua Line' + line milik mill Operator), tombol Reset Filter",
+    "Jumlah record yang cocok dengan filter (mis. '12 record')",
+    "Tabel record — kolom: Production Line (kolom pertama), Stasiun, ID Record (nilai identitas record dengan label sesuai stasiunnya, mis. No. WB Card, Grading Number, Thresher ID), Tanggal (Weighbridge: tanggal & jam), Status (label Indonesia: Draft / Dijeda / Tersimpan / Tersinkron), Checked By (nama Supervisor atau 'Belum diperiksa'; Grading: 'Tidak berlaku'), Acknowledged By (nama Mill Management atau 'Belum dikonfirmasi'), Diterima Server (tanggal & jam record pertama kali tersimpan di server, WIB)",
+    "Pagination di bawah tabel, 20 record per halaman",
+    "Tampilan detail satu record (di layar yang sama, menggantikan tabel): judul 'Detail [Nama Stasiun]', status record, Production Line, seluruh field header dan baris detail record dengan label dan pengelompokan yang sama dengan layar Detail stasiun web (screen-019 s.d. screen-125), tabel Target Operasional untuk Threshing/Pressing/Depricarping/Kernel Plant, dan bagian Verifikasi (Inputted By, Checked By, Acknowledged By, Status)",
+    "Empty state 'Tidak ada data ditemukan' dengan tombol Reset Filter dan pengingat untuk menyinkronkan data dari aplikasi mobile"
+  ],
+  "available_actions": [
+    {
+      "action": "Saring data",
+      "description": "Mempersempit daftar menurut rentang tanggal, stasiun, dan/atau Production Line; daftar langsung diperbarui",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Reset filter",
+      "description": "Mengembalikan filter ke default (7 hari terakhir, Semua Stasiun, Semua Line)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Navigasi halaman",
+      "description": "Berpindah halaman daftar record",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka detail record",
+      "description": "Klik baris untuk melihat seluruh isi record tersebut secara read-only di layar yang sama",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Kembali ke daftar",
+      "description": "Menutup tampilan detail dan kembali ke daftar dengan filter dan halaman yang sama",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Hanya record yang dibuat oleh user yang sedang login (Inputted By = dirinya) yang tampil — berlaku sama untuk Operator dan Supervisor. Record milik user lain (termasuk record Operator di Data Saya seorang Supervisor) tidak pernah tampil, walaupun berada di mill dan Production Line yang sama",
+    "Hanya record pada mill (business unit) akun Operator yang tampil; record mill lain tidak pernah tampil, termasuk bila tautan record mill lain dibuka langsung",
+    "Layar mencakup seluruh 18 stasiun kanonis; urutan pilihan Stasiun mengikuti urutan tetap stasiun (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant, lalu stasiun lainnya), bukan alfabetis",
+    "Layar sepenuhnya read-only: tidak ada Tambah Data, Edit, Hapus, verifikasi Checked By/Acknowledged By, maupun ekspor CSV/Excel; tidak ada tautan ke Data Browser, Detail, atau Form stasiun. Untuk Operator layar-layar itu tetap tertutup (403); Supervisor tetap memakainya seperti biasa lewat menunya sendiri",
+    "Filter tanggal berdefault 7 hari terakhir (6 hari sebelum hari ini s.d. hari ini, menurut jam WIB) dan mengacu ke tanggal record (Weighbridge: bagian tanggal dari Tanggal & Waktu)",
+    "Production Line adalah konteks yang dipilih, bukan ikatan akun: filter berdefault 'Semua Line', pilihannya hanya line milik mill Operator, dan setiap baris menunjukkan line tempat record itu dicatat — record tetap di line asalnya walaupun stasiunnya kemudian dipindah ke line lain",
+    "Status verifikasi ditampilkan per record: Checked By menampilkan nama Supervisor yang memeriksa atau 'Belum diperiksa'; Acknowledged By menampilkan nama Mill Management yang mengonfirmasi atau 'Belum dikonfirmasi'; stasiun Grading tidak mengenal Checked By sehingga kolomnya bertuliskan 'Tidak berlaku'",
+    "Label dan pengelompokan field pada tampilan detail sama persis dengan layar Detail stasiun web yang dipakai Supervisor/Mill Management/Admin, sehingga satu record selalu dibaca dengan istilah yang sama",
+    "Tampilan berbahasa Indonesia: status record berlabel Indonesia, tanggal memakai nama bulan Indonesia dalam zona WIB, angka berformat id-ID (titik ribuan, koma desimal), nilai kosong tampil '-'",
+    "Urutan daftar: tanggal record terbaru lebih dulu, lalu waktu diterima server terbaru; 20 record per halaman; daftar termuat ≤2 detik untuk dataset normal",
+    "Nilai yang tidak dapat diubah ditampilkan sebagai teks biasa, bukan kolom input yang dikunci; kolom tanggal pada filter dapat diketik manual maupun dipilih lewat kalender",
+    "Hanya peran Operator dan Supervisor yang membuka layar ini; Mill Management dan Admin mendapat 403 dan tidak melihat menunya. Bagi Supervisor ini tambahan — menu dan layar Supervisor yang sudah ada tidak berubah"
+  ],
+  "usecase_ids": [
+    "usecase-148--lihat-data-saya"
+  ],
+  "edge_cases": [
+    "Operator belum punya record sama sekali, atau tidak ada record sesuai filter — empty state 'Tidak ada data ditemukan' + tombol Reset Filter + pengingat sinkronisasi",
+    "Rentang tanggal tidak valid (Tanggal Dari setelah Tanggal Sampai) — pesan 'Tanggal Dari tidak boleh setelah Tanggal Sampai', daftar tidak disaring dengan rentang tersebut",
+    "Record yang diinput di HP belum disinkronkan (masih draft/tersimpan lokal) — tidak tampil; catatan informasi menjelaskan bahwa data baru tampil setelah sync",
+    "Operator membuka tautan detail record milik orang lain, milik mill lain, record yang tidak ada, atau tautan yang rusak — pesan 'Record tidak ditemukan' + tombol Kembali ke Daftar, tanpa mengonfirmasi bahwa record itu ada",
+    "Akun Operator/Supervisor belum terhubung ke mill — pesan 'Akun Anda belum terhubung ke mill. Hubungi Admin.' dan daftar kosong",
+    "Production Line milik mill lain disisipkan lewat tautan — diabaikan, daftar kembali ke 'Semua Line' di mill Operator tanpa pesan error",
+    "Stasiun record dipindah ke Production Line lain setelah record dibuat — record tetap tampil dan tersaring di line asalnya",
+    "Supervisor/Mill Management memverifikasi record setelah halaman dibuka — status verifikasi terbaru tampil saat daftar dimuat ulang, filter diubah, atau detail dibuka",
+    "Stasiun yang tidak dikenal disisipkan lewat tautan — filter dianggap 'Semua Stasiun'; tautan detail dengan stasiun tak dikenal dianggap 'Record tidak ditemukan'",
+    "Operator mencoba membuka Data Browser, Detail, atau Form stasiun lewat URL — tetap halaman 403 seperti sebelumnya",
+    "Mill Management atau Admin membuka layar ini — halaman 403, dan menu 'Data Saya' tidak tampil di sidebar mereka",
+    "Record Grading — kolom Checked By bertuliskan 'Tidak berlaku', bukan 'Belum diperiksa'",
+    "Record berasal dari tanggal di luar rentang filter default — Operator perlu memperlebar rentang tanggal untuk melihatnya",
+    "Supervisor membuka Data Saya di mill yang berisi record buatan Operator-operatornya — hanya record buatan Supervisor sendiri yang tampil; record Operator tetap dilihat lewat Data Browser"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

@@ -20,3 +20,10 @@
 Sumber: audit-fix 2026-10-04, code is truth (routes/web.php '/beranda' + settings/password role operator, AuthService::ROLE_REDIRECTS, RouteAccess, errors/403.blade.php, routes/api.php GET /records/{stationType}/verification).
 - actors[actor-station-operator].description = mobile offline-first + sync manual + laporan mobile; sejak 2026-10-04 BOLEH login web terbatas (Beranda Operator /beranda + Ganti Password; menu lain tersembunyi via RouteAccess, rute lain 403); layar 'lihat data sendiri' belum dispesifikasikan ← komentar routes/web.php "keputusan produk 2026-10-04"; daftar stasiun lama "(Weighbridge, Grading, Cages & Track)" dibuang karena sudah 18 stasiun (inferensi agen)
 - actors[actor-station-operator].permissions = + tidak dapat mengisi 'Checked by SPV' Sterilizer; baca status verifikasi record sendiri via GET /api/records/{stationType}/verification; web: login, Beranda, Ganti Password saja ← routes + FormSterilizerView (Supervisor only)
+
+## v6 — 2026-10-05
+
+- actors[actor-station-operator].permissions = "Data Saya: hanya record yang dibuat Operator sendiri (created_by), di mill miliknya, read-only" ← user: "buat layar Data Saya untuk operator"; batas "buatan sendiri" & "mill sendiri" diturunkan agen dari keputusan 2026-10-04 ("boleh login web dan melihat data sendiri")
+
+## v7 — 2026-10-05
+- actors[actor-supervisor].description/permissions = + web 'Data Saya' (record buatannya sendiri, mill sendiri, read-only; tambahan) ← USER (Checkpoint 3b screen-145)

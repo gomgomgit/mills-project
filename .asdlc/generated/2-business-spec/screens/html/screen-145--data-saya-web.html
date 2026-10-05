@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Saya (Web, Operator) | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — every class below is used in the markup */
+    .page-subtitle {
+      font-size: var(--font-size-sm);
+      color: var(--color-muted-foreground);
+      margin-top: var(--space-xs);
+    }
+    .topbar-user {
+      font-size: var(--font-size-sm);
+      color: var(--color-muted-foreground);
+    }
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+    .filter-bar .input-group {
+      min-width: 170px;
+    }
+    .result-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-sm);
+      font-size: var(--font-size-sm);
+      color: var(--color-muted-foreground);
+    }
+    .cell-nowrap {
+      white-space: nowrap;
+    }
+    .cell-muted {
+      color: var(--color-muted-foreground);
+      font-style: italic;
+    }
+    .record-id-label {
+      display: block;
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground);
+    }
+    .pagination-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      font-size: var(--font-size-sm);
+      color: var(--color-muted-foreground);
+    }
+    .pagination-controls {
+      display: flex;
+      gap: var(--space-xs);
+    }
+    .actors-note {
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground);
+      font-style: italic;
+      margin-top: var(--space-lg);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">Mill Smart Log</div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#">Beranda</a>
+        <a class="nav-item active" href="#">Data Saya</a>
+        <a class="nav-item" href="#">Ganti Password</a>
+      </nav>
+    </aside>
+    <div class="sidebar-backdrop"></div>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-start">
+          <button class="hamburger-btn" type="button" aria-label="Buka menu navigasi">&#9776;</button>
+          <div class="topbar-title">Data Saya</div>
+        </div>
+        <div class="topbar-end">
+          <span class="topbar-user">Rahmat Hidayat · Operator · PKS Sungai Rangit</span>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Data Saya</h1>
+            <p class="page-subtitle">Record log sheet yang Anda input (read-only)</p>
+          </div>
+        </div>
+
+        <div class="alert alert-info">
+          <div>
+            <div class="alert-title">Data dari aplikasi mobile</div>
+            Data yang Anda input di aplikasi mobile baru tampil di sini setelah disinkronkan. Draft yang masih tersimpan di HP tidak tampil.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <form class="filter-bar">
+              <div class="input-group">
+                <label class="input-label" for="filter-date-from">Tanggal Dari</label>
+                <input id="filter-date-from" class="input" type="date" value="2026-09-29">
+              </div>
+              <div class="input-group">
+                <label class="input-label" for="filter-date-to">Tanggal Sampai</label>
+                <input id="filter-date-to" class="input" type="date" value="2026-10-05">
+              </div>
+              <div class="input-group">
+                <label class="input-label" for="filter-station">Stasiun</label>
+                <select id="filter-station" class="input">
+                  <option selected>Semua Stasiun</option>
+                  <option>Weighbridge</option>
+                  <option>Grading</option>
+                  <option>Cages Track</option>
+                  <option>Threshing</option>
+                  <option>Pressing</option>
+                  <option>Depricarping</option>
+                  <option>Kernel Plant</option>
+                  <option>Solid Waste Disposal</option>
+                  <option>Process Water</option>
+                  <option>Kernel Dispatch</option>
+                  <option>CPO Dispatch</option>
+                  <option>Effluent Plant</option>
+                  <option>Storage Tank</option>
+                  <option>Engine Room</option>
+                  <option>Boiler Room</option>
+                  <option>Clarification</option>
+                  <option>Process Quality Control</option>
+                  <option>Sterilizer</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label class="input-label" for="filter-line">Production Line</label>
+                <select id="filter-line" class="input">
+                  <option selected>Semua Line</option>
+                  <option>Line 1</option>
+                  <option>Line 2</option>
+                </select>
+              </div>
+              <button class="btn btn-ghost" type="button">Reset Filter</button>
+            </form>
+
+            <div class="result-meta">
+              <span>6 record</span>
+              <span>Urut: tanggal record terbaru</span>
+            </div>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Production Line</th>
+                    <th>Stasiun</th>
+                    <th>ID Record</th>
+                    <th>Tanggal</th>
+                    <th>Status</th>
+                    <th>Checked By</th>
+                    <th>Acknowledged By</th>
+                    <th>Diterima Server</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Line 1</td>
+                    <td>Weighbridge</td>
+                    <td><span class="record-id-label">No. WB Card</span>WB-0001842</td>
+                    <td class="cell-nowrap">5 Okt 2026 07:42</td>
+                    <td><span class="badge badge-success">Tersinkron</span></td>
+                    <td class="cell-muted">Belum diperiksa</td>
+                    <td class="cell-muted">Belum dikonfirmasi</td>
+                    <td class="cell-nowrap">5 Okt 2026 09:15 WIB</td>
+                  </tr>
+                  <tr>
+                    <td>Line 1</td>
+                    <td>Grading</td>
+                    <td><span class="record-id-label">Grading Number</span>GR-0000917</td>
+                    <td class="cell-nowrap">4 Okt 2026</td>
+                    <td><span class="badge badge-success">Tersinkron</span></td>
+                    <td class="cell-muted">Tidak berlaku</td>
+                    <td>Hendra Wijaya</td>
+                    <td class="cell-nowrap">4 Okt 2026 16:03 WIB</td>
+                  </tr>
+                  <tr>
+                    <td>Line 2</td>
+                    <td>Threshing</td>
+                    <td><span class="record-id-label">Thresher ID</span>THR-02</td>
+                    <td class="cell-nowrap">3 Okt 2026</td>
+                    <td><span class="badge badge-success">Tersinkron</span></td>
+                    <td>Budi Santoso</td>
+                    <td>Hendra Wijaya</td>
+                    <td class="cell-nowrap">3 Okt 2026 18:47 WIB</td>
+                  </tr>
+                  <tr>
+                    <td>Line 1</td>
+                    <td>Cages Track</td>
+                    <td><span class="record-id-label">Cages Track Number</span>CG-114</td>
+                    <td class="cell-nowrap">2 Okt 2026</td>
+                    <td><span class="badge badge-success">Tersinkron</span></td>
+                    <td>Budi Santoso</td>
+                    <td class="cell-muted">Belum dikonfirmasi</td>
+                    <td class="cell-nowrap">2 Okt 2026 14:20 WIB</td>
+                  </tr>
+                  <tr>
+                    <td>Line 2</td>
+                    <td>Pressing</td>
+                    <td><span class="record-id-label">Presser ID</span>PRS-04</td>
+                    <td class="cell-nowrap">1 Okt 2026</td>
+                    <td><span class="badge badge-success">Tersinkron</span></td>
+                    <td>Siti Aminah</td>
+                    <td>Hendra Wijaya</td>
+                    <td class="cell-nowrap">1 Okt 2026 20:05 WIB</td>
+                  </tr>
+                  <tr>
+                    <td>Line 1</td>
+                    <td>Kernel Plant</td>
+                    <td><span class="record-id-label">Kernel Plant ID</span>KP-20260930-01</td>
+                    <td class="cell-nowrap">30 Sep 2026</td>
+                    <td><span class="badge badge-success">Tersinkron</span></td>
+                    <td class="cell-muted">Belum diperiksa</td>
+                    <td class="cell-muted">Belum dikonfirmasi</td>
+                    <td class="cell-nowrap">30 Sep 2026 22:31 WIB</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="pagination-bar">
+              <span>Menampilkan 1–6 dari 6 record · Halaman 1 dari 1</span>
+              <div class="pagination-controls">
+                <button class="btn btn-outline btn-sm" type="button">Sebelumnya</button>
+                <button class="btn btn-primary btn-sm" type="button">1</button>
+                <button class="btn btn-outline btn-sm" type="button">Berikutnya</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="actors-note">
+          Actors: Station Operator &nbsp;·&nbsp;
+          Entry points: Tombol 'Lihat Data Saya' di Beranda Operator (/beranda), Menu 'Data Saya' di sidebar web (hanya Operator), Tombol 'Kembali ke Daftar' dari tampilan detail record
+        </p>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

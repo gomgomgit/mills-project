@@ -49,3 +49,8 @@ Sumber: audit-fix 2026-10-04, code is truth (MachineryService.php, MachineryGrou
 - api_contracts[0].unit_test_cases (+3) ⚠ diturunkan dari kode/KelolaMachineryAuditTest, contoh label 'MG-001 — Conveyor (Weighbridge · Line 1)' ilustratif.
 - api_contracts[1].endpoints[0].response data[0] = + business_unit_name; endpoints[1] = + label; endpoints[2..3].group_code = case-insensitive; business_logic[3..5]; edge_case_handling[0] ← MachineryGroupService. ⚠ diasumsikan GET /api/stations/options memakai stationOptions() yang sama (tidak dibuka controller-nya).
 - implementation_notes (+) = REVISI audit-fix.
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (app/Livewire/MasterData/KelolaMachinery.php, app/Livewire/Concerns/HasFilterReset.php, backend/resources/views/livewire/master-data/kelola-machinery.blade.php).
+- implementation_notes[24] ← HasFilterReset: filterDefaults, afterFilterReset() kosongkan expandedGroupIds, viewMode tak di-reset, activeFilterCount except per mode, note ungrouped di bar, ld-region & busy-label.

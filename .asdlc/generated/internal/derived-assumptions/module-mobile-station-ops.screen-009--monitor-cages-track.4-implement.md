@@ -15,3 +15,8 @@ Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10
 Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 8/0.
 - Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): cek negatif not.toHaveURL dengan glob '**/…' (digabung ke baseURL, tak pernah cocok) diganti RegExp.
+
+## v5 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/Monitor*View.vue, mobile/src/composables/useBusyAction.ts).
+- implementation_notes (append) ← perubahan kode New Data busy + LoadingState

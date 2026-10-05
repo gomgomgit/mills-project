@@ -39,3 +39,8 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/
 - test_files_generated / fe_test_files_generated ← + AuditFix20261005Test.php, audit-fix-20261005.spec.ts (keduanya mencakup layar ini lewat dataset 18 Data Browser).
 - implementation_notes ← +1 catatan audit-fix 2026-10-05.
 - ⚠ Daftar label Run/Stop untuk Dosing Pump 1 / Sludge Dewatering diambil dari <option> form-effluent-plant.blade.php (run/stop); Display::OPTION_LABELS juga memuat standby.
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (data-browser-*.blade.php, DataBrowser*.php, FilterBarTest.php, LoadingStateTest.php).
+- implementation_notes[+] ← filter bar bersama + HasFilterReset + loading states; uji bersama FilterBarTest/LoadingStateTest/loading-state.spec disebut di catatan, tidak didaftar di berkas uji layar

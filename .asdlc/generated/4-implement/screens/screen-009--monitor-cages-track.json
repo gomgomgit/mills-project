@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -26,7 +26,8 @@
     "cagesTrackRecordRepo.ts screen-009 block added getTodaySummary(userId) (COUNT cages_track_record + SUM total_cages across their cages_tipped_time rows WHERE date(date)=today, any status — via 2 sequential queries with an empty-IN-list guard, since localDb.ts has no JOIN helper) and getDrafts(userId). createDraft() now also sets tippler_start_time=now at INSERT time, per entity-catalog v3's auto-fill-once rule. Pre-v3 screen-012/015 block (getDraftWithTippedTimes/saveDraft/etc.) left untouched, still targets pre-v3 columns — will be rewritten when screen-012 itself is implemented.",
     "Environment fix during verification (not a code defect, RECURRING issue — second time this session): task #27's backend migration work ran `php artisan migrate:fresh` again, wiping the demo business_unit/user rows a second time. This time fixed PERMANENTLY rather than ad hoc: created backend/database/seeders/DemoAccountSeeder.php (idempotent via firstOrCreate, seeds corporate/company/business_unit + admin/supervisor01/operator01), registered in DatabaseSeeder.php, and updated mobile/tests/e2e/helpers.ts's header comment to point to it. Future migrate:fresh + db:seed (or db:seed --class=DemoAccountSeeder alone) will no longer lose e2e login capability.",
     "Independently re-verified (not just agent self-report): 324/324 vitest across all 20 files, 8/8 Playwright (monitor-cages-track.spec.ts) after the seeder fix — agent's own run had reported 0/8 blocked by the environment issue before the fix.",
-    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-cages-track.spec.ts 8/8 lulus. Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp."
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-cages-track.spec.ts 8/8 lulus. Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp.",
+    "Round 3 2026-10-05 (d5da9cf): MonitorCagesTrackView.vue — useBusyAction membungkus onNewData() (createDraft + await router.push), tombol New Data :disabled/:aria-busy + BusyLabel 'Membuat…', CSS .action-button:disabled dan [aria-busy='true']; <p> status memuat diganti LoadingState variant list (draft-list-loading). Bug diperbaiki: ketukan ganda New Data membuat 2 draft. Uji: loadingStates.screens.spec.ts (bersama, 18 Monitor: LoadingState + ketukan ganda tepat satu draft); e2e/loading-states.spec.ts memakai Monitor Boiler Room sebagai sampel."
   ],
   "deferred_items": [],
   "known_issues": [

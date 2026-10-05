@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -46,7 +46,8 @@
     "Login pertama kali memerlukan koneksi internet aktif; sesi berikutnya dapat berjalan offline berkat token tersimpan lokal",
     "Business Area tidak dipilih — diturunkan otomatis dari business_unit_id akun (akun non-Admin tanpa Business Unit ditolak)",
     "Setelah login online berhasil, aplikasi mengambil (best-effort) Mills Setting mill dan master Quality Parameter Grading dari server; kegagalan/offline tidak menggagalkan login",
-    "Token sesi milik akun yang dinonaktifkan Admin dicabut di server dan ditolak (401) pada request berikutnya; aplikasi mobile menangani 401 itu secara terpusat — sesi lokal (token, user, Business Unit) dibersihkan TANPA menghapus data lokal (draft & record belum tersinkron tetap ada dan muncul lagi setelah login ulang dengan akun yang sama), lalu pengguna diarahkan ke Login dengan pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'"
+    "Token sesi milik akun yang dinonaktifkan Admin dicabut di server dan ditolak (401) pada request berikutnya; aplikasi mobile menangani 401 itu secara terpusat — sesi lokal (token, user, Business Unit) dibersihkan TANPA menghapus data lokal (draft & record belum tersinkron tetap ada dan muncul lagi setelah login ulang dengan akun yang sama), lalu pengguna diarahkan ke Login dengan pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'",
+    "Logout dari menu navigasi mobile mencabut token sesi perangkat INI di server (POST /api/logout) lalu membersihkan sesi lokal dan kembali ke Login; token perangkat lain milik akun yang sama tetap berlaku (logout di satu HP tidak mengeluarkan HP lain). Selama logout berjalan layar menampilkan lapisan 'Keluar…', dan ketukan Logout kedua tidak mengirim permintaan logout kedua."
   ],
   "usecase_ids": [
     "usecase-002--login-mobile"
@@ -56,7 +57,9 @@
     "Kredensial salah",
     "Akun tidak aktif/dinonaktifkan",
     "Token sesi lokal kadaluarsa saat offline dalam waktu lama",
-    "Akun dinonaktifkan Admin (atau tokennya dicabut) saat aplikasi mobile masih login — panggilan API bersesi berikutnya (mis. sinkronisasi) ditolak 401; aplikasi langsung kembali ke Login dengan pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.', sesi lokal dibersihkan, data lokal tetap tersimpan. Pesan ini TIDAK muncul untuk kredensial salah saat login, saat offline/tanpa respons server, atau untuk 401 dari request lama milik sesi sebelumnya"
+    "Akun dinonaktifkan Admin (atau tokennya dicabut) saat aplikasi mobile masih login — panggilan API bersesi berikutnya (mis. sinkronisasi) ditolak 401; aplikasi langsung kembali ke Login dengan pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.', sesi lokal dibersihkan, data lokal tetap tersimpan. Pesan ini TIDAK muncul untuk kredensial salah saat login, saat offline/tanpa respons server, atau untuk 401 dari request lama milik sesi sebelumnya",
+    "Logout saat perangkat OFFLINE (atau server tidak terjangkau) — sesi lokal tetap dibersihkan dan pengguna kembali ke Login, tetapi token lama di server TIDAK tercabut dan tetap berlaku (token tidak kedaluwarsa) sampai dicabut dari sisi server, mis. akun dinonaktifkan Admin; login ulang menerbitkan token baru tanpa mencabut token lama",
+    "Logout diketuk dua kali dengan cepat — hanya satu permintaan logout yang dikirim; ketukan kedua menunggu logout yang sama selesai"
   ],
   "test_priority": "high",
   "open_questions": [

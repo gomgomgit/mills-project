@@ -11,3 +11,8 @@ Sumber: audit-fix 2026-10-04, code is truth (backend/app/Services/ProductionLine
 - business_rules[2], edge_cases[0] = kode unik tidak peka huruf ← UniqueCaseInsensitive::on('production_lines','code').
 - business_rules (+1), information_displayed (+1) = pesan sukses ← successMessage.
 - ⚠ angka dalam contoh pesan (5 record stasiun, 1 Machinery Group) ilustratif.
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc), code is truth (backend/resources/views/livewire/master-data/kelola-production-line.blade.php, app/Livewire/MasterData/KelolaProductionLine.php).
+- information_displayed[1] ← filter BU kini di bar filter bersama: jumlah hasil, badge '1 filter aktif', Reset filter.

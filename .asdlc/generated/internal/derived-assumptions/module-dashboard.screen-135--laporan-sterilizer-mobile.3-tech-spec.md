@@ -39,3 +39,10 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf, ee5294c), code is truth (mobile/src/views/LaporanSterilizerView.vue, mobile/src/utils/latestRequest.ts, tests/laporanStaleResponse.spec.ts, tests/e2e/laporan-stale-response.spec.ts).
+- implementation_notes ← latestRequest guard + resetSummary, nama berkas ekspor saat klik, periodsLoaded/LoadingState, FilterPanel/FilterSelectField/FilterChip.
+- test_scenarios ← skenario baru respons ringkasan lama diabaikan (component laporanStaleResponse.spec.ts, browser e2e/laporan-stale-response.spec.ts).
+- ⚠ scenario_ref baru belum punya bdd_scenario padanan di usecase layar ini (usecase tidak di-patch).

@@ -45,3 +45,12 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/s
 - fe_test_files_generated ← + apiClient.unauthorized.spec.ts, e2e/sync-and-verification.spec.ts.
 - implementation_notes ← append rincian perubahan + uji.
 - test_results ← tidak diubah (angka per layar tidak tersedia; run commit 2216 vitest / 744 e2e).
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit ee5294c, d5da9cf), code is truth (AuthController.php, routes/api.php, stores/auth.ts, App.vue, LoginForm.vue).
+- test_files_generated ← backend/tests/Feature/Api/LogoutMobileTest.php.
+- fe_files_generated ← mobile/src/App.vue (LoadingOverlay Keluar…).
+- fe_test_files_generated ← mobile/tests/e2e/logout-revokes-token.spec.ts (auth.store.spec.ts & LoginForm.spec.ts sudah terdaftar).
+- implementation_notes ← route + controller logout, logout ganda/offline, penjaga submit ganda LoginForm, daftar uji.
+- ⚠ test_results tidak diubah — angka lulus hanya dari pesan commit ee5294c (suite penuh), tidak diukur ulang per layar.

@@ -29,3 +29,11 @@ Sumber: audit-fix 2026-10-04, code is truth (SterilizerReportService.php, lapora
 - available_actions[+] = "Pilih Production Line" ← #[Url(as: 'production_line_id')]
 - information_displayed[+] = pemilih Production Line + nama line di hero ← blade hero (#10)
 - edge_cases[5] = kolom batang selebar label, gulir di kartu, petunjuk "Geser mendatar…" bila > 10 tanggal ← md-trendchart--days + `count($daily) > 10`
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit db73fbd, c321f32), code is truth (components/report-filter-bar.blade.php, livewire/dashboard/laporan-*.blade.php, app/Livewire/Dashboard/LaporanSterilizer.php).
+- information_displayed[1] ← format opsi periode ringkas 'Nama · rentang · Status' + badge status periode terpilih (components/report-filter-bar.blade.php, db73fbd); jenis stasiun tidak lagi ditulis di opsi
+- information_displayed[0] ← mill akun terikat tampil sebagai keterangan statis field 'Mill' di report-filter-bar (LaporanSterilizer kini mengirim businessUnitName untuk peran terikat — sebelumnya layar ini tidak menulis nama mill di area filter)
+- information_displayed[+] ← susunan & label bar filter bersama (report-filter-bar): urutan field, posisi tombol ekspor, catatan, opsi awal 'Pilih Mill'/'Pilih Line', badge 'Aktif'
+- available_actions[3].description ← tombol ekspor wire:loading.attr=disabled (target export) + x-busy-label 'Mengekspor…' (c321f32)

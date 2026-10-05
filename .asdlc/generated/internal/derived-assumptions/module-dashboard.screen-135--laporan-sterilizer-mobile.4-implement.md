@@ -33,3 +33,12 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/LaporanSterilizerV
 - test_files_generated[+] = backend/tests/Feature/ReportAuditFix20261004Test.php, backend/tests/Feature/ExportXlsxTest.php ← menguji ekspor Sterilizer bersama
 - implementation_notes[+] = REVISI: label 'closed' → 'Tertutup' (dulu 'Ditutup'); CSV ponsel ikut berubah (header Indonesia + Periode/Mill/Production Line) ← diff view & spec. ⚠ "Ponsel tetap hanya meminta format CSV" disimpulkan dari nama exportCsv/saveCsvFile dan nama berkas .csv, query format tidak dibaca langsung
 - 2-business-spec & 3-tech-spec tidak diubah: keduanya tidak menyebut 'Ditutup' dan tidak memuat daftar kolom ekspor
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf, ee5294c), code is truth (mobile/src/views/LaporanSterilizerView.vue, mobile/src/utils/latestRequest.ts, tests/laporanStaleResponse.spec.ts, tests/e2e/laporan-stale-response.spec.ts).
+- fe_files_generated ← mobile/src/utils/latestRequest.ts.
+- fe_test_files_generated ← mobile/tests/laporanStaleResponse.spec.ts.
+- test_files_generated ← mobile/tests/e2e/laporan-stale-response.spec.ts.
+- implementation_notes ← 4 bug diperbaiki + uji.
+- ⚠ test_results tidak diukur ulang per layar (angka dari pesan commit).

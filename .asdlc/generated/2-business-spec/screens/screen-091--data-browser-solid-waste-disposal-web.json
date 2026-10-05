@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -18,7 +18,7 @@
   ],
   "information_displayed": [
     "Tabel data record (Solid Waste Disp. ID, tanggal, jumlah kejadian tercatat, status record berlabel Bahasa Indonesia: Draft / Dijeda / Tersimpan / Tersinkron)",
-    "Filter: rentang tanggal, business unit",
+    "Filter (bar filter bersama, satu baris di desktop dan bertumpuk di ponsel): Tanggal — rentang Dari – Sampai dalam satu field (tanggal dapat diketik manual maupun dipilih), Business Unit — pemilih 'Semua Business Unit' hanya untuk Admin; Supervisor dan Mill Management melihat nama mill akunnya sebagai keterangan (bukan pemilih, bukan input terkunci), Production Line — pemilih 'Semua Line'. Di bawah field: ringkasan jumlah data hasil filter ('N data'), badge 'N filter aktif' bila ada filter yang menyimpang dari bawaan, dan tombol Reset filter",
     "Tombol ekspor CSV/Excel"
   ],
   "available_actions": [
@@ -42,7 +42,7 @@
     },
     {
       "action": "Ekspor data",
-      "description": "Mengekspor data terfilter ke CSV/Excel",
+      "description": "Mengekspor data terfilter ke CSV/Excel. Selama berkas disiapkan, tombol yang diklik menampilkan 'Mengekspor…' (spinner) dan klik berikutnya diabaikan sampai unduhan tiba (batas aman 60 detik), sehingga klik ganda tidak memicu unduhan ganda",
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
@@ -66,6 +66,15 @@
         "actor-mill-management",
         "actor-admin"
       ]
+    },
+    {
+      "action": "Reset filter",
+      "description": "Mengembalikan seluruh filter ke bawaannya (tanggal kosong, Semua Business Unit, Semua Line) dan kembali ke halaman 1. Tombol hanya tampil selama ada minimal satu filter aktif. Bagi Supervisor dan Mill Management, mill akun tidak dihitung sebagai filter aktif dan tidak dilepas oleh reset — data tetap terbatas pada mill akun",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
     }
   ],
   "business_rules": [
@@ -79,7 +88,7 @@
     "usecase-064--data-browser-solid-waste-disposal-web"
   ],
   "edge_cases": [
-    "Tidak ada data sesuai filter (empty state dengan opsi reset filter)",
+    "Tidak ada data sesuai filter — tabel menampilkan empty state 'Tidak ada data', ringkasan menunjukkan '0 data', dan filter dapat dikembalikan ke bawaan lewat tombol Reset filter di bar filter (tampil selama ada filter aktif)",
     "Rentang tanggal tidak valid (start > end)",
     "Dataset ekspor terlalu besar / proses ekspor gagal"
   ],

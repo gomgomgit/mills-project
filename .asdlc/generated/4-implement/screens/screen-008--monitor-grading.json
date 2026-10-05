@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -27,7 +27,8 @@
     "getProgressSummary()/resumeDraft()/pauseDraft()/deleteDraft() kept unchanged for other callers (StationListView.vue's draft-status lookup; parity/future use) even though this screen no longer calls them directly.",
     "Environment fix during verification (not a code defect): task #18's backend migration work ran `php artisan migrate:fresh`, which wiped the ad-hoc-seeded business_unit/user rows that mobile/tests/e2e/helpers.ts's login() helper depends on (that file's own header comment already documented this exact risk and the recovery steps). Recreated 1 corporate/company/business_unit + 3 demo users (admin/supervisor01/operator01, password Passw0rd!) directly via tinker — this unblocked e2e login for the whole app, not just this screen.",
     "Independently re-verified (not just agent self-report): 246/246 vitest across all 20 files, and monitor-grading.spec.ts 8/8 Playwright passing after the demo-account fix.",
-    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-grading.spec.ts 8/8 lulus. Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp."
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-grading.spec.ts 8/8 lulus. Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp.",
+    "Round 3 2026-10-05 (d5da9cf): MonitorGradingView.vue — useBusyAction membungkus onNewData() (createDraft + await router.push), tombol New Data :disabled/:aria-busy + BusyLabel 'Membuat…', CSS .action-button:disabled dan [aria-busy='true']; <p> status memuat diganti LoadingState variant list (draft-list-loading). Bug diperbaiki: ketukan ganda New Data membuat 2 draft. Uji: loadingStates.screens.spec.ts (bersama, 18 Monitor: LoadingState + ketukan ganda tepat satu draft); e2e/loading-states.spec.ts memakai Monitor Boiler Room sebagai sampel."
   ],
   "deferred_items": [],
   "known_issues": [

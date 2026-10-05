@@ -48,3 +48,10 @@ Sumber: audit-fix 2026-10-04, code is truth (CagesTrackReportService.php, Lapora
 - api_contracts[0].endpoints[3].response.success_schema._note = daftar kolom baru (Periode, Mill, Production Line, …, Jam HH:MM, Status label Indonesia) ← header row export()
 - api_contracts[0].edge_case_handling[+] = days_with_records = 0 → 'tidak tersedia' + kpi-avg-per-day-empty, days-with-records tidak dirender; server tetap avg 0 ← view diff (#9)
 - implementation_notes[+] = REVISI audit-fix ('Tertutup', avg empty, CSV) ← diff
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf, ee5294c), code is truth (mobile/src/views/LaporanCagesTrackView.vue, mobile/src/utils/latestRequest.ts, tests/laporanStaleResponse.spec.ts, tests/e2e/laporan-stale-response.spec.ts).
+- implementation_notes ← latestRequest guard + resetSummary, nama berkas ekspor saat klik, periodsLoaded/LoadingState, FilterPanel/FilterSelectField/FilterChip.
+- test_scenarios ← skenario baru respons ringkasan lama diabaikan (component laporanStaleResponse.spec.ts, browser e2e/laporan-stale-response.spec.ts).
+- ⚠ scenario_ref baru belum punya bdd_scenario padanan di usecase layar ini (usecase tidak di-patch).

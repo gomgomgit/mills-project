@@ -32,3 +32,11 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/DataPreviewKernelP
 
 Sumber: audit-fix 2026-10-05 (commit f79b1fe), code is truth.
 - api_contracts GET /api/records/{stationType}/verification error_codes[404].condition: body kini amplop standar { message, code: NOT_FOUND } ← RecordVerificationStatusController abort(404) (temuan audit 2026-10-05 #11).
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/DataPreview*View.vue, mobile/src/components/RecordVerificationActions.vue).
+- api_contracts[0].edge_case_handling[0].handling ← Reset Filter di panel ListFilterBar
+- api_contracts[0].business_logic (append langkah 10) ← ListFilterBar: pintasan, tombol ×, ringkasan jumlah, Reset tunggal
+- test_scenarios (extend 2) ← skenario panel filter dan indikator memuat (⚠ skenario non-BDD, dari perilaku kode)
+- implementation_notes (append) ← ListFilterBar + LoadingState + tombol verifikasi sibuk

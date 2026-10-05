@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -251,7 +251,7 @@
     "PEMBETULAN artefak-vs-kode (2026-09-29): business_logic sebelumnya menyebut REPORT_ROUTES hanya berisi 'sterilizer'. Kode memuat lima jenis (sterilizer, cages-track, boiler-room, clarification, storage-tank).",
     "Cakupan uji Production Line yang nyata untuk layar ini: 6 uji komponen (mobile/tests/ReportingPilihStasiunView.spec.ts) dan 2 uji browser (mobile/tests/e2e/reporting-pilih-stasiun.spec.ts).",
     "REVISI audit 2026-10-04: bootstrapStationsWhenEmpty() mengisi cache stasiun saat kosong (sebelumnya layar kosong sampai Daftar Stasiun dibuka sekali); pesan tile nonaktif menjadi 'Laporan {nama} belum tersedia di aplikasi mobile.'; teks no-stations meminta memastikan perangkat online.",
-    "REVISI (2026-10-05, audit-fix — kode adalah acuan): elemen mengambang (bubble Mills AI [aria-label 'Buka Mills AI'] dan .floating-clock) tidak boleh menutup tile secara permanen — App.vue memberi padding-bottom ruang aman (utils/floatingSafeArea.ts, sejak audit 2026-10-04) pada root layar saat bubble/jam aktif, sehingga di ujung gulir tidak ada satu pun tile station-tile-* (termasuk baris terakhir) yang beririsan dengan bounding box elemen mengambang; menimpa tile SELAMA menggulir masih diperbolehkan. Tidak ada perubahan kode layar ini; dijaga uji browser 390x844."
+    "REVISI (2026-10-05, audit-fix — kode adalah acuan; diperbarui untuk dok mengambang commit ee5294c): elemen mengambang (bubble Mills AI [data-testid ai-assistant-bubble, aria-label 'Buka Mills AI'] dan .floating-clock) tidak boleh menutup tile. Sejak ee5294c keduanya duduk di DOK bawah buram App.vue (.floating-dock, data-testid floating-dock) setinggi --floating-safe-bottom dari utils/floatingSafeArea.ts: bubble bottom 16px → 76px saat bubble aktif (jam di samping kiri bubble), 62px bila hanya jam, 0 bila keduanya nonaktif (dok tidak dirender); root layar tetap mendapat padding-bottom yang sama. Konten menggulir DI BELAKANG dok, sehingga pada posisi diam mana pun (atas maupun ujung gulir) tidak ada tile station-tile-* yang tampak/terjangkau di bawah bubble/jam — tidak lagi 'boleh menimpa selama menggulir'. Tidak ada perubahan kode layar ini untuk dok; dijaga uji browser 390x844 dan 360x740. (Terpisah, d5da9cf: selama stasiun lokal/bootstrap dimuat layar menampilkan LoadingState variant grid, test-id station-grid-loading.)"
   ],
   "test_scenarios": [
     {
@@ -450,18 +450,18 @@
       }
     },
     {
-      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Ruang aman elemen mengambang (390x844)",
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Ruang aman elemen mengambang (390x844 & 360x740)",
       "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
       "api_test": [],
       "component_test": {
-        "component": "ReportingPilihStasiunView",
-        "action": "tidak ada — tata letak hanya dapat dibuktikan di browser nyata (jsdom tidak menghitung bounding box)",
-        "assert": "tidak ada"
+        "component": "App.vue (floating dock) / utils/floatingSafeArea.ts",
+        "action": "render App dengan kombinasi bubble/jam aktif-nonaktif; panggil floatingSafeBottomPx()",
+        "assert": "floating-dock (aria-hidden) dirender selama ada elemen mengambang dan dilepas saat keduanya nonaktif; jam memakai floating-clock--beside-bubble saat bubble juga aktif; ruang aman 76px (bubble), 62px (hanya jam), 0 (tidak ada)"
       },
       "browser_test": {
         "route": "/reports",
-        "action": "viewport 390x844, login, seed stasiun lokal, buka /reports, pastikan bubble 'Buka Mills AI' tampil, gulir ke ujung halaman",
-        "assert": "tidak ada tile [data-testid^=station-tile-] yang beririsan dengan bounding box bubble Mills AI maupun .floating-clock; tanpa pageerror, console.error, atau respons HTTP >= 400"
+        "action": "viewport 390x844 dan 360x740, login Supervisor dengan bubble + jam aktif, buka /dashboard-reporting, /reports, dan 5 layar laporan; periksa pada posisi gulir paling atas DAN paling bawah",
+        "assert": "tidak ada kontrol interaktif (termasuk tile [data-testid^=station-tile-]) yang bagian tampaknya beririsan dengan bubble Mills AI maupun .floating-clock; titik di dalam dok jatuh ke dok/bubble/jam (dok buram); titik tengah bubble tetap mengenai bubble; tanpa pageerror, console.error, atau respons HTTP >= 400 (mobile/tests/e2e/floating-safe-area.spec.ts; uji ujung-gulir lama di reporting-pilih-stasiun.spec.ts tetap berlaku)"
       }
     }
   ]

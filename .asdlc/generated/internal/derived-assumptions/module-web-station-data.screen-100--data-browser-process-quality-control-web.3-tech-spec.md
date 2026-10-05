@@ -35,3 +35,11 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/
 - api_contracts[0].unit_test_cases ← +1 uji filter bukan UUID (AuditFix20261005Test #6, dataset data_browser_stations).
 - implementation_notes ← +1 catatan REVISI 2026-10-05 (validasi bentuk filter, uji binding query).
 - ⚠ Tidak ditambah test_scenarios baru: tidak ada bdd_scenario Phase 2 untuk nilai filter bukan UUID (skema: satu test_scenario per BDD); cakupan dicatat di unit_test_cases + implementation_notes.
+
+## v5 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (data-browser-*.blade.php, DataBrowser*.php, HasFilterReset.php, components/filter/*, loading-assets.blade.php, SignalDownloadReady.php).
+- api_contracts[0].edge_case_handling[0].handling ← reset filter ada di x-filter.bar, bukan di empty state
+- test_scenarios[1].component_test.assert ← Reset filter berada di bar filter (filter-reset), empty state tetap pesan 'Tidak ada data'
+- test_scenarios[1].browser_test.assert ← Reset filter berada di bar filter (filter-reset), empty state tetap pesan 'Tidak ada data'
+- implementation_notes[+] ← catatan x-filter.bar + HasFilterReset + loading (.ld-region, pagination disabled saat memuat, tautan ekspor sibuk)

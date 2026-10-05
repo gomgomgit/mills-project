@@ -33,3 +33,9 @@ Sumber: audit-fix 2026-10-04, code is truth (FormGradingView.vue, gradingRecordR
 - fe_test_files_generated += syncService.sqljs.spec.ts, syncService.spec.ts, auth.store.spec.ts, noteLabelConsistency.spec.ts, DialogTeleport.spec.ts ← menguji id palsu/dropdown WB, fetch master saat login, label Catatan, ConfirmDialog teleport. (⚠ DialogTeleport cakupan tidak langsung.)
 - implementation_notes[0] = asumsi lama "SEMUA record weighbridge apa pun status" diganti filter saved/synced ← getWeighbridgeRecordOptions.
 - implementation_notes += REVISI 2026-10-04 ← diff terkait.
+
+## v9 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf, e4f231e, ee5294c), code is truth (mobile/src/views/Form*View.vue, useBusyAction/BusyLabel/LoadingState, SearchableSelect.vue, App.vue).
+- implementation_notes ← penjaga aksi ganda Simpan/Pause/Clear (actionInProgress), await router.push, BusyLabel, LoadingState variant form, dok mengambang; berkas uji bersama (loadingStates.screens.spec.ts, floating-safe-area.spec.ts) disebut di catatan, tidak didaftarkan.
+- ⚠ 2-business-spec form TIDAK diubah: tidak ada teks spec yang menggambarkan label tombol sibuk/SearchableSelect, dan penjaga ketuk ganda dinilai pola UI bersama (didokumentasikan pemanggil di shared-decisions), bukan aturan bisnis per layar.

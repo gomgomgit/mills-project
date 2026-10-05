@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -29,7 +29,8 @@
     "'Jumlah Baris Time-Slot Tercatat' counter is a plain COUNT(*) of process_water_detail rows belonging to today's records -- no filled-row filter, mirrors Threshing's Monitor counter exactly",
     "Router: route name 'monitor-process-water' registered in router/index.ts -- StationListView.vue (screen-006) already had this route name pre-wired in MONITOR_ROUTE_NAMES and a 'process-water': false placeholder in draftStatusByType; this implementation wires the real processWaterRecordRepo.getDrafts() call into StationListView.vue's Promise.all, replacing that placeholder with processWater.length > 0 -- UNLIKE Threshing (which left screen-006 wiring as a known_issue), this small, additive change to the pre-existing scaffolding was completed as part of this task since the hook points already existed",
     "This station has NO operational-target reference table -- no seeder/model/constant of any kind, unlike Threshing/Pressing/Depricarping/Kernel Plant",
-    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-process-water.spec.ts 8/8 lulus — kini dijalankan nyata, bukan hanya review statis (known_issue 'tidak dapat dijalankan di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp."
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-process-water.spec.ts 8/8 lulus — kini dijalankan nyata, bukan hanya review statis (known_issue 'tidak dapat dijalankan di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp.",
+    "Round 3 2026-10-05 (d5da9cf): MonitorProcessWaterView.vue — useBusyAction membungkus onNewData() (createDraft + await router.push), tombol New Data :disabled/:aria-busy + BusyLabel 'Membuat…', CSS .action-button:disabled dan [aria-busy='true']; <p> status memuat diganti LoadingState variant list (draft-list-loading). Bug diperbaiki: ketukan ganda New Data membuat 2 draft. Uji: loadingStates.screens.spec.ts (bersama, 18 Monitor: LoadingState + ketukan ganda tepat satu draft); e2e/loading-states.spec.ts memakai Monitor Boiler Room sebagai sampel."
   ],
   "deferred_items": [
     {

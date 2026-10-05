@@ -11,3 +11,8 @@ Spec e2e mobile baru + run penuh 727 lulus / 0 gagal.
 - mobile/tests/e2e/monitor-kernel-dispatch.spec.ts ditambahkan ke fe_test_files_generated; test_results.browser = 12 lulus / 0 gagal (run_at 2026-10-03T00:00:00Z, jumlah dari run penuh suite).
 - known_issue 'spec browser/E2E belum ada' dihapus; known_issue lain dibiarkan.
 - Cacat tanggal UTC di mobile/src/services/kernelDispatchRecordRepo.ts (todayDateString pakai toISOString → draft 00:00–06:59 WIB bertanggal kemarin) diperbaiki ke tanggal lokal; regresi: vitest 'mengisi tanggal draft dengan tanggal lokal, bukan UTC (dini hari WIB)' di mobile/tests/kernelDispatchRecordRepo.spec.ts + e2e 'New Data dini hari ...' di monitor-kernel-dispatch.spec.ts (dari fixme ke lulus). File repo sudah tercantum di fe_files_generated.
+
+## v3 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/Monitor*View.vue, mobile/src/composables/useBusyAction.ts).
+- implementation_notes (append) ← perubahan kode New Data busy + LoadingState

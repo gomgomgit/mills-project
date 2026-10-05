@@ -31,3 +31,8 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD KelolaCorporate.php, 
 - test_files_generated (+) = MasterDataValidationAuditTest.php, ImageUploadValidationTest.php, tests/Pest.php ← menguji KelolaCorporate / fakeRealImage() helper.
 - implementation_notes (+) = REVISI audit-fix.
 - known_issues[2].description = workaround GD kini via fakeRealImage() ← test diff mengganti fake()->create(...) ke fakeRealImage().
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit c321f32), code is truth (blade/Livewire layar ini, app/Livewire/Concerns/HasFilterReset.php, resources/views/components/filter/*, busy-label.blade.php).
+- implementation_notes[-1] ← entri REVISI round 3: x-filter.bar + HasFilterReset (bila ada filter), ld-region, busy-label + disabled pada Simpan/Ya, Hapus/aksi baris, header flex-wrap; test bersama FilterBarTest.php / LoadingStateTest.php dirujuk di catatan, tidak didaftarkan di test_files_generated.

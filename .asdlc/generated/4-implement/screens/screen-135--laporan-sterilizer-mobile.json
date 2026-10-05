@@ -1,5 +1,5 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -44,7 +44,8 @@
     "mobile/src/services/sterilizerReportRepo.ts",
     "mobile/src/views/LaporanSterilizerView.vue",
     "mobile/src/router/index.ts",
-    "mobile/src/services/productionLineRepo.ts"
+    "mobile/src/services/productionLineRepo.ts",
+    "mobile/src/utils/latestRequest.ts"
   ],
   "test_files_generated": [
     "backend/tests/Feature/Api/LaporanSterilizerTest.php",
@@ -52,12 +53,14 @@
     "mobile/tests/e2e/laporan-sterilizer.spec.ts",
     "backend/tests/Feature/Api/KelolaProductionLineTest.php",
     "backend/tests/Feature/ReportAuditFix20261004Test.php",
-    "backend/tests/Feature/ExportXlsxTest.php"
+    "backend/tests/Feature/ExportXlsxTest.php",
+    "mobile/tests/e2e/laporan-stale-response.spec.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/LaporanSterilizerView.spec.ts",
     "mobile/tests/sterilizerReportRepo.spec.ts",
-    "mobile/tests/productionLineRepo.spec.ts"
+    "mobile/tests/productionLineRepo.spec.ts",
+    "mobile/tests/laporanStaleResponse.spec.ts"
   ],
   "implementation_notes": [
     "ARTEFAK INI DITULIS SUSULAN pada 2026-09-24, setelah implementasinya selesai pada 2026-09-23. Phase 4 layar ini berjalan penuh dan hijau, tetapi langkah penulisan artefaknya tidak pernah tuntas sehingga dep-graph menandainya not_started selama sehari — kode ada, catatannya yang hilang. Seluruh angka di bawah adalah hasil PENGUKURAN ULANG pada 2026-09-24, bukan rekonstruksi dari ingatan: component 39 lolos (vitest), browser 18 lolos (playwright), dan 58 lolos pada dua berkas test backend Sterilizer.",
@@ -70,7 +73,8 @@
     "DEVIASI TERCATAT: unit_test_cases 17-19 pada tech spec layar ini menuliskan galat lewat response.status, bentuk yang TIDAK PERNAH sampai ke repo — apiClient::normalizeError selalu menolak dengan objek DATAR {message, errors?, status?} dan membuang response. Test ditulis terhadap perilaku nyata, dan penyimpangannya didokumentasikan di docblock berkas testnya. Ketiga butir itu juga menyangkut keputusan VIEW (rute login, pesan validasi, menyembunyikan pemilih Mill) yang memang sudah diuji di LaporanSterilizerView.spec.ts.",
     "REVISI v3 (tech-spec v3, pemisahan periods/period_stations + isolasi Production Line — sinkronisasi artefak, kode tidak diubah): diverifikasi 2026-10-03 terhadap delta tech-spec 02105a8 dan 1b35980. (1) Pemisahan induk-anak periode (83a4065, dirapikan di mobile oleh 02105a8): SterilizerReportPeriodOption.station_type kini `string` non-nullable, status dibaca sebagai status baris period_stations Sterilizer, fixture 'Semua Jenis Stasiun'/station_type null sudah dibuang dari spec komponen & e2e, dan klien tidak menyaring ulang daftar periode. Ketidakcocokan (a)/(b) yang dicatat tech-spec v2 sudah tertutup di kode. (2) Isolasi Production Line (backend a5ccfba, mobile 98c812b): SterilizerReportController::summary()/export() meneruskan production_line_id ke SterilizerReportService yang menyaring pada kolom record `sterilizer_records.production_line_id` (bukan stations), sehingga record yang stasiunnya dipindah tetap terhitung di line asalnya; respons summary menambah blok `production_line` {id,name}|null secara aditif. sterilizerReportRepo.ts mengirim production_line_id HANYA ke /summary dan /export lewat productionLineParams() (tidak bercabang per peran), tidak pernah ke /periods; exportCsv kini juga membawa business_unit_id untuk Admin (cacat 422 pra-ada ditutup 98c812b). LaporanSterilizerView.vue: daftar line dari productionLineRepo.fetchProductionLinesForReport() → GET /api/production-lines/options-for-report (endpoint baru 98c812b, ProductionLineController::optionsForReport + ProductionLineService, cakupan lewat ScopesToActorMill), resolveProductionLine() dengan urutan rute ?production_line_id= > ingatan msl_production_line_{userId} > satu-line-otomatis > pemilih, nilai rute/ingatan hanya dipercaya bila ada di daftar; loadSummary() dan onExport() berhenti tanpa line; tombol Ekspor hanya dirender bila periode DAN line ada; nama line dari summary.production_line.name lebih dulu; ganti mill (Admin) mengosongkan line + opsinya; kegagalan daftar line tampil sebagai production-line-unavailable + production-line-retry, bukan galat laporan; akun tanpa mill tetap nol permintaan. (3) success_schema /summary tidak terbungkus `data`: cocok dengan kode — controller memanggil response()->json($this->service->summary(...)) langsung, repo membaca body apa adanya lewat unwrap() yang toleran. Bentuk galat datar (ErrorLike tanpa response) juga ditegakkan di view ini oleh 98c812b. Test 2026-10-03: unit 40 (sterilizerReportRepo.spec 30 + productionLineRepo.spec 10), integration 77 (Feature/Api/LaporanSterilizerTest 27 + Unit/Services/SterilizerReportServiceTest 40 + KelolaProductionLineTest --filter options-for-report 10), component 53 (LaporanSterilizerView.spec) — semuanya lolos; browser tidak dijalankan ulang.",
     "REVISI v4 (ukur ulang uji browser 2026-10-03 — kode tidak diubah): mobile/tests/e2e/laporan-sterilizer.spec.ts (kini memuat skenario Production Line 98c812b dan viewport 390x844 02105a8) dijalankan ulang di bawah Vite dev server dengan backend :8000 (DemoAccountSeeder) — 24 lolos, 0 gagal (total run tujuh spec laporan mobile 185/185). Kenaikan 18 → 24 mencerminkan skenario yang bertambah, bukan test yang sebelumnya gagal. Known_issue 'test_results.browser tidak diukur ulang' karena itu dihapus.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): LaporanSterilizerView.vue — label status periode 'closed' kini 'Tertutup' (sebelumnya 'Ditutup'), sama dengan laporan web; LaporanSterilizerView.spec.ts dan e2e laporan-sterilizer.spec.ts diperbarui ke 'Tertutup'. Berkas CSV yang diunduh ponsel berasal dari endpoint bersama /api/sterilizer-reports/export sehingga ikut berubah: judul kolom Bahasa Indonesia (SterilizerReportService::EXPORT_HEADER) diawali Periode/Mill/Production Line, status berlabel Indonesia, jam HH:MM, Diperiksa SPV Ya/Tidak (SheetWriter + ExportValue). Ponsel tetap hanya meminta format CSV."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): LaporanSterilizerView.vue — label status periode 'closed' kini 'Tertutup' (sebelumnya 'Ditutup'), sama dengan laporan web; LaporanSterilizerView.spec.ts dan e2e laporan-sterilizer.spec.ts diperbarui ke 'Tertutup'. Berkas CSV yang diunduh ponsel berasal dari endpoint bersama /api/sterilizer-reports/export sehingga ikut berubah: judul kolom Bahasa Indonesia (SterilizerReportService::EXPORT_HEADER) diawali Periode/Mill/Production Line, status berlabel Indonesia, jam HH:MM, Diperiksa SPV Ya/Tidak (SheetWriter + ExportValue). Ponsel tetap hanya meminta format CSV.",
+    "REVISI (2026-10-05, commit e4f231e + d5da9cf + ee5294c — sinkronisasi artefak, kode adalah acuan): LaporanSterilizerView.vue — bug diperbaiki: (a) respons ringkasan LAMA yang tiba belakangan menimpa ringkasan pilihan baru dan mematikan indikator muatnya → penjaga createLatestRequestGuard (mobile/src/utils/latestRequest.ts, BARU, dipakai bersama 5 Laporan mobile) + resetSummary() pada setiap perubahan periode/line/mill; (b) nama berkas ekspor kini ditetapkan saat klik, bukan saat blob tiba; (c) 'Mill ini belum memiliki periode' tidak lagi tampil selama daftar periode masih dimuat (periodsLoaded); (d) Ekspor CSV terkunci selama berjalan (BusyLabel 'Mengekspor…'). Filter memakai komponen bersama FilterPanel/FilterSelectField/FilterChip (Mill & Production Line sebagai chip). Uji: tests/LaporanSterilizerView.spec.ts (+3 loading state: LoadingState bukan 'belum memiliki periode', ringkasan variant card, ekspor ganda satu ekspor), tests/laporanStaleResponse.spec.ts (BARU, 6 kasus per laporan), tests/e2e/laporan-stale-response.spec.ts (BARU, browser nyata vs backend :8000), plus e2e bersama filter-bar.spec.ts / loading-states.spec.ts / floating-safe-area.spec.ts. Lulus per commit ee5294c (vitest 2415, Playwright mobile 769); test_results tidak diukur ulang per layar."
   ],
   "deferred_items": [],
   "known_issues": [

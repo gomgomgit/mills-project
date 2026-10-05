@@ -42,3 +42,9 @@ Sumber: audit-fix 2026-10-04, code is truth (ReportingPilihStasiunView.vue, Repo
 Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/tests/e2e/reporting-pilih-stasiun.spec.ts, mobile/src/utils/floatingSafeArea.ts).
 - implementation_notes ← append ruang aman elemen mengambang.
 - test_scenarios ← append '390x844 ruang aman elemen mengambang'.
+
+## v5 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit ee5294c, d5da9cf), code is truth (App.vue, utils/floatingSafeArea.ts, tests/e2e/floating-safe-area.spec.ts, ReportingPilihStasiunView.vue).
+- implementation_notes[18] ← dok bawah buram: tile tak tertutup di posisi gulir mana pun (bukan hanya ujung gulir); 76/62/0 px; LoadingState grid.
+- test_scenarios[13] ← diperluas ke 390x844 & 360x740, posisi atas+bawah, dok buram, bubble dapat diketuk; component test App/floatingSafeArea.

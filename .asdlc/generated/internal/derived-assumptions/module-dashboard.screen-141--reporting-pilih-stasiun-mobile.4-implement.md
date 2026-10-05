@@ -31,3 +31,10 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/t
 - ⚠ known_issues[1] sisa 'label panjang terpotong' dibiarkan terbuka — tidak diverifikasi ulang terhadap kode saat ini.
 - fe_test_files_generated ← + mobile/tests/e2e/reporting-pilih-stasiun.spec.ts (sebelumnya tidak tercatat).
 - implementation_notes ← append REVISI 2026-10-05.
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit ee5294c, d5da9cf), code is truth (App.vue, utils/floatingSafeArea.ts, ReportingPilihStasiunView.vue).
+- fe_test_files_generated ← e2e/floating-safe-area.spec.ts, floatingSafeArea.spec.ts.
+- known_issues[1] ← bagian tile tertutup kini ditutup penuh oleh dok (semua posisi gulir).
+- implementation_notes ← LoadingState grid + dok mengambang + uji.

@@ -60,3 +60,8 @@ Sumber: audit-fix 2026-10-04, code is truth (ClarificationReportService.php, Rep
 - api_contracts[0].unit_test_cases (+2) = ekspor berlabel; xlsx sungguhan ← ReportAuditFix20261004Test #8, ExportXlsxTest
 - test_scenarios[13].api_test[1..3] = 200; api_test[4] = 404 NOT_FOUND; browser_test.assert = halaman 403 ← routes + LaporanClarificationTest (⚠ step 4 404 disimpulkan dari authorizePeriod findOrFail setelah guard peran meloloskan Operator; tidak diasersi tes)
 - implementation_notes (+1) = REVISI audit-fix
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit db73fbd, c321f32), code is truth (components/report-filter-bar.blade.php, laporan-*.blade.php, e2e-web/tests/laporan-*.spec.ts).
+- implementation_notes[+] ← report-filter-bar (props/testid diteruskan), format opsi periode, badge status, ekspor busy, .ld-region

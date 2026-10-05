@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-03"
@@ -21,7 +21,8 @@
   "fe_files_generated": [
     "backend/app/Livewire/Dashboard/DashboardHome.php",
     "backend/resources/views/livewire/dashboard/dashboard-home.blade.php",
-    "backend/resources/views/dashboard/index.blade.php"
+    "backend/resources/views/dashboard/index.blade.php",
+    "backend/resources/views/dashboard/partials/daily-mill-report.blade.php"
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/DashboardHomeTest.php"
@@ -33,7 +34,8 @@
     "DashboardService::resolveDateRange() membandingkan Carbon langsung lalu throw InvalidDateRangeException, bukan Laravel Validator -- exception ini bukan error per-field, mengikuti pola WeighbridgeRecordService yang sudah ada",
     "Ini screen pertama yang mengagregasi 3 entity (weighbridge-record, grading-record, cages-track-record+cages-tipped-time) dalam 1 query call",
     "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/dashboard-home.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 3 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-05, 0e6f97c): tampilan dashboard kini laporan harian mill DUMMY (resources/views/dashboard/partials/daily-mill-report.blade.php, di-include dashboard-home.blade.php; data statis, bukan DashboardService). Revisi: label periode 'Tdy' → 'Today', kartu 'Jam Olah' → 'Milling Hours', 'Avg Cage' → 'Avg Cage Weight' (blok Milling per Line); tren keenam kartu KPI = nilai Today vs rata-rata harian MTD (FFB Diolah 599.36, CPO 128.90, Kernel 31.12, Stok CPO 2,396.80 dummy, Milling Hours 21.58 jam); grafik Milling Hours per Line: hijau #249360 = Milling, abu-abu #64748b = Available (Available Milling Hours − Milling Hours), lalu CDT/SDT/EDT; tabel Hours per Line mendapat baris Milling Hours; CDT dummy hari ini 7.00/7.50 jam. DashboardHomeTest diperbarui (18 lulus; uji baru 'compares every KPI trend against the MTD daily average' dll. gagal pada tampilan lama)."
   ],
   "deferred_items": [],
   "known_issues": [],

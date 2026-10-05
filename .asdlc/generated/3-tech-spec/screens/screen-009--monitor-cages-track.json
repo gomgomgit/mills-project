@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-19"
@@ -31,7 +31,7 @@
         "2. Load list of local cages_track_record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC → each item labeled uniformly 'Pause'",
         "3. Render 2 card counter sebaris (Jumlah Cages Track, Jumlah Cage/Lori Tercatat) di atas list draft/pause",
         "4. Render breadcrumb (Home > Production Process Activity > Cages Track, tappable) dan header dengan 'Mill Smart Log' + hamburger",
-        "5. On 'New Data' → INSERT new local cages_track_record dengan status=draft_ongoing, created_by=current user, tippler_start_time=waktu saat ini; navigasi ke Form Cages Track dengan id draft baru",
+        "5. On 'New Data' → INSERT new local cages_track_record dengan status=draft_ongoing, created_by=current user, tippler_start_time=waktu saat ini; navigasi ke Form Cages Track dengan id draft baru — dibungkus useBusyAction: ketukan kedua selama createDraft() + await router.push() masih berjalan diabaikan (tepat satu INSERT); tombol :disabled + aria-busy + BusyLabel 'Membuat…' (audit loading 2026-10-05)",
         "6. On tap item list → navigasi ke Form Cages Track dengan id draft tersebut (tanpa transisi status)",
         "7. On 'Load Data' → navigasi ke Data Preview Cages Track mode list (tanpa id param)",
         "8. On tap breadcrumb segment → navigasi ke route terkait",
@@ -163,7 +163,8 @@
     "getTodaySummary()'s sumCagesRecorded butuh JOIN/subquery terhadap cages_tipped_time (SUM total_cages) untuk record-record hari ini — dua query terpisah (record ids hari ini, lalu SUM total_cages WHERE cages_track_record_id IN (...)) lebih sederhana daripada JOIN SQL langsung mengingat localDb.ts hanya expose query()/run() generik",
     "Tap list item TIDAK memanggil status-update lagi",
     "Breadcrumb & hamburger mengikuti pola yang sama dengan Monitor Weighbridge/Grading v4",
-    "'Jumlah Cage/Lori Tercatat' = SUM(total_cages) BUKAN COUNT(cages_tipped_time rows) — merepresentasikan jumlah cage individual yang tercatat, bukan jumlah baris/slot jam"
+    "'Jumlah Cage/Lori Tercatat' = SUM(total_cages) BUKAN COUNT(cages_tipped_time rows) — merepresentasikan jumlah cage individual yang tercatat, bukan jumlah baris/slot jam",
+    "Audit loading 2026-10-05 (d5da9cf): onNewData() dibungkus useBusyAction (composables/useBusyAction) — dulu ketukan ganda membuat DUA draft kosong; router.push di-await di dalam aksi agar tombol tetap sibuk sampai layar berganti. Daftar draft memakai LoadingState variant list (testid draft-list-loading) menggantikan teks <p> 'Memuat daftar draft … lokal…'."
   ],
   "test_scenarios": [
     {
@@ -269,6 +270,21 @@
         "route": "/stations/cages-track/monitor",
         "action": "ensure no cages_track_record rows dated today exist for the logged-in user, navigate to Monitor Cages Track",
         "assert": "the 2 counter cards show 0"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Cages Track — Ketuk ganda New Data",
+      "usecase_id": "usecase-009--monitor-cages-track",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorCagesTrackView",
+        "action": "tap new-data-button twice in a row while createDraft() is still pending",
+        "assert": "createDraft called exactly once; button disabled with aria-busy=true and label 'Membuat…' until navigation to the Form resolves; exactly one router push"
+      },
+      "browser_test": {
+        "route": "/stations/cages-track/monitor",
+        "action": "tap New Data twice rapidly",
+        "assert": "exactly one new local draft is created and the Form opens once; no pageerror/console.error"
       }
     }
   ]

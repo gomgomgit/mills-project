@@ -29,3 +29,9 @@ Sumber: audit-fix 2026-10-04, code is truth (cagesTrackRecordRepo.ts, FormCagesT
 - known_issues -= "station_id belum diisi createDraft()" ← createDraft memakai resolveActiveStationId (commit 845009c, sebelum audit).
 - known_issues -= "GET /api/mill-settings/current BELUM diimplementasikan" ← routes/api.php:445 Route::get('/mill-settings/current').
 - implementation_notes += REVISI 2026-10-04 ← diff terkait.
+
+## v8 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf, e4f231e, ee5294c), code is truth (mobile/src/views/Form*View.vue, useBusyAction/BusyLabel/LoadingState, SearchableSelect.vue, App.vue).
+- implementation_notes ← penjaga aksi ganda Simpan/Pause/Clear (actionInProgress), await router.push, BusyLabel, LoadingState variant form, dok mengambang; berkas uji bersama (loadingStates.screens.spec.ts, floating-safe-area.spec.ts) disebut di catatan, tidak didaftarkan.
+- ⚠ 2-business-spec form TIDAK diubah: tidak ada teks spec yang menggambarkan label tombol sibuk/SearchableSelect, dan penjaga ketuk ganda dinilai pola UI bersama (didokumentasikan pemanggil di shared-decisions), bukan aturan bisnis per layar.

@@ -11,3 +11,9 @@ Sumber: audit-fix 2026-10-04, code is truth (ManagementReportService.php, Livewi
 - business_rules += line wajib & line mill lain diabaikan; filter production_line_id milik record; WB receive/dispatch tak pernah dijumlah (type non-dispatch/NULL = masuk); ekspor xlsx + kolom Production Line + baris Total ← service docblocks & code
 - edge_cases[1] = rentang tidak valid: hanya pesan galat, tanpa tabel/'belum ada data'/Total/ekspor ← render() breakdown=null pada InvalidDateRangeException
 - edge_cases += line belum dipilih → petunjuk; line mill lain di query string → reset 'belum memilih' ← render()
+
+## v3 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (livewire/dashboard/management-report.blade.php, components/filter/*, loading-assets.blade.php).
+- information_displayed[0] ← x-filter.bar (658cedc): Mill statis 'Mill mengikuti akun Anda', Production Line wajib (badge Wajib, opsi 'Pilih Production Line'), rentang tanggal satu field; tanpa Reset filter (komentar blade)
+- information_displayed[3] ← tombol ekspor di slot actions bar filter; tautan a[data-export-link] + busy-label 'Mengekspor…' sampai cookie ms_download (c321f32)

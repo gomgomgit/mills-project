@@ -25,3 +25,8 @@ Sumber: audit-fix 2026-10-04, code is truth (git status/diff: ManagementReportSe
 - implementation_notes[3] = ekspor via SheetWriter (csv / xlsx sungguhan) ← fileMetaFor docblock + SheetWriter
 - implementation_notes += REVISI (2026-10-04, audit-fix): line wajib, split WB, rentang invalid, ekspor, tampilan Indonesia ← diff kode
 - test_results tidak diubah (tidak menjalankan tes per brief)
+
+## v5 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (management-report.blade.php, LoadingStateTest.php).
+- implementation_notes[+] ← filter bar bersama + loading ekspor; uji bersama disebut di catatan

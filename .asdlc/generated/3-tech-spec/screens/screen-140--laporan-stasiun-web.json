@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -404,7 +404,8 @@
     "Kunci query pada report_path WAJIB `production_line_id` — sama persis dengan #[Url(as: 'production_line_id')] pada keenam komponen laporan. Tanpa `as:`, Livewire memakai NAMA PROPERTI (`productionLineId`) dan rantainya putus tanpa suara; commit 8658f6e ada justru karena pasangan yang sama untuk mill dulu tidak pernah dibuat.",
     "report_path dibangun lewat array_filter(...), sehingga business_unit_id atau production_line_id yang kosong tidak ikut ke URL — bukan ikut sebagai parameter kosong.",
     "PEMBETULAN artefak-vs-kode (2026-09-29): business_logic sebelumnya menyebut REPORT_ROUTES 'saat ini hanya sterilizer'. Kode memuat lima jenis (cages-track, sterilizer, clarification, boiler-room, storage-tank) dan urutannya load-bearing.",
-    "Cakupan uji Production Line yang nyata untuk layar ini: 3 uji API (tests/Feature/Api/LaporanStasiunTest.php) dan 3 uji Livewire (tests/Feature/Livewire/LaporanStasiunTest.php). CELAH: e2e-web/tests/laporan-stasiun.spec.ts belum menyentuh Production Line sama sekali, jadi browser_test pada skenario Production Line di bawah sengaja dikosongkan."
+    "Cakupan uji Production Line yang nyata untuk layar ini: 3 uji API (tests/Feature/Api/LaporanStasiunTest.php) dan 3 uji Livewire (tests/Feature/Livewire/LaporanStasiunTest.php). CELAH: e2e-web/tests/laporan-stasiun.spec.ts belum menyentuh Production Line sama sekali, jadi browser_test pada skenario Production Line di bawah sengaja dikosongkan.",
+    "Filter bar bersama (2026-10-05, db73fbd): blok md-filters lokal (label 'Mill (Business Unit)', 'Mill aktif: …', 'Line aktif: …', hint panjang) diganti <x-report-filter-bar show-mill-for-admin=true show-line=(businessUnit !== null)> tanpa periode & ekspor. Admin: select 'Pilih Mill' (data-testid mill-select) dengan badge 'Aktif' (data-testid mill-current, nama mill di teks sr-only) setelah mill dipilih; akun terikat: keterangan statis field 'Mill' (data-testid mill-current). Production Line: opsi awal 'Pilih Line', badge 'Aktif' (production-line-current). Catatan bawah: Admin 'Mengganti mill mengosongkan pilihan Production Line.' / terikat 'Mill mengikuti akun Anda; Production Line dipilih di sini sebagai konteks kerja.' Loading (c321f32): section grid stasiun berkelas ld-region, diredupkan (wire:loading.delay.short, aria-busy) dengan wire:target=businessUnitId,productionLineId."
   ],
   "test_scenarios": [
     {

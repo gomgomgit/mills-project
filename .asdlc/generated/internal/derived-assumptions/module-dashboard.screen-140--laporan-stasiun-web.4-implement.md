@@ -30,3 +30,8 @@ Sumber: audit-fix 2026-10-04, code is truth (report-styles.blade.php, layouts/ap
 - known_issues[8] = ditandai DITUTUP (sidebar kini menyaring menu per role via RouteAccess) — entri tidak dihapus karena patch tak bisa menghapus elemen list tanpa menulis ulang seluruh known_issues ⚠ (keputusan agen)
 - test_files_generated += backend/tests/Feature/ReportAuditFix20261004Test.php, backend/tests/Feature/WebAccessTest.php ← tes render grid auto-fill & sidebar per role
 - implementation_notes += REVISI (2026-10-04, audit-fix): grid, blok CSS tambahan, sidebar RouteAccess, selectMillAndSettle e2e
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit db73fbd, c321f32), code is truth (laporan-stasiun.blade.php).
+- implementation_notes[+] ← report-filter-bar + teks bantu dipersingkat + .ld-region

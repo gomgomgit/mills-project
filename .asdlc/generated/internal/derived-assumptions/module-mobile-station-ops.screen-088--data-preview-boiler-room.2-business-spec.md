@@ -12,3 +12,13 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/DataPreviewBoilerR
 
 Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/views/DataPreviewBoilerRoomView.vue, mobile/src/utils/optionLabel.ts).
 - business_rules ← append: field pilihan (blowdown_executed, sootblowing_executed) tampil sebagai label (Display::OPTION_LABELS), kosong '-'.
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/DataPreview*View.vue, mobile/src/components/RecordVerificationActions.vue).
+- information_displayed (append) ← panel filter bersama ListFilterBar: pintasan Hari ini/Semua, Cari + tombol ×, ringkasan 'X dari N data', satu Reset Filter di panel
+- information_displayed[3] ← tambah penanda 'Memperbarui status verifikasi…' (LoadingState compact verification-refreshing)
+- available_actions[3].description ← Reset Filter kini di panel filter & tampil selama filter aktif (dulu hanya saat hasil kosong)
+- available_actions (extend) ← pintasan tanggal Hari ini/Semua dan tombol × hapus kata kunci
+- edge_cases[1] ← Reset Filter dipindah dari kotak kosong ke panel filter
+- edge_cases (append) ← loading lambat: LoadingState setelah 150 ms, ringkasan/pesan kosong ditahan selama memuat

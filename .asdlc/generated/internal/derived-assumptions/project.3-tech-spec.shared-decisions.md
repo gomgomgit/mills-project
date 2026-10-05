@@ -58,3 +58,12 @@ Sumber: perbaikan lanjutan audit 2026-10-05 (belum di-commit), code is truth (mo
 - auth.notes += SINKRON BERHENTI DI 401 PERTAMA (manual + write-through, tanpa sync_error).
 - error_format.notes += 3 delete-guard 409 kini membawa code (HasErrorCode); kasus 'record stasiun' Station juga STATION_HAS_MACHINERY.
 - ⚠ 'Delete-guard lain (Company/Corporate/MachineryGroup) belum membawa code' — dicatat agen sebagai sisa inkonsistensi, tidak diubah (di luar cakupan perintah).
+
+## v11 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 54f6a13, 658cedc, db73fbd, c321f32, d5da9cf, e4f231e, ee5294c), code is truth (AuthController::logout, routes/api.php, errors/404.blade.php, NotFoundPageTest, SignalDownloadReady, loading-assets, busy-label, filter/*, HasFilterReset, report-filter-bar, mobile stores/auth.ts, components/loading/*, components/filters/*, useBusyAction, latestRequest, App.vue, floatingSafeArea.ts, chatbot-widget).
+- auth.notes += LOGOUT MOBILE MENCABUT TOKEN: POST /api/logout (token saat ini saja / sesi web), 200 'Logout berhasil.', 401; logout offline hanya lokal; token tak kedaluwarsa; loggingOut + logout idempoten.
+- error_format.notes += halaman 404 web (kartu mandiri vs di dalam shell, api/* tetap JSON NOT_FOUND, tanpa Route::fallback).
+- other_decisions += 4 entri: filter daftar web (x-filter.* + HasFilterReset + report-filter-bar), filter daftar mobile (components/filters/*, SearchableSelect), loading state & cegah aksi ganda (web + mobile, SignalDownloadReady/ms_download, useBusyAction, latestRequest), elemen mengambang (dok bawah mobile, chatbot web tersembunyi saat modal).
+- ⚠ uiux-spec TIDAK di-bump: component_patterns 'loading' (skeleton + spinner tombol, tidak memblokir input lain) masih konsisten dengan kode; pola filter bar / loading global / dok mengambang yang baru didokumentasikan di sini dan di shared-modules agar tidak memicu cascade ke 144 business spec (brief: utamakan shared-decisions/shared-modules).
+- ⚠ Teks 'Record tidak ditemukan' (GuardsRecordIdShape) dinyatakan tetap di dalam layar, bukan halaman 404 — disimpulkan dari kode, tidak diuji ulang.

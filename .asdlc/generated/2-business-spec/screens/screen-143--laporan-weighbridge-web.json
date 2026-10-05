@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -18,8 +18,8 @@
     "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
   ],
   "information_displayed": [
-    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Weighbridge, yaitu periode yang mendaftarkan Weighbridge sebagai salah satu stasiunnya. Status yang ditampilkan adalah status Weighbridge pada periode itu (Draft / Terbuka / Tertutup), bukan status periode secara keseluruhan: sejak 2026-09-25 status melekat pada jenis stasiun, bukan pada periode",
-    "Pemilih Mill — hanya bagi Admin",
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Weighbridge, yaitu periode yang mendaftarkan Weighbridge sebagai salah satu stasiunnya. Status yang ditampilkan adalah status Weighbridge pada periode itu (Draft / Terbuka / Tertutup), bukan status periode secara keseluruhan: sejak 2026-09-25 status melekat pada jenis stasiun, bukan pada periode. Tiap opsi ditulis ringkas 'Nama · rentang · Status' (mis. 'Periode Oktober · 01–09 Okt 2026 · Terbuka'; bulan/tahun tidak diulang bila sama), tanpa nama jenis stasiun karena daftar ini memang hanya memuat periode yang mencakup stasiun ini; status periode terpilih juga tampil sebagai badge kecil (Draft / Terbuka / Tertutup) di label pemilih",
+    "Pemilih Mill — hanya bagi Admin; Supervisor dan Mill Management melihat field 'Mill' berisi nama mill akunnya sebagai keterangan (bukan pemilih, bukan input terkunci) di bar filter yang sama",
     "Pemilih Production Line — wajib dipilih; tidak ada satu angka pun ditampilkan sebelum sebuah line dipilih",
     "Nama mill yang berlaku, nama Production Line, rentang tanggal, dan status periode",
     "Arus masuk — jumlah trip sepanjang periode",
@@ -41,7 +41,8 @@
     "Tren harian berat bersih, dengan arus masuk dan arus keluar sebagai dua garis terpisah pada satu grafik; sumbu tegak dimulai dari nol dengan label angka bulat berjarak sama",
     "Kelengkapan: berapa hari yang memuat minimal satu trip dibanding hari periode yang SUDAH lewat — untuk periode yang masih berjalan penyebutnya berhenti di hari ini, disertai keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)'; periode belum mulai → persen '—', bukan 0%",
     "Keterangan bila periode tidak memuat data",
-    "Tombol Ekspor CSV dan Ekspor Excel (.xlsx sungguhan)"
+    "Tombol Ekspor CSV dan Ekspor Excel (.xlsx sungguhan)",
+    "Bar filter laporan (satu baris di desktop, bertumpuk di ponsel) berurutan Mill · Production Line · Periode Pelaporan, dengan tombol Ekspor CSV / Ekspor Excel di sisi kanan dan satu catatan singkat di bawahnya tentang cakupan daftar periode; pemilih Mill (Admin) beropsi awal 'Pilih Mill', pemilih Production Line beropsi awal 'Pilih Line' dan labelnya memberi badge 'Aktif' setelah sebuah line dipilih"
   ],
   "available_actions": [
     {
@@ -80,7 +81,7 @@
     },
     {
       "action": "Ekspor",
-      "description": "Mengunduh rincian seluruh trip sepanjang periode sebagai CSV atau Excel (.xlsx sungguhan), satu baris per trip dengan kolom konteks Periode/Mill/Production Line diulang; status ditulis berlabel Indonesia, bukan nilai enum mentah.",
+      "description": "Mengunduh rincian seluruh trip sepanjang periode sebagai CSV atau Excel (.xlsx sungguhan), satu baris per trip dengan kolom konteks Periode/Mill/Production Line diulang; status ditulis berlabel Indonesia, bukan nilai enum mentah. Selama berkas disiapkan kedua tombol ekspor terkunci sesaat dan tombol yang diklik menampilkan 'Mengekspor…' (spinner), sehingga klik ganda tidak menghasilkan unduhan ganda",
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",

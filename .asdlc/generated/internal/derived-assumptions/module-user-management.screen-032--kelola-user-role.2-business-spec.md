@@ -22,3 +22,8 @@ Sumber: audit-fix 2026-10-04, code is truth (UserService.php, KelolaUserRole.php
 
 Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (UserService.php, EnsureUserIsActive.php, Api/UserController.php).
 - available_actions[2], business_rules[7] (+API), business_rules (+1), edge_cases (+2) ← reset password mencabut token & sesi web user (kecuali sesi saat ini saat reset diri sendiri), pesan REVOKED_MESSAGE.
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (backend/resources/views/livewire/user-management/kelola-user-role.blade.php, app/Livewire/UserManagement/KelolaUserRole.php).
+- information_displayed[6] ← bar filter bersama (Role + Business Unit), 'N user', badge, Reset filter; Aktifkan/Nonaktifkan busy-label + nonaktif selama proses.

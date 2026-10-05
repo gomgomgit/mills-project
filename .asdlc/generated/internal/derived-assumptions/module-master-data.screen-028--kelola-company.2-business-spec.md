@@ -15,3 +15,9 @@ Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/MasterData/Kel
 - business_rules (+2) = logo JPG/PNG sungguhan dicek saat dipilih & simpan; pesan sukses dibersihkan saat aksi baru ← RealImage('Logo'), updatedLogo(), successMessage.
 - edge_cases[1], edge_cases[5] = beda huruf ditolak; file palsu ditolak saat dipilih, pratinjau disembunyikan ← kode di atas + blade `! $errors->has('logo')` ⚠ blade company diasumsikan sama dengan corporate (diff 14 baris identik polanya).
 - information_displayed (+) = pesan sukses Company ← save()/delete().
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (backend/resources/views/livewire/master-data/kelola-company.blade.php, app/Livewire/MasterData/KelolaCompany.php).
+- information_displayed[5] ← bar filter bersama: jumlah hasil 'N data', badge 'N filter aktif', tombol 'Reset filter' (HasFilterReset).
+- edge_cases[6] ← Simpan nonaktif selama unggahan logo/simpan; 'Ya, Hapus' busy.

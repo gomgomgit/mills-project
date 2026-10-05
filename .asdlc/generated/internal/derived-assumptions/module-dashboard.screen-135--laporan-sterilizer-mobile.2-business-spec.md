@@ -15,3 +15,9 @@ ditambahkan ke daftar peran endpoint itu. Sisanya turunan agent.
 - `entry_points` = lewat menu Reporting setelah memilih stasiun, dan sementara ini lewat rute langsung ← screen-141 belum ada. Ini yang membuat layar ini sementara tidak punya jalur navigasi dari dalam aplikasi.
 - `test_priority` = `high` ← 10 aturan (ambang 5+), empat peran dengan perilaku cakupan mill berbeda, dan layar ini menjadi satu-satunya tempat Operator melihat hasil kerjanya. Salah menerapkan aturan cakupan mill berarti Operator melihat mill lain.
 - `usecase_ids` ← `usecase-135--laporan-sterilizer-mobile` sudah terdaftar di usecase-index sejak penetapan scope; artefaknya baru ditulis pada run ini.
+
+## v2 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit ee5294c, d5da9cf), code is truth (mobile/src/views/LaporanSterilizerView.vue, mobile/src/utils/latestRequest.ts, tests/laporanStaleResponse.spec.ts, tests/e2e/laporan-stale-response.spec.ts).
+- edge_cases ← ganti pilihan cepat: hanya ringkasan pilihan terakhir yang tampil (respons basi diabaikan); nama berkas ekspor milik periode yang diekspor + Ekspor terkunci Mengekspor….
+- ⚠ Chip Mill/Production Line (e4f231e) tidak memerlukan perubahan teks spec — information_displayed sudah menyebut keterangan mill/line; testid tetap.

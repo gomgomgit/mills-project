@@ -66,3 +66,8 @@ Sumber: audit-fix 2026-10-04, code is truth (CagesTrackReportService.php, lapora
 - api_contracts[0].edge_case_handling[0].handling = + UI '–' rata-rata & meta 'Belum ada record pada periode dan line ini'; API tetap avg 0 ← blade #9 (service tidak berubah)
 - api_contracts[0].business_logic[19] = SheetWriter + konteks + status Indonesia + jam 'HH:00' ← export()
 - implementation_notes[+] = REVISI audit-fix ← ringkasan diff
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit db73fbd, c321f32), code is truth (components/report-filter-bar.blade.php, laporan-*.blade.php, e2e-web/tests/laporan-*.spec.ts).
+- implementation_notes[+] ← report-filter-bar (props/testid diteruskan), format opsi periode, badge status, ekspor busy, .ld-region

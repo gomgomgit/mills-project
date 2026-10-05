@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -29,7 +29,8 @@
     "'Jumlah Baris Time-Slot Tercatat' counter redefined as a plain COUNT(*) of threshing_detail rows belonging to today's records -- no longer filtered by 'has >=1 reading column filled', since row existence itself is now the meaningful signal (a row only exists because the user explicitly added it)",
     "Router: route name 'monitor-threshing' registered in router/index.ts, but StationListView.vue (screen-006, explicitly out of this task's scope) has NOT been updated to link to it -- see known_issues",
     "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-threshing.spec.ts 8/8 lulus — kini dijalankan nyata, bukan hanya review statis (known_issue 'tidak dapat dijalankan di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp.",
-    "REVISI (2026-10-03): known_issue 'StationListView belum menautkan Threshing' dihapus karena basi — mobile/src/views/StationListView.vue:141-144 memetakan threshing → monitor-threshing, dan station-list.spec.ts bernavigasi lewat grid."
+    "REVISI (2026-10-03): known_issue 'StationListView belum menautkan Threshing' dihapus karena basi — mobile/src/views/StationListView.vue:141-144 memetakan threshing → monitor-threshing, dan station-list.spec.ts bernavigasi lewat grid.",
+    "Round 3 2026-10-05 (d5da9cf): MonitorThreshingView.vue — useBusyAction membungkus onNewData() (createDraft + await router.push), tombol New Data :disabled/:aria-busy + BusyLabel 'Membuat…', CSS .action-button:disabled dan [aria-busy='true']; <p> status memuat diganti LoadingState variant list (draft-list-loading). Bug diperbaiki: ketukan ganda New Data membuat 2 draft. Uji: loadingStates.screens.spec.ts (bersama, 18 Monitor: LoadingState + ketukan ganda tepat satu draft); e2e/loading-states.spec.ts memakai Monitor Boiler Room sebagai sampel."
   ],
   "deferred_items": [],
   "known_issues": [],

@@ -28,3 +28,13 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/s
 - implementation_notes ← append catatan penanganan 401 terpusat (expireSession, setUnauthorizedHandler, pengecualian).
 - test_scenarios ← append 'Login Mobile — Sesi Ditolak Server'.
 - ⚠ test_scenarios[api_test].expected_error_code 'UNAUTHENTICATED' diambil dari ApiExceptionHandler (401 → UNAUTHENTICATED); e2e hanya mengasersi status 401.
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit ee5294c, d5da9cf), code is truth (AuthController.php, routes/api.php, stores/auth.ts, App.vue, LoginForm.vue, LogoutMobileTest.php, auth.store.spec.ts, e2e/logout-revokes-token.spec.ts).
+- api_contracts ← kontrak baru POST /api/logout (usecase-002, auth:sanctum, 200 {message:'Logout berhasil.'}, 401) dengan business_logic server+klien, edge cases, 7 unit_test_cases dari LogoutMobileTest.php + auth.store.spec.ts.
+- implementation_notes ← catatan route baru, loggingOut/pendingLogout, LoadingOverlay Keluar…, penjaga submit ganda LoginForm.
+- test_scenarios ← 2 skenario (Logout mencabut token perangkat; Logout saat offline).
+- ⚠ error_code 401 ditulis UNAUTHENTICATED mengikuti skenario 401 yang sudah ada di artefak ini; respons nyata Laravel hanya {message:'Unauthenticated.'}.
+- ⚠ data_operations memakai entity_id 'user' karena personal_access_tokens tidak punya entri di entity-catalog.
+- ⚠ Entri api-index untuk POST /api/logout ditambahkan oleh pemanggil (bukan agen ini).

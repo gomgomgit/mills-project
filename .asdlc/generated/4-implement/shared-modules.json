@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -122,7 +122,20 @@
     "backend/app/Rules/UniqueCaseInsensitive.php",
     "backend/app/Livewire/Concerns/ValidatesUploadOnSelect.php",
     "backend/resources/views/errors/403.blade.php",
-    "backend/.env.e2e.example"
+    "backend/.env.e2e.example",
+    "backend/app/Http/Middleware/SignalDownloadReady.php",
+    "backend/app/Livewire/Concerns/HasFilterReset.php",
+    "backend/config/livewire.php",
+    "backend/resources/views/errors/404.blade.php",
+    "backend/resources/views/components/loading-assets.blade.php",
+    "backend/resources/views/components/busy-label.blade.php",
+    "backend/resources/views/components/filter-assets.blade.php",
+    "backend/resources/views/components/filter/bar.blade.php",
+    "backend/resources/views/components/filter/field.blade.php",
+    "backend/resources/views/components/filter/search.blade.php",
+    "backend/resources/views/components/filter/date-range.blade.php",
+    "backend/resources/views/components/filter/icon.blade.php",
+    "backend/resources/views/components/report-filter-bar.blade.php"
   ],
   "fe_files_generated": [
     "mobile/.env.example",
@@ -138,7 +151,19 @@
     "mobile/src/utils/localDate.ts",
     "mobile/src/utils/floatingSafeArea.ts",
     "mobile/tests/setup/teleportStub.ts",
-    "mobile/src/utils/optionLabel.ts"
+    "mobile/src/utils/optionLabel.ts",
+    "mobile/src/components/loading/LoadingState.vue",
+    "mobile/src/components/loading/BusyLabel.vue",
+    "mobile/src/components/loading/LoadingSpinner.vue",
+    "mobile/src/components/loading/LoadingOverlay.vue",
+    "mobile/src/composables/useBusyAction.ts",
+    "mobile/src/utils/latestRequest.ts",
+    "mobile/src/components/filters/ListFilterBar.vue",
+    "mobile/src/components/filters/FilterPanel.vue",
+    "mobile/src/components/filters/FilterDateInput.vue",
+    "mobile/src/components/filters/FilterSearchInput.vue",
+    "mobile/src/components/filters/FilterSelectField.vue",
+    "mobile/src/components/filters/FilterChip.vue"
   ],
   "setup_notes": [
     "Tidak ada migration password_reset_tokens/sessions table ditambahkan — tambahkan nanti jika fitur Lupa Password masuk scope",
@@ -151,6 +176,7 @@
     "composer install / npm install belum dijalankan — dependency sudah dideklarasikan di composer.json dan package.json, hanya @capacitor/preferences yang perlu ditambahkan nanti",
     "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): auth-middleware kini juga EnsureUserIsActive (di-append ke grup 'web' DAN 'api' di bootstrap/app.php, setelah StartSession) — sesi akun yang dinonaktifkan dikeluarkan pada request berikutnya (JSON 401 / redirect Login berpesan); token Sanctum milik user nonaktif ditolak lewat Sanctum::authenticateAccessTokensUsing() di AppServiceProvider. error-handler (ApiExceptionHandler) memetakan QueryException 22P02/22007/22008 → 422 VALIDATION_ERROR dan QueryException lain → 500 generik, tidak pernah membocorkan SQL walau APP_DEBUG=true. config/app.php: timezone = env APP_TIMEZONE (Asia/Jakarta) + event_date_max_days_ahead. Utilitas lintas-layar baru di app/Support: AppTime (normalisasi datetime klien, batas tanggal kejadian), RouteAccess (sidebar mengikuti middleware role rute), PasswordPolicy, Display (format tampilan Indonesia), ExportValue + SheetWriter (ekspor CSV / .xlsx sungguhan); app/Rules: RealImage, UniqueCaseInsensitive; Livewire\\Concerns\\ValidatesUploadOnSelect. resources/views/errors/403.blade.php = halaman 403 web. FE mobile: utils/localDate.ts (tanggal lokal perangkat, bukan ISO UTC) dan utils/floatingSafeArea.ts (gelembung/jam mengambang tidak menutupi kontrol); apiClient menandai kegagalan jaringan murni dengan `network: true`; vitest setupFiles tests/setup/teleportStub.ts karena ConfirmDialog/SyncResultDialog di-<Teleport> ke <body>. Uji browser web memakai env e2e terpisah (backend/.env.e2e dari .env.e2e.example, DB mill_smart_log_e2e, port 8001) — lihat test-strategy.browser_test.",
     "Catatan env: nilai DB_* di atas masih mendeskripsikan MySQL dari bootstrap awal; database aktual sejak 2026-09-07 adalah PostgreSQL (arch-spec) — backend/.env.example memakai DB_CONNECTION=pgsql.",
-    "REVISI (2026-10-05, audit-fix f79b1fe/30b7f27 — kode adalah acuan): auth-middleware EnsureUserIsActive kini juga mengeluarkan sesi web yang lebih tua dari users.sessions_revoked_at (Reset Password oleh Admin) dengan pesan REVOKED_MESSAGE 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.' (JSON 401 / redirect Login); stempel sesi auth_session_started_at_ms ditulis listener event Login di AppServiceProvider. Display::OPTION_LABELS + Display::option() dan ExportValue::option() (label enum on/off/fault, run/stop/standby, y/n). ScopesToActorMill: filter baca production_line_id / business_unit_id bukan UUID = semua line/mill tanpa query. FE mobile: api-client — interceptor 401 terpusat + setUnauthorizedHandler() (dikecualikan /api/login, /api/logout, offline/tanpa respons, request yang bukan token sesi saat ini; handler hanya sekali); auth-store — expireSession() (bersihkan token/user/BU + tokenStorage tanpa POST /api/logout dan tanpa menyentuh SQLite lokal) + state sessionRevoked; router — main.ts mendaftarkan handler navigasi ke Login (query redirect); fe-error-handler — SESSION_REVOKED_MESSAGE 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'; utils/optionLabel.ts (OPTION_LABELS + optionLabel(), cermin Display::OPTION_LABELS, dijaga tests/optionLabel.spec.ts). Uji: tests/apiClient.unauthorized.spec.ts."
+    "REVISI (2026-10-05, audit-fix f79b1fe/30b7f27 — kode adalah acuan): auth-middleware EnsureUserIsActive kini juga mengeluarkan sesi web yang lebih tua dari users.sessions_revoked_at (Reset Password oleh Admin) dengan pesan REVOKED_MESSAGE 'Sesi Anda telah berakhir karena password direset oleh Admin. Silakan login kembali.' (JSON 401 / redirect Login); stempel sesi auth_session_started_at_ms ditulis listener event Login di AppServiceProvider. Display::OPTION_LABELS + Display::option() dan ExportValue::option() (label enum on/off/fault, run/stop/standby, y/n). ScopesToActorMill: filter baca production_line_id / business_unit_id bukan UUID = semua line/mill tanpa query. FE mobile: api-client — interceptor 401 terpusat + setUnauthorizedHandler() (dikecualikan /api/login, /api/logout, offline/tanpa respons, request yang bukan token sesi saat ini; handler hanya sekali); auth-store — expireSession() (bersihkan token/user/BU + tokenStorage tanpa POST /api/logout dan tanpa menyentuh SQLite lokal) + state sessionRevoked; router — main.ts mendaftarkan handler navigasi ke Login (query redirect); fe-error-handler — SESSION_REVOKED_MESSAGE 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'; utils/optionLabel.ts (OPTION_LABELS + optionLabel(), cermin Display::OPTION_LABELS, dijaga tests/optionLabel.spec.ts). Uji: tests/apiClient.unauthorized.spec.ts.",
+    "REVISI (2026-10-05, artifact-sync round 3 — commit 54f6a13, 658cedc, db73fbd, c321f32, d5da9cf, e4f231e, ee5294c; kode adalah acuan): error-handler — halaman 404 web resources/views/errors/404.blade.php (kartu mandiri untuk URL tak dikenal, di dalam shell untuk abort(404) saat login; api/* tetap JSON NOT_FOUND). auth — POST /api/logout (AuthController::logout) mencabut token request saat ini saja / mengeluarkan sesi web; uji tests/Feature/Api/LogoutMobileTest.php. Middleware baru App\\Http\\Middleware\\SignalDownloadReady (grup web, cookie ms_download dikecualikan dari encryptCookies di bootstrap/app.php) untuk status loading tautan ekspor. Komponen Blade bersama: loading-assets (bar progres Livewire + .ld-* + live region; juga di auth/login.blade.php), busy-label, filter-assets + filter/{bar,field,search,date-range,icon}, report-filter-bar; trait App\\Livewire\\Concerns\\HasFilterReset; config/livewire.php (warna bar wire:navigate); chatbot-widget disembunyikan selama modal terbuka. Uji web: tests/Feature/LoadingStateTest.php, tests/Feature/Livewire/FilterBarTest.php, tests/Feature/NotFoundPageTest.php, e2e-web/tests/loading-state.spec.ts, e2e-web/tests/chatbot-modal-overlap.spec.ts. FE mobile: auth-store — state loggingOut + logout() idempoten (promise yang sedang berjalan dipakai ulang; tanpa POST kedua); App.vue — LoadingOverlay 'Keluar…' saat logout dan dok bawah .floating-dock setinggi floatingSafeBottomPx() (76px bubble / 62px jam saja; jam di samping bubble); components/loading/{LoadingState,BusyLabel,LoadingSpinner,LoadingOverlay}.vue, composables/useBusyAction.ts, utils/latestRequest.ts, components/filters/{ListFilterBar,FilterPanel,FilterDateInput,FilterSearchInput,FilterSelectField,FilterChip}.vue, SearchableSelect (chevron, tanda terpilih). Uji mobile: tests/LoadingComponents.spec.ts, tests/loadingStates.screens.spec.ts, tests/filterComponents.spec.ts, tests/laporanStaleResponse.spec.ts, tests/floatingSafeArea.spec.ts, tests/auth.store.spec.ts, tests/e2e/{loading-states,filter-bar,floating-safe-area,laporan-stale-response,logout-revokes-token}.spec.ts. Seeder DemoReportDataSeeder kini juga memastikan periode demo 'September 2026' (closed) & 'Oktober 2026' (draft) untuk Business Unit A (dilewati bila bertabrakan) — data demo, bukan fixture uji."
   ]
 }

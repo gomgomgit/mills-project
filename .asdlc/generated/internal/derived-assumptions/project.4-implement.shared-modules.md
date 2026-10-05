@@ -25,3 +25,11 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (EnsureUs
 - fe_files_generated += mobile/src/utils/optionLabel.ts.
 - setup_notes += REVISI 2026-10-05 (revoke sesi, label opsi, filter bukan-UUID, 401 terpusat mobile).
 - ⚠ ScopesToActorMill.php tidak ditambahkan ke files_generated (tidak pernah tercantum sebelumnya; di luar modul shared).
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 54f6a13, 658cedc, db73fbd, c321f32, d5da9cf, e4f231e, a3dcf75, ee5294c), code is truth.
+- files_generated += SignalDownloadReady, HasFilterReset, config/livewire.php, errors/404.blade.php, loading-assets, busy-label, filter-assets, filter/{bar,field,search,date-range,icon}, report-filter-bar.
+- fe_files_generated += components/loading/* (4), composables/useBusyAction.ts, utils/latestRequest.ts, components/filters/* (6).
+- setup_notes += catatan revisi round 3 (404, logout, loading, filter, dok mengambang, chatbot, uji baru, seeder periode demo).
+- ⚠ Komponen tampilan bersama (Blade/Vue) dicatat di shared-modules walau bukan modul 'infrastruktur' klasik — tidak ada artefak lain yang memiliki file lintas-layar ini.

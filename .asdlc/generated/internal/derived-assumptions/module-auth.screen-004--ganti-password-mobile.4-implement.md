@@ -25,3 +25,8 @@ Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 5/0 (sebelumnya kosong).
 - mobile/tests/e2e/change-password.spec.ts ditambahkan ke fe_test_files_generated.
 - Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): locator .field-error strict-mode + timing offline-sebelum-bootstrap.
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf), code is truth (mobile/src/components/ChangePasswordForm.vue).
+- implementation_notes ← penjaga kirim ganda onSubmit + BusyLabel Memproses….

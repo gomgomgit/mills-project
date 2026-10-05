@@ -34,3 +34,8 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (StationS
 - test_files_generated / fe_test_files_generated ← + AuditFix20261005Test.php, audit-fix-20261005.spec.ts (#1, #7).
 - test_results unit/integration/component ← dijalankan ulang 2026-10-05: StationServiceTest 53, Api/KelolaStationTest 36, Livewire KelolaStationTest+AuditTest 35, semua lulus.
 - ⚠ test_results.browser 13 (kelola-station.spec.ts 11 + audit #1/#7) ← berdasarkan klaim commit 'e2e-web 554 lulus', tidak dijalankan ulang oleh agen.
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (blade/Livewire layar ini, app/Livewire/Concerns/HasFilterReset.php, resources/views/components/filter/*, busy-label.blade.php).
+- implementation_notes[-1] ← entri REVISI round 3: x-filter.bar + HasFilterReset (bila ada filter), ld-region, busy-label + disabled pada Simpan/Ya, Hapus/aksi baris, header flex-wrap; test bersama FilterBarTest.php / LoadingStateTest.php dirujuk di catatan, tidak didaftarkan di test_files_generated.

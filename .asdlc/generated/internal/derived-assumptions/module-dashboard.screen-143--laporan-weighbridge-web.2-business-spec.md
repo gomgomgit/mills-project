@@ -67,3 +67,11 @@ Sumber: audit-fix 2026-10-04, code is truth (laporan-weighbridge.blade.php, Weig
 - available_actions[4].description = CSV/xlsx, kolom konteks, status berlabel Indonesia ← EXPORT_HEADER + ExportValue::status
 - business_rules[+1] = penyebut sampai hari ini; belum mulai → '—' ← ReportPeriodDays
 - edge_cases[+2] = periode berjalan; periode belum mulai ← ReportAuditFix20261004Test '#3 Weighbridge'
+
+## v5 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit db73fbd, c321f32), code is truth (components/report-filter-bar.blade.php, livewire/dashboard/laporan-*.blade.php, app/Livewire/Dashboard/LaporanWeighbridge.php).
+- information_displayed[0] ← format opsi periode ringkas 'Nama · rentang · Status' + badge status periode terpilih (components/report-filter-bar.blade.php, db73fbd); jenis stasiun tidak lagi ditulis di opsi
+- information_displayed[1] ← mill akun terikat tampil sebagai keterangan statis field 'Mill' di report-filter-bar
+- information_displayed[+] ← susunan & label bar filter bersama (report-filter-bar): urutan field, posisi tombol ekspor, catatan, opsi awal 'Pilih Mill'/'Pilih Line', badge 'Aktif'
+- available_actions[4].description ← tombol ekspor wire:loading.attr=disabled (target exportCsv) + x-busy-label 'Mengekspor…' (c321f32)

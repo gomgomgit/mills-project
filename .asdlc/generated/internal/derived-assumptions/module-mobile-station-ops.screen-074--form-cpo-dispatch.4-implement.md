@@ -33,3 +33,9 @@ Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile/ + backend/a
 - fe_files_generated (+) = mobile/src/utils/localDate.ts, mobile/src/services/millSettingRepo.ts, mobile/src/services/syncService.ts ← dipakai jalur draft-date / write-through layar ini (⚠ inferensi: atribusi berkas bersama ke layar ini)
 - fe_test_files_generated (+) = noteLabelConsistency, DialogTeleport, localDate.sqljs, writeThroughSync, millSettingRepo.sqljs, syncService.sqljs (*.spec.ts) ← tes baru/berubah yang mencakup perilaku layar ini (⚠ inferensi: cakupan generik lintas stasiun)
 - implementation_notes (append) = REVISI 2026-10-04 audit-fix (util tanggal bersama, label Catatan, header ikon/hamburger SVG ber-aria-label + Pause warning, write-through aktif, sync_error, line per record, guard event_date baris server, ConfirmDialog teleport) ← diff kode terkait
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf, e4f231e, ee5294c), code is truth (mobile/src/views/Form*View.vue, useBusyAction/BusyLabel/LoadingState, SearchableSelect.vue, App.vue).
+- implementation_notes ← penjaga aksi ganda Simpan/Pause/Clear (actionInProgress), await router.push, BusyLabel, LoadingState variant form, dok mengambang; berkas uji bersama (loadingStates.screens.spec.ts, floating-safe-area.spec.ts) disebut di catatan, tidak didaftarkan.
+- ⚠ 2-business-spec form TIDAK diubah: tidak ada teks spec yang menggambarkan label tombol sibuk/SearchableSelect, dan penjaga ketuk ganda dinilai pola UI bersama (didokumentasikan pemanggil di shared-decisions), bukan aturan bisnis per layar.

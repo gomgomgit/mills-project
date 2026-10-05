@@ -55,3 +55,9 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/s
 - fe_files_generated ← + apiClient.ts.
 - fe_test_files_generated ← + apiClient.unauthorized.spec.ts.
 - implementation_notes ← append catatan #3 dan #4b.
+
+## v18 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf, ee5294c), code is truth (StationListView.vue, utils/floatingSafeArea.ts, App.vue).
+- fe_test_files_generated ← mobile/tests/e2e/floating-safe-area.spec.ts (layar ini pemilik floatingSafeArea.ts).
+- implementation_notes ← penjaga sync ganda + uji, dok mengambang + uji.

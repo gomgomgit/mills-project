@@ -29,3 +29,11 @@ Sumber: audit-fix 2026-10-04, code is truth (ClarificationReportService.php, Rep
 - available_actions (+1) = Pilih Production Line ← LaporanClarification::$productionLineId (drift lama)
 - business_rules (+2) = penyebut berhenti di hari ini (WIB); Excel = xlsx sungguhan ← ReportPeriodDays, SheetWriter
 - edge_cases (+2) = periode berjalan; expected_slots 0 → '—' ← blade
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit db73fbd, c321f32), code is truth (components/report-filter-bar.blade.php, livewire/dashboard/laporan-*.blade.php, app/Livewire/Dashboard/LaporanClarification.php).
+- information_displayed[0] ← format opsi periode ringkas 'Nama · rentang · Status' + badge status periode terpilih (components/report-filter-bar.blade.php, db73fbd); jenis stasiun tidak lagi ditulis di opsi
+- information_displayed[1] ← mill akun terikat tampil sebagai keterangan statis field 'Mill' di report-filter-bar
+- information_displayed[+] ← susunan & label bar filter bersama (report-filter-bar): urutan field, posisi tombol ekspor, catatan, opsi awal 'Pilih Mill'/'Pilih Line', badge 'Aktif'
+- available_actions[3].description ← tombol ekspor wire:loading.attr=disabled (target exportCsv) + x-busy-label 'Mengekspor…' (c321f32)

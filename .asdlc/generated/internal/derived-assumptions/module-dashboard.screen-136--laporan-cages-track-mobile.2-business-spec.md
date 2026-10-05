@@ -17,3 +17,9 @@ Layar ini adalah pasangan mobile dari [[module-dashboard.screen-130--laporan-cag
 
 Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/LaporanCagesTrackView.vue, mobile/tests/LaporanCagesTrackView.spec.ts).
 - edge_cases[1] = + 0 hari ber-record → rata-rata 'tidak tersedia' + 'Belum ada hari ber-record untuk dijadikan pembagi.', days-with-records disembunyikan ← view template v-if="!kpi?.days_with_records" + spec diff
+
+## v3 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit ee5294c, d5da9cf), code is truth (mobile/src/views/LaporanCagesTrackView.vue, mobile/src/utils/latestRequest.ts, tests/laporanStaleResponse.spec.ts, tests/e2e/laporan-stale-response.spec.ts).
+- edge_cases ← ganti pilihan cepat: hanya ringkasan pilihan terakhir yang tampil (respons basi diabaikan); nama berkas ekspor milik periode yang diekspor + Ekspor terkunci Mengekspor….
+- ⚠ Chip Mill/Production Line (e4f231e) tidak memerlukan perubahan teks spec — information_displayed sudah menyebut keterangan mill/line; testid tetap.

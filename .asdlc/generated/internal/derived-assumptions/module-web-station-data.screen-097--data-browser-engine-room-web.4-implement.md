@@ -39,3 +39,8 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/
 - test_files_generated / fe_test_files_generated ← + AuditFix20261005Test.php, audit-fix-20261005.spec.ts (keduanya mencakup layar ini lewat dataset 18 Data Browser).
 - implementation_notes ← +1 catatan audit-fix 2026-10-05.
 - ⚠ Himpunan opsi Diesel Gen (run/standby/off) diambil dari komentar Display::OPTION_LABELS + form-engine-room.blade.php.
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (data-browser-*.blade.php, DataBrowser*.php, FilterBarTest.php, LoadingStateTest.php).
+- implementation_notes[+] ← filter bar bersama + HasFilterReset + loading states; uji bersama FilterBarTest/LoadingStateTest/loading-state.spec disebut di catatan, tidak didaftar di berkas uji layar

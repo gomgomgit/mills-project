@@ -26,3 +26,9 @@ Sumber: audit-fix 2026-10-04, code is truth (FormDepricarpingView.vue, depricarp
 - fe_files_generated += depricarpingRecordRepo.ts, utils/localDate.ts, services/millSettingRepo.ts, services/syncService.ts ← createDraft memakai todayLocalDateString; write-through bergantung pada millSettingRepo; payload/line/sync_error di syncService. (⚠ depricarpingRecordRepo.ts sebelumnya tidak tercantum walau dipakai layar; millSettingRepo/syncService tidak diimpor view langsung.)
 - fe_test_files_generated += noteLabelConsistency.spec.ts, DialogTeleport.spec.ts, writeThroughSync.spec.ts, millSettingRepo.sqljs.spec.ts, syncService.sqljs.spec.ts ← label Catatan, teleport dialog penolakan, write-through aktif, SELECT immediate_sync_enabled, date lokal/line/sync_error. (⚠ DialogTeleport/syncService.sqljs cakupan tidak langsung.)
 - implementation_notes += REVISI 2026-10-04 ← diff terkait.
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf, e4f231e, ee5294c), code is truth (mobile/src/views/Form*View.vue, useBusyAction/BusyLabel/LoadingState, SearchableSelect.vue, App.vue).
+- implementation_notes ← penjaga aksi ganda Simpan/Pause/Clear (actionInProgress), await router.push, BusyLabel, LoadingState variant form, dok mengambang; berkas uji bersama (loadingStates.screens.spec.ts, floating-safe-area.spec.ts) disebut di catatan, tidak didaftarkan.
+- ⚠ 2-business-spec form TIDAK diubah: tidak ada teks spec yang menggambarkan label tombol sibuk/SearchableSelect, dan penjaga ketuk ganda dinilai pola UI bersama (didokumentasikan pemanggil di shared-decisions), bukan aturan bisnis per layar.

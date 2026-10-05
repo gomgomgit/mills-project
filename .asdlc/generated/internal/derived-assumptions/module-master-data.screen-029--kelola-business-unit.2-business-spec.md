@@ -24,3 +24,9 @@ Sumber: audit-fix 2026-10-04, code is truth (backend/app/Services/BusinessUnitSe
 - business_rules (+2), edge_cases[4] = logo gambar sungguhan dicek saat dipilih & simpan; pesan sukses ← RealImage('Logo'), updatedLogo(), successMessage.
 - information_displayed (+) = pesan sukses BU ← save()/delete().
 - ⚠ contoh angka dalam pesan (2 User, 1 Production Line, 18 Station) adalah ilustrasi, format diambil dari kode.
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (backend/resources/views/livewire/master-data/kelola-business-unit.blade.php, app/Livewire/MasterData/KelolaBusinessUnit.php).
+- information_displayed[5] ← bar filter bersama (Company), jumlah hasil, badge filter aktif, Reset filter.
+- edge_cases[5] ← Simpan nonaktif selama unggahan logo/simpan; 'Ya, Hapus' busy.

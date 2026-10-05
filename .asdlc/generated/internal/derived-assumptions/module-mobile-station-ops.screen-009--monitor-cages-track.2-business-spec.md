@@ -11,3 +11,9 @@
 - Counter = 2 cards (bukan 3 seperti Weighbridge/Grading) — Jumlah Cages Track, Jumlah Cage/Lori Tercatat ← user eksplisit memilih opsi 2-card via pertanyaan pilihan, karena tidak ada field berat/kuantitas kedua yang alami untuk stasiun ini
 - "Jumlah Cage/Lori Tercatat" = SUM(total_cages) seluruh baris Cages Tipped Time pada record hari ini ← agent menurunkan definisi metrik ini dari field cages-tipped-time.total_cages yang baru; belum dikonfirmasi eksplisit oleh user secara terpisah, akan diflag di checkpoint pra-implementasi
 - entry_points dikurangi jadi satu entry saja (hapus "Tap draft ... dari Home") ← Home tidak lagi menampilkan info draft sejak revisi screen-005, konsisten dengan screen-007/008
+
+## v3 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/Monitor*View.vue, mobile/src/composables/useBusyAction.ts).
+- available_actions[1].description ← New Data dijaga dari ketukan ganda, label 'Membuat…'
+- edge_cases (append) ← bug ketuk ganda New Data (2 draft) diperbaiki + indikator memuat daftar draft

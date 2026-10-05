@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -29,7 +29,8 @@
     "'Jumlah Baris Time-Slot Tercatat' counter is a plain COUNT(*) of storage_tank_detail rows belonging to today's records -- no filled-row filter, mirrors Effluent Plant's Monitor counter exactly",
     "Router: route name 'monitor-storage-tank' registered in router/index.ts -- StationListView.vue (screen-006) already had this route name pre-wired in MONITOR_ROUTE_NAMES and a 'storage-tank': false placeholder in draftStatusByType; this implementation wires the real storageTankRecordRepo.getDrafts() call into StationListView.vue's Promise.all, replacing that placeholder with storageTank.length > 0, same additive pattern Effluent Plant used for this same pre-existing scaffolding",
     "Fixed a pre-existing test-file bug (not application code) discovered during this task: mobile/tests/StationListView.spec.ts already asserted 'storage-tank': false in its draftStatusByType expectations but never mocked '@/services/storageTankRecordRepo', causing the real (unmocked) module to load and the whole loadDraftStatusByType() Promise.all assignment to silently no-op (draftStatusByType stayed {}). Added the missing getStorageTankDraftsMock hoisted mock, vi.mock() registration, and getStorageTankDraftsMock.mockResolvedValue([]) call in every beforeEach block, mirroring the existing getEffluentPlantDraftsMock pattern exactly -- all 27 tests in that shared file pass again.",
-    "REVISI 2026-10-03: spec Playwright mobile/tests/e2e/monitor-storage-tank.spec.ts ditulis (9 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec) — known issue 'spec e2e belum ada' ditutup."
+    "REVISI 2026-10-03: spec Playwright mobile/tests/e2e/monitor-storage-tank.spec.ts ditulis (9 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec) — known issue 'spec e2e belum ada' ditutup.",
+    "Round 3 2026-10-05 (d5da9cf): MonitorStorageTankView.vue — useBusyAction membungkus onNewData() (createDraft + await router.push), tombol New Data :disabled/:aria-busy + BusyLabel 'Membuat…', CSS .action-button:disabled dan [aria-busy='true']; <p> status memuat diganti LoadingState variant list (draft-list-loading). Bug diperbaiki: ketukan ganda New Data membuat 2 draft. Uji: loadingStates.screens.spec.ts (bersama, 18 Monitor: LoadingState + ketukan ganda tepat satu draft); e2e/loading-states.spec.ts memakai Monitor Boiler Room sebagai sampel."
   ],
   "deferred_items": [
     {

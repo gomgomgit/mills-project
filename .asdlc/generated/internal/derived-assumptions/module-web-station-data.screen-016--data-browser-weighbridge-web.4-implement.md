@@ -55,3 +55,9 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/
 - test_files_generated / fe_test_files_generated ← + AuditFix20261005Test.php, audit-fix-20261005.spec.ts (keduanya mencakup layar ini lewat dataset 18 Data Browser).
 - files_generated ← + ExportValue.php (ekspor kini memakai ExportValue::status()).
 - implementation_notes ← +1 catatan audit-fix 2026-10-05.
+
+## v9 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (data-browser-*.blade.php, DataBrowser*.php, FilterBarTest.php, LoadingStateTest.php).
+- implementation_notes[+] ← filter bar bersama + HasFilterReset + loading states; uji bersama FilterBarTest/LoadingStateTest/loading-state.spec disebut di catatan, tidak didaftar di berkas uji layar
+- known_issues ← entri 'opsi reset filter belum ada di Blade' dihapus: Reset filter kini ada di bar filter (FilterBarTest). ⚠ letaknya di bar filter, bukan di dalam empty state seperti yang dibayangkan uiux-spec

@@ -1,5 +1,5 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -106,7 +106,8 @@
         "12. On tap hamburger -> buka menu navigasi (Ganti Password, Logout)",
         "13. Mode DETAIL, record tersinkron (punya server_id): aksi verifikasi RecordVerificationActions (Tandai/Batalkan sudah diperiksa — Supervisor/Admin; Tandai/Batalkan sudah dikonfirmasi — Mill Management/Admin) adalah satu-satunya tulis ke server dari layar ini: recordVerificationApi.setVerification('storage-tank', 'storage_tank_record', record, level, value) → PATCH /api/records/storage-tank/{server_id}/verification {level, value}. Server (RecordVerificationService::setVerification) menilai peran + cakupan mill aktor, lalu assertPeriodOpenForWrite atas jenis stasiun & mill MILIK RECORD dan tanggal kejadian record itu sendiri (`date`) SEBELUM menulis kolom verifikasi; baris lokal (checked_by/acknowledged_by + *_name) hanya diperbarui setelah server menerima, lalu detail dimuat ulang (event 'updated').",
         "14. Pull status verifikasi (audit 2026-10-04): setiap kali list dimuat dan setiap kali detail dibuka, pullVerificationStatus('storage-tank', 'storage_tank_record', userId) dijalankan di latar belakang (tidak ditunggu): SELECT maks 100 record lokal milik user berstatus synced dengan server_id (ORDER BY updated_at DESC) → GET /api/records/storage-tank/verification?ids[]=<server_id>… (timeout 5 detik) → untuk tiap record yang checked_by/acknowledged_by-nya berbeda, UPDATE lokal checked_by, checked_by_name, acknowledged_by, acknowledged_by_name. Di mode detail, bila ada yang berubah dan record yang sama masih terbuka, record dimuat ulang (getDraftWithDetails) sehingga verifikasi yang dilakukan Supervisor/Mill Management lewat web tampil tanpa sinkron ulang. Server membatasi hasil ke mill aktor (Admin semua mill); id mill lain/tidak dikenal cukup tidak muncul. Senyap: offline/galat apa pun → 0, data lokal tidak berubah; 404/405 → berhenti mencoba sampai app dimuat ulang.",
-        "15. Petunjuk gagal sinkron (audit 2026-10-04): item list dan mode detail merender SyncFailureHint — untuk record berstatus saved yang kolom lokal sync_error-nya terisi, tampil 'Gagal sinkron: <alasan>' (compact di bawah label item list; blok di atas detail). sync_error ditulis syncService saat server MENOLAK push (respons ber-status HTTP, mis. 422 PERIOD_CLOSED) dan dikosongkan (NULL) saat push berhasil; gagal jaringan tidak ditulis. Status badge tetap 'Tersimpan'."
+        "15. Petunjuk gagal sinkron (audit 2026-10-04): item list dan mode detail merender SyncFailureHint — untuk record berstatus saved yang kolom lokal sync_error-nya terisi, tampil 'Gagal sinkron: <alasan>' (compact di bawah label item list; blok di atas detail). sync_error ditulis syncService saat server MENOLAK push (respons ber-status HTTP, mis. 422 PERIOD_CLOSED) dan dikosongkan (NULL) saat push berhasil; gagal jaringan tidak ditulis. Status badge tetap 'Tersimpan'.",
+        "16. Panel filter = komponen bersama ListFilterBar (components/filters; presentasional — layar tetap memegang dateFilter/searchFilter, filteredRecords, onResetFilter): pintasan 'Hari ini' → dateFilter = tanggal lokal hari ini, 'Semua' → dateFilter = ''; tombol × (search-filter-input-clear) → searchFilter = ''; ringkasan filter-result-count = 'N data' atau 'X dari N data' (filteredRecords.length vs allRecords.length, hanya bila !listLoading && !listError dan N > 0); reset-filter-button tunggal tampil selama hasActiveFilter"
       ],
       "data_operations": [
         {
@@ -141,7 +142,7 @@
         },
         {
           "condition": "Filter tanggal/search tidak menghasilkan apapun (termasuk saat filter default hari ini tidak ada datanya)",
-          "handling": "Tampilkan pesan tidak ditemukan dengan opsi reset filter"
+          "handling": "Tampilkan pesan tidak ditemukan; ringkasan filter-result-count '0 dari N data' dan tombol Reset Filter tunggal di panel ListFilterBar (tidak lagi di kotak kosong) mengosongkan dateFilter dan searchFilter"
         },
         {
           "condition": "Record di mode detail memiliki nol baris Storage Tank Detail (kasus tepi: tersimpan tanpa baris apapun)",
@@ -285,7 +286,8 @@
     "Grid Storage Tank Detail read-only: setiap baris tampilkan Time-Slot (format jam) dan sisa kolom bacaan/status -- render langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis); jumlah baris yang dirender sepenuhnya mengikuti `details.length` dari getDraftWithDetails()",
     "Tidak ada tabel referensi Target Operasional untuk stasiun ini",
     "Kunci periode (usecase-141): pengecualian atas 'tidak ada panggilan API' — aksi verifikasi di mode detail memanggil PATCH /api/records/storage-tank/{id}/verification (RecordVerificationController → RecordVerificationService::setVerification, trait EnforcesPeriodLock). Tanggal yang dinilai = `date` record; jenis stasiun & mill dibaca dari stasiun milik record, bukan dari segmen URL. Penolakan 422 PERIOD_CLOSED (satu kode, empat pesan) dinormalisasi apiClient menjadi {status, message} dan ditampilkan RecordVerificationActions. Endpoint sengaja tidak ditambahkan ke `endpoints` karena kontrak ini tidak mendeklarasikan endpoint apa pun untuk disalin bentuknya.",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) Layar ini tidak lagi hanya memanggil PATCH verifikasi — kini juga GET /api/records/storage-tank/verification?ids[]=… (RecordVerificationStatusController → RecordVerificationStatusService, route auth:web,sanctum + role admin/supervisor/mill_management/operator, cakupan mill lewat ScopesToActorMill) secara best-effort lewat recordVerificationApi.pullVerificationStatus saat list dimuat dan saat detail dibuka (refreshVerificationInBackground memuat ulang record bila berubah); endpoint ini didaftarkan di `endpoints`. Catatan lama yang menyebut verifikasi sebagai satu-satunya panggilan server / endpoint sengaja tidak didaftarkan sudah tidak berlaku. (2) PATCH verifikasi kini dipanggil dengan prefix /api (sebelumnya tanpa prefix → jatuh ke route web tanpa CORS → UI salah menampilkan 'butuh koneksi'); isNetworkError() memakai flag `network: true` dari apiClient. (3) SyncFailureHint.vue ('Gagal sinkron: <alasan>' dari kolom lokal sync_error) dipasang di item list dan detail. (4) Field Tanggal di detail kini FormField type=date (sebelumnya datetime-local) dengan nilai toDateInputValue(detailRecord.date) (src/utils/localDate.ts; data lama ISO UTC dinormalisasi ke tanggal lokal oleh localSchema.normalizeLegacyUtcDates). filter-row memakai grid minmax(0,1fr) agar tidak ada geser horizontal di 390px."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): (1) Layar ini tidak lagi hanya memanggil PATCH verifikasi — kini juga GET /api/records/storage-tank/verification?ids[]=… (RecordVerificationStatusController → RecordVerificationStatusService, route auth:web,sanctum + role admin/supervisor/mill_management/operator, cakupan mill lewat ScopesToActorMill) secara best-effort lewat recordVerificationApi.pullVerificationStatus saat list dimuat dan saat detail dibuka (refreshVerificationInBackground memuat ulang record bila berubah); endpoint ini didaftarkan di `endpoints`. Catatan lama yang menyebut verifikasi sebagai satu-satunya panggilan server / endpoint sengaja tidak didaftarkan sudah tidak berlaku. (2) PATCH verifikasi kini dipanggil dengan prefix /api (sebelumnya tanpa prefix → jatuh ke route web tanpa CORS → UI salah menampilkan 'butuh koneksi'); isNetworkError() memakai flag `network: true` dari apiClient. (3) SyncFailureHint.vue ('Gagal sinkron: <alasan>' dari kolom lokal sync_error) dipasang di item list dan detail. (4) Field Tanggal di detail kini FormField type=date (sebelumnya datetime-local) dengan nilai toDateInputValue(detailRecord.date) (src/utils/localDate.ts; data lama ISO UTC dinormalisasi ke tanggal lokal oleh localSchema.normalizeLegacyUtcDates). filter-row memakai grid minmax(0,1fr) agar tidak ada geser horizontal di 390px.",
+    "Audit desain filter & loading 2026-10-05 (e4f231e, d5da9cf): markup filter lokal diganti ListFilterBar bersama (FilterPanel + FilterDateInput + FilterSearchInput) — layar tetap memegang dateFilter (default hari ini)/searchFilter, filteredRecords, onResetFilter; testid input lama diteruskan (date-filter-input / search-filter-input), label kolom kini 'Cari' dengan placeholder 'Storage Tank ID'. Reset Filter dipindah dari kotak kosong ke panel (satu tombol, tampil selama hasActiveFilter). Status memuat: LoadingState variant list (list-loading), variant form (detail-loading), compact verification-refreshing selama refreshVerificationInBackground(). Tombol verifikasi RecordVerificationActions memakai BusyLabel 'Menyimpan…' + aria-busy; ketukan ganda hanya satu PATCH."
   ],
   "test_scenarios": [
     {
@@ -355,12 +357,12 @@
       "component_test": {
         "component": "DataPreviewStorageTankView",
         "action": "apply date/search filter values that match no local record",
-        "assert": "renders 'tidak ditemukan' message with a reset-filter control, list item area empty"
+        "assert": "renders 'tidak ditemukan' message, list item area empty; filter-result-count shows '0 dari N data' and exactly one reset-filter-button exists (in the ListFilterBar panel, not inside the empty box)"
       },
       "browser_test": {
         "route": "/stations/storage-tank/preview/:id?",
         "action": "apply a date/search filter combination that has no matching record",
-        "assert": "page shows a not-found message with a visible reset filter button"
+        "assert": "page shows a not-found message; the filter panel shows '0 dari N data' and a single visible Reset Filter button"
       }
     },
     {
@@ -450,6 +452,36 @@
         "route": "/stations/storage-tank/preview/:id?",
         "action": "simpan record yang ditolak server saat sinkron, buka Load Data lalu detailnya",
         "assert": "item list dan detail menampilkan 'Gagal sinkron: <alasan>', badge tetap 'Tersimpan'"
+      }
+    },
+    {
+      "scenario_ref": "Data Preview Storage Tank — Panel filter: pintasan tanggal, hapus kata kunci, ringkasan jumlah, Reset Filter",
+      "usecase_id": "usecase-093--data-preview-storage-tank",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewStorageTankView",
+        "action": "mount list mode with one record dated today and one older record; click date-quick-all, then date-quick-today; type a keyword then click the × clear button; with a filter active click reset-filter-button",
+        "assert": "default today → filter-result-count '1 dari 2 data'; 'Semua' empties the date input, shows both records, '2 data', no reset button while no filter is active; 'Hari ini' restores today's slice; × empties the search input; exactly one reset-filter-button whenever a filter is active (even when records match); reset empties both filters"
+      },
+      "browser_test": {
+        "route": "/stations/storage-tank/preview/:id?",
+        "action": "open the list with local records of today and another date; tap 'Semua', then 'Hari ini'; type a keyword and tap ×; tap Reset Filter",
+        "assert": "result summary follows the filter ('X dari N data' / 'N data'), × clears the keyword, Reset Filter shows all records; no horizontal scroll at 360/390px; no pageerror/console.error"
+      }
+    },
+    {
+      "scenario_ref": "Data Preview Storage Tank — Indikator memuat daftar & detail",
+      "usecase_id": "usecase-093--data-preview-storage-tank",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewStorageTankView",
+        "action": "mount list mode while getAllRecords is pending; then open detail mode while the record load and pullVerificationStatus are pending",
+        "assert": "list-loading LoadingState (role=status, variant list) shown with the 'Memuat daftar … lokal…' text and no empty-state/summary; detail-loading (variant form) while the record loads; verification-refreshing 'Memperbarui status verifikasi…' while pullVerificationStatus is pending, gone after it settles"
+      },
+      "browser_test": {
+        "route": "/stations/storage-tank/preview/:id?",
+        "action": "open the list, then a saved/synced record's detail",
+        "assert": "list and detail render without a lingering loading indicator and without an empty-state flash before data appears; no pageerror/console.error (slow-load path is covered at component level by loadingStates.screens.spec.ts)"
       }
     }
   ]

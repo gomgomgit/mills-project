@@ -21,3 +21,17 @@ Sumber: audit-fix 2026-10-04, code is truth (mobile/src/views/DataPreviewGrading
 - information_displayed += status konfirmasi diperbarui dari server ← pullVerificationStatus().
 - edge_cases += record ditolak saat sinkron (server / di perangkat: WB acuan, Quality Parameter) ← syncService.pushGradingRow()/localFailure().
 - edge_cases += offline saat memperbarui status verifikasi ← pullVerificationStatus() senyap.
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/DataPreview*View.vue, mobile/src/components/RecordVerificationActions.vue).
+- information_displayed (append) ← panel filter bersama ListFilterBar: pintasan Hari ini/Semua, Cari + tombol ×, ringkasan 'X dari N data', satu Reset Filter di panel
+- ⚠ information_displayed (append) ← entri status verifikasi belum ada di spec layar ini padahal kode menarik status (pullVerificationStatus) — ditambahkan sekaligus penanda 'Memperbarui status verifikasi…'
+- available_actions (append Reset Filter) ← tombol Reset Filter tunggal di panel filter
+- available_actions (extend) ← pintasan tanggal Hari ini/Semua dan tombol × hapus kata kunci
+- edge_cases (append) ← loading lambat: LoadingState setelah 150 ms, ringkasan/pesan kosong ditahan selama memuat
+
+## v5 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf), code is truth (mobile/src/views/DataPreviewGradingView.vue).
+- information_displayed[5] ← koreksi v4: entri status yang sudah ada ('Status konfirmasi … dikonfirmasi Mill Management', Grading hanya punya tingkat konfirmasi) diberi akhiran penanda 'Memperbarui status verifikasi…'; entri duplikat 'Status verifikasi … diperiksa Supervisor' yang ditambahkan di v4 dihapus.

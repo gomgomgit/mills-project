@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -747,7 +747,8 @@
     "@selected pada <option> Production Line WAJIB dirender di server: Livewire 3 tidak menulis balik nilai <select> dari state komponen pada paint pertama, sehingga pengguna yang tiba lewat tautan tile akan melihat 'Pilih Production Line' padahal angkanya sudah milik line itu.",
     "Tombol Ekspor dirender hanya ketika $summary !== null, dan $summary hanya terisi ketika ada line yang berlaku — jadi 'tidak ada line' otomatis berarti 'tidak ada tombol Ekspor', tanpa kondisi kedua yang bisa ikut kedaluwarsa.",
     "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan.",
-    "REVISI (2026-10-04, audit-fix): ekspor memakai SheetWriter (xlsx sungguhan) + ExportValue, dengan kolom konteks Periode/Mill/Production Line di depan dan judul kolom Bahasa Indonesia (EXPORT_HEADER publik). Layar: hero menyebut nama Production Line aktif; grafik tren harian memakai .md-trendchart--days (kolom min 44px) dengan petunjuk gulir bila > 10 tanggal."
+    "REVISI (2026-10-04, audit-fix): ekspor memakai SheetWriter (xlsx sungguhan) + ExportValue, dengan kolom konteks Periode/Mill/Production Line di depan dan judul kolom Bahasa Indonesia (EXPORT_HEADER publik). Layar: hero menyebut nama Production Line aktif; grafik tren harian memakai .md-trendchart--days (kolom min 44px) dengan petunjuk gulir bila > 10 tanggal.",
+    "Filter bar bersama (2026-10-05, db73fbd): blok md-filters lokal diganti <x-report-filter-bar> (resources/views/components/report-filter-bar.blade.php; CSS md-filters/md-field*/md-badge*/md-sr di dashboard/partials/report-styles.blade.php). wire:model.live (businessUnitId, productionLineId, periodId), id, dan data-testid lama diteruskan lewat props, jadi perilaku tidak berubah. Mill: <select> 'Pilih Mill' hanya bagi Admin; akun terikat → keterangan statis (field 'Mill'). Production Line: opsi awal 'Pilih Line', @selected dirender server, badge 'Aktif' (production-line-current) setelah line dipilih. Periode: opsi '{name} · rentang ringkas · status' (rentang '01–09 Okt 2026' / '28 Sep – 09 Okt 2026' / lintas tahun penuh; status Draft/Terbuka/Tertutup), station_type_label tidak lagi dirender di opsi walau tetap ada di data periodOption(); status periode terpilih → badge md-badge--{status}. Ekspor: tombol hanya dirender bila summary ada (exportAction=export); kedua tombol wire:loading.attr=disabled wire:target=export + <x-busy-label target=\"export('csv'|'excel')\" busy='Mengekspor…'> (c321f32) — penonaktifan sesaat selama request ekspor, bukan atribut disabled statis. Area hasil dibungkus div.md-body.ld-region yang diredupkan (wire:loading.delay.short, aria-busy) dengan wire:target=businessUnitId,productionLineId,periodId."
   ],
   "test_scenarios": [
     {
@@ -1139,7 +1140,7 @@
       "browser_test": {
         "route": "/reports/sterilizer",
         "action": "Login sebagai Supervisor, buka /reports/sterilizer, buka dropdown Periode Pelaporan",
-        "assert": "Dropdown memuat periode bercakupan seluruh mill (karena ia PUNYA baris period_stations Sterilizer — dibuktikan langsung di layar Kelola Periode Pelaporan dengan membuka baris stasiunnya, bukan disimpulkan) dan periode Sterilizer biasa, terurut dari periode terbaru di paling atas, dengan label opsi membawa jenis stasiun layar ini. Periode milik mill tanpa satu pun stasiun aktif — yang karenanya tidak punya baris period_stations sama sekali — TIDAK muncul. Bentuk lama 'periode khusus jenis stasiun lain' tidak lagi dapat diproduksi lewat UI di dalam satu mill terprovisi, karena menyimpan periode mendaftarkan baris untuk setiap jenis stasiun yang dimiliki mill itu."
+        "assert": "Dropdown memuat periode bercakupan seluruh mill (karena ia PUNYA baris period_stations Sterilizer — dibuktikan langsung di layar Kelola Periode Pelaporan dengan membuka baris stasiunnya, bukan disimpulkan) dan periode Sterilizer biasa, terurut dari periode terbaru di paling atas, dengan label opsi berbentuk ringkas 'Nama · rentang · Status' (tidak lagi menulis jenis stasiun, tidak pernah memuat 'Semua Stasiun', dan selalu diakhiri status Draft/Terbuka/Tertutup). Periode milik mill tanpa satu pun stasiun aktif — yang karenanya tidak punya baris period_stations sama sekali — TIDAK muncul. Bentuk lama 'periode khusus jenis stasiun lain' tidak lagi dapat diproduksi lewat UI di dalam satu mill terprovisi, karena menyimpan periode mendaftarkan baris untuk setiap jenis stasiun yang dimiliki mill itu."
       }
     },
     {

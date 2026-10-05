@@ -40,3 +40,12 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/s
 - api_contracts[0].unit_test_cases ← append uji label pilihan.
 - test_scenarios ← append 'Label Pilihan di Detail'.
 - implementation_notes ← append REVISI 2026-10-05.
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/DataPreview*View.vue, mobile/src/components/RecordVerificationActions.vue).
+- api_contracts[0].edge_case_handling[2].handling ← Reset Filter di panel ListFilterBar
+- api_contracts[0].business_logic (append langkah 17) ← ListFilterBar: pintasan, tombol ×, ringkasan jumlah, Reset tunggal
+- test_scenarios[4] component/browser assert ← Reset Filter tunggal di panel + ringkasan '0 dari N data'
+- test_scenarios (extend 2) ← skenario panel filter dan indikator memuat (⚠ skenario non-BDD, dari perilaku kode)
+- implementation_notes (append) ← ListFilterBar + LoadingState + tombol verifikasi sibuk

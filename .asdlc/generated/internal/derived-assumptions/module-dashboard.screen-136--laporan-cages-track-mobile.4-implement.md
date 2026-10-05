@@ -41,3 +41,12 @@ Sumber: audit-fix 2026-10-04, code is truth (LaporanCagesTrackView.vue, mobile/t
 - test_files_generated[+] = backend/tests/Feature/ReportAuditFix20261004Test.php, backend/tests/Feature/ExportXlsxTest.php ← menguji ekspor Cages Track bersama
 - implementation_notes[+] = REVISI: 'Tertutup', 0 hari → NOT_AVAILABLE + kpi-avg-per-day-empty, CSV berubah ← diff view/spec
 - known_issues tidak diubah (SyncResultDialog.vue hanya berubah indentasi/teleport, tidak terbukti memperbaiki unhandled rejection)
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf, ee5294c), code is truth (mobile/src/views/LaporanCagesTrackView.vue, mobile/src/utils/latestRequest.ts, tests/laporanStaleResponse.spec.ts, tests/e2e/laporan-stale-response.spec.ts).
+- fe_files_generated ← mobile/src/utils/latestRequest.ts.
+- fe_test_files_generated ← mobile/tests/laporanStaleResponse.spec.ts.
+- test_files_generated ← mobile/tests/e2e/laporan-stale-response.spec.ts.
+- implementation_notes ← 4 bug diperbaiki + uji.
+- ⚠ test_results tidak diukur ulang per layar (angka dari pesan commit).

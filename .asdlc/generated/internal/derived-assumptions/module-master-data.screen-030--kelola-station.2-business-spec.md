@@ -16,3 +16,8 @@ Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/MasterData/Kel
 Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (StationService.php, Livewire/KelolaStationTest.php).
 - description, available_actions[3], business_rules[2] ← delete-guard kini juga menolak Station yang punya record stasiun di 18 tabel record; pesan menyebut jumlah record.
 - edge_cases (+1) ← hapus station dengan record stasiun: pesan ramah, dialog tertutup, baris tetap, tanpa 500.
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc), code is truth (backend/resources/views/livewire/master-data/kelola-station.blade.php, app/Livewire/MasterData/KelolaStation.php).
+- information_displayed[5] ← bar filter bersama (Business Unit + Production Line), jumlah hasil, badge filter aktif, Reset filter mengosongkan keduanya.

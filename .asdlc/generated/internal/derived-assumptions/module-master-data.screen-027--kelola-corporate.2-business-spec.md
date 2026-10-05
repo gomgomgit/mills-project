@@ -16,3 +16,8 @@ Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/MasterData/Kel
 - business_rules (+) = pesan sukses setelah simpan/hapus, dibersihkan saat aksi baru ← successMessage di save()/delete(), di-null-kan di openCreateForm/openEditForm/askDelete.
 - edge_cases[1], edge_cases[3], edge_cases (+ email/website) = sesuai aturan di atas; "pratinjau tidak ditampilkan" ← blade `! $errors->has('logo')`.
 - information_displayed (+) = pesan sukses ← blade alert data-testid=success-message.
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit c321f32), code is truth (backend/resources/views/livewire/master-data/kelola-corporate.blade.php).
+- edge_cases[5] ← ditambah: Simpan nonaktif selama unggahan logo (wire:target save,logo) dan selama simpan ('Menyimpan…'); klik ganda = satu request/satu record (e2e-web/tests/loading-state.spec.ts); 'Ya, Hapus' → 'Menghapus…'.

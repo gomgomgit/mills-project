@@ -49,3 +49,9 @@ Sumber: audit-fix 2026-10-04, code is truth (SterilizerReportService.php, SheetW
 - api_contracts[0].unit_test_cases[+] = header === EXPORT_HEADER, tanpa 'Sterilizer ID' ← SterilizerReportServiceTest diff. ⚠ Contoh label status 'Tersimpan' diturunkan dari Display::status, bukan dibaca dari tes ini
 - api_contracts[0].business_logic[+] = SheetWriter csv/xlsx sungguhan + daftar EXPORT_HEADER + ExportValue status/time/yesNo ← SterilizerReportService::EXPORT_HEADER & export()
 - implementation_notes[+] = REVISI audit-fix (ekspor, hero line, md-trendchart--days + scroll hint) ← diff blade/service
+
+## v5 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit db73fbd, c321f32), code is truth (components/report-filter-bar.blade.php, laporan-*.blade.php, e2e-web/tests/laporan-*.spec.ts).
+- implementation_notes[+] ← report-filter-bar (props/testid diteruskan), format opsi periode, badge status, ekspor busy, .ld-region
+- test_scenarios[10].browser_test.assert ← e2e laporan-sterilizer.spec.ts kini mengasersi label opsi tanpa jenis stasiun, tanpa 'Semua Stasiun', diakhiri '· (Draft|Terbuka|Tertutup)' (db73fbd)

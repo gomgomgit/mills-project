@@ -1,5 +1,5 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -231,7 +231,7 @@
       "edge_case_handling": [
         {
           "condition": "Tidak ada data sesuai filter",
-          "handling": "Return 200 dengan data: [], FE tampilkan empty state dengan opsi reset filter"
+          "handling": "Return 200 dengan data: [], FE (Livewire) tampilkan empty state 'Tidak ada data' di tabel; ringkasan x-filter.bar menunjukkan '0 data', dan tombol Reset filter (data-testid filter-reset, aksi resetFilters dari trait HasFilterReset) tersedia di bar filter selama activeFilterCount() > 0"
         },
         {
           "condition": "Rentang tanggal tidak valid (date_from > date_to)",
@@ -355,7 +355,8 @@
     "`production_line_id` masuk ke `$request->only([...])` pada index() DAN export() controller API, sehingga filter yang aktif di layar benar-benar ikut ke berkas.",
     "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan.",
     "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): ekspor Excel kini .xlsx sungguhan via App\\Support\\SheetWriter (tanpa dependensi baru); nilai sel lewat App\\Support\\ExportValue (status berlabel Indonesia, time slot 'HH:MM'); tabel Data Browser memakai App\\Support\\Display::status(). Kontrak list/export JSON tidak berubah.",
-    "REVISI (2026-10-05, audit-fix #6 — kode acuan): filter production_line_id (dan business_unit_id untuk Admin) divalidasi bentuknya di ScopesToActorMill — nilai bukan UUID = \"Semua Line\"/\"semua mill\" tanpa query (Str::isUuid sebelum whereKey). Alasan: PostgreSQL produksi melempar SQLSTATE 22P02 untuk nilai bukan-uuid pada kolom uuid, SQLite di suite menelannya diam-diam, jadi uji memeriksa BINDING query (DB::listen). Diuji di backend/tests/Feature/AuditFix20261005Test.php (#6 Livewire + #6 API list & export) dan e2e-web/tests/audit-fix-20261005.spec.ts (#6, ke-18 Data Browser via $wire.set)."
+    "REVISI (2026-10-05, audit-fix #6 — kode acuan): filter production_line_id (dan business_unit_id untuk Admin) divalidasi bentuknya di ScopesToActorMill — nilai bukan UUID = \"Semua Line\"/\"semua mill\" tanpa query (Str::isUuid sebelum whereKey). Alasan: PostgreSQL produksi melempar SQLSTATE 22P02 untuk nilai bukan-uuid pada kolom uuid, SQLite di suite menelannya diam-diam, jadi uji memeriksa BINDING query (DB::listen). Diuji di backend/tests/Feature/AuditFix20261005Test.php (#6 Livewire + #6 API list & export) dan e2e-web/tests/audit-fix-20261005.spec.ts (#6, ke-18 Data Browser via $wire.set).",
+    "Filter bar bersama (2026-10-05, 658cedc): filterbar lokal diganti x-filter.bar / x-filter.field / x-filter.date-range (CSS fb-* di components/filter-assets.blade.php, dimuat shell). wire:model.live, id (#date_from, #date_to, #business_unit_id, #production_line_id), opsi, dan URL param tidak berubah. Komponen memakai trait App\\Livewire\\Concerns\\HasFilterReset: filterDefaults() = {date_from: '', date_to: '', business_unit_id: '', production_line_id: ''} (sama dengan deklarasi properti); resetFilters() mengembalikan bawaan + page = 1 (hook updated<Prop>() tidak dijalankan Livewire untuk perubahan dari dalam aksi); activeFilterCount(['business_unit_id']) untuk non-Admin karena mill dipaku render() (ScopesToActorMill) — reset tidak melebarkan cakupan. Bar menampilkan total meta['total'] ('N data'), badge 'N filter aktif', dan tombol Reset filter (hanya bila active > 0). Business Unit: x-searchable-select hanya untuk Admin; akun terikat melihat keterangan statis (data-testid business-unit-current, title 'Mill mengikuti akun Anda'). Loading (c321f32): wrapper tabel .ld-region diredupkan (wire:loading.delay.short.class ld-region--busy + aria-busy) dengan wire:target=date_from,date_to,business_unit_id,production_line_id,resetFilters,previousPage,nextPage,goToPage; tombol Sebelumnya/Berikutnya wire:loading.attr=disabled (target previousPage,nextPage,goToPage); tautan Ekspor CSV/Excel a[data-export-link] berisi <x-busy-label busy='Mengekspor…'> — JS loading-assets menambah ?_dl=<token>, menandai aria-busy (klik kedua diabaikan), selesai saat cookie ms_download (middleware SignalDownloadReady) bernilai token tiba atau 60 dtk."
   ],
   "test_scenarios": [
     {
@@ -429,12 +430,12 @@
       "component_test": {
         "component": "PressingDataBrowser",
         "action": "set filters that match no existing records, view resulting table state",
-        "assert": "empty state message shown with a reset filter option"
+        "assert": "empty-state 'Tidak ada data' is displayed with zero table rows; x-filter.bar shows '0 data' (data-testid filter-result-count) and the active-filter badge (filter-active-count); the Reset filter button (filter-reset) is present and calling resetFilters restores every filter to its default and page to 1"
       },
       "browser_test": {
         "route": "/data/pressing",
         "action": "apply filters with no matching data",
-        "assert": "page shows 'tidak ada data ditemukan' message with visible reset filter button"
+        "assert": "page shows the 'Tidak ada data' empty state and a visible Reset filter button in the filter bar; clicking it restores the default filters"
       }
     },
     {

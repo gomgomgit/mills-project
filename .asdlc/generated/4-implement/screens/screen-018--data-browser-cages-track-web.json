@@ -1,5 +1,5 @@
 {
-  "ver": 7,
+  "ver": 8,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-05"
@@ -51,7 +51,8 @@
     "REVISI v4 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-cages-track.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec dijalankan penuh: 5/5 lulus, 1 test.skip disengaja ('ekspor gagal' — memerlukan dataset > EXPORT_ROW_LIMIT, sudah dicover di Feature/Api) tidak dihitung. Known_issue celah cakupan Production Line dan known_issue 'browser test tidak dapat dijalankan' dihapus.",
     "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
     "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): CagesTrackRecordService::export() menulis lewat App\\Support\\SheetWriter (format=excel = .xlsx OOXML sungguhan, sebelumnya CSV berlabel .xlsx; csv tetap CSV); nilai sel lewat App\\Support\\ExportValue — tippler start/stop 'Y-m-d H:i', jam tipping 'HH:00', status label Indonesia; data-browser-cages-track.blade.php memakai Display::status() untuk badge. Uji: CagesTrackRecordServiceTest export (assert 'PK' + xlsxRows), ExportDetailRowsTest, helper xlsxRows/exportBodyAsCsv di tests/Pest.php. Tidak dijalankan ulang dalam sinkronisasi ini — test_results tidak diubah.",
-    "AUDIT-FIX 2026-10-05 (f79b1fe): ScopesToActorMill mengabaikan production_line_id/business_unit_id bukan UUID (= semua line/mill, tanpa query) — Data Browser Livewire tak lagi 500 dan API list/export tak lagi 422 di PostgreSQL. Uji: AuditFix20261005Test #6 (Livewire Supervisor+Admin; API list Supervisor + export Admin dengan business_unit_id bukan UUID; asersi binding query) dan audit-fix-20261005.spec.ts #6 (Admin, $wire.set di ke-18 Data Browser, respons /livewire/update 200, properti kembali \"\")."
+    "AUDIT-FIX 2026-10-05 (f79b1fe): ScopesToActorMill mengabaikan production_line_id/business_unit_id bukan UUID (= semua line/mill, tanpa query) — Data Browser Livewire tak lagi 500 dan API list/export tak lagi 422 di PostgreSQL. Uji: AuditFix20261005Test #6 (Livewire Supervisor+Admin; API list Supervisor + export Admin dengan business_unit_id bukan UUID; asersi binding query) dan audit-fix-20261005.spec.ts #6 (Admin, $wire.set di ke-18 Data Browser, respons /livewire/update 200, properti kembali \"\").",
+    "REVISI (2026-10-05, 658cedc + c321f32): filterbar lokal diganti komponen bersama x-filter.bar/field/date-range; komponen Livewire layar ini memakai trait HasFilterReset (filterDefaults, resetFilters → bawaan + page 1, activeFilterCount dengan business_unit_id dikecualikan bagi non-Admin); bar menampilkan 'N data', badge 'N filter aktif', tombol Reset filter; Business Unit statis (business-unit-current) bagi akun terikat. Loading: tabel .ld-region diredupkan saat filter/reset/pagination, tombol pagination terkunci sesaat, tautan ekspor data-export-link + busy-label 'Mengekspor…' sampai cookie ms_download tiba (maks. 60 dtk). Header & grup tombol ekspor flex-wrap (tidak terpotong di 390 px). Berkas bersama (tidak didaftar per layar): app/Livewire/Concerns/HasFilterReset.php, resources/views/components/filter/*.blade.php, components/filter-assets.blade.php, components/busy-label.blade.php, components/loading-assets.blade.php, app/Http/Middleware/SignalDownloadReady.php. Uji bersama: backend/tests/Feature/Livewire/FilterBarTest.php (dataset 18 Data Browser: reset, Supervisor mill-keterangan tak dihitung & reset tak melebarkan cakupan), backend/tests/Feature/LoadingStateTest.php (18 Data Browser: .ld-region + data-export-link; cookie ms_download), e2e-web/tests/loading-state.spec.ts; suite penuh saat commit: backend 4611 lulus, e2e-web 556 lulus."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -61,10 +62,6 @@
     },
     {
       "description": "Laravel Pint menandai new_with_parentheses di CagesTrackRecordService.php — utang gaya kode pre-existing di seluruh repo, juga ada di GradingRecordService/WeighbridgeRecordService",
-      "severity": "minor"
-    },
-    {
-      "description": "Skenario empty-state component test tidak menguji opsi 'reset filter' (tidak dirender Blade view saat ini) — mirror gap yang sudah didokumentasikan di screen-017",
       "severity": "minor"
     },
     {

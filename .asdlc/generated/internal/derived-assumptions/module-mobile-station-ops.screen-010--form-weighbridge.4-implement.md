@@ -44,3 +44,9 @@ Sumber: audit-fix 2026-10-04, code is truth (FormWeighbridgeView.vue, utils/loca
 - known_issues[2].description = assertion kini nowLocalDateTimeString(T0) ← diff FormWeighbridgeView.spec.ts.
 - implementation_notes += REVISI 2026-10-04 ← diff view + test.
 - fe_files_generated += mobile/src/services/syncService.ts ← pushWeighbridgeRow (toOffsetDateTime record_datetime, line per record, sync_error) adalah jalur kirim record layar ini. (⚠ layar tidak mengimpornya langsung; dimasukkan karena perilaku sinkron yang direvisi berada di sana.)
+
+## v9 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf, e4f231e, ee5294c), code is truth (mobile/src/views/Form*View.vue, useBusyAction/BusyLabel/LoadingState, SearchableSelect.vue, App.vue).
+- implementation_notes ← penjaga aksi ganda Simpan/Pause/Clear (actionInProgress), await router.push, BusyLabel, LoadingState variant form, dok mengambang; berkas uji bersama (loadingStates.screens.spec.ts, floating-safe-area.spec.ts) disebut di catatan, tidak didaftarkan.
+- ⚠ 2-business-spec form TIDAK diubah: tidak ada teks spec yang menggambarkan label tombol sibuk/SearchableSelect, dan penjaga ketuk ganda dinilai pola UI bersama (didokumentasikan pemanggil di shared-decisions), bukan aturan bisnis per layar.

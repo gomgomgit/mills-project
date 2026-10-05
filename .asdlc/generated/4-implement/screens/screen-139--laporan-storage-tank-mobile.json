@@ -1,5 +1,5 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -46,7 +46,8 @@
     "mobile/src/views/LaporanStorageTankView.vue",
     "mobile/src/router/index.ts",
     "mobile/src/views/ReportingPilihStasiunView.vue",
-    "mobile/src/services/productionLineRepo.ts"
+    "mobile/src/services/productionLineRepo.ts",
+    "mobile/src/utils/latestRequest.ts"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/StorageTankReportServiceTest.php",
@@ -54,12 +55,14 @@
     "mobile/tests/e2e/laporan-storage-tank.spec.ts",
     "backend/tests/Feature/Api/KelolaProductionLineTest.php",
     "backend/tests/Feature/ReportAuditFix20261004Test.php",
-    "backend/tests/Feature/ExportXlsxTest.php"
+    "backend/tests/Feature/ExportXlsxTest.php",
+    "mobile/tests/e2e/laporan-stale-response.spec.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/storageTankReportRepo.spec.ts",
     "mobile/tests/LaporanStorageTankView.spec.ts",
-    "mobile/tests/productionLineRepo.spec.ts"
+    "mobile/tests/productionLineRepo.spec.ts",
+    "mobile/tests/laporanStaleResponse.spec.ts"
   ],
   "implementation_notes": [
     "Layar ke-11 dan TERAKHIR dari fitur Full Cycle per Stasiun tahap pertama (5 stasiun x web+mobile, plus layar pemilih).",
@@ -83,7 +86,8 @@
     "REVISI v3 (ukur ulang uji browser 2026-10-03 — kode produksi tidak diubah): mobile/tests/e2e/laporan-storage-tank.spec.ts dijalankan ulang di bawah Vite dev server dengan backend :8000 (DemoAccountSeeder) — 39 lolos, 0 gagal (total run tujuh spec laporan mobile 185/185). Kenaikan 33 → 39 mencerminkan skenario Production Line (98c812b) yang bertambah. Satu asersi tata letak yang flaky diperbaiki di berkas test (sama di laporan-clarification, -boiler-room, -cages-track): expectSingleColumn() membaca cards.count() langsung sesudah pickPeriod() tanpa menunggu laporan selesai dirender, sehingga 1 dari 5 run membaca 0 kartu; kini menunggu lewat await expect(cards).toHaveCount(n) / menunggu kartu pertama sebelum mengukur. Terverifikasi 60/60 dalam 5 kali ulang. Known_issue 'test_results.browser tidak diukur ulang' karena itu dihapus.",
     "REVISI (commit 004aacd, 2026-10-03 — pembersihan dead code): known_issue 'galat vue-tsc PRA-ADA (10) di CagesTippedTimeGrid.vue dan GradingDetailGrid.vue' ditutup — kedua komponen lama itu (tidak diimpor di mana pun, tipe pre-v2/v3) DIHAPUS karena membuat `vue-tsc --noEmit` (langkah pertama `npm run build`) gagal. Kini vue-tsc 0 galat untuk seluruh app mobile dan vite build sukses. Kode layar ini tidak berubah.",
     "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): LaporanStorageTankView.vue — coverage_percent kini 1 desimal seperti web ('1,3%', dulu '1,25%'), '-' + coverage-no-expected 'belum ada slot yang diharapkan' bila expected_slots 0, rumus '× days_counted hari (sampai hari ini)' + period-running-note untuk periode berjalan, label status periode 'Tertutup' (dulu 'Ditutup'). storageTankReportRepo.ts — tipe coverage + blok bawaan menambah days_counted (0) dan period_running (false). Sisi server (dipakai bersama screen-133): expected_slots memakai ReportPeriodDays::counted(); ekspor lewat SheetWriter dengan 7 kolom konteks (Periode/Mill/Production Line + Tanggal/Tangki/Status/Catatan), status berlabel Indonesia, slot HH:MM, katup 'Open 1/2' — catatan lama 'TEPAT 4 kolom konteks' tidak berlaku lagi. Uji: LaporanStorageTankView.spec.ts (blok baru 'kelengkapan periode berjalan', '1,3%', 'Tertutup'), storageTankReportRepo.spec.ts (days_counted/period_running), mobile/tests/e2e/laporan-storage-tank.spec.ts ('1,3%', 'Tertutup').",
-    "REVISI (2026-10-05, audit-fix — sinkronisasi artefak, kode adalah acuan): hanya uji yang berubah (commit 30b7f27): fixture CSV_HEADER/CSV_BODY di mobile/tests/e2e/laporan-storage-tank.spec.ts diberi 3 kolom konteks ekspor (Periode, Mill, Production Line) sehingga sama dengan bentuk ekspor nyata 25 kolom; Scenario 33 diganti nama 'Ekspor CSV — berkas terunduh, satu baris per slot dengan tujuh kolom konteks (3 ekspor + 4 record) yang diulang'. Sisi server (commit f79b1fe) StorageTankReportService.php hanya memperbaiki docblock ('7 context + 1 slot + 17 readings = 25 columns') dan memindahkan docblock timeSlotValue() ke fungsinya — tidak ada perubahan perilaku. Angka test_results tidak diubah (run commit: e2e mobile 744/744 lulus)."
+    "REVISI (2026-10-05, audit-fix — sinkronisasi artefak, kode adalah acuan): hanya uji yang berubah (commit 30b7f27): fixture CSV_HEADER/CSV_BODY di mobile/tests/e2e/laporan-storage-tank.spec.ts diberi 3 kolom konteks ekspor (Periode, Mill, Production Line) sehingga sama dengan bentuk ekspor nyata 25 kolom; Scenario 33 diganti nama 'Ekspor CSV — berkas terunduh, satu baris per slot dengan tujuh kolom konteks (3 ekspor + 4 record) yang diulang'. Sisi server (commit f79b1fe) StorageTankReportService.php hanya memperbaiki docblock ('7 context + 1 slot + 17 readings = 25 columns') dan memindahkan docblock timeSlotValue() ke fungsinya — tidak ada perubahan perilaku. Angka test_results tidak diubah (run commit: e2e mobile 744/744 lulus).",
+    "REVISI (2026-10-05, commit e4f231e + d5da9cf + ee5294c — sinkronisasi artefak, kode adalah acuan): LaporanStorageTankView.vue — bug diperbaiki: (a) respons ringkasan LAMA yang tiba belakangan menimpa ringkasan pilihan baru dan mematikan indikator muatnya → penjaga createLatestRequestGuard (mobile/src/utils/latestRequest.ts, BARU, dipakai bersama 5 Laporan mobile) + resetSummary() pada setiap perubahan periode/line/mill; (b) nama berkas ekspor kini ditetapkan saat klik, bukan saat blob tiba; (c) 'Mill ini belum memiliki periode' tidak lagi tampil selama daftar periode masih dimuat (periodsLoaded); (d) Ekspor CSV terkunci selama berjalan (BusyLabel 'Mengekspor…'). Filter memakai komponen bersama FilterPanel/FilterSelectField/FilterChip (Mill & Production Line sebagai chip). Uji: tests/LaporanStorageTankView.spec.ts (+3 loading state: LoadingState bukan 'belum memiliki periode', ringkasan variant card, ekspor ganda satu ekspor), tests/laporanStaleResponse.spec.ts (BARU, 6 kasus per laporan), tests/e2e/laporan-stale-response.spec.ts (BARU, browser nyata vs backend :8000), plus e2e bersama filter-bar.spec.ts / loading-states.spec.ts / floating-safe-area.spec.ts. Lulus per commit ee5294c (vitest 2415, Playwright mobile 769); test_results tidak diukur ulang per layar."
   ],
   "deferred_items": [
     {

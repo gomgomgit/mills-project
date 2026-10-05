@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-14"
@@ -88,6 +88,16 @@
         "Sistem mengarahkan user ke layar Login (halaman asal disimpan sebagai redirect) dan menampilkan pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'",
         "Setelah akun aktif kembali dan user login ulang, user kembali ke halaman asal; draft/record lokal yang belum tersinkron masih ada dan dapat disinkronkan"
       ]
+    },
+    {
+      "name": "Logout",
+      "trigger": "Setelah login, user memilih Logout dari menu navigasi (hamburger) di layar mobile",
+      "steps": [
+        "Sistem menampilkan lapisan 'Keluar…' selama logout berjalan; ketukan Logout berikutnya tidak memulai logout kedua",
+        "Bila online: sistem meminta server mencabut token sesi perangkat ini saja (token perangkat lain milik akun yang sama tetap berlaku)",
+        "Bila offline/server tidak terjangkau: langkah pencabutan dilewati — token lama di server tetap berlaku sampai dicabut dari sisi server",
+        "Sistem membersihkan sesi lokal (token, user, Business Unit) dan mengarahkan user ke layar Login"
+      ]
     }
   ],
   "postconditions": [
@@ -147,6 +157,18 @@
       "given": "User sudah login di aplikasi mobile dan memiliki record lokal berstatus Tersimpan yang belum tersinkron",
       "when": "Admin menonaktifkan akun user (token dicabut) lalu user menekan Sinkronisasi sehingga server menolak request dengan 401",
       "then": "Aplikasi kembali ke layar Login dengan pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.', sesi lokal terhapus tetapi record lokal tetap tersimpan; setelah akun diaktifkan dan user login ulang, record tersebut masih ada dan dapat disinkronkan. Login dengan password salah tidak memunculkan pesan sesi berakhir ini"
+    },
+    {
+      "scenario": "Login Mobile — Logout mencabut token perangkat",
+      "given": "User sudah login di aplikasi mobile dalam keadaan online, dan akun yang sama juga login di perangkat lain",
+      "when": "User memilih Logout dari menu navigasi",
+      "then": "Lapisan 'Keluar…' tampil, server mencabut token perangkat ini, sesi lokal terhapus dan user kembali ke Login; token lama yang dipakai ulang ditolak (401), sedangkan sesi di perangkat lain tetap berlaku"
+    },
+    {
+      "scenario": "Login Mobile — Logout saat offline",
+      "given": "User sudah login di aplikasi mobile dan perangkat sedang offline",
+      "when": "User memilih Logout dari menu navigasi (termasuk mengetuknya dua kali dengan cepat)",
+      "then": "Sesi lokal tetap dibersihkan dan user kembali ke Login tanpa galat; hanya satu upaya logout yang berjalan; token di server tidak tercabut dan tetap berlaku sampai dicabut dari sisi server"
     }
   ],
   "related_screen_ids": [

@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -21,7 +21,8 @@
     "Breadcrumb navigasi (Home > Production Process Activity > Storage Tank > Load Data) yang dapat ditap",
     "Header 'Mill Smart Log' + ikon hamburger menu",
     "Petunjuk 'Gagal sinkron: <alasan>' (di bawah label item list dan di atas detail) untuk record berstatus Tersimpan yang terakhir kali DITOLAK server saat sinkronisasi; alasan = pesan penolakan terakhir, hilang otomatis setelah sinkron berhasil (audit 2026-10-04)",
-    "Status verifikasi record tersinkron (diperiksa Supervisor / dikonfirmasi Mill Management) diperbarui dari server di latar belakang setiap kali list atau detail dibuka saat online — termasuk verifikasi yang dilakukan lewat web (audit 2026-10-04)"
+    "Status verifikasi record tersinkron (diperiksa Supervisor / dikonfirmasi Mill Management) diperbarui dari server di latar belakang setiap kali list atau detail dibuka saat online — termasuk verifikasi yang dilakukan lewat web (audit 2026-10-04); selama tarikan berjalan di mode detail tampil penanda kecil 'Memperbarui status verifikasi…' (audit loading 2026-10-05)",
+    "Panel filter (audit desain filter 2026-10-05): field Tanggal dengan dua pintasan 'Hari ini' dan 'Semua' (Semua = tanpa filter tanggal), kolom Cari berikon kaca pembesar dengan placeholder 'Storage Tank ID' dan tombol × ('Hapus kata kunci') saat terisi, ringkasan jumlah hasil ('N data' bila tak tersaring, 'X dari N data' bila tersaring — tampil setelah daftar selesai dimuat dan bila ada data lokal), serta satu tombol 'Reset Filter' di panel yang tampil selama filter aktif"
   ],
   "available_actions": [
     {
@@ -87,6 +88,30 @@
         "actor-station-operator",
         "actor-supervisor"
       ]
+    },
+    {
+      "action": "Reset Filter",
+      "description": "Tombol tunggal 'Reset Filter' di panel filter, tampil selama ada filter aktif (termasuk tanggal default hari ini — tidak hanya saat hasil kosong); mengosongkan filter tanggal dan pencarian sehingga seluruh record tampil",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pintasan tanggal 'Hari ini' / 'Semua'",
+      "description": "'Hari ini' mengisi filter tanggal dengan tanggal lokal hari ini; 'Semua' mengosongkan filter tanggal (semua tanggal tampil). Pintasan yang sesuai nilai filter saat ini tampil aktif",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus kata kunci (tombol × di kolom Cari)",
+      "description": "Mengosongkan kata kunci pencarian dan mengembalikan fokus ke kolom Cari",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
     }
   ],
   "business_rules": [
@@ -108,7 +133,8 @@
     "Filter tanggal/pencarian (termasuk default hari ini) tidak menghasilkan record yang cocok",
     "Record ditampilkan di mode DETAIL dengan grid Storage Tank Detail kosong (kasus tepi: record tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error",
     "Record ditolak server saat sinkronisasi (mis. periode pelaporan tertutup) — tetap berstatus Tersimpan dengan petunjuk 'Gagal sinkron: <alasan>'; kegagalan karena tidak ada jaringan tidak ditandai sebagai penolakan",
-    "Offline / server tidak dapat dijangkau saat memperbarui status verifikasi — status verifikasi lokal terakhir tetap ditampilkan tanpa pesan galat"
+    "Offline / server tidak dapat dijangkau saat memperbarui status verifikasi — status verifikasi lokal terakhir tetap ditampilkan tanpa pesan galat",
+    "Daftar atau detail lokal lambat dimuat — indikator memuat (spinner + kerangka) baru tampil setelah 150 ms agar tidak berkedip; ringkasan jumlah dan pesan daftar kosong tidak tampil selama masih memuat (audit loading 2026-10-05)"
   ],
   "test_priority": "medium",
   "open_questions": []

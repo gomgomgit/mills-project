@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -18,8 +18,8 @@
     "Grid pemilihan stasiun pada Laporan Stasiun (screen-140), setelah layar tersebut dibangun"
   ],
   "information_displayed": [
-    "Pemilih Mill — hanya tampil untuk Admin, karena Admin tidak terikat pada satu mill; Supervisor dan Mill Management tidak melihat pemilih ini dan otomatis memakai mill masing-masing",
-    "Pemilih Periode Pelaporan — daftar periode milik mill yang sedang dilihat dan mencakup jenis stasiun Sterilizer (termasuk periode bercakupan semua stasiun), terbaru di atas, beserta rentang tanggalnya",
+    "Pemilih Mill — hanya tampil untuk Admin, karena Admin tidak terikat pada satu mill; Supervisor dan Mill Management tidak melihat pemilih ini dan otomatis memakai mill masing-masing; Supervisor dan Mill Management melihat field 'Mill' berisi nama mill akunnya sebagai keterangan (bukan pemilih, bukan input terkunci) di bar filter yang sama",
+    "Pemilih Periode Pelaporan — daftar periode milik mill yang sedang dilihat dan mencakup jenis stasiun Sterilizer (termasuk periode bercakupan semua stasiun), terbaru di atas, beserta rentang tanggalnya. Tiap opsi ditulis ringkas 'Nama · rentang · Status' (mis. 'Periode Oktober · 01–09 Okt 2026 · Terbuka'; bulan/tahun tidak diulang bila sama), tanpa nama jenis stasiun karena daftar ini memang hanya memuat periode yang mencakup stasiun ini; status periode terpilih juga tampil sebagai badge kecil (Draft / Terbuka / Tertutup) di label pemilih",
     "Empat angka utama periode: Total Siklus Rebus, Total Lori Direbus, Durasi Rata-rata perebusan, dan Kepatuhan Triple-Peak dalam persen",
     "Tren harian jumlah siklus rebus sepanjang periode, ditampilkan sebagai batang per tanggal sehingga hari sibuk dan hari kosong langsung terlihat",
     "Distribusi durasi perebusan per hari: durasi tersingkat, rata-rata, dan terlama",
@@ -28,7 +28,8 @@
     "Tabel rekap harian lengkap (dapat dibuka/tutup) berisi angka per tanggal, ditutup baris Total periode",
     "Keterangan periode yang sedang ditampilkan: nama, rentang tanggal, dan statusnya (Draft / Terbuka / Tertutup)",
     "Pesan kosong yang mengarahkan bila belum ada Periode Pelaporan untuk mill tersebut, atau bila periode terpilih tidak memuat data Sterilizer sama sekali",
-    "Pemilih Production Line (wajib) dan nama line aktif di hero laporan, di samping nama periode"
+    "Pemilih Production Line (wajib) dan nama line aktif di hero laporan, di samping nama periode",
+    "Bar filter laporan (satu baris di desktop, bertumpuk di ponsel) berurutan Mill · Production Line · Periode Pelaporan, dengan tombol Ekspor CSV / Ekspor Excel di sisi kanan dan satu catatan singkat di bawahnya tentang cakupan daftar periode; pemilih Mill (Admin) beropsi awal 'Pilih Mill', pemilih Production Line beropsi awal 'Pilih Line' dan labelnya memberi badge 'Aktif' setelah sebuah line dipilih"
   ],
   "available_actions": [
     {
@@ -58,7 +59,7 @@
     },
     {
       "action": "Ekspor laporan",
-      "description": "Mengunduh data siklus Sterilizer sepanjang periode dan Production Line terpilih ke CSV atau Excel (.xlsx sungguhan), satu baris per siklus rebus. Setiap baris diawali kolom konteks Periode, Mill, dan Production Line, lalu kolom konteks harian diulang di tiap baris; judul kolom berbahasa Indonesia, status record berlabel Indonesia, jam ditulis HH:MM, dan 'Diperiksa SPV' ditulis Ya/Tidak",
+      "description": "Mengunduh data siklus Sterilizer sepanjang periode dan Production Line terpilih ke CSV atau Excel (.xlsx sungguhan), satu baris per siklus rebus. Setiap baris diawali kolom konteks Periode, Mill, dan Production Line, lalu kolom konteks harian diulang di tiap baris; judul kolom berbahasa Indonesia, status record berlabel Indonesia, jam ditulis HH:MM, dan 'Diperiksa SPV' ditulis Ya/Tidak. Selama berkas disiapkan kedua tombol ekspor terkunci sesaat dan tombol yang diklik menampilkan 'Mengekspor…' (spinner), sehingga klik ganda tidak menghasilkan unduhan ganda",
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",

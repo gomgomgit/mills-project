@@ -16,3 +16,10 @@ Hasil run penuh e2e-web 2026-10-03 (530 lulus, 0 gagal, 9 skip).
 
 Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/DashboardHomeTest.php` dihapus dari `fe_test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 0e6f97c), code is truth (dashboard/partials/daily-mill-report.blade.php, tests/Feature/Livewire/DashboardHomeTest.php).
+- fe_files_generated[+] daily-mill-report.blade.php ← berkas tampilan dashboard yang di-include dashboard-home.blade.php dan diubah 0e6f97c
+- implementation_notes[+] ← label Today/Milling Hours/Avg Cage Weight, tren vs rata-rata harian MTD, grafik Milling hijau/Available abu-abu (dummy)
+- ⚠ 2-business-spec & 3-tech-spec screen-025 masih menggambarkan dashboard KPI 3 stasiun lama (filter tanggal/BU, kartu WB/Grading/Cages) — tidak dipatch (brief: hanya bila spec menggambarkan item ini); kesenjangan dilaporkan ke caller

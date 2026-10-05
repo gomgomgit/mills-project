@@ -34,3 +34,8 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD KelolaMachinery.php, 
 - test_files_generated (+) = KelolaMachineryAuditTest.php, ImageUploadValidationTest.php, tests/Pest.php.
 - implementation_notes[8] = tes gambar memakai fakeRealImage().
 - implementation_notes (+) = REVISI audit-fix.
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (blade/Livewire layar ini, app/Livewire/Concerns/HasFilterReset.php, resources/views/components/filter/*, busy-label.blade.php).
+- implementation_notes[-1] ← entri REVISI round 3: x-filter.bar + HasFilterReset (bila ada filter), ld-region, busy-label + disabled pada Simpan/Ya, Hapus/aksi baris, header flex-wrap; test bersama FilterBarTest.php / LoadingStateTest.php dirujuk di catatan, tidak didaftarkan di test_files_generated.

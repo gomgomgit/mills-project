@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -30,7 +30,8 @@
     "'Jumlah Baris Time-Slot Tercatat' counter is a plain COUNT(*) of clarification_detail rows belonging to today's records -- no filled-row filter, mirrors Boiler Room's Monitor counter exactly",
     "Router: route name 'monitor-clarification' registered in router/index.ts -- StationListView.vue (screen-006) already had this route name pre-wired in MONITOR_ROUTE_NAMES and a 'clarification': false placeholder in draftStatusByType; this implementation wires the real clarificationRecordRepo.getDrafts() call into StationListView.vue's Promise.all, replacing that placeholder with clarification.length > 0, same additive pattern Boiler Room used for this same pre-existing scaffolding",
     "Added the missing getClarificationDraftsMock hoisted mock, vi.mock() registration, and getClarificationDraftsMock.mockResolvedValue([]) call in every beforeEach block AND every individual it-block that manually re-sets the record-repo mocks in mobile/tests/StationListView.spec.ts (mirroring the existing getBoilerRoomDraftsMock pattern exactly) proactively, per explicit task instruction that a prior station's run omitted this and broke silently -- all 27 tests in that shared file pass",
-    "REVISI 2026-10-03: spec Playwright mobile/tests/e2e/monitor-clarification.spec.ts ditulis (8 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec) — known issue 'spec e2e belum ada' ditutup."
+    "REVISI 2026-10-03: spec Playwright mobile/tests/e2e/monitor-clarification.spec.ts ditulis (8 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec) — known issue 'spec e2e belum ada' ditutup.",
+    "Round 3 2026-10-05 (d5da9cf): MonitorClarificationView.vue — useBusyAction membungkus onNewData() (createDraft + await router.push), tombol New Data :disabled/:aria-busy + BusyLabel 'Membuat…', CSS .action-button:disabled dan [aria-busy='true']; <p> status memuat diganti LoadingState variant list (draft-list-loading). Bug diperbaiki: ketukan ganda New Data membuat 2 draft. Uji: loadingStates.screens.spec.ts (bersama, 18 Monitor: LoadingState + ketukan ganda tepat satu draft); e2e/loading-states.spec.ts memakai Monitor Boiler Room sebagai sampel."
   ],
   "deferred_items": [
     {

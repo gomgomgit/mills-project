@@ -22,3 +22,9 @@ Sumber: audit-fix 2026-10-04, code is truth (MillsSetting.php, mills-setting.bla
 - business_rules[6] = logo/gambar harus JPG/PNG sungguhan by content, maks 2MB, dicek saat dipilih ← RealImage + ValidatesUploadOnSelect
 - business_rules += pesan validasi Indonesia ← messages()
 - edge_cases[1] = file palsu bernama .png ditolak saat dipilih; [2] = nama aplikasi kosong (menggantikan jumlah cages ≤ 0)
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit c321f32), code is truth (backend/resources/views/livewire/settings/mills-setting.blade.php).
+- edge_cases[5] ← Simpan nonaktif selama unggahan logo/home_page_image (wire:target save,logo,home_page_image) dan selama simpan; form & daftar station meredup saat mill diganti.
+- ⚠ information_displayed[0]/available_actions[0] tidak diubah: pemilih mill kini di x-filter.bar (label 'Mill', placeholder 'Pilih mill') tetapi tanpa total/Reset — teks spec tetap benar.

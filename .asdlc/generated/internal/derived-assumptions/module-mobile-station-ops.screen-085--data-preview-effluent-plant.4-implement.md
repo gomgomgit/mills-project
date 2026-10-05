@@ -33,3 +33,8 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/s
 - fe_files_generated ← + mobile/src/utils/optionLabel.ts.
 - fe_test_files_generated ← + optionLabel.spec.ts, e2e/data-preview-option-labels.spec.ts.
 - implementation_notes ← append REVISI 2026-10-05.
+
+## v7 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/DataPreview*View.vue, mobile/src/components/RecordVerificationActions.vue).
+- implementation_notes (append) ← perubahan kode filter & loading + daftar uji

@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -842,7 +842,8 @@
     "Bentuk respons options-for-report sengaja {id, name, code} — identik dengan /production-lines/current — supaya mobile cukup punya satu pemeta dan sebuah layar bisa berpindah sumber tanpa mengubah cara membaca barisnya.",
     "Uji yang menyentuh production line WAJIB window.localStorage.clear() di beforeEach: ingatan line bocor antar-uji jauh lebih halus daripada ingatan sesi.",
     "Cakupan uji Production Line yang nyata untuk layar ini: 13 uji komponen (mobile/tests/LaporanClarificationView.spec.ts), 7 uji repo (mobile/tests/clarificationReportRepo.spec.ts), dan 7 uji browser (mobile/tests/e2e/laporan-*.spec.ts, dijalankan terhadap Vite dev server).",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): server kini menghentikan penyebut kelengkapan di hari ini (ReportPeriodDays) dan mengirim coverage.days_counted + period_running; clarificationReportRepo.ts menambah kedua medan pada tipe + bawaan; LaporanClarificationView.vue menampilkan catatan periode berjalan, rumus '× days_counted hari (sampai hari ini)', '-' + 'belum ada slot yang diharapkan' bila expected_slots 0, dan label status 'Tertutup' (sebelumnya 'Ditutup'). Ekspor CSV dari server kini 15 kolom (Periode/Mill/Production Line + label Indonesia + slot HH:MM). Diuji di mobile/tests/LaporanClarificationView.spec.ts, mobile/tests/clarificationReportRepo.spec.ts, mobile/tests/e2e/laporan-clarification.spec.ts."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): server kini menghentikan penyebut kelengkapan di hari ini (ReportPeriodDays) dan mengirim coverage.days_counted + period_running; clarificationReportRepo.ts menambah kedua medan pada tipe + bawaan; LaporanClarificationView.vue menampilkan catatan periode berjalan, rumus '× days_counted hari (sampai hari ini)', '-' + 'belum ada slot yang diharapkan' bila expected_slots 0, dan label status 'Tertutup' (sebelumnya 'Ditutup'). Ekspor CSV dari server kini 15 kolom (Periode/Mill/Production Line + label Indonesia + slot HH:MM). Diuji di mobile/tests/LaporanClarificationView.spec.ts, mobile/tests/clarificationReportRepo.spec.ts, mobile/tests/e2e/laporan-clarification.spec.ts.",
+    "REVISI (2026-10-05, desain filter e4f231e, loading state d5da9cf, ringkasan basi ee5294c — kode adalah acuan): LaporanClarificationView.vue — (1) Hanya respons ringkasan TERBARU yang berlaku: loadSummary() mengambil isLatest = summaryRequests.next() (utils/latestRequest.ts createLatestRequestGuard) sebelum await; hasil, galat (handleError), dan loadingSummary=false hanya diterapkan bila isLatest(). resetSummary() (summaryRequests.invalidate() + loadingSummary=false + summary=null) dipanggil pada perubahan periode/line/mill sebelum muat berikutnya, sehingga respons yang tiba kemudian diabaikan. (2) onExport(): nama berkas = exportFilename() ditetapkan SAAT klik, sebelum clarificationReportRepo.exportCsv(); tombol export-button kini :disabled=exporting + BusyLabel 'Ekspor CSV'/'Mengekspor…' (ketukan ganda = satu ekspor). (3) periodsLoaded: pesan 'belum memiliki periode' (noPeriods) hanya setelah daftar periode pernah selesai dimuat; LoadingState untuk daftar Production Line (production-lines-loading), periode (periods-loading) dan ringkasan (variant card, summary-loading). (4) Filter: FilterPanel + FilterSelectField berlabel & berikon (Mill khusus Admin, Production Line bila >1 line, Periode Pelaporan) dan FilterChip pada slot chips untuk keterangan Mill (non-Admin, data-testid mill-current) serta Production Line aktif (production-line-current) — testid & perilaku filter tetap."
   ],
   "test_scenarios": [
     {
@@ -2023,6 +2024,21 @@
         "route": "",
         "action": "",
         "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Mobile) — respons ringkasan lama diabaikan",
+      "usecase_id": "usecase-138--laporan-clarification-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanClarificationView",
+        "action": "ganti periode A → B dengan respons A ditahan sampai B selesai; respons A gagal setelah B berhasil; respons lama tiba saat B masih dimuat; ganti line saat ringkasan line lama dimuat; kosongkan periode saat ringkasan dimuat; ekspor periode A lalu ganti ke B sebelum berkas tiba",
+        "assert": "yang tampil tetap ringkasan B; tidak ada galat basi; indikator muat B tetap tampil sampai B selesai; angka line lama tidak pernah tampil; tidak ada angka setelah periode dikosongkan; nama berkas ekspor milik periode A (mobile/tests/laporanStaleResponse.spec.ts)"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "login Supervisor, tahan (throttle) permintaan ringkasan PERTAMA sampai permintaan kedua untuk periode lain selesai, lalu lepaskan",
+        "assert": "ringkasan yang tampil tetap milik periode yang terakhir dipilih; tanpa pageerror, console.error, atau respons HTTP >= 400 (mobile/tests/e2e/laporan-stale-response.spec.ts)"
       }
     }
   ]

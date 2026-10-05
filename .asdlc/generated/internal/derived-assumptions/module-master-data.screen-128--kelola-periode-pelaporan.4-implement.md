@@ -29,3 +29,8 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD PeriodService.php, En
 - files_generated (+) = PeriodHasRecordsException.php, Support/Concerns/EnforcesPeriodLock.php, Support/AppTime.php ← dipakai PeriodService / kunci periode / tanggal WIB panel. ⚠ EnforcesPeriodLock & AppTime dimasukkan karena terkait langsung aturan periode layar ini, walau bukan berkas layar.
 - test_files_generated (+) = AuditFix20261004Test.php, e2e support/period-fixture.ts, period-lanes.ts, BrowserTestFixtureSeeder.php.
 - implementation_notes (+) = REVISI audit-fix.
+
+## v11 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (blade/Livewire layar ini, app/Livewire/Concerns/HasFilterReset.php, resources/views/components/filter/*, busy-label.blade.php).
+- implementation_notes[-1] ← entri REVISI round 3: x-filter.bar + HasFilterReset (bila ada filter), ld-region, busy-label + disabled pada Simpan/Ya, Hapus/aksi baris, header flex-wrap; test bersama FilterBarTest.php / LoadingStateTest.php dirujuk di catatan, tidak didaftarkan di test_files_generated.

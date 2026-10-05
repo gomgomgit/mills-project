@@ -18,3 +18,8 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff service/blade/tests).
 - fe_files_generated[+] = report-styles.blade.php ← aturan .md-scrollhint--lc / .md-trendchart--days dipakai blade ini
 - test_files_generated[+] = ReportAuditFix20261004Test, ExportXlsxTest, e2e-web/tests/support/backend.ts, base-url.ts ← diimpor/mencakup layar ini
 - implementation_notes[+1] = REVISI audit-fix ← diff
+
+## v5 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit db73fbd, c321f32), code is truth (laporan-*.blade.php, report-filter-bar.blade.php, tests/Feature/Livewire/Laporan*Test.php, e2e-web/tests/laporan-*.spec.ts).
+- implementation_notes[+] ← report-filter-bar, loading ekspor & .ld-region, uji yang disesuaikan

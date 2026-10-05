@@ -25,3 +25,8 @@ Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile + backend).
 - fe_files_generated += SyncFailureHint.vue, recordVerificationApi.ts, apiClient.ts, utils/localDate.ts ← diimpor/dipakai DataPreviewKernelDispatchView.vue. ⚠ recordVerificationApi.ts/apiClient.ts sudah dipakai sebelumnya tapi tak terdaftar — ditambahkan karena berubah di audit ini.
 - fe_test_files_generated += SyncFailureHint.spec.ts, syncService.sqljs.spec.ts, recordVerification.spec.ts, noteLabelConsistency.spec.ts, e2e/sync-and-verification.spec.ts. ⚠ e2e sync-and-verification tidak menguji stasiun ini secara langsung (Threshing/Weighbridge) — pola bersama.
 - implementation_notes += REVISI 2026-10-04 (pull verifikasi, /api prefix, network flag, SyncFailureHint, Tanggal/Catatan).
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/DataPreview*View.vue, mobile/src/components/RecordVerificationActions.vue).
+- implementation_notes (append) ← perubahan kode filter & loading + daftar uji

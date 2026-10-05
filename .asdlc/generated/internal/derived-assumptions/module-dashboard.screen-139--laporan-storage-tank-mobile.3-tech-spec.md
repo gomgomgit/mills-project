@@ -40,3 +40,10 @@ Sumber: audit-fix 2026-10-04, code is truth (LaporanStorageTankView.vue, storage
 Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/app/Services/StorageTankReportService.php, mobile/tests/e2e/laporan-storage-tank.spec.ts).
 - api_contracts[0].endpoints[3].response.success_schema._note ← 25 kolom (3 konteks ekspor + 4 konteks record + slot + 17).
 - test_scenarios[32].browser_test.assert ← header 25 kolom, 7 kolom konteks diulang.
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf, ee5294c), code is truth (mobile/src/views/LaporanStorageTankView.vue, mobile/src/utils/latestRequest.ts, tests/laporanStaleResponse.spec.ts, tests/e2e/laporan-stale-response.spec.ts).
+- implementation_notes ← latestRequest guard + resetSummary, nama berkas ekspor saat klik, periodsLoaded/LoadingState, FilterPanel/FilterSelectField/FilterChip.
+- test_scenarios ← skenario baru respons ringkasan lama diabaikan (component laporanStaleResponse.spec.ts, browser e2e/laporan-stale-response.spec.ts).
+- ⚠ scenario_ref baru belum punya bdd_scenario padanan di usecase layar ini (usecase tidak di-patch).

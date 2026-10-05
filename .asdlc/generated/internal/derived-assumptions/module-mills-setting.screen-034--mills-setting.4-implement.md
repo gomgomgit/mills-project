@@ -28,3 +28,8 @@ Sumber: audit-fix 2026-10-04, code is truth (git diff HEAD MillsSetting.php, Mil
 - fe_files_generated += components/searchable-select.blade.php, mobile/src/services/millSettingRepo.ts ⚠ DISIMPULKAN: millSettingRepo dimasukkan karena memengaruhi berlakunya pengaturan layar ini (juga tercantum di artefak screen-005/form mobile)
 - fe_test_files_generated += mobile/tests/millSettingRepo.sqljs.spec.ts, mobile/tests/writeThroughSync.spec.ts
 - implementation_notes += REVISI 2026-10-04 (app_name wajib, RealImage, validasi saat dipilih, searchable select, kolom Production Line, SELECT immediate_sync_enabled mobile)
+
+## v5 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (blade/Livewire layar ini, app/Livewire/Concerns/HasFilterReset.php, resources/views/components/filter/*, busy-label.blade.php).
+- implementation_notes[-1] ← entri REVISI round 3: x-filter.bar + HasFilterReset (bila ada filter), ld-region, busy-label + disabled pada Simpan/Ya, Hapus/aksi baris, header flex-wrap; test bersama FilterBarTest.php / LoadingStateTest.php dirujuk di catatan, tidak didaftarkan di test_files_generated.

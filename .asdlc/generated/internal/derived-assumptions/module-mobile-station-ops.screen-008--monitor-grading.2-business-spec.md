@@ -11,3 +11,9 @@
 - Counter unit label "Jumlah Quantity (bunch)" (not "(kg)" like Weighbridge's quantity counter) ← Grading's `quantity` field is inherently bunch-denominated per entity-catalog v2 (distinct from `netto` which is kg), not a literal 1:1 mirror of Weighbridge's card labels — domain-appropriate unit choice, not user-stated
 - entry_points reduced to single entry ("Tap Grading di Station List"), old "Tap draft Grading yang di-pause dari Home" entry point REMOVED ← Home (screen-005) no longer surfaces any draft/status info at all (removed entirely in an earlier revision this session), so that entry point is now factually impossible
 - Pause/Clear moved off Monitor onto Form Grading (mirrors Weighbridge's same restructure) ← consistent structural mirroring of the confirmed Weighbridge pattern, not independently re-confirmed with user for Grading specifically
+
+## v3 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/Monitor*View.vue, mobile/src/composables/useBusyAction.ts).
+- available_actions[1].description ← New Data dijaga dari ketukan ganda, label 'Membuat…'
+- edge_cases (append) ← bug ketuk ganda New Data (2 draft) diperbaiki + indikator memuat daftar draft

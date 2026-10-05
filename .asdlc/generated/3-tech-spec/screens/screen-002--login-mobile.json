@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-05"
@@ -169,6 +169,118 @@
           "expect": "create Sanctum personal access token named device_name; return 200 with { user, business_unit, token }"
         }
       ]
+    },
+    {
+      "usecase_id": "usecase-002--login-mobile",
+      "usecase_name": "Login Mobile — Logout",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/logout",
+          "description": "Logout aplikasi mobile: mencabut HANYA personal access token Sanctum yang dipakai request ini (token perangkat lain milik user yang sama tidak tersentuh). Request bersesi (web/SPA stateful) mengeluarkan sesi guard web. Dipanggil authStore.logout().",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "message": "string — 'Logout berhasil.'"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tanpa token/sesi, atau token sudah dicabut (logout kedua dengan token yang sama)"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Middleware auth:sanctum → tanpa token/sesi valid: return 401 (JSON {message})",
+        "2. token = request.user().currentAccessToken()",
+        "3. Bila token adalah PersonalAccessToken (request ber-token, mobile) → hapus baris token itu saja; token lain milik user yang sama tetap berlaku",
+        "4. Selain itu (request bersesi web/SPA, TransientToken) → Auth::guard('web')->logout(); bila request punya sesi: session()->invalidate() + regenerateToken()",
+        "5. Return 200 {message: 'Logout berhasil.'}",
+        "6. Client (stores/auth.ts logout()): bila ada logout yang sedang berjalan (pendingLogout) kembalikan promise yang sama — tidak ada POST kedua; set loggingOut = true (App.vue menampilkan LoadingOverlay 'Keluar…'); POST /api/logout hanya bila ada token, best-effort (galat/offline ditelan); finally: user/token/businessUnit = null, sessionRevoked = false, tokenStorage.clear(), loggingOut = false, pendingLogout = null",
+        "7. Batas yang diketahui: logout OFFLINE hanya membersihkan sesi lokal — token di server tetap berlaku (sanctum.expiration = null, tidak kedaluwarsa) sampai dicabut dari sisi server (mis. UserService::setStatus saat akun dinonaktifkan); login ulang menerbitkan token baru tanpa mencabut token lama"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "user",
+          "operation": "DELETE",
+          "description": "DELETE FROM personal_access_tokens WHERE id = <token request ini> — tabel Sanctum milik user (tidak punya entri sendiri di entity-catalog), hanya untuk request ber-token"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "User yang sama login di beberapa perangkat",
+          "handling": "Hanya token perangkat pemanggil yang dihapus; token perangkat lain tetap valid"
+        },
+        {
+          "condition": "Logout kedua dengan token yang sudah dicabut",
+          "handling": "Return 401 (token tidak lagi dikenali); apiClient mengecualikan /api/logout dari penanganan 401 terpusat sehingga tidak memicu banner sesi berakhir"
+        },
+        {
+          "condition": "Request bersesi web/SPA (bukan token)",
+          "handling": "Keluarkan guard web + invalidate sesi; tidak ada token yang dihapus"
+        },
+        {
+          "condition": "Perangkat offline / server tidak terjangkau saat logout",
+          "handling": "Client menelan galat dan tetap membersihkan sesi lokal; token server tetap berlaku (batas yang diketahui)"
+        },
+        {
+          "condition": "Logout diketuk dua kali saat yang pertama masih berjalan",
+          "handling": "Client mengembalikan promise logout yang sama (pendingLogout) — tepat satu POST /api/logout"
+        }
+      ],
+      "business_rules_applied": [
+        "Logout mencabut token perangkat ini saja; perangkat lain tidak ikut keluar",
+        "Logout selalu membersihkan sesi lokal walau server tidak terjangkau"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "revokes the current token so replaying it afterwards is 401",
+          "given": "token mobile terbit lewat POST /api/login dan valid untuk GET /api/grading-parameters",
+          "expect": "POST /api/logout dengan token itu → 200 {message: 'Logout berhasil.'}; PersonalAccessToken::findToken(token) null; token yang diputar ulang → 401"
+        },
+        {
+          "description": "leaves the same user's other device tokens untouched",
+          "given": "dua token (HP A, HP B) milik user yang sama",
+          "expect": "logout dengan token A → token A terhapus, token B tetap ada dan GET bersesi dengan token B 200"
+        },
+        {
+          "description": "returns 401 JSON for an unauthenticated logout",
+          "given": "POST /api/logout tanpa token/sesi",
+          "expect": "401 dengan struktur JSON {message}"
+        },
+        {
+          "description": "returns 401 for an already-revoked token (double logout)",
+          "given": "token yang sudah dipakai logout sekali",
+          "expect": "POST /api/logout kedua dengan token itu → 401"
+        },
+        {
+          "description": "logs out the web session when the request is session-authenticated",
+          "given": "request bersesi guard web (actingAs web)",
+          "expect": "200; guard web menjadi guest; tidak ada baris personal_access_tokens"
+        },
+        {
+          "description": "authStore.logout(): loggingOut true selama POST; ketukan kedua tidak mengirim POST kedua",
+          "given": "authStore ber-token, POST /api/logout ditahan, logout() dipanggil dua kali",
+          "expect": "loggingOut true selama menunggu; apiClient.post('/api/logout') dipanggil tepat sekali; setelah selesai token/user null dan loggingOut false"
+        },
+        {
+          "description": "authStore.logout(): loggingOut kembali false walau POST gagal (offline)",
+          "given": "POST /api/logout menolak (galat jaringan)",
+          "expect": "tidak melempar; sesi lokal dibersihkan; loggingOut false"
+        }
+      ]
     }
   ],
   "shared_entities": [],
@@ -179,7 +291,8 @@
     "Deteksi 'tidak ada koneksi saat login pertama kali' dilakukan client-side (device belum pernah punya token tersimpan) — submit diblokir sebelum memanggil API",
     "Lupa Password membutuhkan koneksi internet, di luar scope tech spec ini (belum ada usecase terpisah)",
     "Master Quality Parameter Grading diambil saat login (best-effort) agar Form Grading di perangkat baru tidak memakai id parameter buatan lokal (default-grading-parameter-N) yang ditolak server",
-    "REVISI (2026-10-05, audit-fix #3 — kode adalah acuan): penanganan 401 terpusat di mobile/src/services/apiClient.ts (response interceptor → handleUnauthorized). Setiap 401 dari request BERSESI memanggil authStore.expireSession() (stores/auth.ts: user/token/businessUnit = null, initialized = true, sessionRevoked = true, tokenStorage.clear(); TANPA POST /api/logout dan TANPA menyentuh SQLite lokal) lalu handler navigasi yang didaftarkan main.ts lewat setUnauthorizedHandler() — router.replace ke 'login' dengan query redirect = fullPath asal (tidak berbuat apa-apa bila sudah di Login). LoginForm.vue menampilkan banner data-testid='session-revoked-banner' (role=status) berisi SESSION_REVOKED_MESSAGE dari services/errorHandler.ts: 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.' selama sessionRevoked && status !== 'error'; login berhasil menghapus sessionRevoked. Dikecualikan: URL /api/login (401 = kredensial salah) dan /api/logout, kegagalan tanpa respons (offline/jaringan), status selain 401, dan request yang header Authorization-nya bukan token sesi SAAT INI (request basi dari sesi sebelumnya, atau 401 susulan dalam batch yang sama setelah sesi dibersihkan) — sehingga handler hanya berjalan sekali per sesi yang ditolak. Promise tetap ditolak dengan NormalizedApiError status 401 agar pemanggil (mis. syncService per record) tetap memproses galatnya."
+    "REVISI (2026-10-05, audit-fix #3 — kode adalah acuan): penanganan 401 terpusat di mobile/src/services/apiClient.ts (response interceptor → handleUnauthorized). Setiap 401 dari request BERSESI memanggil authStore.expireSession() (stores/auth.ts: user/token/businessUnit = null, initialized = true, sessionRevoked = true, tokenStorage.clear(); TANPA POST /api/logout dan TANPA menyentuh SQLite lokal) lalu handler navigasi yang didaftarkan main.ts lewat setUnauthorizedHandler() — router.replace ke 'login' dengan query redirect = fullPath asal (tidak berbuat apa-apa bila sudah di Login). LoginForm.vue menampilkan banner data-testid='session-revoked-banner' (role=status) berisi SESSION_REVOKED_MESSAGE dari services/errorHandler.ts: 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.' selama sessionRevoked && status !== 'error'; login berhasil menghapus sessionRevoked. Dikecualikan: URL /api/login (401 = kredensial salah) dan /api/logout, kegagalan tanpa respons (offline/jaringan), status selain 401, dan request yang header Authorization-nya bukan token sesi SAAT INI (request basi dari sesi sebelumnya, atau 401 susulan dalam batch yang sama setelah sesi dibersihkan) — sehingga handler hanya berjalan sekali per sesi yang ditolak. Promise tetap ditolak dengan NormalizedApiError status 401 agar pemanggil (mis. syncService per record) tetap memproses galatnya.",
+    "REVISI (2026-10-05, audit keamanan commit ee5294c + loading state d5da9cf — kode adalah acuan): POST /api/logout ditambahkan (sebelumnya route TIDAK ADA: authStore.logout() menerima 404 yang ditelan best-effort sehingga token Sanctum perangkat tidak pernah dicabut). AuthController::logout() + routes/api.php `Route::middleware('auth:sanctum')->post('/logout', ...)` (di luar blok ASDLC_ROUTES). Client: stores/auth.ts state loggingOut + pendingLogout (logout ganda memakai promise yang sama), App.vue merender LoadingOverlay label 'Keluar…' selama authStore.loggingOut. LoginForm.vue: onSubmit() kembali bila isSubmitting (submit ganda → tepat satu POST /api/login), tombol memakai BusyLabel ('Memproses…', aria-busy)."
   ],
   "test_scenarios": [
     {
@@ -393,6 +506,73 @@
         "route": "/stations",
         "action": "login sebagai Operator, simpan record lokal (push dibatalkan), nonaktifkan akun, tekan Sinkronisasi; lalu aktifkan akun dan login ulang; terpisah: login dengan password salah",
         "assert": "POST sinkron 401 → pindah ke /login dengan banner pesan sesi berakhir, token lokal terhapus, record lokal tetap 'saved'; rute terlindungi kembali ke Login; setelah login ulang kembali ke /stations dan record dapat disinkronkan (201 → synced); password salah tidak memunculkan banner"
+      }
+    },
+    {
+      "scenario_ref": "Login Mobile — Logout mencabut token perangkat",
+      "usecase_id": "usecase-002--login-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/logout"
+          },
+          "request_example": {
+            "_note": "Authorization: Bearer <token HP A>; token HP B milik user yang sama juga aktif"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-parameters"
+          },
+          "request_example": {
+            "_note": "token HP A diputar ulang"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/logout"
+          },
+          "request_example": {
+            "_note": "tanpa token"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "auth store (stores/auth.ts)",
+        "action": "panggil logout() dua kali selagi POST /api/logout ditahan",
+        "assert": "loggingOut true selama menunggu, tepat satu POST /api/logout, setelah selesai token/user/businessUnit null dan loggingOut false"
+      },
+      "browser_test": {
+        "route": "/home",
+        "action": "login Operator lewat LoginForm, pakai token untuk GET bersesi (200), buka menu hamburger lalu nav-menu-logout; putar ulang token lama dari luar aplikasi",
+        "assert": "POST /api/logout 200, pindah ke /login, localStorage msl_auth_token null, token lama yang diputar ulang 401; tanpa pageerror, console.error, atau respons HTTP >= 400"
+      }
+    },
+    {
+      "scenario_ref": "Login Mobile — Logout saat offline",
+      "usecase_id": "usecase-002--login-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "auth store (stores/auth.ts)",
+        "action": "panggil logout() saat POST /api/logout menolak dengan galat jaringan",
+        "assert": "logout() tidak melempar, sesi lokal dibersihkan (tokenStorage.clear), loggingOut kembali false"
+      },
+      "browser_test": {
+        "route": "/home",
+        "action": "tidak ada uji browser khusus — jalur offline dibuktikan di unit (auth.store.spec.ts)",
+        "assert": "tidak ada"
       }
     }
   ]

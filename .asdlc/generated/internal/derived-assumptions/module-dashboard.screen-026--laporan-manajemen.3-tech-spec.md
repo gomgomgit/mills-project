@@ -20,3 +20,8 @@ Sumber: audit-fix 2026-10-04, code is truth (ManagementReportService.php, Manage
 - test_scenarios[0..4].api_test request_example += production_line_id placeholder ⚠ (placeholder "<uuid line mill acting user>" adalah inferensi, nilai konkret tergantung fixture)
 - test_scenarios[0].component_test.action = pilih line dulu; test_scenarios[3].component_test.assert = hanya pesan galat, tanpa tabel/Total/ekspor ← render()
 - test_scenarios += skenario "Production Line Belum/Salah Dipilih" (API 422 VALIDATION_ERROR, hint di layar) ← Livewire/Api ManagementReportTest baru
+
+## v3 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (management-report.blade.php, SignalDownloadReady.php).
+- implementation_notes[+] ← x-filter.bar tanpa reset, Mill statis, ekspor tautan sibuk, .ld-region

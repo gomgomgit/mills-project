@@ -20,3 +20,10 @@ Sumber: audit-fix 2026-10-04, code is truth (AuthService.php, mobile/src/stores/
 Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/src/services/apiClient.ts, mobile/src/stores/auth.ts, mobile/src/components/LoginForm.vue).
 - business_rules[4] ← diperluas: 401 ditangani terpusat, sesi dibersihkan, data lokal tetap, pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'.
 - edge_cases[4] ← diperbarui: kembali ke Login dengan pesan; pengecualian /api/login, offline, request basi.
+
+## v4 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit ee5294c, d5da9cf), code is truth (backend AuthController::logout, routes/api.php, mobile/src/stores/auth.ts, App.vue).
+- business_rules ← aturan logout: cabut token perangkat ini saja, lapisan Keluar…, tanpa logout kedua.
+- edge_cases ← logout offline (token server tetap berlaku, login ulang tidak mencabut token lama) dan ketukan Logout ganda.
+- ⚠ Logout ditaruh di spec Login Mobile (screen-002) karena layar ini pemilik usecase auth mobile; menu Logout sendiri ada di layar 005/006/141 dkk.

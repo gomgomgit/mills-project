@@ -33,3 +33,8 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (mobile/s
 
 Sumber: perbaikan lanjutan audit 2026-10-05 (belum di-commit), code is truth (syncService.ts).
 - edge_cases[3] += sinkronisasi berhenti pada penolakan sesi pertama; tidak ada record yang ditandai 'Gagal sinkron' karena penolakan sesi ← perilaku kode baru.
+
+## v11 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf), code is truth (mobile/src/views/StationListView.vue, tests/StationListView.spec.ts).
+- edge_cases ← Sinkronisasi diketuk ganda → satu putaran, tombol Menyinkronkan… terkunci.

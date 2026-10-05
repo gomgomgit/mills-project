@@ -68,3 +68,8 @@ Sumber: perbaikan lanjutan audit 2026-10-05 (belum di-commit), code is truth (mo
 - edge_case_handling (+1) 401 di tengah batch / write-through; unit_test_cases (+2); implementation_notes[12] dikoreksi + (1) REVISI baru; test_scenarios[2] action/assert (3 record, tepat 1 POST, tanpa 'Gagal sinkron').
 - ⚠ Item ber-401 tetap masuk SyncSummary.items (ok:false, status 401) dan failedCount — keputusan agen; dialog hasil tidak dibuka bila sessionExpired (keputusan agen, konservatif: navigasi ke Login sudah berjalan).
 - ⚠ Write-through: 401 tidak dilaporkan sebagai rejection (dialog 'Tersimpan, tetapi ditolak server' tidak muncul) — disimpulkan agen dari 'sesi, bukan record yang ditolak'.
+
+## v14 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf, ee5294c), code is truth (StationListView.vue, utils/floatingSafeArea.ts, App.vue, AiAssistantBubble.vue, FloatingClock.vue).
+- implementation_notes ← penjaga onSync, LoadingState grid, dok mengambang 76/62/0 px (floatingSafeArea.ts milik layar ini).

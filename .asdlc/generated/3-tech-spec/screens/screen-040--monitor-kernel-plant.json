@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-24"
@@ -31,7 +31,7 @@
         "2. Load list of local kernel_plant_record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC → each item labeled uniformly 'Pause'",
         "3. Render 2 card counter sebaris (Jumlah Kernel Plant Record, Jumlah Baris Time-Slot Tercatat) di atas list draft/pause",
         "4. Render breadcrumb (Home > Production Process Activity > Kernel Plant, tappable) dan header dengan 'Mill Smart Log' + hamburger",
-        "5. On 'New Data' → INSERT new local kernel_plant_record dengan status=draft_ongoing, created_by=current user, date=waktu saat ini SAJA — REVISI 2026-08-24 (menggantikan desain awal yang ditolak user): TIDAK LAGI sekaligus INSERT 24 kernel_plant_detail rows kosong; grid Kernel Plant Detail dimulai kosong, baris ditambahkan satu per satu oleh user di Form Kernel Plant via 'Tambah baris'; navigasi ke Form Kernel Plant dengan id draft baru",
+        "5. On 'New Data' → INSERT new local kernel_plant_record dengan status=draft_ongoing, created_by=current user, date=waktu saat ini SAJA — REVISI 2026-08-24 (menggantikan desain awal yang ditolak user): TIDAK LAGI sekaligus INSERT 24 kernel_plant_detail rows kosong; grid Kernel Plant Detail dimulai kosong, baris ditambahkan satu per satu oleh user di Form Kernel Plant via 'Tambah baris'; navigasi ke Form Kernel Plant dengan id draft baru — dibungkus useBusyAction: ketukan kedua selama createDraft() + await router.push() masih berjalan diabaikan (tepat satu INSERT); tombol :disabled + aria-busy + BusyLabel 'Membuat…' (audit loading 2026-10-05)",
         "6. On tap item list → navigasi ke Form Kernel Plant dengan id draft tersebut (tanpa transisi status)",
         "7. On 'Load Data' → navigasi ke Data Preview Kernel Plant mode list (tanpa id param)",
         "8. On tap breadcrumb segment → navigasi ke route terkait",
@@ -159,7 +159,8 @@
     "24 time slot kanonis (canonicalTimeSlots(), dihitung sebagai deret jam mulai 7: for i in 0..23 -> hour = (7 + i) % 24, format 'HH:00') DIPERTAHANKAN — tidak lagi dipakai untuk pre-generate baris saat New Data, tetap dipakai Form Kernel Plant untuk urutan opsi dropdown Time-Slot",
     "'Jumlah Baris Time-Slot Tercatat' sekarang plain COUNT(*) kernel_plant_detail rows milik record-record hari ini (satu query SQL COUNT, bukan lagi query-semua-lalu-filter-di-JS) — lebih sederhana dari sebelumnya karena tidak perlu lagi menginspeksi 9 kolom bacaan per baris untuk counter Monitor ini (validasi 'minimal satu kolom bacaan terisi ATAU downtime_minutes ATAU findings' tetap ada, tapi sekarang murni tanggung jawab Form Kernel Plant's required-row gate saat Simpan, bukan counter Monitor ini)",
     "Breadcrumb & hamburger mengikuti pola yang sama dengan Monitor Weighbridge/Grading/Cages Track/Threshing/Pressing/Depricarping",
-    "Router: route name 'monitor-kernel-plant' — StationListView.vue (screen-006, di luar scope task ini) BELUM diperbarui untuk link ke sini; dicatat sebagai known_issue, sama seperti Threshing/Pressing/Depricarping"
+    "Router: route name 'monitor-kernel-plant' — StationListView.vue (screen-006, di luar scope task ini) BELUM diperbarui untuk link ke sini; dicatat sebagai known_issue, sama seperti Threshing/Pressing/Depricarping",
+    "Audit loading 2026-10-05 (d5da9cf): onNewData() dibungkus useBusyAction (composables/useBusyAction) — dulu ketukan ganda membuat DUA draft kosong; router.push di-await di dalam aksi agar tombol tetap sibuk sampai layar berganti. Daftar draft memakai LoadingState variant list (testid draft-list-loading) menggantikan teks <p> 'Memuat daftar draft … lokal…'."
   ],
   "test_scenarios": [
     {
@@ -235,6 +236,21 @@
         "route": "/stations/kernel-plant/monitor",
         "action": "ensure no kernel_plant_record rows dated today exist for the logged-in user, navigate to Monitor Kernel Plant",
         "assert": "the 2 counter cards show 0"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Kernel Plant — Ketuk ganda New Data",
+      "usecase_id": "usecase-040--monitor-kernel-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorKernelPlantView",
+        "action": "tap new-data-button twice in a row while createDraft() is still pending",
+        "assert": "createDraft called exactly once; button disabled with aria-busy=true and label 'Membuat…' until navigation to the Form resolves; exactly one router push"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-plant/monitor",
+        "action": "tap New Data twice rapidly",
+        "assert": "exactly one new local draft is created and the Form opens once; no pageerror/console.error"
       }
     }
   ]

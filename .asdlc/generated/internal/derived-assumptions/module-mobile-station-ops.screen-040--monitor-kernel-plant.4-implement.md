@@ -16,3 +16,8 @@ Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 
 Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - known_issue (major) "StationListView belum menautkan Kernel Plant" dihapus karena basi: mobile/src/views/StationListView.vue:141-144 memetakan stasiun ini ke monitor-kernel-plant, dan station-list.spec.ts bernavigasi lewat grid.
+
+## v5 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/Monitor*View.vue, mobile/src/composables/useBusyAction.ts).
+- implementation_notes (append) ← perubahan kode New Data busy + LoadingState

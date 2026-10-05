@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-05"
@@ -357,7 +357,8 @@
     "ManagementReportService baru (bukan reuse DashboardService) agar per-entity aggregation query tidak perlu diubah jadi date-range-only vs per-day -- pola sama seperti WeighbridgeRecordService/GradingRecordService/CagesTrackRecordService yang masing-masing punya service sendiri",
     "Export memakai App\\Support\\SheetWriter: format=csv → CSV, format=excel → file .xlsx sungguhan (bukan lagi CSV berekstensi xlsx; revisi audit 2026-10-04)",
     "route /reports/management dipilih agar tidak bentrok dengan /dashboard (screen-025) dan konsisten dengan namespace 'reports' untuk kemungkinan laporan lain di masa depan",
-    "REVISI audit 2026-10-04: production line wajib dipilih (pemilih di layar, #[Url] production_line_id; API resolveProductionLine 422), scope per production_line_id milik record, Weighbridge dipisah receive/dispatch di layar/JSON/ekspor, judul kolom & format angka/tanggal Indonesia (App\\Support\\Display) di layar."
+    "REVISI audit 2026-10-04: production line wajib dipilih (pemilih di layar, #[Url] production_line_id; API resolveProductionLine 422), scope per production_line_id milik record, Weighbridge dipisah receive/dispatch di layar/JSON/ekspor, judul kolom & format angka/tanggal Indonesia (App\\Support\\Display) di layar.",
+    "Filter bar bersama (2026-10-05, 658cedc): report-filterbar lokal diganti x-filter.bar label='Filter laporan' TANPA total/active/reset (tidak ada Reset filter: tanggal punya bawaan sendiri dan line wajib). Field: Mill statis (auth()->user()->businessUnit->name ?? 'Belum terikat mill', data-testid mill-current), Production Line required (select #production_line_id, data-testid production-line-select, opsi awal 'Pilih Production Line'), Tanggal x-filter.date-range (#date_from/#date_to). Ekspor di slot actions sebagai tautan fb-btn (report-export-csv/excel) — c321f32: data-export-link + <x-busy-label busy='Mengekspor…'>, JS loading-assets menambah ?_dl=<token> dan menunggu cookie ms_download (middleware SignalDownloadReady pada route ekspor) maks. 60 dtk. Area hasil div.ld-region diredupkan dengan wire:target=productionLineId,date_from,date_to."
   ],
   "test_scenarios": [
     {

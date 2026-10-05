@@ -34,3 +34,8 @@ Sumber: audit-fix 2026-10-04, code is truth (git status/diff mobile + backend).
 - fe_files_generated += SyncFailureHint.vue, recordVerificationApi.ts, apiClient.ts, utils/localDate.ts.
 - fe_test_files_generated += SyncFailureHint.spec.ts, syncService.sqljs.spec.ts, recordVerification.spec.ts, e2e/sync-and-verification.spec.ts. ⚠ e2e ini tidak menyentuh layar Cages Track secara langsung — dicantumkan karena menguji perilaku bersama (hint/pull).
 - implementation_notes += REVISI 2026-10-04 (termasuk koreksi sumber `date`: cagesTrackRecordRepo.createDraft() → nowLocalDateTimeString()).
+
+## v8 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit e4f231e, d5da9cf), code is truth (mobile/src/components/filters/*, mobile/src/components/loading/*, mobile/src/views/DataPreview*View.vue, mobile/src/components/RecordVerificationActions.vue).
+- implementation_notes (append) ← perubahan kode filter & loading + daftar uji

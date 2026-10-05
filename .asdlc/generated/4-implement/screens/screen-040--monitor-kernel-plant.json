@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -31,7 +31,8 @@
     "Router: route name 'monitor-kernel-plant' registered in router/index.ts, but StationListView.vue (screen-006, out of this 6-screen task's scope) has NOT been updated to link to it -- see known_issues, same known issue already documented for Threshing/Pressing/Depricarping",
     "Kernel Plant is genuinely unique among the 4 new stations: it combines Depricarping's split downtime_minutes(integer)+findings(text) reading-column shape with Threshing's/Pressing's 3-column Operational Target reference table shape -- this combination required cross-referencing both sibling fixes rather than mirroring a single one wholesale; the 3-column target table itself was left completely untouched by this row-mechanics revision, per the task's explicit instruction.",
     "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-kernel-plant.spec.ts 8/8 lulus — kini dijalankan ulang secara nyata (known_issue 'tidak dapat dijalankan ulang di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp.",
-    "REVISI (2026-10-03): known_issue 'StationListView belum menautkan Kernel Plant' dihapus karena basi — mobile/src/views/StationListView.vue:141-144 memetakan kernel-plant → monitor-kernel-plant, dan station-list.spec.ts bernavigasi lewat grid."
+    "REVISI (2026-10-03): known_issue 'StationListView belum menautkan Kernel Plant' dihapus karena basi — mobile/src/views/StationListView.vue:141-144 memetakan kernel-plant → monitor-kernel-plant, dan station-list.spec.ts bernavigasi lewat grid.",
+    "Round 3 2026-10-05 (d5da9cf): MonitorKernelPlantView.vue — useBusyAction membungkus onNewData() (createDraft + await router.push), tombol New Data :disabled/:aria-busy + BusyLabel 'Membuat…', CSS .action-button:disabled dan [aria-busy='true']; <p> status memuat diganti LoadingState variant list (draft-list-loading). Bug diperbaiki: ketukan ganda New Data membuat 2 draft. Uji: loadingStates.screens.spec.ts (bersama, 18 Monitor: LoadingState + ketukan ganda tepat satu draft); e2e/loading-states.spec.ts memakai Monitor Boiler Room sebagai sampel."
   ],
   "deferred_items": [],
   "known_issues": [],

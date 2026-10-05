@@ -53,3 +53,8 @@ Sumber: audit-fix 2026-10-04, code is truth (BoilerRoomReportService.php, Report
 - api_contracts[0].unit_test_cases (+5) = ReportPeriodDays, coverage 100% periode berjalan, '—', ekspor berlabel, xlsx ← ReportAuditFix20261004Test, ExportXlsxTest (⚠ isRunning(future)=true diturunkan dari kode, tidak diasersi tes)
 - test_scenarios[11].api_test[0..2] = 200 (Operator diterima API); browser_test.assert = halaman 403 ← routes/api.php, LaporanBoilerRoomTest docblock, WebAccessTest (⚠ isi halaman 403 untuk rute ini disimpulkan dari middleware role + errors/403, tidak dicek tes khusus layar ini)
 - implementation_notes (+1) = REVISI audit-fix
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit db73fbd, c321f32), code is truth (components/report-filter-bar.blade.php, laporan-*.blade.php, e2e-web/tests/laporan-*.spec.ts).
+- implementation_notes[+] ← report-filter-bar (props/testid diteruskan), format opsi periode, badge status, ekspor busy, .ld-region

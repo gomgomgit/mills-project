@@ -37,3 +37,11 @@ Sumber: audit-fix 2026-10-04, code is truth (backend/app/Livewire/MasterData/Kel
 - business_rules[0], [4] = kode unik case-insensitive ← UniqueCaseInsensitive.
 - business_rules (+3) = gambar sungguhan; pesan sukses & feedback dibersihkan; nilai turunan sebagai teks ← RealImage, clearFeedback(), .kc-form-field__static.
 - edge_cases[1], [2], [6] + (3 baru) = beda huruf; gambar palsu; error baris child; wadah tanpa grup saat cari; nama station kembar dibedakan label ← kode/tes.
+
+## v6 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc), code is truth (backend/resources/views/livewire/master-data/kelola-machinery.blade.php, app/Livewire/MasterData/KelolaMachinery.php, tests/Feature/Livewire/FilterBarTest.php).
+- information_displayed[0] ← mode/Cari/filter kini satu bar filter bersama (segmen 'Tampilan').
+- information_displayed[5] ← penghitung mesin tanpa grup kini catatan di ringkasan bar, mode Grup saja dan bila > 0.
+- information_displayed[15] ← ringkasan bar: 'N grup'/'N mesin', badge filter aktif (hanya filter yang tampil di mode itu), Reset filter.
+- edge_cases[16] ← Reset filter mengosongkan pencarian+filter+grup terbuka, ke halaman 1, mode tampilan dipertahankan (afterFilterReset).

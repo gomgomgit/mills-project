@@ -1,5 +1,5 @@
 {
-  "ver": 65,
+  "ver": 66,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-05"
@@ -2142,6 +2142,18 @@
       "description": "Detail satu record milik user yang login (Operator/Supervisor) — payload getDetail() stasiunnya; bukan milik / mill lain / tak ada / id rusak = 404 NOT_FOUND",
       "screen_id": "screen-145--data-saya-web",
       "usecase_id": "usecase-148--lihat-data-saya",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/logout",
+      "description": "Logout mobile — mencabut HANYA Sanctum token yang dipakai request ini (token perangkat lain milik user tetap berlaku); request bersesi (web/SPA stateful) mengeluarkan sesi web-nya. 200 { message: 'Logout berhasil.' }; 401 tanpa autentikasi. Dipanggil authStore.logout() (2026-10-05, ee5294c)",
+      "screen_id": "screen-002--login-mobile",
+      "usecase_id": "usecase-002--login-mobile",
       "auth_required": true,
       "actor_ids": [
         "actor-station-operator",

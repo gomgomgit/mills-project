@@ -105,3 +105,9 @@ Sumber: audit-fix 2026-10-04, code is truth (PeriodService.php, PeriodHasRecords
 - api_contracts[0].data_operations[3] = + SELECT EXISTS record ← kode.
 - api_contracts[0].edge_case_handling (+1), unit_test_cases[47] + (3) = periode berisi record ditolak ← AuditFix20261004Test [period-delete] ⚠ ditulis sebagai kasus unit walau tesnya Feature.
 - implementation_notes (+) = REVISI audit-fix.
+
+## v10 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit 658cedc, c321f32), code is truth (app/Livewire/MasterData/KelolaPeriodePelaporan.php, backend/resources/views/livewire/master-data/kelola-periode-pelaporan.blade.php).
+- implementation_notes[25] ← posisi panel kini sesudah <x-filter.bar> (dulu <div class="kc-filter">).
+- implementation_notes[27] ← HasFilterReset (filterBusinessUnitId, filterStatus), panel ikut filter BU saat Reset (render() memakai filterBusinessUnitId), ld-region & busy-label.

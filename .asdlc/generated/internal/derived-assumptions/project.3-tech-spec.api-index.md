@@ -19,3 +19,9 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (Api/Stat
 - endpoints[28] GET /api/stations: + filter production_line_id (bukan UUID diabaikan).
 - endpoints[32] DELETE /api/stations/:id: + guard record stasiun 18 tabel → 409.
 - endpoints[59] PATCH /api/users/:id: password opsional = Reset Password (PasswordPolicy, cabut token+sesi).
+
+## v66 — 2026-10-05
+
+Sumber: artifact-sync round 3 2026-10-05 (commit ee5294c), code is truth (routes/api.php, AuthController::logout, LogoutMobileTest).
+- endpoints += POST /api/logout (auth_required, actor operator/supervisor).
+- ⚠ screen_id/usecase_id = screen-002--login-mobile / usecase-002--login-mobile — tidak ada layar Logout tersendiri; layar Login mobile dipilih sebagai pemilik (menu Logout ada di banyak layar mobile; entry_points screen-002 sudah 'Redirect setelah logout').

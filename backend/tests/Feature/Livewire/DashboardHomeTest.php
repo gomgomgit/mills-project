@@ -117,11 +117,11 @@ it('shows available milling hours per line, computed from that line own hours', 
     expect($start)->not->toBeFalse();
     $block = substr($html, $start, strpos($html, 'Kualitas', $start) - $start);
 
-    // Total downtime = CDT + SDT + EDT. Line 1: 8.50 + 1.50 + 3.00 = 13.00 ; Line 2: 13.50.
-    // Available Milling Hours sengaja TIDAK ada di label — ia sudah jadi segmen
-    // hijau pada batang tepat di bawahnya.
-    expect($block)->toContain('Total downtime 13.00 jam');
-    expect($block)->toContain('Total downtime 13.50 jam');
+    // Total downtime = CDT + SDT + EDT. Line 1: 7.00 + 1.50 + 3.00 = 11.50 ; Line 2: 12.00.
+    // Milling dan Available sengaja TIDAK ada di label — keduanya sudah jadi segmen
+    // hijau dan abu-abu pada batang tepat di bawahnya.
+    expect($block)->toContain('Total downtime 11.50 jam');
+    expect($block)->toContain('Total downtime 12.00 jam');
 
     // Singkatan MDH dan AMH tidak dipakai sama sekali: keduanya tidak lazim di
     // mill, tidak seperti CDT/SDT/EDT yang memang istilah baku.
@@ -135,7 +135,7 @@ it('shows available milling hours per line, computed from that line own hours', 
  * closure yang berbeda: kalau salah satunya diubah tanpa yang lain, jumlahnya
  * berhenti 24 dan tidak ada lagi yang menangkapnya.
  */
-it('keeps available milling hours and total downtime summing to 24', function () {
+it('keeps milling, idle and total downtime summing to 24', function () {
     $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
 
     // 'Milling Hours per Line' sejak commit 8d97485 (2026-10-02); teks lamanya
@@ -151,13 +151,21 @@ it('keeps available milling hours and total downtime summing to 24', function ()
     preg_match_all('/Total downtime ([\d.]+) jam/', $block, $mdh);
     // Dicocokkan lewat title-nya, bukan posisi: Livewire menyisipkan penanda
     // <!--[if BLOCK]--> di antara .md-stack dan span pertamanya.
-    preg_match_all('/title="Available Milling Hours: [\d.]+ jam">([\d.]+)</', $block, $amh);
+    preg_match_all('/title="Milling: [\d.]+ jam">([\d.]+)</', $block, $milling);
+    preg_match_all('/title="Available: [\d.]+ jam">([\d.]+)</', $block, $idle);
 
     expect($mdh[1])->toHaveCount(2);
-    expect($amh[1])->toHaveCount(2);
+    expect($milling[1])->toBe(['11.0', '10.5']);
+    expect($idle[1])->toBe(['1.5', '1.5']);
     foreach ($mdh[1] as $i => $v) {
-        expect((float) $v + (float) $amh[1][$i])->toBe(24.0);
+        expect((float) $v + (float) $milling[1][$i] + (float) $idle[1][$i])->toBe(24.0);
     }
+
+    // Hijau = Milling, abu-abu = Available (keputusan user 2026-10-05); segmen hijau
+    // tidak lagi berlabel Available Milling Hours.
+    expect($block)->not->toContain('title="Available Milling Hours:');
+    expect($block)->toContain('<span>Milling</span>');
+    expect($block)->toContain('<span>Available</span>');
 });
 
 /*
@@ -204,9 +212,13 @@ it('derives the hours table so downtime and milling hours close back to Availabl
     $mdh = $row('Total Downtime');
     $amh = $row('Available Milling Hours');
 
+    // 'Milling Hours' juga substring 'Available Milling Hours' — jangkar di <td>.
+    $milling = $row('>Milling Hours<');
+
     expect($available)->toHaveCount(3);
     foreach ($available as $i => $total) {
         expect($mdh[$i] + $amh[$i])->toBe($total);
+        expect($milling[$i])->toBeLessThanOrEqual($amh[$i]);
     }
 });
 
@@ -228,7 +240,7 @@ it('prints a figure on every hour segment wide enough to hold one', function () 
 
     preg_match_all('/<span style="width: ([\d.]+)%[^>]*>([^<]*)<\/span>/', $block, $m);
 
-    expect($m[1])->toHaveCount(8);           // 4 segmen x 2 line
+    expect($m[1])->toHaveCount(10);          // 5 segmen (Milling, Available, CDT, SDT, EDT) x 2 line
     foreach ($m[1] as $i => $width) {
         // 1 jam dari 24 = 4.1667%; apa pun di atas itu wajib membawa angka.
         if ((float) $width >= 4.1667) {
@@ -236,13 +248,13 @@ it('prints a figure on every hour segment wide enough to hold one', function () 
         }
     }
 
-    // SDT 1.50 jam pada kedua line — inilah yang dulu hilang.
-    expect(array_count_values($m[2])['1.5'] ?? 0)->toBe(2);
+    // SDT 1.50 jam pada kedua line — inilah yang dulu hilang — plus Available 1.50 jam.
+    expect(array_count_values($m[2])['1.5'] ?? 0)->toBe(4);
 });
 
 /*
  * Lebar batang memakai Available milik line itu, bukan angka 24 yang ditulis
- * langsung di template. Keempat segmen harus menutup 100% persis.
+ * langsung di template. Kelima segmen harus menutup 100% persis.
  */
 it('sizes each bar against that line own available hours', function () {
     $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
@@ -257,7 +269,7 @@ it('sizes each bar against that line own available hours', function () {
 
     preg_match_all('/<span style="width: ([\d.]+)%/', $block, $m);
 
-    foreach (array_chunk($m[1], 4) as $line) {
+    foreach (array_chunk($m[1], 5) as $line) {
         expect(round(array_sum(array_map('floatval', $line)), 4))->toBe(100.0);
     }
 });
@@ -288,7 +300,7 @@ it('puts a unit on every FFB stock figure', function () {
  *   - Cages Tipped   → cacahan tanpa satuan
  *   - ambang mutu    → "FFA 3.42% ≤ 5.00", ambangnya kehilangan %
  *   - selisih OER    → "-0.70", satuannya poin persentase
- *   - meta Jam Olah  → "Line 1 11.00 · Line 2 10.50"
+ *   - meta Milling Hours  → "Line 1 11.00 · Line 2 10.50"
  */
 it('carries a unit on every figure in the card blocks', function () {
     $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
@@ -304,7 +316,7 @@ it('carries a unit on every figure in the card blocks', function () {
         '≤ 0.20%',                              // ambang moisture
         '≤ 6.10%',                              // ambang admixture
         '-0.70 poin',                           // selisih OER: poin persentase
-        'Line 1 11.00 jam · Line 2 10.50 jam',  // meta kartu Jam Olah
+        'Line 1 11.00 jam · Line 2 10.50 jam',  // meta kartu Milling Hours
     ] as $needle) {
         expect($text)->toContain($needle);
     }
@@ -312,7 +324,7 @@ it('carries a unit on every figure in the card blocks', function () {
 
 /*
  * Setiap blok menyebut periodenya sendiri dengan kosakata yang sama seperti
- * tabel: Tdy / MTD / YTD (keputusan user 2026-09-30). Sebelumnya campur aduk —
+ * tabel: Today / MTD / YTD (keputusan user 2026-09-30). Sebelumnya campur aduk —
  * "Hari ini", "Posisi hari ini", "Today", dan enam kartu KPI tanpa penanda
  * apa pun, sehingga pembaca harus menebak angka mana yang hari ini.
  */
@@ -322,14 +334,14 @@ it('states the period on every card block', function () {
     $text = preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($cards)));
 
     // Enam kartu KPI, masing-masing membawa penanda periodenya.
-    expect(substr_count($cards, 'class="md-kpi__period">Tdy<'))->toBe(6);
+    expect(substr_count($cards, 'class="md-kpi__period">Today<'))->toBe(6);
 
     foreach ([
         'MTD · terhadap budget bulan berjalan',
-        'Tdy · posisi stok',
-        'Tdy · 24 jam tersedia',
-        'Tdy · terhadap batas mutu',
-        'Tdy · DCR vs teoritis',
+        'Today · posisi stok',
+        'Today · 24 jam tersedia',
+        'Today · terhadap batas mutu',
+        'Today · DCR vs teoritis',
     ] as $hint) {
         expect($text)->toContain($hint);
     }
@@ -338,6 +350,28 @@ it('states the period on every card block', function () {
     expect($text)->not->toContain('Hari ini');
     expect($text)->not->toContain('Posisi hari ini');
     expect($text)->not->toContain('Nilai hari ini');
+});
+
+/*
+ * Tren pada keenam kartu KPI semuanya membandingkan nilai Today dengan
+ * rata-rata harian MTD (keputusan user 2026-10-05). Sebelumnya campur aduk:
+ * FFB Diolah & Stok CPO "vs kemarin", CPO & Kernel "poin OER/KER vs MTD".
+ */
+it('compares every KPI trend against the MTD daily average', function () {
+    $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
+    preg_match_all('/md-kpi__foot--trend">(.*?)<\/p>/s', $html, $m);
+    $trends = array_map(fn ($t) => trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($t)))), $m[1]);
+
+    expect($trends)->toHaveCount(6);
+    foreach ($trends as $trend) {
+        expect($trend)->toContain('vs rata-rata harian MTD (');
+        expect($trend)->not->toContain('kemarin');
+        expect($trend)->not->toContain('poin');
+    }
+    expect($trends)->toContain('+0.1% vs rata-rata harian MTD (599.36 MT)');
+    expect($trends)->toContain('-0.4% vs rata-rata harian MTD (128.90 MT)');
+    expect($trends)->toContain('+0.3% vs rata-rata harian MTD (31.12 MT)');
+    expect($trends)->toContain('+0.9% vs rata-rata harian MTD (2,396.80 MT)');
 });
 
 /*

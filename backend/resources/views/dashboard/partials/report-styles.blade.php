@@ -54,7 +54,7 @@
         .md-kpi:hover { box-shadow: 0 8px 20px rgba(15,23,42,.08); transform: translateY(-1px); }
         .md-kpi__top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         .md-kpi__label { flex: 1; font-size: 13px; font-weight: 600; color: var(--md-muted); }
-        /* Penanda periode: setiap angka kartu menyebut sendiri ia Tdy / MTD / YTD. */
+        /* Penanda periode: setiap angka kartu menyebut sendiri ia Today / MTD / YTD. */
         .md-kpi__period { flex-shrink: 0; padding: 2px 6px; border-radius: 999px; background: #f1f5f9;
             font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--md-muted); }
         .md-kpi__icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--md-brand-soft); color: var(--md-brand); flex-shrink: 0; }

@@ -10,6 +10,7 @@ use App\Models\PeriodStation;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
+use App\Services\PeriodService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +23,17 @@ use Illuminate\Support\Str;
  *
  * CAKUPAN: hanya mill demo "Business Unit A", Line 1 (utama) dan Line 2
  * (sekitar 1/3 volume Line 1, supaya filter line terlihat mengubah angka).
- * Rentang tanggal 2026-09-01 .. 2026-10-03 — di dalam periode "sep 2026" dan
- * "fdsf" yang dibuat pengguna, tidak pernah melewati hari ini.
+ * Rentang tanggal 2026-09-01 .. 2026-10-03, tidak pernah melewati hari ini.
+ *
+ * PERIODE DEMO (2026-10-05): laporan hanya tampil bila ada Periode Pelaporan
+ * yang mencakup tanggal datanya. Seeder ini memastikan dua periode demo ada
+ * untuk Business Unit A — "September 2026" (1–30 Sep, seluruh stasiun
+ * CLOSED) dan "Oktober 2026" (1–31 Okt, seluruh stasiun DRAFT) — sehingga
+ * database baru (migrate:fresh --seed) langsung bisa dipakai melihat laporan.
+ * Periode dengan rentang yang SAMA PERSIS dipakai ulang (tidak dibuat ganda);
+ * bila rentangnya bertabrakan dengan periode lain milik mill itu (mis. periode
+ * buatan pengguna), periode demo itu DILEWATI dengan peringatan — aturan
+ * "periode tidak boleh tumpang-tindih per mill" tidak pernah dilanggar.
  *
  * IDEMPOTEN: setiap header yang dibuat seeder ini memakai awalan "DEMO-RPT-"
  * pada kolom ID/nomornya (sterilizer_id, cages_track_number, boiler_room_id,
@@ -40,9 +50,9 @@ use Illuminate\Support\Str;
  * kartu "kelengkapan pencatatan" di laporan menampilkan sesuatu yang nyata.
  *
  * Insert langsung lewat query builder (konteks seeder) — kunci periode dan
- * validasi HTTP sengaja dilewati. Baris period_stations yang belum ada untuk
- * periode September ditambahkan (status closed), baris yang sudah ada tidak
- * pernah diubah.
+ * validasi HTTP sengaja dilewati. Untuk periode September yang sudah ada,
+ * baris period_stations yang belum ada ditambahkan (status closed); baris
+ * yang sudah ada tidak pernah diubah.
  */
 class DemoReportDataSeeder extends Seeder
 {
@@ -139,6 +149,7 @@ class DemoReportDataSeeder extends Seeder
 
         DB::transaction(function () use ($businessUnit): void {
             $this->purgePreviousDemoRows();
+            $this->ensureDemoPeriods($businessUnit);
             $this->ensureSeptemberPeriodStations($businessUnit);
 
             foreach (self::LINES as $lineName => $profile) {
@@ -183,6 +194,71 @@ class DemoReportDataSeeder extends Seeder
         DB::table('boiler_room_records')->where('boiler_room_id', 'like', $like)->delete();
         DB::table('clarification_records')->where('clarification_id', 'like', $like)->delete();
         DB::table('storage_tank_records')->where('storage_tank_id', 'like', $like)->delete();
+    }
+
+    /**
+     * Periode demo yang dipastikan ada. Status berlaku untuk SEMUA baris
+     * period_stations yang dibuat (satu per jenis stasiun aktif di mill).
+     */
+    protected const DEMO_PERIODS = [
+        ['name' => 'September 2026', 'start' => '2026-09-01', 'end' => '2026-09-30', 'status' => PeriodStatus::Closed],
+        ['name' => 'Oktober 2026', 'start' => '2026-10-01', 'end' => '2026-10-31', 'status' => PeriodStatus::Draft],
+    ];
+
+    /**
+     * Buat periode demo yang belum ada. Tiga kemungkinan per periode:
+     *   - sudah ada periode dengan rentang sama persis → dipakai ulang, tidak disentuh;
+     *   - ada periode lain yang rentangnya bertabrakan, atau namanya sudah dipakai
+     *     → dilewati dengan peringatan (aturan overlap/nama unik per mill);
+     *   - selain itu → dibuat, beserta satu baris period_stations per jenis
+     *     stasiun aktif di mill (sumber yang sama dengan PeriodService::create()).
+     */
+    protected function ensureDemoPeriods(BusinessUnit $businessUnit): void
+    {
+        $stationTypes = app(PeriodService::class)->activeStationTypesForMill($businessUnit->id);
+
+        foreach (self::DEMO_PERIODS as $demo) {
+            $sameRange = Period::where('business_unit_id', $businessUnit->id)
+                ->whereDate('start_date', $demo['start'])
+                ->whereDate('end_date', $demo['end'])
+                ->exists();
+
+            if ($sameRange) {
+                continue;
+            }
+
+            $conflict = Period::where('business_unit_id', $businessUnit->id)
+                ->where(fn ($q) => $q
+                    ->where(fn ($r) => $r->whereDate('start_date', '<=', $demo['end'])->whereDate('end_date', '>=', $demo['start']))
+                    ->orWhere('name', $demo['name']))
+                ->first();
+
+            if ($conflict !== null) {
+                $this->command?->warn('DemoReportDataSeeder: periode demo "'.$demo['name'].'" dilewati — bertabrakan dengan periode "'.$conflict->name.'".');
+
+                continue;
+            }
+
+            $period = Period::create([
+                'business_unit_id' => $businessUnit->id,
+                'name' => $demo['name'],
+                'start_date' => $demo['start'],
+                'end_date' => $demo['end'],
+                'created_by' => $this->users['admin'],
+            ]);
+
+            $closed = $demo['status'] === PeriodStatus::Closed;
+
+            foreach ($stationTypes as $code) {
+                PeriodStation::create([
+                    'period_id' => $period->id,
+                    'station_type' => $code,
+                    'status' => $demo['status'],
+                    'closed_by' => $closed ? $this->users['admin'] : null,
+                    'closed_at' => $closed ? '2026-10-01 08:00:00' : null,
+                ]);
+            }
+        }
     }
 
     /**

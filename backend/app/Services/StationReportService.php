@@ -80,6 +80,13 @@ class StationReportService
         // the screen is simply unreachable from the UI.
         StationTypeEnum::CagesTrack->value => 'reports.cages-track',
         StationTypeEnum::Sterilizer->value => 'reports.sterilizer',
+        // screen-148--laporan-threshing-web. BETWEEN sterilizer and
+        // clarification, never appended: station_types.sort_order puts
+        // threshing at 50, behind sterilizer (40) and ahead of clarification
+        // (70), and the ordering of this map is load-bearing (see the note
+        // below). Without this one line the report exists, every one of its
+        // own tests passes, and the tile stays greyed out.
+        StationTypeEnum::Threshing->value => 'reports.threshing',
         // screen-132--laporan-clarification-web. BETWEEN sterilizer and
         // boiler-room, never appended: station_types.sort_order puts
         // clarification (70) behind cages-track (30) and sterilizer (40) but

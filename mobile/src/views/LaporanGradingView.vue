@@ -1269,14 +1269,19 @@ function onBack(): void {
             </div>
           </div>
 
-          <p v-if="completeness?.period_running" class="section-note" data-testid="completeness-running-note">
+          <!-- URUTANNYA PENTING: days_counted DIPERIKSA LEBIH DULU.
+               ReportPeriodDays::isRunning() di server juga true untuk
+               periode yang BELUM MULAI (tanggal akhirnya masih di masa
+               depan), jadi memeriksa period_running lebih dulu membuat
+               keterangan "belum mulai" tidak pernah terender. -->
+          <p v-if="!completeness?.days_counted" class="section-note" data-testid="completeness-not-started-note">
+            Periode belum mulai, sehingga belum ada hari yang dapat dijadikan pembagi — persennya
+            &ldquo;&mdash;&rdquo;, bukan 0%.
+          </p>
+          <p v-else-if="completeness?.period_running" class="section-note" data-testid="completeness-running-note">
             Dihitung sampai hari ini, periode masih berjalan
             ({{ formatCount(completeness?.days_counted) }} dari
             {{ formatCount(completeness?.days_in_period) }} hari periode sudah lewat).
-          </p>
-          <p v-else-if="!completeness?.days_counted" class="section-note" data-testid="completeness-not-started-note">
-            Periode belum mulai, sehingga belum ada hari yang dapat dijadikan pembagi — persennya
-            &ldquo;&mdash;&rdquo;, bukan 0%.
           </p>
 
           <p class="section-note" data-testid="loads-without-detail-note">

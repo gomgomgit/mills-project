@@ -1,0 +1,112 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-148--laporan-threshing-web",
+  "name": "Laporan Threshing (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/ThreshingReportService.php",
+    "backend/app/Http/Controllers/Api/ThreshingReportController.php",
+    "backend/app/Livewire/Dashboard/LaporanThreshing.php",
+    "backend/resources/views/livewire/dashboard/laporan-threshing.blade.php",
+    "backend/resources/views/dashboard/laporan-threshing.blade.php",
+    "backend/app/Services/ThreshingRecordService.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ThreshingReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanThreshingTest.php",
+    "backend/tests/Feature/Livewire/LaporanThreshingTest.php",
+    "backend/tests/Unit/Services/StationReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanStasiunTest.php",
+    "backend/tests/Feature/Livewire/LaporanStasiunTest.php",
+    "e2e-web/tests/laporan-threshing.spec.ts",
+    "e2e-web/tests/laporan-stasiun.spec.ts"
+  ],
+  "fe_files_generated": [],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "POLA SERVICE MENGIKUTI BoilerRoomReportService, bukan GradingReportService — dan pilihan itu diambil dari BENTUK DATANYA, bukan dari urutan pembangunan. Threshing berstruktur sama dengan Boiler Room: record harian per unit (thresher_id, sebuah STRING pada header, bukan foreign key), satu baris per slot waktu, kolom ukur nullable. Karena itu resolveBusinessUnit / businessUnitOptions / productionLineOptions / resolveProductionLine / authorizePeriod / listPeriods / buildSummary / export, NUMERIC_METRICS, statsOf, dailyOf, dan streamExportRows dipinjam strukturnya. Yang BARU — dan tidak ada padanannya di tujuh laporan sebelumnya — hanyalah blok target operasional.",
+    "LAPORAN PERTAMA YANG PUNYA MASTER TARGET, DAN PERTAMA YANG HARUS MENJELASKAN MENGAPA TETAP TIDAK MENANDAI APA PUN. Tujuh laporan sebelumnya mencatat 'tidak ada master target' sebagai sebab mereka tidak menandai nilai di luar batas; Threshing punya threshing_operational_targets. Standar dan rencana tindakan karena itu diterbitkan BERSEBELAHAN dengan angka hasil ukur, pada baris tabel yang sama. Tetapi standard_operational_target adalah VARCHAR berisi PROSA ('21 - 23 RPM (optimal for separation)', 'Within motor rated full-load current (FLC)', 'As per mill capacity design (e.g., 30-60 MT/hr)'), dan mengurainya menjadi pembanding berarti mengarang batas yang tidak pernah ditetapkan siapa pun. Angka yang dirender merah akan dibaca sebagai pelanggaran, bukan sebagai statistik.",
+    "KETIADAAN PENANDAAN DIUJI SEBAGAI PENYISIRAN ATAS KUNCI PAYLOAD, bukan atas satu kunci: case 31 unit test dan skenario 18 API menyisir seluruh JSON terhadap severity / is_out_of_range / out_of_range / exceeds / flag / threshold / breach. Memeriksa satu kunci saja akan selalu hijau, dan tanpa penyisiran ini kelalaian yang disengaja itu akan 'dilengkapi' belakangan oleh pembaca yang menganggapnya belum selesai.",
+    "DI LAYAR, KETIADAAN PENANDAAN DIUJI ATAS NAMA KELAS, BUKAN ATAS FRASA — dan itu pelajaran yang harganya sudah dibayar dua kali hari ini (screen-146 Livewire, screen-147 browser). Kalimat yang MENYATAKAN laporan ini tidak menandai apa pun sendiri memuat frasa 'di luar batas', jadi penyisiran teks justru gagal pada kalimat yang membuktikan klaimnya. Asersinya: ketiadaan .md-threshold / .is-danger / .is-warning / .md-chip--danger, ditambah kehadiran kalimat penjelasnya.",
+    "ENAM TARGET, LIMA KOLOM UKUR — DITERBITKAN SEBAGAI TEMUAN, BUKAN DISEMBUNYIKAN. Master memuat enam parameter sementara threshing_details hanya menyediakan lima kolom, sehingga 'Bearing Temperature' punya standar dan rencana tindakan tanpa satu pun pengukuran di sistem. Ia masuk targets_without_metric dan dirender pada bagiannya sendiri dengan kenyataan itu dinyatakan: standar yang tidak pernah diukur TERBACA SEPERTI TERPENUHI padahal ia sekadar tidak ada. Dicatat juga sebagai open_question pada business spec, karena keputusannya (menambah kolom pada formulir, atau mencabut parameternya dari master) milik manusia.",
+    "PEMETAAN KOLOM->PARAMETER BERSIFAT TETAP (COLUMN_TARGET_PARAMETER), bukan pencocokan teks nama parameter saat render. Case 29 unit test membuktikan konsekuensinya: ejaan nama parameter pada master yang diubah TIDAK menghapus angka ukurnya — angkanya utuh, dan standarnya berpindah ke targets_without_metric, sehingga keterlepasannya TERLIHAT alih-alih senyap. Pencocokan teks akan membuat perbaikan typo pada master memutus sebuah angka dari standarnya tanpa tanda apa pun.",
+    "SETIAP RATA-RATA MENERBITKAN PENYEBUTNYA SENDIRI (filled_slot_count per baris metrics). Kelima kolom nullable dan terisi saling bebas; fixture test sengaja mengisi throughput pada 10 slot dan drum speed hanya pada 3, supaya satu penyebut bersama menjawab 6,6 alih-alih 22,0 — dan 6,6 adalah justru jenis angka yang tidak akan dipertanyakan siapa pun.",
+    "DEFINISI 'SLOT TERISI' DIPINJAM DARI LAYAR INPUT, BUKAN DITURUNKAN ULANG. ThreshingRecordService::isRowFilled() dan READING_FIELDS dijadikan public dalam perubahan yang sama (perubahan aditif, nol perubahan perilaku: loop-nya memperlakukan null dan '' sebagai kosong, yang untuk kelima kolom float identik dengan uji `!== null` lama dan untuk downtime_reason identik dengan uji `!== null && !== ''` lama). Precedent-nya BoilerRoomRecordService, yang docblock-nya menyatakan alasan yang sama: dua salinan daftar kolom adalah cara laporan dan formulir mulai berselisih tentang apa yang tercatat.",
+    "KONSEKUENSI YANG HARUS DIINGAT dari poin di atas: downtime_reason ADALAH salah satu dari enam kolom bacaan, jadi slot yang hanya memuat 'Belt kendur' DIHITUNG TERISI. Akibatnya coverage.filled_slots bisa LEBIH BESAR daripada penyebut kolom ukur mana pun — dan itu benar, bukan ketidakcocokan. Case 16 unit test mengunci keduanya sekaligus: filled_slots 1 sementara seluruh min/avg/max tetap null.",
+    "CAKUPAN PENCATATAN DIRENDER PALING ATAS, dan posisinya diuji dari POSISI KOTAK DI VIEWPORT (boundingBox().y), bukan dari urutan sumber. Periode yang terisi seperlima pun menghasilkan rata-rata yang terlihat rapi; pembaca harus melihat cakupannya lebih dulu. Ketiga angka pembentuk penyebutnya (thresher yang beroperasi × hari dihitung × 24 slot kanonis) ikut dicetak, bukan hanya persennya.",
+    "coverage_percent NULL, BUKAN 0.0, ketika expected_slots nol — perbedaan yang DISENGAJA dari BoilerRoomReportService, yang memulangkan 0.0 di titik itu. Untuk periode yang belum mulai, 0% mengklaim ada yang diukur dan hasilnya nol. Ada test untuknya di ketiga lapis (unit case 25, API skenario 16, Livewire skenario 16).",
+    "JUMLAH THRESHER PADA PENYEBUT ADALAH YANG BENAR-BENAR BEROPERASI, bukan jumlah stasiun terdaftar (case 23: empat stasiun threshing terdaftar, dua thresher muncul, thresher_count 2). Penyebut yang dibangun dari stasiun terdaftar akan menghukum mill yang memang sengaja tidak mengoperasikan sebuah thresher.",
+    "24 SLOT KANONIS DIAMBIL DARI ThreshingRecordService::canonicalTimeSlots(), bukan dari konstanta terpisah — satu definisi, satu jawaban. Case 26 mengasersi kesamaannya terhadap count() daftar itu, sehingga konstanta yang menyimpang dari grid layar input akan terlihat.",
+    "daily_total DIHITUNG ULANG ATAS SELURUH SLOT, bukan merata-ratakan rata-rata harian. Fixture-nya sengaja tidak seimbang (hari A: 10 slot bernilai 10; hari B: 1 slot bernilai 100) supaya 18,18 dapat dipisahkan dari 55,00 — dengan jumlah slot yang sama per hari, kedua cara menjawab sama dan asersinya kosong. Diuji di unit (case 33) dan di Livewire (skenario 26, atas baris total yang terender).",
+    "ALASAN DOWNTIME DIKELOMPOKKAN HARFIAH: tanpa penyeragaman huruf besar-kecil, tanpa normalisasi ejaan, hanya trim whitespace tepi. 'Belt kendur' dan 'belt kendur' menjadi dua baris, dan layar MENYATAKAN sifat harfiah itu — tanpa keterangannya, dua baris mirip terbaca sebagai cacat laporan alih-alih sebagai bentuk datanya. Urutan: slot_count menurun lalu alfabetis, supaya hasilnya stabil antar basis data dan tidak bergantung pada urutan baris.",
+    "SELURUH AGREGASI DI PHP, NOL AGREGAT SQL. Case 21 menyisir setiap kueri yang benar-benar dijalankan terhadap avg( / min( / max( / sum( / group by. SQLite (suite) dan PostgreSQL (produksi) berbeda perilaku pada AVG atas kolom bernull, dan aturan penyebut-per-kolom serta null-bukan-nol adalah justru yang hilang dalam perbedaan itu. whereDate dipakai pada threshing_records.date, dan keanggotaan periode diuji di KEDUA UJUNGNYA ditambah satu hari di luarnya (case 14).",
+    "BATAS EKSPOR DIHITUNG ATAS BARIS SLOT, bukan record, dan dibaca lewat static::EXPORT_ROW_LIMIT bukan self:: — pilihan yang justru ada supaya subclass test (ThreshingReportTinyExportService, batas 5) dapat membuktikan perbedaannya dengan 1 record berisi 6 baris slot, alih-alih menyemai 50.000 baris. Satu record harian menghasilkan sampai 24 baris, jadi batas per record akan meloloskan berkas 24 kali lebih besar daripada yang dimaksud.",
+    "OPERATOR DITERIMA PADA KETIGA RUTE DATA SEJAK HARI PERTAMA, karena screen-149 (kembaran mobile) direncanakan dalam seri yang sama — pola yang terbukti pada pasangan screen-146/147 dan yang pasangan Weighbridge (143/144) harus tambal menyusul dengan tiga perubahan sekaligus. Yang menanggung beban dari ketiganya adalah penempatan Operator pada cabang TERIKAT MILL resolveBusinessUnit(): menerimanya di guardAccess() saja akan menjatuhkannya ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI. Skenario 11 API mengasersi HASIL-nya ('Operator yang mengirim id mill lain tetap menerima data mill sendiri'), bukan penerimaan perannya, karena asersi 'peran diterima' tetap hijau walau cabangnya salah.",
+    "RUTE WEB TIDAK DIBUKA UNTUK OPERATOR, dan canAccess() komponen memegang daftar perannya SENDIRI justru supaya service dapat menerima Operator tanpa ikut membuka layar web. Dikunci dua kali: skenario 24 Livewire (assertForbidden) dan satu browser test atas status HTTP rute-nya.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri 'threshing' pada StationReportService::REPORT_ROUTES, ditaruh DI ANTARA sterilizer (40) dan clarification (70) karena station_types.sort_order menempatkan threshing di 50 dan urutan peta itu load-bearing. Dikunci oleh skenario 25 API (asersi ber-urutan atas tetangga kiri dan kanannya) dan satu browser test yang menekan tile-nya lewat klik.",
+    "LIMA TEST LAMA BERUBAH CONTOHNYA, BUKAN DIHAPUS. StationReportServiceTest (2), LaporanStasiunTest Api (1) dan Livewire (2) memakai THRESHING sebagai contoh 'stasiun yang laporannya belum dibangun'; tile itu kini aktif, jadi kelimanya merah. Contohnya dipindahkan ke process-water (sort_order 130), berikut catatan bahwa bila Process Water pun dibuatkan laporan test-test itu akan gagal lagi — dan itu benar: ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau. Pola yang sama sudah terjadi pada screen-144 (Weighbridge -> Engine Room pada spec mobile).",
+    "SATU SPEC BROWSER LAMA IKUT DIPERBAIKI dengan alasan yang sama: e2e-web/tests/laporan-stasiun.spec.ts memakai UNAVAILABLE_STATION = 'threshing' sebagai fixture tile nonaktif; dipindahkan ke 'process-water' dan dijalankan ulang (14/14 hijau).",
+    "BLOK <style> BERADA DI SLOT styles LAYOUT, bukan di dalam komponen Livewire. Livewire 3 memasang wire:id pada elemen ter-render pertama; bila elemen itu sebuah <style>, SELURUH wire:model mati tanpa satu pun galat — component test tidak menangkapnya, browser test menangkapnya, dan harganya sudah dibayar sekali di screen-140. Satu browser test khusus membuktikan pemilih line benar-benar memicu putaran yang mengubah halaman.",
+    "SPEC BROWSER BERBASIS INVARIAN, BUKAN ANGKA YANG DIPAKU — pola yang sama dengan screen-146. Angka laporan ini sudah dibuktikan tiga kali di backend terhadap data yang dikendalikan penuh, sementara database e2e BERBAGI data Threshing dengan BrowserTestFixtureSeeder dan form-threshing. Lima invarian diturunkan DARI DOM (cakupan di atas tabel parameter diukur dari viewport; penyebut tiap kolom tidak pernah melampaui slot terisi periode; kelima baris parameter selalu ada; total harian = jumlah baris hariannya; slot per thresher menjumlah ke slot terisi periode), sehingga benar untuk data apa pun dan tidak akan merah hanya karena spec lain berubah.",
+    "api-index ditambah empat endpoint /api/threshing-reports/* (v70), dengan actor_ids yang sudah memuat actor-station-operator sejak awal pada ketiga rute data — tidak ada drift baru yang diperkenalkan."
+  ],
+  "deferred_items": [
+    {
+      "description": "Mock HTML statis layar ini (screen-mock-agent, mock_generation_level = full) tidak dibuat, mengikuti tiga layar terakhir yang juga melewatinya (screen-144, screen-146, screen-147). Layar sungguhannya dibangun pada sesi yang sama sehingga mock 1-state tidak lagi menambah informasi apa pun; non-blocking dan tidak memengaruhi satu pun test.",
+      "reason": "Konsisten dengan tiga layar sebelumnya; layar nyatanya sudah ada pada perubahan yang sama"
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "'Bearing Temperature' adalah target tanpa pengukuran: master threshing_operational_targets menyediakan standar dan rencana tindakannya sementara threshing_details tidak punya kolom suhu bantalan. Laporan menerbitkannya lewat targets_without_metric dan menyatakannya di layar, tetapi KEPUTUSANNYA belum diambil — menambahkan kolom pengukurannya pada formulir Threshing, atau mencabut parameternya dari master. Dicatat sebagai open_question pada business spec screen-148.",
+      "severity": "minor"
+    },
+    {
+      "description": "Master target bersifat GLOBAL (threshing_operational_targets tidak punya business_unit_id) sementara standar seperti 'As per mill capacity design (e.g., 30-60 MT/hr)' secara eksplisit menyiratkan standar yang berbeda antar mill. Layar menyatakan bahwa standar yang ditampilkan berlaku umum, tetapi pemecahan master per mill belum diputuskan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Penandaan nilai di luar batas tidak tersedia karena standard_operational_target berupa teks bebas. Bila master dipecah menjadi batas numerik (misalnya kolom min dan maks per parameter), laporan versi web dan versi mobile perlu ditinjau ulang bersamaan — dan keputusan warna/severity-nya perlu disepakati lebih dulu, karena angka yang dirender merah akan dibaca sebagai pelanggaran.",
+      "severity": "minor"
+    },
+    {
+      "description": "DRIFT ARTEFAK DI LUAR CAKUPAN LAYAR INI (dibawa dari screen-144/147, belum diperbaiki): pada project.3-tech-spec.api-index, kelima prefix laporan saudaranya (/api/sterilizer-reports/*, /api/cages-track-reports/*, /api/boiler-room-reports/*, /api/clarification-reports/*, /api/storage-tank-reports/*) masih mencantumkan actor_ids tanpa actor-station-operator, padahal routes/api.php dan service masing-masing sudah menerima Operator sejak screen-135..139. Endpoint weighbridge, grading dan threshing sudah benar.",
+      "severity": "minor"
+    },
+    {
+      "description": "Contoh 'stasiun yang laporannya belum dibangun' pada enam test (lima backend + satu browser) kini bersandar pada process-water. Bila Process Water dibuatkan laporan, keenamnya akan merah bersamaan — disengaja, tetapi perlu diketahui pembangun laporan berikutnya supaya kegagalannya tidak dicari-cari sebabnya.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-06T06:25:00Z",
+      "passed": 46,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-06T06:30:00Z",
+      "passed": 25,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-06T06:35:00Z",
+      "passed": 29,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-06T07:05:00Z",
+      "passed": 16,
+      "failed": 0
+    }
+  }
+}

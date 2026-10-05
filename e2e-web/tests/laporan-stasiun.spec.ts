@@ -67,8 +67,16 @@ const BUSINESS_UNIT = 'BU Browser Test'
 
 /** Today the only station whose period report exists (REPORT_ROUTES). */
 const AVAILABLE_STATION = 'sterilizer'
-/** A station whose report is not built yet — the disabled-tile fixture. */
-const UNAVAILABLE_STATION = 'threshing'
+/**
+ * A station whose report is not built yet — the disabled-tile fixture.
+ *
+ * DIPINDAHKAN THRESHING -> PROCESS WATER pada 2026-10-06, ketika screen-148
+ * membuat laporan Threshing dan tile-nya menjadi aktif. Contohnya dipindahkan,
+ * BUKAN dihapus: bila Process Water pun suatu saat dibuatkan laporan, test
+ * yang memakai konstanta ini akan gagal lagi — dan itu benar, karena ia
+ * memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
+ */
+const UNAVAILABLE_STATION = 'process-water'
 
 async function openReports(page: Page, username: string): Promise<void> {
   await login(page, username, PASSWORD)

@@ -510,16 +510,22 @@
                         <p class="md-kpi__meta" data-testid="completeness-percent">
                             {{ $hariPersen === null ? '—' : number_format($hariPersen, 1, ',', '.').'%' }}
                         </p>
-                        @if ($completeness['period_running'])
+                        {{-- URUTANNYA PENTING: days_counted === 0 DIPERIKSA
+                             LEBIH DULU. ReportPeriodDays::isRunning() juga
+                             true untuk periode yang BELUM MULAI (tanggal
+                             akhirnya masih di masa depan), jadi memeriksa
+                             period_running lebih dulu membuat keterangan
+                             "belum mulai" tidak pernah terender. --}}
+                        @if ((int) $completeness['days_counted'] === 0)
+                            <p class="md-kpi__foot" data-testid="completeness-not-started-note">
+                                Periode belum mulai, sehingga belum ada hari yang dapat dijadikan pembagi
+                                &mdash; persennya &ldquo;&mdash;&rdquo;, bukan 0%.
+                            </p>
+                        @elseif ($completeness['period_running'])
                             <p class="md-kpi__foot" data-testid="completeness-running-note">
                                 Dihitung sampai hari ini, periode masih berjalan
                                 ({{ $cacah($completeness['days_counted']) }} dari
                                 {{ $cacah($completeness['days_in_period']) }} hari periode sudah lewat).
-                            </p>
-                        @elseif ((int) $completeness['days_counted'] === 0)
-                            <p class="md-kpi__foot" data-testid="completeness-not-started-note">
-                                Periode belum mulai, sehingga belum ada hari yang dapat dijadikan pembagi
-                                &mdash; persennya &ldquo;&mdash;&rdquo;, bukan 0%.
                             </p>
                         @else
                             <p class="md-kpi__foot">Seluruh {{ $cacah($completeness['days_in_period']) }} hari periode sudah lewat.</p>

@@ -1,0 +1,464 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "usecase-151--laporan-threshing-web",
+  "name": "Lihat Laporan Periode Threshing (Web)",
+  "description": "Supervisor, Mill Management, atau Admin memilih satu periode pelaporan dan satu Production Line, lalu membaca rekap kondisi operasi stasiun Threshing pada periode itu: cakupan pencatatan, min/rata-rata/maks kelima kolom ukur beserta standar operasional dan rencana tindakan masing-masing, rekap per thresher, rekap per hari, dan alasan downtime. Dapat mengekspor seluruh slot waktu periode itu ke CSV atau Excel. Inilah laporan stasiun pertama yang punya master target operasional — dan sekaligus yang pertama harus menyatakan mengapa master itu tetap tidak dapat dipakai untuk menandai nilai di luar batas secara otomatis. Layar ini hanya membaca; tidak ada jalur yang mengubah data stasiun.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk dan berperan Supervisor, Mill Management, atau Admin",
+    "Mill yang berlaku memiliki minimal satu Production Line",
+    "Ada minimal satu Periode Pelaporan yang mendaftarkan stasiun Threshing pada mill itu"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka layar Laporan Threshing dari pemilih stasiun laporan"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Sistem menentukan mill yang berlaku: mill akun itu sendiri untuk Supervisor dan Mill Management, atau mill yang dipilih Admin pada pemilih mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar Production Line milik mill itu; satu line langsung berlaku tanpa pemilih, lebih dari satu menuntut pemilihan"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar periode yang mendaftarkan stasiun Threshing pada mill itu, beserta status Threshing pada tiap periode"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih satu periode"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Sistem mengambil seluruh record Threshing pada periode itu yang production_line_id-nya sama dengan line terpilih, berikut seluruh baris slot waktunya"
+    },
+    {
+      "step": 7,
+      "actor": "actor-supervisor",
+      "description": "Sistem menghitung cakupan pencatatan: slot terisi dibanding slot yang diharapkan, yaitu jumlah thresher × jumlah hari yang dihitung × 24 slot kanonis"
+    },
+    {
+      "step": 8,
+      "actor": "actor-supervisor",
+      "description": "Sistem menghitung min, rata-rata, dan maks untuk kelima kolom ukur, masing-masing hanya atas baris yang kolom itu terisi, beserta penyebutnya"
+    },
+    {
+      "step": 9,
+      "actor": "actor-supervisor",
+      "description": "Sistem mengambil master target operasional Threshing dan memasangkan standar serta rencana tindakannya dengan tiap kolom ukur menurut pemetaan tetap"
+    },
+    {
+      "step": 10,
+      "actor": "actor-supervisor",
+      "description": "Sistem menyusun rekap per thresher, rekap per hari, dan daftar alasan downtime beserta jumlah kemunculannya"
+    },
+    {
+      "step": 11,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan cakupan pencatatan paling atas, lalu angka per parameter berdampingan dengan standar dan rencana tindakannya, lalu rekap per thresher, rekap harian, dan downtime"
+    },
+    {
+      "step": 12,
+      "actor": "actor-supervisor",
+      "description": "Pengguna menekan Ekspor, memilih CSV atau Excel, dan menerima berkas berisi satu baris per slot waktu dengan kolom konteks diulang di setiap baris"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Admin belum memilih mill",
+      "trigger": "Pada langkah 2, Admin membuka layar ini tanpa memilih mill",
+      "steps": [
+        "Sistem menampilkan pemilih mill dan arahan memilih mill lebih dulu",
+        "Daftar Production Line dan daftar periode TIDAK dimuat sama sekali",
+        "Setelah satu mill dipilih, alur utama dilanjutkan dari langkah 3"
+      ]
+    },
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 3, mill punya lebih dari satu line dan belum ada yang berlaku",
+      "steps": [
+        "Sistem menampilkan pemilih Production Line dan arahan memilihnya lebih dulu",
+        "Tidak ada permintaan ringkasan yang dikirim, sehingga tidak ada angka apa pun yang muncul",
+        "Sistem TIDAK menampilkan angka gabungan seluruh line mill itu"
+      ]
+    },
+    {
+      "name": "Mill belum punya Production Line",
+      "trigger": "Pada langkah 3, daftar line kosong",
+      "steps": [
+        "Sistem menampilkan arahan menghubungi Admin untuk membuat Production Line",
+        "Tidak ada tombol coba lagi — ini keadaan data, bukan kegagalan teknis"
+      ]
+    },
+    {
+      "name": "Daftar Production Line gagal dimuat",
+      "trigger": "Pada langkah 3, permintaan daftar line gagal karena jaringan",
+      "steps": [
+        "Sistem menampilkan pesan yang BERBEDA dari keadaan “mill belum punya line”",
+        "Sistem menampilkan tombol coba lagi khusus untuk daftar line",
+        "Kegagalan ini tidak menyamar sebagai galat laporan"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode yang mencakup Threshing",
+      "trigger": "Pada langkah 4, daftar periode kosong",
+      "steps": [
+        "Sistem tetap menampilkan pemilih periode dalam keadaan kosong, bukan menghilangkannya",
+        "Sistem menampilkan arahan menghubungi Admin untuk membuat periode yang mendaftarkan stasiun Threshing"
+      ]
+    },
+    {
+      "name": "Periode tidak punya satu pun slot terisi",
+      "trigger": "Pada langkah 6, tidak ada baris slot terisi pada periode dan line itu",
+      "steps": [
+        "Sistem menampilkan keterangan bahwa periode ini belum punya data",
+        "Seluruh angka dirender sebagai keterangan “tidak tersedia”, bukan 0",
+        "Rekap harian dan daftar downtime tidak digambar"
+      ]
+    },
+    {
+      "name": "Satu kolom ukur tidak pernah terisi sepanjang periode",
+      "trigger": "Pada langkah 8, seluruh baris slot kosong pada satu kolom tertentu",
+      "steps": [
+        "Baris parameter itu TETAP ditampilkan, bukan dihilangkan",
+        "Min, rata-rata, dan maks dirender “tidak tersedia” dengan penyebut 0 slot",
+        "Standar operasional dan rencana tindakannya tetap ditampilkan"
+      ]
+    },
+    {
+      "name": "Parameter master tanpa kolom pengukuran",
+      "trigger": "Pada langkah 9, master target memuat parameter yang tidak punya kolom pada threshing_details",
+      "steps": [
+        "Parameter itu tetap ditampilkan pada daftar standar",
+        "Sistem menyatakan bahwa sistem belum mengukurnya, alih-alih menampilkan angka kosong tanpa penjelasan",
+        "Parameter itu tidak ikut pada perhitungan apa pun"
+      ]
+    },
+    {
+      "name": "Master target belum terisi",
+      "trigger": "Pada langkah 9, tabel master target kosong",
+      "steps": [
+        "Angka hasil ukur tetap ditampilkan seluruhnya",
+        "Kolom standar dan rencana tindakan dirender sebagai keterangan bahwa master belum terisi"
+      ]
+    },
+    {
+      "name": "Periode milik mill lain",
+      "trigger": "Id periode pada alamat bukan milik mill yang berlaku",
+      "steps": [
+        "Sistem menolak dengan galat akses",
+        "Sistem TIDAK menampilkan laporan kosong yang menyiratkan periode itu memang tak berdata"
+      ]
+    },
+    {
+      "name": "Production Line milik mill lain",
+      "trigger": "Id line pada alamat bukan milik mill yang berlaku",
+      "steps": [
+        "Sistem menolak dengan galat akses sebelum periode diperiksa"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pengguna memilih periode yang status Threshing-nya Tertutup",
+      "steps": [
+        "Laporan tampil penuh seperti periode terbuka",
+        "Sistem menampilkan badge Tertutup",
+        "Ekspor tetap aktif — kunci periode mengatur penulisan data, bukan pembacaan laporan"
+      ]
+    },
+    {
+      "name": "Ekspor melampaui batas baris",
+      "trigger": "Pada langkah 12, jumlah baris slot melebihi batas ekspor",
+      "steps": [
+        "Sistem menolak ekspor dengan galat yang menyebut batasnya dan menyarankan mempersempit periode",
+        "Tidak ada berkas setengah jadi yang terunduh"
+      ]
+    },
+    {
+      "name": "Format ekspor tidak dikenal",
+      "trigger": "Pada langkah 12, format yang diminta di luar CSV dan Excel",
+      "steps": [
+        "Sistem menolak dengan galat validasi"
+      ]
+    },
+    {
+      "name": "Alasan downtime kosong pada seluruh slot",
+      "trigger": "Pada langkah 10, tidak ada satu pun alasan downtime tercatat",
+      "steps": [
+        "Bagian downtime menampilkan keterangan bahwa tidak ada alasan tercatat",
+        "Sistem tidak menampilkan tabel kosong tanpa penjelasan"
+      ]
+    },
+    {
+      "name": "Sesi berakhir saat memuat ringkasan",
+      "trigger": "Pada langkah 6, sesi pengguna sudah tidak berlaku",
+      "steps": [
+        "Pengguna diarahkan ke layar Login",
+        "Sistem tidak menampilkan pesan kegagalan jaringan"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Tidak ada perubahan apa pun pada data stasiun — layar ini hanya membaca",
+    "Periode dan Production Line yang dipilih tercermin pada alamat halaman sehingga dapat dibagikan dan dibuka kembali pada keadaan yang sama"
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Production Line WAJIB dipilih sebelum satu angka pun ditampilkan — laporan ini menghasilkan angka gabungan, dan mencampur beberapa line membuat angkanya menyesatkan.",
+    "Penyaringan line memakai kolom production_line_id pada threshing_records, bukan join ke stations, sehingga record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
+    "business_unit_id kiriman klien diabaikan untuk peran yang terikat satu mill; Admin wajib mengirimkannya dan ketiadaannya adalah galat validasi, bukan hasil kosong.",
+    "Status periode tidak menyaring daftar periode — periode tertutup tetap dibaca dan tetap dapat diekspor.",
+    "Setiap kolom ukur dirata-ratakan atas baris yang kolom ITU terisi, dan penyebutnya ikut ditampilkan; kelima kolom nullable dan tidak selalu terisi bersamaan.",
+    "Nilai yang tidak tersedia dirender sebagai keterangan, bukan sebagai 0 — nol adalah hasil pengukuran, tidak tersedia adalah ketiadaan pengukuran.",
+    "Cakupan pencatatan ditampilkan DI ATAS seluruh angka lain, karena periode yang terisi seperlima pun menghasilkan rata-rata yang terlihat rapi.",
+    "Penyebut hari pada cakupan berhenti di hari ini untuk periode yang masih berjalan.",
+    "Jumlah slot yang diharapkan per thresher per hari diambil dari daftar slot kanonis yang dipakai layar input itu sendiri (24 slot mulai 07:00), bukan dari angka yang ditetapkan ulang di laporan.",
+    "Record berstatus draft IKUT terhitung pada seluruh angka, dan jumlahnya dinyatakan terpisah.",
+    "Status pemeriksaan dan pengesahan adalah informasi kelengkapan, bukan penyaring.",
+    "Standar operasional dan rencana tindakan ditampilkan bersebelahan dengan angka hasil ukur, bukan di halaman lain.",
+    "TIDAK ADA penandaan otomatis di luar batas, karena standard_operational_target berupa teks bebas dan mengubahnya menjadi pembanding numerik berarti mengarang batas yang tidak pernah ditetapkan siapa pun.",
+    "Parameter master yang tidak punya kolom pengukuran tetap ditampilkan dengan keterangannya, karena target tanpa pengukuran adalah temuan, bukan baris yang boleh dibuang.",
+    "Master target bersifat global untuk seluruh mill, dan laporan tidak boleh menyiratkan standar itu khusus mill yang sedang dilihat.",
+    "Alasan downtime dikelompokkan harfiah tanpa normalisasi ejaan, dan keterangan di layar menyatakan hal itu.",
+    "Ekspor menghasilkan satu baris per slot waktu dengan kolom konteks diulang di setiap baris.",
+    "Slot yang seluruh kolom ukurnya kosong tetap menjadi baris pada ekspor dengan sel kosong — tidak dibuang dan tidak ditulis 0.",
+    "Batas baris ekspor dihitung atas BARIS SLOT, bukan atas record, karena satu record harian dapat menghasilkan sampai 24 baris."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Threshing (Web) — sukses sebagai Supervisor atau Mill Management",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Supervisor atau Mill Management dan akunnya terikat pada satu mill; mill itu sudah punya minimal satu periode pelaporan yang mencakup stasiun Threshing dan minimal satu Production Line yang sudah memuat pencatatan slot",
+      "when": "Pengguna membuka layar Laporan Threshing dari pemilih stasiun, memilih satu Production Line, lalu memilih salah satu periode yang tersedia",
+      "then": "Sistem memakai mill dari akun pengguna tanpa menawarkan pemilih mill, lalu menampilkan rekap periode itu untuk line terpilih: cakupan pencatatan di bagian paling atas, min/rata-rata/maks kelima kolom ukur beserta penyebut masing-masing dan standar serta rencana tindakannya, rekap per thresher, rekap harian, dan daftar alasan downtime; pengguna dapat mengunduh rincian seluruh slot sebagai CSV atau Excel; tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Sukses sebagai Admin setelah memilih mill",
+      "given": "Pengguna sudah masuk sebagai Admin dan akunnya tidak terikat pada satu mill tertentu",
+      "when": "Pengguna membuka layar Laporan Threshing, memilih satu mill, memilih satu Production Line, lalu memilih satu periode",
+      "then": "Sistem menampilkan pemilih mill, memuat daftar line dan daftar periode hanya setelah mill dipilih, lalu menampilkan rekap periode itu untuk mill dan line terpilih"
+    },
+    {
+      "scenario": "Admin belum memilih mill",
+      "given": "Pengguna sudah masuk sebagai Admin",
+      "when": "Pengguna membuka layar Laporan Threshing tanpa memilih mill",
+      "then": "Sistem menampilkan pemilih mill dan arahan memilih mill lebih dulu, serta tidak memuat daftar Production Line maupun daftar periode sama sekali"
+    },
+    {
+      "scenario": "Production Line belum dipilih",
+      "given": "Mill yang berlaku punya lebih dari satu Production Line dan belum ada yang berlaku untuk pengguna ini",
+      "when": "Pengguna memilih sebuah periode tanpa memilih Production Line lebih dulu",
+      "then": "Sistem menampilkan pemilih Production Line beserta arahan memilihnya lebih dulu, tidak mengirim permintaan ringkasan sama sekali, dan tidak menampilkan angka gabungan seluruh line mill itu"
+    },
+    {
+      "scenario": "Mill belum punya Production Line",
+      "given": "Mill yang berlaku belum punya satu pun Production Line",
+      "when": "Pengguna membuka layar Laporan Threshing",
+      "then": "Sistem menampilkan arahan menghubungi Admin untuk membuat Production Line, tanpa tombol coba lagi, karena ini keadaan data dan bukan kegagalan teknis"
+    },
+    {
+      "scenario": "Daftar Production Line gagal dimuat",
+      "given": "Pengguna sudah masuk dan jaringan ke server sedang terputus saat daftar line diminta",
+      "when": "Pengguna membuka layar Laporan Threshing",
+      "then": "Sistem menampilkan pesan yang berbeda dari keadaan “mill belum punya line”, menyediakan tombol coba lagi khusus daftar line, dan tidak menampilkan pesan galat laporan"
+    },
+    {
+      "scenario": "Mill belum punya periode yang mencakup Threshing",
+      "given": "Mill yang berlaku belum punya satu pun periode pelaporan yang mendaftarkan stasiun Threshing",
+      "when": "Pengguna membuka layar Laporan Threshing",
+      "then": "Sistem tetap menampilkan pemilih periode dalam keadaan kosong beserta arahan menghubungi Admin, bukan menghilangkan pemilihnya"
+    },
+    {
+      "scenario": "Periode tanpa satu pun slot terisi",
+      "given": "Periode dan Production Line terpilih tidak punya satu pun baris slot yang terisi",
+      "when": "Pengguna memilih periode itu",
+      "then": "Sistem menampilkan keterangan bahwa periode ini belum punya data, merender seluruh angka sebagai “tidak tersedia” alih-alih 0, serta tidak menggambar rekap harian maupun daftar downtime"
+    },
+    {
+      "scenario": "Satu kolom ukur tidak pernah terisi sepanjang periode",
+      "given": "Pada periode dan line terpilih, kolom arus motor tidak pernah diisi sementara keempat kolom lain terisi",
+      "when": "Pengguna memilih periode itu",
+      "then": "Baris parameter arus motor tetap ditampilkan dengan min, rata-rata, dan maks “tidak tersedia” serta penyebut 0 slot, sementara standar operasional dan rencana tindakannya tetap ditampilkan"
+    },
+    {
+      "scenario": "Satu kolom ukur hanya terisi pada satu slot",
+      "given": "Pada periode dan line terpilih, kolom oil loss janjang kosong hanya terisi pada satu slot bernilai 0,42",
+      "when": "Pengguna memilih periode itu",
+      "then": "Min, rata-rata, dan maks parameter itu ketiganya bernilai 0,42 dan penyebutnya dinyatakan 1 slot, sehingga pembaca dapat melihat mengapa ketiganya sama"
+    },
+    {
+      "scenario": "Setiap parameter memakai penyebutnya sendiri",
+      "given": "Pada periode terpilih, kolom FFB throughput terisi pada 120 slot sementara kolom putaran drum terisi pada 40 slot",
+      "when": "Pengguna memilih periode itu",
+      "then": "Rata-rata FFB throughput dihitung atas 120 slot dan rata-rata putaran drum atas 40 slot, dan kedua penyebut itu tercetak pada barisnya masing-masing — tidak ada satu penyebut bersama yang dipakai untuk keduanya"
+    },
+    {
+      "scenario": "Cakupan pencatatan ditampilkan sebelum angka lain",
+      "given": "Periode terpilih punya 2 thresher, 10 hari terhitung, dan 96 slot terisi dari 480 slot yang diharapkan",
+      "when": "Pengguna memilih periode itu",
+      "then": "Sistem menampilkan cakupan 96 dari 480 slot beserta persennya pada bagian paling atas laporan, di atas seluruh angka hasil ukur, beserta keterangan jumlah thresher dan jumlah slot kanonis per hari"
+    },
+    {
+      "scenario": "Penyebut hari berhenti di hari ini untuk periode berjalan",
+      "given": "Periode terpilih berjalan dari tanggal 1 sampai 30 sementara hari ini tanggal 18",
+      "when": "Pengguna memilih periode itu",
+      "then": "Penyebut cakupan memakai 18 hari dan bukan 30 hari, dan sistem menyatakan di layar bahwa penyebutnya berhenti di hari ini karena periode masih berjalan"
+    },
+    {
+      "scenario": "Periode belum mulai",
+      "given": "Periode terpilih baru dimulai pada tanggal yang belum terjadi",
+      "when": "Pengguna memilih periode itu",
+      "then": "Sistem merender persen cakupan sebagai “—” alih-alih 0% dan menyatakan bahwa belum ada hari yang dapat dijadikan pembagi"
+    },
+    {
+      "scenario": "Standar operasional ditampilkan bersebelahan dengan angka hasil ukur",
+      "given": "Master target operasional Threshing sudah terisi dengan standar dan rencana tindakan untuk tiap parameter",
+      "when": "Pengguna memilih satu periode berdata",
+      "then": "Setiap baris parameter menampilkan angka hasil ukur, standard_operational_target, dan action_plan_on_deviation pada baris yang sama, sehingga pembaca tidak perlu membuka halaman lain untuk menilai"
+    },
+    {
+      "scenario": "Tidak ada penandaan otomatis di luar batas",
+      "given": "Master target menyebut putaran drum 21–23 RPM sementara rata-rata terukur pada periode itu 27,4 RPM",
+      "when": "Pengguna memilih periode itu",
+      "then": "Sistem menampilkan kedua nilai apa adanya tanpa warna peringatan, tanpa severity, dan tanpa penanda di luar batas, serta menyatakan bahwa standar berupa teks bebas sehingga penilaiannya milik manusia"
+    },
+    {
+      "scenario": "Parameter master tanpa kolom pengukuran",
+      "given": "Master target memuat parameter Bearing Temperature sementara threshing_details tidak punya kolom suhu bantalan",
+      "when": "Pengguna memilih satu periode berdata",
+      "then": "Parameter itu tetap tampil pada daftar standar dengan keterangan bahwa sistem belum mengukurnya, dan tidak ikut pada perhitungan apa pun maupun pada ekspor"
+    },
+    {
+      "scenario": "Master target belum terisi",
+      "given": "Tabel master target operasional Threshing kosong",
+      "when": "Pengguna memilih satu periode berdata",
+      "then": "Seluruh angka hasil ukur tetap ditampilkan, sementara kolom standar dan rencana tindakan dirender sebagai keterangan bahwa master belum terisi"
+    },
+    {
+      "scenario": "Standar dinyatakan berlaku umum, bukan per mill",
+      "given": "Master target operasional Threshing bersifat global tanpa kolom mill",
+      "when": "Pengguna memilih satu periode pada salah satu mill",
+      "then": "Sistem menyatakan bahwa standar yang ditampilkan berlaku umum untuk seluruh mill, sehingga pembaca tidak menyimpulkan standar itu khusus mill yang sedang dilihat"
+    },
+    {
+      "scenario": "Rekap per thresher memakai thresher_id sebagai nama unit",
+      "given": "Periode terpilih memuat dua thresher dengan penamaan TH-1 dan TH-2, masing-masing tercatat pada sebagian hari yang berbeda",
+      "when": "Pengguna memilih periode itu",
+      "then": "Rekap per thresher menampilkan satu baris per penamaan unit beserta jumlah hari dan jumlah slot terisinya sendiri, dan record dengan thresher_id sama pada hari berbeda dikelompokkan sebagai satu unit"
+    },
+    {
+      "scenario": "Record ada tetapi seluruh baris slotnya kosong",
+      "given": "Periode terpilih memuat satu record harian yang seluruh baris slotnya tidak terisi satu kolom pun",
+      "when": "Pengguna memilih periode itu",
+      "then": "Record itu ikut pada jumlah record dan ikut pada penyebut cakupan, tetapi tidak menyumbang satu pun angka pada min, rata-rata, maks, maupun rekap downtime"
+    },
+    {
+      "scenario": "Record draft ikut terhitung dan jumlahnya dinyatakan",
+      "given": "Periode terpilih memuat 12 record yang 4 di antaranya masih berstatus draft",
+      "when": "Pengguna memilih periode itu",
+      "then": "Keempat record draft ikut terhitung pada seluruh angka, dan sistem menyatakan jumlah draft secara terpisah supaya pembaca tahu seberapa besar laporan berdiri di atas data yang belum selesai"
+    },
+    {
+      "scenario": "Status pemeriksaan bukan penyaring",
+      "given": "Periode terpilih memuat record yang belum diperiksa dan belum disahkan",
+      "when": "Pengguna memilih periode itu",
+      "then": "Record itu tetap terhitung penuh pada seluruh angka, dan jumlah yang belum diperiksa serta belum disahkan ditampilkan sebagai informasi kelengkapan"
+    },
+    {
+      "scenario": "Alasan downtime dikelompokkan harfiah",
+      "given": "Pada periode terpilih, alasan downtime tercatat sebagai “Belt kendur” pada tiga slot dan “belt kendur” pada dua slot",
+      "when": "Pengguna memilih periode itu",
+      "then": "Sistem menampilkan kedua ejaan sebagai dua baris terpisah beserta jumlah kemunculannya, dan menyatakan bahwa pengelompokan dilakukan harfiah tanpa normalisasi ejaan"
+    },
+    {
+      "scenario": "Alasan downtime kosong pada seluruh slot",
+      "given": "Periode terpilih berdata tetapi tidak ada satu pun alasan downtime tercatat",
+      "when": "Pengguna memilih periode itu",
+      "then": "Bagian downtime menampilkan keterangan bahwa tidak ada alasan tercatat, bukan tabel kosong tanpa penjelasan"
+    },
+    {
+      "scenario": "Periode tertutup tetap dapat dibaca dan diekspor",
+      "given": "Periode terpilih berstatus Tertutup untuk stasiun Threshing",
+      "when": "Pengguna memilih periode itu lalu menekan Ekspor",
+      "then": "Laporan tampil penuh dengan badge Tertutup, dan ekspor tetap berjalan karena kunci periode mengatur penulisan data dan bukan pembacaan laporan"
+    },
+    {
+      "scenario": "Periode milik mill lain ditolak",
+      "given": "Pengguna terikat pada satu mill dan membuka alamat yang memuat id periode milik mill lain",
+      "when": "Sistem mencoba menampilkan laporan periode itu",
+      "then": "Sistem menolak dengan galat akses dan tidak menampilkan laporan kosong yang menyiratkan periode itu memang tak berdata"
+    },
+    {
+      "scenario": "Production Line milik mill lain ditolak",
+      "given": "Pengguna terikat pada satu mill dan membuka alamat yang memuat id Production Line milik mill lain",
+      "when": "Sistem mencoba menampilkan laporan untuk line itu",
+      "then": "Sistem menolak dengan galat akses sebelum periode diperiksa, sehingga pengguna tidak belajar apa pun tentang periode mill lain"
+    },
+    {
+      "scenario": "business_unit_id kiriman klien diabaikan untuk peran terikat mill",
+      "given": "Pengguna berperan Supervisor pada mill A dan menyertakan business_unit_id mill B pada alamat",
+      "when": "Pengguna memilih satu periode",
+      "then": "Sistem mengabaikan business_unit_id kiriman itu dan menampilkan data mill A, tanpa menolak dengan galat akses yang justru akan memastikan keberadaan mill B"
+    },
+    {
+      "scenario": "Ekspor satu baris per slot dengan konteks diulang",
+      "given": "Periode dan line terpilih memuat 3 record harian dengan total 54 baris slot",
+      "when": "Pengguna menekan Ekspor dan memilih CSV",
+      "then": "Berkas berisi 54 baris data, masing-masing membawa kolom periode, mill, Production Line, tanggal, thresher, status, dan catatan yang diulang verbatim, sehingga berkasnya dapat langsung dipivot"
+    },
+    {
+      "scenario": "Slot kosong tetap menjadi baris pada ekspor",
+      "given": "Periode terpilih memuat beberapa slot yang seluruh kolom ukurnya kosong",
+      "when": "Pengguna mengekspor periode itu",
+      "then": "Slot kosong tetap menjadi baris dengan sel kosong, tidak dibuang dari berkas dan tidak ditulis sebagai 0"
+    },
+    {
+      "scenario": "Batas ekspor dihitung atas baris slot",
+      "given": "Periode dan line terpilih menghasilkan baris slot melebihi batas ekspor meskipun jumlah record-nya jauh di bawah batas",
+      "when": "Pengguna menekan Ekspor",
+      "then": "Sistem menolak ekspor dengan galat yang menyebut batasnya dan menyarankan mempersempit periode, tanpa mengunduh berkas setengah jadi"
+    },
+    {
+      "scenario": "Format ekspor tidak dikenal ditolak",
+      "given": "Pengguna sudah memilih periode dan Production Line yang berlaku",
+      "when": "Permintaan ekspor dikirim dengan format di luar CSV dan Excel",
+      "then": "Sistem menolak dengan galat validasi dan tidak mengalirkan satu baris pun"
+    },
+    {
+      "scenario": "Layar ini hanya membaca",
+      "given": "Pengguna sudah membuka laporan satu periode berdata",
+      "when": "Pengguna menelusuri seluruh kontrol yang tersedia di layar",
+      "then": "Tidak ada satu pun kontrol yang menambah, mengubah, atau menghapus data stasiun — hanya pemilih, Ekspor, dan navigasi"
+    },
+    {
+      "scenario": "Kegagalan jaringan saat memuat ringkasan",
+      "given": "Pengguna sudah memilih Production Line dan jaringan terputus saat ringkasan diminta",
+      "when": "Pengguna memilih satu periode",
+      "then": "Sistem menampilkan pesan kegagalan beserta tombol coba lagi, periode yang sudah dipilih tidak hilang, dan menekan coba lagi memuat ulang periode yang sama"
+    },
+    {
+      "scenario": "Sesi berakhir saat memuat ringkasan",
+      "given": "Sesi pengguna sudah tidak berlaku lagi di server",
+      "when": "Pengguna memilih satu periode",
+      "then": "Pengguna diarahkan ke layar Login tanpa pesan kegagalan jaringan dan tanpa tombol coba lagi"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-148--laporan-threshing-web"
+  ]
+}

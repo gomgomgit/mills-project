@@ -240,22 +240,25 @@ it('akun tanpa mill: pesan hubungi Admin, tanpa pemilih mill dan tanpa grid (gag
 // Scenario: "menekan stasiun yang belum tersedia"
 // =====================================================================
 it('tile belum tersedia: berkelas disabled, aria-disabled, tanpa href dan tanpa wire:click', function () {
+    // CONTOHNYA DIPINDAHKAN THRESHING -> PROCESS WATER pada 2026-10-06, ketika
+    // screen-148 membuat laporan Threshing. Dipindahkan, bukan dihapus: bila
+    // Process Water pun dibuatkan laporan, test ini gagal lagi — dan itu benar.
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanStasiun::class)
         ->set('productionLineId', (string) $this->lineA->id)
-        ->assertSeeHtml('data-testid="station-tile-threshing"')
+        ->assertSeeHtml('data-testid="station-tile-process-water"')
         ->html();
 
-    $threshing = laporanStasiunTileMarkup($html, 'threshing');
+    $unbuilt = laporanStasiunTileMarkup($html, 'process-water');
 
-    expect($threshing)->not->toBe('');
-    expect($threshing)->toContain('station-tile disabled');
-    expect($threshing)->toContain('aria-disabled="true"');
-    expect($threshing)->toContain('Belum tersedia');
+    expect($unbuilt)->not->toBe('');
+    expect($unbuilt)->toContain('station-tile disabled');
+    expect($unbuilt)->toContain('aria-disabled="true"');
+    expect($unbuilt)->toContain('Belum tersedia');
     // Nothing to follow and nothing to fire: pressing it cannot navigate
     // and cannot send a request, which is why there is no error state.
-    expect($threshing)->not->toContain('href=');
-    expect($threshing)->not->toContain('wire:click');
+    expect($unbuilt)->not->toContain('href=');
+    expect($unbuilt)->not->toContain('wire:click');
 });
 
 // =====================================================================
@@ -390,14 +393,16 @@ it('belum dibangun tetap tampil: jumlah tile mengikuti master, hanya sterilizer 
     expect($codes)->toHaveCount(StationType::where('code', '<>', 'other')->count());
 
     $sterilizer = laporanStasiunTileMarkup($html, 'sterilizer');
-    $threshing = laporanStasiunTileMarkup($html, 'threshing');
+    // Contoh "belum dibangun" dipindahkan threshing -> process-water pada
+    // 2026-10-06 (screen-148 membuat laporan Threshing).
+    $unbuilt = laporanStasiunTileMarkup($html, 'process-water');
 
     expect($sterilizer)->toContain('href=');
     expect($sterilizer)->not->toContain('disabled');
 
-    expect($threshing)->toContain('station-tile disabled');
-    expect($threshing)->toContain('Belum tersedia');
-    expect($threshing)->not->toContain('href=');
+    expect($unbuilt)->toContain('station-tile disabled');
+    expect($unbuilt)->toContain('Belum tersedia');
+    expect($unbuilt)->not->toContain('href=');
 });
 
 // =====================================================================

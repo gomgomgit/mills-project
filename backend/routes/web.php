@@ -6,6 +6,7 @@ use App\Livewire\Dashboard\LaporanBoilerRoom;
 use App\Livewire\Dashboard\LaporanCagesTrack;
 use App\Livewire\Dashboard\LaporanClarification;
 use App\Livewire\Dashboard\LaporanGrading;
+use App\Livewire\Dashboard\LaporanThreshing;
 use App\Livewire\Dashboard\LaporanStasiun;
 use App\Livewire\Dashboard\LaporanSterilizer;
 use App\Livewire\Dashboard\LaporanStorageTank;
@@ -931,5 +932,26 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/grading', LaporanGrading::class)
     ->name('reports.grading');
+
+// === LAPORAN PERIODE THRESHING (screen-148--laporan-threshing-web) ===
+//
+// Supervisor / Mill Management / Admin only. Operator is NOT admitted here and
+// has no web report UI at all — and on this screen that refusal is worth
+// stating twice, because the API prefix DOES admit Operator: the mobile
+// Threshing report (screen-149) ships in the same series and reuses the same
+// four endpoints. LaporanThreshing::canAccess() therefore keeps its OWN role
+// list rather than borrowing ThreshingReportService::guardAccess(); if it ever
+// delegates, this web screen silently opens to Operator.
+//
+// Route is /reports/threshing, NOT /laporan/threshing — the repo's convention
+// for report screens.
+//
+// Reachable from the UI ONLY through the Threshing tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES now
+// maps the 'threshing' code to this route name. Without that one line the
+// report exists, every test here passes, and the screen stays unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/threshing', LaporanThreshing::class)
+    ->name('reports.threshing');
 
 // === ASDLC_ROUTES_END ===

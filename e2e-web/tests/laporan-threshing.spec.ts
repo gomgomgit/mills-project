@@ -1,0 +1,446 @@
+import { expect, test, type Page } from '@playwright/test'
+import { login, PASSWORD } from './support/auth'
+
+/**
+ * Laporan Threshing (Browser/Playwright) — screen-148--laporan-threshing-web /
+ * usecase-151--laporan-threshing-web.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * ASERSI INVARIAN, BUKAN ANGKA YANG DIPAKU
+ * ────────────────────────────────────────────────────────────────────────
+ * Spec ini TIDAK menanam datanya sendiri dan TIDAK mengasersi satu angka
+ * tetap pun — pola yang sama dengan tests/laporan-grading.spec.ts, dengan dua
+ * alasan yang sama dan keduanya menentukan:
+ *
+ * 1. Angka laporan ini sudah dibuktikan TIGA KALI di backend, terhadap data
+ *    yang dikendalikan penuh — atas service-nya (46 kasus unit), atas kontrak
+ *    HTTP-nya (25 skenario Api), dan atas markup ter-render komponennya (29
+ *    skenario Livewire). Mengulangnya lewat browser hanya memperlambat suite.
+ *
+ * 2. Database e2e ini BERBAGI data Threshing dengan spec lain: record
+ *    TH-BROWSER-EDIT ditanam BrowserTestFixtureSeeder, form-threshing menanam
+ *    record lain, dan periode prasyaratnya berumur panjang. Angka yang dipaku
+ *    di sini akan berubah setiap kali salah satu dari itu berubah — test yang
+ *    gagal bukan karena produknya salah adalah test yang akan diabaikan orang,
+ *    lalu dihapus.
+ *
+ * Yang diuji di sini karena HANYA browser dapat membuktikannya:
+ *   - TILE Threshing pada Laporan Stasiun (screen-140) menyala dan mendarat di
+ *     layar ini. Tanpa test ini, satu baris yang hilang pada
+ *     StationReportService::REPORT_ROUTES membuat layar ini ada, seluruh test
+ *     backend lulus, dan tile-nya tetap kelabu — pola kegagalan yang sudah
+ *     pernah terjadi pada laporan Cages & Tracks versi web.
+ *   - HALAMANNYA HIDUP: Livewire terpasang dan wire:model bekerja, sehingga
+ *     pemilih-pemilihnya memicu putaran yang mengubah halaman. Component test
+ *     tidak dapat menangkap jebakan wire:id-menempel-pada-<style> yang pernah
+ *     mematikan SELURUH wire:model di screen-140, dan laporan ini menaruh
+ *     partial ber-<style>-nya di slot `styles` layout justru karena itu.
+ *   - LIMA INVARIAN yang dihitung DARI DOM, jadi benar untuk data apa pun:
+ *       (a) blok cakupan berada DI ATAS tabel parameter — diukur dari posisi
+ *           kotaknya di viewport, bukan dari urutan sumbernya;
+ *       (b) tiap baris parameter mencetak penyebutnya sendiri, dan penyebut
+ *           itu tidak pernah lebih besar daripada slot terisi periode;
+ *       (c) kelima baris parameter selalu ada, termasuk yang tak terukur;
+ *       (d) baris total rekap harian = jumlah slot seluruh baris hariannya;
+ *       (e) jumlah slot per thresher menjumlah ke slot terisi periode.
+ *   - KETIADAAN PENANDAAN DI LUAR BATAS, disisir atas NAMA KELAS — bukan atas
+ *     frasa, karena kalimat yang menyatakan ketiadaannya sendiri memuat frasa
+ *     "di luar batas".
+ *   - EKSPOR benar-benar mengunduh berkas.
+ *   - Penjagaan peran pada RUTE-nya, bukan hanya pada komponennya.
+ */
+
+const REPORT_PATH = '/reports/threshing'
+const STATION_REPORT_PATH = '/reports'
+
+const BUSINESS_UNIT = 'BU Browser Test'
+const PRODUCTION_LINE = 'PL Mill A'
+
+const SUPERVISOR = 'stest-supervisor01'
+const ADMIN = 'brtest-admin01'
+/** Operator adalah aktor mobile pada laporan ini — rute web tidak dibuka
+ *  untuknya, meski ketiga rute API-nya menerimanya sejak hari pertama. */
+const OPERATOR = 'operator01'
+
+/** "1.234,56" -> 1234.56; "tidak tersedia" / "—" -> null. */
+function parseIdNumber(raw: string): number | null {
+  const match = raw.replace(/ /g, ' ').match(/-?\d[\d.]*(?:,\d+)?/)
+
+  if (match === null) {
+    return null
+  }
+
+  return Number(match[0].replace(/\./g, '').replace(',', '.'))
+}
+
+/**
+ * Membuka laporan untuk line fixture dan memastikan sebuah periode terpilih.
+ *
+ * Periode TIDAK dipilih dengan nama: periode mana yang terbaru di database
+ * bersama ini bukan sesuatu yang spec ini kendalikan. Yang dibutuhkannya hanya
+ * "sebuah periode berisi data", dan pemilih periode memang memilih sendiri
+ * periode terbaru pada muat pertama.
+ */
+async function openReportWithData(page: Page): Promise<void> {
+  await page.goto(REPORT_PATH)
+  await expect(page.locator('[data-testid="laporan-threshing"]')).toBeVisible()
+
+  await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE })
+
+  await expect(page.locator('[data-testid="report-hero"]')).toBeVisible()
+  // Cakupan dirender untuk SETIAP periode yang sah, berdata atau tidak —
+  // justru itu gunanya. Menunggunya membuktikan putaran Livewire mendarat.
+  await expect(page.locator('[data-testid="coverage"]')).toBeVisible()
+}
+
+/** Seluruh angka pada satu kolom tabel, sebagai bilangan (null dibuang). */
+async function columnNumbers(page: Page, selector: string): Promise<number[]> {
+  const cells = await page.locator(selector).allInnerTexts()
+
+  return cells
+    .map((cell) => parseIdNumber(cell))
+    .filter((value): value is number => value !== null)
+}
+
+test.describe('Laporan Threshing (screen-148)', () => {
+  // Scenario: "Production Line belum dipilih"
+  test('Supervisor: tanpa pemilih mill, dan NOL angka sebelum line dipilih', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await page.goto(REPORT_PATH)
+
+    await expect(page.locator('[data-testid="laporan-threshing"]')).toBeVisible()
+
+    // Peran terikat mill tidak melihat pemilih mill — menawarkan pemilih yang
+    // tidak bisa ia pakai adalah kebohongan kecil yang mahal.
+    await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid="mill-name"]')).toContainText(BUSINESS_UNIT)
+
+    await expect(page.locator('[data-testid="select-production-line-hint"]')).toBeVisible()
+
+    // Dan BENAR-BENAR tidak ada angka: bukan sekadar tabel yang disembunyikan.
+    await expect(page.locator('[data-testid="coverage"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid="metrics-table"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid="export-button"]')).toHaveCount(0)
+  })
+
+  // Scenario: halaman hidup — wire:model memicu putaran yang mengubah halaman
+  test('memilih Production Line memicu putaran Livewire yang mengubah halaman', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await page.goto(REPORT_PATH)
+
+    await expect(page.locator('[data-testid="select-production-line-hint"]')).toBeVisible()
+
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE })
+
+    // INILAH yang hanya browser dapat buktikan: bila atribut wire:id menempel
+    // pada sebuah <style> alih-alih pada root komponen, SELURUH wire:model
+    // mati tanpa satu pun galat, dan baris ini yang menangkapnya.
+    await expect(page.locator('[data-testid="select-production-line-hint"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid="coverage"]')).toBeVisible()
+    await expect(page.locator('[data-testid="hero-production-line"]')).toContainText(PRODUCTION_LINE)
+    await expect(page.locator('[data-testid="period-status-badge"]')).toBeVisible()
+  })
+
+  // Scenario: cakupan dibaca lebih dulu
+  test('invarian (a) — blok cakupan berada DI ATAS tabel parameter di viewport', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+    await expect(page.locator('[data-testid="metrics"]')).toBeVisible()
+
+    const coverage = await page.locator('[data-testid="coverage"]').boundingBox()
+    const metrics = await page.locator('[data-testid="metrics"]').boundingBox()
+
+    expect(coverage).not.toBeNull()
+    expect(metrics).not.toBeNull()
+
+    // Diukur dari POSISI di viewport, bukan dari urutan sumbernya: periode
+    // yang terisi seperlima pun menghasilkan rata-rata yang terlihat rapi,
+    // dan pembaca harus melihat cakupannya lebih dulu.
+    expect(coverage!.y).toBeLessThan(metrics!.y)
+
+    // Ketiga angka pembentuk penyebut ikut tercetak, bukan hanya persennya.
+    await expect(page.locator('[data-testid="coverage-denominator"]')).toContainText('thresher')
+    await expect(page.locator('[data-testid="coverage-denominator"]')).toContainText('24 slot')
+  })
+
+  // Scenario: setiap rata-rata membawa penyebutnya sendiri
+  test('invarian (b+c) — kelima baris parameter ada, masing-masing dengan penyebutnya', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+    await expect(page.locator('[data-testid="metrics-table"]')).toBeVisible()
+
+    // Kelima kolom ukur SELALU dirender, termasuk yang tidak pernah diukur:
+    // baris yang hilang terbaca sebagai "tidak ada parameter ini", padahal
+    // yang benar adalah "tidak ada yang mengukurnya".
+    await expect(page.locator('[data-testid="metric-row"]')).toHaveCount(5)
+    await expect(page.locator('[data-testid="metric-denominator"]')).toHaveCount(5)
+
+    const filledSlots = parseIdNumber(
+      await page.locator('[data-testid="coverage-slots"]').innerText(),
+    )
+
+    expect(filledSlots).not.toBeNull()
+
+    const denominators = await columnNumbers(page, '[data-testid="metric-denominator"]')
+
+    expect(denominators).toHaveLength(5)
+
+    // Penyebut sebuah kolom tidak pernah melampaui jumlah slot terisi periode
+    // — kolom itu hanya bisa terisi pada slot yang memang terisi. Invarian
+    // ini benar untuk data apa pun, dan ia yang jatuh bila satu penyebut
+    // bersama dipakai dari angka yang lebih besar.
+    for (const denominator of denominators) {
+      expect(denominator).toBeLessThanOrEqual(filledSlots as number)
+    }
+  })
+
+  // Scenario: standar operasional berada pada baris yang sama dengan angkanya
+  test('standar operasional dan rencana tindakan berada pada baris parameternya', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+    await expect(page.locator('[data-testid="metrics-table"]')).toBeVisible()
+
+    const firstRow = page.locator('[data-testid="metric-row"]').first()
+
+    // Tujuh kolom: parameter, min, rata-rata, maks, penyebut, standar,
+    // rencana tindakan. Menaruh standarnya di halaman lain akan membuang
+    // satu-satunya keunggulan yang diberikan master target.
+    await expect(firstRow.locator('td')).toHaveCount(7)
+
+    const standardCell = firstRow.locator('td').nth(5)
+
+    // Entah standarnya terisi, entah dinyatakan belum terisi — yang tidak
+    // boleh adalah sel kosong tanpa keterangan.
+    await expect(standardCell).not.toHaveText('')
+  })
+
+  // Scenario: tidak ada penandaan otomatis di luar batas
+  test('tidak ada satu pun kelas penanda di luar batas pada halaman ter-render', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+    await expect(page.locator('[data-testid="metrics-table"]')).toBeVisible()
+
+    // DISISIR ATAS NAMA KELAS, bukan atas frasa: kalimat yang menyatakan
+    // ketiadaan penandaan itu sendiri memuat frasa "di luar batas", jadi
+    // penyisiran teks justru gagal pada kalimat yang membuktikan klaimnya.
+    for (const className of ['md-threshold', 'is-danger', 'is-warning', 'md-chip--danger']) {
+      await expect(page.locator(`.${className}`), className).toHaveCount(0)
+    }
+
+    // Dan ketiadaannya DINYATAKAN — ketiadaan penandaan yang tidak dijelaskan
+    // terbaca sebagai fitur yang belum selesai.
+    await expect(page.locator('[data-testid="no-flagging-note"]')).toBeVisible()
+    await expect(page.locator('[data-testid="no-flagging-note"]')).toContainText('teks bebas')
+  })
+
+  // Scenario: target tanpa pengukuran tetap ditampilkan
+  test('target tanpa kolom pengukuran terender pada bagiannya sendiri', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+    await expect(page.locator('[data-testid="metrics-table"]')).toBeVisible()
+
+    const section = page.locator('[data-testid="targets-without-metric"]')
+    const masterEmpty = page.locator('[data-testid="targets-master-empty"]')
+
+    // Salah satu dari keduanya SELALU ada: entah master kosong (dan itu
+    // dinyatakan), entah ada parameter bertarget tanpa kolom ukur. Master
+    // Threshing menyediakan enam parameter untuk lima kolom, jadi pada
+    // lingkungan yang ter-seed yang kedualah yang muncul.
+    await expect(section.or(masterEmpty).first()).toBeVisible()
+
+    if (await section.isVisible()) {
+      await expect(section).toContainText('Bearing Temperature')
+      // Standar yang tidak pernah diukur terbaca seperti terpenuhi padahal ia
+      // sekadar tidak ada — dan halaman ini menyatakannya.
+      await expect(page.locator('[data-testid="targets-without-metric-note"]'))
+        .toContainText('tidak punya kolom untuk mengukurnya')
+    }
+  })
+
+  // Scenario: rekap harian
+  test('invarian (d) — baris total rekap harian menjumlah slot seluruh baris hariannya', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+
+    const dailyTable = page.locator('[data-testid="daily-table"]')
+
+    if (await dailyTable.count() === 0) {
+      test.skip(true, 'periode terpilih tidak punya data pada line ini')
+    }
+
+    await expect(dailyTable).toBeVisible()
+
+    const dailySlots = await columnNumbers(
+      page,
+      '[data-testid="daily-table"] tbody tr td:nth-child(2)',
+    )
+
+    const totalSlots = parseIdNumber(
+      await page.locator('[data-testid="daily-row-total"] td:nth-child(2)').innerText(),
+    )
+
+    expect(dailySlots.length).toBeGreaterThan(0)
+    expect(totalSlots).toBe(dailySlots.reduce((sum, value) => sum + value, 0))
+  })
+
+  test('rekap harian dapat ditutup, dan menutupnya tidak mengubah satu angka pun', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+
+    if (await page.locator('[data-testid="daily-table"]').count() === 0) {
+      test.skip(true, 'periode terpilih tidak punya data pada line ini')
+    }
+
+    const slotsBefore = await page.locator('[data-testid="coverage-slots"]').innerText()
+
+    await page.locator('[data-testid="daily-toggle"]').click()
+
+    // Ditutup berarti BENAR-BENAR hilang dari DOM, bukan sekadar
+    // disembunyikan — keadaan terlihat dan DOM tidak boleh berselisih.
+    await expect(page.locator('[data-testid="daily-table"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid="coverage-slots"]')).toHaveText(slotsBefore)
+
+    await page.locator('[data-testid="daily-toggle"]').click()
+    await expect(page.locator('[data-testid="daily-table"]')).toBeVisible()
+  })
+
+  // Scenario: rekap per thresher
+  test('invarian (e) — slot per thresher menjumlah ke slot terisi periode', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+
+    const byThresher = page.locator('[data-testid="by-thresher-table"]')
+
+    if (await byThresher.count() === 0) {
+      test.skip(true, 'periode terpilih tidak punya data pada line ini')
+    }
+
+    const perThresher = await columnNumbers(
+      page,
+      '[data-testid="by-thresher-row"] td:nth-child(3)',
+    )
+
+    const filledSlots = parseIdNumber(
+      await page.locator('[data-testid="coverage-slots"]').innerText(),
+    )
+
+    expect(perThresher.length).toBeGreaterThan(0)
+    // Pengelompokan per unit tidak boleh kehilangan maupun menghitung ganda
+    // satu slot pun — dan thresher_id yang sama pada dua tanggal adalah SATU
+    // baris, bukan dua.
+    expect(perThresher.reduce((sum, value) => sum + value, 0)).toBe(filledSlots)
+  })
+
+  // Scenario: alasan downtime
+  test('bagian downtime selalu menyatakan keadaannya, tidak pernah tabel kosong tanpa penjelasan', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+
+    const downtime = page.locator('[data-testid="downtime"]')
+
+    if (await downtime.count() === 0) {
+      test.skip(true, 'periode terpilih tidak punya data pada line ini')
+    }
+
+    const table = page.locator('[data-testid="downtime-table"]')
+    const empty = page.locator('[data-testid="downtime-empty"]')
+
+    // Salah satu dari keduanya, selalu — tabel kosong tidak membedakan "tidak
+    // ada downtime" dari "tidak ada yang mencatatnya".
+    await expect(table.or(empty).first()).toBeVisible()
+
+    if (await table.isVisible()) {
+      // Pengelompokan harfiah DINYATAKAN, supaya dua baris mirip tidak dibaca
+      // sebagai cacat laporan.
+      await expect(page.locator('[data-testid="downtime-note"]')).toContainText('harfiah')
+    }
+  })
+
+  // Scenario: ekspor
+  test('Ekspor CSV benar-benar mengunduh berkas', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+
+    await expect(page.locator('[data-testid="export-button"]')).toBeVisible()
+
+    const downloadPromise = page.waitForEvent('download')
+    await page.locator('[data-testid="export-button"]').click()
+    const download = await downloadPromise
+
+    expect(download.suggestedFilename()).toContain('laporan-threshing')
+    expect(download.suggestedFilename()).toMatch(/\.csv$/)
+  })
+
+  // Scenario: layar hanya membaca
+  test('layar hanya membaca: tidak ada kontrol tulis apa pun', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await openReportWithData(page)
+
+    await expect(page.getByRole('button', { name: /^Simpan/ })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^Hapus/ })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /^Verifikasi/ })).toHaveCount(0)
+  })
+
+  // Scenario: Admin
+  test('Admin: pemilih mill dirender dan angka muncul setelah mill + line dipilih', async ({ page }) => {
+    await login(page, ADMIN, PASSWORD)
+    await page.goto(REPORT_PATH)
+
+    await expect(page.locator('[data-testid="mill-select"]')).toBeVisible()
+    await expect(page.locator('[data-testid="mill-select-hint"]')).toBeVisible()
+    await expect(page.locator('[data-testid="coverage"]')).toHaveCount(0)
+
+    await page.locator('[data-testid="mill-select"]').selectOption({ label: BUSINESS_UNIT })
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE })
+
+    await expect(page.locator('[data-testid="coverage"]')).toBeVisible()
+  })
+
+  // Scenario: penjagaan peran pada RUTE
+  test('Operator ditolak pada rute web, meski ketiga rute API menerimanya', async ({ page }) => {
+    await login(page, OPERATOR, PASSWORD)
+
+    const response = await page.goto(REPORT_PATH)
+
+    // Penjagaannya ada pada middleware rute DAN pada canAccess() komponen,
+    // yang memegang daftar perannya SENDIRI justru supaya service dapat
+    // menerima Operator (untuk screen-149, layar mobile) tanpa ikut membuka
+    // layar web ini.
+    expect(response?.status()).toBe(403)
+    await expect(page.locator('[data-testid="laporan-threshing"]')).toHaveCount(0)
+  })
+})
+
+test.describe('Pintu masuk dari Laporan Stasiun (screen-140)', () => {
+  /**
+   * SATU BARIS yang menentukan layar ini dapat dicapai: entri 'threshing' pada
+   * StationReportService::REPORT_ROUTES. Tanpa test ini, layar laporan bisa
+   * lengkap, seluruh test backend hijau, dan tile-nya tetap kelabu — pola
+   * kegagalan yang sudah pernah terjadi pada laporan Cages & Tracks versi web.
+   */
+  test('tile Threshing aktif dan menavigasi ke layar laporannya', async ({ page }) => {
+    await login(page, SUPERVISOR, PASSWORD)
+    await page.goto(STATION_REPORT_PATH)
+
+    // Grid tile screen-140 sendiri digate oleh Production Line — tile baru
+    // digambar setelah satu line dipilih.
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE })
+    await expect(page.locator('[data-testid="station-grid"]')).toBeVisible()
+
+    const tile = page.locator('[data-testid="station-tile-threshing"]')
+
+    await expect(tile).toBeVisible()
+    // AKTIF, bukan kelabu: kelas .active dan href yang benar-benar ada.
+    await expect(tile).toHaveClass(/active/)
+    await expect(tile).toHaveAttribute('href', /\/reports\/threshing/)
+
+    await tile.click()
+
+    // Sufiks ** — tautannya membawa business_unit_id dan production_line_id.
+    await page.waitForURL('**/reports/threshing**')
+    await expect(page.locator('[data-testid="laporan-threshing"]')).toBeVisible()
+
+    // Mill dan line ikut terbawa, jadi layar tujuan TIDAK meminta memilih lagi.
+    await expect(page.locator('[data-testid="select-production-line-hint"]')).toHaveCount(0)
+  })
+})

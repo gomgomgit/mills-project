@@ -1,0 +1,1766 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-148--laporan-threshing-web",
+  "name": "Laporan Threshing (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/threshing",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill lewat pemilih Mill"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Rute WEB tidak dibuka untuk Operator. Komponen Livewire punya daftar perannya SENDIRI (canAccess()) dan tidak meminjam guardAccess() service, sehingga pasangan mobile screen-149 yang memakai ulang endpoint yang sama tidak dapat melebarkan layar web ini secara tidak sengaja. Pada API, Operator DITERIMA sejak awal pada ketiga rute data"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "usecase_name": "Lihat Laporan Periode Threshing (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/threshing-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — ADMIN SAJA; 403 untuk peran terikat mill termasuk Operator",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan Admin — peran terikat satu mill tidak punya pemilih, dan menyerahkan daftar seluruh mill kepadanya adalah kebocoran. Penjagaan di dalam service, bukan middleware"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/threshing-reports/periods",
+          "description": "Daftar Periode Pelaporan yang mencakup stasiun Threshing pada satu mill; status per baris period_stations. Periode tertutup IKUT dicantumkan",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Diabaikan untuk peran terikat mill; WAJIB untuk Admin — ketiadaannya 422, bukan daftar kosong"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "draft|open|closed",
+                  "station_type": "threshing",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar operator/supervisor/mill_management/admin"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id, atau akun terikat mill yang business_unit_id-nya NULL — dan dalam kasus kedua daftar seluruh mill tidak pernah dibaca"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/threshing-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode pada satu Production Line: cakupan pencatatan, min/avg/max per kolom ukur beserta penyebutnya, master target operasional, rekap per thresher, rekap harian, dan rekap alasan downtime",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Ketiadaannya 422 VALIDATION_ERROR dengan errors.period_id — bukan 404 untuk string kosong dan bukan laporan kosong"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "description": "WAJIB. Tidak pernah di-default ke 'semua line' — total yang mencampur beberapa line bukan angka yang dapat ditindaklanjuti siapa pun"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Diabaikan untuk peran terikat mill; WAJIB untuk Admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "draft|open|closed",
+                "business_unit_name": "string"
+              },
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "has_data": "bool — true hanya bila ada minimal satu slot terisi; membedakan 'tidak ada yang dilaporkan' dari 'angkanya nol'",
+              "coverage": {
+                "filled_slots": "int",
+                "expected_slots": "int — thresher_count × days_counted × slots_per_thresher_per_day",
+                "coverage_percent": "float|null — null bila expected_slots nol, BUKAN 0.0",
+                "thresher_count": "int — thresher_id yang benar-benar muncul, bukan jumlah stasiun terdaftar",
+                "slots_per_thresher_per_day": "int — 24, dari ThreshingRecordService::canonicalTimeSlots()",
+                "days_in_period": "int",
+                "days_counted": "int — berhenti di hari ini bila periode berjalan",
+                "period_running": "bool"
+              },
+              "metrics": [
+                {
+                  "column": "string — nama kolom pada threshing_details",
+                  "label": "string",
+                  "unit": "string",
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "filled_slot_count": "int — PENYEBUT angka di baris ini, bukan coverage.filled_slots",
+                  "target": {
+                    "parameter": "string|null",
+                    "standard_operational_target": "string|null",
+                    "action_plan_on_deviation": "string|null"
+                  }
+                }
+              ],
+              "targets_without_metric": [
+                {
+                  "parameter": "string",
+                  "standard_operational_target": "string",
+                  "action_plan_on_deviation": "string"
+                }
+              ],
+              "targets_master_empty": "bool",
+              "by_thresher": [
+                {
+                  "thresher_id": "string",
+                  "day_count": "int",
+                  "filled_slot_count": "int",
+                  "averages": {
+                    "column_name": "float|null"
+                  }
+                }
+              ],
+              "daily": [
+                {
+                  "date": "date",
+                  "filled_slot_count": "int",
+                  "averages": {
+                    "column_name": "float|null"
+                  }
+                }
+              ],
+              "daily_total": {
+                "filled_slot_count": "int",
+                "averages": {
+                  "column_name": "float|null"
+                }
+              },
+              "downtime_reasons": [
+                {
+                  "reason": "string",
+                  "slot_count": "int"
+                }
+              ],
+              "total": {
+                "record_count": "int",
+                "days_with_records": "int",
+                "draft_record_count": "int",
+                "records_not_checked": "int",
+                "records_not_acknowledged": "int"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran tidak diterima; atau production_line_id milik mill lain; atau period_id milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada — diperiksa SETELAH line, supaya permintaan yang tidak lengkap tidak berubah menjadi 404 tentang periode yang memang tak berhak ditanyakan"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id absen, production_line_id absen, atau Admin tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/threshing-reports/export",
+          "description": "Unduhan CSV/Excel — SATU BARIS PER SLOT WAKTU, kolom konteks diulang verbatim di setiap baris. Bukan respons JSON",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Ketiadaannya 422"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "description": "WAJIB, sama seperti /summary"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Diabaikan untuk peran terikat mill; WAJIB untuk Admin"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "description": "csv (bawaan) atau excel; nilai lain 422 VALIDATION_ERROR"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "content_type": "text/csv | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "body": "StreamedResponse — header + satu baris per threshing_details"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran tidak diterima; atau line/periode milik mill lain — dibangkitkan EAGER sebelum aliran dimulai, supaya penolakan tidak tiba sebagai unduhan kosong yang sukses"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen, atau format di luar csv|excel"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "Jumlah BARIS SLOT melebihi EXPORT_ROW_LIMIT (50.000). Dihitung atas baris slot, bukan record — satu record harian menghasilkan sampai 24 baris, sehingga batas per record akan meloloskan berkas 24 kali lebih besar"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "DIPAKAI ULANG VERBATIM dari screen-135 — bukan endpoint baru dan tidak diduplikasi di bawah prefix ini",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Diabaikan untuk peran terikat mill; dikirim Admin setelah memilih mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "code": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Gate sesi + peran (guardAccess): 401 bila tidak ada sesi, 403 bila peran di luar operator/supervisor/mill_management/admin. Gate ini dua lapis lebih dalam daripada middleware rute, supaya melewati middleware tidak cukup dengan sendirinya.",
+        "2. resolveBusinessUnit(): untuk supervisor/mill_management/operator SELALU business_unit_id akun — argumen dari klien tidak divalidasi, tidak dibandingkan, dibuang. Untuk admin nilainya WAJIB dari klien; absen = 422. Operator berada pada cabang TERIKAT MILL, dan penempatan itu yang menanggung beban keamanan: menerimanya hanya di guardAccess() akan menjatuhkannya ke cabang admin tempat business_unit_id klien DIHORMATI.",
+        "3. Akun terikat mill yang business_unit_id-nya NULL: 422 fail-closed, dan daftar seluruh mill tidak pernah dibaca.",
+        "4. businessUnitOptions(): 403 untuk setiap peran selain admin, dibangkitkan di SERVICE bukan middleware — middleware menerima keempat peran untuk endpoint lain pada prefix yang sama.",
+        "5. listPeriods(): periods JOIN period_stations WHERE period_stations.station_type = 'threshing' AND periods.business_unit_id = mill berlaku. Status pada tiap opsi diambil dari BARIS period_stations itu, bukan dari kolom status periode. Status tidak menyaring: periode tertutup ikut tercantum.",
+        "6. requireProductionLineId(): absen = 422 errors.production_line_id. Ditegakkan di controller DAN lagi di dalam service, supaya pemanggilan service langsung pun tidak dapat melewatinya.",
+        "7. resolveProductionLine(): line yang business_unit_id-nya bukan mill berlaku = 403. Berbeda dari business_unit_id yang diabaikan — di sini ada pegangan konkret pada data mill lain, jadi ditolak terang-terangan.",
+        "8. requirePeriodId(): absen = 422 errors.period_id.",
+        "9. authorizePeriod(): periode tidak ada = 404; periode milik mill lain = 403. Urutan 6-7-8-9 disengaja: permintaan tidak lengkap tidak boleh berubah menjadi 404/403 tentang periode yang memang tak berhak ditanyakan.",
+        "10. recordsFor(): threshing_records WHERE whereDate(date) BETWEEN periode AND production_line_id = line. whereDate, bukan where mentah — suite berjalan di SQLite sementara produksi PostgreSQL. Penyaringan memakai kolom production_line_id pada RECORD, bukan join ke stations.",
+        "11. rowsOf(): memetakan setiap threshing_details menjadi baris datar dengan konteks record-nya (tanggal, thresher_id, status, catatan), dan menandai 'filled' bila minimal satu dari kelima kolom ukur ATAU downtime_reason terisi.",
+        "12. Baris 'filled' saja yang masuk perhitungan. Baris yang keenam kolomnya null adalah slot yang belum disentuh — sudah dilaporkan sebagai kekurangan oleh cakupan, dan menghitungnya lagi berarti melaporkan kekosongan yang sama dua kali.",
+        "13. coverage: filled_slots = jumlah baris filled; thresher_count = jumlah thresher_id distinct yang muncul; slots_per_thresher_per_day = count(ThreshingRecordService::canonicalTimeSlots()) = 24, diambil dari grid kanonis layar input itu sendiri; days_counted = ReportPeriodDays::counted() yang berhenti di hari ini untuk periode berjalan; expected_slots = thresher_count x days_counted x 24; coverage_percent = null bila expected_slots nol (BUKAN 0.0, karena 0% menyiratkan ada yang diukur dan hasilnya nol).",
+        "14. metricsOf(): untuk tiap kolom pada NUMERIC_METRICS, kumpulkan nilai non-null dari baris filled, lalu min/avg/max atas kumpulan ITU, dan sertakan filled_slot_count-nya sendiri. Seluruh agregasi di PHP, tidak satu pun agregat SQL atas kolom nullable — SQLite dan PostgreSQL berbeda perilaku pada AVG atas kolom bernull, dan perbedaan itu akan lolos dari suite.",
+        "15. Kolom tanpa satu pun nilai: min/avg/max null dan filled_slot_count 0. Barisnya TETAP ada — parameter yang hilang terbaca sebagai 'tidak ada parameter ini', padahal yang benar 'tidak ada yang mengukurnya'.",
+        "16. targetsFor(): baca threshing_operational_targets diurutkan sort_order, lalu pasangkan ke kolom lewat PETA TETAP (COLUMN_TARGET_PARAMETER) — bukan pencocokan teks nama parameter saat render, yang akan pecah begitu seseorang memperbaiki ejaan pada master.",
+        "17. Parameter master yang tidak punya kolom masuk targets_without_metric, bukan dibuang. Hari ini tepat satu: 'Bearing Temperature' — master memuat enam parameter sementara threshing_details hanya menyediakan lima kolom ukur.",
+        "18. targets_master_empty = true bila tabel master kosong; metrics tetap terisi penuh dan hanya blok target-nya yang kosong, sehingga seeder yang belum dijalankan tidak menghapus angka hasil ukur dari layar.",
+        "19. TIDAK ADA perbandingan antara nilai terukur dan standar — tidak ada severity, tidak ada penanda di luar batas, tidak ada deteksi pencilan. standard_operational_target adalah VARCHAR berisi prosa; mengurainya menjadi pembanding berarti mengarang batas keselamatan dari kalimat. Paragraf ini ada supaya kelalaian ini tidak 'dilengkapi' belakangan.",
+        "20. byThresherOf(): kelompokkan baris filled menurut thresher_id (penamaan unit, bukan kunci baris — thresher_id yang sama pada hari berbeda adalah satu unit), hitung day_count, filled_slot_count, dan rata-rata tiap kolom dengan penyebutnya sendiri per kolom per thresher.",
+        "21. dailyOf(): kelompokkan menurut tanggal record, dengan aturan penyebut per kolom yang sama; daily_total menghitung ulang atas SELURUH baris filled, bukan merata-ratakan rata-rata harian — rata-rata dari rata-rata memberi bobot sama pada hari yang jumlah slotnya berbeda.",
+        "22. downtimeReasonsOf(): kelompokkan downtime_reason non-null dan non-kosong APA ADANYA (hanya trim whitespace tepi, tanpa penyeragaman huruf besar-kecil), hitung slot per teks, urutkan dari terbanyak lalu alfabetis untuk memastikan urutan yang stabil. Slot yang mencatat downtime tetap ikut pada angka ukur bila kolom ukurnya terisi — downtime bukan penyaring.",
+        "23. total: record_count, days_with_records, draft_record_count, records_not_checked (checked_by NULL), records_not_acknowledged (acknowledged_by NULL). Draft IKUT seluruh angka; jumlahnya hanya dinyatakan.",
+        "24. has_data = filled_slots > 0. Dipakai layar untuk menolak menggambar tabel kosong yang akan terbaca sebagai hasil pengukuran bernilai nol.",
+        "25. buildExportRows(): hitung jumlah BARIS SLOT lebih dulu (withCount atas relasi details, dijumlahkan), tolak 422 EXPORT_FAILED bila melampaui static::EXPORT_ROW_LIMIT, baru alirkan baris dari kueri berpotong. Gate, resolusi mill, resolusi line, dan pemeriksaan batas berjalan EAGER sebelum aliran dimulai. Dibaca lewat static:: bukan self:: supaya subclass test dapat menurunkan batasnya tanpa menyemai 50.000 baris.",
+        "26. streamExportRows(): satu baris per threshing_details, kolom konteks diulang verbatim. Slot yang seluruh kolom ukurnya kosong tetap menjadi baris dengan sel kosong — tidak dibuang dan tidak ditulis 0. targets_without_metric tidak muncul pada ekspor karena tidak ada kolom datanya.",
+        "27. Komponen Livewire LaporanThreshing memakai canAccess()-nya SENDIRI dengan daftar tiga peran web, tidak meminjam guardAccess() service — sehingga Operator yang diterima API tidak ikut membuka layar web ini.",
+        "28. Parameter periode dan line dipertahankan di URL lewat atribut #[Url] supaya keadaan layar dapat dibagikan dan dibuka kembali apa adanya."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Induk periode: nama dan rentang tanggal pada pemilih dan header laporan."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Penyaring daftar periode (station_type = 'threshing') dan sumber nilai status pada opsi periode serta badge."
+        },
+        {
+          "entity_id": "threshing-record",
+          "operation": "SELECT",
+          "description": "Record harian per thresher: tanggal, thresher_id, status, catatan, checked_by, acknowledged_by, production_line_id."
+        },
+        {
+          "entity_id": "threshing-detail",
+          "operation": "SELECT",
+          "description": "Baris slot waktu: kelima kolom ukur dan downtime_reason. Sumber seluruh angka min/avg/max."
+        },
+        {
+          "entity_id": "threshing-operational-target",
+          "operation": "SELECT",
+          "description": "Master standar operasional dan rencana tindakan per parameter. Global, tanpa kolom mill."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih line dan nama line pada header; juga penjagaan lintas-mill."
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin dan nama mill pada header."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "production_line_id absen",
+          "handling": "422 VALIDATION_ERROR dengan errors.production_line_id; NOL kueri threshing_records berjalan. Tidak di-default ke semua line"
+        },
+        {
+          "condition": "production_line_id milik mill lain",
+          "handling": "403 FORBIDDEN dari resolveProductionLine, sebelum periode diperiksa"
+        },
+        {
+          "condition": "period_id absen",
+          "handling": "422 VALIDATION_ERROR dengan errors.period_id — bukan 404 untuk string kosong"
+        },
+        {
+          "condition": "period_id tidak ada",
+          "handling": "404 NOT_FOUND"
+        },
+        {
+          "condition": "period_id milik mill lain",
+          "handling": "403 FORBIDDEN dari authorizePeriod"
+        },
+        {
+          "condition": "Peran terikat mill mengirim business_unit_id mill lain",
+          "handling": "200 berisi data mill SENDIRI — sengaja bukan 403, karena 403 justru memastikan mill lain itu ada"
+        },
+        {
+          "condition": "Admin tanpa business_unit_id",
+          "handling": "422 VALIDATION_ERROR dengan errors.business_unit_id — bukan null diam-diam dan bukan hasil kosong yang terbaca sebagai 'mill ini tidak punya data'"
+        },
+        {
+          "condition": "Akun terikat mill dengan business_unit_id NULL",
+          "handling": "422 fail-closed; daftar seluruh mill tidak pernah dibaca"
+        },
+        {
+          "condition": "Mill belum punya Production Line",
+          "handling": "data: [] dengan HTTP 200 dari options-for-report; layar menampilkan arahan menghubungi Admin tanpa tombol coba lagi"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup Threshing",
+          "handling": "data: [] dengan HTTP 200 — pemilih kosong plus arahan, bukan 404"
+        },
+        {
+          "condition": "Periode tanpa satu pun slot terisi",
+          "handling": "has_data false; seluruh min/avg/max null; coverage.filled_slots 0; daily dan downtime_reasons array kosong. Layar merender 'tidak tersedia', bukan 0"
+        },
+        {
+          "condition": "Satu kolom ukur kosong sepanjang periode",
+          "handling": "Baris metrics-nya TETAP ada dengan min/avg/max null dan filled_slot_count 0; blok target-nya tetap terisi"
+        },
+        {
+          "condition": "Satu kolom ukur terisi tepat satu slot",
+          "handling": "min = avg = max = nilai itu, filled_slot_count 1 — dan penyebut itulah yang menjelaskan mengapa ketiganya sama"
+        },
+        {
+          "condition": "Dua kolom dengan penyebut sangat berbeda",
+          "handling": "Masing-masing memakai filled_slot_count-nya sendiri; tidak ada penyebut bersama"
+        },
+        {
+          "condition": "Nilai ukur negatif atau nol",
+          "handling": "Dilaporkan apa adanya; tidak ada penilaian kewajaran, karena tidak ada dasar numerik untuk itu"
+        },
+        {
+          "condition": "Record ada tetapi seluruh baris slotnya kosong",
+          "handling": "Ikut record_count dan ikut penyebut cakupan (thresher dan hari-nya nyata), tetapi tidak menyumbang satu pun nilai ukur"
+        },
+        {
+          "condition": "Dua record dengan thresher_id sama pada hari berbeda",
+          "handling": "Dikelompokkan sebagai SATU baris by_thresher dengan day_count 2"
+        },
+        {
+          "condition": "Periode masih berjalan",
+          "handling": "coverage.days_counted berhenti di hari ini, period_running true; layar menyatakannya"
+        },
+        {
+          "condition": "Periode belum mulai",
+          "handling": "days_counted 0, expected_slots 0, coverage_percent null — layar merender tanda pisah, bukan 0%"
+        },
+        {
+          "condition": "Periode tertutup",
+          "handling": "Laporan penuh, badge Tertutup, ekspor tetap aktif — kunci periode mengatur penulisan, bukan pembacaan"
+        },
+        {
+          "condition": "Master target kosong",
+          "handling": "targets_master_empty true; metrics[].target seluruh fieldnya null; angka hasil ukur tetap lengkap"
+        },
+        {
+          "condition": "Master target memuat parameter tanpa kolom ukur",
+          "handling": "Masuk targets_without_metric; tidak ikut perhitungan dan tidak muncul pada ekspor"
+        },
+        {
+          "condition": "Ejaan nama parameter pada master diubah",
+          "handling": "Pemetaan kolom ke parameter bersifat tetap di COLUMN_TARGET_PARAMETER, jadi perubahan ejaan hanya memindahkan baris itu ke targets_without_metric alih-alih menghilangkan angkanya — dan itu terlihat, bukan senyap"
+        },
+        {
+          "condition": "downtime_reason kosong pada seluruh slot",
+          "handling": "downtime_reasons array kosong; layar menampilkan keterangan, bukan tabel kosong"
+        },
+        {
+          "condition": "downtime_reason dengan ejaan berbeda untuk sebab sama",
+          "handling": "Dua baris terpisah — pengelompokan harfiah, dan layar menyatakan hal itu"
+        },
+        {
+          "condition": "downtime_reason hanya berisi spasi",
+          "handling": "Diperlakukan sebagai kosong setelah trim whitespace tepi; tidak menjadi baris berlabel kosong"
+        },
+        {
+          "condition": "Jumlah baris slot melampaui batas ekspor",
+          "handling": "422 EXPORT_FAILED sebelum satu baris pun dialirkan"
+        },
+        {
+          "condition": "Jumlah record di bawah batas tetapi baris slot di atas batas",
+          "handling": "Tetap 422 EXPORT_FAILED — batas dihitung atas baris slot"
+        },
+        {
+          "condition": "format di luar csv|excel",
+          "handling": "422 VALIDATION_ERROR"
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca — tidak ada endpoint tulis pada prefix /api/threshing-reports",
+        "Production Line wajib pada /summary dan /export",
+        "Penyaringan line memakai threshing_records.production_line_id, bukan join ke stations",
+        "business_unit_id klien diabaikan untuk peran terikat mill",
+        "Status periode tidak menyaring daftar periode",
+        "Tiap kolom ukur memakai penyebutnya sendiri, dan penyebut itu dipublikasikan",
+        "null bukan 0",
+        "Cakupan pencatatan dipublikasikan beserta ketiga angka pembentuk penyebutnya",
+        "Penyebut hari berhenti di hari ini untuk periode berjalan",
+        "Slot kanonis diambil dari layar input, bukan ditetapkan ulang",
+        "Record draft ikut terhitung dan jumlahnya dinyatakan",
+        "Status verifikasi bukan penyaring",
+        "Standar dan rencana tindakan disajikan bersebelahan dengan angka",
+        "Tidak ada penandaan otomatis di luar batas",
+        "Pemetaan parameter ke kolom bersifat tetap, bukan pencocokan teks",
+        "Target tanpa pengukuran tetap dipublikasikan",
+        "Master target global, dan hal itu dinyatakan",
+        "Alasan downtime dikelompokkan harfiah",
+        "Ekspor satu baris per slot dengan konteks diulang",
+        "Slot kosong tetap menjadi baris ekspor",
+        "Batas ekspor dihitung atas baris slot"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "guardAccess menolak tamu dengan 401 dan peran di luar keempatnya dengan 403",
+          "given": "Tidak ada sesi; lalu sesi dengan peran yang tidak diterima",
+          "expect": "AuthenticationException; lalu AuthorizationException — keduanya SEBELUM satu pun kueri periode berjalan"
+        },
+        {
+          "description": "resolveBusinessUnit mengabaikan business_unit_id klien untuk ketiga peran terikat mill",
+          "given": "Supervisor pada mill A mengirim id mill B; diulang untuk Mill Management dan Operator",
+          "expect": "Mengembalikan mill A pada ketiganya — bukan 403, dan bukan mill B"
+        },
+        {
+          "description": "resolveBusinessUnit menolak Admin tanpa business_unit_id dengan 422",
+          "given": "Admin tanpa argumen business_unit_id",
+          "expect": "ValidationException dengan errors.business_unit_id"
+        },
+        {
+          "description": "resolveBusinessUnit fail-closed untuk akun terikat mill yang business_unit_id-nya NULL",
+          "given": "Supervisor dengan users.business_unit_id NULL",
+          "expect": "ValidationException; dan daftar seluruh mill tidak pernah dibaca"
+        },
+        {
+          "description": "businessUnitOptions menolak setiap peran selain Admin",
+          "given": "Supervisor, lalu Mill Management, lalu Operator",
+          "expect": "AuthorizationException pada ketiganya, dibangkitkan service bukan middleware"
+        },
+        {
+          "description": "listPeriods menyaring menurut baris period_stations station_type threshing",
+          "given": "Mill dengan satu periode yang mencakup Threshing dan satu yang hanya mencakup Sterilizer",
+          "expect": "Hanya periode pertama yang tercantum"
+        },
+        {
+          "description": "listPeriods memakai status dari baris period_stations, bukan kolom status periode",
+          "given": "Periode yang baris Threshing-nya open sementara baris stasiun lain closed",
+          "expect": "Opsi periode berstatus open"
+        },
+        {
+          "description": "listPeriods tetap mencantumkan periode tertutup",
+          "given": "Mill dengan satu periode Threshing berstatus closed",
+          "expect": "Periode itu ada pada daftar — status tidak menyaring"
+        },
+        {
+          "description": "requireProductionLineId menolak ketiadaan line dengan 422",
+          "given": "Permintaan ringkasan tanpa production_line_id",
+          "expect": "ValidationException errors.production_line_id; nol kueri threshing_records"
+        },
+        {
+          "description": "resolveProductionLine menolak line milik mill lain dengan 403",
+          "given": "Supervisor mill A mengirim id line milik mill B",
+          "expect": "AuthorizationException — berbeda dari business_unit_id yang diabaikan"
+        },
+        {
+          "description": "authorizePeriod menolak periode milik mill lain dengan 403 dan periode tak ada dengan 404",
+          "given": "Dua permintaan: id periode mill lain, lalu id yang tidak ada",
+          "expect": "AuthorizationException; lalu ModelNotFoundException"
+        },
+        {
+          "description": "Urutan penjagaan: line diperiksa sebelum periode",
+          "given": "Permintaan dengan line milik mill lain DAN period_id yang tidak ada",
+          "expect": "403 tentang line, bukan 404 tentang periode — pemohon tidak belajar apa pun tentang periode"
+        },
+        {
+          "description": "recordsFor menyaring menurut production_line_id pada record, bukan lewat join stations",
+          "given": "Dua record pada hari sama: satu production_line_id line-1, satu line-2, keduanya station_id yang kini terdaftar di line-2",
+          "expect": "Hanya record berkolom line-1 yang terbaca saat line-1 diminta"
+        },
+        {
+          "description": "recordsFor memakai whereDate pada kolom date",
+          "given": "Record tepat pada tanggal awal dan tanggal akhir periode",
+          "expect": "Keduanya terhitung — batas periode inklusif"
+        },
+        {
+          "description": "Baris slot yang keenam kolomnya null tidak dihitung sebagai terisi",
+          "given": "Satu record dengan 24 baris slot yang seluruhnya null",
+          "expect": "coverage.filled_slots 0, has_data false, record_count 1"
+        },
+        {
+          "description": "Baris slot yang HANYA berisi downtime_reason dihitung sebagai terisi",
+          "given": "Satu baris slot dengan kelima kolom ukur null dan downtime_reason 'Belt kendur'",
+          "expect": "filled_slots 1; seluruh min/avg/max tetap null; downtime_reasons memuat satu baris"
+        },
+        {
+          "description": "metricsOf memakai penyebut per kolom, bukan satu penyebut bersama",
+          "given": "10 baris terisi: ffb_throughput pada 10 baris, drum_speed hanya pada 3",
+          "expect": "filled_slot_count 10 untuk kolom pertama dan 3 untuk kolom kedua; rata-rata kolom kedua dibagi 3"
+        },
+        {
+          "description": "Kolom tanpa satu pun nilai menghasilkan null, bukan 0, dan barisnya tetap ada",
+          "given": "Periode yang motor_current_amps tidak pernah terisi",
+          "expect": "Baris metrics untuk kolom itu ada, min/avg/max null, filled_slot_count 0"
+        },
+        {
+          "description": "Kolom dengan satu nilai menghasilkan min = avg = max",
+          "given": "empty_bunch_oil_loss_percent terisi tepat satu slot bernilai 0,42",
+          "expect": "min, avg, dan max ketiganya 0,42, filled_slot_count 1"
+        },
+        {
+          "description": "Nilai nol dan negatif dilaporkan apa adanya",
+          "given": "unstripped_bunch_count_percent bernilai 0 pada satu slot dan -1 pada slot lain",
+          "expect": "min -1, max 0, avg -0,5 — tidak ada nilai yang dibuang sebagai tidak wajar"
+        },
+        {
+          "description": "coverage.expected_slots sama dengan thresher_count kali days_counted kali 24",
+          "given": "2 thresher, periode 10 hari yang sudah selesai",
+          "expect": "expected_slots 480, slots_per_thresher_per_day 24, thresher_count 2"
+        },
+        {
+          "description": "thresher_count memakai thresher_id yang muncul, bukan jumlah stasiun terdaftar",
+          "given": "Mill punya 4 stasiun threshing terdaftar; hanya 2 thresher_id muncul pada periode itu",
+          "expect": "thresher_count 2"
+        },
+        {
+          "description": "days_counted berhenti di hari ini untuk periode berjalan",
+          "given": "Periode 1 sampai 30 sementara hari ini tanggal 18",
+          "expect": "days_counted 18, days_in_period 30, period_running true"
+        },
+        {
+          "description": "coverage_percent null ketika expected_slots nol",
+          "given": "Periode yang belum mulai",
+          "expect": "coverage_percent null, bukan 0.0 — 0% menyiratkan ada yang diukur dan hasilnya nol"
+        },
+        {
+          "description": "slots_per_thresher_per_day diambil dari canonicalTimeSlots layar input",
+          "given": "ThreshingRecordService::canonicalTimeSlots() mengembalikan 24 entri mulai 07:00",
+          "expect": "slots_per_thresher_per_day sama dengan count() dari daftar itu — bukan konstanta terpisah yang bisa menyimpang"
+        },
+        {
+          "description": "targetsFor memasangkan standar lewat peta tetap, bukan pencocokan teks nama parameter",
+          "given": "Master target dengan nama parameter yang ejaannya diubah",
+          "expect": "Pemetaan tidak bersandar pada teks itu; baris yang namanya tidak dikenal masuk targets_without_metric dan angka ukurnya tetap utuh"
+        },
+        {
+          "description": "Parameter master tanpa kolom ukur masuk targets_without_metric",
+          "given": "Master target enam parameter dengan Bearing Temperature yang tidak punya kolom",
+          "expect": "metrics 5 baris; targets_without_metric memuat tepat satu entri berisi standar dan rencana tindakannya"
+        },
+        {
+          "description": "Master target kosong tidak menghapus angka hasil ukur",
+          "given": "Tabel threshing_operational_targets kosong, data slot lengkap",
+          "expect": "targets_master_empty true; metrics tetap 5 baris berisi angka; metrics[].target seluruh fieldnya null"
+        },
+        {
+          "description": "Tidak ada perbandingan nilai terhadap standar di mana pun pada payload",
+          "given": "Rata-rata drum speed 27,4 sementara standar bertuliskan 21 - 23 RPM",
+          "expect": "Payload tidak memuat satu pun kunci severity, is_out_of_range, status, maupun flag — diuji atas daftar kunci yang dipublikasikan"
+        },
+        {
+          "description": "by_thresher mengelompokkan thresher_id sebagai unit, bukan kunci baris",
+          "given": "thresher_id TH-1 tercatat pada dua tanggal berbeda",
+          "expect": "Satu baris by_thresher dengan day_count 2 dan filled_slot_count gabungan"
+        },
+        {
+          "description": "daily_total dihitung ulang atas seluruh baris, bukan merata-ratakan rata-rata harian",
+          "given": "Hari A dengan 10 slot bernilai 10 dan hari B dengan 1 slot bernilai 100",
+          "expect": "daily_total rata-rata sekitar 18,18 ((10x10+100)/11), bukan 55 ((10+100)/2)"
+        },
+        {
+          "description": "downtimeReasonsOf mengelompokkan harfiah tanpa penyeragaman huruf",
+          "given": "'Belt kendur' pada 3 slot dan 'belt kendur' pada 2 slot",
+          "expect": "Dua baris: 'Belt kendur' 3 dan 'belt kendur' 2 — diurutkan dari terbanyak"
+        },
+        {
+          "description": "downtime_reason berisi hanya spasi diperlakukan sebagai kosong",
+          "given": "Satu slot dengan downtime_reason berisi tiga spasi",
+          "expect": "Tidak menjadi baris pada downtime_reasons"
+        },
+        {
+          "description": "Slot ber-downtime tetap ikut angka ukur bila kolom ukurnya terisi",
+          "given": "Satu slot dengan ffb_throughput 25 dan downtime_reason 'Belt kendur'",
+          "expect": "Nilai 25 ikut pada min/avg/max kolom itu — downtime bukan penyaring"
+        },
+        {
+          "description": "Record draft ikut seluruh angka dan jumlahnya dinyatakan",
+          "given": "12 record, 4 di antaranya draft_ongoing atau draft_paused",
+          "expect": "Seluruh 12 ikut perhitungan; draft_record_count 4"
+        },
+        {
+          "description": "Status verifikasi bukan penyaring",
+          "given": "Record dengan checked_by dan acknowledged_by NULL",
+          "expect": "Ikut terhitung penuh; records_not_checked dan records_not_acknowledged menghitungnya"
+        },
+        {
+          "description": "has_data membedakan tidak ada yang dilaporkan dari angkanya nol",
+          "given": "Periode tanpa slot terisi; lalu periode dengan satu slot bernilai 0",
+          "expect": "has_data false; lalu has_data true dengan avg 0,0"
+        },
+        {
+          "description": "Batas ekspor dihitung atas baris slot, bukan record",
+          "given": "Subclass test dengan EXPORT_ROW_LIMIT 5; 1 record dengan 6 baris slot",
+          "expect": "ExportFailedException — dibaca lewat static:: sehingga subclass dapat menurunkan batasnya tanpa menyemai 50.000 baris"
+        },
+        {
+          "description": "Penjagaan ekspor berjalan eager sebelum aliran dimulai",
+          "given": "Supervisor mill A mengekspor periode mill B",
+          "expect": "AuthorizationException dari pemanggilan itu sendiri, bukan pada iterasi pertama generator"
+        },
+        {
+          "description": "Ekspor memancarkan satu baris per slot dengan konteks diulang",
+          "given": "2 record dengan 3 baris slot masing-masing",
+          "expect": "6 baris data; kolom periode/mill/line/tanggal/thresher/status/catatan terulang verbatim pada setiap baris"
+        },
+        {
+          "description": "Slot kosong tetap menjadi baris ekspor dengan sel kosong",
+          "given": "Satu record dengan satu slot yang seluruh kolom ukurnya null",
+          "expect": "Satu baris dengan sel ukur kosong — bukan dibuang dan bukan ditulis 0"
+        },
+        {
+          "description": "Format di luar csv|excel ditolak sebelum satu baris dialirkan",
+          "given": "format bernilai pdf",
+          "expect": "ValidationException"
+        },
+        {
+          "description": "Komponen Livewire menolak Operator meskipun service menerimanya",
+          "given": "Operator membuka rute web /reports/threshing",
+          "expect": "Ditolak oleh canAccess() komponen — daftar peran komponen terpisah dari guardAccess() service, dan terpisahnya itu disengaja"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "threshing-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "threshing-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "threshing-operational-target",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Pintu masuk satu-satunya. Tile Threshing baru aktif setelah StationReportService::REPORT_ROUTES ditambah entri 'threshing' — satu baris yang menentukan layar ini dapat dicapai atau tidak"
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan yang mencakup Threshing, layar ini tidak punya apa pun untuk ditampilkan"
+    },
+    {
+      "screen_id": "screen-142--detail-periode-pelaporan",
+      "reason": "Status Threshing pada sebuah periode — yang ditampilkan sebagai badge di layar ini — ditetapkan di sana"
+    },
+    {
+      "screen_id": "screen-149--laporan-threshing-mobile",
+      "reason": "Kembaran mobile yang memakai ULANG keempat endpoint layar ini; karena ia dibangun dalam seri yang sama, ketiga rute data menerima Operator sejak awal — pola yang sudah terbukti pada pasangan screen-146/147"
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Memakai ulang GET /api/production-lines/options-for-report yang dibangun untuk layar itu, verbatim"
+    }
+  ],
+  "implementation_notes": [
+    "POLA SERVICE MENGIKUTI BoilerRoomReportService, bukan GradingReportService. Threshing berstruktur sama dengan Boiler Room — record harian per unit, baris per slot waktu, kolom ukur nullable — sehingga resolveBusinessUnit / businessUnitOptions / productionLineOptions / resolveProductionLine / authorizePeriod / listPeriods / buildSummary / export, NUMERIC_METRICS, statsOf, dailyOf, byUnitOf, streamExportRows, dan recordQueryFor dipinjam strukturnya. Yang BARU dan tidak ada padanannya di tujuh laporan sebelumnya hanya blok target operasional.",
+    "KONSTANTA PEMETAAN COLUMN_TARGET_PARAMETER adalah inti kebaruan layar ini: ffb_throughput_mt_hour ke 'FFB Throughput', thresher_drum_speed_rpm ke 'Thresher Drum Speed', motor_current_amps ke 'Motor Current', unstripped_bunch_count_percent ke 'Unstripped Bunch Rate', empty_bunch_oil_loss_percent ke 'Empty Bunch (EB) Oil Loss'. Lima kolom, lima parameter — dan master memuat enam, sehingga 'Bearing Temperature' selalu menjadi targets_without_metric. Pemetaan ini TETAP dan tidak boleh diganti pencocokan teks saat render.",
+    "ENAM MINUS LIMA ADALAH TEMUAN, BUKAN BUG LAPORAN. threshing_details tidak punya kolom suhu bantalan sementara master menyediakan standarnya. Laporan menerbitkan ketimpangan itu lewat targets_without_metric dan layar menyatakannya dengan kalimat; menyembunyikannya akan membuat standar yang tidak pernah terukur tampak terpenuhi.",
+    "TIDAK ADA PENANDAAN DI LUAR BATAS, dan ini laporan PERTAMA yang harus menjelaskan mengapa meski masternya ADA. standard_operational_target adalah VARCHAR berisi prosa ('21 - 23 RPM (optimal for separation)', 'Within motor rated full-load current (FLC)', 'As per mill capacity design (e.g., 30-60 MT/hr)'). Mengurainya menjadi pembanding berarti mengarang batas; angka yang dirender merah akan dibaca sebagai pelanggaran. Ada unit test yang mengasersi payload tidak memuat satu pun kunci severity/is_out_of_range/flag, supaya kelalaian ini tidak dilengkapi belakangan.",
+    "SETIAP RATA-RATA MENERBITKAN PENYEBUTNYA SENDIRI (filled_slot_count per baris metrics). Kelima kolom nullable dan tidak terisi bersamaan; satu penyebut bersama akan salah untuk setidaknya empat di antaranya. Aturan yang sama dengan avg_percentage pada laporan Grading, hanya sumber kekeliruannya berbeda.",
+    "coverage_percent NULL, BUKAN 0.0, ketika expected_slots nol. Boiler Room memakai 0.0 di tempat ini; itu keliru untuk periode yang belum mulai, karena 0% menyiratkan ada yang diukur dan hasilnya nol. Perbedaan yang disengaja dari template-nya, dan ada test untuknya.",
+    "SLOT YANG HANYA BERISI downtime_reason DIHITUNG TERISI. Boiler Room menilai filled dari kolom ukur saja; di sini alasan downtime adalah informasi yang nyata dicatat operator pada slot itu, sehingga mengabaikannya akan melaporkan slot yang jelas disentuh sebagai slot kosong. Konsekuensinya: filled_slots bisa lebih besar daripada penyebut kolom ukur mana pun — dan itu benar, bukan ketidakcocokan.",
+    "ALASAN DOWNTIME DIKELOMPOKKAN HARFIAH. Tanpa penyeragaman huruf besar-kecil dan tanpa normalisasi ejaan, hanya trim whitespace tepi. Normalisasi akan menggabungkan sebab yang penulisnya memang maksudkan berbeda, dan layar menyatakan sifat harfiah itu supaya dua baris mirip tidak dibaca sebagai cacat laporan. Urutan: slot_count menurun, lalu alfabetis, supaya hasilnya stabil antar basis data.",
+    "daily_total DIHITUNG ULANG ATAS SELURUH BARIS, bukan merata-ratakan rata-rata harian — rata-rata dari rata-rata memberi bobot sama pada hari yang jumlah slotnya berbeda. Ada test dengan fixture 10x10 lawan 1x100 yang memisahkan 18,18 dari 55.",
+    "SELURUH AGREGASI DI PHP, nol agregat SQL atas kolom nullable. SQLite (suite) dan PostgreSQL (produksi) berbeda perilaku pada AVG atas kolom bernull, dan perbedaan itu akan lolos dari suite. whereDate dipakai pada threshing_records.date, bukan where mentah.",
+    "BATAS EKSPOR DIHITUNG ATAS BARIS SLOT lewat withCount atas relasi details, bukan atas record — satu record harian menghasilkan sampai 24 baris, jadi batas per record meloloskan berkas 24 kali lebih besar. Dibaca lewat static::EXPORT_ROW_LIMIT supaya subclass test dapat menurunkan batasnya tanpa menyemai 50.000 baris.",
+    "RUTE API MENERIMA OPERATOR SEJAK AWAL ('role:supervisor,mill_management,admin,operator'), dan resolveBusinessUnit() memasukkan Operator ke cabang TERIKAT MILL sejak awal pula. Pasangan mobile screen-149 karena itu tidak akan menuntut satu pun perubahan backend — pola yang terbukti pada pasangan screen-146/147 dan yang pasangan Weighbridge (143/144) harus tambal menyusul dengan tiga perubahan sekaligus. /business-units/options tetap Admin saja.",
+    "RUTE WEB TIDAK DIBUKA UNTUK OPERATOR. Komponen Livewire LaporanThreshing memakai canAccess()-nya sendiri dengan tiga peran web dan tidak meminjam guardAccess() service. Ada test Livewire yang menguncinya, supaya perluasan service berikutnya tidak melebarkan layar web tanpa menghasilkan kegagalan.",
+    "BLOK <style> HARUS BERADA DI SLOT styles LAYOUT, bukan di dalam komponen Livewire. Livewire 3 menaruh wire:id pada elemen pertama yang dirender; bila elemen itu sebuah <style>, seluruh wire:model mati tanpa satu pun galat — dan hanya browser test yang menangkapnya.",
+    "api-index ditambah empat endpoint baru (/api/threshing-reports/*), dengan actor_ids yang sudah memuat actor-station-operator sejak awal pada ketiga rute data."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Threshing (Web) — sukses sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount sebagai Supervisor terikat BU-A, pilih Production Line pertama, lalu pilih periode pertama",
+        "assert": "pemilih Mill tidak dirender; blok cakupan pencatatan terender SEBELUM tabel parameter pada urutan DOM; kelima baris parameter terender masing-masing dengan min, rata-rata, maks, penyebut slot, standar, dan rencana tindakan; rekap per thresher, rekap harian beserta baris total, dan tabel downtime terender; kedua tombol ekspor aktif; tidak ada satu pun kontrol tulis"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "masuk sebagai Supervisor, buka Laporan Stasiun, tekan tile Threshing, pilih line lalu periode",
+        "assert": "seluruh bagian laporan tampil dengan angka dari data tersemai; tidak ada tombol simpan/ubah/hapus"
+      }
+    },
+    {
+      "scenario_ref": "Sukses sebagai Admin setelah memilih mill",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}",
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount sebagai Admin tanpa mill terpilih, lalu pilih satu mill",
+        "assert": "pemilih Mill terender; daftar line dan periode kosong sampai mill dipilih, lalu keduanya terisi"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "sebagai Admin, pilih mill lalu line lalu periode",
+        "assert": "angka muncul hanya setelah ketiganya terpilih"
+      }
+    },
+    {
+      "scenario_ref": "Admin belum memilih mill",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount sebagai Admin tanpa business_unit_id",
+        "assert": "arahan memilih mill terender; daftar periode tidak pernah dipanggil dan tidak ada angka"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "buka layar sebagai Admin tanpa memilih mill",
+        "assert": "pemilih periode belum terisi dan arahan memilih mill terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Production Line belum dipilih",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan dua Production Line tersedia dan tidak ada yang terpilih, lalu pilih periode",
+        "assert": "arahan memilih line terender; tidak ada satu angka pun; permintaan ringkasan tidak dikirim"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "dengan dua line tersedia, pilih periode tanpa memilih line",
+        "assert": "tidak ada angka dan arahan memilih line terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Mill belum punya Production Line",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan daftar Production Line kosong",
+        "assert": "arahan menghubungi Admin terender tanpa tombol coba lagi"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Mill belum punya periode yang mencakup Threshing",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan daftar periode kosong",
+        "assert": "pemilih periode tetap terender dalam keadaan kosong beserta arahan menghubungi Admin — bukan dihilangkan"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Periode tanpa satu pun slot terisi",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode-kosong",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan payload has_data false dan seluruh min/avg/max null",
+        "assert": "keterangan periode kosong terender; seluruh angka tampil sebagai tidak tersedia bukan 0; rekap harian dan tabel downtime tidak digambar; kelima baris parameter tetap ada"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode tanpa data pada line terpilih",
+        "assert": "keterangan belum ada data tampil dan tidak ada angka 0 yang menyesatkan"
+      }
+    },
+    {
+      "scenario_ref": "Satu kolom ukur tidak pernah terisi sepanjang periode",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan metrics yang salah satu barisnya filled_slot_count 0",
+        "assert": "baris parameter itu TETAP terender dengan tidak tersedia dan penyebut 0 slot, sementara standar dan rencana tindakannya tetap tampil"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode yang satu kolom ukurnya tidak pernah diisi",
+        "assert": "baris parameter yang kosong tidak hilang dari tabel"
+      }
+    },
+    {
+      "scenario_ref": "Satu kolom ukur hanya terisi pada satu slot",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan satu baris metrics ber-min, avg, dan max bernilai sama dan filled_slot_count 1",
+        "assert": "ketiga angka terender sama dan penyebut 1 slot tercetak pada baris itu"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Setiap parameter memakai penyebutnya sendiri",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan dua baris metrics berpenyebut 120 dan 40",
+        "assert": "kedua penyebut tercetak pada barisnya masing-masing dan tidak ada satu penyebut bersama di mana pun"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode dengan dua kolom berpenyebut sangat berbeda",
+        "assert": "kedua penyebut tercetak apa adanya dan berbeda"
+      }
+    },
+    {
+      "scenario_ref": "Cakupan pencatatan ditampilkan sebelum angka lain",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan coverage filled_slots 96 dari expected_slots 480",
+        "assert": "blok cakupan berada di atas tabel parameter pada urutan DOM, dan ketiga angka pembentuk penyebut (thresher_count, days_counted, slots_per_thresher_per_day) tercetak"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode berdata lalu ukur posisi vertikal kedua bagian",
+        "assert": "blok cakupan berada di atas tabel parameter pada halaman terender"
+      }
+    },
+    {
+      "scenario_ref": "Penyebut hari berhenti di hari ini untuk periode berjalan",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan coverage period_running true, days_counted 18, days_in_period 30",
+        "assert": "keterangan dihitung sampai hari ini terender beserta kedua angka hari itu"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Periode belum mulai",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan coverage_percent null dan days_counted 0",
+        "assert": "persen cakupan terender sebagai tanda pisah bukan 0%, beserta keterangan bahwa belum ada hari yang dapat dijadikan pembagi"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Standar operasional ditampilkan bersebelahan dengan angka hasil ukur",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan metrics yang blok target-nya terisi",
+        "assert": "satu baris tabel memuat angka, standard_operational_target, dan action_plan_on_deviation sekaligus"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode berdata dan periksa baris parameter pertama",
+        "assert": "ketiganya berada pada baris DOM yang sama, bukan di bagian terpisah"
+      }
+    },
+    {
+      "scenario_ref": "Tidak ada penandaan otomatis di luar batas",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan rata-rata drum speed 27,4 sementara standar bertuliskan 21 - 23 RPM",
+        "assert": "tidak ada kelas md-threshold, is-danger, is-warning, maupun md-chip--danger di mana pun pada hasil render; kalimat yang menyatakan laporan tidak menilai hadir"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode yang rata-ratanya jelas di luar rentang standar",
+        "assert": "sisir hasil render untuk KETIADAAN kelas penanda — bukan ketiadaan frasa, karena kalimat penjelasnya sendiri menyebut di luar batas"
+      }
+    },
+    {
+      "scenario_ref": "Parameter master tanpa kolom pengukuran",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan targets_without_metric memuat Bearing Temperature",
+        "assert": "bagian itu terender dengan nama parameter, standar, rencana tindakan, dan keterangan bahwa sistem belum mengukurnya"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode berdata dan periksa bagian standar operasional",
+        "assert": "Bearing Temperature tampil sebagai target tanpa pengukuran, bukan hilang"
+      }
+    },
+    {
+      "scenario_ref": "Master target belum terisi",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan targets_master_empty true dan metrics berisi angka lengkap",
+        "assert": "keterangan master belum terisi terender sementara seluruh angka ukur tetap tampil"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Standar dinyatakan berlaku umum, bukan per mill",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan master target terisi",
+        "assert": "kalimat yang menyatakan standar berlaku umum untuk seluruh mill hadir pada bagian target"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Rekap per thresher memakai thresher_id sebagai nama unit",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan by_thresher dua baris TH-1 dan TH-2 berjumlah hari berbeda",
+        "assert": "satu baris per thresher_id dengan day_count dan filled_slot_count-nya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode yang thresher_id-nya tercatat pada dua tanggal",
+        "assert": "kedua tanggal menghasilkan satu baris berjumlah 2 hari"
+      }
+    },
+    {
+      "scenario_ref": "Record ada tetapi seluruh baris slotnya kosong",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan record_count 1 dan filled_slots 0",
+        "assert": "jumlah record terender 1 sementara seluruh angka ukur tetap tidak tersedia"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Record draft ikut terhitung dan jumlahnya dinyatakan",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan draft_record_count 4 dari record_count 12",
+        "assert": "jumlah draft terender beserta keterangan bahwa draft IKUT terhitung pada seluruh angka"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Status pemeriksaan bukan penyaring",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan records_not_checked dan records_not_acknowledged bernilai tak nol",
+        "assert": "keduanya terender sebagai informasi kelengkapan, dan angka utama tidak berubah karenanya"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Alasan downtime dikelompokkan harfiah",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan downtime_reasons memuat 'Belt kendur' 3 dan 'belt kendur' 2",
+        "assert": "dua baris terender terpisah beserta jumlah slot masing-masing, dan keterangan sifat harfiah pengelompokannya hadir"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode yang alasannya tercatat dengan dua ejaan",
+        "assert": "kedua ejaan tampil terpisah beserta jumlah slot masing-masing"
+      }
+    },
+    {
+      "scenario_ref": "Alasan downtime kosong pada seluruh slot",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan downtime_reasons array kosong dan has_data true",
+        "assert": "keterangan tidak ada alasan tercatat terender, bukan tabel kosong tanpa penjelasan"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Periode tertutup tetap dapat dibaca dan diekspor",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode-tertutup",
+            "production_line_id": "uuid-line",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount dengan periode berstatus closed",
+        "assert": "badge Tertutup terender dan tombol Ekspor tidak dinonaktifkan"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode tertutup lalu tekan Ekspor",
+        "assert": "laporan tampil penuh dan ekspor tetap dapat ditekan"
+      }
+    },
+    {
+      "scenario_ref": "Periode milik mill lain ditolak",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode-mill-lain",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Production Line milik mill lain ditolak",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line-mill-lain"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "business_unit_id kiriman klien diabaikan untuk peran terikat mill",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "uuid-mill-lain",
+            "period_id": "uuid-periode-mill-sendiri",
+            "production_line_id": "uuid-line-mill-sendiri"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Ekspor satu baris per slot dengan konteks diulang",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "tekan Ekspor pada periode berdata",
+        "assert": "unduhan terpicu dan nama berkasnya memuat slug periode"
+      }
+    },
+    {
+      "scenario_ref": "Slot kosong tetap menjadi baris pada ekspor",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Batas ekspor dihitung atas baris slot",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode-besar",
+            "production_line_id": "uuid-line",
+            "format": "csv"
+          },
+          "expected_status": 422,
+          "expected_error_code": "EXPORT_FAILED"
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Format ekspor tidak dikenal ditolak",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line",
+            "format": "pdf"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Layar ini hanya membaca",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount pada periode berdata lalu telusuri seluruh kontrol pada hasil render",
+        "assert": "tidak ada kontrol tulis — hanya pemilih, Ekspor, dan navigasi"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "sisir seluruh tombol pada halaman",
+        "assert": "tidak ada tombol Simpan, Ubah, Hapus, maupun Verifikasi"
+      }
+    },
+    {
+      "scenario_ref": "Sesi berakhir saat memuat ringkasan",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Operator ditolak pada rute WEB meski diterima pada API",
+      "usecase_id": "usecase-151--laporan-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshing",
+        "action": "mount sebagai Operator",
+        "assert": "ditolak oleh canAccess() komponen, meski guardAccess() service menerima Operator — kedua daftar peran memang terpisah"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    }
+  ]
+}

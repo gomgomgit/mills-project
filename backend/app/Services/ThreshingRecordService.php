@@ -71,6 +71,30 @@ class ThreshingRecordService
     protected const FORM_FIELDS = ['thresher_id', 'date', 'note'];
 
     /**
+     * The SIX detail columns that count as a reading on one time slot.
+     *
+     * Public since 2026-10-06 (screen-148 — the Threshing period report),
+     * because that report needs the SAME definition of "which columns count
+     * as a reading" that the input screens enforce. Visibility widened and
+     * the list centralised here rather than copied — two copies of this
+     * list is how the report and the form start disagreeing about what was
+     * recorded. Purely additive: no behaviour changed.
+     *
+     * downtime_reason BELONGS in this list. A slot where the operator wrote
+     * only "Belt kendur" was unmistakably visited, and treating it as an
+     * untouched slot would report a slot that was plainly filled in as
+     * blank.
+     */
+    public const READING_FIELDS = [
+        'ffb_throughput_mt_hour',
+        'thresher_drum_speed_rpm',
+        'motor_current_amps',
+        'unstripped_bunch_count_percent',
+        'empty_bunch_oil_loss_percent',
+        'downtime_reason',
+    ];
+
+    /**
      * The 24 canonical hourly time-slot labels, in order: 07:00, 08:00,
      * ..., 23:00, 00:00, ..., 06:00. Mirrors mobile's
      * threshingRecordRepo.ts's canonicalTimeSlots() exactly (`for i in
@@ -291,16 +315,29 @@ class ThreshingRecordService
     }
 
     /**
-     * @param  array{ffb_throughput_mt_hour: mixed, thresher_drum_speed_rpm: mixed, motor_current_amps: mixed, unstripped_bunch_count_percent: mixed, empty_bunch_oil_loss_percent: mixed, downtime_reason: mixed}  $row
+     * Is this slot a reading at all? True as soon as ONE of
+     * READING_FIELDS carries a value.
+     *
+     * Public since 2026-10-06 so ThreshingReportService can ask the same
+     * question the input screens ask, instead of re-deriving it (see
+     * READING_FIELDS). Behaviour is unchanged: the loop below treats null
+     * and '' as empty, which for the five float columns is exactly the old
+     * `!== null` test and for downtime_reason is exactly the old
+     * `!== null && !== ''` test.
+     *
+     * @param  array{ffb_throughput_mt_hour?: mixed, thresher_drum_speed_rpm?: mixed, motor_current_amps?: mixed, unstripped_bunch_count_percent?: mixed, empty_bunch_oil_loss_percent?: mixed, downtime_reason?: mixed}  $row
      */
-    protected function isRowFilled(array $row): bool
+    public function isRowFilled(array $row): bool
     {
-        return $row['ffb_throughput_mt_hour'] !== null
-            || $row['thresher_drum_speed_rpm'] !== null
-            || $row['motor_current_amps'] !== null
-            || $row['unstripped_bunch_count_percent'] !== null
-            || $row['empty_bunch_oil_loss_percent'] !== null
-            || ($row['downtime_reason'] !== null && $row['downtime_reason'] !== '');
+        foreach (self::READING_FIELDS as $field) {
+            $value = $row[$field] ?? null;
+
+            if ($value !== null && $value !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

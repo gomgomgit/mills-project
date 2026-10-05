@@ -201,19 +201,22 @@ it('akun tanpa mill: 422 VALIDATION_ERROR dan respons tidak memuat daftar mill (
 // =====================================================================
 // Scenario: "menekan stasiun yang belum tersedia"
 // =====================================================================
-it('stasiun belum tersedia: threshing dikembalikan dengan report_available false dan report_path null', function () {
+it('stasiun belum tersedia: process-water dikembalikan dengan report_available false dan report_path null', function () {
+    // CONTOHNYA DIPINDAHKAN THRESHING -> PROCESS WATER pada 2026-10-06, ketika
+    // screen-148 membuat laporan Threshing. Dipindahkan, bukan dihapus: bila
+    // Process Water pun dibuatkan laporan, test ini gagal lagi — dan itu benar.
     // Step 1 — GET /api/station-reports/stations
     $stations = $this->actingAs($this->supervisor, 'web')->getJson('/api/station-reports/stations');
 
     $stations->assertStatus(200);
 
-    $threshing = collect($stations->json('data.stations'))->firstWhere('code', 'threshing');
+    $unbuilt = collect($stations->json('data.stations'))->firstWhere('code', 'process-water');
 
     // Present, so the screen can render it — but with no destination at
     // all, which is why the tile has no href and nothing to click.
-    expect($threshing)->not->toBeNull();
-    expect($threshing['report_available'])->toBeFalse();
-    expect($threshing['report_path'])->toBeNull();
+    expect($unbuilt)->not->toBeNull();
+    expect($unbuilt['report_available'])->toBeFalse();
+    expect($unbuilt['report_path'])->toBeNull();
 });
 
 // =====================================================================

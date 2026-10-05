@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\EngineRoomRecordController;
 use App\Http\Controllers\Api\GradingParameterController;
 use App\Http\Controllers\Api\GradingRecordController;
 use App\Http\Controllers\Api\GradingReportController;
+use App\Http\Controllers\Api\ThreshingReportController;
 use App\Http\Controllers\Api\KernelDispatchRecordController;
 use App\Http\Controllers\Api\KernelPlantRecordController;
 use App\Http\Controllers\Api\MachineryController;
@@ -1324,6 +1325,45 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/grading-reports/periods', [GradingReportController::class, 'periods']);
     Route::get('/grading-reports/summary', [GradingReportController::class, 'summary']);
     Route::get('/grading-reports/export', [GradingReportController::class, 'export']);
+});
+
+// === LAPORAN PERIODE THRESHING (screen-148 web + screen-149 mobile) ===
+//
+// Read-only: four GET routes and nothing else on this prefix. A report must
+// never offer a path that can alter the data it reports on.
+//
+// OPERATOR IS IN THE ROLE LIST FROM DAY ONE, because screen-149 (the mobile
+// twin) is built in the same series. That is the lesson of the Weighbridge
+// pair, where screen-143 shipped web-only and screen-144 then had to
+// retro-fit THREE changes at once (this role list,
+// WeighbridgeReportService::guardAccess(), and the mill-bound branch of
+// resolveBusinessUnit()). Note which of the three carries the weight: role
+// list plus guardAccess() WITHOUT the mill-bound branch drops Operator into
+// the unbound Admin branch, where the client's business_unit_id IS honoured
+// — a cross-mill leak, not a display defect.
+//
+// /business-units/options is the ONE route here Operator cannot use. The
+// refusal is raised inside ThreshingReportService::businessUnitOptions(),
+// not by this middleware, precisely because this middleware admits Operator
+// for the other three: a role bound to one mill has no picker, and handing
+// it the list of every mill is the leak this must not open.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for every mill-bound role — Operator, Supervisor and Mill
+// Management alike (ThreshingReportService::resolveBusinessUnit) — and
+// probing another mill still returns 200 with the caller's own data, on
+// purpose: a 403 would confirm the other mill exists. The real cross-mill
+// guards are on production_line_id (resolveProductionLine) and period_id
+// (authorizePeriod), and both DO answer 403.
+//
+// The production-line OPTION LIST is NOT duplicated here: GET
+// /api/production-lines/options-for-report (built for screen-135) is reused
+// verbatim.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/threshing-reports/business-units/options', [ThreshingReportController::class, 'businessUnitOptions']);
+    Route::get('/threshing-reports/periods', [ThreshingReportController::class, 'periods']);
+    Route::get('/threshing-reports/summary', [ThreshingReportController::class, 'summary']);
+    Route::get('/threshing-reports/export', [ThreshingReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

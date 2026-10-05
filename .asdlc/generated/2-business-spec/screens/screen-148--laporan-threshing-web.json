@@ -1,0 +1,160 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-148--laporan-threshing-web",
+  "name": "Laporan Threshing (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Threshing di web. Yang dilaporkan di sini adalah KONDISI OPERASI: tiap record adalah satu hari kerja satu thresher, dan tiap barisnya satu slot waktu dengan lima kolom ukur — FFB throughput (MT/jam), putaran drum (RPM), arus motor (A), persentase janjang tidak terbanting, dan oil loss janjang kosong. Nilai yang dicari pembaca bukan total melainkan KESTABILAN terhadap standar, sehingga inti laporan ini adalah min / rata-rata / maks per parameter, masing-masing dengan penyebutnya sendiri karena kelima kolom nullable dan tidak pernah terisi bersamaan.\n\nINILAH LAPORAN STASIUN PERTAMA YANG PUNYA MASTER TARGET OPERASIONAL, dan sekaligus yang pertama harus menyatakan mengapa master itu tetap tidak boleh dipakai menandai nilai di luar batas. Tujuh laporan sebelumnya mencatat ketiadaan master sebagai open_question; Threshing punya threshing_operational_targets dengan standard_operational_target dan action_plan_on_deviation per parameter, dan keduanya ditampilkan bersebelahan dengan angka hasil ukur supaya manusia yang menilai punya standarnya di tempat yang sama. Tetapi standar itu berupa TEKS BEBAS — 'As per mill capacity design (e.g., 30-60 MT/hr)', '21 - 23 RPM (optimal for separation)', 'Within motor rated full-load current (FLC)' — dan mengubah prosa semacam itu menjadi pembanding numerik berarti mengarang batas yang tidak pernah ditetapkan siapa pun. Angka yang dirender merah akan dibaca sebagai pelanggaran, bukan sebagai statistik, sehingga penandaan otomatis sengaja TIDAK ada dan ketiadaannya dinyatakan di layar.\n\nKetimpangan master-vs-kolom juga dinyatakan, bukan disembunyikan: master memuat enam parameter sementara threshing_details hanya menyediakan lima kolom ukur, sehingga 'Bearing Temperature' adalah target yang tidak punya satu pun pengukuran di sistem. Baris itu tetap ditampilkan dengan keterangannya, karena target tanpa pengukuran adalah temuan dan bukan baris yang boleh dibuang.\n\nDi samping angka per parameter, laporan menampilkan cakupan pencatatan DI ATAS segalanya (slot terisi terhadap jumlah thresher × hari terhitung × 24 slot kanonis), rekap per thresher, rekap per hari, dan daftar alasan downtime beserta jumlah kemunculannya — dikelompokkan harfiah tanpa normalisasi ejaan, dan kenyataan itu pun dinyatakan supaya dua ejaan untuk sebab yang sama tidak dibaca sebagai dua sebab.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Threshing",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Threshing, yaitu periode yang mendaftarkan Threshing sebagai salah satu stasiunnya. Status yang ditampilkan adalah status Threshing pada periode itu (Draft / Terbuka / Tertutup), bukan status periode secara keseluruhan",
+    "Pemilih Mill — hanya untuk Admin. Peran yang terikat satu mill tidak melihat pemilih ini dan hanya melihat nama mill akunnya",
+    "Pemilih Production Line — wajib. Bila mill hanya punya satu line, line itu langsung berlaku dan namanya tetap ditampilkan; bila lebih dari satu, tidak ada angka yang digambar sampai satu line dipilih",
+    "Badge status periode — Draft / Terbuka / Tertutup untuk stasiun Threshing pada periode itu, beserta rentang tanggalnya",
+    "CAKUPAN PENCATATAN, ditampilkan paling atas: jumlah slot terisi, jumlah slot yang diharapkan, dan persennya — beserta ketiga angka yang membentuk penyebut itu (jumlah thresher yang muncul pada periode ini, jumlah hari yang dihitung, dan 24 slot kanonis per thresher per hari)",
+    "Keterangan bahwa penyebut hari berhenti di hari ini bila periode masih berjalan, beserta jumlah hari periode seluruhnya sebagai pembanding",
+    "Tabel parameter — satu baris per kolom ukur, memuat min, rata-rata, maks, dan JUMLAH SLOT yang menjadi penyebut angka-angka itu",
+    "Pada baris parameter yang sama: standard_operational_target dan action_plan_on_deviation dari master target operasional Threshing",
+    "Keterangan bahwa standar berupa teks bebas dan karena itu laporan tidak menandai satu nilai pun sebagai di luar batas — penilaian ada pada pembaca",
+    "Keterangan bahwa master target berlaku umum untuk seluruh mill, bukan khusus mill yang sedang dilihat",
+    "Daftar parameter master yang TIDAK punya kolom pengukuran pada threshing_details, beserta keterangan bahwa sistem belum mengukurnya — ditampilkan sebagai temuan, bukan dihilangkan",
+    "Jumlah record pada periode dan line itu, dan jumlah hari yang punya record",
+    "Jumlah record berstatus draft — dinyatakan terpisah, karena record draft ikut terhitung pada seluruh angka",
+    "Jumlah record yang belum diperiksa dan jumlah yang belum disahkan — informasi kelengkapan, bukan penyaring",
+    "Rekap per thresher — satu baris per thresher_id: jumlah hari tercatat, jumlah slot terisi, dan rata-rata tiap kolom ukur pada thresher itu",
+    "Rekap per hari — satu baris per tanggal: jumlah slot terisi dan rata-rata tiap kolom ukur pada hari itu, beserta baris total periode",
+    "Daftar alasan downtime — satu baris per teks alasan beserta jumlah slot yang mencatatnya, diurutkan dari yang terbanyak",
+    "Keterangan bahwa alasan downtime dikelompokkan harfiah tanpa normalisasi ejaan, sehingga dua ejaan untuk sebab yang sama muncul sebagai dua baris",
+    "Keterangan periode kosong — bila tidak ada satu pun slot terisi, ditampilkan sebagai pernyataan bahwa periode belum punya data, dan seluruh angka dirender 'tidak tersedia' bukan 0",
+    "Nama mill dan nama Production Line yang sedang berlaku, selalu terlihat, supaya angka di layar tidak pernah terbaca tanpa konteksnya",
+    "Tombol Ekspor beserta pilihan format CSV atau Excel"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Mill",
+      "description": "Hanya untuk Admin. Menentukan mill yang dilihat. Mengganti mill mengosongkan Production Line dan periode yang terpilih, karena keduanya milik mill sebelumnya.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan line yang angkanya dilihat. Wajib — tidak ada angka yang ditampilkan sebelum satu line berlaku.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka / Tutup Rekap Harian",
+      "description": "Menyingkap atau menyembunyikan tabel rekap per hari. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh seluruh slot waktu periode dan line terpilih sebagai CSV atau Excel, satu baris per slot dengan kolom konteks diulang di setiap baris.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Production Line WAJIB dipilih sebelum satu angka pun ditampilkan. Laporan ini menghasilkan angka gabungan, dan mencampur beberapa line membuat angkanya menyesatkan.",
+    "Penyaringan line memakai kolom production_line_id pada threshing_records, bukan join ke stations — record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
+    "business_unit_id kiriman klien diabaikan untuk peran yang terikat satu mill; Admin wajib mengirimkannya, dan ketiadaannya adalah galat validasi bukan hasil kosong.",
+    "Status periode tidak menyaring daftar periode. Periode tertutup tetap dibaca dan tetap dapat diekspor — kunci periode mengatur penulisan data, bukan pembacaan laporan.",
+    "Setiap kolom ukur dirata-ratakan atas baris yang kolom ITU terisi, dan penyebutnya ikut ditampilkan. Kelima kolom nullable dan tidak selalu terisi bersamaan, sehingga satu penyebut bersama akan salah untuk setidaknya empat di antaranya.",
+    "Min dan maks juga diambil hanya atas baris yang kolom itu terisi, dan keduanya menjadi 'tidak tersedia' bersama rata-rata bila penyebutnya nol.",
+    "Nilai yang tidak tersedia dirender sebagai keterangan, bukan sebagai 0. Nol adalah hasil pengukuran; tidak tersedia adalah ketiadaan pengukuran.",
+    "Cakupan pencatatan ditampilkan DI ATAS seluruh angka lain, karena periode yang terisi seperlima pun menghasilkan rata-rata yang terlihat rapi.",
+    "Penyebut hari pada cakupan berhenti di hari ini untuk periode yang masih berjalan. Hari yang belum terjadi tidak mungkin tercatat.",
+    "Jumlah slot yang diharapkan per thresher per hari diambil dari daftar slot kanonis yang dipakai layar input itu sendiri (24 slot mulai 07:00), bukan dari angka yang ditetapkan ulang di laporan.",
+    "Jumlah thresher pada penyebut cakupan adalah jumlah thresher_id yang BENAR-BENAR muncul pada periode dan line itu, bukan jumlah stasiun terdaftar — penyebut harus menggambarkan apa yang memang dioperasikan.",
+    "Record berstatus draft IKUT terhitung pada seluruh angka, dan jumlahnya dinyatakan terpisah supaya terlihat seberapa besar laporan ini berdiri di atas data yang belum selesai.",
+    "Status pemeriksaan dan pengesahan adalah informasi kelengkapan, bukan penyaring. Record yang belum diperiksa tetap terhitung penuh.",
+    "Standar operasional dan rencana tindakan ditampilkan bersebelahan dengan angka hasil ukur, bukan di halaman lain.",
+    "TIDAK ADA penandaan otomatis di luar batas, tanpa warna peringatan, tanpa severity, dan tanpa deteksi pencilan. Kolom standard_operational_target berupa teks bebas, dan mengubah prosa semacam itu menjadi pembanding numerik berarti mengarang batas yang tidak pernah ditetapkan siapa pun. Ketiadaannya dinyatakan di layar supaya tidak 'dilengkapi' belakangan.",
+    "Pemetaan parameter master ke kolom ukur bersifat TETAP dan ditulis di satu tempat, bukan dicocokkan dari teks nama parameter saat render — pencocokan teks akan pecah begitu seseorang memperbaiki ejaan pada master.",
+    "Parameter master yang tidak punya kolom pengukuran tetap ditampilkan dengan keterangannya, karena target tanpa pengukuran adalah temuan bukan baris yang boleh dibuang. Ia tidak ikut perhitungan apa pun dan tidak muncul pada ekspor.",
+    "Master target bersifat global, satu daftar untuk seluruh mill. Laporan menyatakan hal itu dan tidak boleh menyiratkan standar itu khusus mill yang sedang dilihat.",
+    "Alasan downtime dikelompokkan harfiah tanpa normalisasi ejaan maupun huruf besar-kecil, dan keterangan di layar menyatakan hal itu.",
+    "Slot yang mencatat alasan downtime tetap ikut pada angka ukur bila kolom ukurnya terisi — downtime bukan penyaring, melainkan keterangan tambahan pada slot yang sama.",
+    "Ekspor menghasilkan satu baris per slot waktu, dengan kolom konteks (periode, mill, line, tanggal, thresher, status, catatan) diulang di setiap baris supaya berkasnya bisa langsung dipivot.",
+    "Slot yang seluruh kolom ukurnya kosong tetap menjadi baris pada ekspor dengan sel kosong, tidak dibuang dan tidak ditulis 0.",
+    "Batas baris ekspor dihitung atas BARIS SLOT, bukan atas record — satu record harian dapat menghasilkan sampai 24 baris, sehingga batas yang dihitung per record akan meloloskan berkas 24 kali lebih besar daripada yang dimaksud.",
+    "Periode dan Production Line yang dipilih tercermin pada alamat halaman, sehingga keadaan layar dapat dibagikan dan dibuka kembali apa adanya."
+  ],
+  "usecase_ids": [
+    "usecase-151--laporan-threshing-web"
+  ],
+  "edge_cases": [
+    "Production Line belum dipilih — tidak ada angka yang ditampilkan, diganti arahan memilih line lebih dulu; bukan angka seluruh mill.",
+    "Mill tanpa Production Line — arahan menghubungi Admin, tanpa tombol coba lagi.",
+    "Daftar Production Line gagal dimuat — pesan yang berbeda dari 'mill belum punya line', dengan tombol coba lagi sendiri, dan tidak menyamar sebagai galat laporan.",
+    "Admin belum memilih mill — daftar line dan daftar periode tidak dimuat sama sekali.",
+    "Akun terikat mill tetapi business_unit_id-nya kosong — arahan menghubungi Admin, dan daftar seluruh mill tidak pernah dibentuk.",
+    "Mill belum punya periode yang mencakup Threshing — pemilih tetap ada dalam keadaan kosong, disertai arahan.",
+    "Periode tanpa satu pun slot terisi — keterangan periode kosong, seluruh angka 'tidak tersedia', rekap harian dan downtime tidak digambar.",
+    "Satu kolom ukur kosong sepanjang periode — barisnya tetap ada, min/rata-rata/maks 'tidak tersedia', penyebut 0 slot, standar tetap ditampilkan.",
+    "Satu kolom ukur hanya terisi pada satu slot — min, rata-rata, dan maks ketiganya bernilai sama, dan penyebut 1 slot menjelaskan mengapa.",
+    "Dua kolom ukur dengan penyebut yang sangat berbeda pada periode yang sama — masing-masing memakai penyebutnya sendiri, dan keduanya tercetak.",
+    "Nilai negatif atau nol pada kolom ukur — ditampilkan apa adanya; laporan tidak menilai kewajaran angka karena tidak punya dasar untuk itu.",
+    "Record ada tetapi seluruh baris slotnya kosong — ikut jumlah record dan ikut penyebut cakupan, tetapi tidak menyumbang satu pun angka ukur.",
+    "Satu thresher hanya tercatat pada sebagian hari — rekap per thresher menampilkan jumlah harinya sendiri.",
+    "Dua record dengan thresher_id sama pada hari berbeda — dikelompokkan sebagai satu thresher, karena thresher_id adalah penamaan unit bukan kunci baris.",
+    "Periode masih berjalan — penyebut hari berhenti di hari ini, dan hal itu dinyatakan di layar.",
+    "Periode belum mulai — persen cakupan dirender '—' bukan 0%, disertai keterangan.",
+    "Periode tertutup — laporan tampil penuh, badge Tertutup ditampilkan, ekspor tetap aktif.",
+    "Periode milik mill lain — ditolak dengan galat akses, bukan laporan kosong.",
+    "Production Line milik mill lain — ditolak dengan galat akses sebelum periode diperiksa.",
+    "business_unit_id mill lain dikirim oleh peran terikat mill — diabaikan, menampilkan data mill sendiri, sengaja bukan galat akses.",
+    "Seluruh record periode berstatus draft — angka tetap dihitung, dan jumlah draft dinyatakan.",
+    "Master target kosong — angka ukur tetap ditampilkan, kolom standar dirender sebagai keterangan bahwa master belum terisi.",
+    "Master target memuat parameter tanpa kolom pengukuran — tetap ditampilkan dengan keterangan, tidak ikut perhitungan, tidak muncul pada ekspor.",
+    "Master target diubah ejaan nama parameternya — pemetaan ke kolom ukur tidak boleh ikut pecah, karena pemetaannya tetap dan tidak bersandar pada teks nama.",
+    "Alasan downtime kosong pada seluruh slot — keterangan bahwa tidak ada alasan tercatat, bukan tabel kosong.",
+    "Satu alasan downtime muncul dengan ejaan berbeda — muncul sebagai dua baris, dan keterangan menyatakan pengelompokannya harfiah.",
+    "Alasan downtime sangat panjang — dirender utuh tanpa pemotongan yang menghilangkan isi, karena teks itu satu-satunya keterangan sebab.",
+    "Ekspor melampaui batas baris — ditolak dengan galat yang menyebut batasnya, tanpa berkas setengah jadi.",
+    "Jumlah record di bawah batas tetapi jumlah baris slot di atas batas — tetap ditolak, karena batas dihitung atas baris slot.",
+    "Format ekspor di luar CSV dan Excel — ditolak dengan galat validasi.",
+    "Jaringan gagal saat memuat ringkasan — pesan dan tombol coba lagi, dan periode yang sudah dipilih tidak hilang.",
+    "Sesi berakhir saat memuat — diarahkan ke Login tanpa pesan jaringan."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Kolom standard_operational_target berupa teks bebas, sehingga penandaan otomatis di luar batas tidak mungkin dilakukan dengan jujur hari ini. Bila nanti master target dipecah menjadi batas numerik (misalnya kolom min dan maks per parameter), laporan versi web dan versi mobile perlu ditinjau ulang bersamaan — dan saat itu keputusan warna/severity-nya perlu disepakati lebih dulu, karena angka yang dirender merah akan dibaca sebagai pelanggaran, bukan sebagai statistik.",
+    "Master target memuat 'Bearing Temperature' sementara threshing_details tidak punya kolom suhu bantalan. Perlu diputuskan mana yang benar: menambahkan kolom pengukurannya pada formulir input stasiun Threshing, atau mencabut parameter itu dari master. Sampai itu diputuskan, laporan menampilkannya sebagai target tanpa pengukuran — dan itu memang keadaan yang sebenarnya, bukan cacat laporan.",
+    "Master target bersifat global sementara standar operasi bisa berbeda antar mill — standar 'As per mill capacity design (e.g., 30-60 MT/hr)' secara eksplisit menyiratkan itu. Perlu diputuskan apakah master target perlu dipecah per mill; selama belum, laporan menyatakan bahwa standar yang ditampilkan berlaku umum.",
+    "Belum ada keputusan apakah laporan ini perlu menampilkan tren per slot waktu (grafik 24 slot seperti laporan Boiler Room) atau cukup min/rata-rata/maks per periode. Dipilih yang kedua lebih dulu karena nilai yang dicari pembaca pada stasiun ini adalah kestabilan terhadap standar, bukan pola harian; bila ternyata pola per slot dibutuhkan, penambahannya tidak mengubah bentuk angka yang sudah ada.",
+    "Belum ada keputusan apakah persentase janjang tidak terbanting dan oil loss janjang kosong perlu dikaitkan dengan data stasiun Sterilizer pada periode yang sama — keduanya secara teknis adalah akibat dari sterilisasi, dan rencana tindakan pada master pun menunjuk ke sana ('Verify autoclaved sterilization pressure and duration'). Keterkaitan lintas stasiun semacam itu belum pernah dibuat pada satu pun laporan dan akan menjadi keputusan desain tersendiri."
+  ]
+}

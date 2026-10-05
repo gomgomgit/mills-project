@@ -227,22 +227,64 @@
         laporan mana pun.
     --}}
     <style>
-        /* Filter bar: pemilih Mill (admin) + pemilih Periode + aksi ekspor. */
-        .md-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px;
+        /* Filter bar: toolbar bersama components/report-filter-bar.blade.php
+           (Mill, Production Line, Periode + aksi ekspor). Ditata ulang
+           2026-10-05: field ringkas berlabel + ikon dengan lebar wajar dalam
+           satu baris di desktop — bukan dua <select> raksasa 50% — dan
+           bertumpuk penuh di ponsel. */
+        .md-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 20px;
                       background: var(--md-card); border: 1px solid var(--md-line); border-radius: 16px;
                       padding: 16px 20px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+        .md-filters__fields { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 14px; flex: 1 1 560px; min-width: 0; }
         .md-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 240px; }
+        .md-filters .md-field--mill { flex: 0 1 180px; }
+        .md-filters .md-field--line { flex: 0 1 160px; }
+        .md-filters .md-field--period { flex: 1 1 220px; max-width: 380px; }
+        .md-field__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; }
         .md-field__label { font-size: 12px; font-weight: 600; color: var(--md-muted); }
+        .md-field__box { position: relative; }
+        .md-field__icon { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--md-brand); pointer-events: none; }
         .md-field__control { width: 100%; max-width: 100%; box-sizing: border-box; padding: 9px 12px; font: inherit; font-size: 14px;
                              color: var(--md-ink); background: #fff; border: 1px solid var(--md-line); border-radius: 10px; }
+        .md-field__control--select { height: 40px; padding: 0 34px 0 36px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+                                     -webkit-appearance: none; appearance: none;
+                                     background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center / 16px 16px;
+                                     transition: border-color .15s, box-shadow .15s; }
+        .md-field__control--select:hover { border-color: #cbd5e1; }
         .md-field__control:focus { outline: 2px solid var(--md-brand); outline-offset: 1px; border-color: var(--md-brand); }
+        .md-field__control--select:focus { outline: none; border-color: var(--md-brand); box-shadow: 0 0 0 3px rgba(36,147,96,.18); }
+        /* Mill akun terikat: keterangan statis setinggi field — bukan input disabled. */
+        .md-field__static { display: flex; align-items: center; gap: 8px; height: 40px; box-sizing: border-box; margin: 0; padding: 0 12px;
+                            border: 1px solid var(--md-line); border-radius: 10px; background: #f8faf9; font-size: 14px; color: var(--md-ink); min-width: 0; }
+        .md-field__static strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .md-field__static-icon { width: 16px; height: 16px; flex-shrink: 0; color: var(--md-brand); }
+        /* Badge kecil di kepala field / status. */
+        .md-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 16px; white-space: nowrap; }
+        .md-badge svg { width: 12px; height: 12px; }
+        .md-badge--ok, .md-badge--open { background: var(--md-brand-soft); color: var(--md-brand-dark); }
+        .md-badge--draft { background: #fef3c7; color: #92400e; }
+        .md-badge--closed { background: #e2e8f0; color: #334155; }
+        /* Teks khusus pembaca layar (ikut textContent, tidak tampil). */
+        .md-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
         .md-filters__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
-        .md-btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--md-line);
-                  background: #fff; color: var(--md-ink); font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
+        .md-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--md-line);
+                  background: #fff; color: var(--md-ink); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
+        .md-filters .md-btn { height: 40px; box-sizing: border-box; }
         .md-btn svg { width: 16px; height: 16px; }
         .md-btn:hover { border-color: var(--md-brand); color: var(--md-brand-dark); }
         .md-btn--primary { background: var(--md-brand); border-color: var(--md-brand); color: #fff; }
         .md-btn--primary:hover { background: var(--md-brand-dark); border-color: var(--md-brand-dark); color: #fff; }
+        /* Catatan satu baris di dasar toolbar. */
+        .md-filters__note { flex: 1 1 100%; display: flex; align-items: flex-start; gap: 6px; margin: 0; padding-top: 12px; border-top: 1px dashed var(--md-line);
+                            font-size: 12px; line-height: 1.5; color: var(--md-muted); }
+        .md-filters__note svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: var(--md-muted); }
+        @media (max-width: 767px) {
+            .md-filters { padding: 14px; gap: 12px; }
+            .md-filters__fields { flex-basis: 100%; }
+            .md-filters .md-field--mill, .md-filters .md-field--line, .md-filters .md-field--period { flex: 1 1 100%; max-width: none; }
+            .md-filters__actions { flex: 1 1 100%; margin-left: 0; }
+            .md-filters__actions .md-btn { flex: 1 1 0; }
+        }
         .md-filters__hint { flex: 1 1 100%; margin: 0; font-size: 12px; color: var(--md-muted); }
 
         /* KPI: laporan periode memakai 4 kartu, bukan 6 seperti Daily Mill Report. */

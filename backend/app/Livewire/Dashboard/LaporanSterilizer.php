@@ -186,6 +186,10 @@ class LaporanSterilizer extends Component
         return view('livewire.dashboard.laporan-sterilizer', [
             'isAdmin' => $isAdmin,
             'businessUnitOptions' => $businessUnitOptions,
+            // Keterangan mill bagi peran terikat di filter bar — dibaca dari
+            // relasi akun sendiri (sama seperti laporan stasiun lainnya),
+            // bukan dari periode terpilih. Admin memakai pemilih, jadi null.
+            'businessUnitName' => $isAdmin ? null : auth()->user()?->businessUnit?->name,
             'periods' => $periods,
             'selectedPeriod' => collect($periods)->firstWhere('id', $this->periodId),
             'summary' => $summary,

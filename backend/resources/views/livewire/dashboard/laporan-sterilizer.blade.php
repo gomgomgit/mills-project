@@ -96,100 +96,30 @@
     </section>
 
     {{-- ============ 2. Filter bar ============ --}}
-    <section class="md-filters" data-testid="report-filters">
-        @if ($isAdmin)
-            {{-- Pemilih Mill HANYA untuk Admin: Supervisor dan Mill Management
-                 terkunci pada millnya sendiri, sehingga pemilih ini tidak
-                 dirender sama sekali bagi mereka. --}}
-            <div class="md-field">
-                <label class="md-field__label" for="business-unit-select">Mill (Business Unit)</label>
-                <select id="business-unit-select" class="md-field__control"
-                        wire:model.live="businessUnitId" data-testid="mill-select">
-                    <option value="">&mdash; Pilih Mill &mdash;</option>
-                    @foreach ($businessUnitOptions as $option)
-                        <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-        @endif
-
-        {{-- Pemilih Production Line, TANPA opsi "semua" — dan itu berbeda
-             dari Data Browser dengan sengaja. Laporan menghasilkan ANGKA
-             GABUNGAN: "Total 1.200" yang mencampur belasan line bukan angka
-             yang bisa ditindaklanjuti siapa pun, jadi tidak ada satu pun
-             pilihan di sini yang berarti "semua line". Opsinya hanya line di
-             dalam mill yang berlaku. --}}
-        @if (! $needsMillSelection)
-            <div class="md-field">
-                <label class="md-field__label" for="production-line-select">Production Line</label>
-                <select id="production-line-select" class="md-field__control"
-                        wire:model.live="productionLineId" data-testid="production-line-select">
-                    <option value="">&mdash; Pilih Production Line &mdash;</option>
-                    @foreach ($productionLineOptions as $option)
-                        {{-- @selected WAJIB dirender di server. Livewire 3 tidak
-                             menulis balik nilai <select> dari state komponen pada
-                             paint pertama: DOM yang dikirim server-lah sumber
-                             kebenarannya. Tanpa ini, pengguna yang tiba lewat
-                             tautan tile akan melihat "Pilih Production Line"
-                             sementara angkanya sudah milik line itu — dua
-                             pernyataan yang saling bertentangan di satu layar. --}}
-                        <option value="{{ $option['id'] }}"
-                                @selected(($selectedProductionLine['id'] ?? null) === $option['id'])>{{ $option['name'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-        @endif
-        @if ($selectedProductionLine !== null)
-            {{-- Line yang sedang dibaca, dinamai di layar. Seluruh angka di
-                 bawah milik line ini saja. --}}
-            <div class="md-millcurrent" data-testid="production-line-current">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="10" cy="17" r="1.6"/></svg>
-                Line aktif: <strong>{{ $selectedProductionLine['name'] }}</strong>
-            </div>
-        @endif
-
-        @if (! $needsMillSelection)
-            <div class="md-field">
-                <label class="md-field__label" for="period-select">Periode Pelaporan</label>
-                <select id="period-select" class="md-field__control"
-                        wire:model.live="periodId" data-testid="period-select">
-                    @if ($periods === [])
-                        <option value="">&mdash; Belum ada periode &mdash;</option>
-                    @endif
-                    @foreach ($periods as $period)
-                        <option value="{{ $period['id'] }}">
-                            {{ $period['name'] }}
-                            ({{ $tgl($period['start_date']) }} &ndash; {{ $tgl($period['end_date']) }})
-                            &mdash; {{ $statusLabel($period['status']) }}
-                            &middot; {{ $period['station_type_label'] }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-        @endif
-
-        @if ($summary !== null)
-            <div class="md-filters__actions">
-                {{-- Status periode (Draft/Terbuka/Tertutup) TIDAK membatasi
-                     ekspor — tombol tidak pernah disabled. --}}
-                <button type="button" class="md-btn md-btn--primary"
-                        wire:click="export('csv')" data-testid="export-csv">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
-                    Ekspor CSV
-                </button>
-                <button type="button" class="md-btn"
-                        wire:click="export('excel')" data-testid="export-excel">
-                    Ekspor Excel
-                </button>
-            </div>
-        @endif
-
-        @if ($isAdmin)
-            <p class="md-filters__hint">
-                Pemilih Mill hanya tampil untuk Admin. Supervisor dan Mill Management langsung memakai mill masing-masing.
-            </p>
-        @endif
-    </section>
+    {{-- Filter bar bersama (components/report-filter-bar.blade.php):
+         Mill (Admin) / keterangan mill, Production Line, Periode, ekspor. --}}
+    <x-report-filter-bar
+        :is-admin="$isAdmin"
+        :business-unit-options="$businessUnitOptions"
+        :business-unit-id="$businessUnitId"
+        mill-testid="mill-select"
+        :mill-name="$businessUnitName"
+        mill-name-testid="mill-current"
+        :show-line="! $needsMillSelection"
+        :production-line-options="$productionLineOptions"
+        :selected-line-id="$selectedProductionLine['id'] ?? null"
+        :selected-line-name="$selectedProductionLine['name'] ?? null"
+        :show-period="! $needsMillSelection"
+        :periods="$periods"
+        :period-id="$selectedPeriod['id'] ?? null"
+        :selected-period-status="$selectedPeriod['status'] ?? null"
+        period-testid="period-select"
+        :period-placeholder-when-empty="true"
+        :export-action="$summary !== null ? 'export' : null"
+        export-csv-testid="export-csv"
+        export-excel-testid="export-excel">
+        Hanya periode yang mencakup Sterilizer yang ditampilkan.
+    </x-report-filter-bar>
 
     @if ($needsMillSelection)
         {{-- Empty state (a): Admin belum memilih mill. Admin tidak terikat

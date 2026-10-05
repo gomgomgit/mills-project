@@ -266,127 +266,30 @@
     </section>
 
     {{-- ============ 2. Baris filter ============ --}}
-    <section class="md-filters" data-testid="report-filters">
-        @if ($isAdmin)
-            {{-- Pemilih Mill HANYA untuk Admin: Supervisor dan Mill Management
-                 terkunci pada millnya sendiri, sehingga pemilih ini tidak
-                 dirender sama sekali bagi mereka — termasuk bagi akun terikat
-                 yang millnya kosong, yang justru paling tidak boleh ditawari
-                 daftar seluruh mill. --}}
-            <div class="md-field">
-                <label class="md-field__label" for="business-unit-select">Mill (Business Unit)</label>
-                <select id="business-unit-select" class="md-field__control"
-                        wire:model.live="businessUnitId" data-testid="mill-select">
-                    <option value="">&mdash; Pilih Mill &mdash;</option>
-                    @foreach ($businessUnitOptions as $option)
-                        <option value="{{ $option['id'] }}" @selected($option['id'] === $businessUnitId)>{{ $option['name'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-        @elseif (! $hasNoMillForAccount)
-            {{-- Keterangan, bukan pemilih: mill akun tidak dapat diubah dari
-                 layar ini, dan memaksa properti/query string ke mill lain
-                 tidak mengubah satu angka pun. --}}
-            <p class="md-millcurrent" data-testid="mill-name">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l5-3v16M14 21V11l5-3v13"/><path d="M9 12h.01M9 16h.01"/></svg>
-                Mill: <strong>{{ $businessUnitName }}</strong>
-            </p>
-        @endif
-
-        {{-- Pemilih Production Line, TANPA opsi "semua" — dan itu berbeda dari
-             Data Browser dengan sengaja. Laporan menghasilkan ANGKA GABUNGAN:
-             total yang mencampur belasan line bukan angka yang bisa
-             ditindaklanjuti siapa pun, jadi tidak ada satu pun pilihan di sini
-             yang berarti "semua line". Opsinya hanya line di dalam mill yang
-             berlaku, dan satu-satunya opsi pada mill berline-tunggal pun
-             SENGAJA tidak dipilih otomatis. --}}
-        @if (! $needsMillSelection && ! $hasNoMillForAccount)
-            <div class="md-field">
-                <label class="md-field__label" for="production-line-select">Production Line <small>wajib</small></label>
-                <select id="production-line-select" class="md-field__control"
-                        wire:model.live="productionLineId" data-testid="production-line-select">
-                    <option value="">&mdash; Pilih Production Line &mdash;</option>
-                    @foreach ($productionLineOptions as $option)
-                        {{-- @selected WAJIB dirender di server. Livewire 3 tidak
-                             menulis balik nilai <select> dari state komponen pada
-                             paint pertama: DOM yang dikirim server-lah sumber
-                             kebenarannya. Tanpa ini, pengguna yang tiba lewat
-                             tautan tile akan melihat "Pilih Production Line"
-                             sementara angkanya sudah milik line itu — dua
-                             pernyataan yang saling bertentangan di satu layar. --}}
-                        <option value="{{ $option['id'] }}"
-                                @selected(($selectedProductionLine['id'] ?? null) === $option['id'])>{{ $option['name'] }}</option>
-                    @endforeach
-                </select>
-            </div>
-        @endif
-        @if ($selectedProductionLine !== null)
-            {{-- Line yang sedang dibaca, dinamai di layar. Seluruh angka di
-                 bawah milik line ini saja, dan penyaringannya memakai line
-                 yang MELEKAT pada trip itu sendiri — bukan line stasiun tempat
-                 trip itu tercatat sekarang. --}}
-            <div class="md-millcurrent" data-testid="production-line-current">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="10" cy="17" r="1.6"/></svg>
-                Line aktif: <strong>{{ $selectedProductionLine['name'] }}</strong>
-            </div>
-        @endif
-
-        @if (! $needsMillSelection && ! $hasNoMillForAccount)
-            <div class="md-field">
-                <label class="md-field__label" for="period-select">Periode Pelaporan</label>
-                {{-- Saat mill belum punya periode yang mencakup Weighbridge,
-                     pemilih ini sengaja dirender TANPA satu pun <option> —
-                     bukan dengan option semu "belum ada periode" — dan
-                     arahannya ditulis terpisah sebagai no-period-hint. --}}
-                <select id="period-select" class="md-field__control"
-                        wire:model.live="periodId" data-testid="period-select">
-                    @foreach ($periods as $period)
-                        <option value="{{ $period['id'] }}" @selected($period['id'] === $periodId)>
-                            {{ $period['name'] }}
-                            ({{ $tgl($period['start_date']) }} &ndash; {{ $tgl($period['end_date']) }})
-                            &mdash; {{ $statusLabel($period['status']) }}
-                            &middot; {{ $period['station_type_label'] }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-        @endif
-
-        @if ($summary !== null)
-            <div class="md-filters__actions">
-                {{-- Status periode (Draft/Terbuka/Tertutup) TIDAK membatasi
-                     ekspor — kunci periode mengatur penulisan data, bukan
-                     pembacaan laporan, jadi tombol tidak pernah disabled. --}}
-                <button type="button" class="md-btn md-btn--primary"
-                        wire:click="exportCsv('csv')" data-testid="export-button">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
-                    Ekspor CSV
-                </button>
-                <button type="button" class="md-btn"
-                        wire:click="exportCsv('excel')" data-testid="export-excel-button">
-                    Ekspor Excel
-                </button>
-            </div>
-        @endif
-
-        <p class="md-filters__hint">
-            Daftar periode hanya memuat periode yang mencakup stasiun Weighbridge; periode tertutup
-            tetap dapat dilihat dan diekspor.
-            @if ($isAdmin)
-                Pemilih Mill hanya tampil untuk Admin, satu-satunya peran yang tidak terikat satu mill,
-                dan mengganti mill mengosongkan Production Line yang terpilih karena line milik mill
-                lama tidak berlaku di mill baru.
-            @else
-                Akun ini terikat pada satu mill, jadi mill ditampilkan sebagai keterangan &mdash; bukan pemilih.
-            @endif
-            <b>Production Line wajib dipilih</b>: sebelum sebuah line dipilih, layar ini tidak
-            menampilkan satu angka pun &mdash; bukan angka seluruh mill. Penyaringan memakai Production
-            Line yang melekat pada trip itu sendiri, bukan line stasiun tempat trip itu tercatat
-            sekarang. Keanggotaan periode ditentukan oleh penanda waktu penimbangan &mdash; bukan waktu
-            baris dibuat maupun waktu sinkronisasi dari mobile. Ekspor CSV mengunduh rincian seluruh
-            trip periode, satu baris per trip dengan kolom konteks diulang.
-        </p>
-    </section>
+    {{-- Filter bar bersama (components/report-filter-bar.blade.php):
+         Mill (Admin) / keterangan mill, Production Line, Periode, ekspor. --}}
+    <x-report-filter-bar
+        :is-admin="$isAdmin"
+        :business-unit-options="$businessUnitOptions"
+        :business-unit-id="$businessUnitId"
+        mill-testid="mill-select"
+        :mill-name="$hasNoMillForAccount ? null : $businessUnitName"
+        mill-name-testid="mill-name"
+        :show-line="! $needsMillSelection && ! $hasNoMillForAccount"
+        :production-line-options="$productionLineOptions"
+        :selected-line-id="$selectedProductionLine['id'] ?? null"
+        :selected-line-name="$selectedProductionLine['name'] ?? null"
+        :show-period="! $needsMillSelection && ! $hasNoMillForAccount"
+        :periods="$periods"
+        :period-id="$selectedPeriod['id'] ?? null"
+        :selected-period-status="$selectedPeriod['status'] ?? null"
+        period-testid="period-select"
+        :period-placeholder-when-empty="false"
+        :export-action="$summary !== null ? 'exportCsv' : null"
+        export-csv-testid="export-button"
+        export-excel-testid="export-excel-button">
+        Hanya periode yang mencakup Weighbridge yang ditampilkan. Angka disaring menurut Production Line yang melekat pada trip itu sendiri, dan keanggotaan periode mengikuti waktu penimbangan.
+    </x-report-filter-bar>
 
     @if ($hasNoMillForAccount)
         {{-- Empty state (a): akun terikat mill tetapi users.business_unit_id

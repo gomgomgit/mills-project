@@ -74,69 +74,28 @@
             <span class="md-step__title">Mill &amp; Production Line</span>
         </div>
 
-        <div class="md-filters">
+        {{-- Toolbar filter bersama (components/report-filter-bar.blade.php),
+             sama dengan yang dipakai seluruh laporan per stasiun. Production
+             Line TANPA opsi "semua": satu tile per JENIS stasiun hanya
+             menunjuk stasiun pasti bila line-nya sudah dipilih. --}}
+        <x-report-filter-bar
+            :is-admin="$isAdmin"
+            :business-unit-options="$businessUnitOptions"
+            :business-unit-id="$businessUnitId"
+            mill-testid="mill-select"
+            :mill-name="$businessUnit['name'] ?? null"
+            mill-name-testid="mill-current"
+            :show-mill-for-admin="true"
+            :show-line="$businessUnit !== null"
+            :production-line-options="$productionLineOptions"
+            :selected-line-id="$productionLine['id'] ?? null"
+            :selected-line-name="$productionLine['name'] ?? null">
             @if ($isAdmin)
-                {{-- Pemilih Mill HANYA untuk Admin: Supervisor dan Mill
-                     Management terkunci pada mill masing-masing, sehingga
-                     pemilih ini tidak dirender sama sekali bagi mereka. --}}
-                <div class="md-field">
-                    <label class="md-field__label" for="business-unit-select">Mill (Business Unit)</label>
-                    <select id="business-unit-select" class="md-field__control"
-                            wire:model.live="businessUnitId" data-testid="mill-select">
-                        <option value="">&mdash; Pilih Mill &mdash;</option>
-                        @foreach ($businessUnitOptions as $option)
-                            <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                Mengganti mill mengosongkan pilihan Production Line.
+            @else
+                Mill mengikuti akun Anda; Production Line dipilih di sini sebagai konteks kerja.
             @endif
-
-            @if ($businessUnit !== null)
-                <div class="md-millcurrent" data-testid="mill-current">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-5h6v5"/></svg>
-                    Mill aktif: <strong>{{ $businessUnit['name'] }}</strong>
-                </div>
-            @endif
-
-            {{-- Pemilih Production Line, TANPA opsi "semua". Layar ini
-                 membangun satu tile per JENIS stasiun, dan satu mill bisa
-                 punya belasan production line dengan jenis stasiun yang sama
-                 berulang — tanpa line, sebuah tile tidak menunjuk stasiun
-                 mana pun secara pasti. Opsinya hanya line di dalam mill yang
-                 berlaku. --}}
-            @if ($businessUnit !== null)
-                <div class="md-field">
-                    <label class="md-field__label" for="production-line-select">Production Line</label>
-                    <select id="production-line-select" class="md-field__control"
-                            wire:model.live="productionLineId" data-testid="production-line-select">
-                        <option value="">&mdash; Pilih Production Line &mdash;</option>
-                        @foreach ($productionLineOptions as $option)
-                            {{-- @selected WAJIB dirender di server — Livewire 3
-                                 tidak menulis balik nilai <select> dari state
-                                 komponen pada paint pertama. --}}
-                            <option value="{{ $option['id'] }}"
-                                    @selected(($productionLine['id'] ?? null) === $option['id'])>{{ $option['name'] }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            @endif
-
-            @if ($productionLine !== null)
-                <div class="md-millcurrent" data-testid="production-line-current">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="10" cy="17" r="1.6"/></svg>
-                    Line aktif: <strong>{{ $productionLine['name'] }}</strong>
-                </div>
-            @endif
-
-            <p class="md-filters__hint">
-                @if ($isAdmin)
-                    Mengganti mill mengganti seluruh konteks laporan berikutnya, termasuk pilihan Production Line.
-                @else
-                    Mill ditetapkan dari akun Anda dan tidak dapat diganti dari layar ini.
-                    Production Line dipilih di sini &mdash; ia konteks kerja, bukan bagian dari akun Anda.
-                @endif
-            </p>
-        </div>
+        </x-report-filter-bar>
 
         @if ($millMissingForAccount)
             {{-- Gagal tertutup: akun terikat mill tetapi mill-nya kosong.
@@ -204,9 +163,7 @@
                 <span class="md-step__title">Stasiun</span>
             </div>
             <p class="md-step__hint">
-                Daftar stasiun mengikuti master Jenis Stasiun dan urutan proses produksi.
-                Stasiun yang laporan periodenya belum dibangun tetap ditampilkan agar cakupan
-                fitur terbaca apa adanya.
+                Urut sesuai proses produksi. Stasiun yang laporannya belum tersedia tetap ditampilkan.
             </p>
 
             <div class="station-grid" data-testid="station-grid">
@@ -251,8 +208,7 @@
                         Belum tersedia ({{ count($stations) - $availableCount }})
                     </span>
                     <span class="md-legend__item">
-                        Mill dan Production Line yang dipilih ikut terbawa ke layar laporan,
-                        jadi keduanya tidak ditanyakan dua kali.
+                        Mill &amp; Production Line terpilih ikut terbawa ke layar laporan.
                     </span>
                 </div>
             @endif

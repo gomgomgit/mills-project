@@ -1129,10 +1129,13 @@ test.describe('Laporan Boiler Room', () => {
     const mainIndex = labels.findIndex((label) => label.includes(PERIOD_MAIN))
 
     expect(wholeMillIndex).toBeLessThan(mainIndex)
-    // The option is labelled with THIS screen's station type, never blank and
-    // never the "Semua Stasiun" wording the NULL scope used to produce —
-    // periodOption().station_type is not nullable any more.
-    expect(labels[wholeMillIndex]).toContain(STATION_TYPE)
+    // Sejak toolbar filter bersama (2026-10-05) opsi periode berbentuk ringkas
+    // "Nama · rentang · status" — jenis stasiun tidak lagi ditulis di tiap opsi
+    // karena daftar ini memang hanya memuat periode yang mencakup stasiun layar
+    // ini. Yang tetap dijaga: opsi tidak pernah membawa kata "Semua Stasiun"
+    // milik cakupan NULL lama, dan tetap menyebut statusnya.
+    expect(labels[wholeMillIndex]).not.toContain('Semua Stasiun')
+    expect(labels[wholeMillIndex]).toMatch(/· (Draft|Terbuka|Tertutup)\s*$/)
 
     // WHY THE PERIOD IS OFFERED, checked at the source rather than inferred:
     // it HAS a `period_stations` row for this screen's station type. That row

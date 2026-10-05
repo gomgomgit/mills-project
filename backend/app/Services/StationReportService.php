@@ -71,6 +71,10 @@ class StationReportService
         // sort_order, and the ordering of this map is load-bearing (see the
         // note below).
         StationTypeEnum::Weighbridge->value => 'reports.weighbridge',
+        // screen-146--laporan-grading-web. SECOND, between weighbridge (10)
+        // and cages-track (30): station_types.sort_order puts grading at 20,
+        // and the ordering of this map is load-bearing (see the note below).
+        StationTypeEnum::Grading->value => 'reports.grading',
         // screen-130--laporan-cages-track-web. Without this one line the
         // report exists, its own tests pass, and the tile stays greyed out —
         // the screen is simply unreachable from the UI.

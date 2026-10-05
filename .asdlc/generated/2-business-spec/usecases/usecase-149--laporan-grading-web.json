@@ -1,0 +1,437 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "usecase-149--laporan-grading-web",
+  "name": "Lihat Laporan Periode Grading (Web)",
+  "description": "Pengguna web memilih periode pelaporan dan Production Line, lalu membaca rekap seluruh muatan yang disortir di stasiun Grading sepanjang periode itu. Yang dicari pembaca bukan throughput melainkan MUTU PANEN: komposisi kematangan FFB yang masuk. Karena itu inti laporan adalah rekap per parameter mutu, yang menampilkan dua angka berbeda dan dapat bertentangan — pangsa terhadap total periode (berbobot menurut besar muatan) dan rata-rata persentase per muatan (tiap muatan berbobot sama) — beserta penjelasan bedanya. Satuan janjang dan kilogram tidak pernah dijumlahkan: tiga parameter brondolan diukur dalam kg sementara tiga belas parameter lainnya dalam janjang. Di samping itu laporan menampilkan jumlah muatan, total dan rata-rata netto serta jumlah janjang, rekap per estate/supplier, rekap harian, dan kelengkapan pencatatan — termasuk muatan yang tidak punya satu pun baris parameter, yaitu grading yang tidak menghasilkan penilaian apa pun.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+    "Mill sudah punya minimal satu periode pelaporan yang mencakup stasiun Grading",
+    "Mill sudah punya minimal satu Production Line"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka layar Laporan Grading dari pemilih stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Sistem menetapkan mill dari akun pengguna; khusus Admin, sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar Production Line milik mill itu, dan pengguna WAJIB memilih satu; sebelum itu tidak ada angka ditampilkan"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Grading pada mill itu"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Sistem menyaring muatan berdasarkan Production Line yang MELEKAT PADA MUATAN ITU SENDIRI, bukan line stasiun tempat muatan itu tercatat sekarang"
+    },
+    {
+      "step": 7,
+      "actor": "actor-supervisor",
+      "description": "Sistem menentukan keanggotaan periode dari tanggal muatan itu sendiri, inklusif di kedua ujung, bukan dari waktu baris dibuat maupun waktu sinkronisasi"
+    },
+    {
+      "step": 8,
+      "actor": "actor-supervisor",
+      "description": "Sistem mengelompokkan baris parameter menurut SATUANNYA — janjang dan kilogram — dan tidak pernah menjumlahkan keduanya"
+    },
+    {
+      "step": 9,
+      "actor": "actor-supervisor",
+      "description": "Untuk tiap parameter, Sistem menghitung total kuantitas, pangsa terhadap total satuannya sendiri, dan rata-rata persentase per muatan beserta jumlah muatan yang memuatnya sebagai penyebut"
+    },
+    {
+      "step": 10,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan jumlah muatan, total dan rata-rata netto serta jumlah janjang, kedua rekap parameter per satuan, rekap per estate/supplier, rekap harian beserta baris total, dan kelengkapan pencatatan"
+    },
+    {
+      "step": 11,
+      "actor": "actor-supervisor",
+      "description": "Pengguna dapat mengunduh rincian seluruh baris parameter sepanjang periode sebagai CSV atau Excel, satu baris per parameter per muatan dengan konteks muatan diulang"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 3, pengguna belum memilih Production Line",
+      "steps": [
+        "Tidak ada angka yang ditampilkan",
+        "Sistem menampilkan arahan memilih Production Line lebih dulu",
+        "Sistem TIDAK menampilkan angka gabungan seluruh mill"
+      ]
+    },
+    {
+      "name": "Admin mengganti mill setelah memilih line",
+      "trigger": "Pada langkah 2, Admin mengganti mill padahal sebuah Production Line sudah terpilih",
+      "steps": [
+        "Production Line yang terpilih dikosongkan",
+        "Sistem memuat ulang daftar line milik mill baru",
+        "Angka tidak ditampilkan sampai line dipilih lagi"
+      ]
+    },
+    {
+      "name": "Admin memilih mill lebih dulu",
+      "trigger": "Pada langkah 2, pengguna berperan Admin dan belum memilih mill",
+      "steps": [
+        "Sistem menampilkan pemilih Mill",
+        "Angka tidak ditampilkan sampai mill dipilih",
+        "Sistem menampilkan arahan memilih mill terlebih dahulu"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode",
+      "trigger": "Pada langkah 4, mill tidak punya periode yang mencakup Grading",
+      "steps": [
+        "Pemilih periode kosong",
+        "Sistem menampilkan arahan menghubungi Admin",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 6, periode tidak memuat satu pun muatan pada line terpilih",
+      "steps": [
+        "Seluruh angka ditampilkan tidak tersedia dan bukan nol",
+        "Sistem menyatakan belum ada data pada periode itu",
+        "Tidak ada grafik kosong yang menyesatkan"
+      ]
+    },
+    {
+      "name": "Muatan tersinkron terlambat",
+      "trigger": "Pada langkah 7, sebuah muatan baru tersinkron dari mobile setelah periodenya berakhir",
+      "steps": [
+        "Muatan tetap dihitung pada periode tempat penyortirannya benar-benar terjadi",
+        "Waktu sinkronisasi maupun waktu baris dibuat TIDAK menentukan keanggotaan periode"
+      ]
+    },
+    {
+      "name": "Muatan tanpa satu pun baris parameter",
+      "trigger": "Pada langkah 9, sebuah muatan tidak punya satu pun baris parameter mutu",
+      "steps": [
+        "Muatan itu TETAP terhitung pada jumlah muatan, netto, dan jumlah janjang",
+        "Muatan itu tidak menyumbang apa pun pada rekap parameter",
+        "Jumlah muatan semacam itu ditampilkan tersendiri sebagai kelengkapan — grading yang tidak menghasilkan penilaian apa pun adalah temuan, bukan baris yang layak diabaikan"
+      ]
+    },
+    {
+      "name": "Parameter hanya muncul pada sebagian muatan",
+      "trigger": "Pada langkah 9, sebuah parameter hanya dicatat pada sebagian muatan",
+      "steps": [
+        "Rata-rata persentasenya dihitung HANYA atas muatan yang mencatatnya",
+        "Jumlah muatan itu ditampilkan bersama rata-ratanya sebagai penyebut",
+        "Sistem TIDAK menganggap ketiadaan baris sebagai nilai nol"
+      ]
+    },
+    {
+      "name": "Pangsa dan rata-rata persentase bertentangan",
+      "trigger": "Pada langkah 9, pangsa sebuah parameter berbeda jauh dari rata-rata persentasenya",
+      "steps": [
+        "Kedua angka ditampilkan berdampingan",
+        "Sistem menyatakan bahwa pangsa berbobot menurut besar muatan sementara rata-rata memperlakukan tiap muatan sama",
+        "Sistem tidak memilih salah satunya dan tidak menyembunyikan yang lain"
+      ]
+    },
+    {
+      "name": "Netto sebuah muatan nol",
+      "trigger": "Pada langkah 9, sebuah muatan ber-netto nol sehingga persentase parameter ber-satuan kg tidak dapat dihitung",
+      "steps": [
+        "Persentase baris itu tercatat nol oleh stasiun input, dan laporan meneruskannya apa adanya",
+        "Kuantitas kilogramnya tetap ikut pada total dan pangsa",
+        "Laporan tidak menghitung ulang persentase dari netto"
+      ]
+    },
+    {
+      "name": "Seluruh muatan hanya memuat parameter satu satuan",
+      "trigger": "Pada langkah 8, periode hanya memuat parameter ber-satuan janjang dan nol parameter ber-satuan kilogram",
+      "steps": [
+        "Kelompok kilogram tetap ditampilkan dengan nilai tidak tersedia",
+        "Kelompok itu TIDAK disembunyikan",
+        "Pembaca tahu brondolan memang tidak tercatat dan bukan mengira bagian itu tidak ada"
+      ]
+    },
+    {
+      "name": "Muatan belum diperiksa atau belum disahkan",
+      "trigger": "Pada langkah 10, sebagian muatan belum punya pemeriksa atau pengesah",
+      "steps": [
+        "Jumlah muatan yang belum diperiksa dan yang belum disahkan ditampilkan sebagai dua angka tersendiri",
+        "Kedua angka itu tidak menggerbangi apa pun — muatan itu tetap terhitung penuh",
+        "Status verifikasi adalah kelengkapan, bukan penyaring"
+      ]
+    },
+    {
+      "name": "Muatan berstatus draft",
+      "trigger": "Pada langkah 10, sebagian muatan masih berstatus draft",
+      "steps": [
+        "Muatan itu IKUT terhitung pada seluruh angka",
+        "Jumlah muatan draft ditampilkan tersendiri",
+        "Pembaca dapat menilai seberapa jauh laporan berdiri di atas data yang belum selesai"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun pengguna terikat mill tetapi mill-nya kosong",
+      "steps": [
+        "Sistem menampilkan pesan menghubungi Admin",
+        "Sistem tidak menawarkan daftar seluruh mill",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Mencoba melihat mill atau line lain",
+      "trigger": "Pada langkah 6, permintaan membawa mill atau Production Line milik mill lain",
+      "steps": [
+        "Server mengabaikan mill kiriman klien dan memakai mill pada akun",
+        "Line yang bukan milik mill terpilih ditolak",
+        "Angka yang tampil tetap milik mill pengguna"
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka layar web ini",
+      "trigger": "Pada langkah 1, pengguna berperan Operator",
+      "steps": [
+        "Akses ditolak",
+        "Tidak ada data yang terlihat"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 5, pengguna memilih periode yang stasiun Grading-nya sudah tertutup",
+      "steps": [
+        "Laporan tetap tampil penuh",
+        "Status tertutup ditampilkan",
+        "Ekspor tetap dapat dijalankan"
+      ]
+    },
+    {
+      "name": "Rekap harian panjang",
+      "trigger": "Pada langkah 10, periode cukup panjang sehingga rekap hariannya puluhan baris",
+      "steps": [
+        "Rekap harian dapat ditutup",
+        "Angka utama dan rekap parameter tetap terbaca tanpa gulir panjang"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat komposisi mutu panen periode itu untuk Production Line yang dipilih",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "business_rules": [
+    "Layar hanya membaca; tidak ada aksi tulis",
+    "Supervisor dan Mill Management terkunci pada mill akunnya; Admin memilih",
+    "Operator tidak punya akses ke layar web ini",
+    "Daftar periode hanya yang mencakup Grading — yaitu yang mendaftarkan Grading sebagai salah satu stasiunnya",
+    "Status periode tidak membatasi pembacaan maupun ekspor",
+    "Rentang periode inklusif di kedua ujung",
+    "Production Line WAJIB dipilih; sebelum itu nol angka ditampilkan, bukan angka seluruh mill",
+    "Penyaringan line memakai line yang melekat pada muatan itu sendiri, bukan line stasiun saat ini",
+    "Keanggotaan periode ditentukan tanggal muatan, bukan waktu baris dibuat maupun waktu sinkronisasi",
+    "SATUAN JANJANG DAN KILOGRAM TIDAK PERNAH DIJUMLAHKAN — keduanya kelompok yang berdiri sendiri",
+    "Pangsa parameter dihitung terhadap total kuantitas SATUANNYA SENDIRI, bukan terhadap seluruh parameter",
+    "Rata-rata persentase dihitung hanya atas muatan yang mencatat parameter itu, dan jumlah muatan itu ditampilkan bersama angkanya",
+    "Ketiadaan baris parameter pada sebuah muatan BUKAN nilai nol",
+    "Pangsa dan rata-rata persentase ditampilkan berdampingan beserta penjelasan mengapa keduanya dapat berbeda",
+    "Laporan tidak menghitung ulang persentase baris parameter — nilai itu ditetapkan stasiun input dan diteruskan apa adanya",
+    "Muatan tanpa satu pun baris parameter tetap terhitung pada jumlah muatan dan netto, dan jumlahnya ditampilkan tersendiri",
+    "Muatan berstatus draft ikut terhitung dan jumlahnya ditampilkan",
+    "Status verifikasi (diperiksa / disahkan) adalah kelengkapan, bukan penyaring",
+    "Tidak ada penandaan nilai di luar batas — Grading tidak punya master target mutu",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — sukses sebagai Supervisor atau Mill Management",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Supervisor atau Mill Management dan akunnya terikat pada satu mill; mill itu sudah punya minimal satu periode pelaporan yang mencakup stasiun Grading dan minimal satu Production Line yang sudah memuat muatan tersortir",
+      "when": "Pengguna membuka layar Laporan Grading dari pemilih stasiun, memilih satu Production Line, lalu memilih salah satu periode yang tersedia",
+      "then": "Sistem memakai mill dari akun pengguna tanpa menawarkan pemilih mill, lalu menampilkan rekap periode itu untuk line terpilih: jumlah muatan, total dan rata-rata netto, total dan rata-rata jumlah janjang, rekap parameter mutu ber-satuan janjang dan rekap parameter ber-satuan kilogram sebagai dua kelompok terpisah, rekap per estate/supplier, rekap harian beserta baris total periode, dan kelengkapan pencatatan; pengguna dapat mengunduh rincian seluruh baris parameter sebagai CSV atau Excel; tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — sukses sebagai Admin",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Admin dan tidak terikat pada mill mana pun; tersedia beberapa mill yang masing-masing punya periode pelaporan mencakup stasiun Grading dan minimal satu Production Line",
+      "when": "Pengguna membuka layar Laporan Grading, memilih sebuah mill, memilih satu Production Line milik mill itu, lalu memilih salah satu periode",
+      "then": "Sistem menampilkan pemilih Mill lebih dulu, kemudian memuat daftar Production Line dan daftar periode milik mill yang dipilih, dan menampilkan rekap periode untuk line terpilih dengan isi yang sama seperti pengguna terikat-mill; seluruh angka yang tampil hanya milik mill dan line yang dipilih Admin; unduhan tersedia; tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — Production Line belum dipilih",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak; mill sudah punya periode pelaporan yang mencakup stasiun Grading dan beberapa Production Line",
+      "when": "Pengguna membuka layar Laporan Grading dan belum memilih Production Line mana pun",
+      "then": "Tidak ada satu pun angka yang ditampilkan, Sistem menampilkan arahan agar pengguna memilih Production Line terlebih dahulu, dan Sistem sama sekali tidak menampilkan angka gabungan seluruh line pada mill itu sebagai pengganti sementara"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — Admin mengganti mill setelah memilih line",
+      "given": "Pengguna sudah masuk sebagai Admin, sudah memilih sebuah mill, sudah memilih satu Production Line milik mill itu, dan rekap periode sedang tampil",
+      "when": "Admin mengganti pilihan mill ke mill lain padahal sebuah Production Line sudah terpilih",
+      "then": "Production Line yang terpilih dikosongkan, Sistem memuat ulang daftar Production Line milik mill yang baru, seluruh angka berhenti ditampilkan dan tidak ada angka mill lama yang tertinggal di layar, serta Sistem kembali menampilkan arahan memilih Production Line sampai pengguna memilih line baru secara sadar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — Admin memilih mill lebih dulu",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Admin dan belum memilih mill mana pun",
+      "when": "Pengguna membuka layar Laporan Grading",
+      "then": "Sistem menampilkan pemilih Mill, tidak ada satu pun angka yang ditampilkan sebelum mill dipilih, dan Sistem menampilkan arahan agar Admin memilih mill terlebih dahulu; daftar Production Line maupun daftar periode belum dimuat sebelum mill dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — mill belum punya periode pelaporan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan mill yang berlaku sudah punya minimal satu Production Line",
+      "when": "Pengguna memilih Production Line pada mill yang tidak punya satu pun periode pelaporan mencakup stasiun Grading",
+      "then": "Pemilih periode tampil kosong, Sistem menampilkan arahan agar pengguna menghubungi Admin untuk pembuatan periode, dan tidak ada satu pun angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — periode tanpa data",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak, mill punya periode pelaporan yang mencakup stasiun Grading dan minimal satu Production Line",
+      "when": "Pengguna memilih sebuah Production Line dan sebuah periode yang tidak memuat satu pun muatan tersortir pada line itu",
+      "then": "Seluruh angka ditampilkan sebagai tidak tersedia dan bukan sebagai nol, Sistem menyatakan secara eksplisit bahwa belum ada data pada periode itu untuk line terpilih, kedua kelompok rekap parameter tampil kosong dengan keterangan, dan tidak ada grafik kosong yang bisa disalahartikan pembaca sebagai komposisi bernilai nol"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — satuan janjang dan kilogram tidak pernah dijumlahkan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan periode serta line terpilih memuat parameter ber-satuan janjang maupun parameter ber-satuan kilogram",
+      "when": "Pengguna membaca rekap parameter mutu",
+      "then": "Rekap tampil sebagai DUA kelompok terpisah menurut satuan, masing-masing dengan totalnya sendiri, tidak ada satu pun angka di bagian mana pun laporan yang menjumlahkan kuantitas janjang dengan kuantitas kilogram, dan pangsa tiap parameter dihitung terhadap total kelompok satuannya sendiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — pangsa dan rata-rata persentase ditampilkan berdampingan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih terdapat satu muatan sangat besar yang komposisinya berbeda jauh dari muatan-muatan kecil lainnya",
+      "when": "Pengguna membaca rekap parameter mutu",
+      "then": "Setiap parameter menampilkan pangsa terhadap total periode dan rata-rata persentase per muatan sebagai dua angka berdampingan, kedua angka itu berbeda karena yang pertama berbobot menurut besar muatan sementara yang kedua memperlakukan tiap muatan sama, Sistem menyatakan perbedaan itu dalam keterangan, dan Sistem tidak memilih salah satunya sebagai satu-satunya angka yang benar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — parameter hanya muncul pada sebagian muatan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih terdapat sepuluh muatan yang hanya tiga di antaranya mencatat parameter Buah Sakit",
+      "when": "Pengguna membaca rata-rata persentase parameter Buah Sakit",
+      "then": "Rata-rata yang ditampilkan adalah rata-rata atas tiga muatan yang mencatatnya, bukan atas sepuluh muatan, angka tiga ditampilkan berdampingan dengan rata-rata sebagai penyebut yang dipakai, dan Sistem tidak memperlakukan tujuh muatan tanpa baris Buah Sakit sebagai nol persen"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — muatan tanpa satu pun baris parameter",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih terdapat muatan yang sudah ditimbang dan dicatat tetapi belum punya satu pun baris parameter mutu",
+      "when": "Pengguna membaca laporan periode tersebut",
+      "then": "Muatan itu tetap terhitung pada jumlah muatan serta pada total dan rata-rata netto dan jumlah janjang, muatan itu tidak menyumbang apa pun pada kedua rekap parameter, dan jumlah muatan semacam itu ditampilkan sebagai angka tersendiri pada kelengkapan pencatatan sehingga pembaca tahu ada grading yang belum menghasilkan penilaian apa pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — periode hanya memuat parameter satu satuan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan periode yang akan dibaca memuat parameter ber-satuan janjang tetapi nol parameter ber-satuan kilogram pada line terpilih",
+      "when": "Pengguna memilih Production Line dan periode tersebut",
+      "then": "Kelompok kilogram tetap ditampilkan utuh dengan seluruh nilainya dinyatakan tidak tersedia, kelompok itu tidak disembunyikan maupun diciutkan, dan kelompok janjang menampilkan angkanya sendiri secara terpisah — sehingga pembaca tahu brondolan memang tidak tercatat pada periode itu dan bukan mengira bagian laporan tersebut tidak ada"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — persentase diteruskan apa adanya, tidak dihitung ulang",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih terdapat muatan yang persentase baris parameternya tidak konsisten dengan netto maupun jumlah janjang muatan itu",
+      "when": "Pengguna membaca rekap parameter mutu",
+      "then": "Persentase yang dipakai laporan adalah nilai yang tercatat pada baris parameter itu, laporan tidak menghitung ulang persentase dari netto maupun dari jumlah janjang, dan dengan demikian angka pada laporan tidak pernah berbeda dari angka yang dilihat petugas di layar input"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — rekap per estate/supplier menampilkan seluruh asal",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih satu estate menyumbang hampir seluruh muatan sementara beberapa asal lain menyumbang sangat sedikit, dan sebagian muatan asalnya belum diisi",
+      "when": "Pengguna membaca rekap per estate/supplier",
+      "then": "Rekap menampilkan seluruh asal yang punya muatan pada periode itu tanpa pemangkasan dan tanpa pengelompokan sisa, muatan yang asalnya belum diisi punya kelompoknya sendiri dan tidak dibuang, dan jumlah muatan seluruh kelompok tetap menjumlah ke jumlah muatan pada angka utama"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — muatan berstatus draft ikut terhitung",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan sebagian muatan pada periode serta line terpilih masih berstatus draft",
+      "when": "Pengguna membuka laporan untuk periode dan line tersebut",
+      "then": "Seluruh angka tetap ditampilkan dan tidak ada yang disembunyikan karena status draft, jumlah muatan draft ditampilkan sebagai angka tersendiri pada kelengkapan pencatatan, dan pembaca dapat menilai seberapa besar bagian laporan yang berdiri di atas data yang belum selesai"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — status verifikasi tampil sebagai kelengkapan, bukan penyaring",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih sebagian muatan belum punya pemeriksa dan sebagian belum punya pengesah",
+      "when": "Pengguna membaca bagian kelengkapan pencatatan",
+      "then": "Jumlah muatan yang belum diperiksa dan jumlah muatan yang belum disahkan ditampilkan sebagai dua angka tersendiri, muatan itu tetap ikut terhitung penuh pada seluruh angka laporan, dan tidak ada satu pun angka yang disaring berdasarkan status verifikasi"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — muatan tersinkron terlambat dari mobile",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak, sebuah periode pelaporan Grading sudah berakhir, dan sebuah muatan yang penyortirannya terjadi di dalam rentang periode itu baru tersinkron dari aplikasi mobile setelah periode berakhir",
+      "when": "Pengguna membuka laporan untuk periode yang sudah berakhir itu pada line yang bersangkutan",
+      "then": "Muatan yang tersinkron terlambat tetap ikut terhitung pada periode tempat penyortirannya benar-benar terjadi, waktu sinkronisasi maupun waktu baris dibuat tidak menentukan keanggotaan periode, dan jumlah muatan serta komposisi mutu periode itu berubah sesuai muatan tersebut tanpa memengaruhi periode berjalan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — penyaringan line memakai line yang melekat pada muatan itu sendiri",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak, dan terdapat muatan yang tercatat dengan Production Line tertentu padahal stasiun tempat muatan itu tercatat kini sudah dipindahkan ke Production Line lain",
+      "when": "Pengguna memilih Production Line yang melekat pada muatan tersebut lalu memilih periode yang mencakup tanggalnya",
+      "then": "Muatan itu ikut terhitung pada laporan line yang melekat padanya saat penyortiran terjadi, muatan itu tidak muncul pada laporan line stasiun yang berlaku sekarang, dan angka historis tiap line tetap stabil meskipun penugasan stasiun ke line berubah di kemudian hari"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — rentang periode inklusif di kedua ujung",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak, dan terdapat muatan yang penyortirannya terjadi tepat pada hari pertama periode, muatan lain tepat pada hari terakhir, serta muatan lain tepat sehari sebelum dan sehari sesudah periode",
+      "when": "Pengguna membuka laporan untuk periode tersebut pada line yang bersangkutan",
+      "then": "Muatan pada hari pertama dan muatan pada hari terakhir keduanya ikut terhitung penuh pada jumlah muatan, netto, jumlah janjang, kedua rekap parameter, rekap per asal, dan rekap harian; muatan sehari sebelum dan sehari sesudah periode tidak ikut terhitung sama sekali; dan rekap harian memuat baris untuk hari pertama dan hari terakhir periode"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — akun belum terhubung ke mill",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Supervisor atau Mill Management tetapi akunnya belum terhubung ke mill mana pun",
+      "when": "Pengguna membuka layar Laporan Grading",
+      "then": "Sistem menampilkan pesan agar pengguna menghubungi Admin untuk menghubungkan akunnya ke sebuah mill, Sistem tidak menawarkan daftar seluruh mill sebagai jalan keluar, dan tidak ada satu pun angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — mencoba melihat mill atau Production Line milik mill lain",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Supervisor atau Mill Management dengan akun yang terikat pada satu mill, dan terdapat mill lain beserta Production Line miliknya",
+      "when": "Permintaan laporan yang dikirim dari layar membawa identitas mill lain atau Production Line yang bukan milik mill pengguna",
+      "then": "Sistem mengabaikan mill yang dikirim dari sisi klien dan selalu memakai mill yang melekat pada akun pengguna, Production Line yang bukan milik mill terpilih ditolak dan laporan tidak ditampilkan untuk line tersebut, dan angka yang akhirnya tampil tetap hanya milik mill pengguna sendiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — Operator mencoba membuka layar web ini",
+      "given": "Seorang Station Operator sudah punya akun pada sistem namun tidak punya akses ke layar web",
+      "when": "Operator mencoba membuka layar Laporan Grading di aplikasi web",
+      "then": "Akses ditolak, layar laporan tidak terbuka, dan tidak ada satu pun data — baik angka rekap, daftar periode, daftar Production Line, maupun rincian muatan — yang terlihat oleh Operator"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — periode berstatus tertutup",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan mill punya periode pelaporan Grading yang berstatus tertutup beserta datanya",
+      "when": "Pengguna memilih Production Line lalu memilih periode yang berstatus tertutup",
+      "then": "Laporan tetap tampil penuh dengan seluruh angka, kedua rekap parameter, rekap per asal, rekap harian, dan kelengkapan seperti periode terbuka; status tertutup ditampilkan sebagai keterangan pada laporan; dan unduhan tetap dapat dijalankan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — kelengkapan pencatatan tampil sebagai bagian laporan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan periode serta line terpilih memuat muatan tanpa baris parameter, muatan berstatus draft, muatan tanpa divisi, dan muatan yang belum diperiksa",
+      "when": "Pengguna membaca laporan periode tersebut",
+      "then": "Kelengkapan pencatatan ditampilkan sebagai bagian laporan yang setara dengan angka utama dan bukan sebagai catatan kaki: jumlah hari ber-muatan dibanding hari periode yang sudah lewat, jumlah muatan tanpa baris parameter, jumlah muatan draft, jumlah muatan tanpa divisi, serta jumlah muatan yang belum diperiksa dan yang belum disahkan semuanya terlihat pada satu tempat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — tidak ada penandaan nilai di luar batas",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan periode serta line terpilih memuat muatan dengan persentase Mentah yang sangat tinggi dibanding muatan lain",
+      "when": "Pengguna membaca angka utama, kedua rekap parameter, rekap per asal, dan rekap harian",
+      "then": "Seluruh nilai ditampilkan apa adanya tanpa penandaan di luar batas, tanpa warna peringatan, dan tanpa ikon kewajaran; laporan tidak menilai apakah sebuah komposisi mutu wajar atau tidak; dan nilai ekstrem tetap ikut dalam total, pangsa, serta rata-rata seperti muatan lainnya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — rekap harian sangat panjang",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan periode yang dibaca cukup panjang sehingga rekap hariannya mencapai puluhan baris",
+      "when": "Pengguna membuka laporan untuk periode panjang tersebut",
+      "then": "Rekap harian dapat ditutup oleh pengguna, angka utama beserta kedua rekap parameter tetap terbaca tanpa harus menggulir melewati puluhan baris, dan menutup atau membuka rekap harian tidak mengubah angka mana pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — unduh rincian seluruh baris parameter",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan laporan sudah tampil untuk sebuah periode dan Production Line yang memuat muatan dengan banyak baris parameter",
+      "when": "Pengguna menjalankan unduhan dari layar laporan",
+      "then": "Berkas memuat SATU BARIS PER PARAMETER PER MUATAN untuk seluruh muatan pada periode dan line terpilih, konteks mill dan Production Line dan periode dan identitas muatan diulang pada setiap baris, satuan tiap baris ikut tertulis sehingga janjang dan kilogram tetap dapat dibedakan tanpa pernah dijumlahkan, muatan yang belum punya satu pun baris parameter tetap muncul sebagai satu baris dengan kolom parameter kosong, status ditulis berlabel Indonesia bukan nilai enum mentah, dan label kolomnya mengikuti istilah yang tampil di layar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Grading (Web) — layar hanya membaca dan tidak mengubah data stasiun",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan sudah menampilkan laporan untuk sebuah periode dan Production Line",
+      "when": "Pengguna berganti-ganti pilihan mill, Production Line, dan periode, menutup serta membuka rekap harian, lalu mengunduh berkas",
+      "then": "Laporan hanya membaca data: tidak ada satu pun aksi tulis yang tersedia pada layar — tidak ada ubah, hapus, simpan, maupun ubah status — dan setelah seluruh interaksi itu tidak ada satu pun data stasiun Grading yang berubah nilainya maupun statusnya"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-146--laporan-grading-web"
+  ]
+}

@@ -1,8 +1,8 @@
 {
-  "ver": 67,
+  "ver": 68,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-05"
+    "updated_at": "2026-10-06"
   },
   "endpoints": [
     {
@@ -2161,6 +2161,59 @@
       "actor_ids": [
         "actor-station-operator",
         "actor-supervisor"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/grading-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Grading — ADMIN SAJA; 403 untuk setiap peran yang terikat satu mill, termasuk Operator, ditegakkan di dalam service bukan oleh middleware.",
+      "screen_id": "screen-146--laporan-grading-web",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/grading-reports/periods",
+      "description": "Daftar Periode Pelaporan yang mencakup stasiun Grading pada satu mill; status per baris period_stations. Dipakai bersama oleh screen-146 (web) dan screen-147 (mobile); business_unit_id diabaikan untuk seluruh peran terikat mill.",
+      "screen_id": "screen-146--laporan-grading-web",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/grading-reports/summary",
+      "description": "Seluruh angka laporan periode Grading pada satu Production Line: jumlah muatan, netto, jumlah janjang, dan DUA kelompok rekap parameter mutu menurut satuan (janjang dan kilogram) yang tidak pernah dijumlahkan — masing-masing dengan pangsa terhadap totalnya sendiri dan rata-rata persentase beserta penyebutnya. period_id DAN production_line_id keduanya WAJIB (422 bila absen). Dipakai bersama oleh screen-146 (web) dan screen-147 (mobile).",
+      "screen_id": "screen-146--laporan-grading-web",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/grading-reports/export",
+      "description": "Ekspor rincian periode Grading pada satu Production Line, SATU BARIS PER PARAMETER PER MUATAN, streaming CSV/XLSX. Muatan tanpa baris parameter tetap muncul sebagai satu baris dengan kolom parameter kosong. Batas 50.000 baris diperiksa atas jumlah BARIS, bukan jumlah record. Dipakai bersama oleh screen-146 (web, csv+excel) dan screen-147 (mobile, csv).",
+      "screen_id": "screen-146--laporan-grading-web",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
       ]
     }
   ]

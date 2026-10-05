@@ -1,8 +1,8 @@
 {
-  "ver": 16,
+  "ver": 17,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-05"
+    "updated_at": "2026-10-06"
   },
   "screens": [
     {
@@ -861,7 +861,7 @@
       "id": "screen-143--laporan-weighbridge-web",
       "name": "Laporan Weighbridge (Web)",
       "module_id": "module-dashboard",
-      "description": "Laporan periode stasiun Weighbridge: pilih periode pelaporan dan Production Line (wajib dipilih, mengikuti pola lima laporan stasiun yang sudah ada), lihat rekap per hari beserta baris total periode, dan ekspor hasilnya. Angka dipisah menurut jenis lalu lintas timbangan — 'receive' (FFB masuk dari estate/supplier) dan 'dispatch' (kirim keluar ke tujuan) — karena keduanya adalah arus yang berbeda dan tidak boleh dijumlah bersama. Rekapnya memuat jumlah trip, total dan rata-rata berat bersih, rekap per estate/supplier untuk arus masuk dan per tujuan untuk arus keluar, lama kendaraan berada di pabrik dari selisih waktu kedatangan ke waktu keluar, serta jumlah trip yang berat bersihnya masih kosong karena berat kosong belum ditimbang — anomali yang harus terlihat, bukan tersembunyi di balik rata-rata."
+      "description": "Laporan periode stasiun Weighbridge: pilih periode pelaporan dan Production Line (wajib dipilih, mengikuti pola lima laporan stasiun yang sudah ada), lihat rekap per hari beserta baris total periode, dan ekspor hasilnya. Angka dipisah menurut jenis lalu lintas timbangan — 'receive' (FFB masuk dari estate/supplier) dan 'dispatch' (kirim keluar ke tujuan) — karena keduanya adalah arus yang berbeda dan tidak boleh dijumlah bersama. Rekapnya memuat jumlah trip, total dan rata-rata berat bersih, rekap per estate/supplier untuk arus masuk dan per tujuan untuk arus keluar, sebaran trip per jam dalam sehari beserta jam tersibuk, serta jumlah trip yang berat bersihnya masih kosong karena berat kosong belum ditimbang — anomali yang harus terlihat, bukan tersembunyi di balik rata-rata. LAMA KENDARAAN BERADA DI PABRIK TIDAK dilaporkan: migrasi 2026-08-19 menggabungkan kedua kolom waktu menjadi satu record_datetime, jadi satu trip hanya membawa satu penanda waktu dan durasi tidak dapat dihitung sama sekali; sebaran per jam adalah penggantinya yang disetujui."
     },
     {
       "id": "screen-144--laporan-weighbridge-mobile",
@@ -874,6 +874,18 @@
       "name": "Data Saya (Web, Operator & Supervisor)",
       "module_id": "module-web-station-data",
       "description": "Layar web 'Data Saya' untuk Operator dan Supervisor: daftar record stasiun yang dibuat oleh user itu sendiri lintas 18 stasiun pada mill (business unit) miliknya, dengan filter tanggal (default 7 hari terakhir), stasiun, dan Production Line, serta status sinkron/verifikasi per record; user dapat membuka detail satu record secara read-only di layar yang sama. Tidak ada input, edit, verifikasi, maupun ekspor. Operator mencapainya dari Beranda Operator (/beranda) dan menu sidebar; Supervisor dari menu sidebar (tambahan — seluruh layar Supervisor lain tetap). Mill Management dan Admin: 403."
+    },
+    {
+      "id": "screen-146--laporan-grading-web",
+      "name": "Laporan Grading (Web)",
+      "module_id": "module-dashboard",
+      "description": "Laporan periode stasiun Grading: pilih periode pelaporan dan Production Line (wajib dipilih, mengikuti pola enam laporan stasiun yang sudah ada), lihat rekap per hari beserta baris total periode, dan ekspor hasilnya. Isinya adalah MUTU PANEN, bukan throughput: tiap record adalah satu muatan truk yang disortir, dan nilai yang dicari pembaca adalah komposisi kematangannya. Karena itu rekap per parameter mutu menampilkan DUA angka yang berbeda dan dapat bertentangan — pangsa terhadap total periode (berbobot menurut besar muatan) dan rata-rata persentase per record (tiap muatan berbobot sama) — dan menyatakan bedanya. Satuan janjang dan kilogram TIDAK PERNAH dijumlahkan karena ketiga parameter brondolan diukur dalam kg sementara tiga belas lainnya dalam janjang. Di samping itu: jumlah muatan, total dan rata-rata netto serta jumlah janjang, rekap per estate/supplier, dan kelengkapan pencatatan termasuk muatan yang tidak punya satu pun baris parameter — grading yang tidak menghasilkan penilaian apa pun, anomali yang harus terlihat."
+    },
+    {
+      "id": "screen-147--laporan-grading-mobile",
+      "name": "Laporan Grading (Mobile)",
+      "module_id": "module-dashboard",
+      "description": "Versi mobile dari Laporan Grading — pilih periode pelaporan dan Production Line lalu lihat komposisi mutu panen, rekap per hari, dan total periode dalam tata letak layar sempit (read-only). Dicapai dari Reporting (screen-141)."
     }
   ]
 }

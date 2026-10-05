@@ -103,6 +103,12 @@ export const PERIOD_LANES = {
   // "Business Unit A" juga, mill yang sama dengan empat lajur pertama, dan
   // aturan tumpang tindih periode kini PER MILL.
   weighbridge: 5,
+  // screen-146--laporan-grading-web (2026-10-06). Lajur baru dengan alasan
+  // yang sama seperti weighbridge di atasnya: spec itu menanam periodenya di
+  // mill yang juga dipakai lajur lain, dan aturan tumpang tindih periode
+  // berlaku PER MILL — memakai ulang lajur yang ada akan membuat pembuatan
+  // periodenya ditolak 422 oleh spec yang kebetulan berjalan lebih dulu.
+  grading: 6,
 } as const
 
 export type PeriodLane = keyof typeof PERIOD_LANES

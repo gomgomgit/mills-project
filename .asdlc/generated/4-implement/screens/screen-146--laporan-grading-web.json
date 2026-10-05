@@ -1,0 +1,95 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-146--laporan-grading-web",
+  "name": "Laporan Grading (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/GradingReportService.php",
+    "backend/app/Http/Controllers/Api/GradingReportController.php",
+    "backend/app/Livewire/Dashboard/LaporanGrading.php",
+    "backend/resources/views/livewire/dashboard/laporan-grading.blade.php",
+    "backend/resources/views/dashboard/laporan-grading.blade.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/GradingReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanGradingTest.php",
+    "backend/tests/Feature/Livewire/LaporanGradingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/resources/views/livewire/dashboard/laporan-grading.blade.php",
+    "backend/resources/views/dashboard/laporan-grading.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "e2e-web/tests/laporan-grading.spec.ts",
+    "e2e-web/tests/support/period-lanes.ts"
+  ],
+  "implementation_notes": [
+    "SERVICE BARU, POLA LAMA. GradingReportService mengikuti WeighbridgeReportService sedekat mungkin pada bagian yang memang sama — resolusi mill, pemilih mill, resolusi line, otorisasi periode, daftar periode, ekspor streaming, penamaan berkas. Yang berbeda hanya agregasinya, dan perbedaan itu nyata: Grading melaporkan KOMPOSISI, bukan throughput.",
+    "DUA ANGKA PER PARAMETER, DAN KEDUANYA DITERBITKAN. share_percent berbobot menurut besar muatan; avg_percentage memperlakukan tiap muatan sama. Keduanya bertentangan justru ketika ukuran muatan berbeda — satu muatan raksasa yang buruk mendominasi pangsa tanpa menggerakkan rata-rata. Menerbitkan salah satunya saja adalah keputusan yang terlihat sederhana dan menyembunyikan separuh kenyataan, jadi layar WAJIB menampilkan keduanya berdampingan beserta keterangan bedanya (data-testid parameter-share-note). Menampilkan keduanya TANPA keterangan lebih buruk daripada salah satunya saja: dua angka yang membantah tanpa sebab yang dinyatakan.",
+    "PENYEBUT avg_percentage ADALAH load_count PARAMETER ITU, bukan load_count periode, dan penyebut itu DICETAK di kolomnya sendiri ('N dari M muatan'). Memakai load_count periode akan mengempiskan setiap parameter yang jarang dicatat sambil tetap menghasilkan angka yang terlihat masuk akal — bentuk salah yang paling mahal. Unit test case 14 dan Api skenario 10 memakai 10 muatan dengan 3 pencatat, sehingga jawaban salahnya (1,8) berbeda jelas dari jawaban benarnya (6,0).",
+    "SATUAN JANJANG DAN KILOGRAM DIPISAH SECARA STRUKTURAL, bukan secara konvensi: payload membawa dua blok (`bunch`, `kg`), masing-masing dengan quantity_total yang sekaligus menjadi penyebut share_percent-nya sendiri, dan blade merendernya sebagai DUA TABEL lewat satu @foreach atas dua kelompok. Satu tabel berkolom 'satuan' akan mengundang pembaca menjumlahkan kolom kuantitasnya — dan jumlah itu bukan bilangan apa pun. Spec browser menguji invariannya dari DOM: kedua total dibaca dari halaman, lalu jumlahnya dicari di seluruh teks laporan.",
+    "uom DIBACA DARI BARIS DETAIL, bukan dari master parameternya. grading_details.uom adalah salinan beku saat pemilihan; mengambilnya dari master akan mengubah pengelompokan baris lama setiap kali satuan master diedit. Unit test case 16 memakai baris ber-uom kg yang master parameternya bunch — fixture yang hanya bermakna kalau implementasinya benar.",
+    "percentage TIDAK DIHITUNG ULANG, dan fixture-nya SENGAJA tidak konsisten: percentage 42 pada muatan yang netto/quantity-nya akan menghasilkan angka lain bila dihitung ulang. Dengan fixture yang konsisten, test ini tidak membuktikan apa pun — service yang menghitung ulang akan menghasilkan angka yang sama dan lolos.",
+    "TIDAK ADA PENGHITUNG 'TANPA TANGGAL', dan ketiadaannya DINYATAKAN di kode maupun di layar: grading_records.date adalah kolom NOT NULL, jadi setiap muatan selalu dapat ditempatkan pada sebuah periode. Weighbridge punya undated_trip_count hanya karena record_datetime-nya nullable. Tanpa catatan itu, pembaca berikutnya akan mengira penghitungnya lupa dibuat.",
+    "whereDate, BUKAN where. Kolom `date` adalah timestamp; where('date','<=','2026-09-30') akan memotong seluruh muatan pada 30 September setelah tengah malam di PostgreSQL sementara suite-nya (SQLite) tetap hijau. Jebakan ini sudah tercatat di memori proyek dan sudah pernah mengenai basis kode ini; unit test case 10 dan Api skenario 19 mengasersinya di KEDUA ujung rentang.",
+    "BATAS BARIS EKSPOR DIHITUNG ATAS BARIS YANG AKAN DIEMIT, bukan atas jumlah record — satu muatan dapat menghasilkan 16 baris parameter, jadi 50.000 baris tercapai pada ~3.100 muatan. Memeriksa jumlah record akan membiarkan ekspor berjalan sampai kehabisan memori di tengah streaming, yang sampai ke pengguna sebagai unduhan rusak alih-alih galat yang jelas. EXPORT_ROW_LIMIT dibaca lewat `static::`, bukan `self::`, supaya unit test case 26 dapat menurunkannya di subclass — dengan `self::` test itu hanya dapat ditulis dengan menyemai lima puluh ribu baris.",
+    "MUATAN TANPA BARIS PARAMETER adalah temuan, bukan baris yang dilewati: ia tetap terhitung pada load_count, netto, jumlah janjang, rekap per asal, dan rekap harian, tidak menyumbang apa pun pada kedua blok parameter, dan jumlahnya diterbitkan sebagai loads_without_detail. Tanpa angka itu, pembaca tidak dapat menjelaskan mengapa jumlah muatan tidak cocok dengan jumlah muatan di balik komposisinya. Ekspor pun tetap memancarkan SATU BARIS untuknya, dengan keempat kolom parameter kosong.",
+    "OPERATOR DITERIMA SEJAK HARI PERTAMA pada ketiga rute data, karena kembaran mobile (screen-147) dibangun dalam perubahan yang sama — mengirim daftar peran yang pasti harus dilebarkan satu jam kemudian hanya akan menjadi pertunjukan. Yang membuatnya aman tidak berubah: Operator ada di cabang TERIKAT MILL pada resolveBusinessUnit() sejak baris pertama, dan test mengasersi HASILNYA (Operator yang mengirim id mill lain tetap menerima data mill sendiri), bukan sekadar bahwa perannya diterima.",
+    "/business-units/options TETAP 403 UNTUK OPERATOR, ditegakkan di dalam service dan bukan oleh middleware, sehingga daftar peran rute tidak dapat melonggarkannya. Unit test case 5 mengujinya untuk ketiga peran terikat mill sekaligus dengan spy yang membuktikan allBusinessUnits() tidak pernah dipanggil.",
+    "RUTE WEB /reports/grading TIDAK DILEBARKAN, dan LaporanGrading::canAccess() memakai daftar perannya SENDIRI alih-alih memanggil GradingReportService::guardAccess(). Duplikasinya disengaja dan dicatat di kedua tempat: service-nya MEMANG menerima Operator, jadi mendelegasikan ke sana akan membuka layar web ini secara senyap. Livewire skenario 18 dan browser test Operator mengunci itu dari dua arah.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri 'grading' pada StationReportService::REPORT_ROUTES. Urutannya LOAD-BEARING — grading (sort_order 20) ditaruh TEPAT di antara weighbridge (10) dan cages-track (30), dan Api test 'reachability' mengasersi ketiga kode pertama secara BERURUTAN, bukan sekadar 'memuat'.",
+    "SPEC BROWSER MEMAKAI ASERSI INVARIAN, BUKAN ANGKA YANG DIPAKU, dan itu keputusan yang disengaja: database e2e berbagi data Grading dengan form-grading.spec.ts, jadi angka tetap akan berubah setiap kali spec lain berubah — test yang gagal bukan karena produknya salah adalah test yang akan diabaikan lalu dihapus. Empat invarian dihitung DARI DOM dan benar untuk data apa pun: (a) jumlah kedua total satuan tidak muncul di mana pun pada halaman; (b) kolom muatan rekap per asal menjumlah ke angka utama; (c) baris total rekap harian menjumlah seluruh baris hariannya; (d) tiap baris parameter mencetak penyebut rata-ratanya.",
+    "LAJUR PERIODE BARU ('grading', lajur 6) ditambahkan ke e2e-web/tests/support/period-lanes.ts walau spec akhirnya tidak menanam periodenya sendiri — lajurnya dibiarkan terdaftar karena spec ini dapat tumbuh menanam periode begitu fixture punya stasiun Grading, dan menambahkannya belakangan berarti mengubah RUN_OFFSET seluruh lajur sesudahnya.",
+    "KOSAKATA TAMPILAN memakai `md-*` bersama lewat dashboard/partials/report-styles, tanpa satu kelas CSS baru — menambah kelas ke partial itu akan menyentuh keenam laporan lain yang memakainya. Partial <style> dipasang lewat slot `styles` milik layout, BUKAN di dalam komponen: Livewire 3 memasang wire:id pada elemen ter-render pertama, dan kalau itu sebuah <style>, SELURUH wire:model berhenti bekerja — harganya sudah dibayar di screen-140, component test tidak menangkapnya, browser test menangkapnya."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "BELUM ADA STASIUN GRADING DI FIXTURE e2e-web, sehingga spec browser tidak dapat menanam muatannya sendiri lewat form screen-023 dan harus bersandar pada data Grading yang ditinggalkan spec lain (form-grading.spec.ts beserta periode prasyaratnya). Akibatnya spec browser hanya mengasersi INVARIAN yang dihitung dari DOM, bukan angka tetap — yang untuk tujuannya memang lebih kokoh, tetapi membuatnya bergantung pada keberadaan data pihak lain: bila suatu hari form-grading berhenti meninggalkan data, test invarian 'kedua satuan' akan gagal dengan pesannya sendiri ('periode ini tidak memuat kedua satuan sekaligus'), bukan secara membingungkan. Perbaikan yang benar adalah menambahkan satu stasiun Grading aktif pada PL Mill A di BrowserTestFixtureSeeder — satu perubahan kecil yang MENGUBAH apa yang dilihat 80+ spec lain atas mill fixture yang sama (grid stasiun, hitungan stasiun, Production Process Activity), jadi ia layak menjadi perubahan tersendiri yang ditinjau dan dijalankan penuh sendiri.",
+      "severity": "minor"
+    },
+    {
+      "description": "Rekap parameter belum dapat dipecah per estate/supplier — 'komposisi mutu dari estate mana yang paling buruk'. Pertanyaannya nyata dan datanya ada, tetapi tabel silang 16 parameter x jumlah asal adalah keputusan tampilan tersendiri; dicatat juga sebagai open_question pada business spec.",
+      "severity": "minor"
+    },
+    {
+      "description": "Selisih antara grading_records.netto dan berat bersih record Weighbridge yang ditautkannya tidak dilaporkan sebagai anomali. Keduanya dicatat terpisah dan dapat berbeda; laporan ini memakai netto milik Grading apa adanya. Ambang selisih yang dianggap wajar belum diputuskan — open_question pada business spec, dan menjawabnya menyentuh laporan Weighbridge sekaligus.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage unit test tidak terukur — tidak ada ekstensi Xdebug/PCOV di environment ini. Gap pre-existing project-wide, bukan diperkenalkan layar ini.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-06T01:05:00Z",
+      "passed": 30,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-06T01:05:00Z",
+      "passed": 26,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-06T01:05:00Z",
+      "passed": 23,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-06T01:40:00Z",
+      "passed": 13,
+      "failed": 0
+    }
+  }
+}

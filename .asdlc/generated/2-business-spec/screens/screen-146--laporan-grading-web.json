@@ -1,0 +1,149 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-146--laporan-grading-web",
+  "name": "Laporan Grading (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Grading di web. Berbeda dari enam laporan stasiun sebelumnya, yang dilaporkan di sini bukan throughput maupun pembacaan alat melainkan MUTU PANEN: tiap record adalah satu muatan truk yang disortir, dan nilai yang dicari pembaca adalah komposisi kematangannya. Karena itu inti laporan ini adalah rekap per parameter mutu — dan rekap itu menampilkan DUA angka yang berbeda serta dapat bertentangan: pangsa parameter terhadap total periode (berbobot menurut besar muatan) dan rata-rata persentase per muatan (tiap muatan berbobot sama). Keduanya ditampilkan berdampingan karena keduanya menjawab pertanyaan yang berbeda, dan memilih salah satunya saja akan menyembunyikan separuh kenyataan: satu muatan raksasa yang buruk dapat mendominasi pangsa tanpa memengaruhi rata-rata, dan sebaliknya. SATUAN JANJANG DAN KILOGRAM TIDAK PERNAH DIJUMLAHKAN: tiga parameter brondolan diukur dalam kilogram sementara tiga belas parameter lainnya dalam janjang, dan jumlah keduanya bukan bilangan yang berarti apa-apa. Di samping itu laporan menampilkan jumlah muatan, total dan rata-rata netto serta jumlah janjang, rekap per estate/supplier, rekap harian, dan kelengkapan pencatatan — termasuk jumlah muatan yang tidak punya satu pun baris parameter, yaitu grading yang tercatat tetapi tidak menghasilkan penilaian apa pun. Angka terakhir itu sengaja ditonjolkan, karena muatan semacam itu tetap ikut pada jumlah muatan dan netto sementara tidak menyumbang apa pun pada komposisi mutu — selisih yang tidak dapat dijelaskan pembaca kecuali dinyatakan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Grading",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Grading, yaitu periode yang mendaftarkan Grading sebagai salah satu stasiunnya. Status yang ditampilkan adalah status Grading pada periode itu (Draft / Terbuka / Tertutup), bukan status periode secara keseluruhan",
+    "Pemilih Mill — hanya bagi Admin; Supervisor dan Mill Management melihat field 'Mill' berisi nama mill akunnya sebagai keterangan di bar filter yang sama",
+    "Pemilih Production Line — wajib dipilih; tidak ada satu angka pun ditampilkan sebelum sebuah line dipilih",
+    "Nama mill yang berlaku, nama Production Line, rentang tanggal, dan status periode",
+    "Jumlah muatan yang disortir sepanjang periode",
+    "Total netto seluruh muatan (kg), beserta rata-rata netto per muatan",
+    "Total jumlah janjang seluruh muatan, beserta rata-rata per muatan",
+    "Rekap parameter mutu ber-satuan JANJANG: untuk tiap parameter — total janjang, pangsa terhadap total janjang periode, rata-rata persentase per muatan, dan jumlah muatan yang mencatat parameter itu sebagai penyebut rata-ratanya",
+    "Rekap parameter mutu ber-satuan KILOGRAM: untuk tiap parameter brondolan — total kilogram, pangsa terhadap total kilogram periode, rata-rata persentase per muatan, dan jumlah muatan yang mencatatnya",
+    "Keterangan yang menyatakan mengapa pangsa dan rata-rata persentase dapat berbeda: pangsa berbobot menurut besar muatan, rata-rata memperlakukan tiap muatan sama",
+    "Total janjang dan total kilogram tiap kelompok parameter, ditampilkan sebagai penyebut pangsanya — dan tidak pernah dijumlahkan satu sama lain",
+    "Rekap per estate/supplier: jumlah muatan, total netto, dan total janjang per asal, diurutkan dari yang terbesar, dengan kelompok tersendiri bagi muatan yang asalnya belum diisi",
+    "Rekap per hari: jumlah muatan, total netto, dan total janjang",
+    "Baris total periode pada rekap harian",
+    "Kelengkapan: berapa hari yang memuat minimal satu muatan dibanding hari periode yang SUDAH lewat — untuk periode yang masih berjalan penyebutnya berhenti di hari ini, disertai keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)'; periode belum mulai → persen '—', bukan 0%",
+    "Kelengkapan: jumlah muatan yang tidak punya satu pun baris parameter mutu",
+    "Kelengkapan: jumlah muatan yang masih berstatus draft dan tetap ikut terhitung",
+    "Kelengkapan: jumlah muatan yang divisinya belum diisi",
+    "Kelengkapan: jumlah muatan yang belum diperiksa (tanpa Checked By) dan jumlah yang belum disahkan (tanpa Acknowledged By)",
+    "Keterangan bila periode tidak memuat data",
+    "Tombol Ekspor CSV dan Ekspor Excel (.xlsx sungguhan)",
+    "Bar filter laporan (satu baris di desktop, bertumpuk di ponsel) berurutan Mill · Production Line · Periode Pelaporan, dengan tombol ekspor di sisi kanan dan satu catatan singkat di bawahnya tentang cakupan daftar periode"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill yang dilihat. Hanya bagi Admin. Mengganti mill mengosongkan Production Line yang terpilih, karena line milik mill lama tidak berlaku di mill baru.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan Production Line yang angkanya dilihat. Wajib — laporan tidak menampilkan angka apa pun sebelum line dipilih.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rekap per hari.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian seluruh baris parameter sepanjang periode sebagai CSV atau Excel (.xlsx sungguhan), SATU BARIS PER PARAMETER PER MUATAN dengan kolom konteks Periode/Mill/Production Line dan identitas muatan diulang pada setiap baris; satuan tiap baris ikut tertulis sehingga janjang dan kilogram tetap dapat dibedakan tanpa pernah dijumlahkan; muatan yang belum punya satu pun baris parameter tetap muncul sebagai satu baris dengan kolom parameter kosong; status ditulis berlabel Indonesia, bukan nilai enum mentah. Selama berkas disiapkan kedua tombol ekspor terkunci sesaat dan tombol yang diklik menampilkan 'Mengekspor…'.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor dan Mill Management terikat pada mill di akunnya; Admin tidak terikat sehingga ia memilih.",
+    "Operator tidak punya akses ke layar web ini.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Grading — yaitu yang mendaftarkan Grading sebagai salah satu stasiunnya.",
+    "Status periode tidak membatasi apa pun. Periode tertutup tetap dapat dilihat dan diekspor.",
+    "Rentang periode inklusif: muatan pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "Production Line WAJIB dipilih. Laporan menghasilkan angka gabungan, dan menggabungkan beberapa line membuat angkanya tidak dapat ditindaklanjuti. Sebelum line dipilih, tidak ada angka yang ditampilkan, bukan angka seluruh mill.",
+    "Penyaringan line memakai Production Line yang MELEKAT PADA MUATAN ITU SENDIRI, bukan line stasiun tempat muatan itu tercatat sekarang. Memindahkan sebuah stasiun ke line lain tidak boleh menulis ulang riwayat muatan yang sudah disortir.",
+    "KEANGGOTAAN PERIODE ditentukan oleh tanggal muatan itu sendiri — waktu kejadian penyortiran — bukan oleh waktu baris itu dibuat maupun waktu sinkronisasi dari mobile.",
+    "SATUAN JANJANG DAN KILOGRAM TIDAK PERNAH DIJUMLAHKAN. Tiga parameter brondolan (Brondolan Segar, Brondolan Busuk, Brondolan Sampah) diukur dalam kilogram; tiga belas parameter lainnya dalam janjang. Laporan menampilkan keduanya sebagai dua kelompok yang berdiri sendiri, masing-masing dengan totalnya sendiri, dan tidak menyediakan satu pun angka gabungan keduanya.",
+    "PANGSA sebuah parameter dihitung terhadap total kuantitas kelompok SATUANNYA SENDIRI, bukan terhadap seluruh parameter. Pangsa parameter ber-satuan janjang dibagi total janjang; pangsa parameter ber-satuan kilogram dibagi total kilogram.",
+    "RATA-RATA PERSENTASE sebuah parameter dihitung hanya atas muatan yang MENCATAT parameter itu, dan jumlah muatan tersebut ditampilkan bersama angkanya sebagai penyebut. Ketiadaan baris parameter pada sebuah muatan BUKAN nilai nol — memperlakukannya sebagai nol akan menerbitkan penilaian yang tidak pernah dibuat petugas.",
+    "PANGSA DAN RATA-RATA PERSENTASE DAPAT BERTENTANGAN, dan keduanya ditampilkan berdampingan beserta penjelasan mengapa: pangsa berbobot menurut besar muatan, rata-rata memperlakukan tiap muatan sama. Memilih salah satunya saja akan menyembunyikan separuh kenyataan — satu muatan raksasa yang buruk dapat mendominasi pangsa tanpa memengaruhi rata-rata, dan sebaliknya.",
+    "Laporan TIDAK menghitung ulang persentase baris parameter. Nilai itu ditetapkan stasiun input saat penyimpanan — berbasis netto untuk satuan kilogram dan berbasis jumlah janjang untuk satuan janjang — dan diteruskan apa adanya. Menghitungnya ulang akan menciptakan kebenaran kedua yang menyimpang diam-diam dari yang dilihat petugas di layar input.",
+    "MUATAN TANPA SATU PUN BARIS PARAMETER tetap terhitung pada jumlah muatan, total netto, dan total janjang, tetapi tidak menyumbang apa pun pada kedua rekap parameter. Jumlahnya ditampilkan tersendiri — tanpa itu, pembaca tidak dapat menjelaskan mengapa jumlah muatan tidak cocok dengan jumlah muatan yang menyumbang komposisi.",
+    "SETIAP metrik dihitung dari muatan yang metriknya benar-benar terisi, dengan jumlah muatannya masing-masing.",
+    "MUATAN BERSTATUS DRAFT IKUT TERHITUNG, dan jumlahnya ditampilkan — mengikuti keenam laporan stasiun yang sudah ada, tidak satu pun di antaranya menyaring status record.",
+    "STATUS VERIFIKASI ADALAH KELENGKAPAN, BUKAN PENYARING. Muatan yang belum diperiksa atau belum disahkan tetap terhitung penuh pada seluruh angka; jumlahnya ditampilkan supaya pembaca tahu seberapa jauh angka laporan sudah melewati pemeriksaan.",
+    "Laporan ini tidak menandai nilai di luar batas. Grading tidak punya master target mutu operasional, dan menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas mutu resmi padahal bukan.",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki.",
+    "KELENGKAPAN UNTUK PERIODE BERJALAN: persen hari ber-muatan dihitung terhadap hari periode yang sudah terjadi sampai hari ini (WIB); periode yang sudah selesai memakai seluruh harinya; periode belum mulai → penyebut 0 → '—', bukan 0%.",
+    "Rekap per estate/supplier menyertakan kelompok tersendiri bagi muatan yang asalnya belum diisi, dan daftarnya tidak dipangkas — penyumbang kecil tidak boleh lenyap."
+  ],
+  "usecase_ids": [
+    "usecase-149--laporan-grading-web"
+  ],
+  "edge_cases": [
+    "Production Line belum dipilih — tidak ada angka yang ditampilkan, diganti arahan memilih line lebih dulu; bukan angka seluruh mill.",
+    "Admin mengganti mill setelah memilih line — line yang terpilih dikosongkan, karena line milik mill lama tidak ada di mill baru.",
+    "Mill hanya punya satu Production Line — line tetap harus dipilih secara sadar, mengikuti pola laporan lain, agar pembaca selalu tahu angka itu milik line mana.",
+    "Periode tidak memuat satu pun muatan — seluruh angka ditampilkan tidak tersedia dengan keterangan belum ada data, bukan nol.",
+    "Periode hanya memuat parameter ber-satuan janjang dan nol parameter ber-satuan kilogram — kelompok kilogram tetap ditampilkan dengan nilai tidak tersedia, bukan disembunyikan, supaya pembaca tahu brondolan memang tidak tercatat.",
+    "Sebuah muatan tidak punya satu pun baris parameter — tetap terhitung pada jumlah muatan dan netto, tidak menyumbang pada rekap parameter, dan jumlahnya ditampilkan tersendiri.",
+    "Seluruh muatan pada periode tidak punya satu pun baris parameter — kedua rekap parameter kosong dengan keterangan, sementara jumlah muatan dan netto tetap ditampilkan apa adanya; jumlah muatan tanpa parameter sama dengan jumlah seluruh muatan.",
+    "Sebuah parameter hanya dicatat pada satu muatan dari puluhan — rata-rata persentasenya memakai penyebut 1 dan penyebut itu ditampilkan, sehingga tidak terbaca sebagai angka periode.",
+    "Satu muatan raksasa mendominasi pangsa sebuah parameter sementara rata-rata persentasenya rendah — kedua angka ditampilkan berdampingan beserta keterangan mengapa berbeda.",
+    "Netto sebuah muatan nol sehingga persentase parameter ber-satuan kilogram tercatat nol oleh stasiun input — laporan meneruskannya apa adanya dan tidak menghitungnya ulang; kuantitas kilogramnya tetap ikut pada total dan pangsa.",
+    "Jumlah janjang sebuah muatan nol — sama: persentase parameter ber-satuan janjang diteruskan apa adanya, dan muatannya tetap terhitung.",
+    "Persentase baris parameter tidak konsisten dengan netto atau jumlah janjang muatannya — laporan menampilkan nilai yang tercatat, bukan hasil hitung ulang, supaya tidak pernah berbeda dari layar input.",
+    "Satu estate/supplier menyumbang hampir seluruh muatan — rekap tetap menampilkan seluruh asal, tidak dipangkas, agar penyumbang kecil tidak lenyap.",
+    "Seluruh muatan asalnya belum diisi — rekap per asal hanya berisi satu kelompok 'belum diisi', dan jumlahnya tetap menjumlah ke jumlah muatan.",
+    "Seluruh muatan pada periode berstatus draft — angka tetap ditampilkan, dan jumlah draft sama dengan jumlah seluruh muatan.",
+    "Seluruh muatan belum diperiksa dan belum disahkan — angka tetap ditampilkan penuh; kedua jumlah itu sama dengan jumlah seluruh muatan.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Mill belum punya satu pun periode yang mencakup Grading — pemilih periode kosong dengan arahan menghubungi Admin.",
+    "Permintaan membawa identitas mill atau Production Line milik mill lain — server mengabaikannya dan memakai mill pada akun; bagi Admin, line yang bukan milik mill terpilih ditolak.",
+    "Periode masih berjalan — persen hari ber-muatan dihitung sampai hari ini dan keterangan 'sampai hari ini' ditampilkan.",
+    "Periode belum mulai (0 hari sudah lewat) — persen hari ber-muatan '—', bukan 0%.",
+    "Ekspor melampaui batas baris — ditolak dengan pesan yang jelas; karena satu muatan dapat menghasilkan enam belas baris parameter, batas baris tercapai pada jumlah muatan yang jauh lebih kecil daripada laporan stasiun lain, dan itu harus diperhitungkan."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Grading tidak punya master target mutu operasional, jadi laporan ini tidak menandai komposisi di luar batas. Bila nanti ada standar mutu panen yang resmi — misalnya batas maksimum persentase Mentah yang disepakati dengan estate — laporan versi web dan versi mobile perlu ditinjau ulang bersamaan agar penyimpangan dapat ditandai.",
+    "NETTO DICATAT DUA KALI: grading_records.netto diisi ulang di layar input sementara muatan yang sama sudah punya berat bersih pada record Weighbridge yang ditautkannya. Keduanya dapat berbeda, dan laporan ini memakai netto milik Grading apa adanya. Apakah selisih keduanya perlu dilaporkan sebagai anomali — dan ambang selisih berapa yang dianggap wajar — belum diputuskan. Menjawabnya menyentuh laporan Grading maupun laporan Weighbridge sekaligus.",
+    "LINTAS LAPORAN, bukan khusus layar ini: muatan berstatus draft ikut terhitung di sini karena keenam laporan stasiun yang sudah ada juga tidak menyaring status record. Pertanyaannya tetap terbuka — apakah laporan periode, sebagai rekap resmi, seharusnya mengecualikan data yang belum selesai diisi?",
+    "Apakah rekap parameter sebaiknya dapat dipecah per estate/supplier — 'komposisi mutu dari estate mana yang paling buruk' — belum diputuskan. Pertanyaannya nyata dan datanya ada, tetapi tabel silang parameter × asal berukuran enam belas kolom kali jumlah asal, dan itu keputusan tampilan yang perlu dibahas tersendiri sebelum dibangun."
+  ]
+}

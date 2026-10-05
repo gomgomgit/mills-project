@@ -5,6 +5,7 @@ use App\Livewire\Dashboard\DashboardHome;
 use App\Livewire\Dashboard\LaporanBoilerRoom;
 use App\Livewire\Dashboard\LaporanCagesTrack;
 use App\Livewire\Dashboard\LaporanClarification;
+use App\Livewire\Dashboard\LaporanGrading;
 use App\Livewire\Dashboard\LaporanStasiun;
 use App\Livewire\Dashboard\LaporanSterilizer;
 use App\Livewire\Dashboard\LaporanStorageTank;
@@ -905,5 +906,30 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/weighbridge', LaporanWeighbridge::class)
     ->name('reports.weighbridge');
+
+// screen-146--laporan-grading-web (Laporan Periode Grading).
+//
+// Supervisor / Mill Management / Admin only. Operator is NOT admitted here and
+// has no web report UI at all — and on this screen that refusal is worth
+// stating twice, because the API prefix DOES admit Operator: the mobile
+// Grading report (screen-147) ships in the same change and reuses the same
+// four endpoints. LaporanGrading::canAccess() therefore keeps its OWN role
+// list rather than borrowing GradingReportService::guardAccess(); if it ever
+// delegates, this web screen silently opens to Operator.
+//
+// Route is /reports/grading, NOT /laporan/grading — the repo's convention for
+// report screens is the English /reports/* prefix. It is also distinct from the
+// DATA screens for the same station, which live under /data/grading (browser),
+// /data/grading/create (input form, screen-023), /data/grading/{id} and
+// /data/grading/{id}/edit — this report reads what those screens write and
+// never writes anything itself.
+//
+// Reachable from the UI ONLY through the Grading tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES now
+// maps the 'grading' code to this route name. Without that one line the report
+// exists, every test here passes, and the screen stays unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/grading', LaporanGrading::class)
+    ->name('reports.grading');
 
 // === ASDLC_ROUTES_END ===

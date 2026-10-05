@@ -1,0 +1,1770 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-146--laporan-grading-web",
+  "name": "Laporan Grading (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/grading",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill lewat pemilih Mill"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Tidak punya UI web untuk laporan. Operator DITERIMA pada ketiga rute API data (/periods, /summary, /export) karena kembaran mobile screen-147 memakainya, tetapi rute WEB /reports/grading menolaknya"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "usecase_name": "Lihat Laporan Periode Grading (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/grading-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — ADMIN SAJA; 403 untuk peran terikat mill termasuk Operator",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan Admin — peran yang terikat satu mill tidak punya pemilih, dan menyerahkan daftar seluruh mill kepadanya adalah kebocoran. Penjagaan ada di dalam service, bukan di middleware"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/grading-reports/periods",
+          "description": "Daftar Periode Pelaporan yang punya baris period_stations untuk jenis stasiun grading",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "WAJIB bagi Admin (422 bila absen); DIABAIKAN total bagi peran terikat mill. production_line_id TIDAK PERNAH dikirim ke endpoint ini — periode milik MILL, bukan milik line"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string (draft|open|closed) — status BARIS period_stations grading, bukan status periode",
+                  "station_type": "string — selalu 'grading'",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar operator/supervisor/mill_management/admin"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tidak mengirim business_unit_id, atau akun terikat mill yang users.business_unit_id-nya NULL"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/grading-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode pada satu Production Line: jumlah muatan, netto, jumlah janjang, DUA kelompok rekap parameter per satuan, rekap per asal, rekap harian, dan kelengkapan",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Absen → 422 VALIDATION_ERROR dengan errors.period_id"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — absen → 422 dan NOL kueri grading_records berjalan. TIDAK PERNAH di-default ke 'semua line mill'. Penyaringan memakai kolom grading_records.production_line_id, bukan join ke stations"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Wajib bagi Admin, diabaikan bagi peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string (draft|open|closed)"
+              },
+              "load_count": "integer — jumlah muatan tersortir pada periode+line",
+              "netto_total": "float|null — null (BUKAN 0) ketika load_count 0",
+              "netto_avg": "float|null — penyebutnya load_count; netto NOT NULL di basis data, jadi tidak ada penyebut tersendiri",
+              "bunch_total": "float|null — total jumlah janjang pada header muatan",
+              "bunch_avg": "float|null",
+              "bunch": {
+                "quantity_total": "float|null — total kuantitas SELURUH parameter ber-satuan janjang; penyebut share_percent kelompok ini",
+                "parameter_count": "integer — banyaknya parameter berbeda yang muncul",
+                "rows": [
+                  {
+                    "grading_parameter_id": "uuid",
+                    "name": "string",
+                    "quantity_total": "float",
+                    "share_percent": "float|null — quantity_total / bunch.quantity_total x 100; null bila penyebutnya 0",
+                    "avg_percentage": "float|null — rata-rata kolom percentage baris parameter ini",
+                    "load_count": "integer — PENYEBUT avg_percentage: banyaknya muatan yang MENCATAT parameter ini"
+                  }
+                ]
+              },
+              "kg": {
+                "quantity_total": "float|null — total kuantitas SELURUH parameter ber-satuan kilogram, penyebut tersendiri",
+                "parameter_count": "integer",
+                "rows": [
+                  {
+                    "grading_parameter_id": "uuid",
+                    "name": "string",
+                    "quantity_total": "float",
+                    "share_percent": "float|null",
+                    "avg_percentage": "float|null",
+                    "load_count": "integer"
+                  }
+                ]
+              },
+              "by_estate_supplier": [
+                {
+                  "estate_supplier": "string — '' untuk asal yang belum diisi, sebuah KELOMPOK bukan baris yang dibuang",
+                  "load_count": "integer",
+                  "netto_total": "float|null",
+                  "bunch_total": "float|null"
+                }
+              ],
+              "loads_without_detail": "integer — muatan tanpa satu pun baris parameter; tetap terhitung pada load_count/netto, tidak menyumbang pada kedua kelompok parameter",
+              "draft_load_count": "integer — penyingkapan, BUKAN penyaring",
+              "loads_without_division": "integer",
+              "loads_not_checked": "integer — checked_by NULL; kelengkapan, bukan penyaring",
+              "loads_not_acknowledged": "integer — acknowledged_by NULL",
+              "daily": [
+                {
+                  "date": "date",
+                  "load_count": "integer",
+                  "netto_total": "float|null",
+                  "bunch_total": "float|null"
+                }
+              ],
+              "daily_total": {
+                "load_count": "integer",
+                "netto_total": "float|null",
+                "bunch_total": "float|null"
+              },
+              "completeness": {
+                "days_in_period": "integer",
+                "days_with_load": "integer — = panjang daily",
+                "days_counted": "integer — ReportPeriodDays::counted()",
+                "period_running": "boolean"
+              },
+              "_note": "TIDAK SATU PUN kunci menjumlahkan kuantitas janjang dengan kuantitas kilogram. `bunch` dan `kg` adalah dua kelompok yang berdiri sendiri, masing-masing dengan penyebut share_percent-nya sendiri. avg_percentage SELALU diterbitkan berdampingan dengan load_count-nya, karena penyebut itulah yang membedakannya dari pangsa."
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran tidak diterima; ATAU production_line_id milik mill lain; ATAU period_id milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen; Admin tanpa business_unit_id; akun terikat mill tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — angka laporan harus mencerminkan keadaan saat dibaca",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/grading-reports/export",
+          "description": "Ekspor rincian periode pada satu line, SATU BARIS PER PARAMETER PER MUATAN; respons streaming, csv atau xlsx",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — berkas yang mencampur line adalah kesalahan yang paling sulit dibantah setelah terkirim"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv|excel; di luar itu 422 VALIDATION_ERROR"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_content_type": "text/csv atau application/vnd.openxmlformats-officedocument.spreadsheetml.sheet — SATU BARIS PER PARAMETER PER MUATAN; kolom konteks (Periode/Mill/Production Line) dan identitas muatan diulang verbatim di setiap baris; kolom Satuan ikut sehingga janjang dan kilogram tetap dapat dibedakan tanpa pernah dijumlahkan; muatan tanpa satu pun baris parameter TETAP muncul sebagai satu baris dengan kolom parameter/satuan/kuantitas/persentase kosong; status ditulis berlabel Indonesia lewat ExportValue::status()"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Sama seperti /summary — dicek EAGER sebelum streaming dimulai"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen; format di luar csv|excel"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "Lebih dari 50.000 BARIS — dan baris di sini adalah baris PARAMETER, bukan muatan: satu muatan dapat menghasilkan sampai 16 baris, jadi batas ini tercapai pada jumlah muatan yang jauh lebih kecil daripada laporan stasiun lain. Batasnya diperiksa atas jumlah baris yang akan DIEMIT, bukan atas jumlah record"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "Daftar Production Line di dalam mill yang berlaku — DIPAKAI ULANG apa adanya (dibangun untuk screen-135); tidak diduplikasi di bawah prefix grading-reports",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya dihormati untuk Admin; untuk peran terikat mill nilainya dibuang server"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Gate sesi + peran (guardAccess): 401 bila tidak ada sesi, 403 bila peran di luar operator/supervisor/mill_management/admin. Gate ini dua lapis lebih dalam daripada middleware rute, supaya melewati middleware tidak cukup dengan sendirinya.",
+        "2. Resolusi mill (resolveBusinessUnit): Operator/Supervisor/MillManagement SELALU memakai business_unit_id akunnya dan nilai kiriman klien DIBUANG — tidak divalidasi, tidak dibandingkan, dibuang; Admin WAJIB mengirimkannya (422 bila absen). Akun terikat mill tanpa business_unit_id GAGAL TERTUTUP dengan 422 dan daftar seluruh mill tidak pernah dibaca.",
+        "3. OPERATOR ADA DI CABANG TERIKAT MILL SEJAK HARI PERTAMA. Berbeda dari Weighbridge — di mana Operator baru ditambahkan belakangan ketika screen-144 dibangun, dan penambahan itu harus menjadi langkah tersendiri yang dapat ditinjau — kembaran mobile Grading (screen-147) dibangun dalam perubahan yang SAMA, jadi ketiga rute data menerima Operator sejak awal dan cabang terikat mill sudah memuatnya. Yang penting tetap sama: melebarkan guardAccess() tanpa melebarkan cabang terikat mill akan menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI, dan itu kebocoran lintas mill.",
+        "4. Pemilih mill (businessUnitOptions): ADMIN SAJA, 403 untuk peran lain — ditegakkan di dalam service, bukan oleh middleware, sehingga melebarkan daftar peran rute tidak melonggarkannya. Master kosong adalah jawaban sah: [] dengan HTTP 200, bukan 404.",
+        "5. Resolusi Production Line (resolveProductionLine): 422 bila absen, 403 bila milik mill lain. Keduanya terjadi SEBELUM satu pun kueri grading_records berjalan.",
+        "6. Daftar periode (listPeriods): periode milik mill yang berlaku yang PUNYA baris period_stations berjenis 'grading'. Status TIDAK pernah menyaring daftar — periode tertutup tetap terdaftar dan tetap dapat dibaca serta diekspor. Relasi stations dimuat terbatas pada jenis stasiun ini supaya statusValue() tidak menembak satu kueri per periode (N+1).",
+        "7. Otorisasi periode (authorizePeriod): 404 bila id tidak ada, 403 bila milik mill lain. Urutan guard-nya: peran → mill → line → id periode → periode itu sendiri, supaya pemanggil yang tidak berhak tidak pernah belajar id periode mana yang ada.",
+        "8. SATU KUERI untuk seluruh muatan periode+line, dengan relasi details.gradingParameter dimuat eager — dan seluruh agregasi sesudahnya dikerjakan DI PHP, tanpa satu pun agregat SQL maupun ekspresi mentah. Alasannya sama dengan enam laporan sebelumnya: perilaku agregat SQL atas kolom nullable TIDAK identik antara SQLite (suite test) dan PostgreSQL (produksi), dan ekstraksi bagian tanggal tidak punya ejaan SQL yang portabel.",
+        "9. Keanggotaan periode: whereDate pada grading_records.date antara start_date dan end_date, INKLUSIF di kedua ujung. Memakai whereDate, bukan where biasa, karena `date` adalah kolom timestamp — perbandingan langsung terhadap string tanggal akan memotong hari terakhir pada PostgreSQL.",
+        "10. Penyaringan line memakai kolom grading_records.production_line_id milik record itu sendiri, BUKAN join ke stations — stasiun yang dipindah ke line lain tidak boleh menulis ulang riwayat muatan yang sudah disortir.",
+        "11. Angka header: load_count = jumlah muatan; netto_total/netto_avg dan bunch_total/bunch_avg dengan penyebut load_count. netto dan quantity adalah kolom NOT NULL, jadi tidak ada penyebut tersendiri — dan itu dinyatakan agar tidak dikira kelalaian. Nol muatan → seluruh total dan rata-rata null, BUKAN 0.",
+        "12. Pengelompokan parameter menurut SATUAN baris detail (grading_details.uom), bukan menurut satuan master parameternya — uom pada baris detail adalah salinan beku saat pemilihan, dan salinan itulah yang menyatakan dalam satuan apa kuantitas baris tersebut dicatat.",
+        "13. Untuk tiap kelompok satuan: quantity_total = jumlah kuantitas seluruh barisnya; lalu per parameter — quantity_total parameter, share_percent = quantity_total parameter / quantity_total kelompok x 100 (null bila penyebutnya 0), avg_percentage = rata-rata kolom percentage baris parameter itu, dan load_count = banyaknya MUATAN berbeda yang mencatat parameter itu, yang merupakan PENYEBUT avg_percentage.",
+        "14. avg_percentage TIDAK PERNAH memakai load_count periode sebagai penyebut. Ketiadaan baris parameter pada sebuah muatan bukan nilai nol — memperlakukannya sebagai nol akan menerbitkan penilaian yang tidak pernah dibuat petugas.",
+        "15. Laporan TIDAK menghitung ulang kolom percentage. Nilai itu ditetapkan GradingRecordService saat penyimpanan (berbasis netto untuk satuan kg, berbasis quantity header untuk satuan bunch) dan diteruskan apa adanya — menghitungnya ulang akan menciptakan kebenaran kedua yang menyimpang dari layar input.",
+        "16. Urutan baris parameter: share_percent menurun, lalu quantity_total menurun, lalu nama naik sebagai penentu terakhir yang deterministik.",
+        "17. Rekap per estate/supplier: dikelompokkan pada kolom header; asal NULL maupun string kosong keduanya menjadi satu kelompok '' — sebuah KELOMPOK, bukan baris yang dibuang, supaya jumlah muatan seluruh kelompok tetap menjumlah ke load_count.",
+        "18. Penghitung kelengkapan: loads_without_detail (muatan tanpa satu pun baris detail), draft_load_count (status draft_ongoing/draft_paused), loads_without_division (division null/kosong), loads_not_checked (checked_by null), loads_not_acknowledged (acknowledged_by null). Semuanya PENYINGKAPAN, bukan penyaring — tidak satu pun menyaring angka di atasnya.",
+        "19. TIDAK ADA penghitung 'tanpa tanggal': grading_records.date adalah kolom NOT NULL, jadi tidak ada muatan yang tidak dapat ditempatkan pada periode. Ketiadaan penghitung itu disengaja dan dinyatakan, supaya tidak dikira kelalaian dibanding laporan Weighbridge yang punya undated_trip_count.",
+        "20. Rekap harian: satu baris per TANGGAL yang punya minimal satu muatan, diambil dari bagian tanggal grading_records.date; daily_total menjumlah seluruh barisnya. completeness.days_with_load = panjang daily (satu definisi, satu jawaban), dan days_counted dari ReportPeriodDays::counted() — berhenti di hari ini untuk periode berjalan, 0 bila belum mulai.",
+        "21. Ekspor: SATU BARIS PER PARAMETER PER MUATAN, konteks diulang verbatim; muatan tanpa baris parameter tetap satu baris dengan kolom parameter kosong. Guard, resolusi mill/line, dan pemeriksaan batas baris berjalan EAGER sebelum streaming dimulai — kalau tidak, 403/422 akan sampai ke klien sebagai unduhan yang berhasil tetapi kosong. Batas baris diperiksa atas jumlah BARIS YANG AKAN DIEMIT (muatan tanpa detail dihitung satu), bukan atas jumlah record.",
+        "22. Komponen Livewire LaporanGrading memakai service yang SAMA dengan controller API, sehingga halaman web dan API tidak mungkin berbeda angkanya. mount() memanggil abort_unless atas daftar perannya SENDIRI (supervisor/mill_management/admin) — bukan meminjam guardAccess() — supaya pelebaran akses API tidak dapat melebarkan layar web secara tidak sengaja.",
+        "23. Mengganti mill mengosongkan periode DAN Production Line yang terpilih: sebuah periode maupun sebuah line milik tepat satu mill, jadi membawanya ke mill lain akan menampilkan galat untuk sesuatu yang tidak dilakukan pengguna."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Induk periode: nama dan rentang tanggal pada pemilih dan header laporan."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Penyaring daftar periode (station_type = 'grading') dan sumber nilai status pada opsi periode serta header summary."
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "Satu baris per muatan tersortir. Disaring pada production_line_id milik record itu sendiri dan whereDate pada kolom `date` di dalam rentang periode (inklusif)."
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "SELECT",
+          "description": "Satu baris per parameter per muatan: quantity, uom (salinan beku), dan percentage. Dimuat eager bersama recordnya; percentage DIBACA, tidak pernah dihitung ulang."
+        },
+        {
+          "entity_id": "grading-parameter",
+          "operation": "SELECT",
+          "description": "Nama dan satuan master parameter, untuk label rekap. Dimuat lewat relasi detail."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih Production Line dan penamaan line pada blok production_line jawaban summary."
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin dan penamaan mill pada blok business_unit."
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "users.business_unit_id dan users.role — penentu cabang terikat-mill vs Admin; juga checked_by/acknowledged_by untuk penghitung kelengkapan (hanya diperiksa null atau tidak)."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "production_line_id absen",
+          "handling": "422 VALIDATION_ERROR dengan errors.production_line_id; NOL kueri grading_records berjalan. Tidak di-default ke semua line"
+        },
+        {
+          "condition": "production_line_id milik mill lain",
+          "handling": "403 FORBIDDEN dari resolveProductionLine() — di sini ada pegangan nyata atas data mill lain"
+        },
+        {
+          "condition": "period_id absen / tidak ada / milik mill lain",
+          "handling": "422 VALIDATION_ERROR / 404 NOT_FOUND / 403 FORBIDDEN, dalam urutan itu"
+        },
+        {
+          "condition": "Admin belum memilih mill",
+          "handling": "422 VALIDATION_ERROR 'Pilih mill terlebih dahulu'; layar menampilkan arahan dan tidak memanggil /summary"
+        },
+        {
+          "condition": "Akun terikat mill tanpa business_unit_id",
+          "handling": "422 VALIDATION_ERROR dengan pesan menghubungi Admin; allBusinessUnits() provably tidak pernah dipanggil"
+        },
+        {
+          "condition": "Peran terikat mill meminta /business-units/options",
+          "handling": "403 FORBIDDEN dari dalam service; termasuk Operator, dan itu disengaja"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup grading",
+          "handling": "200 + { data: [] }, bukan 404; layar menampilkan arahan menghubungi Admin"
+        },
+        {
+          "condition": "Periode tanpa satu pun muatan pada line itu",
+          "handling": "load_count 0, seluruh total dan rata-rata null, kedua kelompok parameter quantity_total null dengan rows [], daily [], seluruh penghitung kelengkapan 0"
+        },
+        {
+          "condition": "Periode hanya memuat parameter satu satuan",
+          "handling": "Kelompok satuan yang lain tetap ada pada payload dengan quantity_total null dan rows [] — tidak dihilangkan, supaya layar dapat menampilkannya sebagai 'tidak tersedia' alih-alih menyembunyikannya"
+        },
+        {
+          "condition": "Muatan tanpa satu pun baris parameter",
+          "handling": "Tetap terhitung pada load_count, netto_total, bunch_total, rekap per asal, dan rekap harian; tidak menyumbang pada kedua kelompok parameter; dihitung pada loads_without_detail"
+        },
+        {
+          "condition": "Parameter hanya dicatat pada sebagian muatan",
+          "handling": "avg_percentage memakai penyebut load_count parameter itu sendiri, yang diterbitkan berdampingan; ketiadaan baris TIDAK dianggap 0"
+        },
+        {
+          "condition": "quantity_total sebuah kelompok satuan 0",
+          "handling": "share_percent setiap barisnya null, bukan 0 maupun pembagian oleh nol — pembagian dijaga"
+        },
+        {
+          "condition": "percentage sebuah baris 0 karena netto atau jumlah janjang muatannya 0",
+          "handling": "Nilai 0 itu diteruskan apa adanya; laporan tidak menghitung ulang dan tidak membuang barisnya. Kuantitasnya tetap ikut pada total dan pangsa"
+        },
+        {
+          "condition": "estate_supplier NULL atau string kosong",
+          "handling": "Keduanya menjadi satu kelompok '' pada by_estate_supplier — kelompok, bukan baris yang dibuang"
+        },
+        {
+          "condition": "division NULL atau string kosong",
+          "handling": "Dihitung pada loads_without_division; muatannya tetap terhitung penuh"
+        },
+        {
+          "condition": "checked_by / acknowledged_by NULL",
+          "handling": "Dihitung pada loads_not_checked / loads_not_acknowledged; keduanya kelengkapan, bukan penyaring"
+        },
+        {
+          "condition": "Seluruh muatan berstatus draft",
+          "handling": "Tidak ada penyaringan status; draft_load_count sama dengan load_count dan ditampilkan sebagai penyingkapan"
+        },
+        {
+          "condition": "Muatan tersinkron setelah periode berakhir",
+          "handling": "Keanggotaan ditentukan kolom `date`, bukan created_at — muatan tetap milik periode tempat penyortirannya terjadi"
+        },
+        {
+          "condition": "Periode masih berjalan / belum mulai",
+          "handling": "days_counted dari ReportPeriodDays::counted(); penyebut 0 → layar menampilkan '—', bukan 0%"
+        },
+        {
+          "condition": "Ekspor melampaui 50.000 baris",
+          "handling": "422 EXPORT_FAILED, diperiksa EAGER atas jumlah BARIS PARAMETER yang akan diemit — bukan atas jumlah record, karena satu muatan dapat menghasilkan 16 baris"
+        },
+        {
+          "condition": "format ekspor di luar csv|excel",
+          "handling": "422 VALIDATION_ERROR dengan errors.format"
+        },
+        {
+          "condition": "Operator membuka rute web /reports/grading",
+          "handling": "403 dari middleware rute, dan lagi dari LaporanGrading::mount() yang memakai daftar perannya sendiri"
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca — keempat endpoint GET-only, dan prefix /api/grading-reports tidak punya satu pun POST/PUT/PATCH/DELETE",
+        "Supervisor/Mill Management/Operator terikat business_unit_id akunnya; business_unit_id klien diabaikan",
+        "Operator ditolak pada rute WEB, diterima pada ketiga rute API data, dan tetap ditolak pada /business-units/options",
+        "Daftar periode hanya periode yang punya baris period_stations berjenis grading; status yang ditampilkan status baris itu",
+        "Status periode tidak menggerbangi pembacaan maupun ekspor",
+        "Rentang periode inklusif di kedua ujung, lewat whereDate pada kolom timestamp",
+        "Production Line wajib — 422 bila absen; tidak ada opsi gabungan lintas line",
+        "Penyaringan line memakai grading_records.production_line_id, bukan join ke stations",
+        "Keanggotaan periode ditentukan kolom date, bukan created_at maupun waktu sinkronisasi",
+        "Satuan janjang dan kilogram tidak pernah dijumlahkan — dua kelompok dengan penyebut masing-masing",
+        "share_percent dihitung terhadap total kelompok satuannya sendiri",
+        "avg_percentage memakai penyebut muatan yang mencatat parameter itu, dan penyebut itu diterbitkan",
+        "Ketiadaan baris parameter bukan nilai nol",
+        "percentage diteruskan apa adanya, tidak pernah dihitung ulang",
+        "Muatan tanpa baris parameter tetap terhitung pada load_count dan netto, dan jumlahnya diterbitkan",
+        "Muatan draft ikut terhitung dan jumlahnya diterbitkan",
+        "Status verifikasi adalah kelengkapan, bukan penyaring",
+        "Tidak ada penandaan nilai di luar batas",
+        "Kelengkapan memakai days_counted",
+        "Nol muatan → null, bukan 0"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "guardAccess menolak tamu dengan 401 dan peran di luar keempatnya dengan 403",
+          "given": "Tidak ada sesi; lalu sesi dengan peran yang tidak diterima",
+          "expect": "AuthenticationException; lalu AuthorizationException — dan keduanya SEBELUM satu pun kueri periode berjalan"
+        },
+        {
+          "description": "resolveBusinessUnit membuang business_unit_id klien untuk Operator, Supervisor, dan Mill Management",
+          "given": "Masing-masing peran terikat BU-A memanggil resolveBusinessUnit('BU-B')",
+          "expect": "Mengembalikan BU-A pada ketiganya — nilai klien tidak divalidasi, tidak dibandingkan, dibuang"
+        },
+        {
+          "description": "resolveBusinessUnit menuntut business_unit_id dari Admin",
+          "given": "Admin tanpa business_unit_id memanggil resolveBusinessUnit(null)",
+          "expect": "422 ValidationException dengan errors.business_unit_id"
+        },
+        {
+          "description": "Akun terikat mill tanpa business_unit_id gagal tertutup tanpa membaca daftar mill",
+          "given": "Supervisor dengan users.business_unit_id NULL, memakai spy atas allBusinessUnits()",
+          "expect": "422 ValidationException; allBusinessUnits() dipanggil 0 kali"
+        },
+        {
+          "description": "businessUnitOptions menolak setiap peran terikat mill, termasuk Operator",
+          "given": "Operator, Supervisor, dan Mill Management masing-masing memanggil businessUnitOptions()",
+          "expect": "AuthorizationException pada ketiganya; allBusinessUnits() tidak pernah dipanggil"
+        },
+        {
+          "description": "resolveProductionLine: 422 bila absen, 403 bila milik mill lain, lolos bila milik mill yang berlaku",
+          "given": "null; lalu line milik BU-B; lalu line milik BU-A",
+          "expect": "ValidationException; AuthorizationException; id-nya dikembalikan — dan pada dua kasus pertama nol kueri grading_records"
+        },
+        {
+          "description": "authorizePeriod: 404 untuk id yang tidak ada, 403 untuk periode mill lain",
+          "given": "uuid acak; lalu periode milik BU-B, dipanggil Supervisor BU-A",
+          "expect": "ModelNotFoundException; AuthorizationException"
+        },
+        {
+          "description": "listPeriods hanya memulangkan periode yang punya baris period_stations grading",
+          "given": "Satu periode dengan baris grading (open), satu dengan baris grading (closed), satu hanya dengan baris weighbridge",
+          "expect": "Dua periode pertama terdaftar dengan status baris grading-nya masing-masing; yang ketiga tidak muncul"
+        },
+        {
+          "description": "buildSummary menyaring pada kolom production_line_id record, bukan lewat join ke stations",
+          "given": "Satu muatan dicatat pada PL-1, lalu stasiunnya dipindah ke PL-2",
+          "expect": "Laporan PL-1 memuat muatan itu; laporan PL-2 tidak; dan tidak satu pun kueri memuat join ke stations"
+        },
+        {
+          "description": "Rentang periode inklusif di kedua ujung",
+          "given": "Muatan tepat pada start_date, tepat pada end_date, sehari sebelum, dan sehari sesudah",
+          "expect": "load_count 2 — hanya dua yang di dalam rentang; dan baris daily ada untuk kedua tanggal ujung"
+        },
+        {
+          "description": "Keanggotaan periode ditentukan kolom date, bukan created_at",
+          "given": "Muatan dengan date di dalam periode tetapi created_at jauh setelahnya, dan sebaliknya",
+          "expect": "Yang pertama terhitung, yang kedua tidak"
+        },
+        {
+          "description": "Kelompok bunch dan kg berdiri sendiri, dengan penyebut masing-masing",
+          "given": "Periode memuat parameter ber-satuan bunch berjumlah 100 dan parameter ber-satuan kg berjumlah 40",
+          "expect": "bunch.quantity_total 100 dan kg.quantity_total 40; share_percent baris bunch dibagi 100, baris kg dibagi 40; dan TIDAK ada kunci yang bernilai 140"
+        },
+        {
+          "description": "share_percent null ketika total kelompoknya 0",
+          "given": "Seluruh baris parameter sebuah kelompok berkuantitas 0",
+          "expect": "quantity_total 0 dan share_percent setiap barisnya null — bukan 0, dan bukan DivisionByZeroError"
+        },
+        {
+          "description": "avg_percentage memakai penyebut muatan yang mencatat parameter itu",
+          "given": "Sepuluh muatan, tiga di antaranya mencatat parameter P dengan percentage 9, 6, dan 3",
+          "expect": "avg_percentage parameter P adalah 6.0 (dibagi 3, bukan dibagi 10) dan load_count-nya 3"
+        },
+        {
+          "description": "percentage DIBACA, tidak dihitung ulang",
+          "given": "Baris parameter ber-percentage 42 pada muatan yang netto dan quantity-nya membuat perhitungan ulang menghasilkan angka lain",
+          "expect": "avg_percentage memakai 42 — laporan tidak menyentuh netto maupun quantity untuk menurunkannya"
+        },
+        {
+          "description": "uom diambil dari baris detail, bukan dari master parameternya",
+          "given": "Baris detail ber-uom 'kg' yang parameter masternya ber-uom 'bunch'",
+          "expect": "Baris itu masuk kelompok kg — salinan beku pada detail yang berlaku, karena itulah satuan yang dipakai saat pencatatan"
+        },
+        {
+          "description": "Muatan tanpa baris parameter tetap terhitung pada header dan dihitung tersendiri",
+          "given": "Tiga muatan, satu di antaranya tanpa satu pun baris detail",
+          "expect": "load_count 3, netto_total mencakup ketiganya, loads_without_detail 1, dan kedua kelompok parameter tidak memuat kontribusi apa pun dari muatan itu"
+        },
+        {
+          "description": "Nol muatan memulangkan null, bukan 0",
+          "given": "Periode+line tanpa satu pun muatan",
+          "expect": "load_count 0; netto_total, netto_avg, bunch_total, bunch_avg, bunch.quantity_total, dan kg.quantity_total semuanya null; rows [] pada kedua kelompok"
+        },
+        {
+          "description": "Urutan baris parameter deterministik",
+          "given": "Dua parameter dengan share_percent sama dan quantity_total sama",
+          "expect": "Diurutkan menurut nama secara naik — jawaban yang sama pada setiap pemanggilan"
+        },
+        {
+          "description": "by_estate_supplier menyatukan NULL dan string kosong menjadi satu kelompok",
+          "given": "Muatan dengan estate_supplier NULL, '' , dan 'Estate A'",
+          "expect": "Dua kelompok: '' berisi dua muatan dan 'Estate A' berisi satu; jumlah muatan seluruh kelompok sama dengan load_count"
+        },
+        {
+          "description": "Penghitung kelengkapan menghitung, bukan menyaring",
+          "given": "Muatan draft, muatan tanpa division, muatan tanpa checked_by, muatan tanpa acknowledged_by — campur",
+          "expect": "Keempat penghitung terisi sesuai, dan load_count serta seluruh total TIDAK berubah karenanya"
+        },
+        {
+          "description": "days_with_load sama dengan panjang daily, dan days_counted memakai ReportPeriodDays",
+          "given": "Muatan pada tiga tanggal berbeda di dalam periode yang masih berjalan",
+          "expect": "daily punya 3 baris, days_with_load 3, days_counted = start..hari ini, period_running true"
+        },
+        {
+          "description": "daily_total menjumlah seluruh baris daily",
+          "given": "Dua tanggal dengan load_count 2 dan 3",
+          "expect": "daily_total.load_count 5, dan netto_total-nya jumlah kedua baris"
+        },
+        {
+          "description": "Ekspor memancarkan satu baris per parameter per muatan dengan konteks diulang",
+          "given": "Dua muatan, masing-masing dengan dua baris parameter",
+          "expect": "Empat baris data; kolom Periode/Mill/Production Line identik di keempatnya; kolom Satuan terisi per baris"
+        },
+        {
+          "description": "Ekspor tetap memancarkan satu baris untuk muatan tanpa baris parameter",
+          "given": "Satu muatan tanpa detail",
+          "expect": "Satu baris dengan kolom Parameter/Satuan/Kuantitas/Persentase KOSONG — bukan dibuang, dan bukan ditulis 0"
+        },
+        {
+          "description": "Batas baris ekspor diperiksa atas jumlah baris parameter, bukan jumlah record",
+          "given": "Jumlah muatan yang kecil tetapi total baris parameternya melampaui EXPORT_ROW_LIMIT",
+          "expect": "ExportFailedException, dan dilempar SEBELUM satu byte pun distreaming"
+        },
+        {
+          "description": "Format ekspor di luar csv|excel ditolak",
+          "given": "format = 'pdf'",
+          "expect": "422 ValidationException dengan errors.format"
+        },
+        {
+          "description": "summary() adalah alias buildSummary(), bukan implementasi kedua",
+          "given": "Periode dan line yang sama",
+          "expect": "Kedua pemanggilan menghasilkan array yang identik"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-parameter",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Pintu masuk satu-satunya. Tile Grading baru aktif setelah StationReportService::REPORT_ROUTES ditambah entri 'grading' — satu baris yang menentukan layar ini dapat dicapai atau tidak"
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan yang mencakup Grading, layar ini tidak punya apa pun untuk ditampilkan"
+    },
+    {
+      "screen_id": "screen-142--detail-periode-pelaporan",
+      "reason": "Status Grading pada sebuah periode — yang ditampilkan sebagai badge di layar ini — ditetapkan di sana"
+    },
+    {
+      "screen_id": "screen-011--form-grading",
+      "reason": "Sumber data: muatan, baris parameter, dan kolom percentage yang dibaca laporan ini ditetapkan di sana (mobile)"
+    },
+    {
+      "screen_id": "screen-023--form-grading-web",
+      "reason": "Sumber data versi web, dengan aturan percentage yang sama"
+    },
+    {
+      "screen_id": "screen-147--laporan-grading-mobile",
+      "reason": "Kembaran mobile yang memakai ULANG keempat endpoint layar ini; karena ia dibangun dalam perubahan yang sama, ketiga rute data menerima Operator sejak awal"
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Memakai ulang GET /api/production-lines/options-for-report yang dibangun untuk layar itu, verbatim"
+    }
+  ],
+  "implementation_notes": [
+    "SERVICE BARU, POLA LAMA: GradingReportService mengikuti WeighbridgeReportService sedekat mungkin pada bagian yang memang sama — resolusi mill, pemilih mill, resolusi line, otorisasi periode, daftar periode, ekspor streaming, dan penamaan berkas. Yang berbeda hanyalah agregasinya, dan perbedaan itu nyata: Grading melaporkan KOMPOSISI, bukan throughput.",
+    "OPERATOR DITERIMA SEJAK AWAL pada ketiga rute data, dan alasannya dicatat di docblock: kembaran mobile (screen-147) dibangun dalam perubahan yang sama, jadi tidak ada gunanya mengirim rute yang pasti harus dilebarkan satu jam kemudian. Yang TIDAK boleh ikut longgar: cabang terikat mill pada resolveBusinessUnit() harus memuat Operator sejak baris pertama, dan /business-units/options harus tetap menolaknya. Keduanya punya test sendiri.",
+    "DUA ANGKA PER PARAMETER, DAN KEDUANYA WAJIB. share_percent berbobot menurut besar muatan; avg_percentage memperlakukan tiap muatan sama. Menerbitkan hanya salah satunya adalah keputusan yang terlihat sederhana dan menyembunyikan separuh kenyataan — satu muatan raksasa yang buruk mendominasi pangsa tanpa menggerakkan rata-rata. Layar WAJIB menampilkan keduanya berdampingan beserta keterangan bedanya; menampilkan keduanya tanpa keterangan hanya akan terbaca sebagai dua angka yang bertentangan.",
+    "PENYEBUT avg_percentage ADALAH load_count PARAMETER ITU, bukan load_count periode. Ini pola yang sama dengan 'setiap metrik punya penyebutnya sendiri' pada enam laporan sebelumnya, dan di sini akibat salahnya paling besar: memakai load_count periode akan mengempiskan setiap parameter yang jarang dicatat sambil tetap menghasilkan angka yang terlihat masuk akal.",
+    "uom DIBACA DARI BARIS DETAIL, bukan dari master parameternya. grading_details.uom adalah salinan beku saat pemilihan (lihat GradingDetail::gradingParameter()), dan salinan itulah yang menyatakan dalam satuan apa kuantitas baris itu dicatat. Mengambilnya dari master akan mengubah pengelompokan baris lama setiap kali satuan master diubah.",
+    "percentage TIDAK DIHITUNG ULANG, dan ada test khususnya dengan fixture yang SENGAJA tidak konsisten: percentage 42 pada muatan yang netto/quantity-nya akan menghasilkan angka lain bila dihitung ulang. Dengan fixture yang konsisten, test ini tidak membuktikan apa pun.",
+    "TIDAK ADA undated counter, dan ketiadaannya dinyatakan di kode: grading_records.date adalah NOT NULL. Tanpa catatan itu, pembaca berikutnya akan mengira penghitung itu lupa dibuat — Weighbridge punya undated_trip_count karena record_datetime-nya nullable.",
+    "whereDate, BUKAN where. Kolom `date` adalah timestamp; where('date', '<=', '2026-09-30') akan memotong seluruh muatan pada 30 September setelah tengah malam di PostgreSQL. Ini jebakan yang sudah tercatat di memori proyek dan sudah mengenai basis kode ini.",
+    "SELURUH AGREGASI DI PHP, nol agregat SQL. Alasannya sama dengan enam laporan sebelumnya: perilaku agregat atas kolom nullable berbeda antara SQLite dan PostgreSQL, dan ekstraksi bagian tanggal tidak punya ejaan portabel. Satu kueri memuat seluruh muatan periode+line beserta details.gradingParameter secara eager; sisanya PHP.",
+    "BATAS BARIS EKSPOR DIHITUNG ATAS BARIS, BUKAN RECORD. Satu muatan dapat menghasilkan 16 baris parameter, jadi 50.000 baris tercapai pada ~3.100 muatan — jauh lebih cepat daripada laporan stasiun lain. Memeriksa jumlah record akan membiarkan ekspor berjalan sampai kehabisan memori di tengah streaming, yang sampai ke pengguna sebagai unduhan rusak alih-alih galat yang jelas.",
+    "KOMPONEN LIVEWIRE MEMAKAI SERVICE YANG SAMA dengan controller API. mount() memanggil abort_unless atas daftar perannya SENDIRI (supervisor/mill_management/admin), bukan meminjam guardAccess() — supaya pelebaran akses API (yang sudah terjadi untuk Operator) tidak dapat melebarkan layar web secara tidak sengaja. Ada test yang mengunci itu.",
+    "MENGGANTI MILL MENGOSONGKAN PERIODE DAN LINE. Sebuah periode maupun sebuah line milik tepat satu mill; membawanya ke mill lain akan memunculkan galat akses untuk sesuatu yang tidak dilakukan pengguna.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri 'grading' pada StationReportService::REPORT_ROUTES. Urutannya LOAD-BEARING — peta itu harus tetap urut menurut station_types.sort_order, dan grading (20) berada TEPAT SETELAH weighbridge (10) dan sebelum cages-track (30). Ada test yang mengunci urutan itu secara ordered.",
+    "KOSAKATA TAMPILAN mengikuti laporan stasiun web lain (md-*), dengan bar filter bersama dan dua tombol ekspor. Kedua kelompok parameter dirender sebagai dua tabel bersebelahan di desktop dan bertumpuk di ponsel — TIDAK pernah sebagai satu tabel dengan kolom satuan, karena satu tabel mengundang pembaca menjumlahkan kolom kuantitasnya.",
+    "data-testid mengikuti kosakata enam laporan web lain supaya spec browser-nya dapat dibaca berdampingan, ditambah yang khusus layar ini: kpi-load-count, kpi-netto-total, kpi-netto-avg, kpi-bunch-total, kpi-bunch-avg, parameter-bunch, parameter-kg, parameter-share-note, by-estate-supplier, completeness, loads-without-detail, draft-load-count, loads-without-division, loads-not-checked, loads-not-acknowledged, daily-recap, daily-recap-total."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — sukses sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "{{step1.data.0.id}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount sebagai Supervisor terikat BU-A, pilih Production Line pertama, lalu pilih periode pertama",
+        "assert": "pemilih Mill tidak dirender; jumlah muatan, total dan rata-rata netto, total dan rata-rata jumlah janjang terender; kedua tabel parameter (janjang dan kilogram) terender masing-masing dengan pangsa, rata-rata persentase, dan penyebutnya; rekap per asal, rekap harian beserta baris total, dan kelengkapan terender; kedua tombol ekspor aktif; tidak ada satu pun kontrol tulis"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "masuk sebagai Supervisor, buka Laporan Stasiun, tekan tile Grading, pilih line lalu periode",
+        "assert": "seluruh bagian laporan tampil dengan angka dari data tersemai; tidak ada tombol simpan/ubah/hapus"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — sukses sebagai Admin",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}",
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount sebagai Admin tanpa business_unit_id, pilih mill, pilih line, pilih periode",
+        "assert": "pemilih Mill dirender; sebelum mill dipilih tidak ada angka dan daftar line/periode belum dimuat; setelah lengkap, angka yang tampil hanya milik mill dan line terpilih"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "masuk sebagai Admin, buka laporan Grading, pilih mill lalu line lalu periode",
+        "assert": "pemilih Mill tampil; laporan tampil setelah ketiga pilihan lengkap"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — Production Line belum dipilih",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan beberapa line tersedia dan pilih periode tanpa memilih line",
+        "assert": "arahan memilih Production Line terender; tidak satu pun kartu angka terender; tidak ada angka gabungan seluruh line"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan tanpa memilih line, lalu pilih periode",
+        "assert": "arahan memilih Production Line tampil dan tidak ada angka di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — Admin mengganti mill setelah memilih line",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "BU-B",
+            "period_id": "P-A",
+            "production_line_id": "PL-A1",
+            "_context": "periode dan line milik BU-A dibawa ke BU-B"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "sebagai Admin: pilih BU-A, line, periode sampai angka tampil; lalu ganti mill ke BU-B",
+        "assert": "periode dan line terpilih dikosongkan; angka berhenti ditampilkan dan tidak ada angka BU-A yang tertinggal; arahan memilih line muncul lagi"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "sebagai Admin ganti mill setelah laporan tampil",
+        "assert": "halaman kembali ke keadaan tanpa angka dengan pemilih line kosong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/periods"
+          },
+          "request_example": {
+            "_context": "Admin tanpa business_unit_id"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount sebagai Admin tanpa memilih mill",
+        "assert": "pemilih Mill terender beserta arahan memilih mill; daftar periode dan daftar line tidak dimuat; tidak ada angka"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan sebagai Admin",
+        "assert": "arahan memilih mill tampil dan pemilih periode kosong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — mill belum punya periode pelaporan",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/periods"
+          },
+          "request_example": {
+            "_context": "mill tanpa baris period_stations grading"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount pada mill yang tidak punya periode mencakup Grading",
+        "assert": "pemilih periode kosong; arahan menghubungi Admin terender; tidak ada angka"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan pada mill tanpa periode Grading",
+        "assert": "arahan menghubungi Admin tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — periode tanpa data",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-KOSONG",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan payload load_count 0 dan seluruh total null",
+        "assert": "keterangan belum ada data terender; total dan rata-rata tampil sebagai tidak tersedia, bukan 0; kedua tabel parameter tampil kosong dengan keterangan, bukan dihilangkan"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "pilih periode tanpa muatan pada line terpilih",
+        "assert": "keterangan belum ada data tampil dan tidak ada tabel parameter berisi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — satuan janjang dan kilogram tidak pernah dijumlahkan",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "bunch total 100, kg total 40"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan bunch.quantity_total 100 dan kg.quantity_total 40, lalu render seluruh halaman",
+        "assert": "dua tabel terpisah terender dengan total masing-masing; angka 140 tidak muncul di mana pun pada teks terender; pangsa tiap baris dihitung terhadap total kelompoknya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode yang memuat kedua satuan",
+        "assert": "tidak ada kolom maupun baris total yang menggabungkan janjang dengan kilogram"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — pangsa dan rata-rata persentase ditampilkan berdampingan",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "satu muatan raksasa dengan komposisi berbeda jauh"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan sebuah parameter ber-share_percent 70 tetapi avg_percentage 12",
+        "assert": "kedua angka terender berdampingan pada baris parameter yang sama; keterangan parameter-share-note menyatakan pangsa berbobot menurut besar muatan sementara rata-rata memperlakukan tiap muatan sama"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode yang memuat satu muatan jauh lebih besar daripada lainnya",
+        "assert": "kedua angka terlihat berdampingan beserta keterangannya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — parameter hanya muncul pada sebagian muatan",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "10 muatan, 3 mencatat Buah Sakit"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan parameter ber-load_count 3 sementara load_count periode 10",
+        "assert": "rata-rata persentase terender beserta penyebut 3 yang terlihat jelas; tidak ada angka yang menunjukkan penyebut 10 untuk parameter itu"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode yang memuat parameter jarang",
+        "assert": "penyebut rata-rata parameter itu terbaca sebagai jumlah muatan yang mencatatnya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — muatan tanpa satu pun baris parameter",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "3 muatan, 1 tanpa baris detail"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan load_count 3 dan loads_without_detail 1",
+        "assert": "jumlah muatan tetap 3 dan netto mencakup ketiganya; loads-without-detail terender bernilai 1 beserta keterangan bahwa muatan itu tidak menyumbang pada komposisi mutu"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode yang memuat grading tanpa penilaian",
+        "assert": "angka muatan tanpa baris parameter terlihat pada bagian kelengkapan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — periode hanya memuat parameter satu satuan",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-BUNCH-SAJA",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan kg.quantity_total null dan kg.rows []",
+        "assert": "tabel kilogram TETAP terender dengan keterangan tidak tersedia; tabel janjang menampilkan angkanya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "pilih periode yang hanya memuat parameter janjang",
+        "assert": "kedua judul tabel parameter terlihat, dengan tabel kilogram bernilai tidak tersedia"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — persentase diteruskan apa adanya, tidak dihitung ulang",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "percentage 42 pada muatan yang netto/quantity-nya menghasilkan angka lain bila dihitung ulang"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan avg_percentage 42 sementara netto dan jumlah janjang muatan tidak konsisten dengannya",
+        "assert": "angka 42 yang terender — bukan hasil hitung ulang dari netto maupun jumlah janjang"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode yang persentase barisnya tidak konsisten dengan nettonya",
+        "assert": "angka pada laporan sama dengan angka pada layar Detail Grading untuk muatan itu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — rekap per estate/supplier menampilkan seluruh asal",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "satu estate dominan, beberapa kecil, sebagian asal kosong"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan by_estate_supplier memuat baris dominan, baris kecil, dan baris ''",
+        "assert": "seluruh baris terender tanpa pemangkasan; baris '' berlabel Belum diisi; jumlah muatan seluruh baris sama dengan load_count"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka rekap per estate/supplier",
+        "assert": "baris Belum diisi terlihat dan penyumbang kecil tidak lenyap"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — muatan berstatus draft ikut terhitung",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "sebagian muatan draft"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan draft_load_count 2 dari load_count 5",
+        "assert": "seluruh angka tetap terender; draft-load-count terender bernilai 2 beserta keterangan bahwa muatan draft ikut terhitung"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode yang memuat muatan draft",
+        "assert": "angka draft terlihat dan laporan tetap tampil penuh"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — status verifikasi tampil sebagai kelengkapan, bukan penyaring",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "sebagian muatan tanpa checked_by / acknowledged_by"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan loads_not_checked 3 dan loads_not_acknowledged 4 dari load_count 5",
+        "assert": "kedua angka terender terpisah; load_count tetap 5 dan seluruh total tidak berubah karenanya"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka bagian kelengkapan pada periode yang sebagian muatannya belum diperiksa",
+        "assert": "kedua angka verifikasi terlihat dan angka utama tidak tersaring"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — muatan tersinkron terlambat dari mobile",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-LAMA",
+            "production_line_id": "PL-A1",
+            "_context": "muatan ber-date di dalam periode, created_at jauh sesudahnya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "GradingReportService",
+        "action": "panggil buildSummary untuk periode yang sudah berakhir setelah menambahkan muatan ber-created_at hari ini",
+        "assert": "muatan itu ikut terhitung pada periode tempat date-nya berada; periode berjalan tidak berubah"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode lampau setelah sinkronisasi terlambat",
+        "assert": "jumlah muatan periode lampau bertambah sesuai muatan tersebut"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — penyaringan line memakai line yang melekat pada muatan itu sendiri",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "stasiunnya sudah dipindah ke PL-A2"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A2"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "GradingReportService",
+        "action": "catat muatan pada PL-A1, pindahkan stasiunnya ke PL-A2, lalu panggil buildSummary untuk kedua line",
+        "assert": "muatan terhitung pada PL-A1 dan tidak pada PL-A2; tidak satu pun kueri memuat join ke stations"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "pindahkan stasiun ke line lain lalu buka laporan line lama",
+        "assert": "muatan lama tetap terhitung pada laporan line lama"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — rentang periode inklusif di kedua ujung",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "muatan tepat di kedua ujung dan sehari di luarnya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "GradingReportService",
+        "action": "semai muatan pada start_date, end_date, sehari sebelum, dan sehari sesudah",
+        "assert": "load_count 2; daily memuat baris untuk start_date dan end_date; muatan di luar rentang tidak terhitung di angka mana pun"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode yang memuat muatan tepat di kedua ujungnya",
+        "assert": "rekap harian memuat baris hari pertama dan hari terakhir periode"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/periods"
+          },
+          "request_example": {
+            "_context": "Supervisor dengan users.business_unit_id NULL"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount sebagai Supervisor tanpa business_unit_id",
+        "assert": "pesan menghubungi Admin terender; pemilih Mill TIDAK dirender sebagai gantinya; tidak ada angka"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan dengan akun yang belum terhubung mill",
+        "assert": "pesan menghubungi Admin tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — mencoba melihat mill atau Production Line milik mill lain",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-A",
+            "production_line_id": "PL-A1",
+            "business_unit_id": "BU-LAIN",
+            "_context": "Supervisor BU-A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-A",
+            "production_line_id": "PL-B9"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-LAIN",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "GradingReportService",
+        "action": "panggil buildSummary sebagai Supervisor BU-A dengan business_unit_id BU-B",
+        "assert": "jawabannya 200 berisi data BU-A — nilai klien dibuang, dan SENGAJA bukan 403 karena 403 akan membenarkan bahwa mill lain itu ada"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "paksa business_unit_id mill lain lewat query string",
+        "assert": "angka yang tampil tetap milik mill pengguna"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — Operator mencoba membuka layar web ini",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount komponen langsung sebagai Operator",
+        "assert": "abort 403; tidak satu pun data-testid angka terender. Catatan: ketiga rute API data JUSTRU menerima Operator (dipakai screen-147); yang ditolak adalah layar web ini, lewat daftar peran komponennya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka rute web sebagai Operator",
+        "assert": "403 dan tidak ada data Grading yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — periode berstatus tertutup",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/periods"
+          },
+          "request_example": {
+            "_context": "mill punya periode grading tertutup"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-TERTUTUP",
+            "production_line_id": "PL-A1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dan pilih periode berstatus closed",
+        "assert": "badge Tertutup terender; seluruh angka terender; kedua tombol ekspor TIDAK disabled"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "pilih periode tertutup lalu ekspor",
+        "assert": "laporan tampil penuh dengan badge Tertutup dan unduhan berjalan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — kelengkapan pencatatan tampil sebagai bagian laporan",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan seluruh penghitung kelengkapan terisi",
+        "assert": "hari ber-muatan dibanding days_counted, loads-without-detail, draft-load-count, loads-without-division, loads-not-checked, dan loads-not-acknowledged semuanya terender pada satu bagian"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka bagian kelengkapan",
+        "assert": "keenam angka terlihat bersama, bukan sebagai catatan kaki"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — tidak ada penandaan nilai di luar batas",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "persentase Mentah sangat tinggi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan sebuah parameter ber-avg_percentage 85",
+        "assert": "nilai terender apa adanya tanpa kelas peringatan, tanpa ikon, dan tanpa warna kewajaran; nilai ekstrem tetap ikut pada total dan pangsa"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode dengan komposisi ekstrem",
+        "assert": "tidak ada penandaan di luar batas di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — rekap harian sangat panjang",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-PANJANG",
+            "production_line_id": "PL-A1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "mount dengan daily berisi 30 baris lalu buka dan tutup rekap harian",
+        "assert": "rekap dapat ditutup dan dibuka; angka utama dan kedua tabel parameter tetap terender; tidak ada angka yang berubah karenanya"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "buka laporan periode sebulan lalu tutup rekap harian",
+        "assert": "tabel harian tersembunyi sementara angka utama tetap terbaca"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — unduh rincian seluruh baris parameter",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "format": "excel"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/export"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "format": "pdf"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "GradingReportService",
+        "action": "jalankan export untuk dua muatan berisi dua baris parameter dan satu muatan tanpa baris parameter",
+        "assert": "lima baris data; konteks Periode/Mill/Production Line identik di seluruh baris; kolom Satuan terisi per baris; baris muatan tanpa parameter punya kolom Parameter/Satuan/Kuantitas/Persentase kosong; status berlabel Indonesia"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "tekan Ekspor CSV lalu Ekspor Excel",
+        "assert": "kedua unduhan terpicu dan tombol yang diklik sempat berlabel Mengekspor"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Grading (Web) — layar hanya membaca dan tidak mengubah data stasiun",
+      "usecase_id": "usecase-149--laporan-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-reports/summary"
+          },
+          "request_example": {
+            "period_id": "P-1",
+            "production_line_id": "PL-A1",
+            "_context": "prefix GET-only"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanGrading",
+        "action": "ganti mill, line, dan periode, buka-tutup rekap harian, lalu ekspor",
+        "assert": "tidak ada aksi tulis pada komponen; seluruh pemanggilan service adalah pembacaan; nol mutasi pada grading_records maupun grading_details"
+      },
+      "browser_test": {
+        "route": "/reports/grading",
+        "action": "jelajahi seluruh halaman dan lakukan semua interaksi",
+        "assert": "hanya tombol ekspor yang ada; tidak ada data Grading yang berubah setelahnya"
+      }
+    }
+  ]
+}

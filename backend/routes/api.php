@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\EffluentPlantRecordController;
 use App\Http\Controllers\Api\EngineRoomRecordController;
 use App\Http\Controllers\Api\GradingParameterController;
 use App\Http\Controllers\Api\GradingRecordController;
+use App\Http\Controllers\Api\GradingReportController;
 use App\Http\Controllers\Api\KernelDispatchRecordController;
 use App\Http\Controllers\Api\KernelPlantRecordController;
 use App\Http\Controllers\Api\MachineryController;
@@ -1274,6 +1275,55 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/weighbridge-reports/periods', [WeighbridgeReportController::class, 'periods']);
     Route::get('/weighbridge-reports/summary', [WeighbridgeReportController::class, 'summary']);
     Route::get('/weighbridge-reports/export', [WeighbridgeReportController::class, 'export']);
+});
+
+// screen-146--laporan-grading-web + screen-147--laporan-grading-mobile
+// (Laporan Periode Grading) — four GET endpoints shared by the web page, the
+// API and the phone, so none of the three can report a different figure.
+//
+// OPERATOR IS ADMITTED FROM DAY ONE, unlike the Weighbridge prefix above where
+// the mobile twin arrived later and the widening had to be its own reviewable
+// step. Here screen-147 ships in the SAME change, so a role list that would
+// have to be widened an hour later would be theatre. What makes it safe is
+// unchanged and is the part that is easy to miss: Operator sits in the
+// MILL-BOUND branch of GradingReportService::resolveBusinessUnit() from the
+// first line. Without that, Operator falls into the Admin branch where the
+// client's business_unit_id IS HONOURED, and an Operator could read any mill's
+// report by naming it — a cross-mill leak, not a display defect. The test
+// asserts the OUTCOME (another mill's id still returns the caller's own data),
+// not merely that the role is accepted.
+//
+// NOT WIDENED, on purpose: /business-units/options answers 403 for Operator,
+// enforced inside GradingReportService::businessUnitOptions() rather than by
+// this middleware, so admitting the role here did not loosen it. The WEB route
+// /reports/grading carries only the three web roles — Operator has no web
+// report UI.
+//
+// GET-ONLY, deliberately: a report must not expose any path that mutates the
+// Grading data it reports on, so there is no POST/PUT/PATCH/DELETE here.
+//
+// BOTH period_id AND production_line_id ARE REQUIRED on /summary and /export —
+// 422 VALIDATION_ERROR when either is missing, and ZERO grading_records
+// queries run. Same strict contract as the Weighbridge prefix: there is no
+// all-lines fallback, because a total mixing a dozen lines is not a number
+// anyone can act on.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for every mill-bound role — Operator, Supervisor and Mill Management
+// alike (GradingReportService::resolveBusinessUnit) — probing another mill
+// still returns 200 with the caller's own data, on purpose: a 403 would
+// confirm the other mill exists. The real cross-mill guards are on
+// production_line_id (resolveProductionLine) and period_id (authorizePeriod),
+// and both DO answer 403.
+//
+// The production-line OPTION LIST is NOT duplicated here: GET
+// /api/production-lines/options-for-report (built for screen-135) is reused
+// verbatim.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/grading-reports/business-units/options', [GradingReportController::class, 'businessUnitOptions']);
+    Route::get('/grading-reports/periods', [GradingReportController::class, 'periods']);
+    Route::get('/grading-reports/summary', [GradingReportController::class, 'summary']);
+    Route::get('/grading-reports/export', [GradingReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

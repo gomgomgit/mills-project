@@ -3,6 +3,7 @@
 use App\Exceptions\ApiExceptionHandler;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\SignalDownloadReady;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -28,6 +29,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // Di-append (setelah StartSession) supaya sesi sudah termuat.
         $middleware->web(append: [
             EnsureUserIsActive::class,
+            // Sinyal selesai-unduh untuk status loading tautan ekspor
+            // (?_dl=<token> → cookie ms_download). Lihat middleware-nya.
+            SignalDownloadReady::class,
+        ]);
+
+        // Cookie sinyal unduhan dibaca JS apa adanya (bukan data sesi).
+        $middleware->encryptCookies(except: [
+            SignalDownloadReady::COOKIE,
         ]);
         $middleware->api(append: [
             EnsureUserIsActive::class,

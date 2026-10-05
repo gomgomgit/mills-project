@@ -54,8 +54,7 @@
         </div>
 
         <button type="submit" class="login-button" wire:loading.attr="disabled" wire:target="login">
-            <span wire:loading.remove wire:target="login">Masuk</span>
-            <span wire:loading wire:target="login">Memproses&hellip;</span>
+            <x-busy-label target="login" busy="Memproses…">Masuk</x-busy-label>
         </button>
     </form>
 </div>

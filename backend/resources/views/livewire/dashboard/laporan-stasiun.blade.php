@@ -157,7 +157,7 @@
          membawa keduanya di report_path, jadi tile tanpa salah satunya akan
          mendaratkan pengguna di layar yang memintanya memilih lagi. --}}
     @if ($businessUnit !== null && ! $needsProductionLineSelection)
-        <section>
+        <section class="ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="businessUnitId,productionLineId">
             <div class="md-step">
                 <span class="md-step__num">2</span>
                 <span class="md-step__title">Stasiun</span>

@@ -110,7 +110,7 @@
             berisi rata-rata 3 mesin, menghitung baris akan membuat satu
             halaman melar jadi ~80 baris.
         --}}
-        <div class="kc-table-wrap">
+        <div class="kc-table-wrap ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="filterMachineryGroupId,filterStationId,resetFilters,setViewMode,previousPage,nextPage,goToPage">
             <table class="kc-table" data-testid="group-table">
                 <thead class="kc-table__head">
                     <tr>
@@ -150,10 +150,8 @@
                                 @if ($confirmingDeleteGroupId === $group['id'])
                                     <span class="kc-confirm">
                                         <span class="kc-confirm__label">Yakin hapus grup?</span>
-                                        <button type="button" wire:click="confirmDeleteGroup" class="kc-button kc-button--danger kc-button--sm">
-                                            Ya, Hapus
-                                        </button>
-                                        <button type="button" wire:click="cancelDeleteGroup" class="kc-button kc-button--ghost kc-button--sm">
+                                        <button type="button" wire:click="confirmDeleteGroup" wire:loading.attr="disabled" wire:target="confirmDeleteGroup" class="kc-button kc-button--danger kc-button--sm"><x-busy-label target="confirmDeleteGroup" busy="Menghapus…">Ya, Hapus</x-busy-label></button>
+                                        <button type="button" wire:click="cancelDeleteGroup" wire:loading.attr="disabled" wire:target="confirmDeleteGroup" class="kc-button kc-button--ghost kc-button--sm">
                                             Batal
                                         </button>
                                     </span>
@@ -195,8 +193,8 @@
                                         @if ($confirmingDeleteId === $machinery['id'])
                                             <span class="kc-confirm">
                                                 <span class="kc-confirm__label">Yakin hapus?</span>
-                                                <button type="button" wire:click="confirmDelete" class="kc-button kc-button--danger kc-button--sm">Ya, Hapus</button>
-                                                <button type="button" wire:click="cancelDelete" class="kc-button kc-button--ghost kc-button--sm">Batal</button>
+                                                <button type="button" wire:click="confirmDelete" wire:loading.attr="disabled" wire:target="confirmDelete" class="kc-button kc-button--danger kc-button--sm"><x-busy-label target="confirmDelete" busy="Menghapus…">Ya, Hapus</x-busy-label></button>
+                                                <button type="button" wire:click="cancelDelete" wire:loading.attr="disabled" wire:target="confirmDelete" class="kc-button kc-button--ghost kc-button--sm">Batal</button>
                                             </span>
                                         @else
                                             <button type="button" wire:click="openEditForm('{{ $machinery['id'] }}')" class="kc-button kc-button--ghost kc-button--sm">Edit</button>
@@ -258,7 +256,7 @@
             </table>
         </div>
     @else
-        <div class="kc-table-wrap">
+        <div class="kc-table-wrap ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="filterMachineryGroupId,filterStationId,resetFilters,setViewMode,previousPage,nextPage,goToPage">
             <table class="kc-table">
                 <thead class="kc-table__head">
                     <tr>
@@ -284,10 +282,8 @@
                                 @if ($confirmingDeleteId === $machinery['id'])
                                     <span class="kc-confirm">
                                         <span class="kc-confirm__label">Yakin hapus?</span>
-                                        <button type="button" wire:click="confirmDelete" class="kc-button kc-button--danger kc-button--sm">
-                                            Ya, Hapus
-                                        </button>
-                                        <button type="button" wire:click="cancelDelete" class="kc-button kc-button--ghost kc-button--sm">
+                                        <button type="button" wire:click="confirmDelete" wire:loading.attr="disabled" wire:target="confirmDelete" class="kc-button kc-button--danger kc-button--sm"><x-busy-label target="confirmDelete" busy="Menghapus…">Ya, Hapus</x-busy-label></button>
+                                        <button type="button" wire:click="cancelDelete" wire:loading.attr="disabled" wire:target="confirmDelete" class="kc-button kc-button--ghost kc-button--sm">
                                             Batal
                                         </button>
                                     </span>
@@ -327,6 +323,8 @@
                 <button
                     type="button"
                     wire:click="previousPage"
+                    wire:loading.attr="disabled"
+                    wire:target="previousPage,nextPage,goToPage"
                     class="kc-button kc-button--ghost kc-button--sm"
                     @if ($meta['page'] <= 1) disabled @endif
                 >
@@ -335,6 +333,8 @@
                 <button
                     type="button"
                     wire:click="nextPage"
+                    wire:loading.attr="disabled"
+                    wire:target="previousPage,nextPage,goToPage"
                     class="kc-button kc-button--ghost kc-button--sm"
                     @if ($meta['page'] >= $meta['total_pages']) disabled @endif
                 >
@@ -469,8 +469,7 @@
                     Batal
                 </button>
                 <button type="submit" class="kc-button kc-button--primary" wire:loading.attr="disabled" wire:target="saveGroup">
-                    <span wire:loading.remove wire:target="saveGroup">Simpan</span>
-                    <span wire:loading wire:target="saveGroup">Menyimpan&hellip;</span>
+                    <x-busy-label target="saveGroup" busy="Menyimpan…">Simpan</x-busy-label>
                 </button>
             </x-slot:actions>
         </x-modal>
@@ -682,8 +681,7 @@
                     Batal
                 </button>
                 <button type="submit" class="kc-button kc-button--primary" wire:loading.attr="disabled" wire:target="save">
-                    <span wire:loading.remove wire:target="save">Simpan</span>
-                    <span wire:loading wire:target="save">Menyimpan&hellip;</span>
+                    <x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label>
                 </button>
             </x-slot:actions>
         </x-modal>
@@ -714,12 +712,29 @@
             opacity: 0.85;
         }
 
+        /* flex-wrap (2026-10-05): di ponsel (390px) tombol "+ Tambah …"
+           dulu terjepit judul dan teksnya pecah jadi tiga baris. Sekarang
+           blok judul mengambil sisa ruang (min. 260px) dan tombol aksi —
+           teksnya tidak pernah dipotong — turun ke baris sendiri bila tidak
+           muat. Di desktop tetap satu baris seperti sebelumnya. */
         .kc-page__header {
             display: flex;
+            flex-wrap: wrap;
             align-items: flex-start;
             justify-content: space-between;
-            gap: 16px;
+            gap: 12px 16px;
             margin-bottom: 20px;
+        }
+
+        .kc-page__header > :first-child {
+            flex: 1 1 260px;
+            min-width: 0;
+        }
+
+        .kc-page__header > .kc-button,
+        .kc-page__header .kc-page__actions .kc-button {
+            flex-shrink: 0;
+            white-space: nowrap;
         }
 
         .kc-page__title {

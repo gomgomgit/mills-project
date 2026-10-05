@@ -11,6 +11,10 @@
     Kept as one shared component rather than copied into all 18 detail
     views so the wording, states, and role gating stay identical across
     stations.
+
+    Loading (2026-10-05): selama toggle berjalan KEDUA tombol dinonaktifkan
+    sesaat (tidak bisa klik ganda / menyilang), tombol yang diklik
+    menampilkan spinner + "Memverifikasi…" (atau "Membatalkan…").
 --}}
 @props(['canCheck', 'canAcknowledge', 'isChecked', 'isAcknowledged', 'message' => null])
 
@@ -20,10 +24,12 @@
             <button
                 type="button"
                 wire:click="toggleChecked"
+                wire:loading.attr="disabled"
+                wire:target="toggleChecked,toggleAcknowledged"
                 class="rv-actions__button {{ $isChecked ? 'rv-actions__button--undo' : 'rv-actions__button--approve' }}"
                 data-testid="toggle-checked-button"
             >
-                {{ $isChecked ? 'Batalkan tanda diperiksa' : 'Tandai sudah diperiksa (Checked)' }}
+                <x-busy-label target="toggleChecked" :busy="$isChecked ? 'Membatalkan…' : 'Memverifikasi…'">{{ $isChecked ? 'Batalkan tanda diperiksa' : 'Tandai sudah diperiksa (Checked)' }}</x-busy-label>
             </button>
         @endif
 
@@ -31,10 +37,12 @@
             <button
                 type="button"
                 wire:click="toggleAcknowledged"
+                wire:loading.attr="disabled"
+                wire:target="toggleChecked,toggleAcknowledged"
                 class="rv-actions__button {{ $isAcknowledged ? 'rv-actions__button--undo' : 'rv-actions__button--approve' }}"
                 data-testid="toggle-acknowledged-button"
             >
-                {{ $isAcknowledged ? 'Batalkan tanda dikonfirmasi' : 'Tandai sudah dikonfirmasi (Acknowledged)' }}
+                <x-busy-label target="toggleAcknowledged" :busy="$isAcknowledged ? 'Membatalkan…' : 'Memverifikasi…'">{{ $isAcknowledged ? 'Batalkan tanda dikonfirmasi' : 'Tandai sudah dikonfirmasi (Acknowledged)' }}</x-busy-label>
             </button>
         @endif
     </div>

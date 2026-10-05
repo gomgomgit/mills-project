@@ -38,18 +38,20 @@
 
         @if ($breakdown !== null)
             <x-slot:actions>
-                <a href="{{ $this->exportUrl('csv') }}" class="fb-btn fb-btn--primary" data-testid="report-export-csv">
-                    <x-filter.icon name="download" />
-                    Ekspor CSV
+                {{-- data-export-link: spinner + "Mengekspor…" sampai respons
+                     unduhan tiba (components/loading-assets). --}}
+                <a href="{{ $this->exportUrl('csv') }}" class="fb-btn fb-btn--primary" data-testid="report-export-csv" data-export-link>
+                    <x-busy-label busy="Mengekspor…"><x-filter.icon name="download" />Ekspor CSV</x-busy-label>
                 </a>
-                <a href="{{ $this->exportUrl('excel') }}" class="fb-btn" data-testid="report-export-excel">
-                    <x-filter.icon name="sheet" />
-                    Ekspor Excel
+                <a href="{{ $this->exportUrl('excel') }}" class="fb-btn" data-testid="report-export-excel" data-export-link>
+                    <x-busy-label busy="Mengekspor…"><x-filter.icon name="sheet" />Ekspor Excel</x-busy-label>
                 </a>
             </x-slot:actions>
         @endif
     </x-filter.bar>
 
+    {{-- Area hasil: diredupkan + spinner selama line / tanggal berganti. --}}
+    <div class="ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="productionLineId,date_from,date_to">
     @if ($productionLineId === '')
         <p class="report-empty" data-testid="select-production-line-hint">
             Pilih production line terlebih dahulu. Laporan ini menghasilkan angka gabungan per line,
@@ -125,6 +127,7 @@
         </div>
         <p class="report-note">Arus masuk (TBS diterima) dan arus keluar (pengiriman) Weighbridge ditampilkan terpisah dan tidak pernah dijumlahkan.</p>
     @endif
+    </div>
 
     <style>
         .report__header { margin-bottom: 16px; }

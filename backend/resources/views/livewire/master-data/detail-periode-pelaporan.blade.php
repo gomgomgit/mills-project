@@ -132,10 +132,10 @@
                 @if ($confirmingDelete)
                     <span class="kc-confirm">
                         <span class="kc-confirm__label">Yakin hapus periode ini beserta seluruh baris stasiunnya?</span>
-                        <button type="button" wire:click="confirmDelete" class="kc-button kc-button--danger kc-button--sm" data-testid="confirm-delete-button">
-                            Ya, Hapus
+                        <button type="button" wire:click="confirmDelete" wire:loading.attr="disabled" wire:target="confirmDelete" class="kc-button kc-button--danger kc-button--sm" data-testid="confirm-delete-button">
+                            <x-busy-label target="confirmDelete" busy="Menghapus…">Ya, Hapus</x-busy-label>
                         </button>
-                        <button type="button" wire:click="cancelDelete" class="kc-button kc-button--ghost kc-button--sm">
+                        <button type="button" wire:click="cancelDelete" wire:loading.attr="disabled" wire:target="confirmDelete" class="kc-button kc-button--ghost kc-button--sm">
                             Batal
                         </button>
                     </span>
@@ -217,10 +217,10 @@
                                             <span class="kc-confirm__label">
                                                 Buka kembali {{ $station['station_type_label'] }}?
                                             </span>
-                                            <button type="button" wire:click="confirmReopen" class="kc-button kc-button--primary kc-button--sm" data-testid="confirm-reopen-button">
-                                                Ya, Buka Kembali
+                                            <button type="button" wire:click="confirmReopen" wire:loading.attr="disabled" wire:target="confirmReopen" class="kc-button kc-button--primary kc-button--sm" data-testid="confirm-reopen-button">
+                                                <x-busy-label target="confirmReopen" busy="Membuka…">Ya, Buka Kembali</x-busy-label>
                                             </button>
-                                            <button type="button" wire:click="cancelReopen" class="kc-button kc-button--ghost kc-button--sm">
+                                            <button type="button" wire:click="cancelReopen" wire:loading.attr="disabled" wire:target="confirmReopen" class="kc-button kc-button--ghost kc-button--sm">
                                                 Batal
                                             </button>
                                         </span>
@@ -228,6 +228,8 @@
                                         <button
                                             type="button"
                                             wire:click="askReopen('{{ $station['id'] }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="askReopen('{{ $station['id'] }}')"
                                             class="kc-button kc-button--ghost kc-button--sm"
                                             data-testid="station-reopen-button-{{ $station['id'] }}"
                                         >
@@ -244,6 +246,8 @@
                                         <button
                                             type="button"
                                             wire:click="askOpen('{{ $station['id'] }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="askOpen('{{ $station['id'] }}')"
                                             class="kc-button kc-button--primary kc-button--sm"
                                             data-testid="station-open-button-{{ $station['id'] }}"
                                         >
@@ -253,6 +257,8 @@
                                         <button
                                             type="button"
                                             wire:click="askClose('{{ $station['id'] }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="askClose('{{ $station['id'] }}')"
                                             class="kc-button kc-button--warning kc-button--sm"
                                             data-testid="station-close-button-{{ $station['id'] }}"
                                         >
@@ -380,8 +386,7 @@
                     Batal
                 </button>
                 <button type="submit" class="kc-button kc-button--primary" wire:loading.attr="disabled" wire:target="save" data-testid="save-button">
-                    <span wire:loading.remove wire:target="save">Simpan</span>
-                    <span wire:loading wire:target="save">Menyimpan&hellip;</span>
+                    <x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label>
                 </button>
             </x-slot:actions>
         </x-modal>
@@ -427,11 +432,11 @@
             </p>
 
             <x-slot:actions>
-                <button type="button" wire:click="cancelClose" class="kc-button kc-button--ghost" data-testid="cancel-close-button">
+                <button type="button" wire:click="cancelClose" wire:loading.attr="disabled" wire:target="confirmClose" class="kc-button kc-button--ghost" data-testid="cancel-close-button">
                     Batal
                 </button>
                 <button type="button" wire:click="confirmClose" class="kc-button kc-button--warning" wire:loading.attr="disabled" wire:target="confirmClose" data-testid="confirm-close-button">
-                    Ya, Tutup Stasiun
+                    <x-busy-label target="confirmClose" busy="Menutup…">Ya, Tutup Stasiun</x-busy-label>
                 </button>
             </x-slot:actions>
         </x-modal>
@@ -464,11 +469,11 @@
             </div>
 
             <x-slot:actions>
-                <button type="button" wire:click="cancelOpen" class="kc-button kc-button--ghost" data-testid="cancel-open-period">
+                <button type="button" wire:click="cancelOpen" wire:loading.attr="disabled" wire:target="confirmOpen" class="kc-button kc-button--ghost" data-testid="cancel-open-period">
                     Batal
                 </button>
                 <button type="button" wire:click="confirmOpen" class="kc-button kc-button--primary" wire:loading.attr="disabled" wire:target="confirmOpen" data-testid="confirm-open-period">
-                    Ya, Buka Stasiun
+                    <x-busy-label target="confirmOpen" busy="Membuka…">Ya, Buka Stasiun</x-busy-label>
                 </button>
             </x-slot:actions>
         </x-modal>

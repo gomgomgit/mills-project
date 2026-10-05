@@ -902,7 +902,9 @@ it('periode tertutup: penanda status Tertutup, seluruh blok tetap dirender, dan 
 
     // The export button is never disabled by a closed period — and the
     // action behind it really does hand back a file.
-    expect($html)->toMatch('/<button[^>]*data-testid="export-button"(?![^>]*disabled)/');
+    // (Atribut disabled STATIS saja: wire:loading.attr="disabled" hanya
+    // menonaktifkan sesaat selama ekspor berjalan, sejak 2026-10-05.)
+    expect($html)->toMatch('/<button[^>]*data-testid="export-button"(?![^>]*\sdisabled(?=[\s>=\/]))/');
     $component->call('exportCsv', 'csv')->assertFileDownloaded(null, null, 'text/csv');
 
     expect(laporanStorageTankRendered($html, 'stock-movement-mt'))->toBe('-10,0');

@@ -36,7 +36,7 @@
             <p class="ms-empty__title">Pilih mill untuk mulai mengatur Mills Setting</p>
         </div>
     @else
-        <form wire:submit.prevent="save">
+        <form wire:submit.prevent="save" class="ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="selectedBusinessUnitId">
             <div class="ms-form-section">
                 <h4 class="ms-form-section__title">Identitas Aplikasi</h4>
                 <div class="ms-form-grid">
@@ -65,6 +65,7 @@
                             @endif
                             <div class="ms-image-field__control">
                                 <input type="file" wire:model="logo" accept="image/png,image/jpeg" class="ms-form-field__input">
+                                <p wire:loading.flex wire:target="logo" class="ms-form-field__hint ld-label"><span class="ld-spinner" aria-hidden="true"></span>Mengunggah&hellip;</p>
                                 @error('logo')
                                     <p class="ms-form-field__error">{{ $message }}</p>
                                 @enderror
@@ -84,6 +85,7 @@
                             @endif
                             <div class="ms-image-field__control">
                                 <input type="file" wire:model="home_page_image" accept="image/png,image/jpeg" class="ms-form-field__input">
+                                <p wire:loading.flex wire:target="home_page_image" class="ms-form-field__hint ld-label"><span class="ld-spinner" aria-hidden="true"></span>Mengunggah&hellip;</p>
                                 @error('home_page_image')
                                     <p class="ms-form-field__error">{{ $message }}</p>
                                 @enderror
@@ -108,11 +110,11 @@
             </div>
 
             <div class="ms-form-actions">
-                <button type="submit" class="ms-button ms-button--primary" wire:loading.attr="disabled" wire:target="save">Simpan</button>
+                <button type="submit" class="ms-button ms-button--primary" wire:loading.attr="disabled" wire:target="save,logo,home_page_image"><x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label></button>
             </div>
         </form>
 
-        <div class="ms-form-section ms-form-section--stations">
+        <div class="ms-form-section ms-form-section--stations ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="selectedBusinessUnitId,stationIcons">
             <h4 class="ms-form-section__title">Icon Station</h4>
 
             @if (count($stations) === 0)

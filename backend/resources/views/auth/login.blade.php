@@ -169,6 +169,9 @@
     </style>
 </head>
 <body>
+    {{-- Bar progres + kelas loading bersama (.ld-*), sama dengan app shell. --}}
+    <x-loading-assets />
+
     {{ $slot }}
 
     @livewireScripts

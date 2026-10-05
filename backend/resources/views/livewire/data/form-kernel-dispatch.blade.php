@@ -133,14 +133,14 @@
                                         </select>
                                     </td>
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.findings" class="kf-input"></td>
-                                    <td><button type="button" wire:click="removeDetailRow({{ $index }})" class="kf-button kf-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button></td>
+                                    <td><button type="button" wire:click="removeDetailRow({{ $index }})" wire:loading.attr="disabled" wire:target="removeDetailRow({{ $index }})" class="kf-button kf-button--secondary" data-testid="remove-row-button-{{ $index }}"><x-busy-label :target="'removeDetailRow('.$index.')'" busy="Menghapus…">Hapus</x-busy-label></button></td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
                 </div>
 
-                <button type="button" wire:click="addDetailRow" class="kf-button kf-button--secondary" data-testid="add-row-button">+ Tambah Baris</button>
+                <button type="button" wire:click="addDetailRow" wire:loading.attr="disabled" wire:target="addDetailRow" class="kf-button kf-button--secondary" data-testid="add-row-button"><x-busy-label target="addDetailRow" busy="Menambah…">+ Tambah Baris</x-busy-label></button>
             </div>
 
             @if ($this->isSupervisor() || $this->isMillManagement())
@@ -164,7 +164,7 @@
             @endif
 
             <div class="kf-actions">
-                <button type="submit" class="kf-button kf-button--primary" data-testid="save-button">Simpan</button>
+                <button type="submit" class="kf-button kf-button--primary" data-testid="save-button" wire:loading.attr="disabled" wire:target="save"><x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label></button>
             </div>
         </form>
     @endif

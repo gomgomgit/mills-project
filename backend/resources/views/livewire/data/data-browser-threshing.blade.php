@@ -9,11 +9,11 @@
             <a href="{{ route('data.threshing.create') }}" class="th-button th-button--secondary" data-testid="add-data-button">
                 Tambah Data
             </a>
-            <a href="{{ $exportCsvUrl }}" class="th-button th-button--secondary" target="_blank" rel="noopener">
-                Ekspor CSV
+            <a href="{{ $exportCsvUrl }}" class="th-button th-button--secondary" target="_blank" rel="noopener" data-export-link>
+                <x-busy-label busy="Mengekspor…">Ekspor CSV</x-busy-label>
             </a>
-            <a href="{{ $exportExcelUrl }}" class="th-button th-button--secondary" target="_blank" rel="noopener">
-                Ekspor Excel
+            <a href="{{ $exportExcelUrl }}" class="th-button th-button--secondary" target="_blank" rel="noopener" data-export-link>
+                <x-busy-label busy="Mengekspor…">Ekspor Excel</x-busy-label>
             </a>
         </div>
     </div>
@@ -68,7 +68,7 @@
         </x-filter.field>
     </x-filter.bar>
 
-    <div class="th-table-wrap">
+    <div class="th-table-wrap ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="date_from,date_to,business_unit_id,production_line_id,resetFilters,previousPage,nextPage,goToPage">
         <table class="th-table">
             <thead class="th-table__head">
                 <tr>
@@ -131,6 +131,8 @@
                 <button
                     type="button"
                     wire:click="previousPage"
+                    wire:loading.attr="disabled"
+                    wire:target="previousPage,nextPage,goToPage"
                     class="th-button th-button--ghost"
                     @if ($meta['page'] <= 1) disabled @endif
                 >
@@ -139,6 +141,8 @@
                 <button
                     type="button"
                     wire:click="nextPage"
+                    wire:loading.attr="disabled"
+                    wire:target="previousPage,nextPage,goToPage"
                     class="th-button th-button--ghost"
                     @if ($meta['page'] >= $meta['total_pages']) disabled @endif
                 >
@@ -170,7 +174,9 @@
         .th-browser__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
         .th-browser__title { margin: 0 0 4px; font-size: 20px; font-weight: 700; }
         .th-browser__subtitle { margin: 0; font-size: 14px; color: var(--th-text-muted); }
-        .th-browser__export { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+        /* flex-shrink 1 + min-width 0 (2026-10-05): di ponsel tombol boleh turun baris di dalam
+           wadah ini — teks sibuk "Mengekspor…" lebih lebar dari "Ekspor CSV" dan dulu terpotong. */
+        .th-browser__export { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 1; min-width: 0; }
 
         .th-alert { margin-bottom: 16px; padding: 10px 12px; border-radius: var(--th-radius-input); background: #fef2f2; border: 1px solid var(--th-destructive); color: var(--th-destructive); font-size: 14px; }
 

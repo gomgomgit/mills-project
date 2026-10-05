@@ -291,6 +291,10 @@
         Hanya periode yang mencakup Weighbridge yang ditampilkan. Angka disaring menurut Production Line yang melekat pada trip itu sendiri, dan keanggotaan periode mengikuti waktu penimbangan.
     </x-report-filter-bar>
 
+    {{-- Area hasil laporan: diredupkan + spinner selama mill / line /
+         periode berganti (components/loading-assets, .ld-region). .md-body
+         meneruskan jarak antarkartu .md, jadi tata letak tidak berubah. --}}
+    <div class="md-body ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="businessUnitId,productionLineId,periodId">
     @if ($hasNoMillForAccount)
         {{-- Empty state (a): akun terikat mill tetapi users.business_unit_id
              kosong. GAGAL TERTUTUP — pemilih Mill TIDAK ditawarkan sebagai
@@ -974,4 +978,5 @@
             </section>
         @endif
     @endif
+    </div>
 </div>

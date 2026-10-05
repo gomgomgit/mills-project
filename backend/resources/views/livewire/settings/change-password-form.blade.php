@@ -85,8 +85,7 @@
         </div>
 
         <button type="submit" class="settings-button" wire:loading.attr="disabled" wire:target="save">
-            <span wire:loading.remove wire:target="save">Simpan</span>
-            <span wire:loading wire:target="save">Menyimpan&hellip;</span>
+            <x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label>
         </button>
     </form>
 </div>

@@ -9,11 +9,11 @@
             <a href="{{ route('data.cages-track.create') }}" class="ct-button ct-button--secondary" data-testid="add-data-button">
                 Tambah Data
             </a>
-            <a href="{{ $exportCsvUrl }}" class="ct-button ct-button--secondary" target="_blank" rel="noopener">
-                Ekspor CSV
+            <a href="{{ $exportCsvUrl }}" class="ct-button ct-button--secondary" target="_blank" rel="noopener" data-export-link>
+                <x-busy-label busy="Mengekspor…">Ekspor CSV</x-busy-label>
             </a>
-            <a href="{{ $exportExcelUrl }}" class="ct-button ct-button--secondary" target="_blank" rel="noopener">
-                Ekspor Excel
+            <a href="{{ $exportExcelUrl }}" class="ct-button ct-button--secondary" target="_blank" rel="noopener" data-export-link>
+                <x-busy-label busy="Mengekspor…">Ekspor Excel</x-busy-label>
             </a>
         </div>
     </div>
@@ -68,7 +68,7 @@
         </x-filter.field>
     </x-filter.bar>
 
-    <div class="ct-table-wrap">
+    <div class="ct-table-wrap ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="date_from,date_to,business_unit_id,production_line_id,resetFilters,previousPage,nextPage,goToPage">
         <table class="ct-table">
             <thead class="ct-table__head">
                 <tr>
@@ -131,6 +131,8 @@
                 <button
                     type="button"
                     wire:click="previousPage"
+                    wire:loading.attr="disabled"
+                    wire:target="previousPage,nextPage,goToPage"
                     class="ct-button ct-button--ghost"
                     @if ($meta['page'] <= 1) disabled @endif
                 >
@@ -139,6 +141,8 @@
                 <button
                     type="button"
                     wire:click="nextPage"
+                    wire:loading.attr="disabled"
+                    wire:target="previousPage,nextPage,goToPage"
                     class="ct-button ct-button--ghost"
                     @if ($meta['page'] >= $meta['total_pages']) disabled @endif
                 >
@@ -198,7 +202,9 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            flex-shrink: 0;
+            /* boleh menyempit & membungkus di ponsel (teks sibuk "Mengekspor…" lebih lebar). */
+            flex-shrink: 1;
+            min-width: 0;
         }
 
         .ct-alert {

@@ -378,6 +378,9 @@
     {{ $styles ?? '' }}
 </head>
 <body>
+    {{-- Bar progres + live region + kelas loading bersama (.ld-*). --}}
+    <x-loading-assets />
+
     <div class="shell-backdrop" id="shell-backdrop"></div>
 
     <aside class="shell-sidebar" id="shell-sidebar">

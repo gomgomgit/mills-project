@@ -183,7 +183,7 @@
                                         <span class="fg-computed-value" data-testid="detail-percentage-{{ $index }}">{{ $this->rowPercentage($index) }}</span>
                                     </td>
                                     <td>
-                                        <button type="button" wire:click="removeDetailRow({{ $index }})" class="fg-button fg-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button>
+                                        <button type="button" wire:click="removeDetailRow({{ $index }})" wire:loading.attr="disabled" wire:target="removeDetailRow({{ $index }})" class="fg-button fg-button--secondary" data-testid="remove-row-button-{{ $index }}"><x-busy-label :target="'removeDetailRow('.$index.')'" busy="Menghapus…">Hapus</x-busy-label></button>
                                     </td>
                                 </tr>
                             @endforeach
@@ -191,7 +191,7 @@
                     </table>
                 </div>
 
-                <button type="button" wire:click="addDetailRow" class="fg-button fg-button--secondary" data-testid="add-row-button">+ Tambah Baris</button>
+                <button type="button" wire:click="addDetailRow" wire:loading.attr="disabled" wire:target="addDetailRow" class="fg-button fg-button--secondary" data-testid="add-row-button"><x-busy-label target="addDetailRow" busy="Menambah…">+ Tambah Baris</x-busy-label></button>
             </div>
 
             @if ($this->isMillManagement())
@@ -205,7 +205,7 @@
             @endif
 
             <div class="fg-actions">
-                <button type="submit" class="fg-button fg-button--primary" data-testid="save-button">Simpan</button>
+                <button type="submit" class="fg-button fg-button--primary" data-testid="save-button" wire:loading.attr="disabled" wire:target="save"><x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label></button>
             </div>
         </form>
     @endif

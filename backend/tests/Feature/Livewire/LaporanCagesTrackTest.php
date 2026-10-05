@@ -574,8 +574,13 @@ it('periode tertutup: the status is a caption, the report is complete and the ex
         ->assertSeeHtml('data-testid="hourly-distribution"')
         ->assertSeeHtml('data-testid="daily-trend"')
         // The period lock governs writing data, not reading a report.
-        ->assertSeeHtml('data-testid="export-csv"')
-        ->assertDontSeeHtml('disabled');
+        ->assertSeeHtml('data-testid="export-csv"');
+
+    // Tidak ada atribut `disabled` STATIS pada tombol mana pun. Sejak
+    // 2026-10-05 tombol ekspor membawa wire:loading.attr="disabled" —
+    // penonaktifan SESAAT selama request ekspor berjalan (cegah unduhan
+    // ganda), bukan penguncian oleh periode tertutup.
+    expect($component->html())->not->toMatch('/\sdisabled(?=[\s>=\/])/');
 
     $component->call('export', 'csv')->assertFileDownloaded(null, null, 'text/csv');
 });

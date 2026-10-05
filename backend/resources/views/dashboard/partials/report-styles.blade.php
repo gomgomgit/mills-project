@@ -25,6 +25,9 @@
         .md { --md-brand: #249360; --md-brand-dark: #1a6f48; --md-brand-soft: #e8f5ee; --md-ink: #0f172a; --md-muted: #64748b; --md-line: #e2e8f0; --md-card: #ffffff;
               display: flex; flex-direction: column; gap: 20px; margin-bottom: 32px; color: var(--md-ink); }
         .md small { font-weight: 500; color: var(--md-muted); }
+        /* Pembungkus area hasil laporan (target loading .ld-region): meneruskan
+           kolom + jarak .md supaya membungkusnya tidak mengubah tata letak. */
+        .md-body { display: flex; flex-direction: column; gap: inherit; min-width: 0; }
 
         .md-hero { position: relative; overflow: hidden; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px;
                    padding: 24px 28px; border-radius: 16px; color: #fff;

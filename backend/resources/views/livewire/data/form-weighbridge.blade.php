@@ -183,7 +183,7 @@
             @endif
 
             <div class="fw-actions">
-                <button type="submit" class="fw-button fw-button--primary" data-testid="save-button">Simpan</button>
+                <button type="submit" class="fw-button fw-button--primary" data-testid="save-button" wire:loading.attr="disabled" wire:target="save"><x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label></button>
             </div>
         </form>
     @endif

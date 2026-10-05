@@ -163,7 +163,7 @@
                                         <span class="fc-computed-value" data-testid="detail-cages-remain-{{ $index }}">{{ $this->rowCagesRemain($index) }}</span>
                                     </td>
                                     <td>
-                                        <button type="button" wire:click="removeDetailRow({{ $index }})" class="fc-button fc-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button>
+                                        <button type="button" wire:click="removeDetailRow({{ $index }})" wire:loading.attr="disabled" wire:target="removeDetailRow({{ $index }})" class="fc-button fc-button--secondary" data-testid="remove-row-button-{{ $index }}"><x-busy-label :target="'removeDetailRow('.$index.')'" busy="Menghapus…">Hapus</x-busy-label></button>
                                     </td>
                                 </tr>
                             @endforeach
@@ -171,7 +171,7 @@
                     </table>
                 </div>
 
-                <button type="button" wire:click="addDetailRow" class="fc-button fc-button--secondary" data-testid="add-row-button" @disabled(! $this->canAddRow())>+ Tambah Baris</button>
+                <button type="button" wire:click="addDetailRow" wire:loading.attr="disabled" wire:target="addDetailRow" class="fc-button fc-button--secondary" data-testid="add-row-button" @disabled(! $this->canAddRow())><x-busy-label target="addDetailRow" busy="Menambah…">+ Tambah Baris</x-busy-label></button>
             </div>
 
             @if ($this->isSupervisor() || $this->isMillManagement())
@@ -195,7 +195,7 @@
             @endif
 
             <div class="fc-actions">
-                <button type="submit" class="fc-button fc-button--primary" data-testid="save-button">Simpan</button>
+                <button type="submit" class="fc-button fc-button--primary" data-testid="save-button" wire:loading.attr="disabled" wire:target="save"><x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label></button>
             </div>
         </form>
     @endif

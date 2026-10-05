@@ -162,7 +162,7 @@
                                 <td><input type="text" wire:model="detailRows.{{ $index }}.action_taken_maintenance_remark" class="pf-input" data-testid="action-taken-remark-{{ $index }}"></td>
                                 <td><input type="text" wire:model="detailRows.{{ $index }}.findings" class="pf-input" data-testid="findings-{{ $index }}"></td>
                                     <td>
-                                        <button type="button" wire:click="removeDetailRow({{ $index }})" class="pf-button pf-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button>
+                                        <button type="button" wire:click="removeDetailRow({{ $index }})" wire:loading.attr="disabled" wire:target="removeDetailRow({{ $index }})" class="pf-button pf-button--secondary" data-testid="remove-row-button-{{ $index }}"><x-busy-label :target="'removeDetailRow('.$index.')'" busy="Menghapus…">Hapus</x-busy-label></button>
                                     </td>
                                 </tr>
                             @endforeach
@@ -170,7 +170,7 @@
                     </table>
                 </div>
 
-                <button type="button" wire:click="addDetailRow" class="pf-button pf-button--secondary" data-testid="add-row-button" @disabled(! $this->canAddRow())>+ Tambah Baris</button>
+                <button type="button" wire:click="addDetailRow" wire:loading.attr="disabled" wire:target="addDetailRow" class="pf-button pf-button--secondary" data-testid="add-row-button" @disabled(! $this->canAddRow())><x-busy-label target="addDetailRow" busy="Menambah…">+ Tambah Baris</x-busy-label></button>
             </div>
 
             @if ($this->isSupervisor() || $this->isMillManagement())
@@ -194,7 +194,7 @@
             @endif
 
             <div class="pf-actions">
-                <button type="submit" class="pf-button pf-button--primary" data-testid="save-button">Simpan</button>
+                <button type="submit" class="pf-button pf-button--primary" data-testid="save-button" wire:loading.attr="disabled" wire:target="save"><x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label></button>
             </div>
         </form>
     @endif

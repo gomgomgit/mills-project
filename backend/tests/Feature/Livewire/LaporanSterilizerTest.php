@@ -354,8 +354,13 @@ it('periode tertutup: the report renders as usual, the status shows as a caption
         ->assertSeeHtml('data-testid="daily-trend"')
         // Status limits neither the view nor the export: the button is
         // never disabled.
-        ->assertSeeHtml('data-testid="export-csv"')
-        ->assertDontSeeHtml('disabled');
+        ->assertSeeHtml('data-testid="export-csv"');
+
+    // Tidak ada atribut `disabled` STATIS pada tombol mana pun. Sejak
+    // 2026-10-05 tombol ekspor membawa wire:loading.attr="disabled" —
+    // penonaktifan SESAAT selama request ekspor berjalan (cegah unduhan
+    // ganda), bukan penguncian oleh periode tertutup.
+    expect($component->html())->not->toMatch('/\sdisabled(?=[\s>=\/])/');
 
     $component->call('export', 'csv')->assertFileDownloaded(null, null, 'text/csv');
 });

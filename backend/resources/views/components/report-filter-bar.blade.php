@@ -202,15 +202,20 @@
              kunci periode mengatur penulisan data, bukan pembacaan laporan,
              jadi tombol tidak pernah dinonaktifkan. --}}
         <div class="md-filters__actions">
+            {{-- Loading (2026-10-05): ekspor adalah request Livewire yang
+                 berakhir dengan respons unduhan, jadi wire:loading selesai
+                 tepat saat file tiba. Selama itu KEDUA tombol ekspor
+                 dinonaktifkan sesaat (tidak ada unduhan ganda) dan tombol
+                 yang diklik menampilkan spinner + "Mengekspor…". --}}
             <button type="button" class="md-btn md-btn--primary"
-                    wire:click="{{ $exportAction }}('csv')" data-testid="{{ $exportCsvTestid }}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
-                Ekspor CSV
+                    wire:click="{{ $exportAction }}('csv')" data-testid="{{ $exportCsvTestid }}"
+                    wire:loading.attr="disabled" wire:target="{{ $exportAction }}">
+                <x-busy-label target="{{ $exportAction }}('csv')" busy="Mengekspor…"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>Ekspor CSV</x-busy-label>
             </button>
             <button type="button" class="md-btn"
-                    wire:click="{{ $exportAction }}('excel')" data-testid="{{ $exportExcelTestid }}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8l6 8M15 8l-6 8"/></svg>
-                Ekspor Excel
+                    wire:click="{{ $exportAction }}('excel')" data-testid="{{ $exportExcelTestid }}"
+                    wire:loading.attr="disabled" wire:target="{{ $exportAction }}">
+                <x-busy-label target="{{ $exportAction }}('excel')" busy="Mengekspor…"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 8l6 8M15 8l-6 8"/></svg>Ekspor Excel</x-busy-label>
             </button>
         </div>
     @endif

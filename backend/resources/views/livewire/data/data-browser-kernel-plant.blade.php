@@ -9,11 +9,11 @@
             <a href="{{ route('data.kernel-plant.create') }}" class="kp-button kp-button--secondary" data-testid="add-data-button">
                 Tambah Data
             </a>
-            <a href="{{ $exportCsvUrl }}" class="kp-button kp-button--secondary" target="_blank" rel="noopener">
-                Ekspor CSV
+            <a href="{{ $exportCsvUrl }}" class="kp-button kp-button--secondary" target="_blank" rel="noopener" data-export-link>
+                <x-busy-label busy="Mengekspor…">Ekspor CSV</x-busy-label>
             </a>
-            <a href="{{ $exportExcelUrl }}" class="kp-button kp-button--secondary" target="_blank" rel="noopener">
-                Ekspor Excel
+            <a href="{{ $exportExcelUrl }}" class="kp-button kp-button--secondary" target="_blank" rel="noopener" data-export-link>
+                <x-busy-label busy="Mengekspor…">Ekspor Excel</x-busy-label>
             </a>
         </div>
     </div>
@@ -68,7 +68,7 @@
         </x-filter.field>
     </x-filter.bar>
 
-    <div class="kp-table-wrap">
+    <div class="kp-table-wrap ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="date_from,date_to,business_unit_id,production_line_id,resetFilters,previousPage,nextPage,goToPage">
         <table class="kp-table">
             <thead class="kp-table__head">
                 <tr>
@@ -131,6 +131,8 @@
                 <button
                     type="button"
                     wire:click="previousPage"
+                    wire:loading.attr="disabled"
+                    wire:target="previousPage,nextPage,goToPage"
                     class="kp-button kp-button--ghost"
                     @if ($meta['page'] <= 1) disabled @endif
                 >
@@ -139,6 +141,8 @@
                 <button
                     type="button"
                     wire:click="nextPage"
+                    wire:loading.attr="disabled"
+                    wire:target="previousPage,nextPage,goToPage"
                     class="kp-button kp-button--ghost"
                     @if ($meta['page'] >= $meta['total_pages']) disabled @endif
                 >
@@ -170,7 +174,9 @@
         .kp-browser__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
         .kp-browser__title { margin: 0 0 4px; font-size: 20px; font-weight: 700; }
         .kp-browser__subtitle { margin: 0; font-size: 14px; color: var(--kp-text-muted); }
-        .kp-browser__export { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+        /* flex-shrink 1 + min-width 0 (2026-10-05): di ponsel tombol boleh turun baris di dalam
+           wadah ini — teks sibuk "Mengekspor…" lebih lebar dari "Ekspor CSV" dan dulu terpotong. */
+        .kp-browser__export { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 1; min-width: 0; }
 
         .kp-alert { margin-bottom: 16px; padding: 10px 12px; border-radius: var(--kp-radius-input); background: #fef2f2; border: 1px solid var(--kp-destructive); color: var(--kp-destructive); font-size: 14px; }
 

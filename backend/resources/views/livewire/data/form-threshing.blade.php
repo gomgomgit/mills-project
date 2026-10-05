@@ -106,7 +106,7 @@
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.empty_bunch_oil_loss_percent" class="tf-input" data-testid="oil-loss-{{ $index }}"></td>
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.downtime_reason" class="tf-input" data-testid="downtime-reason-{{ $index }}"></td>
                                     <td>
-                                        <button type="button" wire:click="removeDetailRow({{ $index }})" class="tf-button tf-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button>
+                                        <button type="button" wire:click="removeDetailRow({{ $index }})" wire:loading.attr="disabled" wire:target="removeDetailRow({{ $index }})" class="tf-button tf-button--secondary" data-testid="remove-row-button-{{ $index }}"><x-busy-label :target="'removeDetailRow('.$index.')'" busy="Menghapus…">Hapus</x-busy-label></button>
                                     </td>
                                 </tr>
                             @endforeach
@@ -114,7 +114,7 @@
                     </table>
                 </div>
 
-                <button type="button" wire:click="addDetailRow" class="tf-button tf-button--secondary" data-testid="add-row-button" @disabled(! $this->canAddRow())>+ Tambah Baris</button>
+                <button type="button" wire:click="addDetailRow" wire:loading.attr="disabled" wire:target="addDetailRow" class="tf-button tf-button--secondary" data-testid="add-row-button" @disabled(! $this->canAddRow())><x-busy-label target="addDetailRow" busy="Menambah…">+ Tambah Baris</x-busy-label></button>
             </div>
 
             <div class="tf-section tf-section--block">
@@ -161,7 +161,7 @@
             @endif
 
             <div class="tf-actions">
-                <button type="submit" class="tf-button tf-button--primary" data-testid="save-button">Simpan</button>
+                <button type="submit" class="tf-button tf-button--primary" data-testid="save-button" wire:loading.attr="disabled" wire:target="save"><x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label></button>
             </div>
         </form>
     @endif

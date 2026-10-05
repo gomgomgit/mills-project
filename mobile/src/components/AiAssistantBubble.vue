@@ -42,7 +42,8 @@ const aiAssistantStore = useAiAssistantStore()
 <style scoped>
 .ai-assistant-bubble {
   position: fixed;
-  bottom: 58px;
+  /* Di dalam dok bawah App.vue — lihat utils/floatingSafeArea.ts. */
+  bottom: 16px;
   right: 16px;
   z-index: 999;
   width: 48px;

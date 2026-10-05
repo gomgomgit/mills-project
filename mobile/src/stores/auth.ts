@@ -175,6 +175,16 @@ export const useAuthStore = defineStore('auth', {
         } catch {
           // Best-effort — always clear local state even if the device is
           // offline and can't reach the server to invalidate the token.
+          //
+          // Sejak audit keamanan 2026-10-05 backend punya POST /api/logout
+          // (AuthController::logout) yang mencabut token perangkat INI saja;
+          // sebelumnya route itu tidak ada (404 tertelan di sini) sehingga
+          // token tidak pernah dicabut. Batas yang tersisa: logout saat
+          // OFFLINE tetap hanya membersihkan sesi lokal — token lama di
+          // server tetap berlaku (tidak kedaluwarsa, sanctum.expiration =
+          // null) sampai dicabut dari sisi server (mis. akun dinonaktifkan
+          // Admin). Login ulang menerbitkan token BARU; token lama tidak
+          // ikut tercabut.
         } finally {
           this.user = null
           this.token = null

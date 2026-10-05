@@ -42,6 +42,15 @@
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
 
+    /* Audit 2026-10-05: di 390px peluncur (z-index 1000) menimpa tepi kanan
+       tombol Simpan modal Kelola (x-modal, backdrop z-index 50). Selama
+       modal terbuka peluncur disembunyikan — modal ber-aria-modal, halaman
+       di belakangnya memang tidak untuk dioperasikan. Percakapan (state
+       Alpine) tetap utuh dan peluncur kembali begitu modal ditutup. */
+    body:has(.kcm-modal-backdrop) .chatbot-widget {
+        display: none;
+    }
+
     .chatbot-widget__bubble {
         width: 56px;
         height: 56px;

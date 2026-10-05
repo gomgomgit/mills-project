@@ -6,9 +6,13 @@
  * needing to be duplicated into every view like the nav-menu itself is.
  */
 import { onMounted, onUnmounted, ref } from 'vue'
+import { useAiAssistantStore } from '@/stores/aiAssistant'
 import { useFloatingClockStore } from '@/stores/floatingClock'
 
 const floatingClockStore = useFloatingClockStore()
+// Saat bubble AI aktif, jam duduk di samping kiri bubble di dok bawah
+// (bukan ditumpuk di bawahnya) — lihat utils/floatingSafeArea.ts.
+const aiAssistantStore = useAiAssistantStore()
 
 const now = ref(new Date())
 let intervalId: ReturnType<typeof setInterval> | undefined
@@ -29,7 +33,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="floatingClockStore.enabled" class="floating-clock" data-testid="floating-clock" role="status" aria-label="Jam saat ini">
+  <div v-if="floatingClockStore.enabled" class="floating-clock" :class="{ 'floating-clock--beside-bubble': aiAssistantStore.bubbleEnabled }" data-testid="floating-clock" role="status" aria-label="Jam saat ini">
     {{ formatTime(now) }}
   </div>
 </template>
@@ -51,5 +55,11 @@ onUnmounted(() => {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   pointer-events: none;
   user-select: none;
+}
+
+/* Sejajar tengah bubble (bottom 16px, tinggi 48px): 16 + (48 − 34) / 2. */
+.floating-clock--beside-bubble {
+  bottom: 23px;
+  right: 72px;
 }
 </style>

@@ -42,6 +42,7 @@
 import { computed, onMounted, ref } from 'vue'
 import FilterPanel from '@/components/filters/FilterPanel.vue'
 import LoadingState from '@/components/loading/LoadingState.vue'
+import { createLatestRequestGuard } from '@/utils/latestRequest'
 import BusyLabel from '@/components/loading/BusyLabel.vue'
 import FilterSelectField from '@/components/filters/FilterSelectField.vue'
 import FilterChip from '@/components/filters/FilterChip.vue'
@@ -315,7 +316,7 @@ async function loadProductionLines(): Promise<void> {
 
 async function onProductionLineChange(): Promise<void> {
   clearErrors()
-  summary.value = null
+  resetSummary()
 
   if (!selectedProductionLineId.value) {
     return
@@ -358,6 +359,8 @@ const loadingPeriods = ref(false)
  */
 const periodsLoaded = ref(false)
 const loadingSummary = ref(false)
+/** Urutan permintaan ringkasan — lihat loadSummary(). */
+const summaryRequests = createLatestRequestGuard()
 const exporting = ref(false)
 
 /** Daftar periode kosong — arahan menghubungi Admin, bukan pesan galat. */
@@ -518,20 +521,43 @@ async function loadSummary(): Promise<void> {
     return
   }
 
+  // Hanya respons permintaan TERBARU yang berlaku (audit 2026-10-05):
+  // ganti periode/line dengan cepat bisa membuat respons lama tiba
+  // belakangan — tanpa penjaga ini ia menimpa ringkasan baru, memunculkan
+  // galat basi, dan mematikan indikator muat milik permintaan baru.
+  const isLatest = summaryRequests.next()
   loadingSummary.value = true
 
   try {
-    summary.value = await sterilizerReportRepo.fetchSummary(periodId, scope.value)
+    const result = await sterilizerReportRepo.fetchSummary(periodId, scope.value)
+    if (isLatest()) {
+      summary.value = result
+    }
   } catch (error) {
-    handleError(error, loadSummary)
+    if (isLatest()) {
+      handleError(error, loadSummary)
+    }
   } finally {
-    loadingSummary.value = false
+    if (isLatest()) {
+      loadingSummary.value = false
+    }
   }
+}
+
+/**
+ * Batalkan ringkasan yang sedang dimuat tanpa memulai yang baru — dipanggil
+ * setiap kali pilihan (periode/line/mill) berubah, sebelum loadSummary()
+ * berikutnya (bila ada). Respons yang tiba kemudian diabaikan.
+ */
+function resetSummary(): void {
+  summaryRequests.invalidate()
+  loadingSummary.value = false
+  summary.value = null
 }
 
 async function onPeriodChange(): Promise<void> {
   clearErrors()
-  summary.value = null
+  resetSummary()
 
   if (!selectedPeriodId.value) {
     return
@@ -545,7 +571,7 @@ async function onBusinessUnitChange(): Promise<void> {
   periods.value = []
   periodsLoaded.value = false
   selectedPeriodId.value = null
-  summary.value = null
+  resetSummary()
   // Line milik mill LAMA tidak boleh tertinggal: sebuah Production Line
   // milik satu mill, jadi mengganti mill selalu membatalkan pilihan line.
   productionLines.value = []
@@ -609,8 +635,12 @@ async function onExport(): Promise<void> {
   exporting.value = true
 
   try {
+    // Nama berkas diambil SAAT ekspor diminta: bila pengguna mengganti
+    // periode selama berkas diunduh, isinya tetap milik periode yang
+    // diekspor, jadi namanya pun harus milik periode itu (audit 2026-10-05).
+    const filename = exportFilename()
     const blob = await sterilizerReportRepo.exportCsv(periodId, scope.value)
-    sterilizerReportRepo.saveCsvFile(blob, exportFilename())
+    sterilizerReportRepo.saveCsvFile(blob, filename)
   } catch (error) {
     handleError(error, null)
   } finally {

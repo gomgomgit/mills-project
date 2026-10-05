@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * AuthController — screen-001--login-web / usecase-001--login-web AND
@@ -97,6 +99,39 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Password berhasil diubah.',
+        ]);
+    }
+
+    /**
+     * logout() — POST /api/logout (audit keamanan 2026-10-05; belum punya
+     * entri tech-spec). Dipanggil authStore.logout() aplikasi mobile.
+     *
+     * - Request ber-token (mobile): hapus HANYA token yang dipakai request
+     *   ini (currentAccessToken()) — token perangkat lain milik user yang
+     *   sama tidak tersentuh, sehingga logout di satu HP tidak mengeluarkan
+     *   HP lain.
+     * - Request bersesi (web/SPA stateful lewat EnsureFrontendRequestsAre
+     *   Stateful): currentAccessToken() berupa TransientToken, tidak ada
+     *   baris token untuk dihapus — keluarkan sesi web-nya seperti
+     *   POST /logout di routes/web.php.
+     */
+    public function logout(Request $request): JsonResponse
+    {
+        $token = $request->user()?->currentAccessToken();
+
+        if ($token instanceof PersonalAccessToken) {
+            $token->delete();
+        } else {
+            Auth::guard('web')->logout();
+
+            if ($request->hasSession()) {
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+            }
+        }
+
+        return response()->json([
+            'message' => 'Logout berhasil.',
         ]);
     }
 }

@@ -89,4 +89,32 @@ describe('App.vue — ruang aman bawah', () => {
     expect(root.style.getPropertyValue('--floating-safe-bottom')).toBe('')
     expect(root.dataset.floatingSafeArea).toBeUndefined()
   })
+
+  // Audit 2026-10-05: padding saja hanya menjamin ujung gulir; di posisi
+  // awal bubble masih menimpa Clear/Simpan. Dok buram setinggi ruang aman
+  // harus ada selama ada elemen mengambang (geometri dibuktikan di
+  // tests/e2e/floating-safe-area.spec.ts).
+  it('merender dok bawah selama ada elemen mengambang, dan melepasnya saat keduanya nonaktif', async () => {
+    wrapper = await mountApp()
+    expect(wrapper.find('[data-testid="floating-dock"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="floating-dock"]').attributes('aria-hidden')).toBe('true')
+
+    useAiAssistantStore().toggleBubble()
+    await nextTick()
+    expect(wrapper.find('[data-testid="floating-dock"]').exists()).toBe(false)
+
+    useFloatingClockStore().toggle()
+    await nextTick()
+    expect(wrapper.find('[data-testid="floating-dock"]').exists()).toBe(true)
+  })
+
+  it('jam duduk di samping bubble (bukan ditumpuk) saat keduanya aktif', async () => {
+    useFloatingClockStore().toggle()
+    wrapper = await mountApp()
+    expect(wrapper.find('[data-testid="floating-clock"]').classes()).toContain('floating-clock--beside-bubble')
+
+    useAiAssistantStore().toggleBubble()
+    await nextTick()
+    expect(wrapper.find('[data-testid="floating-clock"]').classes()).not.toContain('floating-clock--beside-bubble')
+  })
 })

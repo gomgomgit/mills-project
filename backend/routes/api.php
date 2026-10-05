@@ -1286,3 +1286,13 @@ Route::middleware(['auth:web,sanctum', 'role:admin,supervisor,mill_management,op
 // === AKHIR ENDPOINT BACA MOBILE ===
 
 // === ASDLC_ROUTES_END ===
+
+// Logout mobile (audit keamanan 2026-10-05) — infrastruktur, sejajar dengan
+// POST /logout di routes/web.php; belum punya entri tech-spec sehingga di
+// luar blok ASDLC. Sebelumnya route ini TIDAK ADA: authStore.logout() di
+// aplikasi mobile menerima 404 (ditelan best-effort) dan token Sanctum
+// perangkat tidak pernah dicabut. Mencabut HANYA token yang dipakai request
+// ini — token perangkat lain milik user yang sama tetap berlaku. Request
+// bersesi (web/SPA stateful) mengeluarkan sesinya. Lihat
+// AuthController::logout().
+Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);

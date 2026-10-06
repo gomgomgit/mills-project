@@ -1,5 +1,5 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-06"
@@ -193,12 +193,11 @@
                   "max": "float|null",
                   "filled_slot_count": "int — PENYEBUT angka di baris ini, milik kolom ini sendiri",
                   "target": {
-                    "parameter_metric": "string|null — null bila kolom ini sengaja tidak dipetakan ke standar mana pun",
+                    "parameter_metric": "string|null — null hanya bila master belum punya baris untuk parameter kolom ini",
                     "target_range": "string|null — rentang yang DITUJU",
                     "critical_limit": "string|null — batas KRITIS",
                     "operational_consequence_justification": "string|null — APA YANG DIPERTARUHKAN bila batas dilewati; kolom keempat yang tidak ada pada master Threshing maupun Pressing",
-                    "shares_standard_with": "list[string] — nama kolom LAIN yang diatur standar master yang sama; kosong bila standarnya hanya mengatur kolom ini. Berisi satu entri pada kedua kolom nut silo, sehingga hubungan satu-standar-dua-kolom terbaca dari payload dan bukan hanya dari prosa di layar",
-                    "unmapped_reason": "string|null — non-null HANYA pada kolom yang sengaja tidak dipetakan; satu-satunya hari ini adalah kernel_recovery_in_fibre_percent"
+                    "shares_standard_with": "list[string] — nama kolom LAIN yang diatur standar master yang sama; kosong bila standarnya hanya mengatur kolom ini. Berisi satu entri pada kedua kolom nut silo, sehingga hubungan satu-standar-dua-kolom terbaca dari payload dan bukan hanya dari prosa di layar"
                   }
                 }
               ],
@@ -208,7 +207,7 @@
                   "target_range": "string",
                   "critical_limit": "string",
                   "operational_consequence_justification": "string",
-                  "reason": "string — MENGAPA standar ini tidak punya pengukuran. Dua nilai mungkin: 'no_column' (tidak ada kolom ukurnya di skema, seperti pada Threshing/Pressing) dan 'direction_unresolved' (ada kolom yang namanya mirip tetapi arahnya berlawanan dan tidak ada data yang menyelesaikannya). Membedakan keduanya penting: yang pertama menuntut kolom baru, yang kedua menuntut keputusan penamaan"
+                  "reason": "string — MENGAPA standar ini tidak punya pengukuran. SATU nilai sejak 2026-10-06: 'no_column', yaitu tidak ada kolom ukurnya di skema — termasuk ketika nama parameter pada master disunting sehingga pasangannya terlepas. Nilai kedua 'direction_unresolved' dihapus bersama rename kolom kernel loss (migrasi 2026_10_06_000001), karena tidak ada kolom yang dapat berada dalam keadaan itu lagi"
                 }
               ],
               "targets_master_empty": "bool",
@@ -429,9 +428,9 @@
         "19. Penyebut nol → min, avg, dan max KETIGANYA null; layar merendernya sebagai keterangan, bukan 0.",
         "20. targetsByParameter(): baca depricarping_operational_targets sekali, pilih parameter_metric, target_range, critical_limit, operational_consequence_justification, dan indeks berdasarkan parameter_metric.",
         "21. PEMETAAN KOLOM → PARAMETER BERSIFAT TETAP pada konstanta COLUMN_TARGET_PARAMETER, bukan dicocokkan dari teks saat render. Enam dari tujuh kolom terpetakan; nut_silo_1_temp_c dan nut_silo_2_temp_c KEDUANYA menunjuk 'Nut Silo Temperature'. Pencocokan teks akan pecah SENYAP begitu seseorang memperbaiki ejaan pada master; dengan konstanta, barisnya berpindah ke targets_without_metric dan keterlepasannya TERLIHAT.",
-        "22. kernel_recovery_in_fibre_percent SENGAJA TIDAK ADA pada COLUMN_TARGET_PARAMETER. Master menyebut standarnya 'Kernel Loss in Fibre' (target '< 0.50%', sebuah KEHILANGAN) sementara kolom dan keempat layar input Depricarping melabelinya perolehan. Keduanya berlawanan arah dan tidak ada data di sistem yang menyelesaikannya. Metriknya tetap diterbitkan dengan target.parameter_metric null dan target.unmapped_reason terisi; standarnya masuk targets_without_metric dengan reason 'direction_unresolved'.",
+        "22. kernel_loss_in_fibre_percent dipetakan ke 'Kernel Loss in Fibre' seperti keenam kolom lainnya. SAMPAI 2026-10-06 kolom ini SENGAJA TIDAK ADA pada COLUMN_TARGET_PARAMETER: namanya dulu kernel_recovery_in_fibre_percent dan keempat layar input Depricarping melabelinya PEROLEHAN, sementara masternya menyebut KEHILANGAN (target '< 0.50%', batas '> 1.00%'). Kedua pembacaan menuntut skala angka yang berbeda sekitar dua ratus kali, sehingga memasangkannya akan membuat laporan menilai dengan arah TERBALIK pada angka yang tetap terlihat masuk akal. Laporan menerbitkan ketimpangannya alih-alih menebak; user memutuskan memakai penamaan master dan kolomnya di-rename (migrasi 2026_10_06_000001). Medan target.unmapped_reason ikut dihapus bersamanya.",
         "23. shares_standard_with per metrik: nama kolom LAIN yang COLUMN_TARGET_PARAMETER-nya menunjuk parameter yang sama. Berisi satu entri pada kedua kolom nut silo, kosong pada yang lain — sehingga hubungan satu-standar-dua-kolom terbaca dari payload, bukan hanya dari prosa di layar.",
-        "24. targets_without_metric = baris master yang parameter_metric-nya tidak dipakai oleh satu pun kolom pada COLUMN_TARGET_PARAMETER, masing-masing dengan reason: 'no_column' bila tidak ada kolom ukurnya di skema, 'direction_unresolved' untuk 'Kernel Loss in Fibre'. all_targets_measured = daftar itu kosong — dipakai layar untuk menggambar bagiannya BESERTA keterangan, bukan menghilangkannya.",
+        "24. targets_without_metric = baris master yang parameter_metric-nya tidak dipakai oleh satu pun kolom pada COLUMN_TARGET_PARAMETER, masing-masing dengan reason 'no_column' — satu-satunya nilai sejak 2026-10-06. NORMALNYA KOSONG: keenam parameter master terpetakan. Yang mendaratkan baris di sini adalah nama parameter master yang disunting (pasangannya terlepas, angka ukurnya tetap utuh) atau parameter baru yang belum punya kolom. all_targets_measured = daftar itu kosong — dipakai layar untuk menggambar bagiannya BESERTA keterangan, bukan menghilangkannya, karena di situlah suntingan semacam itu akan terlihat.",
         "25. targets_master_empty = tabel master tidak punya satu baris pun. Angka ukur tetap diterbitkan; ketiga kolom target dirender sebagai keterangan bahwa master belum terisi.",
         "26. BLOK DOWNTIME: total_minutes = jumlah downtime_minutes atas baris yang kolom itu TERISI saja; recorded_slot_count = jumlah baris itu, TERMASUK yang bernilai 0; avg_minutes_per_recorded_slot = total / recorded_slot_count. Tidak ada satu pun slot yang mencatat → total_minutes NULL, bukan 0, karena 0 terbaca sebagai 'stasiun tidak pernah berhenti'. Memperlakukan slot yang tidak mencatat sebagai nol menit akan membuat rata-ratanya mengecil seiring bertambahnya slot yang tidak dicatat.",
         "27. has_standard pada blok downtime selalu false — downtime_minutes tidak punya baris pada master. Dinyatakan sebagai kunci supaya ketiadaannya terbaca sebagai fakta, bukan sebagai master yang belum terisi.",
@@ -594,7 +593,7 @@
         },
         {
           "condition": "Master memuat parameter baru tanpa kolom ukur",
-          "handling": "Masuk targets_without_metric dengan reason 'no_column' — dibedakan dari 'direction_unresolved' milik Kernel Loss in Fibre, karena yang pertama menuntut kolom baru dan yang kedua menuntut keputusan penamaan."
+          "handling": "Masuk targets_without_metric dengan reason 'no_column' — satu-satunya nilai yang ada, dan itulah yang membuat bagian standar-tanpa-pengukuran tetap digambar walau biasanya kosong: parameter master yang namanya disunting mendarat di sana alih-alih diam-diam menghapus standar dari tabel parameter."
         },
         {
           "condition": "Seluruh enam standar punya pengukuran",
@@ -677,7 +676,7 @@
         "SATU parameter master dapat mengatur lebih dari satu kolom; kedua nut silo tetap dua metrik dengan penyebut masing-masing, dan hubungannya diterbitkan lewat shares_standard_with.",
         "TIDAK ADA penandaan di luar batas: tanpa severity, is_out_of_range, flag, threshold, maupun breach, dan ketiadaan itu dijaga unit test yang menyisir payload.",
         "Pemetaan kolom → parameter bersifat tetap pada konstanta, bukan pencocokan teks saat render.",
-        "kernel_recovery_in_fibre_percent sengaja tidak dipetakan; standarnya masuk targets_without_metric dengan reason 'direction_unresolved'.",
+        "kernel_loss_in_fibre_percent dipetakan ke standarnya seperti keenam kolom lainnya sejak rename kolom 2026-10-06; sebelum itu ia sengaja tidak dipetakan karena arah angkanya bertentangan dengan masternya.",
         "targets_without_metric memuat ALASAN per baris, dan bagiannya tetap digambar walau kosong (all_targets_measured).",
         "Master target global untuk seluruh mill; laporan menyatakan hal itu.",
         "Downtime diterbitkan sebagai angka: total menit atas slot yang mencatat saja, jumlah slot yang mencatat, dan rata-rata per slot yang mencatat. Tanpa satu pun slot → null, bukan 0.",
@@ -808,7 +807,7 @@
         {
           "description": "metrics memuat TUJUH entri dalam urutan NUMERIC_METRICS",
           "given": "Periode dengan data",
-          "expect": "Tepat tujuh entri, column-nya berurutan fan_static_pressure_mmh2o, polishing_drum_speed_rpm, air_velocity_ms, fibre_moisture_percent, kernel_recovery_in_fibre_percent, nut_silo_1_temp_c, nut_silo_2_temp_c"
+          "expect": "Tepat tujuh entri, column-nya berurutan fan_static_pressure_mmh2o, polishing_drum_speed_rpm, air_velocity_ms, fibre_moisture_percent, kernel_loss_in_fibre_percent, nut_silo_1_temp_c, nut_silo_2_temp_c"
         },
         {
           "description": "Tiap metrik memakai PENYEBUTNYA SENDIRI",
@@ -866,19 +865,19 @@
           "expect": "Ketiga kolom itu saling menyebut — membuktikan nilainya dihitung dari konstanta dan tidak akan berbohong bila kolom silo ketiga ditambahkan"
         },
         {
-          "description": "kernel_recovery_in_fibre_percent TIDAK ADA pada COLUMN_TARGET_PARAMETER",
+          "description": "kernel_loss_in_fibre_percent kini TERPETAKAN, dan petanya tujuh entri untuk enam parameter",
           "given": "Konstanta COLUMN_TARGET_PARAMETER",
-          "expect": "Tepat ENAM entri, dan kernel_recovery_in_fibre_percent BUKAN salah satu kuncinya — test ini mengunci keputusan agar tidak 'dilengkapi' oleh pembaca berikutnya"
+          "expect": "COLUMN_TARGET_PARAMETER memuat kernel_loss_in_fibre_percent => 'Kernel Loss in Fibre'; TUJUH entri, kuncinya sama persis dengan NUMERIC_METRICS; tetapi hanya ENAM parameter berbeda karena kedua nut silo menunjuk parameter yang sama — dan enam itu persis jumlah baris masternya. Juga mengasersi konstanta UNMAPPED_DIRECTION_UNRESOLVED sudah TIDAK terdefinisi. Test ini yang jatuh bila seseorang mengembalikan nama kolomnya tanpa mengembalikan masternya"
         },
         {
-          "description": "Metrik kernel recovery tetap diterbitkan, dengan target null dan unmapped_reason terisi",
+          "description": "Angka kernel loss diterbitkan BESERTA standarnya",
           "given": "Kolom itu terisi 0,4 pada dua slot",
-          "expect": "Metriknya ADA dengan avg 0,4 dan filled_slot_count 2; target.parameter_metric null; target.unmapped_reason menyebut pertentangan arah antara 'Kernel Loss in Fibre' pada master dan label 'Kernel Recovery in Fibre' pada kolom"
+          "expect": "Metriknya ADA dengan avg 0,5 dan filled_slot_count 2; target.parameter_metric 'Kernel Loss in Fibre', target_range '< 0.50%', critical_limit '> 1.00%', dan justifikasinya terisi. Angka fixture (0,4 dan 0,6) sengaja pada skala KEHILANGAN — nilai pada skala perolehan (90-100%) akan terbaca sebagai pelanggaran berat terhadap batas '> 1.00%', tepatnya kekeliruan yang dihindari dengan rename kolom alih-alih memetakan nama lama. Dan TETAP tidak dinilai: 0,6 melewati target tanpa satu pun penanda"
         },
         {
-          "description": "'Kernel Loss in Fibre' muncul pada targets_without_metric dengan reason direction_unresolved",
+          "description": "Seluruh parameter master terpetakan, jadi targets_without_metric kosong dan all_targets_measured true",
           "given": "Master tersemai keenam parameter kanonis",
-          "expect": "targets_without_metric tepat SATU entri, parameter_metric 'Kernel Loss in Fibre', reason 'direction_unresolved', dan keempat kolom masternya diteruskan verbatim"
+          "expect": "targets_without_metric array kosong, all_targets_measured true, targets_master_empty false — ketiganya diasersi bersama, karena daftar kosong punya DUA sebab yang berlawanan (master belum terisi versus seluruh standar sudah terukur) dan layar memeriksa targets_master_empty lebih dulu"
         },
         {
           "description": "all_targets_measured false selama Kernel Loss in Fibre belum terselesaikan",
@@ -886,9 +885,9 @@
           "expect": "all_targets_measured false — dan targets_master_empty false, sehingga layar tahu bedanya antara 'master kosong' dan 'ada standar yang belum terukur'"
         },
         {
-          "description": "Parameter master baru tanpa kolom ukur memakai reason no_column, BUKAN direction_unresolved",
+          "description": "Parameter master baru tanpa kolom ukur muncul dengan reason no_column",
           "given": "Satu baris master tambahan 'Shell Content in Kernel' yang tidak ada pada COLUMN_TARGET_PARAMETER",
-          "expect": "targets_without_metric memuat DUA entri dengan reason berbeda — 'no_column' untuk yang baru dan 'direction_unresolved' untuk Kernel Loss in Fibre; perbedaannya penting karena yang pertama menuntut kolom baru dan yang kedua menuntut keputusan penamaan"
+          "expect": "targets_without_metric tepat SATU entri ('Shell Content in Kernel') dengan reason 'no_column', all_targets_measured false, dan keempat kolom masternya diteruskan verbatim — pembaca butuh angkanya untuk menilai seberapa penting, bukan hanya namanya"
         },
         {
           "description": "targets_without_metric dihitung atas HIMPUNAN nilai konstanta, bukan atas jumlah entrinya",
@@ -1131,7 +1130,7 @@
     },
     {
       "screen_id": "screen-059--form-depricarping-web",
-      "reason": "Sumber data DAN sumber definisi 'slot terisi': laporan meminjam DepricarpingRecordService::isRowFilled() dan canonicalTimeSlots() dari layar input itu, bukan menurunkannya ulang. Juga sumber label kolom — termasuk label 'Kernel Recovery in Fibre' yang berlawanan arah dengan standar masternya."
+      "reason": "Sumber data DAN sumber definisi 'slot terisi': laporan meminjam DepricarpingRecordService::isRowFilled() dan canonicalTimeSlots() dari layar input itu, bukan menurunkannya ulang. Juga sumber label kolom — dan layar itulah yang membuat pertentangan arah 'Kernel Loss in Fibre' versus 'Kernel Recovery in Fibre' terlihat, karena ia menampilkan grid input DAN tabel master target pada satu halaman. Diselesaikan 2026-10-06 lewat rename kolom; label layar itu kini sejalan dengan masternya."
     },
     {
       "screen_id": "screen-153--laporan-depricarping-mobile",
@@ -1140,10 +1139,10 @@
   ],
   "implementation_notes": [
     "POLA SERVICE MENGIKUTI PressingReportService, dan itu bukan kebetulan: depricarping_records juga satu record per hari per presser dengan grid 24 slot, sehingga bentuk resolveBusinessUnit / businessUnitOptions / productionLineOptions / resolveProductionLine / authorizePeriod / listPeriods / buildSummary / export berlaku apa adanya. YANG BERBEDA ADA EMPAT dan masing-masing menuntut kode baru, bukan penggantian nama: tujuh kolom ukur bukan lima, downtime numerik bukan teks, kolom justifikasi keempat pada master, dan satu parameter master yang mengatur dua kolom.",
-    "KONSTANTA YANG MENENTUKAN BENTUK LAYAR, semuanya pada DepricarpingReportService: EXPORT_ROW_LIMIT = 50000; STATION_TYPE = StationType::Depricarping->value; NUMERIC_METRICS = tujuh kolom dalam urutan tabel detail (fan_static_pressure_mmh2o, polishing_drum_speed_rpm, air_velocity_ms, fibre_moisture_percent, kernel_recovery_in_fibre_percent, nut_silo_1_temp_c, nut_silo_2_temp_c); METRIC_LABELS dan METRIC_UNITS; COLUMN_TARGET_PARAMETER dengan ENAM entri — ketujuh kolom dikurangi kernel_recovery_in_fibre_percent — dan dua di antaranya menunjuk parameter yang SAMA.",
+    "KONSTANTA YANG MENENTUKAN BENTUK LAYAR, semuanya pada DepricarpingReportService: EXPORT_ROW_LIMIT = 50000; STATION_TYPE = StationType::Depricarping->value; NUMERIC_METRICS = tujuh kolom dalam urutan tabel detail (fan_static_pressure_mmh2o, polishing_drum_speed_rpm, air_velocity_ms, fibre_moisture_percent, kernel_loss_in_fibre_percent, nut_silo_1_temp_c, nut_silo_2_temp_c); METRIC_LABELS dan METRIC_UNITS; COLUMN_TARGET_PARAMETER dengan TUJUH entri — satu per kolom ukur — yang hanya menyebut ENAM parameter berbeda, karena kedua kolom nut silo menunjuk parameter yang sama; dan UNMAPPED_NO_COLUMN sebagai satu-satunya nilai `reason`. Sampai 2026-10-06 peta ini hanya enam entri: kernel_loss_in_fibre_percent (dulu bernama kernel_recovery_in_fibre_percent) sengaja tidak dipetakan — lihat catatan rename di akhir daftar ini.",
     "COLUMN_TARGET_PARAMETER MEMETAKAN DUA KOLOM KE SATU PARAMETER, dan kode yang membacanya harus menanggung itu: targetFor() dipanggil per kolom dan akan mengembalikan baris master yang sama untuk nut_silo_1_temp_c dan nut_silo_2_temp_c — benar, dan bukan duplikasi yang perlu dihilangkan. Sebaliknya targets_without_metric dihitung atas HIMPUNAN NILAI COLUMN_TARGET_PARAMETER, bukan atas jumlah entri — memakai count() akan membuat 'Nut Silo Temperature' tampak terpakai dua kali dan satu standar lain tampak tak terpakai.",
     "shares_standard_with DITURUNKAN DARI KONSTANTA, bukan ditulis tangan: untuk kolom X, kumpulkan kolom lain yang COLUMN_TARGET_PARAMETER-nya sama dengan milik X. Ditulis tangan, ia akan berbohong begitu seseorang menambah kolom silo ketiga.",
-    "kernel_recovery_in_fibre_percent SENGAJA TIDAK ADA PADA COLUMN_TARGET_PARAMETER — dan ini keputusan yang paling mudah 'diperbaiki' oleh pembaca berikutnya menjadi salah. Master menyebut standarnya 'Kernel Loss in Fibre' dengan target '< 0.50%' (kehilangan, makin kecil makin baik); kolomnya bernama recovery dan keempat layar input/detail Depricarping melabelinya 'Kernel Recovery in Fibre' (perolehan, lazimnya makin besar makin baik). Terverifikasi tidak ada data yang menyelesaikannya: DepricarpingDetailFactory mengisinya null, tidak ada seeder yang mengisinya, dan kueri langsung ke basis data dev mengembalikan NOL baris non-null. Memetakannya akan membuat laporan menilai dengan arah yang terbalik tanpa ada yang menyadarinya. Ada unit test yang mengunci ketidakhadirannya pada konstanta BESERTA alasannya.",
+    "kernel_loss_in_fibre_percent DIPETAKAN SEPERTI KEENAM KOLOM LAIN — tetapi sampai 2026-10-06 ia SENGAJA TIDAK ADA pada COLUMN_TARGET_PARAMETER, dan sejarahnya dicatat karena pemetaannya kini tampak biasa saja. Nama kolomnya dulu kernel_recovery_in_fibre_percent dan keempat layar input/detail Depricarping melabelinya 'Kernel Recovery in Fibre' (perolehan, lazimnya makin besar makin baik), sementara masternya menyebut 'Kernel Loss in Fibre' dengan target '< 0.50%' (kehilangan, makin kecil makin baik). Kedua pembacaan menuntut skala angka yang berbeda sekitar DUA RATUS kali, jadi memetakannya akan membuat laporan menilai dengan arah TERBALIK tanpa ada yang menyadarinya — dan terverifikasi tidak ada data yang menyelesaikannya: factory mengisinya null, tidak ada seeder yang mengisinya, dan depricarping_details kosong total di basis data dev. Laporan karena itu menerbitkan ketimpangannya alih-alih menebak. Diputuskan user memakai penamaan master; migrasi 2026_10_06_000001 me-rename kolomnya, migrasi SQLite lokal migrateDepricarpingDetailKernelLossRename() menyusulnya di perangkat, dan medan target.unmapped_reason beserta nilai reason 'direction_unresolved' ikut dihapus karena tidak ada kolom yang dapat berada dalam keadaan itu lagi. JANGAN MENGEMBALIKAN NAMA KOLOMNYA tanpa mengembalikan masternya — itu membuka kembali lubang yang sama; ada unit test yang mengunci pemetaannya.",
     "BLOK DOWNTIME ADALAH BAGIAN BARU YANG TIDAK ADA PADANANNYA pada Threshing maupun Pressing, karena di sana downtime hanya berupa teks. total_minutes dijumlahkan atas slot yang kolom itu TERISI saja dan menjadi NULL — bukan 0 — bila tidak ada satu pun slot yang mencatat. Dua kekeliruan yang mungkin dan keduanya diuji: memperlakukan slot yang tidak mencatat sebagai nol menit (membuat rata-rata mengecil seiring bertambahnya slot yang tidak dicatat), dan memperlakukan nilai 0 yang tercatat sebagai tidak tercatat (membuang pernyataan Operator bahwa tidak ada berhenti).",
     "findings DIREKAP SEPERTI downtime_reason PADA DUA LAPORAN SEBELUMNYA — harfiah, tanpa normalisasi — dan sengaja TIDAK digabungkan dengan blok downtime. Penggabungan akan membuat slot yang punya keduanya terhitung dua kali pada satu pengertian, dan menghilangkan kemampuan menjawab 'berapa lama' secara terpisah dari 'apa yang terlihat'. Pengurutan memakai satu komparator: slot_count menurun lalu strcmp menaik — Laravel sortBy([closure, closure]) BUKAN API itu, kekeliruan yang sudah terjadi sekali pada screen-148.",
     "DepricarpingRecordService PERLU DUA PERUBAHAN KECIL: tambahkan public const READING_FIELDS (sembilan kolom: ketujuh kolom ukur, downtime_minutes, findings) dan ubah isRowFilled() dari protected menjadi public, dengan isinya berputar atas READING_FIELDS alih-alih rantai || yang ditulis tangan. Presedennya BoilerRoomRecordService, lalu Threshing dan Pressing. Laporan WAJIB memakai fungsi itu, bukan menurunkan ulang definisi 'terisi' — dua definisi yang berselisih berarti cakupan di laporan tidak akan sama dengan apa yang diterima layar input.",
@@ -1434,7 +1433,7 @@
       }
     },
     {
-      "scenario_ref": "Kernel recovery dilaporkan tanpa standar, dan standarnya muncul sebagai temuan",
+      "scenario_ref": "Kernel loss membawa standarnya, dan bagian standar-tanpa-pengukuran dinyatakan kosong",
       "usecase_id": "usecase-155--laporan-depricarping-web",
       "api_test": [
         {
@@ -1453,13 +1452,13 @@
       ],
       "component_test": {
         "component": "LaporanDepricarping",
-        "action": "mount dengan kolom kernel recovery terisi dan master tersemai",
-        "assert": "baris kernel recovery menampilkan angkanya DAN keterangan bahwa standarnya tidak dipasangkan beserta sebabnya; bagian standar-tanpa-pengukuran memuat SATU baris 'Kernel Loss in Fibre' dengan alasan pertentangan arah"
+        "action": "mount dengan kolom kernel loss terisi dan master tersemai",
+        "assert": "baris kernel loss menampilkan angkanya BESERTA ketiga kolom targetnya, dan TIDAK ada keterangan 'standar tidak dipasangkan' di mana pun; bagian standar-tanpa-pengukuran tetap terender dengan keterangan bahwa seluruh standar sudah punya pengukuran (targets-all-measured), tanpa satu pun baris"
       },
       "browser_test": {
         "route": "/reports/depricarping",
         "action": "buka laporan",
-        "assert": "bagian standar-tanpa-pengukuran terlihat dengan tepat satu baris, dan alasannya terbaca — bukan hanya nama parameternya"
+        "assert": "bagian standar-tanpa-pengukuran terlihat dalam keadaan kosong beserta keterangannya — bagian yang hilang tidak dapat dibedakan dari bagian yang belum pernah dibuat, dan di situlah parameter master yang namanya disunting akan muncul"
       }
     },
     {

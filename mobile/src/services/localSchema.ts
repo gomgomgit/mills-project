@@ -469,7 +469,7 @@ const CREATE_DEPRICARPING_DETAIL = `
     polishing_drum_speed_rpm REAL,
     air_velocity_ms REAL,
     fibre_moisture_percent REAL,
-    kernel_recovery_in_fibre_percent REAL,
+    kernel_loss_in_fibre_percent REAL,
     nut_silo_1_temp_c REAL,
     nut_silo_2_temp_c REAL,
     downtime_minutes INTEGER,
@@ -1295,6 +1295,7 @@ export async function initLocalSchema(): Promise<void> {
   await migrateRecordTablesForVerifierNames()
   await migrateMillSettingForImmediateSync()
   await migrateRecordTablesForSyncError()
+  await migrateDepricarpingDetailKernelLossRename()
   await normalizeLegacyUtcDates()
   await dedupeStationRows()
 }
@@ -1309,6 +1310,46 @@ export async function initLocalSchema(): Promise<void> {
  * created moments earlier in the same `initLocalSchema()` call (it already
  * has every column, so nothing to add).
  */
+/**
+ * depricarping_detail.kernel_recovery_in_fibre_percent
+ *   -> kernel_loss_in_fibre_percent (2026-10-06)
+ *
+ * WAJIB ADA, bukan pelengkap. CREATE TABLE IF NOT EXISTS di atas tidak
+ * menyentuh tabel yang sudah ada, dan basis data lokal ini PERSISTEN
+ * (@capacitor-community/sqlite di perangkat, jeep-sqlite di web). Tanpa
+ * migrasi ini, perangkat yang sudah pernah membuka formulir Depricarping
+ * tetap memegang kolom bernama lama sementara kode baru menulis nama baru —
+ * dan setiap penyimpanan draft akan gagal di perangkat itu saja, tidak
+ * pernah di perangkat baru maupun di test.
+ *
+ * Alasan rename-nya ada pada migrasi server
+ * 2026_10_06_000001_rename_kernel_recovery_to_kernel_loss_on_depricarping_details:
+ * master menyebut parameternya 'Kernel Loss in Fibre' (sebuah KEHILANGAN,
+ * target '< 0.50%') sementara kolom dan labelnya menyebutnya perolehan, dan
+ * kedua pembacaan menuntut skala angka yang berbeda ~200 kali. Diputuskan
+ * user 2026-10-06: master yang benar.
+ *
+ * ALTER TABLE ... RENAME COLUMN tersedia sejak SQLite 3.25; dijaga oleh
+ * pemeriksaan PRAGMA supaya idempoten dan supaya pemasangan baru — yang
+ * tabelnya sudah dibuat dengan nama baru — melewatinya tanpa galat.
+ */
+async function migrateDepricarpingDetailKernelLossRename(): Promise<void> {
+  const existing = await query<{ name: string }>('PRAGMA table_info(depricarping_detail)')
+  const names = new Set(existing.map((column) => column.name))
+
+  // Tabel belum ada, atau sudah memakai nama baru: tidak ada yang perlu
+  // dikerjakan. Memeriksa KEDUANYA, bukan hanya nama lama: tabel yang entah
+  // bagaimana memegang dua-duanya tidak boleh di-rename lagi dan membentur
+  // kolom yang sudah ada.
+  if (!names.has('kernel_recovery_in_fibre_percent') || names.has('kernel_loss_in_fibre_percent')) {
+    return
+  }
+
+  await run(
+    'ALTER TABLE depricarping_detail RENAME COLUMN kernel_recovery_in_fibre_percent TO kernel_loss_in_fibre_percent',
+  )
+}
+
 async function addMissingColumns(
   table: string,
   expectedColumns: Array<{ name: string; type: string }>,

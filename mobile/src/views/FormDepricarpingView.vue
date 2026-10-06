@@ -212,7 +212,7 @@ function dirtySnapshot(): string {
     polishing_drum_speed_rpm: row.polishing_drum_speed_rpm,
     air_velocity_ms: row.air_velocity_ms,
     fibre_moisture_percent: row.fibre_moisture_percent,
-    kernel_recovery_in_fibre_percent: row.kernel_recovery_in_fibre_percent,
+    kernel_loss_in_fibre_percent: row.kernel_loss_in_fibre_percent,
     nut_silo_1_temp_c: row.nut_silo_1_temp_c,
     nut_silo_2_temp_c: row.nut_silo_2_temp_c,
     downtime_minutes: row.downtime_minutes,
@@ -273,7 +273,7 @@ function populateDetailRows(rows: DepricarpingDraftWithDetails['details']): void
     polishing_drum_speed_rpm: row.polishing_drum_speed_rpm ?? null,
     air_velocity_ms: row.air_velocity_ms ?? null,
     fibre_moisture_percent: row.fibre_moisture_percent ?? null,
-    kernel_recovery_in_fibre_percent: row.kernel_recovery_in_fibre_percent ?? null,
+    kernel_loss_in_fibre_percent: row.kernel_loss_in_fibre_percent ?? null,
     nut_silo_1_temp_c: row.nut_silo_1_temp_c ?? null,
     nut_silo_2_temp_c: row.nut_silo_2_temp_c ?? null,
     downtime_minutes: row.downtime_minutes ?? null,
@@ -381,7 +381,7 @@ function addDetailRow(): void {
     polishing_drum_speed_rpm: null,
     air_velocity_ms: null,
     fibre_moisture_percent: null,
-    kernel_recovery_in_fibre_percent: null,
+    kernel_loss_in_fibre_percent: null,
     nut_silo_1_temp_c: null,
     nut_silo_2_temp_c: null,
     downtime_minutes: null,
@@ -431,7 +431,7 @@ function isRowFilled(row: DepricarpingDetailFormRow): boolean {
     row.polishing_drum_speed_rpm !== null ||
     row.air_velocity_ms !== null ||
     row.fibre_moisture_percent !== null ||
-    row.kernel_recovery_in_fibre_percent !== null ||
+    row.kernel_loss_in_fibre_percent !== null ||
     row.nut_silo_1_temp_c !== null ||
     row.nut_silo_2_temp_c !== null ||
     row.downtime_minutes !== null ||
@@ -838,8 +838,8 @@ function goToMonitorDepricarping(): void {
             :disabled="actionInProgress"
           />
           <FormField
-            v-model="row.kernel_recovery_in_fibre_percent"
-            label="Kernel Recovery in Fibre (%)"
+            v-model="row.kernel_loss_in_fibre_percent"
+            label="Kernel Loss in Fibre (%)"
             type="number"
             :id="`kernel-recovery-${index}`"
             :data-testid="`kernel-recovery-${index}`"

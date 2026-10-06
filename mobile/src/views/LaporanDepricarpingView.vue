@@ -64,17 +64,21 @@
  *    "membersihkannya". Label saudara kolomnya diambil dari metrics[].label
  *    pada payload, bukan dari peta yang ditulis ulang di sini.
  *
- * 3. SATU STANDAR TAMPIL TANPA ANGKA DAN SATU ANGKA TAMPIL TANPA STANDAR,
- *    dengan sengaja — temuan yang paling perlu dibaca manusia di layar ini.
- *    Master menyebut standarnya 'Kernel Loss in Fibre', target '< 0,50%'
- *    (sebuah KEHILANGAN, makin kecil makin baik); kolomnya bernama
+ * 3. SETIAP PARAMETER KINI MEMBAWA STANDARNYA, dan yang dulu tidak layak
+ *    diingat. Sampai 2026-10-06 kolom ketujuh bernama
  *    kernel_recovery_in_fibre_percent dan keempat layar input/detail
- *    Depricarping melabelinya PEROLEHAN. Berlawanan arah, dan tidak ada apa pun
- *    di sistem yang menyelesaikannya. Jadi kartunya menampilkan angkanya di
- *    bawah label kolomnya sendiri beserta keterangan bahwa standarnya tidak
- *    dipasangkan, dan standarnya muncul di bagian standar-tanpa-pengukuran
- *    dengan ALASANNYA. Dibaca dari target.unmapped_reason, BUKAN disimpulkan
- *    dari nama kolom di sini.
+ *    Depricarping melabelinya PEROLEHAN, sementara standar masternya sendiri
+ *    'Kernel Loss in Fibre' dengan target '< 0,50%' — sebuah KEHILANGAN,
+ *    makin kecil makin baik. Kedua pembacaan menuntut skala angka yang
+ *    berbeda sekitar DUA RATUS kali (0-2% untuk kehilangan, 90-100% untuk
+ *    perolehan), jadi memasangkannya akan membuat layar ini mengumumkan
+ *    pelanggaran atas stasiun yang sebenarnya berkinerja baik — penilaian
+ *    dengan arah TERBALIK pada angka yang tetap terlihat masuk akal. Layar
+ *    menerbitkan ketimpangannya alih-alih menebak; user memutuskan memakai
+ *    penamaan master, dan kolomnya di-rename (migrasi 2026_10_06_000001).
+ *    Bersamanya, medan target.unmapped_reason ikut dihapus: medan yang hanya
+ *    bisa bernilai null menyisakan cabang yang tidak dapat dicapai, dan
+ *    pembaca berikutnya akan mencari kasus yang sudah tidak ada.
  *
  *    Bagian standar-tanpa-pengukuran itu DIGAMBAR WALAU KOSONG (dibaca dari
  *    all_targets_measured), karena bagian yang hilang tidak dapat dibedakan
@@ -1216,47 +1220,29 @@ function onBack(): void {
                    dilewati" karena teksnya paling panjang — padahal itulah
                    yang membedakan parameter mana yang mendesak. Ketiganya
                    dirender verbatim dan PENUH, tanpa pemotongan. -->
-              <template v-if="metric.target.unmapped_reason !== null">
-                <!-- SENGAJA TIDAK DIPASANGKAN. Master menyebut standarnya
-                     "Kernel Loss in Fibre" (sebuah KEHILANGAN, target
-                     "< 0,50%") sementara kolom ini dan keempat layar input
-                     Depricarping melabelinya PEROLEHAN. Memasangkannya akan
-                     membuat layar ini menilai dengan arah TERBALIK tanpa ada
-                     yang menyadarinya. Dibaca dari unmapped_reason, BUKAN
-                     disimpulkan dari nama kolom di sini. -->
-                <span class="metric-standard" data-testid="metric-unmapped">
-                  <small>Standar</small>
-                  <span class="metric-value--na">
-                    tidak dipasangkan &mdash; master menyebutnya kehilangan, kolom ini
-                    menyebutnya perolehan; lihat bagian Standar yang Belum Diukur Sistem
-                  </span>
+              <span class="metric-standard" data-testid="metric-target-range">
+                <small>Rentang target</small>
+                <span :class="{ 'metric-value--na': metric.target.target_range === null }">
+                  {{ metric.target.target_range ?? 'rentang target belum terisi pada master' }}
                 </span>
-              </template>
-              <template v-else>
-                <span class="metric-standard" data-testid="metric-target-range">
-                  <small>Rentang target</small>
-                  <span :class="{ 'metric-value--na': metric.target.target_range === null }">
-                    {{ metric.target.target_range ?? 'rentang target belum terisi pada master' }}
-                  </span>
+              </span>
+              <span class="metric-standard" data-testid="metric-critical-limit">
+                <small>Batas kritis</small>
+                <span :class="{ 'metric-value--na': metric.target.critical_limit === null }">
+                  {{ metric.target.critical_limit ?? 'belum terisi' }}
                 </span>
-                <span class="metric-standard" data-testid="metric-critical-limit">
-                  <small>Batas kritis</small>
-                  <span :class="{ 'metric-value--na': metric.target.critical_limit === null }">
-                    {{ metric.target.critical_limit ?? 'belum terisi' }}
-                  </span>
+              </span>
+              <span class="metric-standard" data-testid="metric-consequence">
+                <small>Akibat bila dilewati</small>
+                <span
+                  :class="{
+                    'metric-value--na':
+                      metric.target.operational_consequence_justification === null,
+                  }"
+                >
+                  {{ metric.target.operational_consequence_justification ?? 'belum terisi' }}
                 </span>
-                <span class="metric-standard" data-testid="metric-consequence">
-                  <small>Akibat bila dilewati</small>
-                  <span
-                    :class="{
-                      'metric-value--na':
-                        metric.target.operational_consequence_justification === null,
-                    }"
-                  >
-                    {{ metric.target.operational_consequence_justification ?? 'belum terisi' }}
-                  </span>
-                </span>
-              </template>
+              </span>
 
               <!-- SATU STANDAR, DUA KOLOM. Di layar sempit kedua kartu nut
                    silo bertumpuk LANGSUNG berurutan, sehingga standar yang
@@ -1388,38 +1374,33 @@ function onBack(): void {
                   <small>Akibat bila dilewati</small>
                   <span>{{ target.operational_consequence_justification }}</span>
                 </span>
-                <!-- ALASANNYA IKUT DICETAK, bukan hanya namanya: "tidak ada
-                     kolomnya" menuntut kolom ukur baru, "arahnya belum pasti"
-                     menuntut keputusan penamaan. Dua tindakan yang berbeda. -->
+                <!-- ALASANNYA IKUT DICETAK, bukan hanya nama parameternya:
+                     pembaca perlu tahu tindakan apa yang diperlukan, bukan
+                     hanya bahwa ada yang tertinggal. Satu nilai sejak
+                     2026-10-06; lihat butir 3 pada docblock di atas. -->
                 <span class="metric-note" data-testid="targets-without-metric-reason">
-                  <template v-if="target.reason === 'direction_unresolved'">
-                    Ada kolomnya, <strong>arahnya belum pasti</strong>
-                  </template>
-                  <template v-else>
-                    <strong>Tidak ada kolom pengukurannya</strong> di skema
-                  </template>
+                  <strong>Tidak ada kolom pengukurannya</strong> di skema
                 </span>
               </article>
             </div>
 
             <p class="section-note" data-testid="targets-without-metric-note">
               <strong
-                >&ldquo;Kernel Loss in Fibre&rdquo; adalah temuan yang perlu diputuskan manusia,
-                bukan cacat laporan ini.</strong
+                >Parameter di atas punya standar pada master tetapi tidak punya kolom pengukuran
+                pada formulir Depricarping.</strong
               >
-              Master menyebut standarnya sebuah <strong>kehilangan</strong> &mdash; target
-              &ldquo;&lt; 0,50%&rdquo;, batas &ldquo;&gt; 1,00%&rdquo;, makin kecil makin baik.
-              Kolom yang tersedia bernama <code>kernel_recovery_in_fibre_percent</code>, dan keempat
-              layar input serta detail Depricarping melabelinya <strong>perolehan</strong> &mdash;
-              yang lazimnya makin besar makin baik. Dua pembingkaian yang
-              <strong>berlawanan arah</strong> atas kuantitas yang sama, dan hanya satu yang bisa
-              benar. Tidak ada apa pun di sistem yang menyelesaikannya: kolom itu
-              <strong>belum pernah terisi satu nilai pun</strong>. Karena itu laporan ini
-              <strong>tidak memasangkan</strong> angkanya dengan standar tersebut &mdash; menebak
-              akan membuat layar ini menilai dengan arah terbalik tanpa ada yang menyadarinya.
-              Parameter yang muncul di sini dengan alasan <strong>tidak ada kolom
-              pengukurannya</strong> adalah hal yang berbeda, termasuk bila nama parameter pada
-              master diubah ejaannya &mdash; keterlepasan itu sengaja terlihat di sini.
+              Ditampilkan justru karena itu: <strong>standar yang tidak pernah diukur terbaca
+              seperti terpenuhi</strong>, padahal ia sekadar tidak ada. Baris di sini juga muncul
+              bila <strong>nama parameter pada master diubah ejaannya</strong> &mdash; pemetaan
+              kolom ke parameter bersifat tetap dan tidak mencocokkan teks, jadi ejaan yang berubah
+              membuat pasangannya terlepas. Angka hasil ukurnya tetap utuh, dan keterlepasan itu
+              sengaja terlihat di sini.
+              <strong>Sejak 2026-10-06 daftar ini normalnya kosong</strong>: keenam parameter
+              master sudah punya kolom pengukurannya. Sebelum tanggal itu
+              &ldquo;Kernel Loss in Fibre&rdquo; ada di sini, karena kolomnya dulu bernama
+              <i>recovery</i> sementara masternya menyebut <i>loss</i> &mdash; dua pembingkaian
+              yang berlawanan arah atas kuantitas yang sama. Diputuskan memakai penamaan master,
+              dan kolomnya di-rename.
             </p>
           </template>
         </section>

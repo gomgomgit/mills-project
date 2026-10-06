@@ -85,7 +85,7 @@ beforeEach(function () {
 dataset('stations', [
     'threshing' => [ThreshingRecordService::class, ThreshingRecord::class, ThreshingDetail::class, 'threshing_record_id', 'Drum Speed (RPM)', 7, 7],
     'pressing' => [PressingRecordService::class, PressingRecord::class, PressingDetail::class, 'pressing_record_id', 'Digester Temp (°C)', 7, 7],
-    'depricarping' => [DepricarpingRecordService::class, DepricarpingRecord::class, DepricarpingDetail::class, 'depricarping_record_id', 'Kernel Recovery in Fibre (%)', 7, 10],
+    'depricarping' => [DepricarpingRecordService::class, DepricarpingRecord::class, DepricarpingDetail::class, 'depricarping_record_id', 'Kernel Loss in Fibre (%)', 7, 10],
     'kernel plant' => [KernelPlantRecordService::class, KernelPlantRecord::class, KernelPlantDetail::class, 'kernel_plant_record_id', 'Shell Loss (%)', 7, 10],
     'clarification' => [ClarificationRecordService::class, ClarificationRecord::class, ClarificationDetail::class, 'clarification_record_id', 'Pure Oil Production Rate (Ton/Hour)', 7, 8],
     'storage tank' => [StorageTankRecordService::class, StorageTankRecord::class, StorageTankDetail::class, 'storage_tank_record_id', 'Calculated Weight (MT)', 7, 18],

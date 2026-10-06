@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-05"
+    "updated_at": "2026-10-06"
   },
   "id": "screen-059--form-depricarping-web",
   "name": "Form Depricarping (Web)",
@@ -46,7 +46,7 @@
               "note": "string, optional",
               "checked": "boolean, optional",
               "acknowledged": "boolean, optional",
-              "details": "array of 1..24 {time_slot: string HH:00 (harus salah satu dari 24 slot kanonis, unik, urutan menaik), fan_static_pressure_mmh2o?: float, polishing_drum_speed_rpm?: float, air_velocity_ms?: float, fibre_moisture_percent?: float, kernel_recovery_in_fibre_percent?: float, nut_silo_1_temp_c?: float, nut_silo_2_temp_c?: float, downtime_minutes?: integer, findings?: string}, required, minimal 1 baris dengan minimal 1 dari 8 kolom bacaan terisi"
+              "details": "array of 1..24 {time_slot: string HH:00 (harus salah satu dari 24 slot kanonis, unik, urutan menaik), fan_static_pressure_mmh2o?: float, polishing_drum_speed_rpm?: float, air_velocity_ms?: float, fibre_moisture_percent?: float, kernel_loss_in_fibre_percent?: float, nut_silo_1_temp_c?: float, nut_silo_2_temp_c?: float, downtime_minutes?: integer, findings?: string}, required, minimal 1 baris dengan minimal 1 dari 8 kolom bacaan terisi"
             }
           },
           "response": {
@@ -127,7 +127,7 @@
               "note": "string, optional",
               "checked": "boolean, optional",
               "acknowledged": "boolean, optional",
-              "details": "array of 1..24 {id?: uuid (ada jika baris existing), time_slot: string, fan_static_pressure_mmh2o?: float, polishing_drum_speed_rpm?: float, air_velocity_ms?: float, fibre_moisture_percent?: float, kernel_recovery_in_fibre_percent?: float, nut_silo_1_temp_c?: float, nut_silo_2_temp_c?: float, downtime_minutes?: integer, findings?: string}, required"
+              "details": "array of 1..24 {id?: uuid (ada jika baris existing), time_slot: string, fan_static_pressure_mmh2o?: float, polishing_drum_speed_rpm?: float, air_velocity_ms?: float, fibre_moisture_percent?: float, kernel_loss_in_fibre_percent?: float, nut_silo_1_temp_c?: float, nut_silo_2_temp_c?: float, downtime_minutes?: integer, findings?: string}, required"
             }
           },
           "response": {
@@ -456,7 +456,8 @@
     "checked/acknowledged self-attestation checkboxes mengikuti pola dual-checkbox FormPressing (BAIK Checked By MAUPUN Acknowledged By), berbeda dari Form Weighbridge/Grading Web yang hanya punya Acknowledged",
     "Detail upsert (insert/update/delete) dijalankan dalam DB transaction agar konsisten, sama pola dengan Pressing/Threshing/Cages Track/Grading Detail",
     "KUNCI PERIODE (usecase-141; kode sudah ada sejak 49dc0c5, spec disinkronkan 2026-10-03): ditegakkan di DepricarpingRecordService::create() (1 cek, tanggal baru) dan update() (2 cek, tanggal lama + baru) via trait App\\Support\\Concerns\\EnforcesPeriodLock; exception App\\Exceptions\\PeriodClosedException (HttpException 422, PERIOD_CLOSED). Berlaku sama untuk API (DepricarpingRecordController store/update) dan Livewire FormDepricarping::save() (catch HttpException -> $generalError). Cakupan test: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist, 4 pesan, inklusif, per jenis stasiun, per mill, tanggal kosong, plus cek statis bahwa ke-18 *RecordService memanggil guard >=1x di create dan >=2x di update) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end lewat jalur Sterilizer). Test per-layar (tests/Unit/Services/DepricarpingRecordServiceTest.php, tests/Feature/Api/FormDepricarpingTest.php, tests/Feature/Livewire/FormDepricarpingTest.php) hanya membuka periode sebagai prasyarat (openPeriodFor()/openPeriodForStation() di tests/Pest.php); 3 unit_test_cases kunci periode di atas adalah spesifikasi, belum ada sebagai test khusus stasiun ini",
-    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): DepricarpingRecordService create/update memanggil assertEventDateNotTooFarAhead('date') (tanggal > besok WIB -> 422 inline; create sebelum kunci periode, update di antara cek tanggal lama dan baru); upsertDetails() memeriksa Str::isUuid(id baris) sebelum query (id rusak = baris baru); production_line_id bukan-UUID -> 422 di ScopesToActorMill; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422 VALIDATION_ERROR, lainnya 500 generik tanpa SQL; zona aplikasi Asia/Jakarta (config/app.php) dan tanggal kunci periode diturunkan dalam WIB. FormDepricarping memakai trait GuardsRecordIdShape (id bukan UUID -> 'Record tidak ditemukan.'). View form tidak berubah (tidak ada input/select disabled; tombol Tambah Baris tetap @disabled saat batas baris — bukan kontrol isian). Tes: tests/Feature/Livewire/RecordIdShapeGuardTest.php, tests/Feature/Livewire/WebFormNoDisabledFieldTest.php (cek statis semua view form)."
+    "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): DepricarpingRecordService create/update memanggil assertEventDateNotTooFarAhead('date') (tanggal > besok WIB -> 422 inline; create sebelum kunci periode, update di antara cek tanggal lama dan baru); upsertDetails() memeriksa Str::isUuid(id baris) sebelum query (id rusak = baris baru); production_line_id bukan-UUID -> 422 di ScopesToActorMill; ApiExceptionHandler: QueryException 22P02/22007/22008 -> 422 VALIDATION_ERROR, lainnya 500 generik tanpa SQL; zona aplikasi Asia/Jakarta (config/app.php) dan tanggal kunci periode diturunkan dalam WIB. FormDepricarping memakai trait GuardsRecordIdShape (id bukan UUID -> 'Record tidak ditemukan.'). View form tidak berubah (tidak ada input/select disabled; tombol Tambah Baris tetap @disabled saat batas baris — bukan kontrol isian). Tes: tests/Feature/Livewire/RecordIdShapeGuardTest.php, tests/Feature/Livewire/WebFormNoDisabledFieldTest.php (cek statis semua view form).",
+    "RENAME KOLOM 2026-10-06 (migrasi 2026_10_06_000001): kernel_recovery_in_fibre_percent -> kernel_loss_in_fibre_percent pada payload create/update DAN label grid ('Kernel Recovery in Fibre' -> 'Kernel Loss in Fibre'). Tabel Target Operasional yang tampil di bawah form ini menyebut parameternya 'Kernel Loss in Fibre' dengan target '< 0.50%' dan batas '> 1.00%' — sebuah KEHILANGAN yang makin kecil makin baik — sementara label lama menyebutnya PEROLEHAN, sehingga form ini memberi dua instruksi yang bertentangan pada satu layar. Kedua pembacaan menuntut skala angka yang berbeda sekitar dua ratus kali, jadi Operator yang mengikuti label dan Operator yang mengikuti tabel target akan memasukkan angka yang tidak sebanding. Ditemukan saat membangun laporan periode Depricarping (screen-152/153); diputuskan user memakai penamaan master."
   ],
   "test_scenarios": [
     {

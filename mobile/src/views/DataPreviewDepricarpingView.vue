@@ -527,7 +527,7 @@ function goToMonitorDepricarping(): void {
                 <span>Polishing Drum Speed: {{ row.polishing_drum_speed_rpm ?? '-' }}</span>
                 <span>Air Velocity: {{ row.air_velocity_ms ?? '-' }}</span>
                 <span>Fibre Moisture: {{ row.fibre_moisture_percent ?? '-' }}</span>
-                <span>Kernel Recovery in Fibre: {{ row.kernel_recovery_in_fibre_percent ?? '-' }}</span>
+                <span>Kernel Loss in Fibre: {{ row.kernel_loss_in_fibre_percent ?? '-' }}</span>
                 <span>Nut Silo 1 Temp: {{ row.nut_silo_1_temp_c ?? '-' }}</span>
                 <span>Nut Silo 2 Temp: {{ row.nut_silo_2_temp_c ?? '-' }}</span>
                 <span>Downtime (Mins): {{ row.downtime_minutes ?? '-' }}</span>

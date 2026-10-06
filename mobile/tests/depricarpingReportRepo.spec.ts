@@ -82,7 +82,6 @@ function summaryPayload(overrides: Record<string, unknown> = {}): Record<string,
           critical_limit: '< 35 or > 55 mmH2O',
           operational_consequence_justification: 'Low pressure drops fibre early (heavy losses).',
           shares_standard_with: [],
-          unmapped_reason: null,
         },
       },
       {
@@ -99,7 +98,6 @@ function summaryPayload(overrides: Record<string, unknown> = {}): Record<string,
           critical_limit: null,
           operational_consequence_justification: null,
           shares_standard_with: [],
-          unmapped_reason: null,
         },
       },
       {
@@ -116,7 +114,6 @@ function summaryPayload(overrides: Record<string, unknown> = {}): Record<string,
           critical_limit: '< 10 or > 16 m/s',
           operational_consequence_justification: 'Controls the pneumatic separation gap.',
           shares_standard_with: [],
-          unmapped_reason: null,
         },
       },
       {
@@ -133,29 +130,26 @@ function summaryPayload(overrides: Record<string, unknown> = {}): Record<string,
           critical_limit: '> 40%',
           operational_consequence_justification: 'High moisture reduces boiler efficiency.',
           shares_standard_with: [],
-          unmapped_reason: null,
         },
       },
       {
-        // SENGAJA TIDAK DIPETAKAN ke standar mana pun: master menyebut
-        // standarnya "Kernel Loss in Fibre" (sebuah KEHILANGAN, target
-        // "< 0.50%") sementara kolom ini dan keempat layar input Depricarping
-        // melabelinya PEROLEHAN. Repo harus meneruskan unmapped_reason apa
-        // adanya, BUKAN menyimpulkannya dari nama kolom.
-        column: 'kernel_recovery_in_fibre_percent',
-        label: 'Kernel Recovery in Fibre',
+        // Angkanya pada skala KEHILANGAN (0-2%), arah yang diputuskan
+        // 2026-10-06 lewat rename kolom. Nilai pada skala perolehan
+        // (90-100%) akan terbaca sebagai pelanggaran berat terhadap batas
+        // '> 1.00%'.
+        column: 'kernel_loss_in_fibre_percent',
+        label: 'Kehilangan Kernel di Fibre',
         unit: '%',
         min: 0.3,
         avg: 0.5,
         max: 0.7,
         filled_slot_count: 1,
         target: {
-          parameter_metric: null,
-          target_range: null,
-          critical_limit: null,
-          operational_consequence_justification: null,
+          parameter_metric: 'Kernel Loss in Fibre',
+          target_range: '< 0.50%',
+          critical_limit: '> 1.00%',
+          operational_consequence_justification: 'Direct operational revenue loss.',
           shares_standard_with: [],
-          unmapped_reason: 'direction_unresolved',
         },
       },
       {
@@ -175,7 +169,6 @@ function summaryPayload(overrides: Record<string, unknown> = {}): Record<string,
           critical_limit: '< 55C or > 75C',
           operational_consequence_justification: 'Crucial for nut conditioning.',
           shares_standard_with: ['nut_silo_2_temp_c'],
-          unmapped_reason: null,
         },
       },
       {
@@ -192,7 +185,6 @@ function summaryPayload(overrides: Record<string, unknown> = {}): Record<string,
           critical_limit: '< 55C or > 75C',
           operational_consequence_justification: 'Crucial for nut conditioning.',
           shares_standard_with: ['nut_silo_1_temp_c'],
-          unmapped_reason: null,
         },
       },
     ],
@@ -200,12 +192,16 @@ function summaryPayload(overrides: Record<string, unknown> = {}): Record<string,
     // membedakan: di sini ada kolom yang namanya mirip tetapi arahnya
     // berlawanan, bukan "tidak ada kolomnya".
     targets_without_metric: [
+      // Satu parameter master yang memang tidak punya kolom ukur. Keadaan
+      // NORMAL sejak rename kolom kernel loss (2026-10-06) adalah daftar
+      // KOSONG — tetapi daftar kosong tidak dapat menguji bentuk barisnya,
+      // jadi fixture ini sengaja memberi satu penghuni yang sah.
       {
-        parameter_metric: 'Kernel Loss in Fibre',
-        target_range: '< 0.50%',
-        critical_limit: '> 1.00%',
-        operational_consequence_justification: 'Direct operational revenue loss.',
-        reason: 'direction_unresolved',
+        parameter_metric: 'Shell Content in Kernel',
+        target_range: '< 6%',
+        critical_limit: '> 8%',
+        operational_consequence_justification: 'Rejected by refinery on contract spec.',
+        reason: 'no_column',
       },
     ],
     all_targets_measured: false,
@@ -510,7 +506,7 @@ describe('standar operasional', () => {
       'polishing_drum_speed_rpm',
       'air_velocity_ms',
       'fibre_moisture_percent',
-      'kernel_recovery_in_fibre_percent',
+      'kernel_loss_in_fibre_percent',
       'nut_silo_1_temp_c',
       'nut_silo_2_temp_c',
     ])
@@ -539,35 +535,36 @@ describe('standar operasional', () => {
       'polishing_drum_speed_rpm',
       'air_velocity_ms',
       'fibre_moisture_percent',
-      'kernel_recovery_in_fibre_percent',
+      'kernel_loss_in_fibre_percent',
     ]) {
       expect(byColumn.get(column)?.target.shares_standard_with).toEqual([])
     }
   })
 
-  it('meneruskan unmapped_reason apa adanya, tanpa menyimpulkannya dari nama kolom', async () => {
+  it('kernel loss kini membawa standarnya, dan TIDAK ada medan unmapped_reason', async () => {
     getMock.mockResolvedValue({ data: summaryPayload() })
 
     const metrics = (await fetchSummary('per-1', { productionLineId: 'pl-1' })).metrics
     const byColumn = new Map(metrics.map((metric) => [metric.column, metric]))
 
-    const kernel = byColumn.get('kernel_recovery_in_fibre_percent')
+    const kernel = byColumn.get('kernel_loss_in_fibre_percent')
 
-    // ANGKANYA TETAP ADA — tidak dipetakan bukan berarti tidak dilaporkan.
     expect(kernel?.avg).toBe(0.5)
     expect(kernel?.filled_slot_count).toBe(1)
 
-    // Standarnya TIDAK dipasangkan, dan alasannya diteruskan sebagai medan.
-    // Pencocokan nama kolom di klien akan pecah SENYAP begitu server mengubah
-    // keputusannya — dan keputusan itu memang sedang menunggu manusia.
-    expect(kernel?.target.parameter_metric).toBeNull()
-    expect(kernel?.target.unmapped_reason).toBe('direction_unresolved')
+    // TERPETAKAN sejak rename kolom 2026-10-06. Sebelum itu medan
+    // target.unmapped_reason menandai bahwa standarnya sengaja tidak
+    // dipasangkan; medan itu dihapus bersama rename, karena medan yang hanya
+    // bisa bernilai null menyisakan cabang yang tidak dapat dicapai di layar.
+    expect(kernel?.target.parameter_metric).toBe('Kernel Loss in Fibre')
+    expect(kernel?.target.target_range).toBe('< 0.50%')
+    expect(kernel?.target.critical_limit).toBe('> 1.00%')
 
-    // Dan null pada keenam metrik lain.
+    // Diasersi atas KETIADAAN medannya pada SETIAP metrik, bukan atas
+    // nilainya null — medan yang kembali tanpa disadari akan lolos dari
+    // asersi "nilainya null".
     for (const metric of metrics) {
-      if (metric.column !== 'kernel_recovery_in_fibre_percent') {
-        expect(metric.target.unmapped_reason).toBeNull()
-      }
+      expect(metric.target).not.toHaveProperty('unmapped_reason')
     }
   })
 
@@ -577,18 +574,17 @@ describe('standar operasional', () => {
     const summary = await fetchSummary('per-1', { productionLineId: 'pl-1' })
 
     expect(summary.targets_master_empty).toBe(false)
-    // SATU entri, bukan dua seperti pada Pressing — dan ALASANNYA yang
-    // membedakan jenisnya.
     expect(summary.targets_without_metric).toHaveLength(1)
     expect(summary.targets_without_metric.map((row) => row.parameter_metric))
-      .toEqual(['Kernel Loss in Fibre'])
+      .toEqual(['Shell Content in Kernel'])
     expect(summary.all_targets_measured).toBe(false)
-    expect(summary.targets_without_metric[0].target_range).toBe('< 0.50%')
-    expect(summary.targets_without_metric[0].critical_limit).toBe('> 1.00%')
-    // KEEMPAT kolom master diteruskan, bukan hanya namanya — DAN alasannya.
+    expect(summary.targets_without_metric[0].target_range).toBe('< 6%')
+    expect(summary.targets_without_metric[0].critical_limit).toBe('> 8%')
+    // KEEMPAT kolom master diteruskan, bukan hanya namanya — DAN alasannya,
+    // karena pembaca perlu tahu tindakan apa yang diperlukan.
     expect(summary.targets_without_metric[0].operational_consequence_justification)
-      .toBe('Direct operational revenue loss.')
-    expect(summary.targets_without_metric[0].reason).toBe('direction_unresolved')
+      .toBe('Rejected by refinery on contract spec.')
+    expect(summary.targets_without_metric[0].reason).toBe('no_column')
   })
 
   it('TIDAK PERNAH membentuk satu pun kunci penilaian terhadap standar', async () => {

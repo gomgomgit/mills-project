@@ -125,7 +125,8 @@ function averages(values: Record<string, number | null> = {}): Record<string, nu
  * berbeda jauh (65 vs 85) supaya asersi "tidak dirata-ratakan" punya angka
  * yang jelas untuk ditolak (75).
  *
- * Kartu kernel recovery sengaja TANPA standar, dengan unmapped_reason terisi.
+ * Kartu kernel loss membawa standarnya seperti yang lain sejak rename kolom
+ * 2026-10-06; angkanya pada skala kehilangan, bukan perolehan.
  */
 function metrics(): Array<Record<string, unknown>> {
   return [
@@ -143,7 +144,6 @@ function metrics(): Array<Record<string, unknown>> {
         critical_limit: '< 35 or > 55 mmH2O',
         operational_consequence_justification: 'Low pressure drops fibre early (heavy losses).',
         shares_standard_with: [],
-        unmapped_reason: null,
       },
     },
     {
@@ -162,7 +162,6 @@ function metrics(): Array<Record<string, unknown>> {
         critical_limit: '< 18 or > 26 RPM',
         operational_consequence_justification: 'Higher speeds cause premature mechanical wear.',
         shares_standard_with: [],
-        unmapped_reason: null,
       },
     },
     {
@@ -179,7 +178,6 @@ function metrics(): Array<Record<string, unknown>> {
         critical_limit: '< 10 or > 16 m/s',
         operational_consequence_justification: 'Controls the pneumatic separation gap.',
         shares_standard_with: [],
-        unmapped_reason: null,
       },
     },
     {
@@ -197,26 +195,23 @@ function metrics(): Array<Record<string, unknown>> {
         operational_consequence_justification:
           'High moisture reduces downstream boiler combustion efficiency.',
         shares_standard_with: [],
-        unmapped_reason: null,
       },
     },
     {
-      // SENGAJA TANPA STANDAR — master menyebutnya kehilangan, kolom ini
-      // menyebutnya perolehan, dan tidak ada data yang menyelesaikannya.
-      column: 'kernel_recovery_in_fibre_percent',
-      label: 'Kernel Recovery in Fibre',
+      // Angkanya pada skala KEHILANGAN, arah yang diputuskan 2026-10-06.
+      column: 'kernel_loss_in_fibre_percent',
+      label: 'Kehilangan Kernel di Fibre',
       unit: '%',
       min: 0.42,
       avg: 0.42,
       max: 0.42,
       filled_slot_count: 1,
       target: {
-        parameter_metric: null,
-        target_range: null,
-        critical_limit: null,
-        operational_consequence_justification: null,
+        parameter_metric: 'Kernel Loss in Fibre',
+        target_range: '< 0.50%',
+        critical_limit: '> 1.00%',
+        operational_consequence_justification: 'Direct operational revenue loss.',
         shares_standard_with: [],
-        unmapped_reason: 'direction_unresolved',
       },
     },
     {
@@ -233,7 +228,6 @@ function metrics(): Array<Record<string, unknown>> {
         critical_limit: '< 55C or > 75C',
         operational_consequence_justification: 'Crucial for nut conditioning.',
         shares_standard_with: ['nut_silo_2_temp_c'],
-        unmapped_reason: null,
       },
     },
     {
@@ -250,7 +244,6 @@ function metrics(): Array<Record<string, unknown>> {
         critical_limit: '< 55C or > 75C',
         operational_consequence_justification: 'Crucial for nut conditioning.',
         shares_standard_with: ['nut_silo_1_temp_c'],
-        unmapped_reason: null,
       },
     },
   ]
@@ -279,16 +272,17 @@ function makeSummary(overrides: Record<string, unknown> = {}): Record<string, un
       period_running: true,
     },
     metrics: metrics(),
-    // SATU entri, bukan dua seperti pada Pressing — dan ALASANNYA yang
-    // membedakan jenisnya: ada kolom yang namanya mirip tetapi arahnya
-    // berlawanan, bukan "tidak ada kolomnya".
+    // Satu parameter master yang memang tidak punya kolom ukur. Keadaan
+    // NORMAL sejak rename kolom kernel loss (2026-10-06) adalah daftar
+    // KOSONG; fixture ini sengaja memberi satu penghuni yang sah supaya
+    // bentuk barisnya dan sel alasannya tetap teruji.
     targets_without_metric: [
       {
-        parameter_metric: 'Kernel Loss in Fibre',
-        target_range: '< 0.50%',
-        critical_limit: '> 1.00%',
-        operational_consequence_justification: 'Direct operational revenue loss.',
-        reason: 'direction_unresolved',
+        parameter_metric: 'Shell Content in Kernel',
+        target_range: '< 6%',
+        critical_limit: '> 8%',
+        operational_consequence_justification: 'Rejected by refinery on contract spec.',
+        reason: 'no_column',
       },
     ],
     targets_master_empty: false,
@@ -752,21 +746,28 @@ test.describe('Laporan Depricarping Mobile (screen-153)', () => {
     expect(await page.locator('body').innerText()).not.toContain('75,00')
   })
 
-  test('kartu kernel recovery menyatakan standarnya TIDAK dipasangkan', async ({ page }) => {
+  test('kartu kernel loss membawa standarnya, tanpa keterangan tidak-dipasangkan', async ({ page }) => {
     await stubApi(page)
     await openReport(page)
     await pickPeriod(page, 'per-1')
 
     const kernelCard = page.getByTestId('metric-card').nth(4)
 
-    // ANGKANYA TETAP ADA, di bawah label kolomnya sendiri.
-    await expect(kernelCard).toContainText('Kernel Recovery in Fibre')
+    await expect(kernelCard).toContainText('Kehilangan Kernel di Fibre')
     await expect(kernelCard).toContainText('0,42')
-    // Dan keterangan bahwa standarnya tidak dipasangkan — BUKAN sel target
-    // kosong, yang terbaca seperti master yang belum terisi.
-    await expect(kernelCard.getByTestId('metric-unmapped')).toHaveCount(1)
-    await expect(kernelCard).toContainText('tidak dipasangkan')
-    await expect(kernelCard.getByTestId('metric-target-range')).toHaveCount(0)
+
+    // TERPETAKAN sejak rename kolom 2026-10-06: sebelum itu kartu ini
+    // menampilkan "tidak dipasangkan" karena masternya menyebut KEHILANGAN
+    // sementara kolomnya menyebut PEROLEHAN, dan kedua pembacaan menuntut
+    // skala angka yang berbeda ~200 kali.
+    await expect(kernelCard.getByTestId('metric-target-range')).toHaveCount(1)
+    await expect(kernelCard.getByTestId('metric-critical-limit')).toHaveCount(1)
+    await expect(kernelCard.getByTestId('metric-consequence')).toHaveCount(1)
+    await expect(kernelCard).toContainText('< 0.50%')
+
+    // Dan keterangan lamanya sudah tidak ada sama sekali di halaman.
+    await expect(page.getByTestId('metric-unmapped')).toHaveCount(0)
+    expect(await page.locator('body').innerText()).not.toContain('tidak dipasangkan')
   })
 
   test('tidak ada satu pun kelas penanda di luar batas pada halaman', async ({ page }) => {
@@ -801,23 +802,23 @@ test.describe('Laporan Depricarping Mobile (screen-153)', () => {
     await openReport(page)
     await pickPeriod(page, 'per-1')
 
-    await expect(page.getByTestId('targets-without-metric')).toContainText('Kernel Loss in Fibre')
+    await expect(page.getByTestId('targets-without-metric')).toContainText('Shell Content in Kernel')
     // SATU baris, dan JUMLAHNYA diasersi — asersi "bagiannya ada" saja akan
     // tetap hijau walau entrinya hilang.
     await expect(page.getByTestId('targets-without-metric-row')).toHaveCount(1)
     // KEEMPAT kolom master ikut, termasuk justifikasinya.
-    await expect(page.getByTestId('targets-without-metric')).toContainText('< 0.50%')
-    await expect(page.getByTestId('targets-without-metric')).toContainText('> 1.00%')
+    await expect(page.getByTestId('targets-without-metric')).toContainText('< 6%')
+    await expect(page.getByTestId('targets-without-metric')).toContainText('> 8%')
     await expect(page.getByTestId('targets-without-metric'))
-      .toContainText('Direct operational revenue loss.')
+      .toContainText('Rejected by refinery on contract spec.')
     // ALASANNYA tercetak, bukan hanya nama parameternya: "ada kolomnya tapi
     // arahnya belum pasti" menuntut keputusan penamaan, "tidak ada kolomnya"
     // menuntut kolom baru. Dua tindakan yang berbeda.
     await expect(page.getByTestId('targets-without-metric-reason')).toHaveCount(1)
     await expect(page.getByTestId('targets-without-metric-reason'))
-      .toContainText('arahnya belum pasti')
+      .toContainText('Tidak ada kolom pengukurannya')
     await expect(page.getByTestId('targets-without-metric-note'))
-      .toContainText('berlawanan arah')
+      .toContainText('terbaca seperti terpenuhi')
     await expect(page.getByTestId('targets-master-empty')).toHaveCount(0)
   })
 

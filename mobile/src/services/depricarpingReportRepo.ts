@@ -78,24 +78,26 @@ import apiClient from '@/services/apiClient'
  *    TERBALIK. Repo ini tidak boleh membuat kunci penilaian semacam itu, dan
  *    ada test yang mengunci ketiadaannya.
  *
- * 2. `target.unmapped_reason` DAN `targets_without_metric[].reason` MEMBAWA
- *    TEMUAN YANG PALING PERLU DIBACA MANUSIA. Master menyebut standarnya
- *    'Kernel Loss in Fibre' dengan target '< 0.50%' — sebuah KEHILANGAN,
- *    makin kecil makin baik — sementara kolom yang tersedia bernama
- *    kernel_recovery_in_fibre_percent dan keempat layar input/detail
- *    Depricarping melabelinya PEROLEHAN. Dua pembingkaian yang BERLAWANAN
- *    atas kuantitas yang sama, dan tidak ada apa pun di sistem yang
- *    menyelesaikannya (kolom itu belum pernah terisi satu nilai pun).
+ * 2. `targets_without_metric[].reason` MENYATAKAN MENGAPA sebuah standar
+ *    belum terukur, dan sejak 2026-10-06 daftarnya normalnya KOSONG.
  *
- *    Server karena itu TIDAK memasangkan keduanya: angkanya tetap
- *    diterbitkan dengan target null dan unmapped_reason terisi, dan
- *    standarnya diterbitkan pada targets_without_metric dengan reason
- *    'direction_unresolved'. DIBACA DARI SINI, BUKAN DISIMPULKAN DARI NAMA
- *    KOLOM DI KLIEN — pencocokan nama di klien akan pecah senyap begitu
- *    server mengubah keputusannya, dan keputusan itu memang sedang menunggu
- *    manusia. Nilai reason yang lain, 'no_column', berarti hal yang
- *    BERBEDA dan menuntut tindakan yang berbeda (kolom baru, bukan keputusan
- *    penamaan).
+ *    Yang dulu ada di sana layak diingat: sampai tanggal itu kolom ketujuh
+ *    bernama `kernel_recovery_in_fibre_percent` dan keempat layar
+ *    input/detail Depricarping melabelinya PEROLEHAN, sementara standar
+ *    masternya sendiri 'Kernel Loss in Fibre' dengan target '< 0.50%' —
+ *    sebuah KEHILANGAN, makin kecil makin baik. Kedua pembacaan menuntut
+ *    skala angka yang berbeda sekitar DUA RATUS kali (0-2% untuk kehilangan,
+ *    90-100% untuk perolehan), jadi memasangkannya akan membuat laporan
+ *    menilai dengan arah TERBALIK pada angka yang tetap terlihat masuk akal.
+ *    Server menerbitkan ketimpangannya alih-alih menebak; user memutuskan
+ *    memakai penamaan master, dan kolomnya di-rename (migrasi
+ *    2026_10_06_000001). Nilai `reason` 'direction_unresolved' ikut dihapus
+ *    karena tidak ada kolom yang bisa berada dalam keadaan itu lagi.
+ *
+ *    Yang tersisa: 'no_column' — sebuah parameter master yang namanya
+ *    disunting, atau parameter baru yang belum punya kolom ukur, keduanya
+ *    mendarat di sana. Layar TETAP menggambar bagiannya walau kosong, karena
+ *    di situlah suntingan semacam itu akan terlihat.
  *
  * 3. `target.shares_standard_with` MENYATAKAN BAHWA SATU STANDAR MENGATUR DUA
  *    KOLOM. Master hanya memuat satu baris 'Nut Silo Temperature' sementara
@@ -288,21 +290,6 @@ export interface DepricarpingReportTarget {
    * silo yang normal.
    */
   shares_standard_with: string[]
-  /**
-   * Non-null HANYA untuk kolom yang sengaja TIDAK dipasangkan dengan standar
-   * mana pun — hari ini hanya kernel_recovery_in_fibre_percent.
-   *
-   * Sebabnya: master menyebut standarnya 'Kernel Loss in Fibre' dengan target
-   * '< 0.50%' — sebuah KEHILANGAN, makin kecil makin baik — sementara kolom
-   * ini dan keempat layar input/detail Depricarping melabelinya PEROLEHAN.
-   * Dua pembingkaian yang berlawanan atas kuantitas yang sama, dan tidak ada
-   * apa pun di sistem yang menyelesaikannya.
-   *
-   * DIBACA DARI SINI, BUKAN DISIMPULKAN DARI NAMA KOLOM DI KLIEN. Pencocokan
-   * nama di klien akan pecah senyap begitu server mengubah keputusannya — dan
-   * keputusan itu memang sedang menunggu manusia.
-   */
-  unmapped_reason: string | null
 }
 
 /**
@@ -327,11 +314,12 @@ export interface DepricarpingReportMetric {
 /**
  * Standar yang pengukurannya belum dapat dipercaya — BESERTA ALASANNYA.
  *
- * Alasannya diteruskan karena kedua nilainya menuntut tindakan yang BERBEDA:
- * 'no_column' berarti tidak ada kolom ukurnya di skema (menuntut kolom baru),
- * 'direction_unresolved' berarti ada kolom yang namanya mirip tetapi arahnya
- * berlawanan (menuntut keputusan penamaan). Menggabungkannya menjadi satu
- * "belum terukur" akan menyembunyikan tindakan mana yang diperlukan.
+ * `reason` hanya punya satu nilai sejak 2026-10-06: 'no_column' — tidak ada
+ * kolom ukurnya di skema. Nilai kedua, 'direction_unresolved', dihapus
+ * bersama rename kolom kernel loss (lihat butir 2 pada docblock berkas);
+ * mempertahankannya berarti menyimpan cabang yang tidak dapat dicapai apa
+ * pun. Medannya sendiri TETAP diteruskan supaya alasan baru dapat ditambahkan
+ * tanpa mengubah bentuk payload.
  */
 export interface DepricarpingReportTargetWithoutMetric {
   parameter_metric: string

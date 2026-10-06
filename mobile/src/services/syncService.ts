@@ -259,7 +259,7 @@ interface LocalDepricarpingDetailRow {
   polishing_drum_speed_rpm: number | null
   air_velocity_ms: number | null
   fibre_moisture_percent: number | null
-  kernel_recovery_in_fibre_percent: number | null
+  kernel_loss_in_fibre_percent: number | null
   nut_silo_1_temp_c: number | null
   nut_silo_2_temp_c: number | null
   downtime_minutes: number | null
@@ -331,7 +331,7 @@ const STATION_PUSH_CONFIGS: StationPushConfig[] = [
     idPayloadKey: 'presser_id',
     detailTable: 'depricarping_detail',
     detailFk: 'depricarping_record_id',
-    detailColumns: ['time_slot', 'fan_static_pressure_mmh2o', 'polishing_drum_speed_rpm', 'air_velocity_ms', 'fibre_moisture_percent', 'kernel_recovery_in_fibre_percent', 'nut_silo_1_temp_c', 'nut_silo_2_temp_c', 'downtime_minutes', 'findings'],
+    detailColumns: ['time_slot', 'fan_static_pressure_mmh2o', 'polishing_drum_speed_rpm', 'air_velocity_ms', 'fibre_moisture_percent', 'kernel_loss_in_fibre_percent', 'nut_silo_1_temp_c', 'nut_silo_2_temp_c', 'downtime_minutes', 'findings'],
     detailOrderBy: 'time_slot',
   },
   {

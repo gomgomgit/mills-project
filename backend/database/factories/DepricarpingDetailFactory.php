@@ -38,7 +38,7 @@ class DepricarpingDetailFactory extends Factory
             'polishing_drum_speed_rpm' => null,
             'air_velocity_ms' => null,
             'fibre_moisture_percent' => null,
-            'kernel_recovery_in_fibre_percent' => null,
+            'kernel_loss_in_fibre_percent' => null,
             'nut_silo_1_temp_c' => null,
             'nut_silo_2_temp_c' => null,
             'downtime_minutes' => null,

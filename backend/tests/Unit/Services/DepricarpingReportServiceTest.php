@@ -131,7 +131,7 @@ function depricarpingReportSeedTargets(): void
     //     nut_silo_2_temp_c), sehingga enam entri peta hanya menyebut LIMA
     //     parameter berbeda;
     //   - 'Kernel Loss in Fibre' TIDAK dipetakan ke kolom mana pun, walau
-    //     kernel_recovery_in_fibre_percent ada: master menyebutnya kehilangan
+    //     kernel_loss_in_fibre_percent ada: master menyebutnya kehilangan
     //     ('< 0.50%'), kolom dan keempat layar input melabelinya perolehan.
     $rows = [
         ['Fan Static Pressure', '40 - 50 mmH2O', '< 35 or > 55 mmH2O', 'Low pressure drops fibre early (heavy losses). High pressure sucks clean small nuts into the fibre cyclone.'],
@@ -704,10 +704,13 @@ it('case 27 — tiap kolom ukur membawa standar dan rencana tindakannya', functi
         ->toContain('premature mechanical wear');
     // Kolom ini hanya diatur satu standar untuk dirinya sendiri.
     expect($metric['target']['shares_standard_with'])->toBe([]);
-    expect($metric['target']['unmapped_reason'])->toBeNull();
+    // TIDAK ADA kunci unmapped_reason sejak 2026-10-06. Diasersi atas
+    // KETIADAAN kuncinya, bukan atas nilainya null: kunci yang hanya bisa
+    // bernilai null menyisakan cabang yang tidak dapat dicapai di layar.
+    expect($metric['target'])->not->toHaveKey('unmapped_reason');
 });
 
-it('case 28 — parameter master tanpa kolom ukur masuk targets_without_metric', function () {
+it('case 28 — seluruh parameter master kini terpetakan, jadi targets_without_metric kosong', function () {
     depricarpingReportSeedTargets();
 
     $record = depricarpingReportRecord($this->stationA, '2026-09-02', 'PR-1');
@@ -717,33 +720,25 @@ it('case 28 — parameter master tanpa kolom ukur masuk targets_without_metric',
 
     $summary = $this->service->buildSummary($this->periodA, null, $this->lineA);
 
-    // Enam parameter pada master, lima kolom pada formulir. Ketimpangan itu
-    // DITERBITKAN: standar yang tidak pernah diukur terbaca seperti terpenuhi
-    // padahal ia sekadar tidak ada.
-    // TUJUH kolom ukur, ENAM parameter master. Ketimpangannya berjalan ke DUA
-    // arah: satu parameter mengatur dua kolom, dan satu parameter tidak
-    // dipetakan ke kolom mana pun.
+    // TUJUH kolom ukur, ENAM parameter master, dan sejak rename kolom kernel
+    // loss (2026-10-06) keduanya bertemu: tiap kolom punya standarnya, tiap
+    // standar punya pengukurannya.
     expect($summary['metrics'])->toHaveCount(7);
-    // SATU, bukan dua seperti pada Pressing — dan alasannya pun berbeda
-    // jenisnya.
-    expect($summary['targets_without_metric'])->toHaveCount(1);
+    expect($summary['targets_without_metric'])->toBe([]);
 
-    $unmeasured = collect($summary['targets_without_metric'])->pluck('parameter_metric')->all();
-
-    expect($unmeasured)->toBe(['Kernel Loss in Fibre']);
-
-    // KEEMPAT kolom master ikut diterbitkan, bukan hanya namanya — DAN
-    // alasannya, karena 'ada kolomnya tapi arahnya belum pasti' menuntut
-    // tindakan yang berbeda dari 'tidak ada kolomnya'.
-    $kernel = $summary['targets_without_metric'][0];
-
-    expect($kernel['target_range'])->toBe('< 0.50%');
-    expect($kernel['critical_limit'])->toBe('> 1.00%');
-    expect($kernel['operational_consequence_justification'])->toContain('revenue loss');
-    expect($kernel['reason'])->toBe(DepricarpingReportService::UNMAPPED_DIRECTION_UNRESOLVED);
-
+    // KEDUA KUNCI DIASERSI TERPISAH, karena keduanya dapat sama-sama menunjuk
+    // daftar kosong untuk sebab yang BERLAWANAN: master yang belum terisi
+    // versus seluruh standar yang sudah terukur. Layar memeriksa
+    // targets_master_empty lebih dulu justru karena itu.
+    expect($summary['all_targets_measured'])->toBeTrue();
     expect($summary['targets_master_empty'])->toBeFalse();
-    expect($summary['all_targets_measured'])->toBeFalse();
+
+    // Dan kolom yang dulu tidak terpetakan kini membawa standarnya sendiri.
+    $kernel = depricarpingReportMetric($summary, 'kernel_loss_in_fibre_percent');
+
+    expect($kernel['target']['parameter_metric'])->toBe('Kernel Loss in Fibre');
+    expect($kernel['target']['target_range'])->toBe('< 0.50%');
+    expect($kernel['target']['critical_limit'])->toBe('> 1.00%');
 });
 
 it('case 29 — pemetaan memakai peta tetap: ejaan master yang diubah tidak menghapus angka', function () {
@@ -769,14 +764,17 @@ it('case 29 — pemetaan memakai peta tetap: ejaan master yang diubah tidak meng
     // Baris yang namanya tidak dikenal lagi BERGABUNG dengan kedua parameter
     // yang memang tak terukur, jadi daftarnya menjadi tiga — dan keterlepasan
     // itu TERLIHAT alih-alih senyap.
+    // SATU baris, bukan dua: daftarnya kosong sebelum ejaan diubah, jadi
+    // satu-satunya penghuninya adalah parameter yang baru saja terlepas.
     expect(collect($summary['targets_without_metric'])->pluck('parameter_metric')->all())
-        ->toContain('Polishing Drum Speeed');
-    expect($summary['targets_without_metric'])->toHaveCount(2);
+        ->toBe(['Polishing Drum Speeed']);
+    expect($summary['targets_without_metric'])->toHaveCount(1);
+    expect($summary['all_targets_measured'])->toBeFalse();
 
-    // ALASANNYA 'no_column', BUKAN 'direction_unresolved': ejaan yang diubah
-    // membuat parameter itu tidak dikenal peta mana pun. Perbedaannya penting
-    // — yang ini menuntut ejaan dibetulkan, yang satu lagi menuntut keputusan
-    // penamaan.
+    // ALASANNYA 'no_column': ejaan yang diubah membuat parameter itu tidak
+    // dikenal peta mana pun. Inilah gunanya bagian standar-tanpa-pengukuran
+    // tetap digambar walau biasanya kosong — suntingan semacam ini muncul di
+    // sana alih-alih diam-diam menghapus standar dari tabel parameter.
     $renamed = collect($summary['targets_without_metric'])
         ->firstWhere('parameter_metric', 'Polishing Drum Speeed');
 
@@ -1170,7 +1168,7 @@ it('case 47 — ketujuh kolom ukur diterbitkan dalam urutan NUMERIC_METRICS', fu
         'polishing_drum_speed_rpm',
         'air_velocity_ms',
         'fibre_moisture_percent',
-        'kernel_recovery_in_fibre_percent',
+        'kernel_loss_in_fibre_percent',
         'nut_silo_1_temp_c',
         'nut_silo_2_temp_c',
     ]);
@@ -1187,7 +1185,7 @@ it('case 48 — ketujuh penyebut berbeda-beda, masing-masing milik kolomnya send
         'polishing_drum_speed_rpm' => 9,
         'air_velocity_ms' => 0,
         'fibre_moisture_percent' => 7,
-        'kernel_recovery_in_fibre_percent' => 1,
+        'kernel_loss_in_fibre_percent' => 1,
         'nut_silo_1_temp_c' => 5,
         'nut_silo_2_temp_c' => 3,
     ];
@@ -1279,57 +1277,70 @@ it('case 51 — satu silo terisi dan satu tidak: dua baris tetap ada, standar sa
     expect($silo2['target']['shares_standard_with'])->toBe(['nut_silo_1_temp_c']);
 });
 
-it('case 52 — kernel_recovery_in_fibre_percent TIDAK ADA pada peta target', function () {
-    // Mengunci keputusan agar tidak "dilengkapi" oleh pembaca berikutnya.
-    // Master menyebut standarnya KEHILANGAN ('< 0.50%'); kolom ini dan keempat
-    // layar input Depricarping melabelinya PEROLEHAN. Memetakannya akan
-    // membuat laporan menilai dengan arah TERBALIK tanpa ada yang menyadarinya.
-    expect(DepricarpingReportService::COLUMN_TARGET_PARAMETER)->toHaveCount(6);
+it('case 52 — kernel_loss_in_fibre_percent kini TERPETAKAN, dan petanya tujuh entri untuk enam parameter', function () {
+    // MENGUNCI KEPUTUSAN 2026-10-06 ke arah yang benar. Sampai tanggal itu
+    // kolom ini bernama kernel_recovery_in_fibre_percent dan SENGAJA tidak
+    // dipetakan: masternya menyebut KEHILANGAN ('< 0.50%'), kolom dan keempat
+    // layar input menyebutnya PEROLEHAN, dan kedua pembacaan menuntut skala
+    // angka yang berbeda ~200 kali. Rename kolom menyelesaikannya ke arah
+    // master, jadi pemetaannya kini benar — dan test ini yang akan jatuh bila
+    // seseorang mengembalikan nama kolomnya tanpa mengembalikan masternya.
+    expect(DepricarpingReportService::COLUMN_TARGET_PARAMETER)
+        ->toHaveKey('kernel_loss_in_fibre_percent', 'Kernel Loss in Fibre');
+
+    // TUJUH entri untuk TUJUH kolom ukur: tidak ada lagi kolom tanpa standar.
+    expect(DepricarpingReportService::COLUMN_TARGET_PARAMETER)->toHaveCount(7);
     expect(array_keys(DepricarpingReportService::COLUMN_TARGET_PARAMETER))
-        ->not->toContain('kernel_recovery_in_fibre_percent');
+        ->toBe(DepricarpingReportService::NUMERIC_METRICS);
 
-    // Dan kolomnya MEMANG ada pada daftar metrik — tidak dipetakan bukan
-    // berarti tidak dilaporkan.
-    expect(DepricarpingReportService::NUMERIC_METRICS)
-        ->toContain('kernel_recovery_in_fibre_percent');
-
-    // Enam entri peta hanya menyebut LIMA parameter berbeda, karena kedua nut
-    // silo menunjuk parameter yang sama. Inilah sebabnya targetsWithoutMetric()
-    // harus membandingkan atas HIMPUNAN nilai, bukan atas count().
+    // Tetapi hanya ENAM parameter berbeda, karena kedua nut silo menunjuk
+    // parameter yang sama — dan enam itu persis jumlah baris masternya.
+    // Inilah sebabnya targetsWithoutMetric() harus membandingkan atas
+    // HIMPUNAN nilai, bukan atas count().
     expect(array_unique(array_values(DepricarpingReportService::COLUMN_TARGET_PARAMETER)))
-        ->toHaveCount(5);
+        ->toHaveCount(6);
+
+    // Dan nilai alasan 'direction_unresolved' sudah tidak ada: tidak ada
+    // kolom yang dapat berada dalam keadaan itu lagi.
+    expect(defined(DepricarpingReportService::class.'::UNMAPPED_DIRECTION_UNRESOLVED'))
+        ->toBeFalse();
 });
 
-it('case 53 — angka kernel recovery tetap diterbitkan, dengan target null dan alasan terisi', function () {
+it('case 53 — angka kernel loss diterbitkan BESERTA standarnya', function () {
     depricarpingReportSeedTargets();
 
     $record = depricarpingReportRecord($this->stationA, '2026-09-02', 'PR-1');
-    depricarpingReportSlot($record, '07:00', ['kernel_recovery_in_fibre_percent' => 0.4]);
-    depricarpingReportSlot($record, '08:00', ['kernel_recovery_in_fibre_percent' => 0.6]);
+    depricarpingReportSlot($record, '07:00', ['kernel_loss_in_fibre_percent' => 0.4]);
+    depricarpingReportSlot($record, '08:00', ['kernel_loss_in_fibre_percent' => 0.6]);
 
     $this->actingAs($this->supervisorA);
 
     $summary = $this->service->buildSummary($this->periodA, null, $this->lineA);
-    $metric = depricarpingReportMetric($summary, 'kernel_recovery_in_fibre_percent');
+    $metric = depricarpingReportMetric($summary, 'kernel_loss_in_fibre_percent');
 
-    // ANGKANYA ADA — kolom yang tidak dipetakan tetap dilaporkan di bawah
-    // label kolomnya sendiri.
     expect($metric['avg'])->toBe(0.5);
     expect($metric['filled_slot_count'])->toBe(2);
 
-    // STANDARNYA TIDAK DIPASANGKAN, dan alasannya diterbitkan sebagai kunci
-    // supaya layar dapat menjelaskannya alih-alih menampilkan sel kosong yang
-    // terbaca seperti master yang belum terisi.
-    expect($metric['target']['parameter_metric'])->toBeNull();
-    expect($metric['target']['target_range'])->toBeNull();
-    expect($metric['target']['critical_limit'])->toBeNull();
-    expect($metric['target']['operational_consequence_justification'])->toBeNull();
+    // KEEMPAT kolom master kini terpasang pada kolom ini. Angka 0,4 dan 0,6
+    // dipilih pada fixture bukan sembarangan: keduanya berada pada skala
+    // KEHILANGAN (0-2%), yang memang arah yang diputuskan 2026-10-06. Nilai
+    // pada skala perolehan (90-100%) akan terbaca sebagai pelanggaran berat
+    // terhadap batas '> 1.00%' — itulah tepatnya kekeliruan yang dihindari
+    // dengan rename kolom alih-alih memetakan nama lama.
+    expect($metric['target']['parameter_metric'])->toBe('Kernel Loss in Fibre');
+    expect($metric['target']['target_range'])->toBe('< 0.50%');
+    expect($metric['target']['critical_limit'])->toBe('> 1.00%');
+    expect($metric['target']['operational_consequence_justification'])
+        ->toContain('revenue loss');
     expect($metric['target']['shares_standard_with'])->toBe([]);
-    expect($metric['target']['unmapped_reason'])
-        ->toBe(DepricarpingReportService::UNMAPPED_DIRECTION_UNRESOLVED);
+
+    // DAN TETAP TIDAK DINILAI: 0,6 melewati target '< 0.50%' tanpa satu pun
+    // penanda. Standarnya ditampilkan, penilaiannya milik pembaca.
+    expect(json_encode($metric))->not->toContain('severity');
+    expect(json_encode($metric))->not->toContain('out_of_range');
 });
 
-it('case 54 — parameter master baru tanpa kolom ukur memakai alasan no_column, bukan direction_unresolved', function () {
+it('case 54 — parameter master baru tanpa kolom ukur muncul dengan alasan no_column', function () {
     depricarpingReportSeedTargets();
 
     DepricarpingOperationalTarget::create([
@@ -1347,18 +1358,20 @@ it('case 54 — parameter master baru tanpa kolom ukur memakai alasan no_column,
 
     $summary = $this->service->buildSummary($this->periodA, null, $this->lineA);
 
-    expect($summary['targets_without_metric'])->toHaveCount(2);
+    // SATU baris: hanya parameter baru itu yang tidak punya kolom ukur.
+    expect($summary['targets_without_metric'])->toHaveCount(1);
+    expect($summary['all_targets_measured'])->toBeFalse();
 
-    $byParameter = collect($summary['targets_without_metric'])->keyBy('parameter_metric');
+    $row = $summary['targets_without_metric'][0];
 
-    // DUA ALASAN YANG BERBEDA, dan perbedaannya menentukan tindakan: yang
-    // pertama menuntut kolom ukur baru, yang kedua menuntut keputusan
-    // penamaan. Menggabungkannya menjadi satu "belum terukur" akan
-    // menyembunyikan tindakan mana yang diperlukan.
-    expect($byParameter['Shell Content in Kernel']['reason'])
-        ->toBe(DepricarpingReportService::UNMAPPED_NO_COLUMN);
-    expect($byParameter['Kernel Loss in Fibre']['reason'])
-        ->toBe(DepricarpingReportService::UNMAPPED_DIRECTION_UNRESOLVED);
+    expect($row['parameter_metric'])->toBe('Shell Content in Kernel');
+    expect($row['reason'])->toBe(DepricarpingReportService::UNMAPPED_NO_COLUMN);
+    // KEEMPAT kolom master ikut diterbitkan, bukan hanya namanya — standar
+    // yang tidak pernah diukur terbaca seperti terpenuhi padahal ia sekadar
+    // tidak ada, dan pembaca butuh angkanya untuk menilai seberapa penting.
+    expect($row['target_range'])->toBe('< 6%');
+    expect($row['critical_limit'])->toBe('> 8%');
+    expect($row['operational_consequence_justification'])->toContain('refinery');
 });
 
 it('case 55 — downtime dijumlahkan atas slot yang MENCATATNYA saja', function () {
@@ -1531,7 +1544,7 @@ it('case 64 — READING_FIELDS memuat sembilan kolom dan isRowFilled kini public
         'polishing_drum_speed_rpm',
         'air_velocity_ms',
         'fibre_moisture_percent',
-        'kernel_recovery_in_fibre_percent',
+        'kernel_loss_in_fibre_percent',
         'nut_silo_1_temp_c',
         'nut_silo_2_temp_c',
         'downtime_minutes',

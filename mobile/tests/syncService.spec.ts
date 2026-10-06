@@ -360,7 +360,7 @@ describe('syncService — syncAllRecords()', () => {
         ]
       }
       if (sql.includes('FROM depricarping_detail')) {
-        return [{ time_slot: '07:00', fan_static_pressure_mmh2o: null, polishing_drum_speed_rpm: null, air_velocity_ms: null, fibre_moisture_percent: null, kernel_recovery_in_fibre_percent: null, nut_silo_1_temp_c: null, nut_silo_2_temp_c: null, downtime_minutes: 5, findings: 'Macet sebentar' }]
+        return [{ time_slot: '07:00', fan_static_pressure_mmh2o: null, polishing_drum_speed_rpm: null, air_velocity_ms: null, fibre_moisture_percent: null, kernel_loss_in_fibre_percent: null, nut_silo_1_temp_c: null, nut_silo_2_temp_c: null, downtime_minutes: 5, findings: 'Macet sebentar' }]
       }
       return []
     })
@@ -372,7 +372,7 @@ describe('syncService — syncAllRecords()', () => {
       '/api/depricarping-records',
       expect.objectContaining({
         presser_id: 'DP-001',
-        details: [{ time_slot: '07:00', fan_static_pressure_mmh2o: null, polishing_drum_speed_rpm: null, air_velocity_ms: null, fibre_moisture_percent: null, kernel_recovery_in_fibre_percent: null, nut_silo_1_temp_c: null, nut_silo_2_temp_c: null, downtime_minutes: 5, findings: 'Macet sebentar' }],
+        details: [{ time_slot: '07:00', fan_static_pressure_mmh2o: null, polishing_drum_speed_rpm: null, air_velocity_ms: null, fibre_moisture_percent: null, kernel_loss_in_fibre_percent: null, nut_silo_1_temp_c: null, nut_silo_2_temp_c: null, downtime_minutes: 5, findings: 'Macet sebentar' }],
       }),
     )
     expect(run).toHaveBeenCalledWith(

@@ -160,7 +160,6 @@ function metric(overrides: Record<string, unknown> = {}): Record<string, unknown
       operational_consequence_justification:
         'Low pressure drops fibre early (heavy losses).',
       shares_standard_with: [],
-      unmapped_reason: null,
     },
     ...overrides,
   }
@@ -209,7 +208,6 @@ function summaryFixture(overrides: Record<string, unknown> = {}): Record<string,
           operational_consequence_justification:
             'Higher speeds cause premature mechanical wear.',
           shares_standard_with: [],
-          unmapped_reason: null,
         },
       }),
       metric({
@@ -227,7 +225,6 @@ function summaryFixture(overrides: Record<string, unknown> = {}): Record<string,
           operational_consequence_justification:
             'Controls the pneumatic separation gap.',
           shares_standard_with: [],
-          unmapped_reason: null,
         },
       }),
       metric({
@@ -245,27 +242,26 @@ function summaryFixture(overrides: Record<string, unknown> = {}): Record<string,
           operational_consequence_justification:
             'High moisture reduces downstream boiler combustion efficiency.',
           shares_standard_with: [],
-          unmapped_reason: null,
         },
       }),
-      // SENGAJA TANPA STANDAR: master menyebutnya "Kernel Loss in Fibre"
-      // (sebuah KEHILANGAN) sementara kolom ini dan keempat layar input
-      // Depricarping melabelinya PEROLEHAN.
+      // Angkanya pada skala KEHILANGAN (0-2%), arah yang diputuskan
+      // 2026-10-06. Nilai pada skala perolehan (90-100%) akan terbaca sebagai
+      // pelanggaran berat terhadap batas '> 1.00%' — itulah kekeliruan yang
+      // dihindari dengan rename kolom alih-alih memetakan nama lama.
       metric({
-        column: 'kernel_recovery_in_fibre_percent',
-        label: 'Kernel Recovery in Fibre',
+        column: 'kernel_loss_in_fibre_percent',
+        label: 'Kehilangan Kernel di Fibre',
         unit: '%',
         min: 0.3,
         avg: 0.45,
         max: 0.7,
         filled_slot_count: 1,
         target: {
-          parameter_metric: null,
-          target_range: null,
-          critical_limit: null,
-          operational_consequence_justification: null,
+          parameter_metric: 'Kernel Loss in Fibre',
+          target_range: '< 0.50%',
+          critical_limit: '> 1.00%',
+          operational_consequence_justification: 'Direct operational revenue loss.',
           shares_standard_with: [],
-          unmapped_reason: 'direction_unresolved',
         },
       }),
       // SATU STANDAR, DUA KOLOM. Angkanya SENGAJA berbeda jauh: merata-ratakan
@@ -284,7 +280,6 @@ function summaryFixture(overrides: Record<string, unknown> = {}): Record<string,
           critical_limit: '< 55C or > 75C',
           operational_consequence_justification: 'Crucial for nut conditioning.',
           shares_standard_with: ['nut_silo_2_temp_c'],
-          unmapped_reason: null,
         },
       }),
       metric({
@@ -301,23 +296,13 @@ function summaryFixture(overrides: Record<string, unknown> = {}): Record<string,
           critical_limit: '< 55C or > 75C',
           operational_consequence_justification: 'Crucial for nut conditioning.',
           shares_standard_with: ['nut_silo_1_temp_c'],
-          unmapped_reason: null,
         },
       }),
     ],
-    // SATU entri, bukan dua seperti pada Pressing — dan ALASANNYA yang
-    // membedakan jenisnya: di sini ada kolom yang namanya mirip tetapi arahnya
-    // berlawanan, bukan "tidak ada kolomnya".
-    targets_without_metric: [
-      {
-        parameter_metric: 'Kernel Loss in Fibre',
-        target_range: '< 0.50%',
-        critical_limit: '> 1.00%',
-        operational_consequence_justification: 'Direct operational revenue loss.',
-        reason: 'direction_unresolved',
-      },
-    ],
-    all_targets_measured: false,
+    // KOSONG — keadaan normal sejak rename kolom kernel loss (2026-10-06):
+    // keenam parameter master punya kolom pengukurannya masing-masing.
+    targets_without_metric: [],
+    all_targets_measured: true,
     targets_master_empty: false,
     by_presser: [
       {
@@ -759,25 +744,27 @@ describe('kartu parameter', () => {
     expect(wrapper.text()).not.toContain('75,00')
   })
 
-  it('kartu kernel recovery menyatakan standarnya TIDAK dipasangkan, beserta sebabnya', async () => {
+  it('kartu kernel loss membawa standarnya, dan TIDAK ada keterangan tidak-dipasangkan', async () => {
     const wrapper = await mountView()
     await selectPeriod(wrapper, 'per-1')
 
     const kernelCard = wrapper.findAll('[data-testid="metric-card"]')[4]
 
-    // ANGKANYA TETAP ADA, di bawah label kolomnya sendiri.
-    expect(kernelCard.text()).toContain('Kernel Recovery in Fibre')
+    expect(kernelCard.text()).toContain('Kehilangan Kernel di Fibre')
     expect(kernelCard.text()).toContain('0,45')
 
-    // Dan keterangan bahwa standarnya tidak dipasangkan — BUKAN sel target
-    // kosong, yang terbaca seperti master yang belum terisi.
-    expect(kernelCard.find('[data-testid="metric-unmapped"]').exists()).toBe(true)
-    expect(kernelCard.text()).toContain('tidak dipasangkan')
-    expect(kernelCard.text()).toContain('kolom ini')
+    // KETIGA kolom target terpasang sejak rename kolom 2026-10-06. Sebelum itu
+    // kartu ini menampilkan keterangan "tidak dipasangkan" karena masternya
+    // menyebut KEHILANGAN sementara kolomnya menyebut PEROLEHAN.
+    expect(kernelCard.find('[data-testid="metric-target-range"]').exists()).toBe(true)
+    expect(kernelCard.find('[data-testid="metric-critical-limit"]').exists()).toBe(true)
+    expect(kernelCard.find('[data-testid="metric-consequence"]').exists()).toBe(true)
+    expect(kernelCard.text()).toContain('< 0.50%')
+    expect(kernelCard.text()).toContain('> 1.00%')
 
-    // Ketiga kolom target TIDAK dirender pada kartu ini.
-    expect(kernelCard.find('[data-testid="metric-target-range"]').exists()).toBe(false)
-    expect(kernelCard.find('[data-testid="metric-critical-limit"]').exists()).toBe(false)
+    // Dan keterangan lamanya sudah tidak ada sama sekali.
+    expect(kernelCard.find('[data-testid="metric-unmapped"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('tidak dipasangkan')
   })
 
   it('standar yang null dirender sebagai keterangan, bukan sel kosong', async () => {
@@ -791,7 +778,6 @@ describe('kartu parameter', () => {
               critical_limit: null,
               operational_consequence_justification: null,
               shares_standard_with: [],
-              unmapped_reason: null,
             },
           }),
         ],
@@ -849,23 +835,50 @@ describe('tidak ada penandaan di luar batas', () => {
 /* ================================================================== */
 
 describe('standar yang belum diukur sistem', () => {
-  it('dirender pada bagiannya sendiri beserta keterangannya', async () => {
+  it('dirender pada bagiannya sendiri beserta ALASAN per baris', async () => {
+    // Fixture ini sengaja memberi satu parameter master yang memang tidak
+    // punya kolom ukur, karena keadaan NORMAL sejak 2026-10-06 adalah daftar
+    // kosong — dan daftar kosong tidak dapat menguji bentuk barisnya.
+    repoMocks.fetchSummary.mockResolvedValue(
+      summaryFixture({
+        all_targets_measured: false,
+        targets_without_metric: [
+          {
+            parameter_metric: 'Shell Content in Kernel',
+            target_range: '< 6%',
+            critical_limit: '> 8%',
+            operational_consequence_justification: 'Rejected by refinery on contract spec.',
+            reason: 'no_column',
+          },
+        ],
+      }),
+    )
+
     const wrapper = await mountView()
     await selectPeriod(wrapper, 'per-1')
 
-    // SATU entri, bukan dua seperti pada Pressing — dan alasannya BUKAN
-    // "tidak ada kolomnya".
-    expect(text(wrapper, 'targets-without-metric')).toContain('Kernel Loss in Fibre')
+    expect(text(wrapper, 'targets-without-metric')).toContain('Shell Content in Kernel')
     expect(wrapper.findAll('[data-testid="targets-without-metric-row"]')).toHaveLength(1)
-    expect(text(wrapper, 'targets-without-metric')).toContain('< 0.50%')
-    expect(text(wrapper, 'targets-without-metric')).toContain('> 1.00%')
-    // KEEMPAT kolom master ikut, termasuk justifikasinya.
-    expect(text(wrapper, 'targets-without-metric')).toContain('Direct operational revenue loss.')
-    // ALASANNYA tercetak, bukan hanya nama parameternya.
-    expect(exists(wrapper, 'targets-without-metric-reason')).toBe(true)
-    expect(text(wrapper, 'targets-without-metric-reason')).toContain('arahnya belum pasti')
-    expect(text(wrapper, 'targets-without-metric-note')).toContain('berlawanan arah')
+    // KEEMPAT kolom master ikut, bukan hanya namanya.
+    expect(text(wrapper, 'targets-without-metric')).toContain('< 6%')
+    expect(text(wrapper, 'targets-without-metric')).toContain('> 8%')
+    expect(text(wrapper, 'targets-without-metric')).toContain('refinery')
+    // ALASANNYA tercetak — pembaca perlu tahu tindakan apa yang diperlukan.
+    expect(text(wrapper, 'targets-without-metric-reason'))
+      .toContain('Tidak ada kolom pengukurannya')
+    expect(exists(wrapper, 'targets-all-measured')).toBe(false)
     expect(exists(wrapper, 'targets-master-empty')).toBe(false)
+  })
+
+  it('keadaan NORMAL: seluruh standar terukur, bagiannya tetap digambar', async () => {
+    const wrapper = await mountView()
+    await selectPeriod(wrapper, 'per-1')
+
+    // Fixture bawaan kini mencerminkan keadaan sesudah rename kolom: keenam
+    // parameter master punya pengukurannya, jadi daftarnya kosong.
+    expect(exists(wrapper, 'targets-without-metric')).toBe(true)
+    expect(exists(wrapper, 'targets-all-measured')).toBe(true)
+    expect(exists(wrapper, 'targets-without-metric-row')).toBe(false)
   })
 
   it('bagian ini TETAP digambar walau kosong, dengan keterangannya sendiri', async () => {

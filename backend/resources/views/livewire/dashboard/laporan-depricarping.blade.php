@@ -59,28 +59,29 @@
        berikutnya akan BERHENTI MEMPERINGATKAN tanpa satu pun galat — dan
        peringatan yang hilang terbaca sebagai "semuanya aman"; bentuk dua sisi
        menuntut pengurai yang berbeda dari bentuk satu sisi dan satuannya ikut
-       di dalam teks (mmH2O, %, °C, RPM, m/s); dan satu parameter ARAH
-       ANGKANYA SENDIRI belum pasti (butir 6), sehingga menguraikan batasnya
-       akan menghasilkan peringatan yang TERBALIK — lebih buruk daripada
-       tidak ada peringatan. Kotak keterangannya memakai kelas `.md-explain`,
+       di dalam teks (mmH2O, %, °C, RPM, m/s, dan tiga lainnya), dengan satu
+       parameter menuliskan satuannya sendiri dengan dua cara; satu nilai
+       pada master Pressing SUDAH ambigu hari ini ("< 10% to 12%" — batasnya
+       10 atau 12?); dan warna membawa makna melampaui statistik, sehingga
+       angka merah yang diturunkan dari prosa menyatakan pelanggaran yang
+       tidak pernah ditetapkan siapa pun. Kotak keterangannya memakai kelas `.md-explain`,
        BUKAN `.md-threshold`, karena ketiadaan penandaan diasersi MENURUT NAMA
        KELAS pada HTML ter-render — kalimat penjelasnya sendiri memuat frasa
        "di luar batas", jadi asersi atas frasa akan selalu hijau.
 
-    6. SATU STANDAR TAMPIL TANPA ANGKA, DAN SATU ANGKA TAMPIL TANPA STANDAR —
-       dengan sengaja, dan inilah temuan yang paling perlu dibaca manusia di
-       halaman ini. Master menyebut standarnya "Kernel Loss in Fibre", target
-       "< 0.50%" — sebuah KEHILANGAN, makin kecil makin baik. Kolom yang
-       tersedia bernama kernel_recovery_in_fibre_percent, dan keempat layar
-       input serta detail Depricarping melabelinya "Kernel Recovery in Fibre"
-       — sebuah PEROLEHAN. Dua pembingkaian yang BERLAWANAN atas kuantitas
-       yang sama, dan tidak ada apa pun di sistem yang menyelesaikannya
-       (kolom itu belum pernah terisi satu nilai pun). Jadi angkanya tercetak
-       di bawah label kolomnya sendiri dengan keterangan bahwa standarnya
-       tidak dipasangkan, dan standarnya tercetak pada bagian
-       standar-tanpa-pengukuran beserta alasannya. Memasangkannya akan
-       membuat halaman ini menilai dengan arah TERBALIK tanpa ada yang
-       menyadarinya.
+    6. SETIAP PARAMETER KINI MEMBAWA STANDARNYA, dan yang dulu tidak layak
+       diingat. Sampai 2026-10-06 kolom ketujuh bernama
+       kernel_recovery_in_fibre_percent dan keempat layar input serta detail
+       Depricarping melabelinya PEROLEHAN, sementara standar masternya sendiri
+       "Kernel Loss in Fibre" dengan target "< 0.50%" — sebuah KEHILANGAN,
+       makin kecil makin baik. Kedua pembacaan menuntut skala angka yang
+       berbeda sekitar dua ratus kali (0-2% untuk kehilangan, 90-100% untuk
+       perolehan), jadi memasangkannya akan membuat halaman ini mengumumkan
+       pelanggaran atas stasiun yang sebenarnya berkinerja baik — penilaian
+       dengan arah TERBALIK, pada angka yang tetap terlihat masuk akal.
+       Halaman ini menerbitkan ketimpangannya alih-alih menebak, dan user
+       memutuskan memakai penamaan master; kolomnya di-rename (migrasi
+       2026_10_06_000001).
 
        Bagian standar-tanpa-pengukuran itu DIGAMBAR WALAU KOSONG, dengan
        keterangannya sendiri: bagian yang hilang ketika kosong tidak dapat
@@ -435,19 +436,7 @@
                                     {{-- Ketiganya VERBATIM. --}}
                                     <td @class(['is-muted' => $metric['target']['target_range'] === null])
                                         data-testid="metric-target-range">
-                                        @if ($metric['target']['unmapped_reason'] !== null)
-                                            {{-- SENGAJA TIDAK DIPASANGKAN. Master
-                                                 menyebut standarnya "Kernel Loss in
-                                                 Fibre" (sebuah KEHILANGAN, target
-                                                 "< 0.50%") sementara kolom ini dan
-                                                 keempat layar input Depricarping
-                                                 melabelinya PEROLEHAN. Memasangkannya
-                                                 akan membuat layar ini menilai dengan
-                                                 arah yang terbalik. --}}
-                                            standar tidak dipasangkan &mdash; lihat catatan di bawah
-                                        @else
-                                            {{ $metric['target']['target_range'] ?? 'rentang target belum terisi pada master' }}
-                                        @endif
+                                        {{ $metric['target']['target_range'] ?? 'rentang target belum terisi pada master' }}
                                     </td>
                                     <td @class(['is-muted' => $metric['target']['critical_limit'] === null])
                                         data-testid="metric-critical-limit">
@@ -584,11 +573,7 @@
                                             <td>{{ $target['critical_limit'] }}</td>
                                             <td>{{ $target['operational_consequence_justification'] }}</td>
                                             <td data-testid="targets-without-metric-reason">
-                                                @if ($target['reason'] === \App\Services\DepricarpingReportService::UNMAPPED_DIRECTION_UNRESOLVED)
-                                                    Ada kolomnya, <b>arahnya belum pasti</b>
-                                                @else
-                                                    <b>Tidak ada kolom pengukurannya</b> di skema
-                                                @endif
+                                                <b>Tidak ada kolom pengukurannya</b> di skema
                                             </td>
                                         </tr>
                                     @endforeach
@@ -598,36 +583,24 @@
                         <div class="md-explain" data-testid="targets-without-metric-note">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
                             <span>
-                                <b>&ldquo;Kernel Loss in Fibre&rdquo; adalah temuan yang perlu
-                                diputuskan manusia, bukan cacat laporan ini.</b> Master menyebut
-                                standarnya sebuah <b>kehilangan</b> &mdash; target
-                                &ldquo;&lt; 0.50%&rdquo;, batas &ldquo;&gt; 1.00%&rdquo;, makin kecil
-                                makin baik. Kolom yang tersedia bernama
-                                <code>kernel_recovery_in_fibre_percent</code>, dan keempat layar
-                                input serta detail Depricarping melabelinya <b>perolehan</b> &mdash;
-                                yang lazimnya makin besar makin baik. Dua pembingkaian yang
-                                <b>berlawanan arah</b> atas kuantitas yang sama, dan hanya satu yang
-                                bisa benar.
+                                <b>Parameter di atas punya standar pada master tetapi tidak punya
+                                kolom pengukuran pada formulir Depricarping.</b> Ditampilkan justru
+                                karena itu: <b>standar yang tidak pernah diukur terbaca seperti
+                                terpenuhi</b>, padahal ia sekadar tidak ada.
                                 <small>
-                                    Tidak ada apa pun di sistem yang menyelesaikannya: kolom itu
-                                    <b>belum pernah terisi satu nilai pun</b>. Karena itu laporan ini
-                                    <b>tidak memasangkan</b> angkanya dengan standar tersebut.
-                                    Angkanya tetap dilaporkan di bawah label kolomnya sendiri, dan
-                                    standarnya tercantum di sini &mdash; <b>laporan tidak pernah
-                                    mencetak sebuah angka di bawah standar yang mungkin
-                                    kebalikannya</b>, karena menebak akan membuat layar ini menilai
-                                    dengan arah yang terbalik tanpa ada yang menyadarinya. Yang perlu
-                                    diputuskan: apakah kolom dan labelnya diubah menjadi
-                                    <i>loss</i> (bila yang diinput Operator memang kehilangan), atau
-                                    standar pada master yang diubah menjadi <i>recovery</i> beserta
-                                    rentang yang sesuai. Keduanya perubahan sederhana; yang tidak boleh
-                                    dilakukan adalah membiarkannya sambil memasangkan angka dengan
-                                    standarnya.
-                                    Parameter yang muncul di sini dengan alasan <b>tidak ada kolom
-                                    pengukurannya</b> adalah hal yang berbeda &mdash; termasuk bila
-                                    nama parameter pada master diubah ejaannya, yang membuat
-                                    pasangannya terlepas. Keterlepasan itu <b>sengaja terlihat di
-                                    sini</b> alih-alih diam-diam menghapus standar dari tabel di atas.
+                                    Baris di sini juga muncul bila <b>nama parameter pada master
+                                    diubah ejaannya</b> &mdash; pemetaan kolom ke parameter bersifat
+                                    tetap dan tidak mencocokkan teks, jadi ejaan yang berubah membuat
+                                    pasangannya terlepas. Angka hasil ukurnya tetap utuh, dan
+                                    keterlepasan itu <b>sengaja terlihat di sini</b> alih-alih
+                                    diam-diam menghapus standar dari tabel di atas.
+                                    <b>Sejak 2026-10-06 daftar ini normalnya kosong</b>: keenam
+                                    parameter master sudah punya kolom pengukurannya masing-masing.
+                                    Sebelum tanggal itu &ldquo;Kernel Loss in Fibre&rdquo; ada di
+                                    sini, karena kolomnya dulu bernama <i>recovery</i> sementara
+                                    masternya menyebut <i>loss</i> &mdash; dua pembingkaian yang
+                                    berlawanan arah atas kuantitas yang sama. Diputuskan memakai
+                                    penamaan master, dan kolomnya di-rename.
                                 </small>
                             </span>
                         </div>

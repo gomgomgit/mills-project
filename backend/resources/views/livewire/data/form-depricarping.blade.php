@@ -83,7 +83,7 @@
                                 <th>Polishing Drum Speed (RPM)</th>
                                 <th>Air Velocity (m/s)</th>
                                 <th>Fibre Moisture (%)</th>
-                                <th>Kernel Recovery in Fibre (%)</th>
+                                <th>Kernel Loss in Fibre (%)</th>
                                 <th>Nut Silo 1 Temp (°C)</th>
                                 <th>Nut Silo 2 Temp (°C)</th>
                                 <th>Downtime (Mins)</th>
@@ -106,7 +106,7 @@
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.polishing_drum_speed_rpm" class="pf-input" data-testid="polishing-drum-speed-{{ $index }}"></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.air_velocity_ms" class="pf-input" data-testid="air-velocity-{{ $index }}"></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.fibre_moisture_percent" class="pf-input" data-testid="fibre-moisture-{{ $index }}"></td>
-                                    <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.kernel_recovery_in_fibre_percent" class="pf-input" data-testid="kernel-recovery-{{ $index }}"></td>
+                                    <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.kernel_loss_in_fibre_percent" class="pf-input" data-testid="kernel-recovery-{{ $index }}"></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.nut_silo_1_temp_c" class="pf-input" data-testid="nut-silo-1-temp-{{ $index }}"></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.nut_silo_2_temp_c" class="pf-input" data-testid="nut-silo-2-temp-{{ $index }}"></td>
                                     <td><input type="number" step="1" wire:model="detailRows.{{ $index }}.downtime_minutes" class="pf-input" data-testid="downtime-minutes-{{ $index }}"></td>

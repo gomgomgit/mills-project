@@ -55,30 +55,34 @@ use Livewire\Component;
  *     `critical_limit` is the TIDIEST of the three ('< 35 or > 55 mmH2O',
  *     '> 1.00%', '< 55°C or > 75°C'): five of six carry an explicit numeric
  *     comparator. Three things hold it back. The limit columns are VARCHAR
- *     that Admin / Mill Management may edit at any time, so a parser that
- *     fails on the next shape would STOP WARNING without raising anything —
- *     and a warning that disappears reads as "everything is fine". The
- *     two-sided form needs a different parser from the one-sided one, and the
- *     unit is inside the text too. And one parameter's own direction is
- *     unsettled (next point), so parsing its limit would produce an INVERTED
- *     warning — worse than none. The page SAYS all of this, because an
- *     unexplained absence of flagging reads as an unfinished feature.
- *   - ONE STANDARD IS SHOWN WITH NO FIGURE, AND ONE FIGURE WITH NO STANDARD,
- *     ON PURPOSE — the finding on this page most in need of a human reader.
- *     The master's standard is 'Kernel Loss in Fibre', target '< 0.50%' (a
- *     LOSS, smaller is better). The column is kernel_recovery_in_fibre_percent
- *     and all four Depricarping input/detail screens label it 'Kernel Recovery
- *     in Fibre' (a RECOVERY, larger is better). Opposite framings of one
- *     quantity, and nothing settles it: the factory writes null, no seeder
- *     fills it, the database holds zero values. So the figure prints under the
- *     column's own label with a note that no standard is paired with it, and
- *     the standard prints in the standards-without-measurement section with
- *     the reason stated. Pairing them would make this page judge in the
- *     reverse direction with nobody noticing.
+ *     free text. Across the three masters the values follow SIX different
+ *     grammars — a range, a range plus a third statement, one-sided,
+ *     two-sided (which needs a different parser), two numbers meaning
+ *     different things in one string ('Below 70°C (Check if >75°C)'), and
+ *     prose with no number at all — and the UNIT lives inside the text, eight
+ *     of them, with one parameter spelling its own unit two ways. One value is
+ *     already ambiguous today ('< 10% to 12%'). Nothing in the schema
+ *     constrains the shape, so a parser's input set is not fixed at build
+ *     time; a parser meeting a shape it cannot read either breaks the page or
+ *     STOPS WARNING without raising anything — and "no warning" cannot be
+ *     told apart from "all clear". On top of that, colour carries meaning
+ *     beyond statistics: a red figure in a period report reads as a breach
+ *     nobody defined. The page SAYS all of this, because an unexplained
+ *     absence of flagging reads as an unfinished feature.
+ *   - EVERY PARAMETER NOW CARRIES ITS STANDARD, and the one that did not is
+ *     worth remembering. Until 2026-10-06 the seventh column was named
+ *     `kernel_recovery_in_fibre_percent` and every screen labelled it a
+ *     RECOVERY, while its own master standard is 'Kernel Loss in Fibre'
+ *     (target '< 0.50%' — a LOSS, smaller is better). The two readings demand
+ *     number scales about two hundred times apart, so pairing them would have
+ *     made this page announce a breach about a station performing well. The
+ *     page published the gap instead, and the user settled it in the master's
+ *     favour; the column was renamed (migration 2026_10_06_000001).
  *   - THE STANDARDS-WITHOUT-MEASUREMENT SECTION IS DRAWN EVEN WHEN EMPTY,
- *     with a note that every standard has a measurement. A section that
- *     disappears cannot be told apart from a section nobody built — and on
- *     this page that section carries the point above.
+ *     with a note that every standard has a measurement — which is the normal
+ *     state since the rename. A section that disappears cannot be told apart
+ *     from a section nobody built, and this one is exactly where a master
+ *     parameter renamed by hand would show up.
  *   - A PARAMETER ROW WITH NO READINGS IS STILL RENDERED IN FULL, with its
  *     values shown as unavailable and its denominator as 0 slots. An absent
  *     row reads as "there is no such parameter"; a present row of unavailables

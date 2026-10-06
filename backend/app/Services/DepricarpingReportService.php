@@ -128,29 +128,36 @@ use Throwable;
  * are not. It is also the column most easily dropped for space.
  *
  * ------------------------------------------------------------------
- * 4. ONE STANDARD IS LEFT UNMAPPED ON PURPOSE, THOUGH A SIMILARLY
- *    NAMED COLUMN EXISTS
+ * 4. EVERY COLUMN NOW HAS A STANDARD — AND THE ONE THAT DID NOT IS WORTH
+ *    REMEMBERING
  * ------------------------------------------------------------------
- * This is the finding on this screen most in need of a human reader.
+ * As of 2026-10-06 all seven measurement columns map to a master parameter
+ * and all six master parameters have a measurement, so targets_without_metric
+ * is normally EMPTY. That looks unremarkable, which is exactly why the
+ * history belongs here.
  *
- * The master's standard is 'Kernel Loss in Fibre', target '< 0.50%',
- * critical '> 1.00%' — unmistakably a LOSS, smaller is better. The
- * available column is `kernel_recovery_in_fibre_percent`, and all four
- * Depricarping input/detail screens label it 'Kernel Recovery in Fibre' — a
- * RECOVERY, normally larger is better. Opposite framings of one quantity;
- * only one can be right.
+ * Until that date the seventh column was named
+ * `kernel_recovery_in_fibre_percent` and all four Depricarping input/detail
+ * screens labelled it a RECOVERY, while its own master standard is
+ * 'Kernel Loss in Fibre' with target '< 0.50%' and critical '> 1.00%' —
+ * unmistakably a LOSS, smaller is better. Opposite framings of one quantity;
+ * only one could be right.
  *
- * NOTHING IN THE SYSTEM SETTLES IT, verified rather than assumed:
- * DepricarpingDetailFactory writes null, no seeder fills it, and querying
- * the dev database returns ZERO non-null values for that column.
+ * WHY THAT WAS NOT A NAMING NICETY. The two readings demand number scales
+ * about TWO HUNDRED TIMES apart: 0-2% for a loss, 90-100% for a recovery. So
+ * pairing the figure with that standard would have made this report announce
+ * "98%, far past the critical limit > 1.00%" about a station performing very
+ * well — a judgement with the direction REVERSED, on a number that still
+ * looked plausible. Nothing in the system settled it either: the factory
+ * wrote null, no seeder filled it, and depricarping_details held zero rows.
  *
- * So the column is NOT mapped to that standard. Its figure is still
- * published, under the column's own label, with target.parameter_metric
- * null and target.unmapped_reason set; the standard is published in
- * targets_without_metric with reason 'direction_unresolved'. The report
- * never prints a figure beneath a standard that might be its inverse —
- * guessing would make every judgement made from this screen point the wrong
- * way with nobody noticing.
+ * So the report refused to map it and PUBLISHED THE GAP instead — the figure
+ * under its own label with null targets, the standard in
+ * targets_without_metric. The user settled it on 2026-10-06 in the master's
+ * favour; see migration
+ * 2026_10_06_000001_rename_kernel_recovery_to_kernel_loss_on_depricarping_details
+ * for the full reasoning, and for why reverting the COLUMN rather than the
+ * MASTER would reopen exactly this hole.
  *
  * ------------------------------------------------------------------
  * AND IT STILL FLAGS NOTHING — WITH THE SHARPEST REASON YET
@@ -166,18 +173,33 @@ use Throwable;
  * several on both sides. So inheriting the refusal is not enough; it has to
  * be argued:
  *
- *   1. Both limit columns are VARCHAR that Admin / Mill Management may edit
- *      at any time. A parser that fails on the next shape STOPS WARNING
- *      without raising anything — and a warning that disappears reads as
- *      "everything is fine". For a quality indicator that is the worst
- *      possible failure direction.
- *   2. The two-sided form ('< 35 or > 55 mmH2O') needs a different parser
- *      from the one-sided form ('> 40%'), and the UNIT is inside the text
- *      too — mmH2O, %, °C, RPM, m/s. A parser correct for all six today is
- *      the one most likely to be wrong tomorrow.
- *   3. One parameter's own DIRECTION is unsettled (point 4 above). Parsing
- *      its limit and comparing it to a figure whose sense is unknown would
- *      produce an INVERTED warning — worse than no warning.
+ *   1. ACROSS THE THREE MASTERS THE VALUES FOLLOW SIX DIFFERENT GRAMMARS,
+ *      not one: a range ('40 - 50 mmH2O'); a range plus a third statement
+ *      ('75% - 80% (Minimum 3/4 full)'); one-sided ('> 40%'); TWO-SIDED
+ *      ('< 35 or > 55 mmH2O'), which needs a different parser from
+ *      one-sided; TWO NUMBERS MEANING DIFFERENT THINGS IN ONE STRING
+ *      ('Below 70°C (Check if >75°C)' — is the limit 70 or 75?); and prose
+ *      with no number at all ('Within motor rated full-load current (FLC)',
+ *      'As per mill capacity design'), which defers to a document outside
+ *      this system.
+ *   2. THE UNIT LIVES INSIDE THE TEXT — eight of them (MT/hr, RPM, °C, %,
+ *      Amperes, Bar, mmH2O, m/s) — and one parameter spells its own unit two
+ *      ways between its range and its limit ('35 - 45 Amperes' versus
+ *      '> 50 Amps'). One Pressing value is ALREADY ambiguous today:
+ *      '< 10% to 12%'. There is no honest way to decide whether that bound
+ *      is 10 or 12.
+ *   3. THE FAILURE IS SILENT, and that is what settles it. These are free
+ *      text; nothing in the schema constrains their shape, so a parser's
+ *      input set is not fixed at build time — a seeder run or a direct edit
+ *      can introduce a seventh grammar tomorrow and no test will catch it.
+ *      A parser meeting a shape it cannot read either throws (breaking the
+ *      page for everyone over one master cell) or skips (STOPS WARNING
+ *      without raising anything). Any reasonable implementation skips — and
+ *      "no warning" cannot be told apart from "all clear". For a quality
+ *      indicator that is the worst possible failure direction.
+ *   4. COLOUR CARRIES MEANING BEYOND STATISTICS. A figure rendered red in a
+ *      period report reads as a breach — audit material. Deriving that from
+ *      prose means the system asserts a breach nobody ever defined.
  *
  * So all four figures — measurement, target range, critical limit,
  * operational consequence — are published side by side and verbatim, and
@@ -272,7 +294,7 @@ class DepricarpingReportService
         'polishing_drum_speed_rpm',
         'air_velocity_ms',
         'fibre_moisture_percent',
-        'kernel_recovery_in_fibre_percent',
+        'kernel_loss_in_fibre_percent',
         'nut_silo_1_temp_c',
         'nut_silo_2_temp_c',
     ];
@@ -281,10 +303,12 @@ class DepricarpingReportService
      * Human label and unit per measurement column. Kept here rather than in
      * the blade so the API and the web page publish the same wording.
      *
-     * NOTE 'Kernel Recovery in Fibre': the label follows the COLUMN and the
-     * four existing Depricarping input/detail screens, NOT the master,
-     * which calls the same quantity 'Kernel Loss in Fibre'. That conflict
-     * is why the column is absent from COLUMN_TARGET_PARAMETER below.
+     * 'Kehilangan Kernel di Fibre' is the Indonesian label for the column the
+     * master calls 'Kernel Loss in Fibre'. UNTIL 2026-10-06 the column was
+     * named `kernel_recovery_in_fibre_percent` and every screen labelled it a
+     * RECOVERY, contradicting its own master standard; the rename migration
+     * 2026_10_06_000001 settled that in the master's favour. See
+     * COLUMN_TARGET_PARAMETER below.
      *
      * @var array<string, array{label: string, unit: string}>
      */
@@ -293,42 +317,45 @@ class DepricarpingReportService
         'polishing_drum_speed_rpm' => ['label' => 'Putaran Polishing Drum', 'unit' => 'RPM'],
         'air_velocity_ms' => ['label' => 'Kecepatan Udara Aspirator', 'unit' => 'm/s'],
         'fibre_moisture_percent' => ['label' => 'Kadar Air Fibre', 'unit' => '%'],
-        'kernel_recovery_in_fibre_percent' => ['label' => 'Kernel Recovery in Fibre', 'unit' => '%'],
+        'kernel_loss_in_fibre_percent' => ['label' => 'Kehilangan Kernel di Fibre', 'unit' => '%'],
         'nut_silo_1_temp_c' => ['label' => 'Suhu Nut Silo 1', 'unit' => 'C'],
         'nut_silo_2_temp_c' => ['label' => 'Suhu Nut Silo 2', 'unit' => 'C'],
     ];
 
     /**
      * THE FIXED MAP from measurement column to the master's
-     * `parameter_metric` string. SIX entries for SEVEN columns, and the two
-     * gaps are both deliberate and both different in kind:
+     * `parameter_metric` string. SEVEN entries for SEVEN columns — every
+     * measurement column now has a standard, and every master parameter now
+     * has a measurement.
      *
-     * 1. nut_silo_1_temp_c AND nut_silo_2_temp_c BOTH POINT AT THE SAME
-     *    PARAMETER. The master holds one 'Nut Silo Temperature' row while
-     *    the detail table has two silo columns. They stay two separate
-     *    metrics with their own denominators — two physical silos, and
-     *    averaging them into one figure would hide a drifting silo behind a
-     *    normal one — but they share one standard. Consequences for code
-     *    reading this constant: targetFor() returning the same master row
-     *    twice is CORRECT, and targetsWithoutMetric() must compare against
-     *    the SET of values here, never against count(), or
-     *    'Nut Silo Temperature' looks used twice and some other standard
-     *    looks unused.
+     * STILL NOT ONE-TO-ONE, and that is the one thing code reading this
+     * constant must handle: nut_silo_1_temp_c AND nut_silo_2_temp_c BOTH
+     * POINT AT THE SAME PARAMETER. The master holds one 'Nut Silo
+     * Temperature' row while the detail table has two silo columns. They
+     * stay two separate metrics with their own denominators — two physical
+     * silos, and averaging them into one figure would hide a drifting silo
+     * behind a normal one — but they share one standard. Consequences:
+     * targetFor() returning the same master row twice is CORRECT, and
+     * targetsWithoutMetric() must compare against the SET of values here,
+     * never against count(), or 'Nut Silo Temperature' looks used twice and
+     * some other standard looks unused. So seven entries name six distinct
+     * parameters, and six is exactly how many rows the master has.
      *
-     * 2. kernel_recovery_in_fibre_percent IS ABSENT ON PURPOSE, and this is
-     *    the entry a later reader is most likely to "complete" wrongly. The
-     *    master's standard is 'Kernel Loss in Fibre', target '< 0.50%',
-     *    critical '> 1.00%' — unmistakably a LOSS, smaller is better. The
-     *    column is named recovery, and all four Depricarping input/detail
-     *    screens label it 'Kernel Recovery in Fibre' — a RECOVERY, normally
-     *    larger is better. Opposite framings of one quantity; only one can
-     *    be right, and nothing in the system settles it:
-     *    DepricarpingDetailFactory writes null, no seeder fills it, and the
-     *    dev database holds ZERO non-null values. Mapping it would make the
-     *    report judge in the reverse direction with nobody noticing. The
-     *    metric is still published (with target.parameter_metric null and
-     *    target.unmapped_reason set); the standard lands in
-     *    targets_without_metric with reason 'direction_unresolved'.
+     * kernel_loss_in_fibre_percent WAS DELIBERATELY ABSENT UNTIL 2026-10-06,
+     * and the history matters because the mapping looks unremarkable now.
+     * The column used to be named `kernel_recovery_in_fibre_percent` and all
+     * four Depricarping input/detail screens labelled it a RECOVERY, while
+     * its own master standard is 'Kernel Loss in Fibre' with target
+     * '< 0.50%' and critical '> 1.00%' — unmistakably a LOSS. The two
+     * readings demand number scales about two hundred times apart (0-2% for
+     * a loss, 90-100% for a recovery), so pairing the figure with that
+     * standard would have made the report judge in the REVERSE direction on
+     * numbers that still looked plausible. The report therefore refused to
+     * map it and published the gap instead. Settled by the user on
+     * 2026-10-06 in the master's favour — see migration
+     * 2026_10_06_000001_rename_kernel_recovery_to_kernel_loss_on_depricarping_details
+     * for the full reasoning and for why reverting the COLUMN rather than
+     * the MASTER would reopen exactly this hole.
      *
      * Fixed rather than matched by text at render time, because a typo fix
      * on the master must not be able to silently detach a figure from its
@@ -343,29 +370,26 @@ class DepricarpingReportService
         'polishing_drum_speed_rpm' => 'Polishing Drum Speed',
         'air_velocity_ms' => 'Air Velocity (Aspirator)',
         'fibre_moisture_percent' => 'Fibre Moisture Content',
+        'kernel_loss_in_fibre_percent' => 'Kernel Loss in Fibre',
         'nut_silo_1_temp_c' => 'Nut Silo Temperature',
         'nut_silo_2_temp_c' => 'Nut Silo Temperature',
     ];
 
     /**
      * Why a master standard has no measurement, as published per row of
-     * targets_without_metric. The two are NOT interchangeable: the first
-     * calls for a new column, the second for a naming decision. Collapsing
-     * them into one "not measured" would hide which action is needed.
+     * targets_without_metric.
+     *
+     * ONE REASON, not two. Until 2026-10-06 there was a second,
+     * 'direction_unresolved', for the single case where a measurement column
+     * existed but its direction contradicted its own standard
+     * (kernel_recovery_in_fibre_percent versus 'Kernel Loss in Fibre'). The
+     * rename migration 2026_10_06_000001 settled that, so no column can be
+     * in that state any more and the value is gone rather than kept as a
+     * branch nothing can reach. 'no_column' remains reachable: a master
+     * parameter whose name is edited, or a genuinely new parameter with no
+     * column, both land here.
      */
     public const UNMAPPED_NO_COLUMN = 'no_column';
-
-    public const UNMAPPED_DIRECTION_UNRESOLVED = 'direction_unresolved';
-
-    /**
-     * The one column whose standard exists but whose DIRECTION is unsettled
-     * — and the master parameter it would otherwise be paired with. Kept as
-     * constants so the service, the blade, and the tests all name the same
-     * pair instead of three string literals drifting apart.
-     */
-    public const DIRECTION_UNRESOLVED_COLUMN = 'kernel_recovery_in_fibre_percent';
-
-    public const DIRECTION_UNRESOLVED_PARAMETER = 'Kernel Loss in Fibre';
 
     /**
      * Export column headers — context columns first, repeated on every
@@ -390,7 +414,7 @@ class DepricarpingReportService
         'Putaran Polishing Drum (RPM)',
         'Kecepatan Udara Aspirator (m/s)',
         'Kadar Air Fibre (%)',
-        'Kernel Recovery in Fibre (%)',
+        'Kehilangan Kernel di Fibre (%)',
         'Suhu Nut Silo 1 (C)',
         'Suhu Nut Silo 2 (C)',
         'Downtime (Menit)',
@@ -922,14 +946,18 @@ class DepricarpingReportService
      * elsewhere. DERIVED FROM THE CONSTANT, not written by hand: written by
      * hand it would start lying the moment a third silo column is added.
      *
-     * `unmapped_reason` is non-null ONLY for a column deliberately left out
-     * of the map — today just DIRECTION_UNRESOLVED_COLUMN. A column that is
-     * merely missing a master row gets null here and null targets; the two
-     * situations are different and the screen says different things about
-     * them.
+     * THERE IS NO `unmapped_reason` KEY ANY MORE. It existed until 2026-10-06
+     * for the one column deliberately left out of the map, and the rename
+     * migration 2026_10_06_000001 removed that case. A key that can only ever
+     * be null is worse than no key: the screen would keep a branch nothing
+     * reaches, and a later reader would look for the case it was built for.
+     *
+     * A column still gets all-null targets when the master has no row for its
+     * parameter — that is a different situation, and the screen says so by
+     * rendering "belum terisi pada master" rather than a blank cell.
      *
      * @param  array<string, array<string, string>>  $targets
-     * @return array{parameter_metric: string|null, target_range: string|null, critical_limit: string|null, operational_consequence_justification: string|null, shares_standard_with: list<string>, unmapped_reason: string|null}
+     * @return array{parameter_metric: string|null, target_range: string|null, critical_limit: string|null, operational_consequence_justification: string|null, shares_standard_with: list<string>}
      */
     protected function targetFor(string $column, array $targets): array
     {
@@ -942,9 +970,6 @@ class DepricarpingReportService
             'critical_limit' => $target['critical_limit'] ?? null,
             'operational_consequence_justification' => $target['operational_consequence_justification'] ?? null,
             'shares_standard_with' => $this->sharesStandardWith($column),
-            'unmapped_reason' => $column === static::DIRECTION_UNRESOLVED_COLUMN
-                ? static::UNMAPPED_DIRECTION_UNRESOLVED
-                : null,
         ];
     }
 
@@ -990,7 +1015,7 @@ class DepricarpingReportService
      *
      * Today this is exactly ONE: 'Kernel Loss in Fibre', reason
      * `direction_unresolved`. Not "there is no column" — there IS a column,
-     * kernel_recovery_in_fibre_percent — but the master calls the quantity a
+     * kernel_loss_in_fibre_percent — but the master calls the quantity a
      * LOSS ('< 0.50%', smaller is better) while the column and all four
      * Depricarping input/detail screens call it a RECOVERY. Nothing settles
      * it: the factory writes null, no seeder fills it, the dev database
@@ -1007,9 +1032,16 @@ class DepricarpingReportService
      * measured reads as satisfied when it is merely absent.
      *
      * COMPARED AGAINST THE SET of mapped parameters, never against
-     * count(COLUMN_TARGET_PARAMETER): six entries name only five distinct
+     * count(COLUMN_TARGET_PARAMETER): SEVEN entries name only SIX distinct
      * parameters, so counting would make 'Nut Silo Temperature' look used
      * twice and leave one real standard looking unused.
+     *
+     * NORMALLY EMPTY SINCE 2026-10-06. The master's six parameters are all
+     * mapped, so this list is empty until someone edits a parameter name on
+     * the master or adds a parameter with no column. The screen still DRAWS
+     * the section when it is empty (all_targets_measured) — a section that
+     * disappears cannot be told apart from a section nobody built, and this
+     * one is exactly where such an edit would show up.
      *
      * @param  array<string, array<string, string>>  $targets
      * @return list<array{parameter_metric: string, target_range: string, critical_limit: string, operational_consequence_justification: string, reason: string}>
@@ -1020,11 +1052,7 @@ class DepricarpingReportService
 
         return collect($targets)
             ->reject(fn (array $target, string $parameter) => in_array($parameter, $mapped, true))
-            ->map(fn (array $target, string $parameter) => $target + [
-                'reason' => $parameter === static::DIRECTION_UNRESOLVED_PARAMETER
-                    ? static::UNMAPPED_DIRECTION_UNRESOLVED
-                    : static::UNMAPPED_NO_COLUMN,
-            ])
+            ->map(fn (array $target) => $target + ['reason' => static::UNMAPPED_NO_COLUMN])
             ->values()
             ->all();
     }

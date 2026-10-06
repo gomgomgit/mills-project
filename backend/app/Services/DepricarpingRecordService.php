@@ -64,7 +64,7 @@ use Throwable;
  * "Filled" row (filled_slot_count / minimum-one-row validation): a
  * depricarping_detail row counts as filled when at least one of its 8
  * reading columns (fan_static_pressure_mmh2o, polishing_drum_speed_rpm,
- * air_velocity_ms, fibre_moisture_percent, kernel_recovery_in_fibre_percent,
+ * air_velocity_ms, fibre_moisture_percent, kernel_loss_in_fibre_percent,
  * nut_silo_1_temp_c, nut_silo_2_temp_c, downtime_minutes) OR `findings` is
  * non-null/non-empty. The model's own `saving` guard
  * (DepricarpingRecord::booted(), "minimal satu depricarping-detail sebelum
@@ -104,7 +104,7 @@ class DepricarpingRecordService
         'polishing_drum_speed_rpm',
         'air_velocity_ms',
         'fibre_moisture_percent',
-        'kernel_recovery_in_fibre_percent',
+        'kernel_loss_in_fibre_percent',
         'nut_silo_1_temp_c',
         'nut_silo_2_temp_c',
         'downtime_minutes',
@@ -253,7 +253,7 @@ class DepricarpingRecordService
     }
 
     /**
-     * @return array<int, array{id: ?string, time_slot: ?string, fan_static_pressure_mmh2o: mixed, polishing_drum_speed_rpm: mixed, air_velocity_ms: mixed, fibre_moisture_percent: mixed, kernel_recovery_in_fibre_percent: mixed, nut_silo_1_temp_c: mixed, nut_silo_2_temp_c: mixed, downtime_minutes: mixed, findings: mixed}>
+     * @return array<int, array{id: ?string, time_slot: ?string, fan_static_pressure_mmh2o: mixed, polishing_drum_speed_rpm: mixed, air_velocity_ms: mixed, fibre_moisture_percent: mixed, kernel_loss_in_fibre_percent: mixed, nut_silo_1_temp_c: mixed, nut_silo_2_temp_c: mixed, downtime_minutes: mixed, findings: mixed}>
      */
     protected function normalizeDetails(array $rawDetails): array
     {
@@ -265,7 +265,7 @@ class DepricarpingRecordService
                 'polishing_drum_speed_rpm' => $row['polishing_drum_speed_rpm'] ?? null,
                 'air_velocity_ms' => $row['air_velocity_ms'] ?? null,
                 'fibre_moisture_percent' => $row['fibre_moisture_percent'] ?? null,
-                'kernel_recovery_in_fibre_percent' => $row['kernel_recovery_in_fibre_percent'] ?? null,
+                'kernel_loss_in_fibre_percent' => $row['kernel_loss_in_fibre_percent'] ?? null,
                 'nut_silo_1_temp_c' => $row['nut_silo_1_temp_c'] ?? null,
                 'nut_silo_2_temp_c' => $row['nut_silo_2_temp_c'] ?? null,
                 'downtime_minutes' => $row['downtime_minutes'] ?? null,
@@ -335,7 +335,7 @@ class DepricarpingRecordService
     }
 
     /**
-     * @param  array{fan_static_pressure_mmh2o: mixed, polishing_drum_speed_rpm: mixed, air_velocity_ms: mixed, fibre_moisture_percent: mixed, kernel_recovery_in_fibre_percent: mixed, nut_silo_1_temp_c: mixed, nut_silo_2_temp_c: mixed, downtime_minutes: mixed, findings: mixed}  $row
+     * @param  array{fan_static_pressure_mmh2o: mixed, polishing_drum_speed_rpm: mixed, air_velocity_ms: mixed, fibre_moisture_percent: mixed, kernel_loss_in_fibre_percent: mixed, nut_silo_1_temp_c: mixed, nut_silo_2_temp_c: mixed, downtime_minutes: mixed, findings: mixed}  $row
      */
     public function isRowFilled(array $row): bool
     {
@@ -407,7 +407,7 @@ class DepricarpingRecordService
                 'polishing_drum_speed_rpm' => $row['polishing_drum_speed_rpm'],
                 'air_velocity_ms' => $row['air_velocity_ms'],
                 'fibre_moisture_percent' => $row['fibre_moisture_percent'],
-                'kernel_recovery_in_fibre_percent' => $row['kernel_recovery_in_fibre_percent'],
+                'kernel_loss_in_fibre_percent' => $row['kernel_loss_in_fibre_percent'],
                 'nut_silo_1_temp_c' => $row['nut_silo_1_temp_c'],
                 'nut_silo_2_temp_c' => $row['nut_silo_2_temp_c'],
                 'downtime_minutes' => $row['downtime_minutes'],
@@ -455,7 +455,7 @@ class DepricarpingRecordService
                         ->orWhereNotNull('polishing_drum_speed_rpm')
                         ->orWhereNotNull('air_velocity_ms')
                         ->orWhereNotNull('fibre_moisture_percent')
-                        ->orWhereNotNull('kernel_recovery_in_fibre_percent')
+                        ->orWhereNotNull('kernel_loss_in_fibre_percent')
                         ->orWhereNotNull('nut_silo_1_temp_c')
                         ->orWhereNotNull('nut_silo_2_temp_c')
                         ->orWhereNotNull('downtime_minutes')
@@ -530,7 +530,7 @@ class DepricarpingRecordService
                     'Polishing Drum Speed (RPM)',
                     'Air Velocity (m/s)',
                     'Fibre Moisture (%)',
-                    'Kernel Recovery in Fibre (%)',
+                    'Kernel Loss in Fibre (%)',
                     'Nut Silo 1 Temp (°C)',
                     'Nut Silo 2 Temp (°C)',
                     'Downtime (Mins)',
@@ -566,7 +566,7 @@ class DepricarpingRecordService
                                 $detail->polishing_drum_speed_rpm,
                                 $detail->air_velocity_ms,
                                 $detail->fibre_moisture_percent,
-                                $detail->kernel_recovery_in_fibre_percent,
+                                $detail->kernel_loss_in_fibre_percent,
                                 $detail->nut_silo_1_temp_c,
                                 $detail->nut_silo_2_temp_c,
                                 $detail->downtime_minutes,
@@ -738,7 +738,7 @@ class DepricarpingRecordService
                 'polishing_drum_speed_rpm' => $row->polishing_drum_speed_rpm,
                 'air_velocity_ms' => $row->air_velocity_ms,
                 'fibre_moisture_percent' => $row->fibre_moisture_percent,
-                'kernel_recovery_in_fibre_percent' => $row->kernel_recovery_in_fibre_percent,
+                'kernel_loss_in_fibre_percent' => $row->kernel_loss_in_fibre_percent,
                 'nut_silo_1_temp_c' => $row->nut_silo_1_temp_c,
                 'nut_silo_2_temp_c' => $row->nut_silo_2_temp_c,
                 'downtime_minutes' => $row->downtime_minutes,

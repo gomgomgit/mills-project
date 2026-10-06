@@ -1,5 +1,5 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-06"
@@ -79,7 +79,7 @@
         {
           "method": "GET",
           "path": "/api/depricarping-reports/summary",
-          "description": "DIPAKAI ULANG APA ADANYA dari screen-152. Bentuk payloadnya sama persis — termasuk ketujuh metrik dengan penyebut masing-masing, target empat kolom plus shares_standard_with dan unmapped_reason, blok downtime numerik, rekap findings, dan all_targets_measured. Layar mobile TIDAK menghitung apa pun dari payload ini.",
+          "description": "DIPAKAI ULANG APA ADANYA dari screen-152. Bentuk payloadnya sama persis — termasuk ketujuh metrik dengan penyebut masing-masing, target empat kolom plus shares_standard_with, blok downtime numerik, rekap findings, dan all_targets_measured. Medan target.unmapped_reason DIHAPUS pada 2026-10-06 bersama rename kolom kernel loss, karena tidak ada kolom yang dapat berada dalam keadaan 'sengaja tidak dipetakan' lagi. Layar mobile TIDAK menghitung apa pun dari payload ini.",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -106,7 +106,7 @@
               "production_line": "object",
               "has_data": "bool",
               "coverage": "object — filled_slots, expected_slots, coverage_percent (null bukan 0.0), presser_count, slots_per_presser_per_day, days_in_period, days_counted, period_running",
-              "metrics": "list[7] — column, label, unit, min, avg, max, filled_slot_count, target{parameter_metric, target_range, critical_limit, operational_consequence_justification, shares_standard_with, unmapped_reason}",
+              "metrics": "list[7] — column, label, unit, min, avg, max, filled_slot_count, target{parameter_metric, target_range, critical_limit, operational_consequence_justification, shares_standard_with}",
               "targets_without_metric": "list — parameter_metric, target_range, critical_limit, operational_consequence_justification, reason",
               "targets_master_empty": "bool",
               "all_targets_measured": "bool",
@@ -251,7 +251,7 @@
         "13. Tiap kartu memuat min / rata-rata / maks BERDAMPINGAN di dalam kartu itu — bukan tiga kartu terpisah, karena ketiganya satu pengukuran dilihat dari tiga sisi — lalu penyebutnya 'N dari M slot', lalu ketiga kolom target.",
         "14. KETIGA kolom target dirender pada kartu yang sama: target_range, critical_limit, dan operational_consequence_justification. Yang ketiga paling panjang teksnya dan karena itu paling berisiko dibuang demi ruang; ia tetap dirender penuh.",
         "15. Kartu yang target.shares_standard_with-nya tidak kosong membawa keterangan bahwa standarnya SATU baris master yang sama, menyebut label saudara kolomnya. Di layar sempit kedua kartu nut silo bertumpuk LANGSUNG berurutan, sehingga standar identik yang muncul dua kali beruntun lebih kuat lagi terbaca sebagai data terduplikasi daripada di tabel web.",
-        "16. Kartu yang target.unmapped_reason-nya tidak null (hari ini hanya kernel_recovery_in_fibre_percent) menampilkan keterangan bahwa standarnya TIDAK dipasangkan beserta sebabnya — bukan sel target kosong, yang terbaca seperti master yang belum terisi.",
+        "16. Seluruh kartu menampilkan ketiga kolom targetnya. Sampai 2026-10-06 ada SATU pengecualian: kartu yang target.unmapped_reason-nya tidak null (hanya kernel_recovery_in_fibre_percent) menampilkan keterangan bahwa standarnya tidak dipasangkan, karena masternya menyebut KEHILANGAN sementara kolom dan labelnya menyebut PEROLEHAN. Kolomnya di-rename menjadi kernel_loss_in_fibre_percent, medan unmapped_reason dihapus, dan cabang itu dibuang dari view — cabang yang tidak dapat dicapai hanya membuat pembaca berikutnya mencari kasus yang sudah tidak ada.",
         "17. Render bagian standar-tanpa-pengukuran dengan ALASAN per baris. Bagian itu DIGAMBAR WALAU KOSONG (dibaca dari all_targets_measured) dengan keterangannya sendiri — bagian yang hilang tidak dapat dibedakan dari bagian yang belum pernah dibuat, dan di layar ini bagian itulah yang memuat temuan paling perlu dibaca manusia.",
         "18. Render keterangan ketiadaan penandaan UTUH, tidak diringkas demi ruang — ketiadaan yang tidak dijelaskan terbaca sebagai fitur yang belum selesai.",
         "19. Render blok downtime dari downtime{}: total menit, jumlah slot pencatat, rata-rata per slot pencatat. total_minutes null → tampilkan keterangan ketiadaannya, JANGAN cetak 0 menit (yang terbaca seperti 'stasiun tidak pernah berhenti'). Keterangan bahwa slot tanpa catatan bukan nol menit, dan bahwa parameter ini tidak punya standar master, dirender di kedua keadaan.",
@@ -343,8 +343,8 @@
           "handling": "Keduanya tampil apa adanya; tidak dirata-ratakan menjadi satu kartu dan selisihnya tidak ditandai."
         },
         {
-          "condition": "Kartu kernel recovery",
-          "handling": "Angkanya tampil di bawah label kolomnya sendiri, dengan keterangan bahwa standarnya tidak dipasangkan beserta sebabnya — bukan sel target kosong."
+          "condition": "Kartu kernel loss",
+          "handling": "Angkanya tampil di bawah label kolomnya sendiri BESERTA ketiga kolom targetnya, seperti keenam kartu lainnya. Sampai 2026-10-06 kartu ini menampilkan keterangan 'standar tidak dipasangkan' karena arah angkanya bertentangan dengan masternya; rename kolom menyelesaikannya."
         },
         {
           "condition": "Tidak ada satu pun slot yang mencatat downtime",
@@ -483,13 +483,13 @@
           "expect": "Dua daftar berisi satu entri, lima daftar kosong — bukan undefined, karena view memeriksanya dengan !== []"
         },
         {
-          "description": "unmapped_reason diteruskan, null pada metrik terpetakan",
-          "given": "kernel_recovery_in_fibre_percent dengan unmapped_reason terisi; enam lainnya null",
-          "expect": "Nilainya terbaca apa adanya — view tidak boleh menyimpulkannya dari nama kolom, karena keputusannya ada di server dan sedang menunggu manusia"
+          "description": "kernel loss membawa standarnya, dan TIDAK ada medan unmapped_reason pada metrik mana pun",
+          "given": "Payload dengan kernel_loss_in_fibre_percent terpetakan ke 'Kernel Loss in Fibre'",
+          "expect": "Target keempat kolomnya terbaca; dan medan unmapped_reason TIDAK ADA pada setiap metrik — diasersi atas KETIADAAN medannya, bukan atas nilainya null, karena medan yang kembali tanpa disadari akan lolos dari asersi 'nilainya null'"
         },
         {
           "description": "targets_without_metric meneruskan reason per baris",
-          "given": "Dua entri dengan reason 'direction_unresolved' dan 'no_column'",
+          "given": "Satu entri dengan reason 'no_column' — satu-satunya nilai yang ada sejak 2026-10-06",
           "expect": "Kedua reason terbaca — perbedaannya menentukan tindakan, dan menggabungkannya menyembunyikan tindakan mana yang diperlukan"
         },
         {
@@ -621,11 +621,11 @@
     "TUJUH KARTU, BUKAN LIMA seperti pada Threshing dan Pressing mobile — dan itu berarti halaman ini lebih panjang dari keduanya. Ketujuhnya tetap dirender termasuk yang penyebutnya 0.",
     "KOLOM AKIBAT OPERASIONAL ADALAH YANG PALING BERISIKO DIBUANG di layar ini, dan karena itu diuji secara eksplisit. Teksnya satu sampai dua kalimat penuh ('Low pressure drops fibre early (heavy losses). High pressure sucks clean small nuts into the fibre cyclone.'), jadi pada kartu 390px ia memakan ruang terbanyak dari ketiga kolom target. Memotongnya adalah kehilangan yang paling mudah terjadi dan paling sulit terlihat: tanpa itu tiga parameter yang sama-sama melewati batas tampak sama pentingnya.",
     "KETERANGAN STANDAR-BERSAMA LEBIH PENTING DI SINI DARIPADA DI WEB, bukan sama pentingnya. Di tabel web kedua baris nut silo terpisah oleh garis baris; di kartu mobile keduanya BERTUMPUK LANGSUNG berurutan, sehingga standar '60C - 70C' yang identik muncul dua kali tepat beruntun — terbaca sebagai data terduplikasi lebih kuat lagi. Label saudara kolomnya diambil dari payload (shares_standard_with) dipetakan ke label metrik yang sudah ada di payload itu sendiri, bukan ditulis ulang di view.",
-    "KETERANGAN STANDAR-TIDAK-DIPASANGKAN pada kartu kernel recovery dibaca dari target.unmapped_reason, bukan dari pencocokan nama kolom di klien. Pencocokan nama di klien akan pecah senyap begitu server mengubah keputusannya — dan keputusan itu memang sedang menunggu manusia.",
+    "SELURUH KARTU MEMBAWA KETIGA KOLOM TARGETNYA sejak 2026-10-06. Sampai tanggal itu kartu kernel recovery menampilkan keterangan 'standar tidak dipasangkan' yang dibaca dari target.unmapped_reason — BUKAN dari pencocokan nama kolom di klien, karena pencocokan nama akan pecah senyap begitu server mengubah keputusannya. Server memang mengubahnya: kolomnya di-rename menjadi kernel_loss_in_fibre_percent (migrasi 2026_10_06_000001), medan unmapped_reason dihapus, dan cabang beserta data-testid metric-unmapped dibuang dari view. Membacanya dari payload alih-alih dari nama kolom itulah yang membuat perubahan ini hanya menyentuh satu cabang template, bukan logika tersembunyi di beberapa tempat.",
     "BLOK DOWNTIME: dua keadaan, dan keduanya dirender. total_minutes null → keterangan ketiadaan, dan teks '0 menit' TIDAK boleh muncul. total_minutes terisi → tiga angka (total, slot pencatat, rata-rata per slot pencatat). Keterangan 'slot tanpa catatan bukan nol menit' dan 'parameter ini tidak punya standar master' dirender di KEDUA keadaan — keduanya menjelaskan cara hitungnya, bukan hasilnya.",
     "BAGIAN TEMUAN TERPISAH DARI BLOK DOWNTIME, dan ada test yang mengasersi KEDUANYA ada sekaligus. Menggabungkannya akan membuat slot yang punya keduanya terhitung dua kali pada satu pengertian dan menghilangkan kemampuan menjawab salah satunya sendiri.",
     "BAGIAN STANDAR-TANPA-PENGUKURAN DIGAMBAR WALAU KOSONG, dibaca dari all_targets_measured — tetapi layar membaca targets_master_empty LEBIH DULU, karena kedua kunci itu dapat sama-sama menunjuk daftar kosong untuk sebab yang berlawanan (master belum terisi vs seluruh standar sudah terukur).",
-    "LAPISAN KLIEN: depricarpingReportRepo.ts sejajar kedelapan repo laporan lain — scopeParams() tidak pernah mengirim business_unit_id untuk peran terikat mill, productionLineParams() hanya mengirim ke /summary dan /export, dan unwrap() menerima respons dengan maupun tanpa pembungkus 'data'. Antarmuka TypeScript-nya memuat target dengan EMPAT kolom plus shares_standard_with dan unmapped_reason, dan downtime sebagai objek — bukan daftar alasan seperti pada repo Threshing/Pressing.",
+    "LAPISAN KLIEN: depricarpingReportRepo.ts sejajar kedelapan repo laporan lain — scopeParams() tidak pernah mengirim business_unit_id untuk peran terikat mill, productionLineParams() hanya mengirim ke /summary dan /export, dan unwrap() menerima respons dengan maupun tanpa pembungkus 'data'. Antarmuka TypeScript-nya memuat target dengan EMPAT kolom plus shares_standard_with, dan downtime sebagai objek — bukan daftar alasan seperti pada repo Threshing/Pressing. Medan unmapped_reason ada sampai 2026-10-06 lalu dihapus bersama rename kolom kernel loss.",
     "BAHAYA DIAM YANG DICATAT DI DOCBLOCK REPO: menyalin nama field target dari threshingReportRepo.ts atau pressingReportRepo.ts ke antarmuka ini menghasilkan blok target yang SELURUHNYA null tanpa satu pun galat TypeScript — ketiga master tidak berbagi satu pun nama kolom (Threshing: parameter/standard_operational_target/action_plan_on_deviation; Pressing: parameter_metric/target_operating_range/critical_trigger_action_limit; Depricarping: parameter_metric/target_range/critical_limit/operational_consequence_justification). Ada test yang mengasersi keempat nama yang benar secara eksplisit.",
     "NOL ARITMETIKA DI KLIEN, DAN FIXTURE TEST YANG MEMBUKTIKANNYA. Angka pada depricarpingReportRepo.spec.ts sengaja dibuat BERTENTANGAN dengan sumbernya: coverage_percent yang tidak sama dengan filled/total; avg di luar rentang min..max-nya sendiri (mustahil dari perhitungan apa pun); filled_slot_count yang berselisih dengan filled_slots; downtime.total_minutes yang bukan jumlah downtime_minutes baris harian; dan downtime.avg_minutes_per_recorded_slot yang bukan total/recorded. Repo yang menghitung sendiri PASTI gagal; dengan payload yang konsisten, separuh berkas itu menjadi test yang selalu hijau.",
     "SATU KEJANGGALAN YANG BENAR, DICATAT DI TIGA TEMPAT (docblock repo, docblock view, dan satu test): coverage.filled_slots BISA LEBIH BESAR daripada penyebut kolom ukur mana pun. Slot dihitung terisi bila salah satu dari SEMBILAN kolom bacaan terisi, dan dua di antaranya (downtime_minutes, findings) bukan kolom ukur. Dicatat supaya pembaca berikutnya tidak 'memperbaiki' selisih yang memang benar.",
@@ -806,7 +806,7 @@
       }
     },
     {
-      "scenario_ref": "Kartu kernel recovery menyatakan standarnya tidak dipasangkan",
+      "scenario_ref": "Kartu kernel loss membawa standarnya, tanpa keterangan tidak-dipasangkan",
       "usecase_id": "usecase-156--laporan-depricarping-mobile",
       "api_test": [
         {
@@ -825,13 +825,13 @@
       ],
       "component_test": {
         "component": "LaporanDepricarpingView",
-        "action": "mount dengan kolom kernel recovery terisi dan unmapped_reason terisi",
-        "assert": "angkanya terender DI BAWAH label kolomnya sendiri; keterangan bahwa standarnya tidak dipasangkan terender; dan sel target TIDAK kosong tanpa keterangan — sel kosong terbaca seperti master yang belum terisi"
+        "action": "mount dengan kolom kernel loss terisi dan master tersemai",
+        "assert": "kartunya menampilkan angkanya DAN ketiga data-testid targetnya (metric-target-range, metric-critical-limit, metric-consequence); data-testid metric-unmapped TIDAK ADA, dan frasa 'tidak dipasangkan' tidak muncul di mana pun pada layar"
       },
       "browser_test": {
         "route": "/reports/depricarping",
         "action": "buka laporan",
-        "assert": "keterangan itu terlihat pada kartu kernel recovery"
+        "assert": "ketiga kolom target terlihat pada kartu kernel loss, dan metric-unmapped nol pada seluruh halaman"
       }
     },
     {

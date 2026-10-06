@@ -88,7 +88,7 @@ class FormDepricarping extends Component
      * record (UPDATE target) and absent for rows added this session
      * (INSERT target).
      *
-     * @var array<int, array{id: ?string, time_slot: ?string, fan_static_pressure_mmh2o: mixed, polishing_drum_speed_rpm: mixed, air_velocity_ms: mixed, fibre_moisture_percent: mixed, kernel_recovery_in_fibre_percent: mixed, nut_silo_1_temp_c: mixed, nut_silo_2_temp_c: mixed, downtime_minutes: mixed, findings: mixed}>
+     * @var array<int, array{id: ?string, time_slot: ?string, fan_static_pressure_mmh2o: mixed, polishing_drum_speed_rpm: mixed, air_velocity_ms: mixed, fibre_moisture_percent: mixed, kernel_loss_in_fibre_percent: mixed, nut_silo_1_temp_c: mixed, nut_silo_2_temp_c: mixed, downtime_minutes: mixed, findings: mixed}>
      */
     public array $detailRows = [];
 
@@ -164,7 +164,7 @@ class FormDepricarping extends Component
                 'polishing_drum_speed_rpm' => $row['polishing_drum_speed_rpm'],
                 'air_velocity_ms' => $row['air_velocity_ms'],
                 'fibre_moisture_percent' => $row['fibre_moisture_percent'],
-                'kernel_recovery_in_fibre_percent' => $row['kernel_recovery_in_fibre_percent'],
+                'kernel_loss_in_fibre_percent' => $row['kernel_loss_in_fibre_percent'],
                 'nut_silo_1_temp_c' => $row['nut_silo_1_temp_c'],
                 'nut_silo_2_temp_c' => $row['nut_silo_2_temp_c'],
                 'downtime_minutes' => $row['downtime_minutes'],
@@ -182,7 +182,7 @@ class FormDepricarping extends Component
             'polishing_drum_speed_rpm' => '',
             'air_velocity_ms' => '',
             'fibre_moisture_percent' => '',
-            'kernel_recovery_in_fibre_percent' => '',
+            'kernel_loss_in_fibre_percent' => '',
             'nut_silo_1_temp_c' => '',
             'nut_silo_2_temp_c' => '',
             'downtime_minutes' => '',
@@ -251,7 +251,7 @@ class FormDepricarping extends Component
                 'polishing_drum_speed_rpm' => $row['polishing_drum_speed_rpm'] !== '' ? $row['polishing_drum_speed_rpm'] : null,
                 'air_velocity_ms' => $row['air_velocity_ms'] !== '' ? $row['air_velocity_ms'] : null,
                 'fibre_moisture_percent' => $row['fibre_moisture_percent'] !== '' ? $row['fibre_moisture_percent'] : null,
-                'kernel_recovery_in_fibre_percent' => $row['kernel_recovery_in_fibre_percent'] !== '' ? $row['kernel_recovery_in_fibre_percent'] : null,
+                'kernel_loss_in_fibre_percent' => $row['kernel_loss_in_fibre_percent'] !== '' ? $row['kernel_loss_in_fibre_percent'] : null,
                 'nut_silo_1_temp_c' => $row['nut_silo_1_temp_c'] !== '' ? $row['nut_silo_1_temp_c'] : null,
                 'nut_silo_2_temp_c' => $row['nut_silo_2_temp_c'] !== '' ? $row['nut_silo_2_temp_c'] : null,
                 'downtime_minutes' => $row['downtime_minutes'] !== '' ? $row['downtime_minutes'] : null,

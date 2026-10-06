@@ -48,7 +48,7 @@ import { todayLocalDateString } from '@/utils/localDate'
  * "Filled" row, for the required-row validation only (not a DB constraint):
  * a depricarping_detail row counts as filled when at least one of its 8
  * reading columns (fan_static_pressure_mmh2o, polishing_drum_speed_rpm,
- * air_velocity_ms, fibre_moisture_percent, kernel_recovery_in_fibre_percent,
+ * air_velocity_ms, fibre_moisture_percent, kernel_loss_in_fibre_percent,
  * nut_silo_1_temp_c, nut_silo_2_temp_c, downtime_minutes) OR `findings` is
  * non-null/non-empty — i.e. EITHER downtime_minutes OR findings (or any
  * other reading column) satisfies isRowFilled(), matching the pre-fix
@@ -97,7 +97,7 @@ export interface DepricarpingDetailRow {
   polishing_drum_speed_rpm: number | null
   air_velocity_ms: number | null
   fibre_moisture_percent: number | null
-  kernel_recovery_in_fibre_percent: number | null
+  kernel_loss_in_fibre_percent: number | null
   nut_silo_1_temp_c: number | null
   nut_silo_2_temp_c: number | null
   downtime_minutes: number | null
@@ -141,7 +141,7 @@ export interface DepricarpingDetailFormRow {
   polishing_drum_speed_rpm: number | null
   air_velocity_ms: number | null
   fibre_moisture_percent: number | null
-  kernel_recovery_in_fibre_percent: number | null
+  kernel_loss_in_fibre_percent: number | null
   nut_silo_1_temp_c: number | null
   nut_silo_2_temp_c: number | null
   downtime_minutes: number | null
@@ -237,7 +237,7 @@ export function canonicalTimeSlots(): string[] {
  * Returns true when a depricarping_detail row has at least one of its 8
  * reading columns non-null/non-empty (fan_static_pressure_mmh2o,
  * polishing_drum_speed_rpm, air_velocity_ms, fibre_moisture_percent,
- * kernel_recovery_in_fibre_percent, nut_silo_1_temp_c, nut_silo_2_temp_c,
+ * kernel_loss_in_fibre_percent, nut_silo_1_temp_c, nut_silo_2_temp_c,
  * downtime_minutes) OR `findings` is non-empty — EITHER downtime_minutes OR
  * findings satisfies this, not both required — see this file's header
  * comment for the "filled row" definition.
@@ -247,7 +247,7 @@ function isRowFilled(row: {
   polishing_drum_speed_rpm: number | null
   air_velocity_ms: number | null
   fibre_moisture_percent: number | null
-  kernel_recovery_in_fibre_percent: number | null
+  kernel_loss_in_fibre_percent: number | null
   nut_silo_1_temp_c: number | null
   nut_silo_2_temp_c: number | null
   downtime_minutes: number | null
@@ -258,7 +258,7 @@ function isRowFilled(row: {
     row.polishing_drum_speed_rpm !== null ||
     row.air_velocity_ms !== null ||
     row.fibre_moisture_percent !== null ||
-    row.kernel_recovery_in_fibre_percent !== null ||
+    row.kernel_loss_in_fibre_percent !== null ||
     row.nut_silo_1_temp_c !== null ||
     row.nut_silo_2_temp_c !== null ||
     row.downtime_minutes !== null ||
@@ -425,7 +425,7 @@ async function applyDetailRowChanges(
              polishing_drum_speed_rpm = ?,
              air_velocity_ms = ?,
              fibre_moisture_percent = ?,
-             kernel_recovery_in_fibre_percent = ?,
+             kernel_loss_in_fibre_percent = ?,
              nut_silo_1_temp_c = ?,
              nut_silo_2_temp_c = ?,
              downtime_minutes = ?,
@@ -438,7 +438,7 @@ async function applyDetailRowChanges(
           row.polishing_drum_speed_rpm,
           row.air_velocity_ms,
           row.fibre_moisture_percent,
-          row.kernel_recovery_in_fibre_percent,
+          row.kernel_loss_in_fibre_percent,
           row.nut_silo_1_temp_c,
           row.nut_silo_2_temp_c,
           row.downtime_minutes,
@@ -454,7 +454,7 @@ async function applyDetailRowChanges(
 
     await run(
       `INSERT INTO depricarping_detail
-         (id, depricarping_record_id, time_slot, fan_static_pressure_mmh2o, polishing_drum_speed_rpm, air_velocity_ms, fibre_moisture_percent, kernel_recovery_in_fibre_percent, nut_silo_1_temp_c, nut_silo_2_temp_c, downtime_minutes, findings, created_at, updated_at)
+         (id, depricarping_record_id, time_slot, fan_static_pressure_mmh2o, polishing_drum_speed_rpm, air_velocity_ms, fibre_moisture_percent, kernel_loss_in_fibre_percent, nut_silo_1_temp_c, nut_silo_2_temp_c, downtime_minutes, findings, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         detailId,
@@ -464,7 +464,7 @@ async function applyDetailRowChanges(
         row.polishing_drum_speed_rpm,
         row.air_velocity_ms,
         row.fibre_moisture_percent,
-        row.kernel_recovery_in_fibre_percent,
+        row.kernel_loss_in_fibre_percent,
         row.nut_silo_1_temp_c,
         row.nut_silo_2_temp_c,
         row.downtime_minutes,

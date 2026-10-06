@@ -342,7 +342,7 @@ it('skenario 8 — tidak ada satu pun kelas penanda di luar batas pada HTML ter-
     expect($html)->toContain('berlaku umum untuk seluruh mill');
 });
 
-it('skenario 9 — target tanpa kolom pengukuran terender pada bagiannya sendiri', function () {
+it('skenario 9 — bagian standar-tanpa-pengukuran terender KOSONG dengan keterangannya', function () {
     laporanDepricarpingComponentSeedTargets();
 
     $record = laporanDepricarpingComponentRecord($this->stationA, '2026-09-04');
@@ -353,19 +353,20 @@ it('skenario 9 — target tanpa kolom pengukuran terender pada bagiannya sendiri
         ->set('productionLineId', $this->lineA)
         ->html();
 
+    // BAGIANNYA TETAP DIGAMBAR walau daftarnya kosong — keadaan normal sejak
+    // rename kolom kernel loss (2026-10-06). Bagian yang hilang ketika kosong
+    // tidak dapat dibedakan dari bagian yang belum pernah dibuat, dan di
+    // layar inilah suntingan nama parameter pada master akan muncul.
     expect($html)->toContain('data-testid="targets-without-metric"');
-    // SATU parameter, dan alasannya BUKAN "tidak ada kolomnya".
-    expect($html)->toContain('Kernel Loss in Fibre');
-    expect(substr_count($html, 'data-testid="targets-without-metric-row"'))->toBe(1);
-    expect($html)->toContain('data-testid="targets-without-metric-note"');
-    expect($html)->toContain('data-testid="targets-without-metric-reason"');
-    // ALASANNYA tercetak, bukan hanya nama parameternya: "ada kolomnya tapi
-    // arahnya belum pasti" menuntut keputusan penamaan, sementara "tidak ada
-    // kolomnya" menuntut kolom baru. Dua tindakan yang berbeda.
-    expect($html)->toContain('arahnya belum pasti');
-    // Dan baris metriknya sendiri menyatakan standarnya tidak dipasangkan,
-    // alih-alih menampilkan sel kosong yang terbaca seperti master kosong.
-    expect($html)->toContain('standar tidak dipasangkan');
+    expect($html)->toContain('data-testid="targets-all-measured"');
+    expect($html)->not->toContain('data-testid="targets-without-metric-row"');
+    expect($html)->not->toContain('data-testid="targets-master-empty"');
+
+    // Dan baris metrik kernel loss kini membawa standarnya, bukan keterangan
+    // "tidak dipasangkan".
+    expect($html)->toContain('Kehilangan Kernel di Fibre');
+    expect($html)->toContain('&lt; 0.50%');
+    expect($html)->not->toContain('standar tidak dipasangkan');
 });
 
 it('skenario 9b — bagian standar-tanpa-pengukuran TETAP digambar walau kosong', function () {

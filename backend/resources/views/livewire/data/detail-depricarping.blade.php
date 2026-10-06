@@ -58,7 +58,7 @@
                             <th>Polishing Drum Speed</th>
                             <th>Air Velocity</th>
                             <th>Fibre Moisture</th>
-                            <th>Kernel Recovery in Fibre</th>
+                            <th>Kernel Loss in Fibre</th>
                             <th>Nut Silo 1 Temp</th>
                             <th>Nut Silo 2 Temp</th>
                             <th>Downtime (Mins)</th>
@@ -73,7 +73,7 @@
                                 <td>{{ \App\Support\Display::value($row['polishing_drum_speed_rpm']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['air_velocity_ms']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['fibre_moisture_percent']) }}</td>
-                                <td>{{ \App\Support\Display::value($row['kernel_recovery_in_fibre_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['kernel_loss_in_fibre_percent']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['nut_silo_1_temp_c']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['nut_silo_2_temp_c']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['downtime_minutes']) }}</td>

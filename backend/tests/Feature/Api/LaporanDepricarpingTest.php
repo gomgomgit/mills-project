@@ -456,7 +456,7 @@ it('skenario 16 — periode belum mulai: coverage_percent null, bukan 0', functi
     expect($summary->json('coverage.days_counted'))->toBe(0);
 });
 
-it('skenario 17 — target tanpa kolom ukur diterbitkan, bukan dibuang', function () {
+it('skenario 17 — seluruh standar master kini terpetakan, dan bagiannya tetap dinyatakan kosong', function () {
     laporanDepricarpingSeedTargets();
 
     $record = laporanDepricarpingRecord($this->stationA, '2026-09-04', 'PR-A');
@@ -468,33 +468,30 @@ it('skenario 17 — target tanpa kolom ukur diterbitkan, bukan dibuang', functio
     ]));
 
     $summary->assertOk();
+
+    // SEJAK 2026-10-06 daftarnya KOSONG. Master memuat ENAM parameter dan
+    // depricarping_details punya TUJUH kolom ukur; ketimpangannya habis karena
+    // satu parameter ('Nut Silo Temperature') mengatur dua kolom silo, dan
+    // kolom ketujuh — yang dulu bernama kernel_recovery_in_fibre_percent dan
+    // sengaja tidak dipetakan karena arahnya bertentangan dengan masternya —
+    // kini bernama kernel_loss_in_fibre_percent dan terpasang pada standarnya.
+    expect($summary->json('targets_without_metric'))->toBe([]);
     expect($summary->json('targets_master_empty'))->toBeFalse();
-    // SATU, bukan dua seperti pada Pressing — dan alasannya berbeda jenisnya.
-    // Master memuat ENAM parameter untuk TUJUH kolom ukur, dan ketimpangannya
-    // berjalan ke dua arah: satu parameter mengatur dua kolom nut silo, dan
-    // satu parameter ('Kernel Loss in Fibre') tidak dipetakan ke kolom mana
-    // pun walau kolom bernama mirip ADA.
-    expect($summary->json('targets_without_metric'))->toHaveCount(1);
 
-    $unmeasured = collect($summary->json('targets_without_metric'))->pluck('parameter_metric')->all();
+    // KEDUANYA diasersi, karena daftar kosong punya DUA sebab yang
+    // berlawanan: master yang belum terisi versus seluruh standar yang sudah
+    // terukur. all_targets_measured yang membedakannya.
+    expect($summary->json('all_targets_measured'))->toBeTrue();
 
-    expect($unmeasured)->toBe(['Kernel Loss in Fibre']);
+    // Dan kolom yang dulu tidak terpetakan kini membawa KEEMPAT kolom
+    // masternya, tanpa kunci alasan apa pun.
+    $kernel = laporanDepricarpingMetric($summary, 'kernel_loss_in_fibre_percent');
 
-    // KEEMPAT kolom master ikut diterbitkan, bukan hanya namanya — DAN
-    // alasannya, karena 'ada kolomnya tapi arahnya belum pasti' menuntut
-    // tindakan yang berbeda dari 'tidak ada kolomnya'.
-    expect($summary->json('targets_without_metric.0.target_range'))->toBe('< 0.50%');
-    expect($summary->json('targets_without_metric.0.critical_limit'))->toBe('> 1.00%');
-    expect($summary->json('targets_without_metric.0.operational_consequence_justification'))->not->toBeNull();
-    expect($summary->json('targets_without_metric.0.reason'))->toBe('direction_unresolved');
-    expect($summary->json('all_targets_measured'))->toBeFalse();
-
-    // Dan angka kolomnya TETAP diterbitkan, dengan targetnya null dan
-    // alasannya terisi: tidak dipetakan bukan berarti tidak dilaporkan.
-    $kernel = laporanDepricarpingMetric($summary, 'kernel_recovery_in_fibre_percent');
-
-    expect($kernel['target']['parameter_metric'])->toBeNull();
-    expect($kernel['target']['unmapped_reason'])->toBe('direction_unresolved');
+    expect($kernel['target']['parameter_metric'])->toBe('Kernel Loss in Fibre');
+    expect($kernel['target']['target_range'])->toBe('< 0.50%');
+    expect($kernel['target']['critical_limit'])->toBe('> 1.00%');
+    expect($kernel['target']['operational_consequence_justification'])->not->toBeNull();
+    expect($kernel['target'])->not->toHaveKey('unmapped_reason');
 });
 
 it('skenario 18 — payload tidak memuat satu pun kunci penilaian terhadap standar', function () {

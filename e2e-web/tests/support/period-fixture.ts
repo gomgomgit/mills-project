@@ -3,7 +3,20 @@ import { login, PASSWORD } from './auth'
 import { statefulHeaders } from './periods'
 
 /**
- * Prasyarat Periode Pelaporan untuk 18 spec `form-*`.
+ * Prasyarat Periode Pelaporan untuk 18 spec `form-*` dan — sejak 2026-10-06 —
+ * untuk 4 spec `laporan-*` terbaru (grading, threshing, pressing,
+ * depricarping).
+ *
+ * KEEMPAT SPEC LAPORAN ITU DULU MENUMPANG, TANPA MENYEBUTKANNYA. Mereka tidak
+ * menanam periode sendiri (berbeda dari enam spec laporan lebih tua yang
+ * memakai period-lanes.ts) dan diam-diam mengandalkan periode di bawah ini
+ * masih ada ketika mereka jalan — terpenuhi hanya karena `form-*` mendahului
+ * `laporan-*` secara alfabet dan playwright.config.ts memaksa satu worker.
+ * Dijalankan sendirian setelah scripts/prepare-db.sh, keempatnya gagal total
+ * di `[data-testid="coverage"]` seolah produknya rusak. Kini keempatnya
+ * memanggil seedOpenPeriodForForms() di `beforeAll` masing-masing; fungsi ini
+ * idempoten dan memakai ulang periode yang sudah ada, jadi tidak ada periode
+ * kedua yang lahir ketika spec `form-*` memang sudah jalan lebih dulu.
  *
  * ── MENGAPA BERKAS INI ADA, SEJAK 2026-10-02 ─────────────────────────────
  *

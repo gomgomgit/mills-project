@@ -58,6 +58,42 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn () => response()->json(['status' => 'ok']));
 
+/*
+|--------------------------------------------------------------------------
+| Penjaga suite browser — HANYA terdaftar di environment `e2e` (2026-10-06)
+|--------------------------------------------------------------------------
+| MASALAH YANG DIPERBAIKINYA. e2e-web/tests/support/global-setup.ts memastikan
+| suite berjalan terhadap server e2e dengan menanyakan KONFIGURASI lewat
+| `php artisan tinker --env=e2e`, lalu membandingkan APP_URL-nya dengan baseURL
+| suite. Keduanya bisa cocok sementara yang MENJAWAB di port itu adalah server
+| lain: `php artisan serve` tanpa `--env` menaikkan portnya sendiri ketika 8000
+| sudah terpakai, jadi server environment `local` — dengan database DEV —
+| menempati :8001, port milik suite ini. Itu bukan hipotesis: pada 2026-10-06
+| satu run 16,7 menit mengarah ke server dev, dan penjaganya lolos karena yang
+| diperiksanya adalah berkas konfigurasi, bukan server yang menjawab. Seluruh
+| 24 test-nya gagal sebagai TIMEOUT di login — kegagalan yang tidak menyebut
+| sebabnya di mana pun.
+|
+| KENAPA RUTE TERSENDIRI, BUKAN FIELD TAMBAHAN DI /health. /health terbuka
+| tanpa autentikasi, juga di produksi; menyebutkan nama database dan
+| environment di sana adalah kebocoran informasi untuk keuntungan yang hanya
+| dipakai suite test. Di sini KEBERADAAN rutenya sendiri yang menjadi buktinya:
+| di environment lain ia tidak terdaftar sama sekali, jadi server yang salah
+| menjawab 404 dan global-setup berhenti sebelum satu test pun jalan.
+|
+| Nama database ikut dikembalikan karena global-setup MENANAM fixture-nya lewat
+| CLI (`artisan db:seed --env=e2e`) sementara test membacanya lewat HTTP. Kalau
+| kedua jalur itu menunjuk database berbeda, seeding berhasil di satu tempat
+| dan test membaca tempat lain — persis jenis kegagalan yang mahal dibaca.
+*/
+if (app()->environment('e2e')) {
+    Route::get('/e2e/identity', fn () => response()->json([
+        'env' => app()->environment(),
+        'database' => config('database.connections.'.config('database.default').'.database'),
+        'app_url' => config('app.url'),
+    ]));
+}
+
 // === ASDLC_ROUTES_START ===
 // screen-001--login-web / usecase-001--login-web
 // AND screen-002--login-mobile / usecase-002--login-mobile (same route,

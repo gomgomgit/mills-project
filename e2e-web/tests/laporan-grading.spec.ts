@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { removeOpenPeriodForForms, seedOpenPeriodForForms } from './support/period-fixture'
 
 /**
  * Laporan Grading (Browser/Playwright) — screen-146--laporan-grading-web /
@@ -85,6 +86,47 @@ async function openReportWithData(page: Page): Promise<void> {
   await expect(page.locator('[data-testid="report-hero"]')).toBeVisible()
   await expect(page.locator('[data-testid="headline-kpis"]')).toBeVisible()
 }
+
+/**
+ * PRASYARAT PERIODE PELAPORAN — ditanam di sini sejak 2026-10-06.
+ *
+ * Spec ini sengaja tidak menanam datanya sendiri (lihat catatan panjang di
+ * atas), dan sampai hari ini ia juga tidak menanam PERIODE-nya: ia menumpang
+ * periode "Prasyarat Form" yang ditanam ke-18 spec `form-*` lewat
+ * tests/support/period-fixture.ts dan — sejak 2026-10-04 — tidak lagi dihapus
+ * di afterAll. Ketergantungan itu tidak tertulis di mana pun dan hanya
+ * terpenuhi oleh KEBETULAN URUTAN: `form-*` jalan sebelum `laporan-*` secara
+ * alfabet, dan playwright.config.ts memaksa satu worker.
+ *
+ * Akibatnya spec ini TIDAK BISA dijalankan sendirian setelah
+ * scripts/prepare-db.sh. Tanpa satu pun periode di "BU Browser Test" pemilih
+ * periodenya kosong, `[data-testid="coverage"]` tidak pernah muncul, dan
+ * hampir seluruh skenarionya gagal sebagai "element(s) not found" — seolah
+ * produknya yang rusak. Itu benar-benar terjadi pada 2026-10-06 dan butuh
+ * setengah jam untuk dibuktikan BUKAN regresi. Enam spec laporan yang lebih
+ * tua tidak punya masalah ini karena mereka menanam periodenya sendiri lewat
+ * tests/support/period-lanes.ts; keempat spec laporan terbaru (grading,
+ * threshing, pressing, depricarping) tidak.
+ *
+ * seedOpenPeriodForForms() idempoten dan MEMAKAI ULANG periode yang sudah ada
+ * (findPeriodByPrefix), jadi memanggilnya di sini tidak menambah periode kedua
+ * ketika spec `form-*` memang jalan lebih dulu — ia hanya menghapus
+ * ketergantungan pada urutan. Biayanya satu login + tiga permintaan API per
+ * spec, jauh di dalam anggaran 30 detik `beforeAll`.
+ */
+let periodFixturePage: Page | undefined
+
+test.beforeAll(async ({ browser }) => {
+  periodFixturePage = await seedOpenPeriodForForms(browser, 'grading')
+})
+
+test.afterAll(async () => {
+  // Dijaga: kalau beforeAll gagal sebelum mengembalikan page-nya, afterAll
+  // tidak boleh menimpa kegagalan itu dengan TypeError miliknya sendiri.
+  if (periodFixturePage !== undefined) {
+    await removeOpenPeriodForForms(periodFixturePage)
+  }
+})
 
 test.describe('Laporan Grading (screen-146)', () => {
   // Scenario: "Production Line belum dipilih"

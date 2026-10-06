@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\PeriodStatus;
 use App\Enums\RecordStatus;
 use App\Enums\StationType;
+use App\Enums\Uom;
 use App\Enums\UserRole;
 use App\Models\BoilerRoomDetail;
 use App\Models\BoilerRoomRecord;
@@ -1265,6 +1266,56 @@ class BrowserTestFixtureSeeder extends Seeder
                 'quantity' => 30,
                 'uom' => 'kg',
                 'percentage' => 25,
+            ],
+        );
+
+        /*
+         * BARIS KEDUA, BERSATUAN BUNCH — ditambahkan 2026-10-06.
+         *
+         * Laporan Grading (screen-146) memisahkan parameter menjadi DUA
+         * kelompok satuan, dan dua skenario browser menguji justru pemisahan
+         * itu: satu memastikan total janjang dan total kilogram TIDAK PERNAH
+         * dijumlahkan, satu lagi memastikan tiap baris janjang mencetak
+         * penyebut rata-ratanya. Keduanya butuh kedua satuan hadir sekaligus.
+         *
+         * Dengan hanya baris `kg` di atas, kelompok bunch merender
+         * `parameter-bunch-empty` alih-alih `parameter-bunch-row` dan totalnya
+         * "tidak tersedia" — jadi kedua skenario itu gagal, dan gagalnya
+         * terbaca seperti laporannya yang rusak. Sampai hari ini keduanya
+         * hanya lulus karena form-grading.spec.ts kebetulan jalan lebih dulu
+         * (alfabetis, satu worker) dan meninggalkan record bersatuan janjang.
+         * Satu baris di sini menghapus ketergantungan pada urutan itu —
+         * sejalan dengan prasyarat periode di
+         * e2e-web/tests/support/period-fixture.ts.
+         *
+         * Parameternya dipilih dari master yang uom-nya MEMANG Bunch, bukan
+         * dipaksa seperti baris kg di atas: detail.uom adalah salinan beku
+         * milik master pada saat pemilihan, jadi fixture yang isinya
+         * bertentangan dengan masternya mengajarkan bentuk data yang tidak
+         * pernah lahir dari aplikasinya. `whereKeyNot` menjaga baris ini tidak
+         * menabrak kunci baris di atas kalau parameter paling awal secara
+         * alfabet ternyata memang bersatuan Bunch.
+         *
+         * 48 dari quantity header 120 = 40% — konsisten dengan kolom
+         * percentage-nya, dan totalnya (48,00 + 30,00 = 78,00) bukan angka
+         * yang dirender di tempat lain pada halaman itu, sehingga asersi
+         * "angka gabungan tidak muncul" menguji apa yang dimaksudkannya.
+         */
+        $bunchParameter = GradingParameter::query()
+            ->where('uom', Uom::Bunch)
+            ->whereKeyNot($parameter->getKey())
+            ->orderBy('name')
+            ->firstOrFail();
+
+        GradingDetail::updateOrCreate(
+            [
+                'grading_record_id' => $record->id,
+                'grading_parameter_id' => $bunchParameter->id,
+            ],
+            [
+                'quantity' => 48,
+                'uom' => Uom::Bunch->value,
+                'percentage' => 40,
             ],
         );
 

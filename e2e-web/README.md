@@ -62,10 +62,22 @@ What each piece does:
 - `scripts/prepare-db.sh` — `migrate:fresh --seed` (DatabaseSeeder: grading
   parameters, operational targets, demo accounts and the demo station data
   the dashboards read) plus `BrowserTestFixtureSeeder`.
-- `tests/support/global-setup.ts` — before every run: refuses to start
-  unless `--env=e2e` resolves to a `*_e2e` database AND the suite's baseURL is
-  that environment's `APP_URL` (so `E2E_WEB_BASE_URL=http://localhost:8000`
-  stops the run instead of polluting the dev DB), then re-runs
+- `tests/support/global-setup.ts` — before every run it **asks the server who
+  it is**, over HTTP: `GET /api/e2e/identity`, a route registered only when
+  `APP_ENV=e2e` (`backend/routes/api.php`). A non-e2e server answers 404 and
+  the run stops with a message naming the cause. That check exists because the
+  older, config-only guard could be satisfied while a *different* server
+  answered on the port: `php artisan serve` without `--env` raises its own port
+  when 8000 is taken, so a `local` server on the dev database can occupy
+  :8001. On 2026-10-06 exactly that happened — a 16.7-minute run pointed at the
+  dev server and all 24 of its tests failed as login timeouts, with nothing
+  naming the reason. The route reports `env` and `database` so the CLI path
+  (which seeds) and the HTTP path (which the tests read) are proven to be the
+  same database. The older checks remain as secondary ones: `--env=e2e` must
+  resolve to a `*_e2e` database, and the suite's baseURL must equal that
+  environment's `APP_URL` — `SANCTUM_STATEFUL_DOMAINS` is derived from
+  `APP_URL`, so a mismatch turns every stateful `/api/*` call into a 401. Then
+  it re-runs
   `BrowserTestFixtureSeeder`. The seeder is idempotent and restores what the
   specs consume (renamed `*-BROWSER-EDIT` records, deactivated accounts, the
   period fixture), so **a second run without `db:prepare` starts from the
@@ -80,6 +92,46 @@ What each piece does:
 
 Overrides: `E2E_WEB_BASE_URL` (default `http://localhost:8001`) and
 `E2E_BACKEND_ENV` (default `e2e`, the `--env` every artisan call uses).
+
+If :8001 is already taken by another process, run the e2e server on a free
+port and carry that port through all three settings at once — `APP_URL` and
+`SANCTUM_STATEFUL_DOMAINS` for the server, `E2E_WEB_BASE_URL` for the suite:
+
+```bash
+APP_URL=http://localhost:8002 \
+SANCTUM_STATEFUL_DOMAINS=localhost,localhost:8002,127.0.0.1,127.0.0.1:8002 \
+  php artisan serve --env=e2e --port=8002        # in backend/
+
+E2E_WEB_BASE_URL=http://localhost:8002 APP_URL=http://localhost:8002 npx playwright test
+```
+
+### Running one spec on its own
+
+Every spec is meant to pass **alone, straight after `npm run db:prepare`** —
+not only as part of a whole-suite run. Two cross-spec dependencies used to
+break that, both found on 2026-10-06 and both fixed:
+
+- The four newest report specs (`laporan-grading`, `laporan-threshing`,
+  `laporan-pressing`, `laporan-depricarping`) do not plant their own period
+  the way the six older ones do. They silently borrowed the `Prasyarat Form …`
+  period that the 18 `form-*` specs plant — satisfied only because `form-*`
+  sorts before `laporan-*` and `workers: 1`. Run alone on a fresh database,
+  their period picker was empty, `[data-testid="coverage"]` never appeared and
+  nearly every scenario failed as "element(s) not found", reading exactly like
+  a broken screen. Each now calls `seedOpenPeriodForForms()` in its own
+  `beforeAll`; the helper is idempotent and reuses an existing period, so
+  nothing changes when `form-*` did run first.
+- `laporan-grading` additionally needs **both** unit groups present — its two
+  invariants are about bunches and kilograms never being summed. The fixture
+  record `GR-BROWSER-EDIT` carried only a `kg` detail row, so the bunch group
+  rendered `parameter-bunch-empty` and both scenarios failed unless
+  `form-grading` had run first and left a bunch row behind.
+  `BrowserTestFixtureSeeder::gradingEditRecord()` now plants a second detail
+  row with `uom = bunch`.
+
+Verified: from `db:prepare`, those four specs alone → 63 passed; the same four
+plus `form-*`, `detail-grading`, `data-browser-grading` and
+`audit-fix-20261005` in alphabetical order → 105 passed.
 
 ### Dates: the report specs live in the past
 

@@ -11,6 +11,18 @@
     @livewireStyles
     <x-searchable-select-assets />
     <x-filter-assets />
+
+    {{-- Token desain + kosakata komponen bersama, dipasang 2026-10-06.
+         URUTANNYA MENENTUKAN dan jangan ditukar:
+           1. design-tokens  — WAJIB di atas blok <style> di bawah. Lima nama token ada di
+              kedua tempat dan satu di antaranya berbeda nilai (--color-border: #E3E3E3 di
+              sini vs #d1d5db di :root bawah). Dengan urutan ini :root bawah yang menang,
+              sehingga tidak ada nilai yang sekarang bekerja ikut berubah.
+           2. components      — memakai 35 token dari (1); tanpa (1) browser membuang setiap
+              deklarasinya dan kelas-kelasnya tampil tanpa gaya. --}}
+    @include('partials.design-tokens')
+    @include('partials.components-styles')
+
     <style>
         /* Shared page shell (sidebar + header) — single source of truth for
            every screen in resources/views/. Design tokens per uiux-spec v5
@@ -37,6 +49,28 @@
             --radius-input: 6px;
             --sidebar-width: 240px;
             --sidebar-collapsed-width: 64px;
+
+            /* Sidebar PUTIH, bukan #F7F7F7 milik design-tokens, atas umpan
+               balik user 2026-10-06: "bisa sedikit dibedakan background pada
+               content dan sidebar".
+               Sebelumnya sidebar #F7F7F7 di atas body #f3f4f6 — selisihnya
+               hanya empat satuan dan praktis tidak terlihat; yang memisahkan
+               keduanya cuma border 1px. Putih memberi panel yang benar-benar
+               terbaca sebagai bidang tersendiri sambil tetap terang, dan
+               kontras teksnya justru NAIK: teks #1f2937 14,68:1 (dari
+               13,70:1), nav muted #6b7280 4,83:1 (dari 4,51:1), aktif brand
+               #249360 3,88:1 (dari 3,62:1) — ketiganya di atas ambang 3:1.
+               Kartu konten juga putih, tetapi ia duduk di atas body kelabu
+               dengan border dan shadow sendiri, jadi keduanya tidak menyatu.
+               Didefinisikan DI SINI, sesudah partials.design-tokens
+               disertakan, supaya nilai ini yang menang tanpa menyunting
+               berkas token bersama.
+               (Jangan menulis nama direktif Blade ber-@ di dalam komentar
+               CSS: Blade tetap mengompilasinya walau ia berada di dalam
+               komentar, dan hasilnya PHP yang rusak — persis itu yang
+               menjatuhkan seluruh aplikasi saat komentar ini pertama
+               ditulis.) */
+            --color-sidebar-bg: #ffffff;
         }
 
         * {
@@ -55,8 +89,20 @@
         .shell-sidebar {
             width: var(--sidebar-width);
             flex-shrink: 0;
-            background: #111827;
-            color: #f9fafb;
+            /* Sidebar TERANG sejak 2026-10-06 (keputusan user), mengikuti
+               uiux-spec assets/shell.css: background var(--color-sidebar-bg)
+               = --color-surface = #F7F7F7, dipisahkan dari konten oleh
+               border-right 1px. BORDER ITULAH PEMISAHNYA, bukan warnanya:
+               selisih sidebar-vs-body hanya 1,03:1 (dan 1,07:1 pun di tema
+               shell.css aslinya), jadi tanpa border keduanya menyatu.
+               Itu juga sebabnya body TIDAK diubah ke putih — tidak ada
+               gunanya. Kontras terukur, semuanya di atas ambang 3:1 yang
+               ditetapkan uiux-spec.accessibility: teks #1f2937 13,70:1,
+               nav muted #6b7280 4,51:1, aktif brand #249360 3,62:1.
+               (Sidebar gelap sebelumnya 16,98:1 — turun, tetap lolos.) */
+            background: var(--color-sidebar-bg, #f7f7f7);
+            color: var(--color-text);
+            border-right: 1px solid var(--color-border);
             padding: 24px 16px;
             overflow-y: auto;
             transition: width 0.15s, transform 0.2s ease-in-out;
@@ -85,16 +131,27 @@
             gap: 10px;
             padding: 8px 10px;
             border-radius: var(--radius-input);
-            color: #d1d5db;
+            color: var(--color-text-muted);
             text-decoration: none;
             font-size: 14px;
             min-height: 44px;
         }
 
-        .shell-sidebar__nav a.active,
+        /* hover dan active DIPISAH sejak sidebar jadi terang — shell.css
+           membedakannya (brand 8% vs 12%, dan active berwarna brand serta
+           lebih berat). Digabung seperti sebelumnya, butir aktif tidak
+           dapat dibedakan dari butir yang sedang disentuh kursor.
+           color-mix() milik shell.css diganti rgba() eksplisit: hasilnya
+           identik dan tidak bergantung dukungan browser. */
         .shell-sidebar__nav a:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: #fff;
+            background: rgba(36, 147, 96, 0.08);
+            color: var(--color-text);
+        }
+
+        .shell-sidebar__nav a.active {
+            background: rgba(36, 147, 96, 0.12);
+            color: var(--color-brand);
+            font-weight: 500;
         }
 
         .shell-sidebar__nav svg {
@@ -123,7 +180,7 @@
             gap: 10px;
             padding: 8px 10px;
             border-radius: var(--radius-input);
-            color: #d1d5db;
+            color: var(--color-text-muted);
             font-size: 14px;
             min-height: 44px;
             cursor: pointer;
@@ -143,8 +200,8 @@
 
         .shell-nav-group > summary:hover,
         .shell-nav-group > summary:focus-visible {
-            background: rgba(255, 255, 255, 0.08);
-            color: #fff;
+            background: rgba(36, 147, 96, 0.08);
+            color: var(--color-text);
         }
 
         .shell-nav-group__chevron {
@@ -166,7 +223,7 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            border-left: 1px solid rgba(255, 255, 255, 0.12);
+            border-left: 1px solid var(--color-border);
         }
 
         .shell-main {
@@ -347,7 +404,7 @@
             .shell-nav-group__items {
                 margin-left: 19px;
                 padding-left: 14px;
-                border-left: 1px solid rgba(255, 255, 255, 0.12);
+                border-left: 1px solid var(--color-border);
             }
 
             .shell-backdrop {
@@ -402,7 +459,7 @@
             <li><a href="{{ route('reports.stations') }}"{!! request()->routeIs('reports.stations', 'reports.sterilizer', 'reports.cages-track', 'reports.boiler-room', 'reports.clarification', 'reports.storage-tank') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2.5" width="14" height="15" rx="2"/><path d="M6.5 13.5v-3M10 13.5v-6M13.5 13.5v-4.5"/></svg><span class="label">Laporan Stasiun</span></a></li>
             @endif
             @if (\App\Support\RouteAccess::allows('master-data.tree-view'))
-            <li><a href="{{ route('master-data.tree-view') }}"{!! request()->routeIs('master-data.tree-view') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h3.6l1.4 1.7h7A1.5 1.5 0 0 1 17 7.2v7.3A1.5 1.5 0 0 1 15.5 16h-12A1.5 1.5 0 0 1 2 14.5v-9z"/></svg><span class="label">Master Data Tree View</span></a></li>
+            <li><a href="{{ route('master-data.tree-view') }}"{!! request()->routeIs('master-data.tree-view') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h3.6l1.4 1.7h7A1.5 1.5 0 0 1 17 7.2v7.3A1.5 1.5 0 0 1 15.5 16h-12A1.5 1.5 0 0 1 2 14.5v-9z"/></svg><span class="label">Struktur Mills</span></a></li>
             @endif
             {{-- Corporate -> Company -> Business Unit -> Production Line are one
                  hierarchy and were four separate sidebar entries; folded into a single

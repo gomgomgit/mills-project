@@ -1,0 +1,96 @@
+{{-- Token desain bersama — SALINAN dari .asdlc/generated/1-foundation/uiux-spec/assets/design-tokens.css
+     (aset Phase 1 tidak dapat dirujuk saat runtime; aplikasi tidak menyajikan .asdlc/).
+
+     DI-INCLUDE SEBELUM blok <style> milik app.blade.php, dan itu DISENGAJA: lima nama token
+     ada di kedua tempat (--color-border, --color-brand, --color-brand-hover,
+     --color-text-muted, --radius-input) dan hanya --color-border yang nilainya berbeda
+     (#E3E3E3 di sini vs #d1d5db di aplikasi, dipakai 9 tempat pada 6 view). Dengan urutan
+     ini :root milik aplikasi yang menang, sehingga tidak ada satu pun nilai yang sekarang
+     bekerja ikut berubah. Jangan dipindah ke bawah blok itu.
+
+     Alasan keberadaannya: components-styles.blade.php memakai 35 token dan app.blade.php
+     hanya mendefinisikan 4 — tanpa berkas ini 31 token tidak terselesaikan dan browser
+     MEMBUANG setiap deklarasi yang memakainya, sehingga komponennya tampil nyaris tanpa
+     gaya sama sekali. --}}
+<style>
+@import url('https://fonts.bunny.net/css?family=inter:400,500,600,700');
+
+:root {
+  /* ============ Colors (design_system.color_palette) ============ */
+  --color-background: #FFFFFF;
+  --color-surface: #F7F7F7;
+  --color-border: #E3E3E3;
+  --color-text-primary: #1F2937;
+  --color-text-muted: #6B7280;
+  --color-brand: #249360;
+  --color-brand-hover: #1D7A4E;
+  --color-destructive: #DC2626;
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-station-red: #D20000;
+  --color-header-tint: #D6F6E5;
+  --color-input-bg: #EDEBEB;
+
+  /* Aliases used by shared components/shell (derived from tokens above) */
+  --color-foreground: var(--color-text-primary);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-muted: var(--color-surface);
+  --color-sidebar-bg: var(--color-surface);
+
+  /* ============ Typography (design_system.typography) ============ */
+  --font-family: 'Inter', sans-serif;
+  --font-size-base: 16px;
+  --letter-spacing: normal;
+  --line-height-base: 1.5;
+
+  /* One pair per scale entry */
+  --font-size-h1: 28px;      --font-weight-h1: 700;      --line-height-h1: var(--line-height-base);
+  --font-size-h2: 22px;      --font-weight-h2: 600;      --line-height-h2: var(--line-height-base);
+  --font-size-h3: 18px;      --font-weight-h3: 600;      --line-height-h3: var(--line-height-base);
+  --font-size-body: 16px;    --font-weight-body: 400;    --line-height-body: var(--line-height-base);
+  --font-size-small: 14px;   --font-weight-small: 400;   --line-height-small: var(--line-height-base);
+  --font-size-caption: 12px; --font-weight-caption: 400; --line-height-caption: var(--line-height-base);
+
+  /* Generic scale aliases (derived from scale above, used by shared components) */
+  --font-size-xs: var(--font-size-caption);   --font-weight-xs: var(--font-weight-caption);
+  --font-size-sm: var(--font-size-small);     --font-weight-sm: var(--font-weight-small);
+  --font-size-lg: var(--font-size-h3);        --font-weight-lg: var(--font-weight-h3);
+  --font-size-xl: var(--font-size-h2);        --font-weight-xl: var(--font-weight-h2);
+  --font-size-2xl: var(--font-size-h1);       --font-weight-2xl: var(--font-weight-h1);
+
+  /* ============ Spacing (design_system.spacing) ============ */
+  --space-sidebar_width: 240px;
+  --space-sidebar_collapsed_width: 64px;
+  --space-tablet_breakpoint: 1024px;
+  --space-phone_breakpoint: 768px;
+  --space-top_header_height: 56px;
+  --space-mobile_header_height: 64px;
+  --space-base_unit: 4px;
+  --space-touch_target_min: 44px;
+
+  /* Derived generic spacing scale (multiples of base_unit, used by shared components) */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* ============ Border radius (design_system.border_radius) ============ */
+  --radius-input: 6px;
+  --radius-card: 12px;
+  --radius-modal: 16px;
+  --radius-button: 8px;
+  --radius-chip: 999px;
+  --radius-badge: var(--radius-chip);
+
+  /* ============ Shadow (design_system.shadow) ============ */
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-dropdown: 0 4px 8px rgba(0,0,0,0.1);
+  --shadow-modal: 0 10px 24px rgba(0,0,0,0.16);
+  --shadow-sm: var(--shadow-card);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-family); font-size: var(--font-size-base); letter-spacing: var(--letter-spacing); line-height: var(--line-height-base); color: var(--color-foreground); background: var(--color-background); }
+</style>

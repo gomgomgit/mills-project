@@ -135,6 +135,53 @@ test.describe('Kelola Company', () => {
     await expect(await findRow(page, 'PT Ada Business Unit')).toBeVisible();
   });
 
+  // REGRESI 2026-10-06 — dulu HTTP 500 di PostgreSQL, bukan galat validasi.
+  //
+  // KelolaCompany::rules() menyusun aturan unik nama dengan scope
+  // ->where('corporate_id', $this->corporate_id). Properti itu
+  // `public string $corporate_id = ''`, jadi menekan Simpan TANPA memilih
+  // Corporate mengirim string kosong ke kolom bertipe `uuid`. PostgreSQL
+  // menolaknya dengan SQLSTATE[22P02] dan Laravel menyajikannya sebagai
+  // halaman 500 — Admin tidak pernah melihat "Corporate wajib dipilih".
+  // Laravel hanya menghentikan sisa aturan pada ATRIBUT yang gagal
+  // (corporate_id), tidak pernah aturan pada form.name, jadi aturan unik itu
+  // tetap jalan meski induknya kosong.
+  //
+  // UJI INI HARUS ADA DI LAPISAN BROWSER, bukan di feature test. Suite
+  // PHPUnit berjalan di SQLite, dan SQLite MENERIMA perbandingan '' dengan
+  // kolom uuid — jadi di sana perilakunya identik sebelum dan sesudah
+  // perbaikan, dan uji apa pun di lapisan itu tidak akan pernah bisa gagal.
+  // Suite browser inilah satu-satunya yang berjalan di PostgreSQL.
+  test('menolak dengan galat validasi, bukan 500, saat Simpan tanpa memilih Corporate', async ({ page }) => {
+    await login(page, 'comptest-admin01', PASSWORD);
+    await gotoCompanies(page);
+
+    await page.locator('button', { hasText: 'Tambah Company' }).click();
+    // Corporate SENGAJA tidak dipilih. Nama diisi dengan nama yang SUDAH
+    // dipakai, supaya aturan unik ber-scope itu benar-benar dievaluasi —
+    // kalau tidak, jalur yang dulu rusak tidak pernah tersentuh.
+    await page.locator('#name').fill('PT Nama Duplikat');
+    await page.locator('#company_code').fill(`COMP-NOPARENT-${Date.now()}`);
+    await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
+
+    // Yang WAJIB terjadi: galat validasi pada field Corporate, modal tetap
+    // terbuka, dan halaman tetap halaman Kelola Company.
+    await expect(page.locator('.kcm-modal')).toBeVisible();
+    await expect(page.locator('.kc-form-field__error').filter({ hasText: /Corporate/i }).first()).toBeVisible();
+
+    // Yang TIDAK boleh terjadi: halaman galat server. Diperiksa atas penanda
+    // halaman galat Laravel, bukan atas teks — teks galat dapat berubah.
+    await expect(page.locator('text=SQLSTATE')).toHaveCount(0);
+    await expect(page.locator('.kcm-modal')).toBeVisible();
+
+    // Dan TIDAK boleh muncul galat "nama sudah digunakan" palsu: tanpa induk
+    // terpilih, cakupan keunikannya tidak cocok ke baris mana pun, jadi satu-
+    // satunya galat yang berguna adalah soal Corporate-nya.
+    await expect(page.locator('.kc-form-field__error').filter({ hasText: /sudah digunakan/i })).toHaveCount(0);
+
+    await closeModal(page);
+  });
+
   // Scenario 5: "Kelola Company — Nama duplikat dalam Corporate yang sama"
   test('menampilkan error validasi saat menyimpan nama yang sudah dipakai di corporate yang sama', async ({ page }) => {
     await login(page, 'comptest-admin01', PASSWORD);

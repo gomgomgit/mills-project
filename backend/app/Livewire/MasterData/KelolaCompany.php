@@ -193,8 +193,34 @@ class KelolaCompany extends Component
     protected function rules(): array
     {
         $codeUniqueRule = UniqueCaseInsensitive::on('companies', 'company_code');
+
+        // PERBAIKAN 2026-10-06 — sebelumnya HTTP 500 di PostgreSQL.
+        //
+        // $corporate_id dideklarasikan `public string $corporate_id = ''`,
+        // jadi saat Admin menekan Simpan tanpa memilih Corporate, nilai yang
+        // masuk ke scope ini adalah string KOSONG — dan companies.corporate_id
+        // bertipe `uuid`. PostgreSQL menolaknya dengan SQLSTATE[22P02]
+        // "invalid input syntax for type uuid", yang muncul sebagai halaman
+        // galat 500, bukan sebagai pesan validasi.
+        //
+        // Laravel hanya menghentikan sisa aturan pada ATRIBUT YANG GAGAL
+        // ('corporate_id'), tidak pernah aturan pada 'form.name' — jadi
+        // aturan unik ini TETAP dijalankan meski induknya kosong.
+        //
+        // Jebakan ini tidak terlihat suite uji: SQLite menerima perbandingan
+        // '' dengan kolom uuid, PostgreSQL menolak. Jaring satu-satunya hari
+        // ini adalah suite browser yang berjalan di PostgreSQL.
+        //
+        // whereRaw('1 = 0') dipilih, BUKAN membuang scope-nya: membuangnya
+        // akan mengubah keunikan nama dari per-Corporate menjadi global,
+        // memunculkan galat "nama sudah digunakan" palsu di samping
+        // "Corporate wajib dipilih" yang sebenarnya dibutuhkan Admin.
+        // whereNull('corporate_id') ditolak karena ia hanya cocok-tidak-ada
+        // secara kebetulan — kolomnya NOT NULL hari ini.
         $nameUniqueRule = UniqueCaseInsensitive::on('companies', 'name')
-            ->where(fn ($query) => $query->where('corporate_id', $this->corporate_id));
+            ->where(fn ($query) => $this->corporate_id === ''
+                ? $query->whereRaw('1 = 0')
+                : $query->where('corporate_id', $this->corporate_id));
 
         if ($this->editingId !== null) {
             $codeUniqueRule = $codeUniqueRule->ignore($this->editingId);

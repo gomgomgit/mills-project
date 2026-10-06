@@ -54,9 +54,11 @@
        `critical_limit` pada master Depricarping JUSTRU yang paling rapi
        bentuknya: lima dari enam membawa pembanding numerik eksplisit, sebagian
        dua sisi sekaligus ("< 35 or > 55 mmH2O", "< 55°C or > 75°C"). Tiga hal
-       yang menahannya: kolomnya VARCHAR yang dapat disunting Admin/Mill
-       Management kapan pun, sehingga pengurai yang gagal pada bentuk
-       berikutnya akan BERHENTI MEMPERINGATKAN tanpa satu pun galat — dan
+       yang menahannya: kolomnya teks bebas dan TIDAK ADA APA PUN PADA SKEMA
+       yang membatasi bentuknya — nilainya ditetapkan lewat seeder, dan satu
+       seeder yang dijalankan atau satu suntingan langsung ke basis data dapat
+       memperkenalkan bentuk baru tanpa satu pun uji menangkapnya; pengurai
+       yang lalu gagal akan BERHENTI MEMPERINGATKAN tanpa satu pun galat — dan
        peringatan yang hilang terbaca sebagai "semuanya aman"; bentuk dua sisi
        menuntut pengurai yang berbeda dari bentuk satu sisi dan satuannya ikut
        di dalam teks (mmH2O, %, °C, RPM, m/s, dan tiga lainnya), dengan satu
@@ -492,11 +494,13 @@
                     rapi bentuknya.</b> Lima dari enam batas pada master Depricarping membawa pembanding
                     numerik yang jelas (&ldquo;&lt; 35 or &gt; 55 mmH2O&rdquo;, &ldquo;&gt; 1.00%&rdquo;,
                     &ldquo;&lt; 55&deg;C or &gt; 75&deg;C&rdquo;), jadi godaan menguraikannya nyata dan
-                    penolakannya perlu beralasan. <b>Pertama</b>, kolom-kolom itu <b>teks bebas</b> yang
-                    dapat disunting Admin atau Mill Management kapan pun, jadi pengurai yang gagal pada
-                    bentuk berikutnya akan <b>berhenti memperingatkan tanpa satu pun galat</b> &mdash;
-                    dan peringatan yang hilang terbaca sebagai &ldquo;semuanya aman&rdquo;, arah
-                    kegagalan terburuk untuk indikator mutu. <b>Kedua</b>, bentuk dua sisi menuntut
+                    penolakannya perlu beralasan. <b>Pertama</b>, kolom-kolom itu <b>teks bebas</b>, dan
+                    tidak ada apa pun pada skema yang membatasi bentuknya &mdash; nilainya hari ini
+                    ditetapkan lewat seeder, dan satu seeder yang dijalankan atau satu suntingan
+                    langsung ke basis data dapat memperkenalkan bentuk baru tanpa satu pun uji
+                    menangkapnya. Pengurai yang lalu gagal akan <b>berhenti memperingatkan tanpa satu
+                    pun galat</b> &mdash; dan peringatan yang hilang terbaca sebagai
+                    &ldquo;semuanya aman&rdquo;, arah kegagalan terburuk untuk indikator mutu. <b>Kedua</b>, bentuk dua sisi menuntut
                     pengurai yang berbeda dari bentuk satu sisi, dan <b>satuannya ikut di dalam
                     teks</b> &mdash; mmH2O, %, &deg;C, RPM, m/s; pengurai yang benar untuk keenamnya
                     hari ini adalah pengurai yang paling mungkin salah besok. <b>Ketiga</b>, satu

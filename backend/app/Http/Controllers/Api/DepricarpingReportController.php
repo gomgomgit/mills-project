@@ -43,9 +43,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * AND IT STILL FLAGS NOTHING — but here the reason has to be sharper than on
  * Threshing, because critical_trigger_action_limit DOES carry a tidy
  * comparator on five of seven parameters. Three things hold it back: both
- * columns are VARCHAR that Admin / Mill Management may edit at any time, so a
- * parser that fails on the next shape STOPS WARNING without raising anything
- * (and a warning that disappears reads as "everything is fine"); one master
+ * columns are free text and NOTHING IN THE SCHEMA CONSTRAINS THEIR SHAPE, so a
+ * parser's input set is not fixed at build time — a seeder run or a direct
+ * database edit can introduce a new shape with no test catching it, and a
+ * parser that then fails STOPS WARNING without raising anything (a warning
+ * that disappears reads as "everything is fine"); one master
  * value is already unparseable without guessing ('< 10% to 12%'); and some
  * ranges carry a third statement in parentheses. So there is no severity key,
  * no is_out_of_range key, and no colouring anywhere in the payload. Full

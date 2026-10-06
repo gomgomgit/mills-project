@@ -41,13 +41,16 @@ use Livewire\Component;
  *     Threshing's — what differs is what those last two columns MEAN, not how
  *     many there are.
  *   - AND NOTHING IS FLAGGED AS OUT OF RANGE. No threshold chip, no
- *     safe/danger colouring, no severity. Both target columns are VARCHAR
- *     that Admin / Mill Management may edit at any time, so a parser that
- *     fails on the next shape would STOP WARNING without raising anything —
- *     and a warning that disappears reads as "everything is fine". One master
- *     value is already unparseable without guessing ('< 10% to 12%'). The
- *     page SAYS this, because an unexplained absence of flagging reads as an
- *     unfinished feature.
+ *     safe/danger colouring, no severity. Both target columns are free text
+ *     and NOTHING IN THE SCHEMA CONSTRAINS THEIR SHAPE, so a parser's input
+ *     set is not fixed at build time — a seeder run or a direct database edit
+ *     can introduce a new shape with no test catching it. A parser that then
+ *     fails would STOP WARNING without raising anything, and a warning that
+ *     disappears reads as "everything is fine". One master value is already
+ *     unparseable without guessing ('< 10% to 12%'), and colour carries
+ *     meaning beyond statistics: a red figure in a period report reads as a
+ *     breach nobody defined. The page SAYS this, because an unexplained
+ *     absence of flagging reads as an unfinished feature.
  *   - TARGETS WITH NO MEASUREMENT ARE STILL SHOWN. The master lists seven
  *     parameters and the form measures five, so 'Nut Breakage Rate' and
  *     'Press Cake Moisture' have standards and no reading anywhere in the

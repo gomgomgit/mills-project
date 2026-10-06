@@ -58,11 +58,14 @@ import apiClient from '@/services/apiClient'
  *    sini sebabnya harus lebih tajam daripada pada Threshing, karena
  *    critical_trigger_action_limit JUSTRU membawa pembanding yang teratur
  *    pada lima dari tujuh parameter ('< 85C', '> 50 Amps', '> 60 Bar').
- *    Yang menahannya: kedua kolom itu teks bebas yang dapat disunting Admin
- *    atau Mill Management kapan pun, sehingga pengurai yang gagal pada bentuk
- *    berikutnya akan BERHENTI MEMPERINGATKAN tanpa satu pun galat — dan
- *    peringatan yang hilang terbaca sebagai "semuanya aman". Satu nilai pada
- *    master pun sudah tidak dapat diurai tanpa menebak ('< 10% to 12%').
+ *    Yang menahannya: kedua kolom itu teks bebas dan TIDAK ADA APA PUN PADA
+ *    SKEMA yang membatasi bentuknya, sehingga himpunan masukan pengurai tidak
+ *    tetap pada waktu build — satu seeder yang dijalankan atau satu suntingan
+ *    langsung ke basis data dapat memperkenalkan bentuk baru tanpa satu pun
+ *    test menangkapnya. Pengurai yang lalu gagal akan BERHENTI MEMPERINGATKAN
+ *    tanpa satu pun galat, dan peringatan yang hilang terbaca sebagai
+ *    "semuanya aman". Satu nilai pada master pun sudah tidak dapat diurai
+ *    tanpa menebak ('< 10% to 12%').
  *    Repo ini tidak boleh membuat kunci penilaian semacam itu, dan ada test
  *    yang mengunci ketiadaannya.
  *

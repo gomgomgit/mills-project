@@ -1,5 +1,5 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-06"
@@ -231,7 +231,7 @@
     "Record berstatus draft IKUT terhitung pada seluruh angka, dan jumlahnya dinyatakan terpisah.",
     "Status pemeriksaan dan pengesahan adalah informasi kelengkapan, bukan penyaring.",
     "DUA KOLOM TARGET DITAMPILKAN BERSAMAAN, dan keduanya menjawab pertanyaan yang berbeda: target_operating_range adalah rentang kerja yang dituju ('90°C - 95°C'), sementara critical_trigger_action_limit adalah batas yang menuntut tindakan beserta akibatnya ('< 85°C (Leads to poor oil liberation)'). Menampilkan salah satunya saja akan menghapus separuh informasi yang dipakai pembaca untuk memutuskan.",
-    "TIDAK ADA penandaan otomatis di luar batas. Kedua kolom target adalah teks bebas yang dapat disunting Admin/Mill Management kapan pun, dan mengurainya menjadi pembanding berarti membangun fitur peringatan yang DIAM ketika teksnya berubah bentuk — kegagalan yang terbaca sebagai 'semuanya aman'. Satu nilai pada master pun sudah tidak dapat diurai tanpa menebak ('< 10% to 12%').",
+    "TIDAK ADA penandaan otomatis di luar batas. Kedua kolom target adalah teks bebas yang bentuknya TIDAK DIBATASI SKEMA (nilainya dari seeder; satu seeder yang dijalankan atau satu suntingan langsung ke basis data dapat memperkenalkan bentuk baru tanpa satu pun uji menangkapnya), dan mengurainya menjadi pembanding berarti membangun fitur peringatan yang DIAM ketika teksnya berubah bentuk — kegagalan yang terbaca sebagai 'semuanya aman'. Satu nilai pada master pun sudah tidak dapat diurai tanpa menebak ('< 10% to 12%').",
     "Pemetaan parameter master ke kolom ukur bersifat TETAP dan ditulis di satu tempat, bukan dicocokkan dari teks nama parameter saat render.",
     "Parameter master yang tidak punya kolom pengukuran tetap ditampilkan dengan keterangannya. Pada Pressing ada DUA: 'Nut Breakage Rate' dan 'Press Cake Moisture', dan keduanya tidak punya kolom di mana pun pada skema — bukan hanya di pressing_details.",
     "Master target bersifat global untuk seluruh mill (pressing_operational_targets tidak punya kolom business_unit_id), dan laporan menyatakan hal itu.",
@@ -335,7 +335,7 @@
       "scenario": "Tidak ada penandaan otomatis di luar batas",
       "given": "Master target menyebut rentang kerja suhu digester 90°C - 95°C dengan batas tindakan < 85°C, sementara rata-rata terukur pada periode itu 82,3°C",
       "when": "Pengguna memilih periode itu",
-      "then": "Sistem menampilkan ketiga nilai apa adanya tanpa warna peringatan, tanpa severity, dan tanpa penanda di luar batas, serta menyatakan bahwa kedua kolom target adalah teks bebas yang dapat disunting kapan pun sehingga penilaiannya milik pembaca"
+      "then": "Sistem menampilkan ketiga nilai apa adanya tanpa warna peringatan, tanpa severity, dan tanpa penanda di luar batas, serta menyatakan bahwa kedua kolom target adalah teks bebas yang bentuknya TIDAK DIBATASI SKEMA (nilainya dari seeder; satu seeder yang dijalankan atau satu suntingan langsung ke basis data dapat memperkenalkan bentuk baru tanpa satu pun uji menangkapnya) sehingga penilaiannya milik pembaca"
     },
     {
       "scenario": "Dua parameter master tanpa kolom pengukuran",

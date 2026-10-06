@@ -1291,15 +1291,20 @@ function onBack(): void {
             (&ldquo;&lt; 35 or &gt; 55 mmH2O&rdquo;, &ldquo;&gt; 1,00%&rdquo;,
             &ldquo;&lt; 55&deg;C or &gt; 75&deg;C&rdquo;), jadi godaan menguraikannya nyata dan
             penolakannya perlu beralasan. <strong>Pertama</strong>, kolom-kolom itu
-            <strong>teks bebas</strong> yang dapat disunting Admin atau Mill Management kapan pun,
-            jadi pengurai yang gagal pada bentuk berikutnya akan <strong>berhenti memperingatkan
-            tanpa satu pun galat</strong> &mdash; dan peringatan yang hilang terbaca sebagai
+            <strong>teks bebas</strong>, dan tidak ada apa pun pada skema yang membatasi bentuknya
+            &mdash; nilainya hari ini ditetapkan lewat seeder, dan satu seeder yang dijalankan atau
+            satu suntingan langsung ke basis data dapat memperkenalkan bentuk baru tanpa satu pun
+            uji menangkapnya. Pengurai yang lalu gagal akan <strong>berhenti memperingatkan tanpa
+            satu pun galat</strong> &mdash; dan peringatan yang hilang tidak dapat dibedakan dari
             &ldquo;semuanya aman&rdquo;. <strong>Kedua</strong>, bentuk dua sisi menuntut pengurai
             yang berbeda dari bentuk satu sisi, dan <strong>satuannya ikut di dalam teks</strong>
-            &mdash; mmH2O, %, &deg;C, RPM, m/s. <strong>Ketiga</strong>, satu parameter
-            <strong>arah angkanya sendiri belum pasti</strong> (lihat bagian Standar yang Belum
-            Diukur Sistem), sehingga menguraikan batasnya akan menghasilkan peringatan yang
-            <strong>terbalik</strong> &mdash; lebih buruk daripada tidak ada peringatan.
+            &mdash; delapan macam, dengan satu parameter menuliskan satuannya sendiri dua cara; satu
+            nilai pada master Pressing pun <strong>sudah ambigu</strong> hari ini
+            (&ldquo;&lt; 10% to 12%&rdquo; &mdash; batasnya 10 atau 12?). <strong>Ketiga</strong>,
+            <strong>warna membawa makna melampaui statistik</strong>: angka merah pada laporan
+            periode terbaca sebagai pelanggaran &mdash; bahan audit &mdash; sehingga menurunkannya
+            dari prosa berarti sistem menyatakan pelanggaran yang tidak pernah ditetapkan siapa
+            pun.
           </p>
           <p class="section-note">
             <strong>Ketiga kolom target berlaku umum untuk seluruh mill</strong> &mdash; master

@@ -819,9 +819,10 @@ it('case 31 — payload tidak memuat satu pun kunci penilaian terhadap standar',
     $flat = json_encode($summary);
 
     // Asersi atas KETIADAAN, dan ia harus berupa penyisiran: memeriksa satu
-    // kunci saja akan selalu hijau. kedua kolom target adalah teks bebas yang dapat disunting kapan pun,
-    // jadi mengubahnya menjadi pembanding berarti mengarang batas yang tidak
-    // pernah ditetapkan siapa pun.
+    // kunci saja akan selalu hijau. Kolom target adalah teks bebas dan tidak
+    // ada apa pun pada skema yang membatasi bentuknya, jadi mengubahnya
+    // menjadi pembanding berarti mengarang batas yang tidak pernah ditetapkan
+    // siapa pun.
     foreach (['severity', 'is_out_of_range', 'out_of_range', 'exceeds', 'flag', 'threshold', 'breach'] as $forbidden) {
         expect($flat)->not->toContain($forbidden);
     }

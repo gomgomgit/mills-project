@@ -1,5 +1,5 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-06"
@@ -309,7 +309,7 @@
         "8. Pakai seluruh angka APA ADANYA. Tidak ada satu pun nilai yang dihitung ulang di perangkat.",
         "9. Render cakupan pencatatan PALING ATAS, berikut presser_count, days_counted, dan slots_per_presser_per_day. coverage_percent null → tanda pisah, bukan 0%. days_counted 0 → keterangan 'periode belum mulai' (diperiksa SEBELUM period_running, karena isRunning() di server juga true untuk periode yang belum mulai).",
         "10. Render satu KARTU per entri metrics: min, rata-rata, maks, penyebut 'N dari M slot', RENTANG KERJA, dan BATAS TINDAKAN. Enam baris informasi per kartu — satu lebih banyak daripada kartu Threshing, karena master Pressing membawa dua kolom target yang artinya berbeda. Kartu dengan filled_slot_count 0 TETAP dirender dengan angka 'tidak tersedia' dan kedua kolom targetnya tetap tampil.",
-        "11. Render keterangan ketiadaan penandaan di luar batas beserta sebabnya (kedua kolom target teks bebas yang dapat disunting kapan pun) dan pernyataan bahwa keduanya berlaku umum untuk seluruh mill.",
+        "11. Render keterangan ketiadaan penandaan di luar batas beserta sebabnya — kedua kolom target teks bebas yang bentuknya TIDAK DIBATASI SKEMA (nilainya dari seeder; satu seeder yang dijalankan atau satu suntingan langsung ke basis data dapat memperkenalkan bentuk baru tanpa satu pun uji menangkapnya) — dan pernyataan bahwa keduanya berlaku umum untuk seluruh mill.",
         "12. targets_master_empty true → keterangan master belum terisi, angka ukur tetap tampil. targets_without_metric tidak kosong → bagiannya sendiri; pada Pressing dua entri.",
         "13. Render rekap per presser, daftar alasan downtime (dengan keterangan pengelompokan harfiah), penghitung kelengkapan record, lalu rekap harian di dalam CollapsibleSection yang TERTUTUP secara bawaan.",
         "14. has_data false → keterangan periode kosong; cakupan TETAP dirender; rekap per presser, rekap harian, dan daftar downtime tidak digambar.",
@@ -866,7 +866,7 @@
       "component_test": {
         "component": "LaporanPressingView",
         "action": "mount dengan rata-rata di bawah batas tindakannya",
-        "assert": "tidak ada kelas md-threshold, is-danger, is-warning, maupun md-chip--danger pada hasil render; kalimat yang menyatakan kedua kolom target teks bebas yang dapat disunting kapan pun hadir"
+        "assert": "tidak ada kelas md-threshold, is-danger, is-warning, maupun md-chip--danger pada hasil render; dan kalimat penjelas ketiadaan penandaan hadir, diasersi lewat frasa 'bentuknya TIDAK DIBATASI SKEMA' — bukan lewat frasa 'di luar batas', karena kalimat penjelasnya sendiri memuat frasa itu sehingga asersinya akan selalu hijau"
       },
       "browser_test": {
         "route": "/reports/pressing",

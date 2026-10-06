@@ -70,13 +70,20 @@ import apiClient from '@/services/apiClient'
  *    `critical_limit` master Depricarping-lah yang PALING rapi bentuknya:
  *    lima dari enam membawa pembanding numerik eksplisit, sebagian dua sisi
  *    sekaligus ('< 35 or > 55 mmH2O', '< 55C or > 75C'). Yang menahannya:
- *    kolomnya teks bebas yang dapat disunting kapan pun sehingga pengurai
- *    yang gagal akan BERHENTI MEMPERINGATKAN tanpa galat; bentuk dua sisi
- *    menuntut pengurai berbeda dari bentuk satu sisi dan satuannya ikut di
- *    dalam teks; dan satu parameter arah angkanya sendiri belum pasti
- *    (butir 2), sehingga menguraikan batasnya menghasilkan peringatan
- *    TERBALIK. Repo ini tidak boleh membuat kunci penilaian semacam itu, dan
- *    ada test yang mengunci ketiadaannya.
+ *    kolomnya teks bebas dan TIDAK ADA APA PUN PADA SKEMA yang membatasi
+ *    bentuknya — nilainya ditetapkan lewat seeder, dan satu seeder yang
+ *    dijalankan atau satu suntingan langsung ke basis data dapat
+ *    memperkenalkan bentuk baru tanpa satu pun test menangkapnya; pengurai
+ *    yang lalu gagal akan BERHENTI MEMPERINGATKAN tanpa galat, dan peringatan
+ *    yang hilang tidak dapat dibedakan dari 'semuanya aman'. Ditambah: bentuk
+ *    dua sisi menuntut pengurai berbeda dari bentuk satu sisi dan satuannya
+ *    ikut di dalam teks (delapan macam, dengan satu parameter menuliskan
+ *    satuannya sendiri dua cara); satu nilai pada master Pressing SUDAH
+ *    ambigu hari ini ('< 10% to 12%'); dan warna membawa makna melampaui
+ *    statistik — angka merah pada laporan periode terbaca sebagai
+ *    pelanggaran yang tidak pernah ditetapkan siapa pun. Repo ini tidak boleh
+ *    membuat kunci penilaian semacam itu, dan ada test yang mengunci
+ *    ketiadaannya.
  *
  * 2. `targets_without_metric[].reason` MENYATAKAN MENGAPA sebuah standar
  *    belum terukur, dan sejak 2026-10-06 daftarnya normalnya KOSONG.

@@ -52,11 +52,14 @@
  *    tajam daripada pada Threshing: critical_trigger_action_limit JUSTRU
  *    membawa pembanding yang teratur pada lima dari tujuh parameter
  *    ('< 85C', '> 50 Amps', '> 60 Bar'), jadi penguraiannya secara teknis
- *    mungkin. Yang menahannya: kedua kolom itu teks bebas yang dapat disunting
- *    Admin/Mill Management kapan pun, sehingga pengurai yang gagal pada bentuk
- *    berikutnya akan BERHENTI MEMPERINGATKAN tanpa satu pun galat — dan
- *    peringatan yang hilang terbaca sebagai "semuanya aman". Satu nilai pada
- *    master pun sudah tidak dapat diurai tanpa menebak ('< 10% to 12%').
+ *    mungkin. Yang menahannya: kedua kolom itu teks bebas dan TIDAK ADA APA
+ *    PUN PADA SKEMA yang membatasi bentuknya, sehingga himpunan masukan
+ *    pengurai tidak tetap pada waktu build — satu seeder yang dijalankan atau
+ *    satu suntingan langsung ke basis data dapat memperkenalkan bentuk baru
+ *    tanpa satu pun test menangkapnya. Pengurai yang lalu gagal akan BERHENTI
+ *    MEMPERINGATKAN tanpa satu pun galat, dan peringatan yang hilang terbaca
+ *    sebagai "semuanya aman". Satu nilai pada master pun sudah tidak dapat
+ *    diurai tanpa menebak ('< 10% to 12%').
  *    Layar MENYATAKAN hal ini, karena ketiadaan yang tidak dijelaskan terbaca
  *    sebagai fitur yang belum selesai.
  *
@@ -1207,11 +1210,15 @@ function onBack(): void {
           </p>
           <p class="section-note">
             <strong>Mengapa tidak ditandai otomatis padahal batas tindakannya terlihat berupa angka.</strong>
-            Keduanya <strong>teks bebas</strong> yang dapat disunting Admin atau Mill Management kapan pun,
-            jadi pengurai yang gagal pada bentuk teks berikutnya akan <strong>berhenti memperingatkan
-            tanpa satu pun galat</strong> &mdash; dan peringatan yang hilang terbaca sebagai
-            &ldquo;semuanya aman&rdquo;. Satu nilai pada master pun sudah tidak dapat diurai tanpa
-            menebak hari ini (&ldquo;&lt; 10% to 12%&rdquo;).
+            Keduanya <strong>teks bebas</strong>, dan tidak ada apa pun pada skema yang membatasi
+            bentuknya &mdash; nilainya hari ini ditetapkan lewat seeder, dan satu seeder yang
+            dijalankan atau satu suntingan langsung ke basis data dapat memperkenalkan bentuk baru
+            tanpa satu pun uji menangkapnya. Pengurai yang lalu gagal akan <strong>berhenti
+            memperingatkan tanpa satu pun galat</strong> &mdash; dan peringatan yang hilang terbaca
+            sebagai &ldquo;semuanya aman&rdquo;. Satu nilai pada master pun sudah tidak dapat diurai
+            tanpa menebak hari ini (&ldquo;&lt; 10% to 12%&rdquo;). Dan <strong>warna membawa makna
+            melampaui statistik</strong>: angka merah pada laporan periode terbaca sebagai
+            pelanggaran yang tidak pernah ditetapkan siapa pun.
           </p>
           <p class="section-note">
             <strong>Kedua kolom target berlaku umum untuk seluruh mill</strong> &mdash; master target

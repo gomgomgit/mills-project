@@ -36,10 +36,13 @@
        harus lebih tajam daripada pada Threshing, karena
        critical_trigger_action_limit JUSTRU membawa pembanding yang teratur
        pada lima dari tujuh parameter ("< 85C", "> 50 Amps", "> 60 Bar").
-       Tiga hal yang menahannya: kedua kolom itu VARCHAR yang dapat disunting
-       Admin/Mill Management kapan pun, sehingga pengurai yang gagal pada
-       bentuk teks berikutnya akan BERHENTI MEMPERINGATKAN tanpa satu pun
-       galat — dan peringatan yang hilang terbaca sebagai "semuanya aman";
+       Tiga hal yang menahannya: kedua kolom itu teks bebas dan TIDAK ADA APA
+       PUN PADA SKEMA yang membatasi bentuknya — nilainya ditetapkan lewat
+       seeder, dan satu seeder yang dijalankan atau satu suntingan langsung ke
+       basis data dapat memperkenalkan bentuk baru tanpa satu pun uji
+       menangkapnya; pengurai yang lalu gagal akan BERHENTI MEMPERINGATKAN
+       tanpa satu pun galat — dan peringatan yang hilang terbaca sebagai
+       "semuanya aman";
        satu nilai pada master sudah tidak dapat diurai tanpa menebak
        ("< 10% to 12%"); dan beberapa rentang membawa pernyataan ketiga di
        dalam tanda kurung ("75% - 80% (Minimum 3/4 full)"). Kotak
@@ -414,10 +417,15 @@
                 tidak &mdash; keterangan di dalam tanda kurung itu bagian dari isinya, bukan hiasan.
                 <small>
                     <b>Mengapa tidak ditandai otomatis padahal batas tindakannya terlihat berupa angka.</b>
-                    Keduanya <b>teks bebas</b> yang dapat disunting Admin atau Mill Management kapan pun,
-                    jadi pengurai yang gagal pada bentuk teks berikutnya akan <b>berhenti
+                    Keduanya <b>teks bebas</b>, dan tidak ada apa pun pada skema yang membatasi
+                    bentuknya &mdash; nilainya hari ini ditetapkan lewat seeder, dan satu seeder yang
+                    dijalankan atau satu suntingan langsung ke basis data dapat memperkenalkan bentuk
+                    baru tanpa satu pun uji menangkapnya. Pengurai yang lalu gagal akan <b>berhenti
                     memperingatkan tanpa satu pun galat</b> &mdash; dan peringatan yang hilang terbaca
                     sebagai &ldquo;semuanya aman&rdquo;, arah kegagalan terburuk untuk indikator mutu.
+                    Ditambah satu hal yang bukan soal teknis: <b>warna membawa makna melampaui
+                    statistik</b>, sehingga angka merah pada laporan periode terbaca sebagai
+                    pelanggaran yang tidak pernah ditetapkan siapa pun.
                     Satu nilai pada master pun sudah tidak dapat diurai tanpa menebak hari ini
                     (&ldquo;&lt; 10% to 12%&rdquo;), dan beberapa rentang membawa pernyataan ketiga di
                     dalam tanda kurung (&ldquo;75% - 80% (Minimum 3/4 full)&rdquo;). Bila penandaan

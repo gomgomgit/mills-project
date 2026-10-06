@@ -1,0 +1,188 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "usecase-159--hapus-entitas-hierarki-master-data",
+  "name": "Hapus Entitas Hierarki Master Data",
+  "description": "Admin menghapus satu entitas pada salah satu dari empat tingkat hierarki — Corporate, Company, Business Unit (mill), atau Production Line — langsung dari halaman Master Data. Penghapusan DITOLAK selama masih ada yang bergantung pada entitas itu, dan penolakannya menyebutkan apa saja penghalangnya beserta jumlahnya. Jadi penghapusan berantai yang merusak tidak mungkin terjadi lewat halaman ini: Admin tidak bisa menghapus satu mill dan ikut membuang stasiun serta mesin di bawahnya tanpa sengaja.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login dan membuka halaman Master Data.",
+    "Entitas yang akan dihapus masih ada."
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Menekan aksi hapus pada entitas yang dimaksud: pada kartu mill, pada baris Production Line di dalam kartu, atau pada baris di bagian ringkas Corporate / Company."
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan konfirmasi yang menyebut nama entitas itu, supaya Admin tahu persis apa yang akan hilang."
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Menyetujui penghapusan."
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Memeriksa apakah masih ada yang bergantung pada entitas itu: Corporate diperiksa atas Company miliknya; Company atas Business Unit miliknya; mill atas pengguna, production line, stasiun, dan periode pelaporan miliknya; Production Line atas record produksi, machinery group, dan machinery milik stasiun-stasiunnya."
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Karena tidak ada penghalang, menghapus entitas itu. Untuk Production Line, stasiun miliknya ikut terhapus dalam satu kesatuan."
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menutup konfirmasi, menampilkan pesan singkat, menghilangkan entitas itu dari halaman, dan MENGHITUNG ULANG baris ringkasan jumlah serta jumlah anak pada induknya."
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Penghapusan ditolak karena masih ada yang bergantung",
+      "trigger": "Pada langkah 4, masih ada entitas lain yang bergantung pada entitas yang akan dihapus.",
+      "steps": [
+        "System TIDAK menghapus apa pun.",
+        "Modal konfirmasi TETAP TERBUKA dan menampilkan alasan penolakan APA ADANYA, termasuk jumlah tiap penghalang (misalnya 'masih memiliki 3 User, 2 Production Line, 36 Station').",
+        "Pesan itu TIDAK diganti dengan pesan umum semacam 'gagal menghapus', karena Admin yang hanya diberi tahu itu akan mencoba menghapus satu per satu untuk menemukan penghalangnya.",
+        "Admin dapat menutup modal dan langsung menuju penghalang yang disebutkan."
+      ]
+    },
+    {
+      "name": "Membatalkan konfirmasi",
+      "trigger": "Pada langkah 2 atau 3, Admin menutup konfirmasi tanpa menyetujui.",
+      "steps": [
+        "Tidak ada data yang terhapus.",
+        "Halaman kembali seperti sebelum konfirmasi dibuka, dan angka ringkasan tidak berubah."
+      ]
+    },
+    {
+      "name": "Menghapus Production Line yang stasiunnya masih bersih",
+      "trigger": "Pada langkah 4, Production Line itu punya stasiun, tetapi stasiun-stasiun itu belum punya record produksi, machinery group, maupun machinery.",
+      "steps": [
+        "System menghapus stasiun-stasiun itu bersama Production Line-nya sebagai satu kesatuan yang tidak dapat setengah jadi.",
+        "Jumlah pada mill induknya dihitung ulang."
+      ]
+    },
+    {
+      "name": "Menghapus Production Line yang stasiunnya sudah dipakai",
+      "trigger": "Pada langkah 4, stasiun milik Production Line itu masih punya record produksi, machinery group, atau machinery.",
+      "steps": [
+        "System TIDAK menghapus apa pun, termasuk tidak menghapus sebagian stasiun.",
+        "Penolakannya menyebutkan jumlah record, machinery group, dan machinery yang menghalangi."
+      ]
+    },
+    {
+      "name": "Entitas sudah dihapus Admin lain",
+      "trigger": "Pada langkah 3 atau 4, entitas itu ternyata sudah dihapus di sesi atau tab lain.",
+      "steps": [
+        "System memberi tahu bahwa datanya sudah tidak ada, dengan kalimat yang dapat dimengerti, bukan galat teknis.",
+        "Halaman menyegarkan dirinya sehingga entitas yang hilang itu tidak lagi tampil."
+      ]
+    },
+    {
+      "name": "Menghapus mill terakhir milik sebuah Company",
+      "trigger": "Pada langkah 5, mill yang dihapus adalah satu-satunya mill milik Company-nya.",
+      "steps": [
+        "Company itu tetap ada dan TIDAK ikut terhapus.",
+        "Company itu berhenti muncul di papan kartu mill mana pun, dan tetap terlihat di bagian ringkas Company dengan jumlah mill nol."
+      ]
+    },
+    {
+      "name": "Menghapus Production Line terakhir milik sebuah mill",
+      "trigger": "Pada langkah 5, line yang dihapus adalah satu-satunya line milik mill-nya.",
+      "steps": [
+        "Kartu mill itu tetap dirender.",
+        "Di dalam kartu kini tertulis keterangan 'belum ada Production Line' beserta tombol tambahnya, bukan ruang kosong."
+      ]
+    }
+  ],
+  "postconditions": [
+    "Entitas itu terhapus, atau tidak ada apa pun yang terhapus bila penghapusannya ditolak.",
+    "Halaman tidak lagi menampilkan entitas yang terhapus, dan seluruh angka jumlah yang terpengaruh sudah dihitung ulang.",
+    "Tidak ada entitas lain yang hilang di luar yang dinyatakan: hanya stasiun milik Production Line yang terhapus yang ikut, dan hanya ketika stasiun-stasiun itu bersih."
+  ],
+  "business_rules": [
+    "PENGHAPUSAN DITOLAK SELAMA MASIH ADA YANG BERGANTUNG, di keempat tingkat. Penghapusan berantai yang merusak tidak mungkin terjadi lewat halaman ini.",
+    "Pesan penolakan ditampilkan APA ADANYA, termasuk jumlah tiap penghalang; halaman ini tidak boleh menggantinya dengan pesan umum.",
+    "Konfirmasi harus menyebut nama entitas yang akan dihapus.",
+    "Penghapusan Production Line beserta stasiunnya adalah satu kesatuan — tidak boleh setengah terhapus.",
+    "Hanya Admin yang dapat melakukan penghapusan ini.",
+    "Sesudah berhasil, angka ringkasan dan jumlah anak pada induknya dihitung ulang.",
+    "Menghapus anak terakhir tidak pernah menghapus induknya; induk yang kehilangan seluruh anaknya tetap ada dan tetap terlihat."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Hapus Entitas Hierarki Master Data — sukses",
+      "given": "Admin sudah login dan membuka halaman Master Data, entitas yang akan dihapus masih ada, dan tidak ada entitas lain yang bergantung padanya",
+      "when": "Admin menekan aksi hapus pada entitas itu lalu menyetujui konfirmasi yang menyebut namanya",
+      "then": "Entitas itu terhapus — untuk Production Line stasiun miliknya ikut terhapus sebagai satu kesatuan — konfirmasi tertutup, muncul pesan singkat, entitas hilang dari halaman, serta baris ringkasan jumlah dan jumlah anak pada induknya dihitung ulang, tanpa ada entitas lain yang hilang di luar yang dinyatakan"
+    },
+    {
+      "scenario": "Hapus Entitas Hierarki Master Data — Penghapusan ditolak karena masih ada yang bergantung",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas yang akan dihapus masih ada",
+      "when": "Admin menyetujui penghapusan sebuah entitas yang masih punya entitas lain yang bergantung padanya (Corporate punya Company, Company punya Business Unit, mill punya pengguna / production line / stasiun / periode pelaporan, atau Production Line punya record produksi / machinery group / machinery)",
+      "then": "Tidak ada apa pun yang terhapus, modal konfirmasi tetap terbuka dan menampilkan alasan penolakan apa adanya beserta jumlah tiap penghalang (misalnya 'masih memiliki 3 User, 2 Production Line, 36 Station'), bukan pesan umum semacam 'gagal menghapus', dan Admin dapat menutup modal lalu langsung menuju penghalang yang disebutkan"
+    },
+    {
+      "scenario": "Hapus Entitas Hierarki Master Data — Membatalkan konfirmasi",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas yang akan dihapus masih ada",
+      "when": "Admin menutup konfirmasi penghapusan tanpa menyetujuinya",
+      "then": "Tidak ada data yang terhapus, halaman kembali seperti sebelum konfirmasi dibuka, dan seluruh angka ringkasan tidak berubah"
+    },
+    {
+      "scenario": "Hapus Entitas Hierarki Master Data — Menghapus Production Line yang stasiunnya masih bersih",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan Production Line yang akan dihapus masih ada serta punya stasiun yang belum punya record produksi, machinery group, maupun machinery",
+      "when": "Admin menyetujui penghapusan Production Line tersebut",
+      "then": "Production Line itu terhapus bersama seluruh stasiun miliknya sebagai satu kesatuan yang tidak dapat setengah jadi, dan jumlah pada mill induknya dihitung ulang"
+    },
+    {
+      "scenario": "Hapus Entitas Hierarki Master Data — Menghapus Production Line yang stasiunnya sudah dipakai",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan Production Line yang akan dihapus masih ada dengan stasiun yang sudah punya record produksi, machinery group, atau machinery",
+      "when": "Admin menyetujui penghapusan Production Line tersebut",
+      "then": "Tidak ada apa pun yang terhapus — termasuk tidak ada stasiun yang terhapus sebagian — dan penolakannya menyebutkan jumlah record produksi, machinery group, serta machinery yang menghalangi"
+    },
+    {
+      "scenario": "Hapus Entitas Hierarki Master Data — Entitas sudah dihapus Admin lain",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas itu sudah dihapus di sesi atau tab lain setelah halaman dimuat",
+      "when": "Admin menyetujui penghapusan entitas yang sudah tidak ada itu",
+      "then": "System memberi tahu bahwa datanya sudah tidak ada dengan kalimat yang dapat dimengerti dan bukan galat teknis, lalu halaman menyegarkan dirinya sehingga entitas yang hilang itu tidak lagi tampil"
+    },
+    {
+      "scenario": "Hapus Entitas Hierarki Master Data — Menghapus mill terakhir milik sebuah Company",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan mill yang akan dihapus adalah satu-satunya mill milik Company-nya serta tidak punya penghalang",
+      "when": "Admin menyetujui penghapusan mill tersebut",
+      "then": "Mill itu terhapus sementara Company-nya tetap ada dan tidak ikut terhapus; Company itu berhenti muncul di papan kartu mill mana pun namun tetap terlihat di bagian ringkas Company dengan jumlah mill nol"
+    },
+    {
+      "scenario": "Hapus Entitas Hierarki Master Data — Menghapus Production Line terakhir milik sebuah mill",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan Production Line yang akan dihapus adalah satu-satunya line milik mill-nya serta tidak punya penghalang",
+      "when": "Admin menyetujui penghapusan Production Line tersebut",
+      "then": "Line itu terhapus, kartu mill-nya tetap dirender, dan di dalam kartu kini tertulis keterangan 'belum ada Production Line' beserta tombol tambahnya, bukan ruang kosong"
+    },
+    {
+      "scenario": "Hapus Entitas Hierarki Master Data — konfirmasi tidak menyebut nama entitas",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas yang akan dihapus masih ada",
+      "when": "Admin menekan aksi hapus pada entitas itu di kartu mill, di baris Production Line, atau di baris bagian ringkas Corporate / Company",
+      "then": "Konfirmasi yang muncul menyebut nama entitas yang akan dihapus sehingga Admin tahu persis apa yang akan hilang; konfirmasi tanpa nama entitas adalah pelanggaran aturan dan penghapusan tidak boleh diteruskan atas dasar konfirmasi semacam itu"
+    },
+    {
+      "scenario": "Hapus Entitas Hierarki Master Data — peran selain Admin mencoba menghapus",
+      "given": "Pengguna dengan peran Station Operator, Supervisor, atau Mill Management sudah login dan mencoba mengakses penghapusan entitas hierarki Master Data",
+      "when": "Pengguna itu mencoba menghapus salah satu entitas Corporate, Company, Business Unit (mill), atau Production Line",
+      "then": "Permintaan ditolak karena hanya Admin yang dapat melakukan penghapusan ini, aksi hapus tidak tersedia bagi peran tersebut, dan tidak ada data yang terhapus"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-127--master-data-tree-view"
+  ]
+}

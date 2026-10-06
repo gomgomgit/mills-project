@@ -1,11 +1,11 @@
 {
-  "ver": 1,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-02"
+    "updated_at": "2026-10-06"
   },
   "id": "screen-127--master-data-tree-view",
-  "name": "Master Data Tree View",
+  "name": "Struktur Mills",
   "module_id": "module-master-data",
   "route": "/master-data/tree-view",
   "auth_requirement": "role: admin",
@@ -19,115 +19,701 @@
   "api_contracts": [
     {
       "usecase_id": "usecase-127--master-data-tree-view",
-      "usecase_name": "Jelajahi Hierarki Master Data (Tree View)",
+      "usecase_name": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman",
       "endpoints": [],
       "business_logic": [
-        "1. mount(): panggil MasterDataTreeService::getTree() sekali (bukan di render()) — mengembalikan array 4 level (corporate→company→business_unit→production_line) dengan children_count per node, disimpan ke property $tree",
-        "2. mount(): pre-populate $expanded dengan semua key 'corporate-{id}' agar level Company langsung terlihat saat pertama dibuka; level Company/Business Unit mulai collapsed",
-        "3. toggleNode(level, id): toggle key '{level}-{id}' di $expanded array (tambah jika belum ada, hapus jika sudah ada) — tidak query ulang data, murni state lokal",
-        "4. render(): tampilkan $tree secara rekursif lewat komponen Blade x-master-data-tree-node, meneruskan $expanded untuk menentukan node mana yang children-nya dirender",
-        "5. Setiap node Company/Business Unit/Production Line dirender sebagai link ke route Kelola terkait dengan query param filter (filterCorporateId/filterCompanyId/filterBusinessUnitId) = parent_id node tersebut; node Corporate dirender sebagai link ke Kelola Corporate tanpa query param"
+        "1. Rute dijaga middleware 'auth' + 'role:admin' — EnsureRole::forbidden() abort(403) SEBELUM komponen mount(). Tidak ada pemeriksaan peran di dalam komponen, karena pemeriksaan ganda yang bisa berbeda lebih buruk daripada satu pemeriksaan yang jelas.",
+        "2. mount(): hanya memulihkan $search dari query string (#[Url]). TIDAK memuat data di sini — BERBEDA DARI VERSI SEBELUMNYA, yang memuat $tree sekali di mount() karena layarnya read-only. Sekarang layar ini menulis, jadi data yang dimuat sekali di mount() akan basi tepat sesudah aksi pertama.",
+        "3. render(): panggil MasterDataTreeService::board($search, $page, $perPage) — query berpusat pada business_units dengan with(['company.corporate', 'productionLines']) dan withCount('productionLines'), dipaginasi di BASIS DATA. Eager-load itulah yang menjaga bebas N+1: induk dan line tiap mill ikut termuat tanpa satu query per kartu. BERUBAH 2026-10-06: versi sebelumnya memuat seluruh pohon tanpa paginasi; sesudah user memutuskan 'paginasi bila perlu', jumlah baris yang dimuat tidak lagi dianggap selalu kecil, jadi pembatasannya harus terjadi di query, bukan sesudahnya.",
+        "4. render(): panggil MasterDataTreeService::counts() — empat COUNT terpisah atas keempat tabel. SENGAJA TIDAK dihitung dari hasil query board() maupun dari hasil penyaringan: baris ringkasan harus menyatakan seluruh data yang ada, karena justru itu yang membuktikan halaman ini tidak menyembunyikan apa pun. Menghitungnya dari baris tersaring akan membuat angkanya ikut mengecil saat disaring, dan kehilangan maknanya.",
+        "5. PENYARINGAN TERJADI DI BASIS DATA, bukan di PHP. Mill dicocokkan atas name dan code-nya sendiri, ATAU lewat whereHas('productionLines', ...) supaya mill tetap tampil ketika yang cocok adalah salah satu line di dalamnya, ATAU lewat whereHas('company', ...) dan whereHas('company.corporate', ...) untuk kecocokan di tingkat induk. Tidak peka huruf besar-kecil dengan cara yang aman di kedua basis data — lower() + LIKE, BUKAN ILIKE, karena suite uji berjalan di SQLite sementara produksi PostgreSQL. BERUBAH 2026-10-06: versi sebelumnya menyaring di PHP atas seluruh hasil, beralasan pada 20 baris. Alasan itu tidak berlaku lagi begitu paginasi masuk: menyaring sesudah paginasi akan membuat kecocokan di halaman lain terbaca sebagai 'tidak ditemukan', dan memuat semua baris hanya untuk menyaringnya di PHP meniadakan guna paginasi.",
+        "6. Penyaringan mencocokkan nama DAN kode di keempat tingkat, tidak peka huruf besar-kecil. Sebuah mill TETAP tampil bila yang cocok adalah salah satu production line di dalamnya — kalau tidak, penyaring justru menyembunyikan hal yang dicari.",
+        "7. Bentuk kartu mill dibangun dari sisi Business Unit: tiap mill membawa company dan corporate induknya sebagai breadcrumb, line-nya sebagai daftar, dan jumlah line-nya. Corporate dan Company yang TIDAK punya turunan mill tidak muncul di papan — keduanya hanya muncul di dua daftar ringkas yang dibangun terpisah dari query yang sama.",
+        "8. render(): kembalikan view 'livewire.master-data.master-data-tree-view' dengan papan kartu, kedua daftar ringkas, angka ringkasan, dan — bila $search tidak kosong — jumlah yang cocok sebagai keterangan tambahan di samping angka ringkasan.",
+        "9. PAGINASI HANYA DIRENDER BILA PERLU. Kontrol halaman papan kartu muncul hanya ketika total mill (sesudah penyaringan) melebihi $perPage; begitu juga kedua daftar ringkas, masing-masing dengan posisi halamannya sendiri. Pada volume sekarang tidak ada satu pun kontrol paginasi yang dirender. Pola yang dipakai ULANG dari keempat layar Kelola: properti $page/$perPage (perPage 20), metode nextPage()/previousPage(), dan trait HasFilterReset — bukan WithPagination milik Livewire, karena keempat layar Kelola tidak memakainya dan satu halaman yang berbeda caranya akan jadi pola kelima.",
+        "10. Baris Production Line di dalam kartu mill TIDAK dipaginasi — ia ikut termuat utuh lewat eager-load, dan jumlah line yang tercetak di kartu berasal dari withCount('productionLines'), yaitu jumlah SEBENARNYA. Memotong daftar line di dalam satu kartu akan membuat kartu itu berbohong tentang isi mill-nya.",
+        "11. Mengubah $search MERESET $page ke 1 (lewat updatedSearch()). Tanpa ini, menyaring dari halaman 3 mendarat di halaman 3 hasil baru yang hampir selalu kosong — dan halaman kosong di layar yang jelas berisi data terbaca sebagai nol hasil. Setelah penghapusan yang mengosongkan halaman terakhir, $page mundur satu, bukan berhenti di halaman kosong."
       ],
       "data_operations": [
         {
           "entity_id": "corporate",
           "operation": "SELECT",
-          "description": "Eager-load Corporate + withCount('companies'), 1 query"
+          "description": "Akar query nested eager-load, withCount('companies'); plus satu COUNT terpisah untuk baris ringkasan"
         },
         {
           "entity_id": "company",
           "operation": "SELECT",
-          "description": "Bagian dari 1 query nested eager-load yang sama (bukan query terpisah per Corporate)"
+          "description": "Bagian dari query nested eager-load yang sama, withCount('businessUnits'); plus satu COUNT terpisah"
         },
         {
           "entity_id": "business-unit",
           "operation": "SELECT",
-          "description": "Bagian dari query nested eager-load yang sama"
+          "description": "Bagian dari query nested eager-load yang sama, withCount('productionLines'); sumber kartu papan; plus satu COUNT terpisah"
         },
         {
           "entity_id": "production-line",
           "operation": "SELECT",
-          "description": "Level daun, ikut termuat dalam query nested eager-load yang sama — total tetap 1 round-trip query untuk seluruh pohon, bukan N+1"
+          "description": "Tingkat daun, ikut termuat dalam query nested eager-load yang sama; plus satu COUNT terpisah"
         }
       ],
       "edge_case_handling": [
         {
           "condition": "Belum ada Corporate sama sekali",
-          "handling": "Tampilkan pesan 'Belum ada data master' alih-alih pohon kosong"
+          "handling": "Tiap bagian merender keadaan kosongnya sendiri beserta tombol tambahnya — papan kartu, daftar ringkas Corporate, dan daftar ringkas Company masing-masing punya blok kosongnya. TIDAK ada satu keadaan kosong tunggal untuk seluruh halaman."
         },
         {
-          "condition": "Node tidak punya anak",
-          "handling": "Tidak render ikon chevron expand/collapse untuk node tersebut"
+          "condition": "Mill tanpa Production Line",
+          "handling": "Kartu tetap dirender; di tempat daftar line, render blok 'belum ada Production Line' + tombol tambah. Ditentukan dari production_lines_count === 0, bukan dari koleksi line yang kosong sesudah penyaringan — keduanya berbeda dan salah satunya menyesatkan."
+        },
+        {
+          "condition": "Corporate tanpa Company, atau Company tanpa mill",
+          "handling": "Tidak muncul di papan; dirender di daftar ringkasnya dengan angka anak 0 yang tercetak, bukan sel kosong."
+        },
+        {
+          "condition": "Penyaring tidak mencocokkan apa pun",
+          "handling": "Render blok 'tidak ada yang cocok dengan \"<kata kunci>\"' beserta tombol/tautan mengosongkan penyaring. Angka ringkasan TETAP menampilkan total seluruh data, supaya jelas bahwa yang kosong adalah hasil pencarian, bukan datanya."
+        },
+        {
+          "condition": "Nama atau kode sangat panjang",
+          "handling": "Dipotong lewat CSS (text-overflow ellipsis pada lebar kartu yang tetap) dengan atribut title berisi nilai utuh — bukan dipotong di PHP, supaya nilai utuhnya tetap ada di DOM dan tetap dapat dibaca serta disalin."
+        },
+        {
+          "condition": "Mill tanpa logo",
+          "handling": "Render penanda pengganti berisi inisial nama mill (maksimal dua huruf) di atas latar netral — bukan tag <img> dengan src kosong, yang akan menampilkan ikon gambar rusak."
         }
       ],
       "business_rules_applied": [
-        "Hierarki berhenti di Production Line, tidak sampai Station/Machinery Group/Machinery",
-        "Read-only — tidak ada operasi create/update/delete",
-        "Navigasi node memakai filter yang sudah ada di screen Kelola tujuan, bukan filter baru",
-        "Hanya Admin yang dapat mengakses"
+        "Hierarki berhenti di Production Line — Station/Machinery Group/Machinery tidak di-query dan tidak dirender di sini, dan batas itu dinyatakan di layar beserta tautannya.",
+        "Hanya Admin yang dapat membuka halaman ini — dijaga di tingkat rute, bukan di dalam komponen.",
+        "Paginasi dipakai bila perlu dan hanya bila perlu — kontrol halaman tidak dirender selama isinya masih muat; lipat/buka tetap tidak dipakai. Production Line tidak ikut dipaginasi.",
+        "Baris ringkasan jumlah per tingkat wajib tampil dan menyatakan TOTAL seluruh data — bukan jumlah tersaring, dan bukan jumlah yang terlihat di halaman yang sedang dibuka.",
+        "Corporate dan Company tetap terlihat meski belum punya anak.",
+        "Keadaan kosong dinyatakan per bagian."
       ],
       "unit_test_cases": [
         {
-          "description": "MasterDataTreeService::getTree() returns full 4-level nested structure with correct children_count at each level",
-          "given": "1 Corporate dengan 1 Company, 1 Business Unit, 2 Production Line; 1 Corporate lain tanpa anak",
-          "expect": "array 2 node corporate; node pertama children_count=1, menembus ke company/business_unit/production_line dengan children_count yang benar; node kedua children=[] dan children_count=0"
+          "description": "board() mengembalikan satu kartu per Business Unit, lengkap dengan breadcrumb corporate dan company induknya",
+          "given": "2 Corporate, masing-masing 1 Company; Company pertama punya 2 mill, Company kedua punya 1 mill",
+          "expect": "3 kartu mill; tiap kartu membawa nama corporate dan company induk yang benar"
         },
         {
-          "description": "getTree() executes exactly 1 query for the whole tree regardless of size (no N+1)",
-          "given": "seeded multi-level data",
-          "expect": "assertion jumlah query menunjukkan angka konstan, tidak bertambah seiring jumlah node"
+          "description": "board() memuat seluruh production line tiap mill tanpa query tambahan per mill",
+          "given": "3 mill dengan total 6 production line",
+          "expect": "jumlah query konstan dan tidak bertambah seiring jumlah mill maupun line (bebas N+1)"
+        },
+        {
+          "description": "counts() menghitung seluruh data, bukan hasil penyaringan",
+          "given": "3 Corporate, 4 Company, 5 mill, 8 line; penyaring aktif yang hanya mencocokkan 1 mill",
+          "expect": "counts tetap 3/4/5/8"
+        },
+        {
+          "description": "penyaring mencocokkan nama maupun kode, tidak peka huruf besar-kecil",
+          "given": "mill bernama 'Business Unit A' berkode 'BU-A'",
+          "expect": "kata kunci 'bu-a' maupun 'business unit a' keduanya mencocokkan mill itu"
+        },
+        {
+          "description": "mill tetap tampil bila yang cocok adalah salah satu line di dalamnya",
+          "given": "mill 'Business Unit A' dengan line bernama 'Line Khusus'",
+          "expect": "kata kunci 'khusus' tetap menampilkan kartu mill itu, dengan line yang cocok ditandai"
+        },
+        {
+          "description": "Corporate tanpa Company tetap muncul di daftar ringkas dengan angka anak nol",
+          "given": "1 Corporate tanpa Company sama sekali",
+          "expect": "Corporate itu ada di daftar ringkas, companies_count = 0, dan tidak muncul di papan kartu mana pun"
+        },
+        {
+          "description": "mill tanpa production line ditandai dari production_lines_count, bukan dari koleksi kosong hasil penyaringan",
+          "given": "mill punya 2 line, tetapi penyaring aktif tidak mencocokkan satu pun line itu",
+          "expect": "mill TIDAK ditandai 'belum ada Production Line' — keadaan itu hanya berlaku ketika production_lines_count benar-benar 0"
+        }
+      ]
+    },
+    {
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "usecase_name": "Tambah Entitas Hierarki Master Data",
+      "endpoints": [],
+      "business_logic": [
+        "1. openCreate(string $level, ?string $parentId = null): set $modalLevel = $level, $modalMode = 'create', $editingId = null, $form = emptyForm($level), $logo = null, $formErrorMessage = null. Bila $parentId diberikan (tombol ditekan dari dalam kartu induk), isi field induk pada $form dengan nilai itu.",
+        "2. openCreate(): bila tingkat yang diminta butuh induk dan daftar calon induk KOSONG (companyOptions()/corporateOptions()/businessUnitOptions() mengembalikan array kosong), JANGAN buka modal — set $formErrorMessage yang menyebut tingkat induk mana yang harus dibuat lebih dulu. Modal dengan select induk kosong tanpa penjelasan adalah jalan buntu.",
+        "3. Form merender SELURUH field tingkat itu, dikelompokkan Identitas / Kontak / Alamat. Pilihan induk dirender sebagai <select> biasa — TERISI bila berasal dari kartu, tetapi TIDAK disabled dan TIDAK hidden, sesuai uiux-spec component_patterns[web-form-input].",
+        "4. save(): $this->validate() memakai rules() yang dibangun per $modalLevel — cermin aturan service, semata supaya pesan galat muncul di bawah field yang salah. Gagal di sini mengisi error bag Livewire, modal tetap terbuka, tidak ada yang dikirim ke service.",
+        "5. save(): panggil service tingkat itu — CorporateService::create($form, $logo) / CompanyService::create($form, $logo) / BusinessUnitService::create($form, $logo) / ProductionLineService::create($form). Service inilah OTORITAS validasinya; rules() di langkah 4 hanya cermin.",
+        "6. save(): catch ValidationException dari service → petakan tiap kunci field ke 'form.<field>' lewat addError(), kecuali 'logo' yang tidak berawalan di kedua sisi. Ini pola yang sama persis dengan KelolaCorporate::save() — tanpa pemetaan ini, galat validasi dari service hilang tanpa jejak.",
+        "7. save(): catch ModelNotFoundException → induk yang dipilih sudah dihapus pihak lain; set $formErrorMessage yang menyebutnya, modal tetap terbuka.",
+        "8. save() berhasil: set $successMessage, tutup modal, kosongkan $form dan $logo. TIDAK memanggil muat-ulang manual — render() berikutnya memanggil board() dan counts() lagi, sehingga entitas baru dan seluruh angka otomatis mencerminkan keadaan sesudah aksi."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "corporate",
+          "operation": "INSERT",
+          "description": "CorporateService::create() — corporate_code + name wajib, 11 field teks opsional, logo opsional ke disk 'local'"
+        },
+        {
+          "entity_id": "company",
+          "operation": "INSERT",
+          "description": "CompanyService::create() — corporate_id wajib dan harus ada, company_code + name wajib, sisanya opsional"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "INSERT",
+          "description": "BusinessUnitService::create() — company_id wajib dan harus ada, code + name wajib, business_unit_type_code dan sisanya opsional"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "INSERT",
+          "description": "ProductionLineService::create() — business_unit_id + name wajib, code opsional tapi unik bila diisi, description opsional"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib kosong",
+          "handling": "rules() milik komponen menolaknya lebih dulu; pesan muncul di bawah field lewat error bag Livewire, modal tetap terbuka, service tidak pernah dipanggil."
+        },
+        {
+          "condition": "Kode sudah dipakai entitas lain berjenis sama",
+          "handling": "UniqueCaseInsensitive pada rules() komponen; bila lolos karena balapan dengan Admin lain, service menolak dan ValidationException-nya dipetakan ke 'form.<field>'."
+        },
+        {
+          "condition": "Kode Production Line dibiarkan kosong",
+          "handling": "Diterima — aturannya ['nullable', ..., unique]; '' dinormalkan menjadi null oleh ProductionLineService::emptyToNull() sebelum pemeriksaan unik, sehingga dua line tanpa kode tidak dianggap bentrok."
+        },
+        {
+          "condition": "Berkas logo ditolak",
+          "handling": "Aturan ['nullable','file','mimes:jpg,jpeg,png','max:2048', new RealImage('Logo')] — pesannya terikat pada kunci 'logo' (tanpa awalan form.), modal tetap terbuka, dan seluruh field lain tetap terisi karena $form tidak disentuh."
+        },
+        {
+          "condition": "Induk diubah sebelum menyimpan",
+          "handling": "Tidak ada penanganan khusus — nilai select induk dibaca dari $form saat save(), bukan dari parameter openCreate(). Itu sebabnya select-nya tidak boleh dikunci."
+        },
+        {
+          "condition": "Membatalkan modal",
+          "handling": "closeModal() mengosongkan $form, $logo, $editingId, $modalLevel, dan seluruh pesan galat. Tidak ada efek samping; angka ringkasan tidak berubah karena tidak ada yang ditulis."
+        },
+        {
+          "condition": "Belum ada calon induk",
+          "handling": "Diperiksa di openCreate() SEBELUM modal dibuka (lihat business_logic langkah 2) — bukan sesudah Admin mengisi form dan menekan Simpan."
+        }
+      ],
+      "business_rules_applied": [
+        "Aturan validasi service adalah otoritas; rules() komponen hanya cermin untuk galat per-field.",
+        "Field wajib per tingkat sesuai validator keempat service.",
+        "Kode unik per jenis; kode Production Line opsional tetapi unik bila diisi.",
+        "Induk yang terisi otomatis tetap terlihat dan tetap dapat diubah.",
+        "Logo opsional: jpg/jpeg/png maksimal 2MB dan harus benar-benar gambar.",
+        "Hanya Admin yang dapat menambah — dijaga di tingkat rute.",
+        "Angka ringkasan dan jumlah anak dihitung ulang sesudah berhasil — dicapai dengan memuat data di render(), bukan di mount()."
+      ],
+      "unit_test_cases": [
+        {
+          "description": "openCreate('production-line', $millId) mengisi induk pada form",
+          "given": "satu mill ada",
+          "expect": "$form['business_unit_id'] === $millId, $modalMode === 'create', modal terbuka"
+        },
+        {
+          "description": "openCreate untuk tingkat yang belum punya calon induk tidak membuka modal",
+          "given": "tidak ada satu pun Company",
+          "expect": "modal tidak terbuka dan $formErrorMessage menyebut bahwa Company harus dibuat lebih dulu"
+        },
+        {
+          "description": "save() dengan field wajib kosong tidak memanggil service",
+          "given": "$form tanpa name",
+          "expect": "error bag berisi 'form.name'; service::create() tidak pernah terpanggil"
+        },
+        {
+          "description": "save() memetakan ValidationException service ke kunci form.<field>",
+          "given": "service::create() melempar ValidationException dengan kunci 'code'",
+          "expect": "error bag berisi 'form.code', modal tetap terbuka, tidak ada successMessage"
+        },
+        {
+          "description": "save() memetakan galat logo tanpa awalan form.",
+          "given": "service melempar ValidationException dengan kunci 'logo'",
+          "expect": "error bag berisi 'logo', bukan 'form.logo'"
+        },
+        {
+          "description": "save() berhasil menutup modal dan mengisi successMessage",
+          "given": "$form valid",
+          "expect": "modal tertutup, $form kosong, $successMessage terisi"
+        },
+        {
+          "description": "save() memakai induk dari $form, bukan dari parameter openCreate",
+          "given": "openCreate('production-line', millA) lalu $form['business_unit_id'] diubah ke millB",
+          "expect": "service::create() menerima business_unit_id = millB"
+        },
+        {
+          "description": "save() menangkap ModelNotFoundException ketika induk sudah dihapus",
+          "given": "service::create() melempar ModelNotFoundException",
+          "expect": "$formErrorMessage terisi, modal tetap terbuka, tidak ada successMessage"
+        }
+      ]
+    },
+    {
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "usecase_name": "Ubah Entitas Hierarki Master Data",
+      "endpoints": [],
+      "business_logic": [
+        "1. openEdit(string $level, string $id): muat entitas itu lewat modelnya, isi $form dengan SELURUH field tingkat itu termasuk id induknya, set $editingId = $id, $modalLevel = $level, $modalMode = 'edit'. Nama berkas logo yang sedang dipakai ditampilkan sebagai keterangan — bukan diisikan ke input file, yang secara teknis tidak bisa dan secara makna salah.",
+        "2. openEdit(): bila entitasnya sudah tidak ada (ModelNotFoundException), JANGAN buka modal — set $formErrorMessage 'sudah dihapus' dan biarkan render() berikutnya menyegarkan halaman sehingga barisnya hilang.",
+        "3. save() pada mode 'edit': rules() dibangun dengan ignore($editingId) pada aturan unik, sehingga kode entitas TIDAK dianggap bentrok dengan dirinya sendiri — pola yang sama persis dengan KelolaCorporate::rules().",
+        "4. save(): panggil service::update($editingId, $form, $logo) untuk Corporate/Company/BusinessUnit, atau ProductionLineService::update($editingId, $form) untuk line. $logo null berarti 'jangan ubah logo', bukan 'hapus logo'.",
+        "5. save(): catch ValidationException → petakan ke 'form.<field>' seperti pada create. catch ModelNotFoundException → entitas dihapus pihak lain di antara membuka form dan menyimpan; set $formErrorMessage.",
+        "6. Memindahkan entitas ke induk lain adalah update biasa atas field induk — TIDAK ada metode terpisah dan tidak ada jalur kode khusus. Konsekuensinya: tidak ada kode tambahan yang perlu mengurus 'pindah', dan satu-satunya yang harus benar adalah angka jumlah.",
+        "7. save() berhasil: set $successMessage, tutup modal. Angka jumlah pada induk LAMA dan induk BARU keduanya benar tanpa penanganan khusus, karena counts() dan board() dihitung ulang dari basis data di render() berikutnya — bukan ditambah/dikurangi secara manual di memori. Itu alasan teknis mengapa pemuatan data dipindah dari mount() ke render()."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "corporate",
+          "operation": "UPDATE",
+          "description": "CorporateService::update() — field teks yang dikirim saja, logo diganti hanya bila berkas baru diunggah"
+        },
+        {
+          "entity_id": "company",
+          "operation": "UPDATE",
+          "description": "CompanyService::update() — termasuk corporate_id bila Company dipindah ke Corporate lain"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "UPDATE",
+          "description": "BusinessUnitService::update() — termasuk company_id bila mill dipindah ke Company lain"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "UPDATE",
+          "description": "ProductionLineService::update() — termasuk business_unit_id bila line dipindah ke mill lain"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Memindahkan entitas ke induk lain",
+          "handling": "Tidak ada penanganan khusus — field induk ikut dalam payload update. Kebenaran angka jumlah dijamin oleh perhitungan ulang di render(), bukan oleh penyesuaian manual."
+        },
+        {
+          "condition": "Field wajib dikosongkan",
+          "handling": "rules() menolak lebih dulu; modal tetap terbuka, service tidak dipanggil, baris di basis data tidak tersentuh."
+        },
+        {
+          "condition": "Kode diubah menjadi kode yang sudah dipakai",
+          "handling": "Aturan unik menolak; pesannya muncul di bawah field kode."
+        },
+        {
+          "condition": "Kode disimpan apa adanya tanpa diubah",
+          "handling": "ignore($editingId) pada aturan unik mencegah entitas bentrok dengan dirinya sendiri — tanpa ini, setiap penyimpanan tanpa mengubah kode akan gagal."
+        },
+        {
+          "condition": "Logo baru ditolak",
+          "handling": "Validasi logo gagal sebelum service dipanggil; $form tidak disentuh sehingga seluruh perubahan field lain tetap ada di form, dan logo lama tetap terpakai karena tidak ada operasi tulis yang terjadi."
+        },
+        {
+          "condition": "Entitas sudah dihapus Admin lain",
+          "handling": "ModelNotFoundException ditangkap di openEdit() maupun di save(); pesannya kalimat biasa, bukan galat teknis, dan render() berikutnya menghilangkan barisnya."
+        },
+        {
+          "condition": "Dua Admin mengubah satu entitas hampir bersamaan",
+          "handling": "Tulisan terakhir yang menang — tidak ada penguncian optimistis yang ditambahkan di sini, karena keempat layar Kelola pun tidak punya. Menambahkannya hanya di halaman ini akan membuat dua perilaku berbeda untuk data yang sama."
+        },
+        {
+          "condition": "Membatalkan modal",
+          "handling": "closeModal() membuang seluruh state form; tidak ada efek samping."
+        }
+      ],
+      "business_rules_applied": [
+        "Aturan validasi service adalah otoritas; rules() komponen hanya cermin.",
+        "Kode unik per jenis, dengan pengecualian diri sendiri saat mengubah.",
+        "Pilihan induk ikut terisi dan ikut dapat diubah — memindahkan entitas adalah bagian dari mengubahnya.",
+        "Memindahkan entitas mengubah jumlah pada dua induk, dan keduanya dihitung ulang dari basis data.",
+        "Logo baru yang ditolak tidak menghapus logo lama.",
+        "Hanya Admin yang dapat mengubah.",
+        "Tulisan terakhir yang menang — tanpa penguncian baru yang tidak ada di layar Kelola."
+      ],
+      "unit_test_cases": [
+        {
+          "description": "openEdit mengisi form dengan seluruh nilai entitas termasuk induknya",
+          "given": "satu mill dengan company_id terisi dan beberapa field kontak terisi",
+          "expect": "$form memuat code, name, company_id, dan field kontak itu; $editingId terisi; $modalMode === 'edit'"
+        },
+        {
+          "description": "openEdit atas entitas yang sudah dihapus tidak membuka modal",
+          "given": "id yang tidak ada di basis data",
+          "expect": "modal tidak terbuka, $formErrorMessage menyebut data sudah dihapus"
+        },
+        {
+          "description": "menyimpan tanpa mengubah kode tidak dianggap bentrok dengan diri sendiri",
+          "given": "mill berkode 'BU-A' disimpan ulang dengan kode yang sama",
+          "expect": "tidak ada galat unik; service::update() terpanggil"
+        },
+        {
+          "description": "mengubah kode menjadi kode mill lain ditolak",
+          "given": "mill lain sudah memakai 'BU-B'",
+          "expect": "error bag berisi 'form.code'; service::update() tidak mengubah apa pun"
+        },
+        {
+          "description": "mengubah induk memanggil service dengan id induk yang baru",
+          "given": "line milik millA, $form['business_unit_id'] diubah ke millB",
+          "expect": "ProductionLineService::update() menerima business_unit_id = millB"
+        },
+        {
+          "description": "logo null berarti tidak mengubah logo",
+          "given": "mode edit tanpa unggahan berkas baru",
+          "expect": "service::update() dipanggil dengan argumen logo null, dan logo lama tetap ada"
+        },
+        {
+          "description": "save() menangkap ModelNotFoundException saat entitas hilang di tengah jalan",
+          "given": "service::update() melempar ModelNotFoundException",
+          "expect": "$formErrorMessage terisi, tidak ada successMessage"
+        }
+      ]
+    },
+    {
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "usecase_name": "Hapus Entitas Hierarki Master Data",
+      "endpoints": [],
+      "business_logic": [
+        "1. askDelete(string $level, string $id): set $confirmingDelete = ['level' => $level, 'id' => $id, 'name' => <nama entitas>]. Namanya DIAMBIL dan DISIMPAN di sini, bukan dicari ulang saat merender konfirmasi — supaya konfirmasi tetap menyebut nama yang benar bahkan bila datanya berubah di antara dua render.",
+        "2. Modal konfirmasi merender nama itu di dalam kalimatnya. Konfirmasi tanpa nama entitas tidak memenuhi aturannya.",
+        "3. confirmDelete(): panggil service::delete($id) untuk tingkat yang bersangkutan. Pemeriksaan ketergantungan TIDAK diulang di komponen — keempat service sudah melakukannya, dan menyalin pemeriksaannya ke sini akan melahirkan dua jawaban yang bisa berbeda.",
+        "4. confirmDelete(): catch CorporateHasCompaniesException / CompanyHasBusinessUnitsException / BusinessUnitHasStationsException / ProductionLineHasStationsException → set $deleteErrorMessage = $e->getMessage() APA ADANYA. Pesan keempat exception itu sudah berbahasa Indonesia dan sudah menyebut jumlah tiap penghalang; menyusun ulang kalimatnya di sini hanya berisiko menghilangkan angka itu.",
+        "5. confirmDelete() saat ditolak: modal konfirmasi TETAP TERBUKA ($confirmingDelete tidak dikosongkan) dan menampilkan $deleteErrorMessage di dalamnya. Menutup modal lalu menampilkan toast merah akan membuang satu-satunya informasi yang berguna, yaitu daftar penghalangnya.",
+        "6. confirmDelete(): catch ModelNotFoundException → entitas sudah dihapus pihak lain; tutup modal, set $successMessage/$deleteErrorMessage berupa kalimat biasa yang menyebut data sudah tidak ada, dan biarkan render() menyegarkan halaman.",
+        "7. confirmDelete() berhasil: kosongkan $confirmingDelete, set $successMessage. Angka ringkasan dan jumlah anak induknya benar tanpa penanganan khusus, karena dihitung ulang di render().",
+        "8. CATATAN PENTING TENTANG CAKUPAN PENGHAPUSAN: khusus Production Line, ProductionLineService::delete() menghapus stasiun milik line itu bersama line-nya di dalam SATU transaksi dengan lockForUpdate — hanya bila stasiun-stasiun itu bersih dari record produksi, machinery group, dan machinery. Halaman ini tidak menambah maupun mengurangi perilaku itu, tetapi konfirmasinya WAJIB menyebutkannya untuk tingkat line, karena 'hapus line' di layar ini berarti juga 'hapus stasiunnya' dan Admin harus tahu itu sebelum menyetujui."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "corporate",
+          "operation": "DELETE",
+          "description": "CorporateService::delete() — didahului SELECT COUNT atas companies; melempar bila > 0"
+        },
+        {
+          "entity_id": "company",
+          "operation": "DELETE",
+          "description": "CompanyService::delete() — didahului SELECT COUNT atas business_units; melempar bila > 0"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "DELETE",
+          "description": "BusinessUnitService::delete() — didahului SELECT COUNT atas users, production_lines, stations, dan periods; melempar bila salah satu > 0"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "DELETE",
+          "description": "ProductionLineService::delete() — di dalam transaksi: SELECT id stasiun dengan lockForUpdate, COUNT record produksi atas 18 tabel record, COUNT machinery group dan machinery; bila bersih, DELETE stasiun lalu DELETE line"
+        },
+        {
+          "entity_id": "station",
+          "operation": "DELETE",
+          "description": "Ikut terhapus bersama Production Line-nya, hanya ketika stasiun-stasiun itu bersih — bukan operasi yang dipicu terpisah dari halaman ini"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "Dibaca sebagai penghalang penghapusan Business Unit (users.business_unit_id)"
+        },
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Dibaca sebagai penghalang penghapusan Business Unit"
+        },
+        {
+          "entity_id": "machinery-group",
+          "operation": "SELECT",
+          "description": "Dibaca sebagai penghalang penghapusan Production Line"
+        },
+        {
+          "entity_id": "machinery",
+          "operation": "SELECT",
+          "description": "Dibaca sebagai penghalang penghapusan Production Line"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Penghapusan ditolak karena masih ada yang bergantung",
+          "handling": "Exception domain ditangkap; $deleteErrorMessage diisi getMessage() apa adanya dan dirender DI DALAM modal yang tetap terbuka. Tidak ada pesan generik, tidak ada toast yang menutup modal."
+        },
+        {
+          "condition": "Membatalkan konfirmasi",
+          "handling": "cancelDelete() mengosongkan $confirmingDelete dan $deleteErrorMessage. Tidak ada tulisan apa pun yang terjadi."
+        },
+        {
+          "condition": "Menghapus Production Line yang stasiunnya masih bersih",
+          "handling": "Service menghapus stasiun lalu line dalam satu transaksi — tidak mungkin setengah terhapus. Komponen tidak melakukan apa pun selain memanggilnya."
+        },
+        {
+          "condition": "Menghapus Production Line yang stasiunnya sudah dipakai",
+          "handling": "ProductionLineHasStationsException dengan pesan yang menyebut jumlah record/machinery group/machinery; tidak ada stasiun yang terhapus karena seluruh pemeriksaan terjadi di dalam transaksi sebelum DELETE pertama."
+        },
+        {
+          "condition": "Entitas sudah dihapus Admin lain",
+          "handling": "ModelNotFoundException ditangkap; kalimat biasa, bukan galat teknis; halaman disegarkan oleh render() berikutnya."
+        },
+        {
+          "condition": "Menghapus mill terakhir milik sebuah Company",
+          "handling": "Tidak ada penanganan khusus — Company tidak tersentuh. Ia berhenti muncul di papan kartu karena papan dibangun dari sisi Business Unit, dan tetap muncul di daftar ringkas Company dengan business_units_count = 0."
+        },
+        {
+          "condition": "Menghapus Production Line terakhir milik sebuah mill",
+          "handling": "Tidak ada penanganan khusus — kartu mill tetap dirender, dan blok 'belum ada Production Line' muncul karena production_lines_count menjadi 0 pada render() berikutnya."
+        }
+      ],
+      "business_rules_applied": [
+        "Penghapusan ditolak selama masih ada yang bergantung — dijaga service, tidak diulang di komponen.",
+        "Pesan penolakan ditampilkan apa adanya, termasuk jumlah tiap penghalang.",
+        "Konfirmasi menyebut nama entitas yang akan dihapus.",
+        "Penghapusan Production Line beserta stasiunnya adalah satu kesatuan — dijamin transaksi di service.",
+        "Hanya Admin yang dapat menghapus.",
+        "Angka dihitung ulang sesudah berhasil.",
+        "Menghapus anak terakhir tidak pernah menghapus induknya."
+      ],
+      "unit_test_cases": [
+        {
+          "description": "askDelete menyimpan nama entitas, bukan hanya id-nya",
+          "given": "mill bernama 'Business Unit A'",
+          "expect": "$confirmingDelete['name'] === 'Business Unit A'"
+        },
+        {
+          "description": "penolakan membiarkan modal terbuka dan menampilkan pesan service apa adanya",
+          "given": "BusinessUnitService::delete() melempar BusinessUnitHasStationsException berisi 'masih memiliki 3 User, 2 Production Line'",
+          "expect": "$confirmingDelete TIDAK kosong, dan $deleteErrorMessage sama persis dengan pesan exception itu — termasuk angkanya"
+        },
+        {
+          "description": "pesan penolakan tidak diganti pesan generik",
+          "given": "exception dengan pesan panjang berisi angka",
+          "expect": "$deleteErrorMessage tidak mengandung frasa generik seperti 'gagal menghapus' kecuali memang berasal dari service"
+        },
+        {
+          "description": "penghapusan berhasil mengosongkan konfirmasi dan mengisi successMessage",
+          "given": "entitas tanpa penghalang",
+          "expect": "$confirmingDelete kosong, $successMessage terisi, $deleteErrorMessage null"
+        },
+        {
+          "description": "ModelNotFoundException ditangani sebagai kalimat biasa",
+          "given": "service::delete() melempar ModelNotFoundException",
+          "expect": "modal tertutup dan pesannya menyebut data sudah tidak ada, bukan jejak galat"
+        },
+        {
+          "description": "komponen tidak mengulang pemeriksaan ketergantungan sendiri",
+          "given": "service::delete() dipalsukan agar berhasil untuk entitas yang punya anak",
+          "expect": "komponen tetap memanggilnya dan memperlakukannya sebagai berhasil — membuktikan otoritasnya hanya di service, bukan ganda"
+        },
+        {
+          "description": "menghapus line terakhir membuat kartu mill menampilkan keadaan kosong pada render berikutnya",
+          "given": "mill dengan tepat 1 line yang bersih",
+          "expect": "sesudah confirmDelete(), board() menandai mill itu production_lines_count = 0"
         }
       ]
     }
   ],
+  "shared_entities": [
+    {
+      "entity_id": "corporate",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "company",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "machinery-group",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "machinery",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-027--kelola-corporate",
+      "reason": "Tautan keluar untuk pekerjaan yang memang milik layar itu (penelusuran daftar panjang, kolom yang tidak ditampilkan di sini). BERBEDA dari versi sebelumnya: tautan ini TIDAK lagi membawa query param filter induk, karena mengelola Corporate kini dilakukan di halaman ini sendiri."
+    },
+    {
+      "screen_id": "screen-028--kelola-company",
+      "reason": "Tautan keluar, alasan sama. Properti #[Url] filterCorporateId di layar itu tidak lagi diisi dari sini, tetapi TIDAK dihapus — ia tetap berguna saat layar itu diakses langsung."
+    },
+    {
+      "screen_id": "screen-029--kelola-business-unit",
+      "reason": "Tautan keluar, alasan sama; filterCompanyId tidak lagi diisi dari sini dan tidak dihapus."
+    },
+    {
+      "screen_id": "screen-036--kelola-production-line",
+      "reason": "Tautan keluar, alasan sama; filterBusinessUnitId tidak lagi diisi dari sini dan tidak dihapus."
+    },
+    {
+      "screen_id": "screen-030--kelola-station",
+      "reason": "Tautan dari keterangan batas hierarki — tingkat yang sengaja tidak ditampilkan di sini harus punya jalan yang jelas, bukan jalan buntu."
+    },
+    {
+      "screen_id": "screen-031--kelola-machinery",
+      "reason": "Tautan dari keterangan batas hierarki, alasan sama (Machinery Group dialihkan ke layar ini sejak redirect 301 di routes/web.php)."
+    },
+    {
+      "screen_id": "screen-001--login-web",
+      "reason": "Sesi Admin wajib ada sebelum layar ini dapat dicapai; rute dijaga 'auth' + 'role:admin'."
+    }
+  ],
+  "implementation_notes": [
+    "PEMUATAN DATA PINDAH DARI mount() KE render(). Versi sebelumnya sengaja memuat $tree sekali di mount() dengan alasan tertulis: layar itu read-only dan tidak paginasi, jadi memuat ulang setiap toggle sia-sia. Alasan itu mati bersama revamp ini — layar ini sekarang menulis, dan data yang dimuat sekali di mount() akan basi tepat sesudah aksi pertama. Memuat di render() juga yang membuat 'angka dihitung ulang sesudah aksi' tercapai TANPA satu baris kode penyesuaian manual, termasuk kasus memindahkan entitas yang mengubah jumlah pada dua induk sekaligus. Jangan dikembalikan ke mount().",
+    "MasterDataTreeService DIPERLUAS, BUKAN DIGANTI. getTree() lama berbentuk pohon bersarang dari sisi Corporate; bentuk baru butuh papan dari sisi Business Unit plus dua daftar ringkas. Tambahkan board(), counts(), corporateRows(), dan companyRows() — semuanya tetap bertumpu pada SATU query nested eager-load yang sama supaya bebas N+1, dengan withCount per tingkat. Pernyataan di docblock-nya bahwa Station/Machinery sengaja di luar cakupan MASIH BENAR dan harus tetap ada. getTree() sendiri boleh dihapus setelah dipastikan tidak ada pemakai lain — saat spec ini ditulis satu-satunya pemakainya adalah komponen ini.",
+    "KOMPONEN BLADE x-master-data-tree-node (78 baris, rekursif) kemungkinan menjadi tidak terpakai sesudah revamp ini. PERIKSA DULU apakah ada pemakai lain sebelum menghapusnya; bila tidak ada, hapus. Komponen rekursif yang tertinggal tanpa pemakai akan terbaca sebagai fitur yang masih hidup oleh pembaca berikutnya.",
+    "JEBAKAN wire:id LIVEWIRE 3. Layar ini butuh CSS-nya sendiri (papan kartu, kartu mill, baris line, modal). Partial ber-<style> WAJIB ditaruh di slot `styles` milik layout resources/views/master-data/tree-view.blade.php, BUKAN di dalam komponen. Livewire 3 memasang wire:id pada elemen ter-render pertama; bila <style> berada di dalam atau di atas root komponen, atribut itu menempel pada <style> dan SELURUH wire:model berhenti bekerja — termasuk kotak penyaring dan setiap field modal. Component test tidak menangkapnya, browser test menangkapnya, dan harganya sudah pernah dibayar di screen-140. Pola yang terbukti ada di resources/views/dashboard/laporan-pressing.blade.php.",
+    "JANGAN menambahkan kelas ke dashboard/partials/report-styles.blade.php — partial itu dipakai sembilan laporan. Buat partial CSS sendiri untuk layar ini, mis. resources/views/master-data/partials/master-data-styles.blade.php, dan sertakan lewat slot styles. Setiap kelas yang dipakai markup WAJIB punya definisinya; periksa hasil compile, bukan sumbernya.",
+    "VALIDASI DUA LAPIS, DISENGAJA. Komponen mendeklarasikan rules() per tingkat sebagai CERMIN aturan service, semata supaya pesan galat muncul di bawah field yang salah; service tetap OTORITASNYA dan memvalidasi ulang. ValidationException dari service dipetakan ke kunci 'form.<field>' lewat addError(), kecuali 'logo' yang tidak berawalan di kedua sisi. Ini pola yang sama persis dengan KelolaCorporate::save(); menirunya bukan duplikasi baru, menyimpang darinya yang akan melahirkan perilaku ketiga. Catatan: KelolaProductionLine memakai buildValidator() alih-alih rules() — keduanya setara, dan layar ini memakai rules() karena tiga dari empat layar Kelola memakainya.",
+    "SATU MODAL UNTUK EMPAT TINGKAT, bukan empat komponen modal. $modalLevel menentukan field mana yang dirender dan service mana yang dipanggil. Alternatifnya — empat modal nyaris serupa — akan melahirkan empat tempat yang harus ikut berubah setiap kali satu field ditambahkan. Field dikelompokkan Identitas / Kontak / Alamat karena Corporate dan Company masing-masing punya ~13 field teks, dan satu daftar panjang tanpa kelompok bertentangan dengan permintaan 'design yang bagus'.",
+    "UNGGAHAN LOGO memakai trait Livewire WithFileUploads; properti $logo bertipe TemporaryUploadedFile|null dan diteruskan apa adanya ke service, yang menerimanya sebagai UploadedFile. $logo null pada mode edit berarti 'jangan ubah logo', BUKAN 'hapus logo' — tidak ada jalur hapus-logo di keempat service, jadi layar ini juga tidak boleh menjanjikannya.",
+    "ANGKA RINGKASAN DIHITUNG TERPISAH dari papan, lewat COUNT per tabel — bukan dari count() atas koleksi yang sudah disaring. Ini bukan optimasi, ini kebenaran: baris ringkasan ada untuk membuktikan tidak ada yang disembunyikan, jadi ia harus menyatakan total seluruh data bahkan ketika penyaring aktif. Saat penyaring aktif, tambahkan keterangan terpisah berisi jumlah yang cocok — jangan ubah angka totalnya.",
+    "AKSI IKON WAJIB BERLABEL. Ikon pensil dan tempat sampah berulang di setiap baris line dan setiap kartu, jadi aria-label harus MEMBEDAKAN barisnya, mis. aria-label=\"Hapus Production Line Line 2 pada Business Unit A\" — bukan sekadar 'Hapus'. Sertakan juga atribut title untuk tooltip. SVG di dalam tombol diberi aria-hidden=\"true\". Ini business rule, bukan penghalusan.",
+    "LEBAR TELEPON (<768px): papan dan kedua daftar ringkas turun menjadi satu kolom, tanpa gulir horizontal pada halaman. Nama panjang dipotong lewat CSS (text-overflow: ellipsis pada track grid minmax(0, 1fr)) dengan title berisi nilai utuh — BUKAN dipotong di PHP, supaya nilai utuhnya tetap ada di DOM dan tetap dapat dibaca serta disalin. Kedua tabel ringkas tetap memakai pembungkus overflow-x: auto sesuai component_patterns[data-table].",
+    "TIDAK ADA ENDPOINT HTTP BARU. Seluruh interaksi berjalan in-process lewat Livewire, sama seperti keempat layar Kelola. api-index karena itu tidak disentuh — ia sudah berisi 0 entri untuk screen-127 sebelum maupun sesudah revamp, jadi 'penggantian idempoten' Step 9 adalah no-op dan menulisnya hanya akan menaikkan nomor versi tanpa satu pun perubahan isi. Dilewati dengan sengaja, dicatat di sini supaya tidak terbaca sebagai kelalaian.",
+    "UJI YANG SUDAH ADA: backend/tests/Feature/Livewire/MasterDataTreeViewTest.php berisi 6 skenario. Dua di antaranya kehilangan bentuknya — 'toggleNode() buka-tutup' dan 'tautan node ber-filter induk' — karena lipat/buka dan navigasi-ber-filter keduanya hilang dari layar ini. Keduanya harus DIGANTI oleh skenario setara pada bentuk baru, bukan dihapus diam-diam. Dua skenario WAJIB bertahan apa adanya: 'bebas N+1 (jumlah query konstan)' dan '403 untuk non-Admin'. MasterDataDeleteGuardTest dan MasterDataValidationAuditTest menguji service yang dipakai ulang di sini — keduanya tidak boleh rusak.",
+    "BROWSER SPEC BARU. Dari 86 spec di e2e-web/tests/ tidak ada satu pun untuk screen-127 — celah nyata terhadap test-strategy, dan layar yang kini bisa menulis wajib punya browser spec. Spec baru itu HARUS bisa jalan sendirian sesudah scripts/prepare-db.sh: jangan menumpang fixture yang ditanam spec lain (pelajaran commit 9db7a25). Akun fixture Admin: brtest-admin01 / Passw0rd!. Server e2e di :8001 dengan --env=e2e, bukan :8000. Karena spec ini MENULIS master data, ia wajib membersihkan apa yang ditanamnya atau memakai nama berawalan khas supaya tidak mengotori fixture spec lain — ingat bahwa penghapusan ditolak selama masih ada anak, jadi urutan pembersihannya harus dari anak ke induk.",
+    "MOCK HTML Phase 2 memakai KODE KARANGAN (BU-A, CORP-SN, CMP-SN-1, PL-A-01, dan sejenisnya) karena kode sebenarnya tidak tersedia saat mock dibuat. Jangan jadikan acuan saat menulis uji maupun fixture — ambil kode sebenarnya dari basis data atau dari seeder.",
+    "PAGINASI — KEPUTUSAN USER 2026-10-06, MENGGANTI SPEC SEBELUMNYA. Spec v2 menyatakan 'tanpa paginasi' sebagai keputusan sadar dengan ambang tinjau ulang sekitar 50 mill, dan ambang itu angka karangan agen. User memutuskan: paginasi dipakai BILA PERLU. Akibatnya tiga hal berubah di tingkat kode, dan ketiganya saling terkait: (1) papan kartu dipaginasi di query, berpusat pada business_units dengan eager-load company.corporate + productionLines dan withCount('productionLines') — bukan memuat seluruh pohon lalu memotongnya; (2) penyaringan pindah dari PHP ke basis data, karena menyaring SESUDAH paginasi membuat kecocokan di halaman lain terbaca sebagai 'tidak ditemukan'; (3) kontrol paginasi hanya dirender ketika totalnya melebihi $perPage, jadi pada volume sekarang halaman tetap tampak persis seperti rancangan semula — tanpa satu pun kontrol halaman. Pola paginasinya DIPAKAI ULANG dari keempat layar Kelola ($page/$perPage=20, nextPage()/previousPage(), HasFilterReset), bukan trait WithPagination milik Livewire, supaya tidak melahirkan pola kelima untuk hal yang sama.",
+    "LOWER() + LIKE, BUKAN ILIKE, untuk penyaringan yang tidak peka huruf besar-kecil. Suite uji berjalan di SQLite sementara produksi memakai PostgreSQL; ILIKE hanya ada di PostgreSQL, jadi uji akan hijau dan produksi yang rusak — atau sebaliknya. Jebakan ini sudah berbiaya di proyek ini sebelumnya.",
+    "PRODUCTION LINE TIDAK IKUT DIPAGINASI. Line hidup di dalam kartu mill induknya dan ikut termuat utuh lewat eager-load; jumlah line yang tercetak di kartu berasal dari withCount('productionLines'), yaitu jumlah SEBENARNYA, bukan jumlah yang terlihat. Memotong daftar line di dalam satu kartu akan membuat kartu itu berbohong tentang isi mill-nya — dan itu persis jenis kebohongan kecil yang membuat halaman master data tidak dapat dipercaya.",
+    "PENAMAAN — KEPUTUSAN USER 2026-10-06: nama layar 'Struktur Mills'. Yang harus diubah di kode: (a) label sidebar di resources/views/components/layouts/app.blade.php (butir route 'master-data.tree-view', hari ini berbunyi 'Master Data Tree View'); (b) judul layout di resources/views/master-data/tree-view.blade.php (<x-layouts.app title=\"...\">); (c) <h1> halaman. Yang TIDAK diubah: nama rute 'master-data.tree-view', path '/master-data/tree-view', nama kelas MasterDataTreeView, dan nama berkas blade — semuanya kunci dep-graph atau alamat yang mungkin sudah dibookmark, dan mengubahnya berarti menyentuh RouteAccess, uji yang sudah ada, serta bookmark pengguna demi keselarasan kosmetik. Slug 'tree-view' karena itu akan tetap terbaca di URL meski bentuknya bukan pohon — selisih yang disengaja. Grup lipat sidebar 'Struktur Organisasi' (berisi keempat layar Kelola per tingkat) TIDAK disentuh: nama 'Struktur Mills' tidak bertabrakan dengannya."
+  ],
   "test_scenarios": [
     {
-      "scenario_ref": "Lihat pohon hierarki lengkap",
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — success",
       "usecase_id": "usecase-127--master-data-tree-view",
       "api_test": [],
       "component_test": {
         "component": "MasterDataTreeView",
-        "action": "mount dengan data seed 4 level",
-        "assert": "tree property berisi seluruh hierarki, root Corporate ter-expand default, Company/Business Unit collapsed default"
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin, tanpa menyentuh $search, dengan basis data berisi 2 Corporate / 2 Company / 3 mill (satu mill berlogo) / 4 Production Line",
+        "assert": "render berhasil; baris ringkasan memuat keempat angka total (2/2/3/4); terender satu kartu per mill lengkap dengan nama, kode, dan breadcrumb 'corporate > company' induknya; SELURUH nama Production Line tiap mill ada di markup pada render pertama tanpa aksi apa pun; kedua daftar ringkas Corporate dan Company terender; keterangan batas hierarki beserta tautan ke Kelola Station dan Kelola Machinery terender; tidak ada baris basis data yang berubah sesudah render (bandingkan jumlah baris keempat tabel sebelum dan sesudah)"
       },
       "browser_test": {
         "route": "/master-data/tree-view",
-        "action": "Admin login, buka halaman",
-        "assert": "Corporate dan Company terlihat, Business Unit/Production Line belum terlihat sebelum di-expand"
+        "action": "Login brtest-admin01 / Passw0rd! di :8001 (--env=e2e), buka /master-data/tree-view, tunggu papan kartu selesai terender",
+        "assert": "baris ringkasan menampilkan empat angka; jumlah elemen kartu mill sama dengan angka Mill di baris ringkasan; setiap kartu menampilkan nama, kode, dan breadcrumb induk; baris Production Line sudah terlihat tanpa klik apa pun; kedua tabel ringkas Corporate dan Company terlihat; tautan Kelola Station dan Kelola Machinery punya href yang benar; tidak ada gulir horizontal pada <body>"
       }
     },
     {
-      "scenario_ref": "Expand/collapse node",
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Belum ada data master sama sekali",
       "usecase_id": "usecase-127--master-data-tree-view",
       "api_test": [],
       "component_test": {
         "component": "MasterDataTreeView",
-        "action": "panggil toggleNode('company', id) dua kali berturut-turut",
-        "assert": "children node tersebut tampil setelah panggilan pertama, hilang lagi setelah panggilan kedua"
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan basis data bersih (RefreshDatabase, nol Corporate / Company / Business Unit / Production Line)",
+        "assert": "baris ringkasan menampilkan 0/0/0/0 — bukan hilang; papan kartu merender blok kosongnya sendiri beserta tombol tambah mill; daftar ringkas Corporate merender blok kosongnya sendiri beserta tombol tambah Corporate; daftar ringkas Company merender blok kosongnya sendiri beserta tombol tambah Company; TIDAK ada satu blok kosong tunggal yang menggantikan seluruh halaman (ketiga blok kosong per bagian itu harus ada bersamaan)"
       },
       "browser_test": {
         "route": "/master-data/tree-view",
-        "action": "klik chevron sebuah node Company",
-        "assert": "Business Unit di bawahnya muncul; klik lagi menyembunyikannya"
+        "action": "TIDAK ADA browser test untuk skenario ini — disengaja. Skenario ini menuntut basis data KOSONG (nol Corporate), dan basis data e2e dipakai bersama 86 spec lain; mengosongkannya akan merusak semuanya. Keadaan kosong itu hanya dapat diuji di lapisan component test dengan RefreshDatabase.",
+        "assert": "Dicakup component test, bukan browser test. Jangan menambahkan browser test yang mengosongkan basis data e2e."
       }
     },
     {
-      "scenario_ref": "Klik node menavigasi dengan filter yang benar",
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Mill tanpa Production Line",
       "usecase_id": "usecase-127--master-data-tree-view",
       "api_test": [],
       "component_test": {
         "component": "MasterDataTreeView",
-        "action": "render dengan data seed, cek href pada node Company/Business Unit/Production Line",
-        "assert": "href mengandung route Kelola yang benar + query param filter*Id = parent_id node; node Corporate tidak mengandung query string"
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu mill yang production_lines_count = 0 dan satu mill lain yang punya 2 line",
+        "assert": "kartu mill tanpa line TETAP terender lengkap dengan nama, kode, dan breadcrumb induknya; di dalam kartu itu ada keterangan 'belum ada Production Line' dan tombol tambah line yang aria-label-nya menyebut nama mill itu; kartu mill yang punya line TIDAK memuat keterangan itu"
       },
       "browser_test": {
         "route": "/master-data/tree-view",
-        "action": "klik nama sebuah node Business Unit",
-        "assert": "browser navigasi ke halaman Kelola Production Line dengan query filterBusinessUnitId terisi, daftar Production Line sudah terfilter ke Business Unit itu"
+        "action": "Login brtest-admin01 / Passw0rd!. Fixture prepare-db.sh belum tentu punya mill tanpa Production Line — tanam satu mill berawalan khas (mis. 'E2E127 Mill Tanpa Line') di bawah Company fixture mana pun pada awal spec, dan bersihkan di akhir dari anak ke induk (mill ini tidak punya anak, jadi cukup hapus mill-nya). Buka /master-data/tree-view",
+        "assert": "kartu mill 'E2E127 Mill Tanpa Line' terlihat; di dalam kartu itu terlihat keterangan 'belum ada Production Line' dan tombol tambah line; kartu itu tidak berisi ruang kosong tanpa teks (blok keterangan punya tinggi > 0)"
       }
     },
     {
-      "scenario_ref": "Akses ditolak untuk non-Admin",
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Corporate atau Company tanpa anak",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan 1 Corporate tanpa Company dan 1 Company tanpa mill, di samping hierarki lengkap lainnya",
+        "assert": "Corporate tanpa Company ada di daftar ringkas Corporate dengan angka 0 TERCETAK (bukan sel kosong) dan namanya TIDAK muncul di breadcrumb kartu mana pun; Company tanpa mill ada di daftar ringkas Company dengan Corporate induknya dan angka 0 tercetak, dan namanya tidak muncul di breadcrumb kartu mana pun; kedua baris membawa tombol ubah dan hapusnya sendiri"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Fixture kemungkinan TIDAK punya Corporate tanpa Company maupun Company tanpa mill (hierarki fixture lengkap) — tanam 'E2E127 Corp Tanpa Company' dan 'E2E127 Company Tanpa Mill' pada awal spec; bersihkan di akhir dari anak ke induk (hapus Company dulu, lalu Corporate induknya, karena Corporate yang masih punya Company menolak dihapus). Buka /master-data/tree-view",
+        "assert": "kedua entitas tanam itu terlihat di tabel ringkasnya masing-masing dengan angka anak '0' terbaca; keduanya tidak muncul sebagai kartu mill dan tidak muncul di breadcrumb kartu mana pun; tombol ubah dan hapus pada barisnya dapat diklik"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Menyaring dengan kata kunci",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin, lalu set('search', <kode salah satu mill>) — ulangi dengan huruf besar-kecil berbeda; lalu set('search', <nama salah satu Production Line>); lalu set('search', '')",
+        "assert": "saat disaring dengan kode mill: hanya kartu mill itu terender, dan kedua daftar ringkas juga menyempit; pencocokan tidak peka huruf besar-kecil (hasil sama untuk 'BU-A' dan 'bu-a'); saat disaring dengan nama line: kartu mill PEMILIK line itu tetap terender dan line yang cocok ditandai; baris ringkasan TETAP menampilkan total seluruh data (angkanya TIDAK mengecil saat penyaring aktif) dan di sampingnya muncul keterangan jumlah yang cocok; sesudah set('search','') seluruh kartu dan kedua daftar kembali utuh"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, catat empat angka baris ringkasan, ketik kode salah satu mill fixture (ambil kode SEBENARNYA dari seeder/basis data — JANGAN pakai kode karangan mock Phase 2 seperti BU-A) ke kotak penyaring, tunggu Livewire selesai, lalu kosongkan kotaknya",
+        "assert": "jumlah kartu mill yang terlihat menyusut menjadi satu; kedua tabel ringkas ikut menyempit; keempat angka baris ringkasan SAMA PERSIS dengan sebelum menyaring (tidak mengecil); muncul keterangan jumlah yang cocok di samping angka total; sesudah kotak dikosongkan jumlah kartu kembali seperti awal; parameter ?search pada URL terisi saat menyaring (properti #[Url]) dan hilang/kosong lagi sesudah dikosongkan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Penyaring tidak mencocokkan apa pun",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan hierarki lengkap, lalu set('search', 'zzz-tidak-ada-apa-pun')",
+        "assert": "terender blok 'tidak ada yang cocok dengan \"zzz-tidak-ada-apa-pun\"' yang MENGUTIP kata kuncinya, beserta kontrol mengosongkan penyaring; tidak ada satu pun kartu mill terender; baris ringkasan TETAP menampilkan total seluruh data apa adanya (keempat angka tidak berubah dibanding tanpa penyaring) sehingga yang kosong terbukti hasil pencarian, bukan datanya"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, catat keempat angka baris ringkasan, ketik 'zzz-tidak-ada-apa-pun' ke kotak penyaring, tunggu Livewire, lalu klik kontrol mengosongkan penyaring",
+        "assert": "blok 'tidak ada yang cocok' terlihat dan memuat kata kunci yang diketik; tidak ada kartu mill terlihat; keempat angka baris ringkasan identik dengan nilai sebelum menyaring; mengklik kontrol pengosong mengembalikan seluruh kartu dan mengosongkan kotak penyaring"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Peran selain Admin mencoba membuka halaman",
       "usecase_id": "usecase-127--master-data-tree-view",
       "api_test": [],
       "component_test": {
@@ -137,60 +723,594 @@
       },
       "browser_test": {
         "route": "/master-data/tree-view",
-        "action": "user non-admin (misal Supervisor) mengakses route ini",
-        "assert": "response 403"
+        "action": "Login memakai akun fixture NON-Admin (Supervisor / Mill Management / Station Operator) yang disediakan prepare-db.sh — bila prepare-db.sh belum menyediakannya, tanam satu akun non-Admin di awal spec. Sesudah login, (a) periksa sidebar, lalu (b) kunjungi /master-data/tree-view langsung lewat alamat",
+        "assert": "butir menu Master Data Tree View tidak ada di sidebar peran itu; respons kunjungan langsung berstatus 403; halaman yang tampil adalah halaman terlarang dan TIDAK memuat satu pun penanda layar ini (tidak ada baris ringkasan, tidak ada kartu mill, tidak ada kotak penyaring) — menandakan komponen tidak pernah mount"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Nama atau kode sangat panjang",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu mill bernama 120 karakter dan satu mill bernama pendek",
+        "assert": "nama 120 karakter itu ada UTUH di markup (pemotongan dilakukan CSS, bukan PHP — jadi JANGAN menguji bentuk terpotongnya); elemen namanya membawa kelas pemotong (text-overflow/ellipsis, mis. .md-truncate) dan atribut title berisi nilai utuh yang sama; tidak ada pemotongan dengan '...' yang dihasilkan PHP (Str::limit) pada nilai itu"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam satu mill bernama sangat panjang (mis. 'E2E127 ' + 120 karakter) di bawah Company fixture; bersihkan di akhir (mill tanpa anak, cukup hapus mill-nya). Buka /master-data/tree-view, ukur elemen nama kartu itu",
+        "assert": "textContent elemen nama sama dengan nama utuh dan atribut title-nya juga nama utuh (dapat dibaca serta disalin); scrollWidth > clientWidth pada elemen nama — bukti pemotongan nyata terjadi di CSS; lebar kartu itu sama dengan lebar kartu tetangganya (papan tidak melar); tidak ada gulir horizontal pada <body>"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Mill tanpa logo",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu mill bernama 'Alpha Beta' tanpa logo dan satu mill berlogo",
+        "assert": "kartu mill tanpa logo merender penanda pengganti berisi inisial maksimal dua huruf ('AB') di atas latar netral; markup kartu itu TIDAK memuat tag <img> dengan src kosong maupun src yang menunjuk logo; kartu mill berlogo tetap merender <img> dengan src terisi"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Pastikan ada mill fixture tanpa logo — bila seluruh mill fixture berlogo, tanam satu mill tanpa logo berawalan 'E2E127' dan bersihkan di akhir. Buka /master-data/tree-view",
+        "assert": "kartu mill tanpa logo menampilkan penanda inisial yang terlihat (bounding box > 0) dan bukan ikon gambar rusak; tidak ada <img> dengan naturalWidth === 0 di dalam kartu itu; penanda pengganti memakai kelas yang sama untuk semua mill tanpa logo (konsisten)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — hierarki melewati batas Production Line",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan basis data yang berisi Station, Machinery Group, dan Machinery di bawah Production Line",
+        "assert": "tidak satu pun nama/kode Station, Machinery Group, maupun Machinery yang ada di markup ter-render; keterangan batas hierarki terender dan menyebut ketiga tingkat itu; tautan ke layar Kelola Station dan Kelola Machinery terender; jumlah query tidak bertambah karena ketiga tabel itu memang tidak di-query (board() hanya menyentuh empat tabel hierarki)"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, ambil nama satu Station dan satu Machinery dari fixture lewat basis data, lalu cari keduanya di seluruh halaman; klik tautan Kelola Station lalu kembali, klik tautan Kelola Machinery",
+        "assert": "kedua nama itu tidak ditemukan di mana pun pada halaman; keterangan batas hierarki terlihat; kedua tautan benar-benar membawa ke layar Kelola Station dan Kelola Machinery (URL tujuan sesuai) — batas itu bukan jalan buntu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — paginasi muncul hanya ketika isinya melebihi satu halaman",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Dua bagian. (a) Livewire::test(MasterDataTreeView::class) sebagai Admin dengan 5 mill (di bawah perPage 20), tanpa menyentuh $search. (b) Instance baru dengan 34 mill dan 60 Production Line; render halaman 1, lalu call('nextPage'); lalu dari halaman 2 set('search', <kode satu mill saja>)",
+        "assert": "(a) seluruh 5 kartu mill dan seluruh baris line ada di markup satu render, dan TIDAK ada satu pun kontrol paginasi — diperiksa atas kelas/testid (.pagination, [data-testid=pagination], tombol nextPage/previousPage), BUKAN atas frasa, karena halaman ini memuat kata 'paginasi' pada keterangannya; tidak ada kontrol lipat/buka ([data-testid=node-toggle], [aria-expanded]). (b) dengan 34 mill kontrol paginasi TERENDER; halaman 1 memuat 20 kartu dan halaman 2 memuat 14; keterangan posisi halaman menyebut total 34; baris ringkasan tetap menyatakan total seluruh data pada kedua halaman; SELURUH baris line tiap mill yang terlihat tetap utuh (line tidak ikut dipaginasi) dan jumlah line pada kartu berasal dari withCount sehingga sama dengan jumlah sebenarnya; sesudah set('search', ...) dari halaman 2, $page kembali ke 1 dan hasilnya tidak kosong; komponen TIDAK memakai trait WithPagination (memakai $page/$perPage + nextPage()/previousPage() seperti keempat layar Kelola)"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view tanpa mengetik apa pun di kotak penyaring. Catatan jujur: fixture prepare-db.sh hanya ~5 mill / 8 line, jauh di bawah perPage 20 — jadi spec browser hanya dapat membuktikan sisi 'belum perlu, jadi tidak dirender'. Sisi 'melebihi satu halaman' diuji di component test, yang dapat menanam 34 mill tanpa mengotori basis data e2e",
+        "assert": "jumlah kartu mill yang terender sama dengan angka Mill pada baris ringkasan dan jumlah seluruh baris line sama dengan angka Production Line — tidak ada yang tertahan di halaman lain; locator paginasi (.pagination, [data-testid=pagination], nav[aria-label*=\"Pagination\"]) berjumlah 0 karena memang belum perlu; locator lipat/buka ([data-testid=node-toggle], .md-node-toggle, [aria-expanded]) berjumlah 0; kotak penyaring kosong saat halaman pertama dibuka"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — baris ringkasan jumlah hilang atau tidak jujur",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan 3 Corporate (satu tanpa Company), 4 Company (satu tanpa mill), 5 mill, 8 line; render sekali tanpa penyaring lalu sekali lagi dengan set('search', <kode satu mill saja>)",
+        "assert": "baris ringkasan ADA pada kedua render; keempat angkanya 3/4/5/8 pada kedua render — termasuk saat penyaring aktif yang hanya mencocokkan satu mill (angka total TIDAK mengecil); keempat angka itu sama dengan COUNT langsung atas keempat tabel, termasuk menghitung Corporate dan Company yang belum punya anak"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, baca keempat angka baris ringkasan dan bandingkan dengan COUNT keempat tabel yang diambil langsung dari basis data e2e; lalu ketik kata kunci yang hanya mencocokkan satu mill dan baca ulang keempat angka itu",
+        "assert": "baris ringkasan ada di bagian paling atas halaman; keempat angkanya sama dengan COUNT basis data; sesudah penyaring aktif keempat angka itu TIDAK berubah, dan jumlah yang cocok muncul sebagai keterangan terpisah di sampingnya"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — berhasil",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; call('openCreate', 'business-unit'), set('form.company_id', $companyId), set('form.code', 'E2E-BU-NEW'), set('form.name', 'Mill Baru'), call('save')",
+        "assert": "tidak ada galat validasi; satu baris business_units baru tersimpan dengan company_id, code, dan name itu; $modalLevel/$modalMode kosong (modal tertutup), $form kosong, $logo null; $successMessage terisi; render sesudahnya memuat kartu 'Mill Baru' dan angka Mill pada baris ringkasan bertambah satu dibanding sebelum save (dihitung ulang oleh render(), bukan ditambah manual)"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, catat angka Mill pada baris ringkasan, klik tombol '+ Mill' di kepala papan, pilih Company induk dari select, isi kode dan nama berawalan khas ('E2E127-BU-01' / 'E2E127 Mill Baru'), klik Simpan. Di akhir spec bersihkan dari anak ke induk: hapus line yang mungkin dibuat, lalu mill ini",
+        "assert": "modal tertutup; pesan konfirmasi singkat terlihat; kartu 'E2E127 Mill Baru' muncul di papan tanpa memuat ulang halaman; angka Mill pada baris ringkasan naik satu dari nilai yang dicatat"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — Field wajib kosong",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; call('openCreate', 'corporate'), set('form.corporate_code', 'E2E-CORP-01'), biarkan form.name kosong, call('save')",
+        "assert": "assertHasErrors('form.name'); tidak ada baris corporates baru di basis data; modal TETAP terbuka ($modalLevel === 'corporate', $modalMode === 'create'); nilai form.corporate_code masih 'E2E-CORP-01' (isian lain utuh); $successMessage null; service::create() tidak pernah terpanggil (mock/spy)"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, klik tombol tambah Corporate di bagian ringkas, isi hanya field kode, klik Simpan",
+        "assert": "pesan validasi muncul tepat di bawah field nama; modal tetap terlihat; field kode masih berisi nilai yang diketik; tidak ada baris Corporate baru di tabel ringkas"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — Kode sudah dipakai",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu mill berkode 'BU-DIPAKAI' sudah ada; call('openCreate', 'business-unit'), set('form.company_id', $companyId), set('form.code', 'bu-dipakai') (beda huruf besar-kecil, menguji UniqueCaseInsensitive), set('form.name', 'Mill Kedua'), call('save')",
+        "assert": "assertHasErrors('form.code') dengan pesan bahwa kode sudah dipakai; jumlah baris business_units tidak bertambah; modal tetap terbuka dan form.name masih 'Mill Kedua'; $successMessage null"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, ambil kode SEBENARNYA salah satu mill fixture dari basis data (jangan pakai kode karangan mock Phase 2), buka /master-data/tree-view, klik '+ Mill', pilih Company induk, isi kode dengan kode mill yang sudah ada itu dan nama berawalan 'E2E127', klik Simpan",
+        "assert": "pesan 'sudah dipakai' muncul di bawah field kode; modal tetap terbuka dengan nama yang diketik masih terisi; jumlah kartu mill di papan tidak bertambah; angka Mill pada baris ringkasan tidak berubah"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — Kode Production Line dibiarkan kosong",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu mill ada; call('openCreate', 'production-line', $millId), set('form.name', 'Line Tanpa Kode'), biarkan form.code kosong, call('save'); lalu ulangi sekali lagi dengan nama berbeda dan kode tetap kosong",
+        "assert": "kedua penyimpanan berhasil tanpa galat unik — '' dinormalkan menjadi null oleh ProductionLineService::emptyToNull() sehingga dua line tanpa kode TIDAK dianggap bentrok; kolom code kedua baris bernilai null (bukan string kosong); kedua baris line terender di dalam kartu mill itu pada render berikutnya"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, klik '+ Line' di dalam salah satu kartu mill, isi hanya nama ('E2E127 Line Tanpa Kode'), biarkan kode kosong, klik Simpan. Bersihkan line ini di akhir spec",
+        "assert": "modal tertutup dengan konfirmasi; baris 'E2E127 Line Tanpa Kode' muncul di dalam kartu mill itu meski tanpa kode; angka Production Line pada baris ringkasan naik satu; tidak ada pesan galat pada field kode"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — Berkas logo ditolak",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; call('openCreate', 'corporate'), set('form.corporate_code','E2E-CORP-02'), set('form.name','Corp Logo'), set('logo', UploadedFile::fake()->create('bukan-gambar.png', 10, 'image/png')) — berkas ber-ekstensi png tetapi bukan gambar sebenarnya (menguji rule RealImage); call('save'). Ulangi dengan UploadedFile::fake()->image('besar.jpg')->size(3000) untuk kasus > 2MB",
+        "assert": "assertHasErrors('logo') — kuncinya 'logo' TANPA awalan form.; tidak ada baris corporates baru; modal tetap terbuka; form.corporate_code dan form.name masih terisi persis seperti sebelum Simpan (pekerjaan mengisi form tidak terbuang); $successMessage null"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, klik tombol tambah Corporate, isi kode dan nama berawalan 'E2E127', lalu setInputFiles pada input logo dengan berkas fixture yang bernama .png tetapi isinya teks (sediakan berkas fixture itu di dalam repo e2e-web), klik Simpan",
+        "assert": "pesan penolakan logo terlihat di dekat field logo; modal tetap terbuka; field kode dan nama masih berisi nilai yang diketik; tidak ada baris Corporate baru di tabel ringkas"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — Induk diubah sebelum menyimpan",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan dua mill millA dan millB; call('openCreate', 'production-line', $millA->id), set('form.business_unit_id', $millB->id), set('form.name','Line Pindah Induk'), call('save')",
+        "assert": "baris production_lines baru tersimpan dengan business_unit_id = millB (nilai dibaca dari $form saat save(), BUKAN dari parameter openCreate); render berikutnya menampilkan baris line itu di dalam kartu millB dan tidak di kartu millA; jumlah line millB bertambah satu, millA tidak berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, klik '+ Line' di dalam kartu mill A, lalu UBAH select mill induk ke mill B, isi nama 'E2E127 Line Pindah Induk', klik Simpan. Bersihkan line ini di akhir spec",
+        "assert": "modal tertutup dengan konfirmasi; baris 'E2E127 Line Pindah Induk' muncul di dalam kartu mill B; kartu mill A tidak memuat baris itu; jumlah line pada kartu mill B naik satu"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — Membatalkan modal",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; catat jumlah baris keempat tabel; call('openCreate','company'), set('form.company_code','E2E-CMP-X'), set('form.name','Company Batal'), call('closeModal')",
+        "assert": "$modalLevel, $modalMode, $editingId, $form, $logo, $formErrorMessage semuanya kosong/null sesudah closeModal(); tidak ada baris baru di keempat tabel (jumlahnya sama dengan yang dicatat); keempat angka baris ringkasan identik dengan sebelum modal dibuka; $successMessage tetap null"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, catat keempat angka baris ringkasan, klik tombol tambah Company, isi sebagian field, tutup modal tanpa Simpan (tombol batal / tanda silang)",
+        "assert": "modal tidak terlihat lagi; tidak ada baris Company baru di tabel ringkas; keempat angka baris ringkasan identik dengan yang dicatat; membuka modal tambah lagi menampilkan form KOSONG (sisa isian sebelumnya tidak terbawa)"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — Belum ada calon induk",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan basis data yang TIDAK punya satu pun Company; call('openCreate', 'business-unit')",
+        "assert": "modal TIDAK terbuka ($modalLevel null, $modalMode null); $formErrorMessage terisi dan MENYEBUT tingkat induk yang harus dibuat lebih dulu (kata 'Company'); tidak ada <select> induk kosong yang terender; ulangi untuk 'company' tanpa Corporate dan 'production-line' tanpa Business Unit dengan harapan setara"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "TIDAK ADA browser test untuk skenario ini — disengaja. Skenario ini menuntut basis data KOSONG (nol Corporate), dan basis data e2e dipakai bersama 86 spec lain; mengosongkannya akan merusak semuanya. Keadaan kosong itu hanya dapat diuji di lapisan component test dengan RefreshDatabase.",
+        "assert": "Dicakup component test, bukan browser test. Jangan menambahkan browser test yang mengosongkan basis data e2e."
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — induk wajib tidak dipilih",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan minimal satu Corporate ada; call('openCreate', 'company') tanpa parentId, set('form.company_code','E2E-CMP-02'), set('form.name','Company Tanpa Induk'), biarkan form.corporate_id kosong, call('save')",
+        "assert": "assertHasErrors('form.corporate_id'); tidak ada baris companies baru; modal tetap terbuka dengan kode dan nama masih terisi; $successMessage null"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, klik tombol tambah Company di bagian ringkas, isi kode dan nama berawalan 'E2E127', biarkan select Corporate induk pada pilihan kosong, klik Simpan",
+        "assert": "pesan validasi muncul pada select Corporate induk; modal tetap terbuka dengan kode dan nama masih terisi; tidak ada baris Company baru di tabel ringkas"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — kode Production Line diisi tetapi sudah dipakai",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu Production Line berkode 'PL-DIPAKAI' sudah ada; call('openCreate','production-line', $millId), set('form.code','PL-DIPAKAI'), set('form.name','Line Kode Bentrok'), call('save')",
+        "assert": "assertHasErrors('form.code') — kode line memang opsional, tetapi bila diisi tetap harus unik di dalam jenisnya; jumlah baris production_lines tidak bertambah; modal tetap terbuka dan form.name masih terisi"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, ambil kode SEBENARNYA salah satu Production Line fixture dari basis data, buka /master-data/tree-view, klik '+ Line' di dalam sebuah kartu mill, isi kode dengan kode yang sudah dipakai itu dan nama 'E2E127 Line Bentrok', klik Simpan",
+        "assert": "pesan 'sudah dipakai' muncul di bawah field kode line; modal tetap terbuka; angka Production Line pada baris ringkasan tidak berubah"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — induk terisi otomatis tidak boleh dikunci atau disembunyikan",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan dua mill; call('openCreate', 'production-line', $millA->id), lalu periksa markup modal, lalu set('form.business_unit_id', $millB->id)",
+        "assert": "$form['business_unit_id'] === millA->id sesudah openCreate (terisi otomatis); <select> induk TERENDER di markup dan TIDAK membawa atribut disabled, readonly, maupun type=hidden (sesuai uiux-spec component_patterns[web-form-input]); select itu memuat opsi millB juga; set('form.business_unit_id', millB) berhasil mengubah nilainya tanpa galat"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, klik '+ Line' di dalam kartu salah satu mill, lalu periksa select mill induk di modal dan coba ganti pilihannya",
+        "assert": "select mill induk terlihat (bukan hidden) dan nilainya sudah mill pemilik kartu itu; select tidak disabled dan tidak readonly — isEnabled() true; mengganti pilihan ke mill lain berhasil dan nilai select berubah"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — logo tidak diisi",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; call('openCreate','business-unit'), set('form.company_id',$companyId), set('form.code','E2E-BU-NOLOGO'), set('form.name','Mill Tanpa Logo'), biarkan $logo null, call('save')",
+        "assert": "tidak ada galat ('logo' maupun 'form.logo'); baris business_units baru tersimpan dengan kolom logo null; modal tertutup dan $successMessage terisi; render berikutnya menampilkan kartu mill itu dengan penanda pengganti inisial, bukan <img> bersrc kosong"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, klik '+ Mill', pilih Company induk, isi kode dan nama berawalan 'E2E127' tanpa memilih berkas logo, klik Simpan. Bersihkan mill ini di akhir spec",
+        "assert": "modal tertutup dengan konfirmasi; kartu mill baru terlihat di papan dengan penanda inisial sebagai ganti logo; tidak ada <img> bernaturalWidth 0 di kartu itu; angka Mill pada baris ringkasan naik satu"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — peran selain Admin tidak boleh menambah",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "N/A",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login memakai akun fixture NON-Admin (Supervisor / Mill Management / Station Operator) dari prepare-db.sh — tanam satu bila belum ada; catat jumlah baris keempat tabel hierarki lewat basis data; lalu kunjungi /master-data/tree-view langsung lewat alamat untuk mencoba mencapai form tambah",
+        "assert": "respons berstatus 403; tidak ada satu pun tombol tambah ('+ Mill', '+ Line', tambah Corporate, tambah Company) yang terender — halaman layar ini tidak pernah dirender sama sekali; jumlah baris keempat tabel hierarki tidak berubah sesudah percobaan"
+      }
+    },
+    {
+      "scenario_ref": "Tambah Entitas Hierarki Master Data — angka jumlah dihitung ulang setelah berhasil",
+      "usecase_id": "usecase-157--tambah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu mill ber-2 line; baca angka Production Line pada baris ringkasan dan jumlah line pada kartu mill itu dari render pertama; lalu call('openCreate','production-line',$millId), set('form.name','Line Ketiga'), call('save') dan baca kedua angka itu dari render sesudahnya — tanpa membuat instance komponen baru",
+        "assert": "angka Production Line pada baris ringkasan naik dari N menjadi N+1 dan jumlah line pada kartu mill itu naik dari 2 menjadi 3 pada render SETELAH save, di instance yang sama — bukti data dimuat di render() bukan di mount(); keempat angka ringkasan tetap sama dengan COUNT langsung atas keempat tabel"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, catat angka Production Line pada baris ringkasan dan jumlah line yang tertulis pada kartu mill tujuan, klik '+ Line' di kartu itu, isi nama 'E2E127 Line Hitung Ulang', klik Simpan, dan JANGAN memuat ulang halaman. Bersihkan line ini di akhir spec",
+        "assert": "tanpa reload, angka Production Line pada baris ringkasan naik satu dan jumlah line pada kartu mill itu naik satu; baris line baru terlihat di dalam kartu; sesudah reload manual angkanya tetap sama (bukan nilai sementara di memori)"
+      }
+    },
+    {
+      "scenario_ref": "Ubah Entitas Hierarki Master Data — berhasil",
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu mill berlogo dan berfield kontak terisi; call('openEdit', 'business-unit', $millId), periksa isi $form, lalu set('form.name','Mill Nama Baru'), call('save')",
+        "assert": "sesudah openEdit: $form memuat code, name, company_id, dan field kontak entitas itu; $editingId === $millId; $modalMode === 'edit'; keterangan nama berkas logo yang sedang dipakai terender (dan TIDAK diisikan ke input file); sesudah save: baris basis data bernama 'Mill Nama Baru', modal tertutup, $successMessage terisi, dan render berikutnya menampilkan nama baru itu pada kartunya"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam satu mill 'E2E127 Mill Ubah' di bawah Company fixture agar spec tidak mengotori data fixture spec lain; buka /master-data/tree-view, klik aksi ubah pada kartu mill itu, periksa form terisi, ubah namanya menjadi 'E2E127 Mill Sudah Diubah', klik Simpan. Bersihkan mill ini di akhir spec",
+        "assert": "modal terbuka sudah terisi kode, nama, dan select Company induk yang benar, plus keterangan logo yang dipakai bila ada; sesudah Simpan modal tertutup dengan konfirmasi; kartu di papan menampilkan 'E2E127 Mill Sudah Diubah' tanpa reload; keempat angka baris ringkasan tidak berubah (mengubah nama tidak mengubah jumlah)"
+      }
+    },
+    {
+      "scenario_ref": "Ubah Entitas Hierarki Master Data — Memindahkan entitas ke induk lain",
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan millA punya 2 line dan millB punya 1 line; call('openEdit','production-line',$lineDiMillA->id), set('form.business_unit_id', $millB->id), call('save')",
+        "assert": "baris line itu bernilai business_unit_id = millB di basis data; pada render SESUDAH save, baris line itu berada di dalam kartu millB dan tidak lagi di kartu millA; jumlah line millA turun 2→1 dan millB naik 1→2 — kedua angka benar tanpa penyesuaian manual karena keduanya dihitung ulang dari basis data; total Production Line pada baris ringkasan TIDAK berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam satu line 'E2E127 Line Pindah' di bawah mill A (dan pastikan ada mill B lain di fixture); buka /master-data/tree-view, catat jumlah line pada kartu mill A dan mill B, klik aksi ubah pada baris line itu, ganti select mill induk ke mill B, klik Simpan. Bersihkan line ini di akhir spec",
+        "assert": "tanpa reload, baris 'E2E127 Line Pindah' hilang dari kartu mill A dan muncul di kartu mill B; jumlah line pada kartu mill A turun satu dan pada mill B naik satu; angka Production Line pada baris ringkasan tetap sama"
+      }
+    },
+    {
+      "scenario_ref": "Ubah Entitas Hierarki Master Data — Field wajib dikosongkan",
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; call('openEdit','business-unit',$millId), set('form.name',''), call('save')",
+        "assert": "assertHasErrors('form.name'); modal tetap terbuka ($modalMode === 'edit', $editingId masih $millId); baris basis data TIDAK tersentuh — nama dan updated_at mill itu sama persis seperti sebelum save; service::update() tidak pernah terpanggil; $successMessage null"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam mill 'E2E127 Mill Wajib'; buka /master-data/tree-view, klik aksi ubah pada kartu mill itu, kosongkan field nama, klik Simpan. Bersihkan mill ini di akhir spec",
+        "assert": "pesan validasi muncul tepat di bawah field nama; modal tetap terlihat; kartu di papan masih menampilkan nama lama 'E2E127 Mill Wajib' (nilai di basis data tidak berubah)"
+      }
+    },
+    {
+      "scenario_ref": "Ubah Entitas Hierarki Master Data — Kode diubah menjadi kode yang sudah dipakai",
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan millA berkode 'BU-A' dan millB berkode 'BU-B'; call('openEdit','business-unit',$millA->id), set('form.code','BU-B'), call('save')",
+        "assert": "assertHasErrors('form.code') dengan pesan kode sudah dipakai; kode millA di basis data masih 'BU-A' (nilai lama tidak berubah); modal tetap terbuka; $successMessage null"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam dua mill 'E2E127 Mill Satu' (kode E2E127-BU-1) dan 'E2E127 Mill Dua' (kode E2E127-BU-2); buka /master-data/tree-view, klik aksi ubah pada mill Satu, ganti kodenya menjadi E2E127-BU-2, klik Simpan. Bersihkan kedua mill di akhir spec",
+        "assert": "pesan 'sudah dipakai' muncul di bawah field kode; modal tetap terbuka; kartu mill Satu di papan masih menampilkan kode E2E127-BU-1"
+      }
+    },
+    {
+      "scenario_ref": "Ubah Entitas Hierarki Master Data — Kode disimpan apa adanya tanpa diubah",
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan mill berkode 'BU-A'; call('openEdit','business-unit',$millId), ubah hanya form.name menjadi 'Mill Nama Lain' TANPA menyentuh form.code, call('save')",
+        "assert": "assertHasNoErrors() — aturan unik memakai ignore($editingId) sehingga kode tidak dianggap bentrok dengan dirinya sendiri; service::update() terpanggil; nama tersimpan menjadi 'Mill Nama Lain' dan kodenya tetap 'BU-A'; modal tertutup dan $successMessage terisi"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam mill 'E2E127 Mill Kode Tetap'; buka /master-data/tree-view, klik aksi ubah pada kartunya, ubah hanya nama (mis. tambahkan ' v2') dan biarkan field kode apa adanya, klik Simpan. Bersihkan mill ini di akhir spec",
+        "assert": "tidak ada pesan galat pada field kode; modal tertutup dengan konfirmasi; kartu menampilkan nama baru dan kode yang sama seperti sebelumnya"
+      }
+    },
+    {
+      "scenario_ref": "Ubah Entitas Hierarki Master Data — Logo baru ditolak",
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan mill yang SUDAH punya logo lama; call('openEdit','business-unit',$millId), set('form.name','Mill Nama Diubah'), set('logo', UploadedFile::fake()->create('palsu.png', 10, 'image/png')), call('save')",
+        "assert": "assertHasErrors('logo') (kunci tanpa awalan form.); modal tetap terbuka; $form['name'] masih 'Mill Nama Diubah' — seluruh perubahan field lain tetap ada di form; kolom logo di basis data masih menunjuk berkas logo LAMA dan berkas itu masih ada di disk (tidak ada operasi tulis yang terjadi)"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam mill 'E2E127 Mill Logo' DENGAN logo yang valid; buka /master-data/tree-view, klik aksi ubah pada kartunya, ubah namanya, lalu setInputFiles input logo dengan berkas fixture .png yang isinya teks, klik Simpan. Bersihkan mill ini di akhir spec",
+        "assert": "pesan penolakan logo terlihat di dekat field logo; modal tetap terbuka dan field nama masih berisi nilai yang baru diketik; sesudah menutup modal, kartu mill masih menampilkan logo lamanya (bukan penanda inisial, bukan gambar rusak)"
+      }
+    },
+    {
+      "scenario_ref": "Ubah Entitas Hierarki Master Data — Entitas sudah dihapus Admin lain",
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Dua bagian. (a) Livewire::test(MasterDataTreeView::class) sebagai Admin, hapus baris mill langsung lewat model, lalu call('openEdit','business-unit',$idYangSudahHilang). (b) call('openEdit','business-unit',$millId) lebih dulu, lalu hapus baris mill itu lewat model, set('form.name','X'), call('save')",
+        "assert": "(a) modal TIDAK terbuka ($modalLevel null) dan $formErrorMessage berupa kalimat biasa yang menyebut datanya sudah dihapus — bukan jejak ModelNotFoundException; (b) $formErrorMessage terisi kalimat biasa, $successMessage null, modal tetap terbuka; pada kedua kasus render berikutnya tidak lagi memuat entitas itu"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam mill 'E2E127 Mill Hilang' (tanpa anak). Buka /master-data/tree-view di konteks browser A dan klik aksi ubah pada kartunya sehingga modal terbuka; di konteks browser B (login Admin yang sama) buka halaman yang sama dan hapus mill itu lewat aksi hapus + konfirmasi; kembali ke konteks A, ubah nama lalu klik Simpan. Urutannya deterministik, bukan balapan",
+        "assert": "di konteks A muncul kalimat biasa yang menyatakan datanya sudah tidak ada — tanpa stack trace dan tanpa halaman galat 500; sesudah halaman menyegarkan dirinya, kartu 'E2E127 Mill Hilang' tidak lagi ada di papan; angka Mill pada baris ringkasan sudah berkurang satu"
+      }
+    },
+    {
+      "scenario_ref": "Ubah Entitas Hierarki Master Data — Dua Admin mengubah satu entitas hampir bersamaan",
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Dua instance Livewire::test(MasterDataTreeView::class) sebagai Admin atas mill yang sama; instance1 call('openEdit','business-unit',$millId) dan set('form.name','Nama Dari Admin 1'); instance2 call('openEdit', ...) lalu set('form.name','Nama Dari Admin 2') dan call('save'); baru kemudian instance1 call('save')",
+        "assert": "kedua save berhasil tanpa galat konflik dan tanpa pesan penguncian apa pun; nilai akhir di basis data adalah 'Nama Dari Admin 1' — tulisan terakhir yang menang; tidak ada kolom/kondisi penguncian optimistis yang diperkenalkan komponen ini (perilakunya sama dengan keempat layar Kelola)"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd! di dua konteks browser terpisah (A dan B). Tanam mill 'E2E127 Mill Rebutan'. Di A buka modal ubah mill itu dan isi nama 'E2E127 Dari A'; di B buka modal ubah mill yang sama, isi 'E2E127 Dari B', klik Simpan; baru kemudian di A klik Simpan. Urutannya ditentukan spec, bukan balapan. Bersihkan mill ini di akhir spec",
+        "assert": "kedua Simpan berhasil dengan konfirmasi dan tanpa pesan konflik/penguncian; sesudah memuat ulang halaman, kartu menampilkan 'E2E127 Dari A' (penyimpanan terakhir yang menang)"
+      }
+    },
+    {
+      "scenario_ref": "Ubah Entitas Hierarki Master Data — Membatalkan modal",
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; call('openEdit','corporate',$corporateId), set('form.name','Nama Yang Dibatalkan'), set('form.corporate_code','KODE-BATAL'), call('closeModal')",
+        "assert": "$form, $logo, $editingId, $modalLevel, $modalMode, $formErrorMessage semuanya kosong/null; baris corporates di basis data sama persis seperti sebelum openEdit (nama dan kode tidak berubah); render berikutnya menampilkan nilai lama; membuka openEdit lagi atas entitas yang sama memuat nilai dari basis data, bukan sisa isian yang dibatalkan"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam Corporate 'E2E127 Corp Batal'; buka /master-data/tree-view, klik aksi ubah pada barisnya di tabel ringkas Corporate, ubah beberapa field, tutup modal tanpa Simpan, lalu buka ulang modal ubah entitas yang sama. Bersihkan Corporate ini di akhir spec",
+        "assert": "sesudah modal ditutup, baris di tabel ringkas masih menampilkan nilai lama; keempat angka baris ringkasan tidak berubah; modal yang dibuka ulang menampilkan nilai dari basis data, bukan perubahan yang dibatalkan"
+      }
+    },
+    {
+      "scenario_ref": "Ubah Entitas Hierarki Master Data — hanya Admin yang boleh mengubah",
+      "usecase_id": "usecase-158--ubah-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "N/A",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login memakai akun fixture NON-Admin (Supervisor / Mill Management / Station Operator) dari prepare-db.sh — tanam satu bila belum ada; catat nama dan kode salah satu mill fixture dari basis data; kunjungi /master-data/tree-view langsung lewat alamat untuk mencoba mencapai aksi ubah",
+        "assert": "respons berstatus 403; tidak ada satu pun aksi ubah (tombol pensil / modal form) yang terender, karena layar ini tidak pernah dirender bagi peran itu; nama dan kode mill tadi di basis data tidak berubah sesudah percobaan"
+      }
+    },
+    {
+      "scenario_ref": "Hapus Entitas Hierarki Master Data — sukses",
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu Corporate tanpa Company bernama 'Corp Bersih'; call('askDelete','corporate',$corporateId), periksa $confirmingDelete, lalu call('confirmDelete')",
+        "assert": "sesudah askDelete: $confirmingDelete === ['level'=>'corporate','id'=>$id,'name'=>'Corp Bersih'] dan modal konfirmasi merender nama itu; sesudah confirmDelete: baris corporates itu hilang dari basis data, $confirmingDelete kosong, $deleteErrorMessage null, $successMessage terisi; angka Corporate pada baris ringkasan turun satu pada render berikutnya; jumlah baris ketiga tabel lain tidak berubah (tidak ada entitas lain yang ikut hilang)"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam satu Corporate 'E2E127 Corp Hapus' TANPA Company (fixture belum tentu punya entitas tanpa anak, dan penghapusan ditolak selama masih ada anak). Buka /master-data/tree-view, catat keempat angka baris ringkasan, klik aksi hapus pada barisnya, setujui konfirmasi",
+        "assert": "konfirmasi memuat nama 'E2E127 Corp Hapus'; sesudah disetujui modal tertutup, muncul pesan singkat, baris itu hilang dari tabel ringkas tanpa reload; angka Corporate pada baris ringkasan turun satu dan ketiga angka lain tidak berubah"
+      }
+    },
+    {
+      "scenario_ref": "Hapus Entitas Hierarki Master Data — Penghapusan ditolak karena masih ada yang bergantung",
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; mock BusinessUnitService::delete() agar melempar BusinessUnitHasStationsException dengan pesan yang menyebut 'masih memiliki 3 User, 2 Production Line, 36 Station'; call('askDelete','business-unit',$millId), call('confirmDelete'). Ulangi tanpa mock atas mill fixture nyata yang memang punya penghalang",
+        "assert": "tidak ada baris yang terhapus di keempat tabel; $confirmingDelete TIDAK kosong (modal konfirmasi tetap terbuka) dan $deleteErrorMessage SAMA PERSIS dengan $e->getMessage(); markup modal memuat angka-angka itu — assert pada substring '3 User', '2 Production Line', '36 Station', bukan pada frasa generik; $deleteErrorMessage tidak mengandung frasa yang disusun komponen seperti 'gagal menghapus'; $successMessage null"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Pilih mill fixture yang memang punya penghalang (punya Production Line / Station / User / Period) — ambil jumlah penghalangnya dari basis data lebih dulu supaya angka yang diharapkan diketahui. Buka /master-data/tree-view, klik aksi hapus pada kartunya, setujui konfirmasi",
+        "assert": "modal konfirmasi TETAP TERLIHAT sesudah konfirmasi ditekan (tidak tertutup, tidak berubah menjadi toast); di dalam modal terbaca pesan penolakan yang memuat angka penghalang yang persis sama dengan hasil hitungan basis data; kartu mill itu masih ada di papan dan keempat angka baris ringkasan tidak berubah; menutup modal tidak menghapus apa pun"
+      }
+    },
+    {
+      "scenario_ref": "Hapus Entitas Hierarki Master Data — Membatalkan konfirmasi",
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; catat jumlah baris keempat tabel; call('askDelete','production-line',$lineId), call('cancelDelete')",
+        "assert": "$confirmingDelete kosong dan $deleteErrorMessage null sesudah cancelDelete(); jumlah baris keempat tabel sama dengan yang dicatat — tidak ada tulisan apa pun yang terjadi; keempat angka baris ringkasan identik dengan sebelum askDelete; service::delete() tidak pernah terpanggil (spy)"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, catat keempat angka baris ringkasan, klik aksi hapus pada salah satu baris Production Line fixture, lalu tutup konfirmasi tanpa menyetujuinya",
+        "assert": "modal konfirmasi menghilang; baris Production Line itu masih ada di dalam kartu mill-nya; keempat angka baris ringkasan identik dengan yang dicatat; tidak ada pesan berhasil maupun pesan galat yang muncul"
+      }
+    },
+    {
+      "scenario_ref": "Hapus Entitas Hierarki Master Data — Menghapus Production Line yang stasiunnya masih bersih",
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu Production Line yang punya 2 Station TANPA record produksi, machinery group, maupun machinery; call('askDelete','production-line',$lineId), call('confirmDelete')",
+        "assert": "baris production_lines itu dan KEDUA baris stations miliknya hilang bersamaan — tidak ada keadaan setengah terhapus (transaksi di service); modal konfirmasi merender keterangan bahwa stasiun ikut terhapus sebelum disetujui; $confirmingDelete kosong dan $successMessage terisi; pada render berikutnya jumlah line pada kartu mill induknya turun satu dan angka Production Line pada baris ringkasan turun satu; mill induknya TIDAK terhapus"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Fixture prepare-db.sh kemungkinan tidak punya line yang stasiunnya bersih — tanam satu Production Line 'E2E127 Line Bersih' di bawah mill fixture beserta 2 Station tanpa record produksi/machinery group/machinery. Buka /master-data/tree-view, catat jumlah line kartu mill itu, klik aksi hapus pada baris line itu, baca isi konfirmasi, setujui. Pembersihan: bila penghapusan berhasil, line dan stasiunnya sudah hilang; bila spec gagal di tengah, bersihkan dari anak ke induk (Station lalu Production Line)",
+        "assert": "konfirmasi menyebut nama line DAN memberitahukan bahwa stasiun miliknya ikut terhapus; sesudah disetujui modal tertutup dengan pesan singkat; baris line hilang dari kartu; jumlah line pada kartu turun satu dan angka Production Line pada baris ringkasan turun satu; kartu mill-nya tetap ada"
+      }
+    },
+    {
+      "scenario_ref": "Hapus Entitas Hierarki Master Data — Menghapus Production Line yang stasiunnya sudah dipakai",
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan Production Line yang stasiunnya punya record produksi, machinery group, dan machinery (atau mock ProductionLineService::delete() agar melempar ProductionLineHasStationsException berisi angka ketiganya); call('askDelete','production-line',$lineId), call('confirmDelete')",
+        "assert": "baris production_lines itu MASIH ada dan SELURUH baris stations miliknya masih ada — tidak ada stasiun yang terhapus sebagian, karena seluruh pemeriksaan terjadi di dalam transaksi sebelum DELETE pertama; $confirmingDelete tidak kosong (modal tetap terbuka); $deleteErrorMessage sama persis dengan pesan exception dan memuat jumlah record produksi, machinery group, serta machinery — assert pada angkanya, bukan pada frasa generik; $successMessage null"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Pilih Production Line fixture yang stasiunnya sudah punya record produksi (fixture prepare-db.sh berisi data produksi; bila tidak, tanam satu line + station + satu record produksi dan bersihkan dari anak ke induk: record, Station, Production Line). Ambil jumlah penghalangnya dari basis data lebih dulu. Buka /master-data/tree-view, klik aksi hapus pada baris line itu, setujui konfirmasi",
+        "assert": "modal konfirmasi tetap terlihat dan menampilkan pesan penolakan yang memuat jumlah record produksi / machinery group / machinery sesuai hitungan basis data; baris line masih ada di dalam kartu mill; jumlah baris stations milik line itu di basis data tidak berubah; angka Production Line pada baris ringkasan tidak berubah"
+      }
+    },
+    {
+      "scenario_ref": "Hapus Entitas Hierarki Master Data — Entitas sudah dihapus Admin lain",
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; call('askDelete','corporate',$corporateId); hapus baris corporates itu langsung lewat model (mewakili sesi lain); call('confirmDelete')",
+        "assert": "tidak ada exception yang lolos ke permukaan; modal konfirmasi TERTUTUP ($confirmingDelete kosong); pesan yang muncul berupa kalimat biasa yang menyatakan datanya sudah tidak ada — bukan jejak ModelNotFoundException dan bukan pesan penghalang; render berikutnya tidak lagi memuat entitas itu dan angka Corporate pada baris ringkasan sudah berkurang"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd! di dua konteks browser (A dan B). Tanam Corporate 'E2E127 Corp Ganda' tanpa Company. Di A buka /master-data/tree-view dan klik aksi hapus pada barisnya sehingga konfirmasi terbuka; di B buka halaman yang sama dan hapus Corporate itu sampai selesai; kembali ke A dan setujui konfirmasi. Urutan ditentukan spec, bukan balapan",
+        "assert": "di A muncul kalimat biasa yang menyatakan datanya sudah tidak ada — tanpa stack trace, tanpa halaman galat 500; konfirmasi tertutup; sesudah halaman menyegarkan dirinya, baris 'E2E127 Corp Ganda' tidak ada di tabel ringkas; angka Corporate pada baris ringkasan sudah berkurang satu (bukan dua)"
+      }
+    },
+    {
+      "scenario_ref": "Hapus Entitas Hierarki Master Data — Menghapus mill terakhir milik sebuah Company",
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu Company yang punya TEPAT 1 mill, dan mill itu tanpa penghalang (tanpa User, Production Line, Station, maupun Period); call('askDelete','business-unit',$millId), call('confirmDelete')",
+        "assert": "baris business_units itu terhapus; baris companies induknya MASIH ADA (tidak ikut terhapus); pada render berikutnya Company itu tidak muncul di breadcrumb kartu mana pun dan tidak punya kartu mill, tetapi TETAP terender di daftar ringkas Company dengan business_units_count = 0 yang tercetak; angka Mill pada baris ringkasan turun satu, angka Company tidak berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam satu Company 'E2E127 Company Tunggal' dengan TEPAT satu mill 'E2E127 Mill Tunggal' tanpa anak dan tanpa User/Period — fixture tidak menjamin kondisi ini. Buka /master-data/tree-view, catat angka Mill dan Company, klik aksi hapus pada kartu mill itu, setujui konfirmasi. Bersihkan di akhir spec dari anak ke induk: (mill sudah terhapus) lalu Company, lalu Corporate bila ikut ditanam",
+        "assert": "kartu 'E2E127 Mill Tunggal' hilang dari papan; baris 'E2E127 Company Tunggal' MASIH terlihat di tabel ringkas Company dengan jumlah mill terbaca '0'; angka Mill pada baris ringkasan turun satu sementara angka Company tetap; Company itu tidak muncul di breadcrumb kartu mana pun"
+      }
+    },
+    {
+      "scenario_ref": "Hapus Entitas Hierarki Master Data — Menghapus Production Line terakhir milik sebuah mill",
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin dengan satu mill yang punya TEPAT 1 Production Line bersih (stasiunnya tanpa record/machinery group/machinery, atau tanpa stasiun); call('askDelete','production-line',$lineId), call('confirmDelete')",
+        "assert": "baris production_lines itu terhapus dan baris business_units induknya masih ada; pada render berikutnya board() menandai mill itu production_lines_count = 0 dan kartunya TETAP terender dengan keterangan 'belum ada Production Line' beserta tombol tambahnya — bukan ruang kosong; angka Production Line pada baris ringkasan turun satu, angka Mill tidak berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!. Tanam satu mill 'E2E127 Mill Satu Line' dengan TEPAT satu Production Line bersih — fixture tidak menjamin kondisi ini. Buka /master-data/tree-view, klik aksi hapus pada baris line itu, setujui konfirmasi. Bersihkan di akhir dari anak ke induk: (line sudah terhapus) lalu mill itu",
+        "assert": "tanpa reload, baris line hilang dan kartu mill TETAP terlihat; di dalam kartu kini terbaca keterangan 'belum ada Production Line' beserta tombol tambahnya; jumlah line pada kartu menjadi 0; angka Production Line pada baris ringkasan turun satu dan angka Mill tetap"
+      }
+    },
+    {
+      "scenario_ref": "Hapus Entitas Hierarki Master Data — konfirmasi tidak menyebut nama entitas",
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "Livewire::test(MasterDataTreeView::class) sebagai Admin; untuk keempat tingkat berturut-turut — call('askDelete','corporate',$id) / ('company',$id) / ('business-unit',$id) / ('production-line',$id) — periksa state dan markup konfirmasinya. Tambahan: sesudah askDelete pada sebuah mill, ubah nama mill itu langsung lewat model, lalu render ulang",
+        "assert": "pada keempat tingkat $confirmingDelete['name'] berisi nama entitas (bukan hanya id) dan markup modal konfirmasi MEMUAT nama itu di dalam kalimatnya; nama yang terender tetap nama yang diambil saat askDelete meski baris basis datanya berubah di antara dua render (nama disimpan di state, bukan dicari ulang); untuk tingkat production-line kalimat konfirmasi juga menyebut bahwa stasiun miliknya ikut terhapus"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login brtest-admin01 / Passw0rd!, buka /master-data/tree-view, klik aksi hapus satu per satu pada: kartu sebuah mill, sebuah baris Production Line, sebuah baris di tabel ringkas Corporate, dan sebuah baris di tabel ringkas Company — setiap kali BATALKAN konfirmasinya (jangan setujui) supaya spec tidak menulis apa pun",
+        "assert": "pada keempat kasus, teks modal konfirmasi memuat nama entitas yang diklik (dicocokkan dengan nama yang terbaca pada kartu/baris sumbernya); pada kasus Production Line konfirmasi juga menyebut stasiun yang ikut terhapus; aria-label tombol hapus yang diklik juga membedakan barisnya (memuat nama entitas dan — untuk line — nama mill induknya), bukan hanya 'Hapus'"
+      }
+    },
+    {
+      "scenario_ref": "Hapus Entitas Hierarki Master Data — peran selain Admin mencoba menghapus",
+      "usecase_id": "usecase-159--hapus-entitas-hierarki-master-data",
+      "api_test": [],
+      "component_test": {
+        "component": "N/A",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Login memakai akun fixture NON-Admin (Supervisor / Mill Management / Station Operator) dari prepare-db.sh — tanam satu bila belum ada; catat jumlah baris keempat tabel hierarki dari basis data; kunjungi /master-data/tree-view langsung lewat alamat untuk mencoba mencapai aksi hapus",
+        "assert": "respons berstatus 403; tidak ada satu pun tombol hapus maupun modal konfirmasi yang terender, karena layar ini tidak pernah dirender bagi peran itu; jumlah baris keempat tabel hierarki sama persis dengan yang dicatat sebelum percobaan"
       }
     }
-  ],
-  "shared_entities": [
-    {
-      "entity_id": "corporate",
-      "operations": [
-        "SELECT"
-      ]
-    },
-    {
-      "entity_id": "company",
-      "operations": [
-        "SELECT"
-      ]
-    },
-    {
-      "entity_id": "business-unit",
-      "operations": [
-        "SELECT"
-      ]
-    },
-    {
-      "entity_id": "production-line",
-      "operations": [
-        "SELECT"
-      ]
-    }
-  ],
-  "screen_dependencies": [
-    {
-      "screen_id": "screen-027--kelola-corporate",
-      "reason": "Klik node Corporate menavigasi ke sini"
-    },
-    {
-      "screen_id": "screen-028--kelola-company",
-      "reason": "Klik node Company menavigasi ke sini, pre-filtered oleh filterCorporateId"
-    },
-    {
-      "screen_id": "screen-029--kelola-business-unit",
-      "reason": "Klik node Business Unit menavigasi ke sini, pre-filtered oleh filterCompanyId"
-    },
-    {
-      "screen_id": "screen-036--kelola-production-line",
-      "reason": "Klik node Production Line menavigasi ke sini, pre-filtered oleh filterBusinessUnitId"
-    }
-  ],
-  "implementation_notes": [
-    "Service baru MasterDataTreeService (bukan ditambahkan ke CorporateService) — konsisten dengan pola satu service per entity di codebase ini; service ini murni cross-cutting read, tidak dimiliki satu entity manapun",
-    "Livewire component memuat $tree sekali di mount(), BUKAN di render() — berbeda dari 4 screen Kelola yang query ulang tiap render untuk pagination/filter; screen ini tidak paginasi, refetch tiap toggle expand/collapse akan sia-sia",
-    "Rendering rekursif lewat SATU komponen Blade (x-master-data-tree-node), bukan 4 partial terpisah per level — seluruh level punya shape data yang identik (level, id, parent_id, name, code, children_count, children) sehingga rekursi generik lebih sederhana daripada 4 partial yang isinya nyaris sama",
-    "Navigasi antar-node adalah link biasa (full page load), BUKAN wire:navigate — codebase ini belum pernah pakai wire:navigate di manapun, dan pola link biasa menjamin mount()/#[Url] hydration di screen tujuan berjalan identik dengan mengetik URL langsung",
-    "3 screen Kelola tujuan (Company/Business Unit/Production Line) masing-masing mendapat #[Url] baru pada filter property yang sudah ada (filterCorporateId/filterCompanyId/filterBusinessUnitId) — bukan filter baru, dan tidak mengubah perilaku dropdown filter in-page yang sudah ada saat screen itu diakses langsung tanpa query string"
   ]
 }

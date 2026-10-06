@@ -1,0 +1,229 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "usecase-127--master-data-tree-view",
+  "name": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman",
+  "description": "Admin membuka satu halaman dan melihat SELURUH hierarki master data sekaligus — Corporate, Company, Business Unit (mill), dan Production Line — tanpa perlu membuka tingkat satu per satu. Mill menjadi kartu utama: tiap kartu membawa jejak induknya sebagai breadcrumb 'corporate > company' dan seluruh production line-nya sebagai baris di dalam kartu itu. Corporate dan Company yang belum punya anak tidak muncul di papan kartu mana pun, sehingga keduanya ditampilkan di bagian ringkas tersendiri di bawah papan. Satu kotak penyaring mempersempit papan dan kedua bagian ringkas sekaligus. Usecase ini murni melihat dan menelusuri; mengubah data adalah usecase lain (usecase-157/158/159).\n\nCATATAN RIWAYAT: id dan nama lama usecase ini ('Jelajahi Hierarki Master Data (Tree View)') berasal dari versi layar yang berupa pohon dengan lipat/buka. Pada revamp 2026-10-06 bentuk itu ditinggalkan karena memaksa pekerjaan yang tidak perlu: seluruh hierarkinya 20 baris, dan 20 baris muat utuh di satu layar. Id-nya dipertahankan karena sudah terpublikasi di usecase-index; isinya ditulis ulang. Artefak usecase ini sebelumnya TIDAK PERNAH ADA sebagai berkas — id-nya terdaftar di usecase-index v25 tetapi badannya kosong, jadi ini penulisan pertamanya.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login ke web.",
+    "Halaman hanya dapat dibuka oleh peran Admin; peran lain tidak melihat menunya dan tidak dapat mencapainya lewat alamat langsung."
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Membuka halaman Master Data dari menu sidebar."
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan baris ringkasan jumlah per tingkat di paling atas: N Corporate, N Company, N Mill, N Production Line."
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menampilkan papan kartu mill: satu kartu per Business Unit, berisi logo bila ada, nama, kode, breadcrumb 'corporate > company', dan jumlah production line-nya."
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Menampilkan seluruh Production Line milik tiap mill sebagai baris di dalam kartu mill itu, tanpa perlu dibuka."
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Menampilkan bagian ringkas Corporate (nama, kode, jumlah Company) dan Company (nama, kode, Corporate induk, jumlah mill) di bawah papan kartu, termasuk yang jumlah anaknya nol."
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menampilkan keterangan tetap bahwa hierarki berhenti di Production Line, beserta tautan ke layar Kelola Station dan Machinery."
+    },
+    {
+      "step": 7,
+      "actor": "actor-admin",
+      "description": "Membaca seluruh hierarki tanpa satu pun klik, karena tidak ada paginasi dan tidak ada lipat/buka."
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Belum ada data master sama sekali",
+      "trigger": "Pada langkah 2, tidak ada satu pun Corporate di sistem.",
+      "steps": [
+        "System menampilkan keadaan kosong PER BAGIAN, bukan satu halaman kosong.",
+        "Tiap bagian menyatakan kosongnya sendiri beserta tombol tambahnya, sehingga Admin tahu harus mulai dari mana."
+      ]
+    },
+    {
+      "name": "Mill tanpa Production Line",
+      "trigger": "Pada langkah 4, sebuah mill belum punya satu pun Production Line.",
+      "steps": [
+        "System tetap merender kartu mill itu.",
+        "System menampilkan keterangan eksplisit 'belum ada Production Line' di dalam kartu beserta tombol tambahnya, bukan ruang kosong."
+      ]
+    },
+    {
+      "name": "Corporate atau Company tanpa anak",
+      "trigger": "Pada langkah 5, sebuah Corporate belum punya Company, atau sebuah Company belum punya mill.",
+      "steps": [
+        "Entitas itu tidak muncul di papan kartu mill mana pun.",
+        "System menampilkannya di bagian ringkas dengan jumlah anak nol yang tertulis, sehingga ia tetap terlihat dan tetap dapat dikelola."
+      ]
+    },
+    {
+      "name": "Menyaring dengan kata kunci",
+      "trigger": "Admin mengisi kotak penyaring pada langkah 7.",
+      "steps": [
+        "System mempersempit papan kartu DAN kedua bagian ringkas sekaligus, mencocokkan nama maupun kode di keempat tingkat.",
+        "Sebuah mill tetap tampil bila yang cocok adalah salah satu Production Line di dalamnya, dan line yang cocok itu ditandai.",
+        "Mengosongkan kotak penyaring memulihkan tampilan utuh."
+      ]
+    },
+    {
+      "name": "Penyaring tidak mencocokkan apa pun",
+      "trigger": "Pada alternatif sebelumnya, tidak ada satu pun entitas yang cocok dengan kata kuncinya.",
+      "steps": [
+        "System menampilkan pesan eksplisit 'tidak ada yang cocok dengan ...' beserta cara mengosongkan penyaringnya.",
+        "System TIDAK menampilkan papan kosong tanpa penjelasan."
+      ]
+    },
+    {
+      "name": "Peran selain Admin mencoba membuka halaman",
+      "trigger": "Pada langkah 1, sesi yang membuka halaman bukan Admin.",
+      "steps": [
+        "System menolak akses dan menampilkan halaman terlarang.",
+        "Halaman tidak pernah dirender, bahkan sebagian."
+      ]
+    },
+    {
+      "name": "Nama atau kode sangat panjang",
+      "trigger": "Pada langkah 3, sebuah entitas memiliki nama atau kode yang jauh lebih panjang daripada lainnya.",
+      "steps": [
+        "Kartu tidak melar dan tidak merusak susunan papan.",
+        "Nama panjang dipotong dengan penanda, dan nama utuhnya tetap dapat dibaca."
+      ]
+    },
+    {
+      "name": "Mill tanpa logo",
+      "trigger": "Pada langkah 3, sebuah mill tidak punya logo.",
+      "steps": [
+        "System memakai penanda pengganti yang konsisten, misalnya inisial nama mill.",
+        "System tidak menampilkan ikon gambar rusak maupun ruang kosong yang membuat kartu terlihat gagal memuat."
+      ]
+    },
+    {
+      "name": "Isi melebihi satu halaman",
+      "trigger": "Pada langkah 3 atau 5, jumlah mill atau jumlah baris pada daftar ringkas melebihi perPage.",
+      "steps": [
+        "System merender kontrol paginasi untuk bagian yang melebihi itu saja — bagian lain yang masih muat tetap tanpa kontrol.",
+        "Keterangan posisi halaman menyebut jumlah total, bukan hanya rentang yang terlihat.",
+        "Angka pada baris ringkasan tetap menyatakan total seluruh data.",
+        "Baris Production Line di dalam kartu mill TIDAK ikut dipaginasi, dan jumlah line yang tercetak di kartu tetap jumlah sebenarnya."
+      ]
+    },
+    {
+      "name": "Menyaring saat berada di halaman selain pertama",
+      "trigger": "Admin mengubah kata kunci penyaring sementara posisi halaman bukan halaman pertama.",
+      "steps": [
+        "System menyaring SELURUH data lebih dulu, bukan hanya halaman yang sedang terbuka.",
+        "Posisi halaman dikembalikan ke halaman pertama, karena halaman lama hampir selalu tidak ada pada hasil baru.",
+        "System tidak pernah menampilkan halaman kosong yang sebenarnya berisi hasil di halaman lain."
+      ]
+    }
+  ],
+  "postconditions": [
+    "Admin telah melihat seluruh hierarki keempat tingkat beserta jumlah per tingkat.",
+    "Tidak ada satu pun data yang berubah — usecase ini tidak menulis apa pun."
+  ],
+  "business_rules": [
+    "Hierarki berhenti di Production Line; Station, Machinery Group, dan Machinery tidak ditampilkan di sini, dan batas itu dinyatakan di layar beserta tautan ke layar Kelola-nya.",
+    "Hanya Admin yang dapat membuka halaman ini.",
+    "Paginasi dipakai BILA PERLU dan hanya bila perlu: selama isinya masih muat, papan tampil utuh tanpa satu pun kontrol paginasi; begitu melebihi satu halaman, papan kartu dan kedua daftar ringkas dipaginasi mengikuti pola layar Kelola (perPage 20). Production Line tidak ikut dipaginasi karena ia hidup di dalam kartu mill induknya. Lipat/buka tetap TIDAK dipakai — ia menyembunyikan data yang sudah termuat, sementara paginasi membatasi apa yang dimuat. Penyaring tetap alat mempersempit, bukan prasyarat melihat, dan ia bekerja atas seluruh data lebih dulu sebelum hasilnya dipaginasi.",
+    "Baris ringkasan jumlah per tingkat wajib tampil; ia yang membuktikan tidak ada yang disembunyikan halaman ini.",
+    "Corporate dan Company tetap terlihat meski belum punya anak, karena keduanya tidak muncul di papan kartu mill mana pun.",
+    "Keadaan kosong dinyatakan per bagian, bukan satu keadaan kosong untuk seluruh halaman."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — success",
+      "given": "Admin sudah login ke web, dan di sistem sudah ada data master pada keempat tingkat: Corporate, Company, Business Unit (mill), dan Production Line.",
+      "when": "Admin membuka halaman Master Data dari menu sidebar.",
+      "then": "Admin melihat baris ringkasan jumlah per tingkat di paling atas (N Corporate, N Company, N Mill, N Production Line), papan kartu mill yang tiap kartunya memuat logo bila ada, nama, kode, breadcrumb 'corporate > company', dan jumlah production line-nya, seluruh Production Line milik tiap mill sudah tampil sebagai baris di dalam kartu mill itu tanpa perlu dibuka, bagian ringkas Corporate dan Company di bawah papan kartu, serta keterangan tetap bahwa hierarki berhenti di Production Line beserta tautan ke layar Kelola Station dan Machinery — seluruh hierarki terbaca tanpa satu pun klik, dan tidak ada satu pun data yang berubah."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Belum ada data master sama sekali",
+      "given": "Admin sudah login ke web, dan halaman Master Data hanya dapat dibuka oleh peran Admin.",
+      "when": "Admin membuka halaman Master Data sementara tidak ada satu pun Corporate di sistem.",
+      "then": "Halaman tidak tampil sebagai satu halaman kosong, melainkan tiap bagian — ringkasan jumlah, papan kartu mill, bagian ringkas Corporate, dan bagian ringkas Company — menyatakan keadaan kosongnya sendiri beserta tombol tambahnya, sehingga Admin tahu harus mulai dari mana."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Mill tanpa Production Line",
+      "given": "Admin sudah login ke web, dan di sistem ada sebuah mill yang belum punya satu pun Production Line.",
+      "when": "Admin membuka halaman Master Data dan membaca kartu mill tersebut.",
+      "then": "Kartu mill itu tetap dirender lengkap dengan nama, kode, dan breadcrumb induknya, dan di dalam kartu tertulis keterangan eksplisit 'belum ada Production Line' beserta tombol tambahnya — bukan ruang kosong yang membuat kartu terlihat gagal memuat."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Corporate atau Company tanpa anak",
+      "given": "Admin sudah login ke web, dan di sistem ada sebuah Corporate yang belum punya Company serta sebuah Company yang belum punya mill.",
+      "when": "Admin membuka halaman Master Data dan membaca bagian ringkas Corporate dan Company.",
+      "then": "Kedua entitas itu tidak muncul di papan kartu mill mana pun, tetapi tetap ditampilkan di bagian ringkasnya masing-masing dengan jumlah anak nol yang tertulis, sehingga keduanya tetap terlihat dan tetap dapat dikelola."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Menyaring dengan kata kunci",
+      "given": "Admin sudah login ke web, dan halaman Master Data sudah menampilkan seluruh hierarki keempat tingkat.",
+      "when": "Admin mengisi kotak penyaring dengan sebuah kata kunci yang cocok dengan nama atau kode di salah satu dari keempat tingkat.",
+      "then": "Papan kartu mill DAN kedua bagian ringkas Corporate dan Company dipersempit sekaligus; sebuah mill tetap tampil bila yang cocok adalah salah satu Production Line di dalamnya dan line yang cocok itu ditandai; mengosongkan kotak penyaring memulihkan tampilan utuh."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Penyaring tidak mencocokkan apa pun",
+      "given": "Admin sudah login ke web, dan halaman Master Data sudah menampilkan seluruh hierarki keempat tingkat.",
+      "when": "Admin mengisi kotak penyaring dengan kata kunci yang tidak cocok dengan satu pun entitas di keempat tingkat.",
+      "then": "System menampilkan pesan eksplisit 'tidak ada yang cocok dengan ...' beserta cara mengosongkan penyaringnya, dan TIDAK menampilkan papan kosong tanpa penjelasan."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Peran selain Admin mencoba membuka halaman",
+      "given": "Seorang pengguna sudah login ke web dengan peran selain Admin (Station Operator, Supervisor, atau Mill Management).",
+      "when": "Pengguna itu mencoba membuka halaman Master Data, baik melalui menu maupun langsung lewat alamat halamannya.",
+      "then": "Menu Master Data tidak terlihat bagi peran itu, akses ditolak dan halaman terlarang ditampilkan, dan halaman Master Data tidak pernah dirender bahkan sebagian."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Nama atau kode sangat panjang",
+      "given": "Admin sudah login ke web, dan di sistem ada entitas yang nama atau kodenya jauh lebih panjang daripada entitas lainnya.",
+      "when": "Admin membuka halaman Master Data dan membaca kartu mill yang memuat entitas bernama sangat panjang itu.",
+      "then": "Kartu tidak melar dan susunan papan kartu tidak rusak; nama panjang dipotong dengan penanda, sementara nama utuhnya tetap dapat dibaca."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — Mill tanpa logo",
+      "given": "Admin sudah login ke web, dan di sistem ada sebuah mill yang tidak punya logo.",
+      "when": "Admin membuka halaman Master Data dan membaca kartu mill tanpa logo itu.",
+      "then": "Kartu menampilkan penanda pengganti yang konsisten, misalnya inisial nama mill, dan tidak menampilkan ikon gambar rusak maupun ruang kosong yang membuat kartu terlihat gagal memuat."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — hierarki melewati batas Production Line",
+      "given": "Admin sudah login ke web, dan di sistem sudah ada data Station, Machinery Group, dan Machinery di bawah Production Line.",
+      "when": "Admin membuka halaman Master Data dan menelusuri seluruh halaman untuk mencari tingkat di bawah Production Line.",
+      "then": "Tidak ada satu pun Station, Machinery Group, maupun Machinery yang ditampilkan di halaman ini; layar menyatakan batas itu secara eksplisit dan mengarahkan Admin ke layar Kelola Station dan Machinery."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — paginasi muncul hanya ketika isinya melebihi satu halaman",
+      "given": "Admin sudah login ke web, dan jumlah mill di sistem masih di bawah satu halaman (perPage 20).",
+      "when": "Admin membuka halaman Master Data tanpa mengisi kotak penyaring sama sekali.",
+      "then": "Seluruh kartu mill dan seluruh baris Production Line dirender sekaligus, dan TIDAK ada satu pun kontrol paginasi maupun kontrol lipat/buka yang dirender — diperiksa atas nama kelas atau testid, bukan atas frasa, karena halaman ini memang memuat kata 'paginasi' pada keterangannya. Ketika jumlah mill kemudian melebihi satu halaman, kontrol paginasi muncul pada papan kartu dan pada kedua daftar ringkas, keterangan posisi halaman menyebut jumlah total, dan angka pada baris ringkasan TETAP menyatakan total seluruh data — bukan jumlah yang terlihat di halaman yang sedang dibuka."
+    },
+    {
+      "scenario": "Lihat Seluruh Hierarki Master Data dalam Satu Halaman — baris ringkasan jumlah hilang atau tidak jujur",
+      "given": "Admin sudah login ke web, dan di sistem ada data pada keempat tingkat termasuk Corporate dan Company yang belum punya anak.",
+      "when": "Admin membuka halaman Master Data dan membandingkan baris ringkasan jumlah per tingkat dengan entitas yang benar-benar dirender di papan kartu dan kedua bagian ringkas.",
+      "then": "Baris ringkasan jumlah per tingkat wajib tampil di paling atas, dan tiap angkanya sama dengan jumlah entitas yang benar-benar ada di sistem pada tingkat itu — termasuk Corporate dan Company tanpa anak — sehingga terbukti tidak ada entitas yang disembunyikan halaman ini."
+    }
+  ],
+  "related_screen_ids": [
+    "screen-127--master-data-tree-view"
+  ]
+}

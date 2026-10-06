@@ -1,68 +1,112 @@
 {
-  "ver": 1,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-02"
+    "updated_at": "2026-10-06"
   },
   "id": "screen-127--master-data-tree-view",
-  "name": "Master Data Tree View",
+  "name": "Struktur Mills",
   "module_id": "module-master-data",
-  "status": "partial",
+  "status": "complete",
   "files_generated": [
     "backend/app/Services/MasterDataTreeService.php",
     "backend/app/Livewire/MasterData/MasterDataTreeView.php",
-    "backend/resources/views/master-data/tree-view.blade.php",
-    "backend/routes/web.php",
-    "backend/resources/views/components/layouts/app.blade.php"
+    "backend/routes/web.php"
   ],
   "test_files_generated": [
-    "backend/tests/Feature/Livewire/MasterDataTreeViewTest.php"
+    "backend/tests/Unit/Services/MasterDataTreeServiceTest.php"
   ],
   "fe_files_generated": [
     "backend/resources/views/livewire/master-data/master-data-tree-view.blade.php",
-    "backend/resources/views/components/master-data-tree-node.blade.php"
+    "backend/resources/views/master-data/partials/master-data-styles.blade.php",
+    "backend/resources/views/master-data/tree-view.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/MasterDataTreeViewTest.php",
+    "e2e-web/tests/struktur-mills.spec.ts"
+  ],
   "implementation_notes": [
-    "Read-only screen, no create/update/delete — reuses MasterDataTreeService::getTree() (1 query via nested eager-loads, no N+1) for data, and reuses the 3 existing Kelola screens' own filter properties for navigation, adding only a #[Url] attribute to each (no new filter concept)",
-    "MasterDataTreeView loads $tree once in mount(), not render() — this screen does not paginate/refilter like the 4 CRUD screens do, so refetching on every expand/collapse toggle would be wasteful",
-    "Recursive rendering via one Blade component (x-master-data-tree-node) rather than 4 near-duplicate partials, since every level from the service shares the identical node shape (level, id, parent_id, name, code, children_count, children)",
-    "3 existing screens (KelolaCompany, KelolaBusinessUnit, KelolaProductionLine) each got #[Url] added to their pre-existing filter property (filterCorporateId/filterCompanyId/filterBusinessUnitId) — verified their existing in-page dropdown-filter behavior is unchanged (full existing test suites re-run and still 100% green) before adding new URL-hydration test scenarios to each",
-    "Sidebar link added as the first item among the master-data links in components/layouts/app.blade.php, since this screen is the overview entry point for that group",
-    "New route /master-data/tree-view registered ahead of screen-027 in routes/web.php, same 'auth'+'role:admin' guard as every other master-data screen"
+    "REVAMP 2026-10-06. Pohon read-only 4 tingkat ber-lipat/buka diganti papan kartu per mill + dua tabel ringkas + kelola penuh 4 tingkat. Nama kelas, nama rute, dan path TIDAK diubah (MasterDataTreeView, master-data.tree-view, /master-data/tree-view) — hanya nama layar dan label sidebar yang menjadi 'Struktur Mills'. Slug 'tree-view' karena itu tetap terbaca di URL meski bentuknya bukan pohon: selisih yang disengaja.",
+    "MasterDataTreeService DIPERLUAS: board($search,$page,$perPage), counts(), corporateRows(...), companyRows(...). getTree() dan toNode() DIHAPUS — satu-satunya pemanggilnya adalah layar ini. Docblock yang menyatakan Station/Machinery di luar cakupan dipertahankan.",
+    "Pemuatan data pindah dari mount() ke render(); mount() kini kosong. Inilah yang membuat angka ringkasan dan jumlah anak per kartu benar sesudah setiap aksi tanpa satu baris penyesuaian manual, termasuk kasus memindahkan entitas yang mengubah jumlah pada dua induk sekaligus.",
+    "resources/views/components/master-data-tree-node.blade.php DIHAPUS — komponen rekursif pohon. Rujukan terakhirnya hanya pemanggilan rekursif dirinya sendiri; grep seluruh repo diulang SESUDAH penghapusan: nol hasil. Berkas ini karena itu dikeluarkan dari fe_files_generated, bukan diwariskan dari v1.",
+    "PENYIMPANGAN SADAR DARI KONVENSI REPO: pemilih induk memakai <select> biasa, bukan x-searchable-select yang menjadi pengganti universal <select> di proyek ini. Sebabnya x-searchable-select merender <input role=\"combobox\">, sementara tech spec menuntut <select> biasa dan skenario uji 23 mengasersi <select> nyata tanpa disabled/readonly/hidden. Mengembalikannya ke konvensi adalah PERUBAHAN SPEC, bukan perbaikan bug — ia akan membatalkan skenario 23.",
+    "Penyaringan di basis data memakai lower(col) LIKE ? ESCAPE '\\\\' — ESCAPE eksplisit WAJIB: PostgreSQL berdefault backslash sementara SQLite TIDAK punya default, jadi tanpa itu kedua mesin berbeda hasil untuk kata kunci yang memuat '%'. Kelas jebakan yang sama dengan ILIKE.",
+    "Aturan penyaringan digeneralisasi menjadi 'diri sendiri, leluhur, atau keturunan' di keempat tingkat — bukan hanya papan — karena skenario 5 menuntut kedua tabel ringkas ikut menyempit saat disaring dengan kode mill.",
+    "wire:target per-aksi pada ketiga pager, menyimpang dari konvensi daftar-pukul-rata (wire:target=\"previousPage,nextPage,goToPage\") yang dipakai layar lain. Bentuk itu benar hanya untuk layar ber-satu-pager; komponen ini punya tiga pager independen, dan daftar pukul rata akan saling mematikan pager yang tidak bersangkutan.",
+    "whereRaw('1 = 0') dipakai untuk memperbaiki defek uuid, bukan membuang scope where-nya. Membuangnya akan mengubah keunikan nama per-corporate menjadi keunikan global, memunculkan galat 'nama sudah digunakan' palsu di samping galat 'Corporate wajib dipilih' yang sebenarnya. whereNull('corporate_id') ditolak karena ia hanya cocok-tidak-ada secara kebetulan — kolomnya NOT NULL hari ini.",
+    "findOrFail/findModel dikeraskan terhadap jalur '' → uuid yang sama; id kosong atau basi kini terbaca sebagai pesan 'sudah dihapus oleh Admin lain' alih-alih 500 PostgreSQL.",
+    "Dipakai ulang: x-modal (pemilik rantai scroll min-height:0 yang ada justru untuk mencegah bug form panjang tidak bisa digulir), HasFilterReset + filterDefaults(), tiga properti halaman independen dengan clampPage() di render(), ValidatesUploadOnSelect dijaga hasLogo(). Logo ditampilkan sebagai keterangan nama berkas sesuai tech spec — tanpa pratinjau langsung, jadi tidak ada permukaan FileNotPreviewableException. Validasi mencerminkan aturan TIAP service apa adanya, bukan menyalin bentuk Corporate ke keempatnya.",
+    "Spec browser dibuat DATA-DRIVEN atas volume, bukan angka dipaku — lihat known_issue tentang premis data brief yang salah. Ia menanam station/machinery E2E127-nya sendiri untuk uji kebocoran (nama stasiun kanonis adalah substring nama line yang dirender), dan memaku created_by WeighbridgeRecordFactory ke admin fixture agar tidak ada rantai BusinessUnit→Company→Corporate yang bocor per record.",
+    "DUA SKENARIO UJI LAMA YANG KEHILANGAN SUBJEKNYA DIGANTI, BUKAN DIBUANG, dan dinamai 'PENERUS toggleNode: …' serta 'PENERUS tautan node ber-filter induk: …' supaya garis keturunannya terlihat. Yang kedua juga mengasersi property_exists atas ketiga properti #[Url] filter layar Kelola, sehingga menghapusnya kelak akan gagal dengan berisik.",
+    "DUA SKENARIO WAJIB-BERTAHAN kini LEBIH KUAT, bukan sekadar bertahan. Uji bebas-N+1 semula mengasersi queryCount < 15 atas satu fixture; sekarang ia mengasersi jumlah query SAMA antara hierarki 3-mill/6-line dan 12-mill/24-line — satu query per kartu akan tampak sebagai selisih sembilan. Uji 403 untuk tiga peran kini mengasersi ketiadaan atas testid milik layar ini, bukan atas frasa label 'Master Data Tree View' — yang akan tetap lolos karena alasan yang salah begitu labelnya menjadi 'Struktur Mills'. Tidak ada uji yang dilemahkan demi meloloskan kode.",
+    "TERPISAH DARI LAYAR INI, TETAPI MENYENTUH BERKAS YANG SAMA (app.blade.php). Atas keputusan user 2026-10-06, kosakata CSS bersama dipasang global dan sidebar diubah menjadi terang: dua partial baru (resources/views/partials/design-tokens.blade.php berisi 73 token, dan partials/components-styles.blade.php berisi 59 kelas btn/card/input/alert/badge/table-wrapper) di-include di app.blade.php SEBELUM blok <style>-nya, plus 9 suntingan tema sidebar mengikuti uiux-spec assets/shell.css. URUTAN INCLUDE-NYA MENENTUKAN: lima nama token ada di kedua tempat dan --color-border nilainya berbeda (#E3E3E3 vs #d1d5db, dipakai 9 tempat pada 6 view), jadi dengan urutan ini :root aplikasi yang menang dan tidak ada nilai yang sekarang bekerja ikut berubah. Alasan design-tokens wajib ikut: components.css memakai 35 token sementara app.blade.php hanya mendefinisikan 4 — tanpa itu browser MEMBUANG setiap deklarasinya dan kelas-kelasnya tampil tanpa gaya. Yang memisahkan sidebar terang dari konten adalah border-right 1px, BUKAN warnanya: selisih sidebar-vs-body hanya 1,03:1, jadi body tidak diubah ke putih. Kontras terukur semuanya di atas ambang 3:1 uiux-spec (teks 13,70:1, nav muted 4,51:1, aktif brand 3,62:1; sidebar gelap sebelumnya 16,98:1 — turun, tetap lolos). Diverifikasi: backend 5104/5104 lolos sesudah perubahan; audit kelas pada HASIL COMPILE blade menemukan 107 kelas dipakai dan semuanya terdefinisi (satu-satunya tanpa definisi, shell-nav-group-wrap, memang disengaja dan sudah berkomentar sejak sebelum sesi ini); browser 77/78 pada irisan struktur-mills + kelola-periode-pelaporan + laporan-pressing, satu kegagalan adalah flake logo yang sudah dikarakterisasi dan kini dikeraskan.",
+    "KESALAHAN SAYA SENDIRI, DICATAT SUPAYA TIDAK TERULANG: menulis kata `@include` DI DALAM KOMENTAR CSS pada app.blade.php menjatuhkan SELURUH aplikasi. Blade mengompilasi direktif ber-@ tanpa peduli ia berada di dalam komentar CSS maupun komentar apa pun, sehingga `@include design-tokens` menjadi pemanggilan $__env->make() yang argumennya kosong — PHP syntax error, dan setiap halaman yang memakai layout ini menjadi 500. Gejalanya menipu: 51 browser test gagal dengan 'element not found', laravel.log KOSONG (Ignition menangani galatnya sendiri), dan halaman tetap menjawab HTTP 302/200 untuk rute yang tidak merender layout. Yang akhirnya menemukannya adalah merender layout langsung lewat tinker, bukan membaca log. Pelajarannya: jangan menulis nama direktif Blade ber-@ di dalam komentar view mana pun; dan kalau seluruh browser test gagal dengan 'element not found' sementara log bersih, curigai layout-nya lebih dulu, bukan layarnya."
   ],
-  "deferred_items": [
-    {
-      "description": "Browser (Playwright) test suite for this screen",
-      "reason": "Consistent with every other master-data screen in this codebase (e.g. screen-036 Kelola Production Line) — no Playwright/Node infra exists in this sandbox; functional coverage is provided via Feature/Livewire tests instead (8 tests, including a real-HTTP-route access-control check and a node-link href assertion)"
-    }
-  ],
+  "deferred_items": [],
   "known_issues": [
     {
-      "description": "Playwright Browser test not written for the same reason it is absent from every other master-data screen this session — no Node/Playwright infra in this sandbox",
+      "description": "SELESAI 2026-10-06 atas keputusan user. KelolaCompany.php rules() membangun aturan unik nama dengan scope ->where('corporate_id', $this->corporate_id), sementara propertinya `public string $corporate_id = ''` — jadi menekan Simpan tanpa memilih Corporate mengirim string kosong ke kolom bertipe uuid dan PostgreSQL menolaknya dengan SQLSTATE[22P02], muncul sebagai HALAMAN 500, bukan pesan validasi. Diperbaiki dengan pola yang sama seperti screen-127: whereRaw('1 = 0') ketika induknya kosong — BUKAN membuang scope-nya, karena itu akan mengubah keunikan nama dari per-Corporate menjadi global dan memunculkan galat 'nama sudah digunakan' palsu di samping 'Corporate wajib dipilih' yang sebenarnya dibutuhkan. Uji regresinya ditempatkan di LAPISAN BROWSER (e2e-web/tests/kelola-company.spec.ts), bukan di feature test, dan itu keharusan: suite PHPUnit berjalan di SQLite yang MENERIMA perbandingan '' dengan kolom uuid, sehingga uji di lapisan itu tidak akan pernah bisa gagal sebelum maupun sesudah perbaikan. Skenario barunya mengasersi tiga hal: galat validasi pada field Corporate, modal tetap terbuka tanpa jejak SQLSTATE, dan TIDAK munculnya galat 'nama sudah digunakan' palsu. Diverifikasi 51/51 lolos di PostgreSQL.",
+      "severity": "minor"
+    },
+    {
+      "description": "SISTEMIK: seluruh kelas defek ini TIDAK TERLIHAT oleh suite uji. SQLite menerima perbandingan '' dengan kolom uuid/numerik, PostgreSQL menolaknya. Component test untuk skenario yang gagal itu HIJAU sepanjang waktu; yang menangkapnya hanya suite browser yang berjalan di PostgreSQL. Artinya satu-satunya jaring untuk kelas bug ini hari ini adalah suite browser. Penutupnya: satu irisan feature suite yang berjalan di PostgreSQL, atau pemeriksaan statis atas nilai form yang masuk ke perbandingan kolom non-teks.",
+      "severity": "major"
+    },
+    {
+      "description": "GERBANG MUTU LOLOS SECARA HAMPA. Ambang cakupan unit 80% di test-strategy TIDAK DAPAT DIEVALUASI di mesin ini — tidak ada Xdebug maupun PCOV (sudah diverifikasi pemanggil: php -m tidak memuat keduanya). Lebih buruk: 'php artisan test --coverage --min=80' TIDAK galat, ia diam-diam no-op dan KELUAR DENGAN KODE 0 tanpa tabel cakupan sama sekali (juga sudah diverifikasi pemanggil). Jadi gerbang CI apa pun yang bergantung pada --min=80 LOLOS SECARA HAMPA setiap kali driver-nya tidak ada. Karena template artefak memaksa coverage berupa angka, nilainya dicatat -1 sebagai sentinel 'tidak terukur' — BUKAN 0, karena 0 akan mengklaim sudah diukur dan hasilnya nol. Status tetap 'complete' karena seluruh uji lolos dan tidak ada gerbang yang benar-benar gagal; bila kebijakan menganggap ambang wajib yang tak terevaluasi sebagai celah, status ini harus diturunkan menjadi 'partial'.",
+      "severity": "major"
+    },
+    {
+      "description": "TINGKAT FRAMEWORK, MENGENAI SETIAP LAYAR BER-PAGER LEBIH DARI SATU. tests/Feature/LoadingStateTest.php baris 53 memaku matcher-nya pada /^(previousPage|nextPage|goToPage)\\b/, sehingga pager bernama-scope (previousCorporatePage, next<Thing>Page, dan sejenisnya) TIDAK TERLIHAT olehnya. Di berkas layar ini sendiri empat defek identik duduk di samping dua yang dilaporkan scanner — memperbaiki hanya yang dilaporkan akan menghasilkan suite hijau di atas berkas yang separuh diperbaiki. Pola seperti /^(previous|next)\\w*Page\\b|^goToPage\\b/ akan memperbaikinya sekali secara terpusat. Tidak disentuh: itu berkas uji, di luar cakupan.",
+      "severity": "medium"
+    },
+    {
+      "description": "SELESAI 2026-10-06. Premis data di brief salah: brief menyatakan 'pada volume sekarang (5 mill) tidak ada satu pun kontrol paginasi yang dirender' — benar untuk basis data dev, SALAH untuk e2e, di mana prepare-db.sh meninggalkan 19 business unit dan spec menanam ~15 lagi sehingga jumlahnya 34-35 selama run, DI ATAS perPage 20. Tiga skenario browser yang mengasersi jumlah kartu / ketiadaan paginasi dari angka 5 mill tidak akan pernah bisa lolos; ketiganya sudah dibuat data-driven oleh agen implementasi (paginasi dirender JIKA DAN HANYA JIKA total > perPage, diasersi dua arah) — lebih kuat daripada yang dispesifikasikan. Dua komentar basi yang tertinggal SUDAH dibetulkan: header spec yang menyebut '23 mills' kini menyebut 19 (terukur) beserta ~15 yang ditanam, dan kedua komentar blade yang mengklaim 'tidak satu pun kontrol halaman muncul' kini menyatakan bahwa itu tergantung basis datanya (dev 5 mill: tidak muncul; e2e 19+15: justru muncul) beserta peringatan agar klaim mutlak itu tidak dituliskan lagi.",
+      "severity": "minor"
+    },
+    {
+      "description": "Skenario browser 11 seperti tertulis mengasersi jumlah [aria-expanded] se-halaman = 0 — TIDAK MUNGKIN DIPENUHI: hamburger shell dan widget chatbot membawanya di setiap halaman. Dibatasi menjadi [data-testid=\"struktur-mills\"] [aria-expanded], ditambah asersi kebalikan bahwa jumlah se-halaman > 0 sehingga pembatasan itu mendokumentasikan dirinya sendiri terhadap 'penyederhanaan' di masa depan. Cacat pada teks skenario, bukan pada kode.",
+      "severity": "minor"
+    },
+    {
+      "description": "SELESAI 2026-10-06, sesudah flake-nya muncul lagi. Browser test 17 (Berkas logo ditolak) gagal 1 dari 49 eksekusi pada run agen, lalu MUNCUL LAGI pada run verifikasi tema: 7,0 detik vs ~2,1 detik saat sehat, melewati batas 5 detik bawaan expect. Diverifikasi bukan regresi: diisolasi ia lolos 3/3 sesudah perubahan tema. Sebabnya putaran unggah berkas Livewire yang sesekali melewati 5 detik saat mesin sibuk. DIKERASKAN: kedua asersi logo-error (skenario 17 dan 32) kini memakai timeout eksplisit 15 detik beserta komentar yang menyebut angka terukurnya dan alasan memilih ini alih-alih menyetel `retries` — retries akan ikut menutupi kegagalan sebenarnya di 43 test lain pada berkas yang sama. TIDAK ada kode produksi yang diubah. Sesudah pengerasan: struktur-mills 44/44 lolos.",
+      "severity": "minor"
+    },
+    {
+      "description": "CorporateHasCompaniesException dan CompanyHasBusinessUnitsException pesan bawaannya TIDAK menyebut jumlah penghalang, berbeda dari BusinessUnitHasStationsException dan ProductionLineHasStationsException yang menyebutkannya. Business rule 5 menghendaki jumlah penghalang ditampilkan, dan pesan dirender apa adanya lewat getMessage() — jadi kedua penolakan itu memang tidak punya angka untuk ditampilkan. Memperbaikinya berarti menyunting dua service di daftar JANGAN DISENTUH, jadi tidak dilakukan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Verifikasi lapisan browser untuk perbaikan pager bersifat SEBAGIAN. Kedua tombol pager mill benar-benar hidup dan terasersi (jumlah business_units 34-35 selama ~68% run, dan test 11 mengambil cabang > perPage), tetapi keempat tombol pager corporate/company TIDAK PERNAH dirender (maksimal 16 dan 14 baris, di bawah perPage) dan TIDAK ADA uji yang pernah mengklik pager — jadi perilaku wire:loading saat aksi berjalan belum teruji di lapisan browser. Selain itu paginationControls() di spec baris 218 adalah KODE MATI (didefinisikan, tidak pernah dipanggil), render() memutasi properti halaman saat clamping (sah, tetapi efek samping), dan tiga blok paginasi nyaris identik ditulis inline alih-alih diekstrak karena rencana berkas melarang berkas di luar daftarnya.",
+      "severity": "minor"
+    },
+    {
+      "description": "SELESAI 2026-10-06 atas keputusan user. Awalan CSS layar ini diganti dari `md-` menjadi `sm-` di keempat berkas sekaligus (partial CSS, blade, component test, browser spec) — 539 penggantian: 219 + 286 + 12 + 22. Yang diganti bukan hanya nama kelas, melainkan juga CUSTOM PROPERTY (--md-brand, --md-surface, --md-radius-*, dan sembilan lainnya, yang ternyata ikut bertabrakan dengan report-styles) serta nilai data-testid, supaya tidak ada kategori yang tertinggal setengah jalan. Hasil: tabrakan dengan report-styles.blade.php turun dari 9 kelas + 1 custom property menjadi NOL dari 91 kelas dan 13 custom property. Diverifikasi juga pada HASIL COMPILE blade: 107 kelas dipakai markup, seluruhnya terdefinisi — satu-satunya tanpa definisi adalah shell-nav-group-wrap, yang memang disengaja dan sudah berkomentar sejak sebelum sesi ini.",
       "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-06T13:10:11Z",
+      "passed": 1641,
       "failed": 0,
-      "coverage": 0
+      "coverage": -1
     },
     "integration": {
-      "run_at": "2026-09-02T00:00:00Z",
-      "passed": 8,
+      "run_at": "",
+      "passed": 0,
       "failed": 0
     },
     "component": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-06T13:50:25Z",
+      "passed": 71,
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-06T13:48:04Z",
+      "passed": 44,
       "failed": 0
     }
   }

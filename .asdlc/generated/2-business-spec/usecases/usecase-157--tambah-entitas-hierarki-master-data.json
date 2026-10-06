@@ -1,0 +1,222 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "usecase-157--tambah-entitas-hierarki-master-data",
+  "name": "Tambah Entitas Hierarki Master Data",
+  "description": "Admin menambahkan satu entitas baru pada salah satu dari empat tingkat hierarki — Corporate, Company, Business Unit (mill), atau Production Line — langsung dari halaman Master Data, lewat modal, tanpa pindah halaman. Ketika penambahan dimulai dari dalam kartu induknya (misalnya menekan '+ Line' di kartu mill tertentu), induk itu sudah terpilih di form tetapi tetap terlihat dan tetap dapat diubah. Aturan validasinya sama persis dengan yang berlaku di layar Kelola masing-masing — halaman ini tidak punya aturan sendiri, karena satu data master tidak boleh punya dua definisi 'sah' tergantung dari layar mana ia ditulis.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login dan membuka halaman Master Data.",
+    "Untuk menambah Company, Business Unit, atau Production Line, setidaknya satu calon induk sudah ada (Company butuh Corporate, mill butuh Company, line butuh mill)."
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Menekan tombol tambah untuk tingkat yang dimaksud: '+ Mill' di kepala papan, '+ Line' di dalam kartu mill, atau tombol tambah di bagian ringkas Corporate / Company."
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Membuka modal berisi form kosong untuk tingkat itu, dengan field dikelompokkan supaya tetap terbaca (Identitas, Kontak, Alamat) dan field wajib ditandai."
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Bila penambahan dimulai dari dalam kartu induknya, pilihan induk SUDAH terisi dengan induk itu; pilihan tersebut tetap terlihat dan tetap dapat diubah, tidak dikunci dan tidak disembunyikan."
+    },
+    {
+      "step": 4,
+      "actor": "actor-admin",
+      "description": "Mengisi field wajib (kode dan nama; untuk Production Line cukup nama) dan field opsional sejauh diperlukan, serta dapat memilih berkas logo untuk Corporate / Company / mill."
+    },
+    {
+      "step": 5,
+      "actor": "actor-admin",
+      "description": "Menekan Simpan."
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Memvalidasi masukan dengan aturan yang sama seperti layar Kelola: field wajib terisi, kode unik di dalam jenisnya, induk yang dipilih benar-benar ada, dan logo berupa gambar jpg/jpeg/png maksimal 2MB."
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Menyimpan entitas baru."
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Menutup modal, menampilkan konfirmasi singkat, menampilkan entitas baru itu di tempatnya (kartu baru di papan, baris baru di dalam kartu induknya, atau baris baru di bagian ringkas), dan MENGHITUNG ULANG baris ringkasan jumlah serta jumlah anak per kartu."
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field wajib kosong",
+      "trigger": "Pada langkah 6, salah satu field wajib tidak diisi.",
+      "steps": [
+        "System menampilkan pesan validasi langsung di bawah field yang bersangkutan.",
+        "Modal tetap terbuka dan seluruh field lain yang sudah diisi tetap terisi.",
+        "Tidak ada data yang tersimpan."
+      ]
+    },
+    {
+      "name": "Kode sudah dipakai",
+      "trigger": "Pada langkah 6, kode yang diisi sudah dipakai entitas lain berjenis sama.",
+      "steps": [
+        "System menampilkan pesan bahwa kode itu sudah dipakai, di bawah field kode.",
+        "Modal tetap terbuka dengan isian lain utuh.",
+        "Tidak ada data yang tersimpan."
+      ]
+    },
+    {
+      "name": "Kode Production Line dibiarkan kosong",
+      "trigger": "Pada langkah 4, Admin tidak mengisi kode untuk Production Line.",
+      "steps": [
+        "System menerimanya, karena kode Production Line bersifat opsional.",
+        "Line tersimpan tanpa kode, dan barisnya tetap tampil di dalam kartu mill-nya."
+      ]
+    },
+    {
+      "name": "Berkas logo ditolak",
+      "trigger": "Pada langkah 6, berkas logo bukan gambar sebenarnya, bukan jpg/jpeg/png, atau melebihi 2MB.",
+      "steps": [
+        "System menampilkan pesan di dekat field logo.",
+        "Modal tetap terbuka dan seluruh field lain yang sudah diisi tetap terisi, sehingga satu berkas salah tidak membuang pekerjaan mengisi form.",
+        "Tidak ada data yang tersimpan."
+      ]
+    },
+    {
+      "name": "Induk diubah sebelum menyimpan",
+      "trigger": "Pada langkah 4, Admin mengubah pilihan induk yang sudah terisi otomatis pada langkah 3.",
+      "steps": [
+        "System menerima perubahan itu.",
+        "Entitas tersimpan di bawah induk yang akhirnya dipilih, bukan induk kartu tempat tombol ditekan."
+      ]
+    },
+    {
+      "name": "Membatalkan modal",
+      "trigger": "Pada langkah 4 atau 5, Admin menutup modal tanpa menyimpan.",
+      "steps": [
+        "Tidak ada data yang tersimpan.",
+        "Halaman kembali seperti sebelum modal dibuka, dan angka ringkasan tidak berubah."
+      ]
+    },
+    {
+      "name": "Belum ada calon induk",
+      "trigger": "Pada langkah 1, Admin menambah Company / mill / Production Line padahal belum ada satu pun calon induknya.",
+      "steps": [
+        "System menyatakan bahwa induknya harus dibuat lebih dulu dan menunjukkan tingkat mana yang dimaksud.",
+        "System tidak menampilkan form dengan pilihan induk yang kosong tanpa penjelasan."
+      ]
+    }
+  ],
+  "postconditions": [
+    "Satu entitas baru tersimpan pada tingkat yang dimaksud, di bawah induk yang dipilih.",
+    "Entitas itu terlihat di tempatnya pada halaman, dan seluruh angka jumlah pada halaman sudah dihitung ulang."
+  ],
+  "business_rules": [
+    "Aturan validasi penambahan di halaman ini SAMA PERSIS dengan aturan di layar Kelola masing-masing; halaman ini tidak boleh punya aturan sendiri.",
+    "Field wajib: Corporate butuh kode dan nama; Company butuh Corporate induk, kode, dan nama; mill butuh Company induk, kode, dan nama; Production Line butuh mill induk dan nama.",
+    "Kode harus unik di dalam jenisnya. Kode Production Line opsional, tetapi bila diisi tetap harus unik.",
+    "Induk yang terisi otomatis tetap terlihat dan tetap dapat diubah — tidak dikunci dan tidak disembunyikan.",
+    "Logo opsional: jpg/jpeg/png maksimal 2MB dan harus benar-benar gambar.",
+    "Hanya Admin yang dapat melakukan penambahan ini.",
+    "Sesudah berhasil, angka ringkasan dan jumlah anak per kartu dihitung ulang, tidak memakai nilai sebelum aksi."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — berhasil",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan calon induk untuk tingkat yang dituju sudah tersedia (Corporate untuk Company, Company untuk mill, mill untuk Production Line)",
+      "when": "Admin menekan tombol tambah untuk tingkat yang dimaksud, mengisi seluruh field wajib pada form di dalam modal, lalu menekan Simpan",
+      "then": "Satu entitas baru tersimpan pada tingkat itu di bawah induk yang dipilih, modal tertutup dengan konfirmasi singkat, entitas baru langsung terlihat di tempatnya (kartu baru di papan, baris baru di dalam kartu induknya, atau baris baru di bagian ringkas), dan seluruh angka jumlah pada halaman dihitung ulang"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — Field wajib kosong",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan calon induk untuk tingkat yang dituju sudah tersedia",
+      "when": "Admin menekan Simpan padahal salah satu field wajib belum diisi",
+      "then": "Pesan validasi muncul tepat di bawah field yang bersangkutan, modal tetap terbuka dengan seluruh isian lain tetap utuh, dan tidak ada data yang tersimpan"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — Kode sudah dipakai",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan sudah ada entitas lain berjenis sama yang memakai kode tersebut",
+      "when": "Admin mengisi kode yang sudah dipakai entitas lain berjenis sama lalu menekan Simpan",
+      "then": "Pesan bahwa kode itu sudah dipakai muncul di bawah field kode, modal tetap terbuka dengan isian lain utuh, dan tidak ada data yang tersimpan"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — Kode Production Line dibiarkan kosong",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan setidaknya satu mill sudah ada sebagai calon induk",
+      "when": "Admin menambah Production Line dengan hanya mengisi mill induk dan nama, tanpa mengisi kode, lalu menekan Simpan",
+      "then": "Penambahan diterima karena kode Production Line bersifat opsional, line tersimpan tanpa kode, dan barisnya tetap tampil di dalam kartu mill-nya"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — Berkas logo ditolak",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan sedang menambah Corporate / Company / mill yang mendukung logo",
+      "when": "Admin memilih berkas logo yang bukan gambar sebenarnya, bukan jpg/jpeg/png, atau melebihi 2MB, lalu menekan Simpan",
+      "then": "Pesan penolakan muncul di dekat field logo, modal tetap terbuka dan seluruh field lain yang sudah diisi tetap terisi sehingga pekerjaan mengisi form tidak terbuang, dan tidak ada data yang tersimpan"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — Induk diubah sebelum menyimpan",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan membuka form tambah dari dalam kartu induk tertentu sehingga pilihan induk sudah terisi otomatis",
+      "when": "Admin mengubah pilihan induk yang terisi otomatis itu ke induk lain, lalu menekan Simpan",
+      "then": "Perubahan diterima dan entitas tersimpan di bawah induk yang akhirnya dipilih, bukan di bawah induk kartu tempat tombol tambah ditekan"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — Membatalkan modal",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan modal tambah sudah terbuka dengan sebagian field terisi",
+      "when": "Admin menutup modal tanpa menekan Simpan",
+      "then": "Tidak ada data yang tersimpan, halaman kembali seperti sebelum modal dibuka, dan seluruh angka ringkasan tidak berubah"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — Belum ada calon induk",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan belum ada satu pun calon induk untuk tingkat yang akan ditambah",
+      "when": "Admin menekan tombol tambah untuk Company / mill / Production Line padahal tingkat induknya masih kosong",
+      "then": "System menyatakan bahwa induknya harus dibuat lebih dulu dan menunjukkan tingkat mana yang dimaksud, dan tidak menampilkan form dengan pilihan induk kosong tanpa penjelasan"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — induk wajib tidak dipilih",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan sudah ada Corporate sebagai calon induk",
+      "when": "Admin menambah Company dengan mengisi kode dan nama tetapi tidak memilih Corporate induk, lalu menekan Simpan",
+      "then": "Pesan validasi muncul pada pilihan Corporate induk karena induk termasuk field wajib pada tingkat itu, modal tetap terbuka dengan isian lain utuh, dan tidak ada data yang tersimpan"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — kode Production Line diisi tetapi sudah dipakai",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan sudah ada Production Line lain yang memakai kode tersebut",
+      "when": "Admin menambah Production Line dan mengisi kode dengan nilai yang sudah dipakai Production Line lain, lalu menekan Simpan",
+      "then": "Penambahan ditolak dengan pesan bahwa kode itu sudah dipakai, karena kode Production Line memang opsional tetapi bila diisi tetap harus unik di dalam jenisnya, dan tidak ada data yang tersimpan"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — induk terisi otomatis tidak boleh dikunci atau disembunyikan",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan sedang melihat kartu sebuah mill",
+      "when": "Admin menekan '+ Line' di dalam kartu mill tersebut",
+      "then": "Modal terbuka dengan pilihan mill induk sudah terisi oleh mill itu, dan pilihan tersebut tetap terlihat serta tetap dapat diubah — tidak dikunci dan tidak disembunyikan"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — logo tidak diisi",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan sedang menambah Corporate / Company / mill",
+      "when": "Admin mengisi seluruh field wajib tanpa memilih berkas logo, lalu menekan Simpan",
+      "then": "Entitas tersimpan tanpa logo karena logo bersifat opsional, dan entitas baru tetap terlihat di tempatnya pada halaman"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — peran selain Admin tidak boleh menambah",
+      "given": "Pengguna dengan peran Station Operator, Supervisor, atau Mill Management sudah login dan mengakses halaman Master Data",
+      "when": "Pengguna tersebut mencoba membuka form tambah entitas atau mengirim penambahan pada salah satu tingkat hierarki",
+      "then": "Penambahan ditolak karena hanya Admin yang berhak melakukannya, tombol tambah tidak tersedia bagi peran tersebut, dan tidak ada entitas baru yang tersimpan"
+    },
+    {
+      "scenario": "Tambah Entitas Hierarki Master Data — angka jumlah dihitung ulang setelah berhasil",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan kartu mill tujuan sudah menampilkan jumlah anak serta baris ringkasan jumlah dengan nilai tertentu",
+      "when": "Admin menambah satu Production Line baru di dalam kartu mill itu dan penambahan berhasil",
+      "then": "Jumlah anak pada kartu mill dan baris ringkasan jumlah pada halaman dihitung ulang sehingga mencerminkan keadaan sesudah penambahan, bukan menampilkan nilai sebelum aksi"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-127--master-data-tree-view"
+  ]
+}

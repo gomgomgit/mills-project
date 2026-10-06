@@ -1,0 +1,199 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "usecase-158--ubah-entitas-hierarki-master-data",
+  "name": "Ubah Entitas Hierarki Master Data",
+  "description": "Admin mengubah satu entitas yang sudah ada pada salah satu dari empat tingkat hierarki — Corporate, Company, Business Unit (mill), atau Production Line — langsung dari halaman Master Data, lewat modal yang sudah terisi nilainya sekarang. Pilihan induk ikut terisi dan ikut dapat diubah, sehingga MEMINDAHKAN entitas ke induk lain dilakukan di form yang sama, bukan di tempat terpisah. Aturan validasinya sama persis dengan yang berlaku di layar Kelola masing-masing.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login dan membuka halaman Master Data.",
+    "Entitas yang akan diubah masih ada."
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Menekan aksi ubah pada entitas yang dimaksud: pada kartu mill, pada baris Production Line di dalam kartu, atau pada baris di bagian ringkas Corporate / Company."
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Membuka modal berisi form tingkat itu, SUDAH TERISI seluruh nilainya sekarang, termasuk pilihan induknya dan keterangan logo yang sedang dipakai bila ada."
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Mengubah field yang perlu diubah; dapat pula mengubah pilihan induk untuk memindahkan entitas, dan dapat mengganti logo."
+    },
+    {
+      "step": 4,
+      "actor": "actor-admin",
+      "description": "Menekan Simpan."
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi masukan dengan aturan yang sama seperti layar Kelola: field wajib tetap terisi, kode tetap unik di dalam jenisnya (kode entitas itu sendiri tidak dihitung sebagai bentrok dengan dirinya), induk yang dipilih benar-benar ada, dan logo baru berupa gambar jpg/jpeg/png maksimal 2MB."
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menyimpan perubahan."
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Menutup modal, menampilkan konfirmasi singkat, menampilkan nilai barunya di tempatnya, dan MENGHITUNG ULANG baris ringkasan jumlah serta jumlah anak per kartu — karena memindahkan entitas mengubah jumlah pada DUA induk sekaligus, yang lama dan yang baru."
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Memindahkan entitas ke induk lain",
+      "trigger": "Pada langkah 3, Admin mengubah pilihan induk.",
+      "steps": [
+        "System menyimpan entitas di bawah induk yang baru.",
+        "Entitas itu berpindah tempat di halaman: baris Production Line pindah ke kartu mill yang baru, atau kartu mill berubah breadcrumb 'corporate > company'-nya.",
+        "Jumlah anak pada induk LAMA dan induk BARU keduanya dihitung ulang."
+      ]
+    },
+    {
+      "name": "Field wajib dikosongkan",
+      "trigger": "Pada langkah 5, Admin mengosongkan field yang wajib.",
+      "steps": [
+        "System menampilkan pesan validasi langsung di bawah field yang bersangkutan.",
+        "Modal tetap terbuka, perubahan belum tersimpan, dan nilai lama di basis data tidak berubah."
+      ]
+    },
+    {
+      "name": "Kode diubah menjadi kode yang sudah dipakai",
+      "trigger": "Pada langkah 5, kode baru sudah dipakai entitas lain berjenis sama.",
+      "steps": [
+        "System menampilkan pesan bahwa kode itu sudah dipakai, di bawah field kode.",
+        "Modal tetap terbuka dan nilai lama tidak berubah."
+      ]
+    },
+    {
+      "name": "Kode disimpan apa adanya tanpa diubah",
+      "trigger": "Pada langkah 5, Admin menyimpan tanpa mengubah kode.",
+      "steps": [
+        "System TIDAK menganggap kode itu bentrok dengan dirinya sendiri.",
+        "Perubahan tersimpan normal."
+      ]
+    },
+    {
+      "name": "Logo baru ditolak",
+      "trigger": "Pada langkah 5, berkas logo baru bukan gambar sebenarnya, bukan jpg/jpeg/png, atau melebihi 2MB.",
+      "steps": [
+        "System menampilkan pesan di dekat field logo.",
+        "Modal tetap terbuka, seluruh perubahan field lain tetap ada di form, dan logo lama tetap terpakai."
+      ]
+    },
+    {
+      "name": "Entitas sudah dihapus Admin lain",
+      "trigger": "Pada langkah 1 atau 5, entitas itu ternyata sudah dihapus di sesi atau tab lain.",
+      "steps": [
+        "System memberi tahu bahwa datanya sudah tidak ada, dengan kalimat yang dapat dimengerti, bukan galat teknis.",
+        "Halaman menyegarkan dirinya sehingga entitas yang hilang itu tidak lagi tampil."
+      ]
+    },
+    {
+      "name": "Dua Admin mengubah satu entitas hampir bersamaan",
+      "trigger": "Pada langkah 6, Admin lain baru saja menyimpan perubahan atas entitas yang sama.",
+      "steps": [
+        "Tulisan terakhir yang menang, konsisten dengan perilaku keempat layar Kelola.",
+        "Halaman ini tidak memperkenalkan penguncian yang tidak ada di tempat lain."
+      ]
+    },
+    {
+      "name": "Membatalkan modal",
+      "trigger": "Pada langkah 3 atau 4, Admin menutup modal tanpa menyimpan.",
+      "steps": [
+        "Tidak ada perubahan yang tersimpan.",
+        "Halaman kembali seperti sebelum modal dibuka."
+      ]
+    }
+  ],
+  "postconditions": [
+    "Entitas tersimpan dengan nilai barunya, di bawah induk yang akhirnya dipilih.",
+    "Halaman menampilkan nilai baru itu, dan seluruh angka jumlah yang terpengaruh sudah dihitung ulang."
+  ],
+  "business_rules": [
+    "Aturan validasi perubahan di halaman ini SAMA PERSIS dengan aturan di layar Kelola masing-masing.",
+    "Kode tetap harus unik di dalam jenisnya, dan kode entitas itu sendiri tidak dihitung bentrok dengan dirinya.",
+    "Pilihan induk ikut terisi dan ikut dapat diubah — memindahkan entitas adalah bagian dari mengubahnya, bukan aksi terpisah.",
+    "Memindahkan entitas mengubah jumlah pada dua induk sekaligus, dan keduanya harus dihitung ulang.",
+    "Logo opsional: jpg/jpeg/png maksimal 2MB dan harus benar-benar gambar; logo baru yang ditolak tidak boleh menghapus logo lama.",
+    "Hanya Admin yang dapat melakukan perubahan ini.",
+    "Tulisan terakhir yang menang bila dua Admin mengubah bersamaan — tanpa penguncian baru yang tidak ada di layar Kelola."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Ubah Entitas Hierarki Master Data — berhasil",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas pada salah satu dari empat tingkat hierarki (Corporate, Company, Business Unit/mill, atau Production Line) yang akan diubah masih ada",
+      "when": "Admin menekan aksi ubah pada entitas itu, modal terbuka sudah terisi seluruh nilai sekarang termasuk pilihan induk dan keterangan logo yang dipakai, lalu Admin mengubah field yang perlu dan menekan Simpan dengan masukan yang lolos seluruh validasi layar Kelola",
+      "then": "Perubahan tersimpan dengan nilai barunya di bawah induk yang akhirnya dipilih, modal tertutup dengan konfirmasi singkat, nilai baru tampil di tempatnya, dan baris ringkasan jumlah serta jumlah anak per kartu dihitung ulang"
+    },
+    {
+      "scenario": "Ubah Entitas Hierarki Master Data — Memindahkan entitas ke induk lain",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas yang akan diubah masih ada",
+      "when": "Pada form ubah, Admin mengubah pilihan induk entitas lalu menyimpan",
+      "then": "Entitas tersimpan di bawah induk yang baru dan berpindah tempat di halaman — baris Production Line pindah ke kartu mill yang baru, atau kartu mill berubah breadcrumb 'corporate > company'-nya — serta jumlah anak pada induk LAMA dan induk BARU keduanya dihitung ulang"
+    },
+    {
+      "scenario": "Ubah Entitas Hierarki Master Data — Field wajib dikosongkan",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas yang akan diubah masih ada",
+      "when": "Admin mengosongkan field yang wajib pada form ubah lalu menekan Simpan",
+      "then": "System menampilkan pesan validasi langsung di bawah field yang bersangkutan, modal tetap terbuka, perubahan belum tersimpan, dan nilai lama di basis data tidak berubah"
+    },
+    {
+      "scenario": "Ubah Entitas Hierarki Master Data — Kode diubah menjadi kode yang sudah dipakai",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas yang akan diubah masih ada",
+      "when": "Admin mengubah kode entitas menjadi kode yang sudah dipakai entitas lain berjenis sama lalu menekan Simpan",
+      "then": "System menampilkan pesan bahwa kode itu sudah dipakai di bawah field kode, modal tetap terbuka, dan nilai lama tidak berubah"
+    },
+    {
+      "scenario": "Ubah Entitas Hierarki Master Data — Kode disimpan apa adanya tanpa diubah",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas yang akan diubah masih ada",
+      "when": "Admin mengubah field lain tetapi menyimpan tanpa mengubah kode entitas",
+      "then": "System TIDAK menganggap kode itu bentrok dengan dirinya sendiri dan perubahan tersimpan normal"
+    },
+    {
+      "scenario": "Ubah Entitas Hierarki Master Data — Logo baru ditolak",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas yang akan diubah masih ada serta sudah memiliki logo lama",
+      "when": "Admin mengganti logo dengan berkas yang bukan gambar sebenarnya, bukan jpg/jpeg/png, atau melebihi 2MB lalu menekan Simpan",
+      "then": "System menampilkan pesan di dekat field logo, modal tetap terbuka, seluruh perubahan field lain tetap ada di form, dan logo lama tetap terpakai"
+    },
+    {
+      "scenario": "Ubah Entitas Hierarki Master Data — Entitas sudah dihapus Admin lain",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas itu masih tampil di halaman yang terbuka",
+      "when": "Admin menekan aksi ubah atau menekan Simpan padahal entitas itu sudah dihapus di sesi atau tab lain",
+      "then": "System memberi tahu bahwa datanya sudah tidak ada dengan kalimat yang dapat dimengerti — bukan galat teknis — dan halaman menyegarkan dirinya sehingga entitas yang hilang tidak lagi tampil"
+    },
+    {
+      "scenario": "Ubah Entitas Hierarki Master Data — Dua Admin mengubah satu entitas hampir bersamaan",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas yang akan diubah masih ada",
+      "when": "Admin menyimpan perubahan atas entitas yang perubahan lain atas entitas sama baru saja disimpan Admin lain",
+      "then": "Tulisan terakhir yang menang, konsisten dengan perilaku keempat layar Kelola, dan halaman ini tidak memperkenalkan penguncian yang tidak ada di tempat lain"
+    },
+    {
+      "scenario": "Ubah Entitas Hierarki Master Data — Membatalkan modal",
+      "given": "Admin sudah login dan membuka halaman Master Data, dan entitas yang akan diubah masih ada",
+      "when": "Admin sudah mengubah beberapa field lalu menutup modal tanpa menyimpan",
+      "then": "Tidak ada perubahan yang tersimpan dan halaman kembali seperti sebelum modal dibuka"
+    },
+    {
+      "scenario": "Ubah Entitas Hierarki Master Data — hanya Admin yang boleh mengubah",
+      "given": "Halaman Master Data berisi entitas hierarki yang dapat diubah, dan pengguna yang login berperan Station Operator, Supervisor, atau Mill Management",
+      "when": "Pengguna non-Admin mencoba membuka form ubah atau mengirimkan perubahan atas salah satu entitas hierarki",
+      "then": "System menolak percobaan itu — aksi ubah tidak tersedia bagi perannya dan pengiriman perubahan ditolak sebagai tidak berwenang — serta entitas tidak berubah sama sekali"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-127--master-data-tree-view"
+  ]
+}

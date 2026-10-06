@@ -1,61 +1,154 @@
 {
-  "ver": 1,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-02"
+    "updated_at": "2026-10-06"
   },
   "id": "screen-127--master-data-tree-view",
-  "name": "Master Data Tree View",
+  "name": "Struktur Mills",
   "module_id": "module-master-data",
-  "description": "Halaman read-only untuk Admin melihat hierarki Corporate → Company → Business Unit → Production Line sebagai pohon yang bisa di-expand/collapse. Klik sebuah node menavigasi ke screen Kelola terkait (Kelola Company/Business Unit/Production Line), pre-filtered ke induk node tersebut. Tidak ada CRUD di screen ini — murni alat bantu navigasi/eksplorasi data master, melengkapi 4 screen Kelola yang sudah ada (Corporate, Company, Business Unit, Production Line) tanpa mengubah cara kerjanya.",
+  "description": "REVAMP 2026-10-06. Satu halaman tempat Admin melihat SELURUH hierarki master data sekaligus dan mengelolanya langsung di tempat. Menggantikan pohon read-only yang sebelumnya menempati layar ini.\n\nCAKUPANNYA TIDAK BERUBAH: Corporate -> Company -> Business Unit (mill) -> Production Line. Station, Machinery Group, dan Machinery TETAP di luar layar ini dan tetap dikelola di layar Kelola masing-masing. Yang berubah adalah BENTUK dan KEMAMPUANNYA.\n\nBENTUKNYA: PAPAN KARTU PER MILL. Mill adalah unit operasional tempat segala hal lain bergantung — stasiun, periode pelaporan, pengguna non-Admin, dan seluruh record produksi semuanya menggantung padanya — jadi mill yang menjadi kartu utama, bukan Corporate. Tiap kartu mill membawa logo mill bila ada, namanya, kodenya, jejak induknya sebagai breadcrumb kecil 'corporate > company', dan SELURUH production line-nya sebagai baris di dalam kartu itu. Jadi satu kartu menjawab pertanyaan yang sebelumnya menuntut tiga kali expand: mill ini milik siapa, dan berisi line apa saja.\n\nKENAPA BUKAN POHON LAGI. Bukan karena pohon itu jelek, tetapi karena pohon memaksa pekerjaan yang tidak perlu pada data sebesar ini: seluruh hierarkinya hari ini 20 baris (3 Corporate, 4 Company, 5 mill, 8 Production Line), dan 20 baris memang muat seluruhnya di satu layar tanpa satu pun klik. Pohon membuat Admin membuka tiga tingkat hanya untuk melihat apa yang sejak awal bisa ditampilkan utuh. Karena itu halaman ini TIDAK memakai lipat/buka dan TIDAK memakai paginasi: seluruh data tampil apa adanya, dan kotak penyaring ada sebagai alat MEMPERSEMPIT, bukan sebagai prasyarat untuk melihat.\n\nCORPORATE DAN COMPANY TIDAK DIBUANG. Pada tata letak yang berpusat pada mill, keduanya mudah sekali menjadi warga kelas dua — dan kalau dibiarkan, satu-satunya cara mengelolanya adalah pindah halaman. Karena itu di bawah papan kartu ada satu bagian ringkas tersendiri untuk Corporate dan Company, lengkap dengan tambah/ubah/hapus, bukan sekadar tautan ke layar lain. Termasuk Corporate yang belum punya Company dan Company yang belum punya mill: keduanya tidak muncul di papan kartu mill mana pun, jadi bagian inilah satu-satunya tempat mereka terlihat.\n\nKEMAMPUANNYA: KELOLA PENUH KEEMPAT TINGKAT. Tambah, ubah, dan hapus Corporate, Company, mill, dan Production Line dilakukan di halaman ini lewat modal. Aturannya bukan aturan baru — sama persis dengan yang berlaku di keempat layar Kelola, termasuk aturan yang menolak penghapusan selama masih ada yang bergantung pada data itu. Keempat layar Kelola TETAP ADA dan tetap dapat dicapai; halaman ini melengkapinya untuk pekerjaan sehari-hari yang menyentuh beberapa tingkat sekaligus, bukan menggantikannya.\n\nPENOLAKAN DITAMPILKAN APA ADANYA. Ketika penghapusan ditolak, yang dibaca Admin adalah alasan sebenarnya beserta jumlah penghalangnya ('masih memiliki 3 User, 2 Production Line, 36 Station') — bukan pesan umum 'gagal menghapus'. Pesan umum memaksa Admin menebak apa yang menghalangi, dan menebak di layar master data berarti mencoba menghapus satu per satu sampai ketemu.",
   "actors": [
     "actor-admin"
   ],
   "entry_points": [
-    "Menu sidebar 'Master Data Tree View'"
+    "Menu sidebar Master Data milik Admin, butir berlabel 'Struktur Mills' (menggantikan label lama 'Master Data Tree View'). Butir ini berada DI LUAR grup lipat 'Struktur Organisasi' dan tetap di posisinya sekarang — grup itu berisi keempat layar Kelola per tingkat dan namanya tidak berubah.",
+    "Tautan balik dari keempat layar Kelola (Corporate/Company/Business Unit/Production Line) — supaya Admin yang sedang mengerjakan satu entitas dapat kembali ke gambaran menyeluruh tanpa lewat sidebar"
   ],
   "information_displayed": [
-    "Pohon hierarki 4 level: Corporate → Company → Business Unit → Production Line, tiap node menampilkan nama dan jumlah anak langsung (children count) kecuali Production Line (level daun, tanpa children count)",
-    "Ikon expand/collapse (chevron) pada node yang punya anak; node tanpa anak tidak menampilkan chevron",
-    "Indentasi visual per level untuk menunjukkan kedalaman hierarki"
+    "Baris ringkasan jumlah per tingkat di paling atas — 'N Corporate, N Company, N Mill, N Production Line'. Gunanya bukan hiasan: ia yang membuktikan tidak ada yang disembunyikan halaman ini. Tanpa angka itu, Admin tidak punya cara membedakan 'mill ini memang hanya lima' dari 'sisanya tidak terender'",
+    "Papan kartu mill: satu kartu per Business Unit, berisi logo mill bila ada, nama, kode, breadcrumb kecil 'corporate > company', dan jumlah production line-nya",
+    "Daftar production line DI DALAM tiap kartu mill — satu baris per line, memuat nama, kode bila ada, dan deskripsi ringkas bila ada",
+    "Mill yang belum punya satu pun production line tetap merender kartunya dengan keterangan eksplisit 'belum ada Production Line' — kartu kosong tanpa penjelasan tidak dapat dibedakan dari kartu yang gagal memuat",
+    "Bagian ringkas Corporate: nama, kode, dan jumlah Company miliknya — termasuk Corporate yang jumlahnya nol, yang justru tidak akan terlihat di papan kartu mill mana pun",
+    "Bagian ringkas Company: nama, kode, Corporate induknya, dan jumlah mill miliknya — termasuk Company tanpa mill, dengan alasan yang sama",
+    "Satu kotak penyaring teks yang menyaring papan kartu mill DAN kedua bagian ringkas sekaligus, mencocokkan nama maupun kode di keempat tingkat. Mill tetap tampil bila yang cocok adalah salah satu line di dalamnya, dan line yang cocok ditandai — kalau tidak, penyaring akan menyembunyikan justru hal yang dicari",
+    "Keterangan tetap bahwa hierarki halaman ini berhenti di Production Line, dan bahwa Station, Machinery Group, serta Machinery dikelola di layarnya sendiri — dengan tautan ke sana. Ketiadaan yang tidak dijelaskan terbaca sebagai data yang hilang, bukan sebagai batas yang disengaja",
+    "Keadaan kosong per bagian, bukan satu keadaan kosong untuk seluruh halaman — 'belum ada mill' dan 'belum ada Corporate' adalah dua keadaan berbeda yang menuntut tindakan berbeda",
+    "Pesan hasil setiap aksi: konfirmasi singkat saat berhasil, dan saat gagal pesan penolakan dari aturannya sendiri APA ADANYA, termasuk jumlah penghalang yang disebutkannya",
+    "Kontrol paginasi pada papan kartu dan pada kedua daftar ringkas — TETAPI hanya dirender ketika isinya benar-benar melebihi satu halaman. Pada volume sekarang tidak ada satu pun kontrol paginasi yang muncul. Keterangan posisi halaman menyebut jumlah total ('menampilkan 1-20 dari 34 mill') supaya angka yang terlihat tidak pernah tertukar dengan angka yang ada."
   ],
   "available_actions": [
     {
-      "action": "Expand/collapse node",
-      "description": "Menampilkan atau menyembunyikan anak node secara in-place tanpa pindah halaman",
+      "action": "Tambah Mill (Business Unit)",
+      "description": "Membuka form kosong untuk mill baru. Company induknya dipilih di dalam form. Mill tersimpan muncul sebagai kartu baru di papan tanpa Admin perlu memuat ulang halaman.",
       "actor_ids": [
         "actor-admin"
       ]
     },
     {
-      "action": "Klik nama node Company/Business Unit/Production Line",
-      "description": "Navigasi ke screen Kelola terkait (Kelola Company/Business Unit/Production Line), dengan filter induk node tersebut sudah otomatis diterapkan (mis. klik node Company X → Kelola Business Unit terfilter ke Company X)",
+      "action": "Ubah Mill",
+      "description": "Membuka form mill terpilih dengan nilainya sekarang terisi, termasuk Company induknya — jadi memindahkan mill ke Company lain dilakukan di form yang sama, bukan di tempat terpisah.",
       "actor_ids": [
         "actor-admin"
       ]
     },
     {
-      "action": "Klik nama node Corporate",
-      "description": "Navigasi ke Kelola Corporate tanpa filter (Corporate adalah root hierarki)",
+      "action": "Hapus Mill",
+      "description": "Meminta konfirmasi, lalu menghapus mill. Ditolak selama mill itu masih punya pengguna, production line, stasiun, atau periode pelaporan — penolakannya menyebutkan jumlah masing-masing.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Production Line dari dalam kartu mill",
+      "description": "Membuka form line baru dengan mill pemilik kartu itu SUDAH terpilih sebagai induknya, sehingga Admin tidak perlu memilih ulang sesuatu yang sudah jelas dari tempat ia menekan tombolnya. Pilihan induk itu tetap terlihat dan tetap dapat diubah, bukan terkunci.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ubah Production Line",
+      "description": "Membuka form line terpilih dengan nilainya sekarang terisi, termasuk mill induknya — jadi memindahkan line ke mill lain dilakukan di form yang sama.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus Production Line",
+      "description": "Meminta konfirmasi, lalu menghapus line beserta stasiun miliknya. Ditolak selama stasiun-stasiun itu masih punya record produksi, machinery group, atau machinery — penolakannya menyebutkan jumlah masing-masing.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah / Ubah / Hapus Corporate",
+      "description": "Dilakukan dari bagian ringkas Corporate di bawah papan kartu. Penghapusan ditolak selama Corporate itu masih punya Company.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah / Ubah / Hapus Company",
+      "description": "Dilakukan dari bagian ringkas Company di bawah papan kartu; Corporate induknya dipilih di dalam form. Penghapusan ditolak selama Company itu masih punya Business Unit.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Saring hierarki dengan kata kunci",
+      "description": "Mempersempit papan kartu dan kedua bagian ringkas sekaligus berdasarkan nama atau kode di keempat tingkat. Mengosongkan kotaknya memulihkan tampilan utuh — penyaring tidak pernah menjadi satu-satunya jalan melihat data.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka layar Kelola terkait",
+      "description": "Menavigasi ke layar Kelola Corporate/Company/Business Unit/Production Line untuk pekerjaan yang memang milik layar itu — penelusuran daftar panjang, kolom yang tidak ditampilkan di sini, dan unggah logo berulang. Satu-satunya kemampuan layar lama yang dipertahankan apa adanya.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka layar Kelola Station / Machinery",
+      "description": "Menavigasi keluar dari batas hierarki halaman ini, dari keterangan batas yang selalu tampil — supaya tingkat yang sengaja tidak ditampilkan di sini tetap punya jalan yang jelas, bukan jalan buntu.",
       "actor_ids": [
         "actor-admin"
       ]
     }
   ],
   "business_rules": [
-    "Hierarki yang ditampilkan berhenti di Production Line — Station, Machinery Group, dan Machinery TIDAK ditampilkan sebagai node di pohon ini; entitas tersebut tetap dikelola lewat screen Kelola masing-masing seperti biasa",
-    "Screen ini murni read-only navigasi — tidak ada create/update/delete data master di screen ini",
-    "Klik node Company/Business Unit/Production Line menavigasi ke screen Kelola terkait dengan filter induk node tersebut sudah diterapkan via query string, memakai filter yang sudah ada di screen Kelola tujuan (filterCorporateId/filterCompanyId/filterBusinessUnitId) — bukan filter baru",
-    "Klik node Corporate menavigasi ke Kelola Corporate tanpa filter, karena Corporate adalah level teratas hierarki",
-    "Hanya Admin yang dapat mengakses screen ini, sama seperti 7 screen master data lainnya (Kelola Corporate/Company/Business Unit/Production Line/Station/Machinery Group/Machinery)"
+    "Hierarki yang ditampilkan dan dikelola di halaman ini berhenti di Production Line. Station, Machinery Group, dan Machinery TIDAK muncul sebagai apa pun di sini dan tidak dapat diubah dari sini; keduanya tetap dikelola di layar Kelola masing-masing. Batas ini TIDAK berubah dari versi sebelumnya — yang berubah hanya bentuk dan kemampuan di dalam batas itu.",
+    "Hanya Admin yang dapat membuka halaman ini, sama seperti seluruh layar master data lainnya. Peran lain tidak melihat menunya dan tidak dapat mencapainya lewat alamat langsung.",
+    "Aturan menambah dan mengubah di halaman ini SAMA PERSIS dengan aturan di keempat layar Kelola — bukan versi yang lebih longgar maupun lebih ketat. Satu data master tidak boleh punya dua definisi 'sah' tergantung dari layar mana ia ditulis. Yang menjadi OTORITAS adalah aturan di lapisan service; halaman boleh mencerminkan aturan itu di lapisan antarmuka hanya supaya pesan galat muncul tepat di bawah field yang salah, dan pencerminan itu tidak boleh menjadi sumber aturan tandingan. Bila keduanya berbeda, yang benar adalah service, dan selisihnya diperlakukan sebagai cacat yang harus diperbaiki — bukan sebagai dua aturan yang sama-sama berlaku. KOREKSI 2026-10-06: butir ini semula berbunyi 'halaman ini tidak boleh memiliki aturan validasinya sendiri', dan itu terlalu absolut — keempat layar Kelola yang sudah ada memang mencerminkan aturannya di lapisan komponen (KelolaCorporate/Company/BusinessUnit lewat rules(), KelolaProductionLine lewat buildValidator()) lalu service memvalidasi ulang. Pola dua lapis itu disengaja, jadi aturan ini diperjelas alih-alih memaksa layar baru melanggarnya.",
+    "PENGHAPUSAN DITOLAK SELAMA MASIH ADA YANG BERGANTUNG, di keempat tingkat: Corporate yang masih punya Company, Company yang masih punya Business Unit, mill yang masih punya pengguna / production line / stasiun / periode pelaporan, dan Production Line yang stasiunnya masih punya record produksi / machinery group / machinery. Penghapusan berantai yang merusak tidak mungkin terjadi lewat halaman ini.",
+    "Pesan penolakan penghapusan ditampilkan APA ADANYA, termasuk jumlah penghalang yang disebutkannya. Halaman ini tidak boleh menggantinya dengan pesan umum: Admin yang hanya diberi tahu 'gagal menghapus' akan mencoba menghapus satu per satu untuk menemukan penghalangnya, dan itu pekerjaan yang pesan aslinya sudah selesaikan.",
+    "Field wajib per tingkat: Corporate butuh kode dan nama; Company butuh Corporate induk, kode, dan nama; mill butuh Company induk, kode, dan nama; Production Line butuh mill induk dan nama. Sisanya opsional.",
+    "Kode harus unik di dalam jenisnya masing-masing. Kode Production Line opsional, tetapi bila diisi tetap harus unik — kosong dan 'sudah dipakai' adalah dua hal berbeda.",
+    "Ketika menambah anak dari dalam kartu induknya, induk itu SUDAH TERPILIH di form — tetapi tetap terlihat dan tetap dapat diubah, tidak dikunci dan tidak disembunyikan. Mengunci akan membuat satu-satunya cara memperbaiki salah tempat adalah membatalkan lalu mengulang dari kartu yang benar.",
+    "Logo bersifat opsional untuk Corporate, Company, dan mill: berkas gambar jpg/jpeg/png maksimal 2MB yang benar-benar gambar. Mill tanpa logo tetap merender kartunya dengan penanda pengganti, bukan gambar rusak.",
+    "PAGINASI DIPAKAI BILA PERLU, dan hanya bila perlu (keputusan user 2026-10-06). Selama seluruh papan masih muat, papan tampil utuh tanpa kontrol paginasi apa pun — pada volume sekarang (3 Corporate, 4 Company, 5 mill, 8 Production Line) tidak ada satu pun kontrol paginasi yang dirender. Begitu jumlah mill melewati satu halaman, papan kartu dipaginasi mengikuti pola yang sudah ada di keempat layar Kelola (perPage 20, kontrol halaman berikut/sebelumnya), dan kedua daftar ringkas Corporate serta Company dipaginasi sendiri-sendiri dengan cara yang sama. Production Line TIDAK ikut dipaginasi: ia hidup di dalam kartu mill induknya, dan memotong daftar line di dalam satu kartu akan membuat kartu itu berbohong tentang isi mill-nya — jumlah line per mill yang tercetak di kartu tetap jumlah sebenarnya, bukan jumlah yang terlihat. KOREKSI 2026-10-06: butir ini semula menyatakan 'tanpa paginasi, tanpa lipat/buka' sebagai keputusan sadar dengan ambang tinjau ulang sekitar 50 mill. Ambang itu angka karangan agen, dan user memutuskan paginasi dipakai bila perlu — jadi ambangnya bukan lagi titik untuk meninjau ulang, melainkan titik di mana paginasi mulai bekerja dengan sendirinya. Yang TIDAK berubah: lipat/buka tetap tidak dipakai, karena ia menyembunyikan data yang sudah termuat; paginasi membatasi apa yang DIMUAT, dan itu persoalan lain.",
+    "Corporate dan Company tetap dapat dikelola sepenuhnya dari halaman ini meski tata letaknya berpusat pada mill. Keduanya tidak boleh diturunkan menjadi tautan saja: Corporate tanpa Company dan Company tanpa mill tidak terlihat di papan kartu mana pun, sehingga bagian ringkas itu satu-satunya tempat keduanya ada.",
+    "Keempat layar Kelola tetap hidup dan tetap dapat dicapai. Halaman ini tidak menggantikannya, tidak mengalihkannya, dan tidak mengubah perilakunya.",
+    "Sesudah satu aksi berhasil, angka ringkasan dan jumlah anak per kartu DIHITUNG ULANG, tidak memakai nilai sebelum aksi. Angka yang basi di halaman master data akan dibaca sebagai keadaan sebenarnya. Angka ringkasan per tingkat SELALU menyatakan total seluruh data — bukan jumlah yang terlihat di halaman yang sedang dibuka, dan bukan jumlah yang lolos penyaring. Justru di halaman berpaginasi hal ini paling menentukan: angka yang ikut mengecil bersama halaman membuat Admin mengira datanya hilang.",
+    "Setiap aksi yang hanya diwakili ikon membawa label yang terbaca pembaca layar maupun tooltip. Ikon pensil dan tempat sampah berulang di tiap baris line dan tiap kartu, jadi tanpa label tidak ada cara mengetahui milik baris yang mana."
   ],
   "usecase_ids": [
-    "usecase-127--master-data-tree-view"
+    "usecase-127--master-data-tree-view",
+    "usecase-157--tambah-entitas-hierarki-master-data",
+    "usecase-158--ubah-entitas-hierarki-master-data",
+    "usecase-159--hapus-entitas-hierarki-master-data"
   ],
   "edge_cases": [
-    "Belum ada data master sama sekali (0 Corporate) → tampilkan pesan kosong, bukan pohon kosong tanpa penjelasan",
-    "Sebuah node tidak punya anak (mis. Corporate tanpa Company, atau Business Unit tanpa Production Line) → node tersebut tidak menampilkan ikon expand/collapse, karena tidak ada yang bisa di-expand"
+    "Belum ada data master sama sekali (nol Corporate) — tiap bagian menyatakan kosongnya sendiri beserta tombol tambahnya, bukan satu halaman kosong. 'Belum ada mill' dan 'belum ada Corporate' menuntut tindakan berbeda, dan satu pesan gabungan tidak memberi tahu harus mulai dari mana.",
+    "Corporate tanpa Company, atau Company tanpa mill — keduanya tidak muncul di papan kartu mill mana pun. Hari ini keadaan itu tidak ada di data, tetapi tercipta pada detik seseorang menambah Corporate baru, yaitu justru langkah pertama alur 'siapkan mill baru'. Bagian ringkas WAJIB menampilkannya, dengan jumlah anak nol yang tertulis.",
+    "Mill tanpa satu pun Production Line — kartunya tetap dirender, dengan keterangan 'belum ada Production Line' dan tombol tambahnya, bukan kartu yang berisi ruang kosong.",
+    "Penghapusan ditolak aturannya — modal konfirmasi tetap terbuka dan menampilkan alasan penolakan beserta jumlah penghalangnya, sehingga Admin dapat langsung menuju penghalang itu. Menutup modal dan menampilkan toast merah akan membuang justru satu-satunya informasi yang berguna.",
+    "Entitas yang sedang dilihat sudah dihapus Admin lain di tab atau sesi lain — aksi ubah/hapus atasnya memberi tahu bahwa datanya sudah tidak ada, lalu halaman menyegarkan dirinya, bukan menampilkan galat teknis.",
+    "Dua Admin mengubah satu entitas hampir bersamaan — tulisan terakhir yang menang, konsisten dengan perilaku keempat layar Kelola; halaman ini tidak memperkenalkan penguncian yang tidak ada di tempat lain.",
+    "Penyaring tidak mencocokkan apa pun — pesan eksplisit 'tidak ada yang cocok dengan ...' beserta cara mengosongkan penyaringnya. Papan kosong tanpa penjelasan di halaman yang jelas-jelas berisi data akan terbaca sebagai halaman rusak.",
+    "Nama atau kode yang sangat panjang — kartu tidak boleh melar atau terpotong di tengah kata sehingga nama dua mill berbeda terbaca sama; nama panjang dipotong dengan penanda dan nama utuhnya tetap dapat dibaca.",
+    "Berkas logo ditolak karena bukan gambar sebenarnya atau melebihi 2MB — pesannya muncul di dekat field logo, modal tetap terbuka, dan seluruh field lain yang sudah diisi tetap terisi. Memulai ulang form karena satu berkas salah adalah kehilangan kerja yang tidak perlu.",
+    "Mill tanpa logo — kartunya memakai penanda pengganti yang konsisten (mis. inisial nama), bukan ikon gambar rusak dan bukan ruang kosong yang membuat kartu terlihat gagal memuat.",
+    "Satu mill memiliki sangat banyak Production Line dibanding mill lain — kartunya tumbuh lebih tinggi daripada tetangganya. Papan harus tetap rapi dalam keadaan itu; tinggi kartu yang tidak seragam adalah keadaan normal, bukan sesuatu yang disamakan dengan memotong daftar line.",
+    "Hasil penyaringan melebihi satu halaman — penyaring bekerja atas SELURUH data lebih dulu, baru hasilnya dipaginasi; bukan menyaring hanya halaman yang sedang terbuka. Menyaring halaman yang terbuka akan membuat kata kunci yang cocok di halaman 3 terbaca sebagai 'tidak ditemukan'.",
+    "Mengubah penyaring saat berada di halaman selain pertama — posisi halaman dikembalikan ke halaman pertama, karena halaman 3 dari hasil lama hampir selalu tidak ada pada hasil baru, dan halaman kosong tanpa penjelasan terbaca sebagai nol hasil.",
+    "Menghapus entri terakhir pada halaman terakhir — posisi halaman mundur satu, bukan berhenti di halaman yang kini kosong."
   ],
-  "test_priority": "low",
-  "open_questions": []
+  "test_priority": "high",
+  "open_questions": [
+    "SELESAI 2026-10-06 — nama layar ditetapkan user: 'Struktur Mills'. Label menu sidebar ikut menjadi 'Struktur Mills', menggantikan 'Master Data Tree View'. ID layar (screen-127--master-data-tree-view) dan rutenya (/master-data/tree-view) TIDAK diubah: keduanya kunci dep-graph dan alamat yang mungkin sudah dibookmark, jadi slug 'tree-view' akan tetap terbaca di URL meski bentuknya bukan pohon lagi — selisih yang disengaja dan dicatat di sini supaya pembaca berikutnya tidak menganggapnya kelalaian. Satu akibat baik dari nama yang dipilih: 'Struktur Mills' TIDAK bertabrakan dengan grup lipat sidebar yang sudah bernama 'Struktur Organisasi' (isinya keempat layar Kelola per tingkat), jadi label grup itu tidak perlu disentuh — nol perubahan pada yang sudah berjalan. Catatan untuk implementasi: mock HTML Phase 2 memakai <h1> 'Master Data', dan itu harus diganti menjadi 'Struktur Mills'.",
+    "APAKAH HALAMAN INI AKHIRNYA MENGGANTIKAN KEEMPAT LAYAR KELOLA. Untuk sekarang keduanya hidup berdampingan sesuai keputusan, dan itu berarti dua antarmuka tulis untuk data yang sama — dua tempat yang harus ikut berubah setiap kali aturan field berubah. Risikonya sudah dikecilkan dengan memakai ulang aturan yang sama, bukan menulis ulang, tetapi biaya perawatannya tetap ada dan sebaiknya ditinjau setelah halaman ini dipakai sebentar.",
+    "TIDAK ADA SATU PUN POLA TIPE LAYAR DI UIUX-SPEC YANG COCOK UTUH. Tata letaknya (grid kartu di atas, tabel ringkas di bawah) mengikuti pola 'dashboard', sementara aksi dan modalnya mengikuti pola 'settings' yang selama ini menampung master data. Perlu diputuskan apakah uiux-spec butuh pola tipe baru — itu pekerjaan Phase 1 dan menyentuh SELURUH layar bertipe sama, jadi tidak diambil sendiri di sini — atau cukup dicatat sebagai gabungan dua pola yang sudah ada."
+  ]
 }

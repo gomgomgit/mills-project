@@ -349,8 +349,32 @@ class CompanyService
     protected function validate(string $corporateId, array $attributes, ?UploadedFile $logo, ?string $excludeId): void
     {
         $codeUniqueRule = UniqueCaseInsensitive::on('companies', 'company_code');
+
+        // PERBAIKAN 2026-10-07 — defek '' -> uuid, KEMUNCULAN KEDUA.
+        //
+        // Yang pertama diperbaiki di KelolaCompany::rules() pada 2026-10-06,
+        // dan saat itu disimpulkan sebagai satu-satunya yang tersisa. Itu
+        // keliru: lapisan komponen hanya CERMIN, dan service inilah yang
+        // berotoritas — ia memvalidasi ulang setiap masukan, termasuk yang
+        // datang dari jalur lain (API, seeder, perintah artisan). Jadi
+        // memperbaiki komponennya saja menutup satu pintu dan meninggalkan
+        // pintu yang sebenarnya.
+        //
+        // $corporateId datang dari trim((string) ($data['corporate_id'] ?? ''))
+        // di create()/update(), jadi '' adalah nilai yang WAJAR, bukan anomali.
+        // companies.corporate_id bertipe uuid, dan PostgreSQL menolak '' dengan
+        // SQLSTATE[22P02] -> HTTP 500. Laravel hanya menghentikan sisa aturan
+        // pada ATRIBUT yang gagal ('corporate_id'), tidak pernah aturan pada
+        // 'name', jadi aturan unik ini tetap dijalankan meski induknya kosong.
+        //
+        // DITEMUKAN OLEH IRISAN PostgreSQL (tests/Postgres/), bukan oleh suite
+        // utama maupun oleh pemindai statis: suite utama berjalan di SQLite
+        // yang menerima '' pada kolom uuid, dan pemindai statis hanya menyisir
+        // app/Livewire/, bukan app/Services/.
         $nameUniqueRule = UniqueCaseInsensitive::on('companies', 'name')
-            ->where(fn ($query) => $query->where('corporate_id', $corporateId));
+            ->where(fn ($query) => $corporateId === ''
+                ? $query->whereRaw('1 = 0')
+                : $query->where('corporate_id', $corporateId));
 
         if ($excludeId !== null) {
             $codeUniqueRule = $codeUniqueRule->ignore($excludeId);

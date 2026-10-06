@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Irisan suite yang berjalan di PostgreSQL, bukan SQLite (2026-10-07).
+
+    KENAPA ADA DUA KONFIGURASI.
+    phpunit.xml memaksa DB_CONNECTION=sqlite dengan DB_DATABASE=:memory: —
+    cepat, tanpa setup, dan itulah sebabnya ia dipakai untuk 5.100+ test.
+    Tetapi produksi memakai PostgreSQL, dan keduanya BERBEDA PERILAKU pada
+    hal-hal yang tidak terlihat dari kode:
+
+      - SQLite MENERIMA perbandingan '' dengan kolom uuid; PostgreSQL
+        menolaknya dengan SQLSTATE[22P02] -> HTTP 500. Satu defek seperti ini
+        hidup di produksi dan lolos dari seluruh suite (Kelola Company,
+        diperbaiki 2026-10-06).
+      - ILIKE hanya ada di PostgreSQL. Kode yang memakainya hijau di produksi
+        dan gagal di suite; kode yang memakai lower()+LIKE aman di keduanya.
+      - LIKE tanpa ESCAPE eksplisit: PostgreSQL berdefault backslash, SQLite
+        TIDAK punya default sama sekali.
+      - '' pada kolom numerik: SQLite menerima, PostgreSQL menolak.
+      - Fungsi tanggal (whereDate dan kawan-kawan) diterjemahkan berbeda.
+
+    Pemindai statis (tests/Feature/EmptyStringUuidComparisonTest.php) menutup
+    SATU dari kelas-kelas itu. Berkas ini menutup sisanya dengan cara yang
+    hanya bisa dilakukan basis data sungguhan: menjalankannya.
+
+    KENAPA IRISAN, BUKAN SELURUH SUITE.
+    Menjalankan 5.100 test di PostgreSQL akan memakan waktu berlipat dan
+    menuntut database untuk setiap pengembang — dan sebagian besarnya tidak
+    pernah menyentuh perbedaan apa pun antara kedua mesin. Yang ada di
+    tests/Postgres/ adalah jalur yang perbedaannya BISA menggigit.
+
+    CARA MENJALANKAN (sekali saja untuk membuat databasenya):
+
+        createdb mill_smart_log_pgtest
+        composer test:pgsql
+
+    DATABASE-NYA TERSENDIRI, dan itu disengaja: bukan mill_smart_log (dev,
+    berisi data kerja) dan bukan mill_smart_log_e2e (dipakai 87 spec browser
+    yang akan saling merusak bila berbagi). tests/Postgres/PostgresGuardTest
+    menolak berjalan bila namanya tidak berakhiran _pgtest.
+
+    Kredensial lain (host, port, user, password) sengaja TIDAK ditulis di sini
+    — ia datang dari .env seperti biasa, sehingga berkas ini aman di-commit
+    dan tetap bekerja di mesin mana pun.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="./vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Postgres">
+            <directory>tests/Postgres</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="CACHE_STORE" value="array"/>
+        <!-- Satu-satunya perbedaan yang menentukan terhadap phpunit.xml. -->
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_DATABASE" value="mill_smart_log_pgtest"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="FILESYSTEM_DISK" value="local"/>
+    </php>
+</phpunit>

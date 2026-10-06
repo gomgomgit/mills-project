@@ -1,5 +1,5 @@
 {
-  "ver": 7,
+  "ver": 8,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-06"
@@ -84,6 +84,10 @@
     },
     {
       "description": "SELESAI 2026-10-06 atas keputusan user. Awalan CSS layar ini diganti dari `md-` menjadi `sm-` di keempat berkas sekaligus (partial CSS, blade, component test, browser spec) — 539 penggantian: 219 + 286 + 12 + 22. Yang diganti bukan hanya nama kelas, melainkan juga CUSTOM PROPERTY (--md-brand, --md-surface, --md-radius-*, dan sembilan lainnya, yang ternyata ikut bertabrakan dengan report-styles) serta nilai data-testid, supaya tidak ada kategori yang tertinggal setengah jalan. Hasil: tabrakan dengan report-styles.blade.php turun dari 9 kelas + 1 custom property menjadi NOL dari 91 kelas dan 13 custom property. Diverifikasi juga pada HASIL COMPILE blade: 107 kelas dipakai markup, seluruhnya terdefinisi — satu-satunya tanpa definisi adalah shell-nav-group-wrap, yang memang disengaja dan sudah berkomentar sejak sebelum sesi ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "SELESAI 2026-10-07 atas keputusan user — irisan suite PostgreSQL, penutup yang sebenarnya untuk celah 'suite buta terhadap divergensi SQLite'. Yang dibuat: phpunit.pgsql.xml (hanya menimpa DB_CONNECTION=pgsql dan DB_DATABASE=mill_smart_log_pgtest; kredensial lain tetap dari .env supaya berkasnya aman di-commit), direktori tests/Postgres/, dan composer script test:pgsql. Database TERSENDIRI dan itu disengaja: bukan mill_smart_log (dev, berisi data kerja) dan bukan mill_smart_log_e2e (dipakai 87 spec browser yang akan saling merusak) — PostgresGuardTest menolak berjalan bila nama database tidak berakhiran _pgtest, bila drivernya ternyata SQLite, dan memverifikasi kolom uuid memang bertipe uuid di sana (di SQLite ia varchar, dan tanpa asersi itu seluruh irisan kehilangan makna). SqliteDivergenceTest menutup empat kelas: '' pada kolom uuid, LIKE tanpa ESCAPE (diuji dengan % DAN _ — _ lebih mudah terlewat karena sering muncul di kode buatan manusia seperti BU_A), lower()+LIKE alih-alih ILIKE, dan whereDate. IRISAN INI LANGSUNG MEMBAYAR DIRINYA: ia menemukan KEMUNCULAN KEDUA defek '' -> uuid di CompanyService::validate() — lapisan yang justru BEROTORITAS, karena ia memvalidasi ulang setiap masukan termasuk dari API dan seeder. Perbaikan 2026-10-06 hanya menyentuh KelolaCompany::rules() (lapisan cermin) dan saat itu disimpulkan sebagai satu-satunya yang tersisa; itu keliru. Pemindai statis tidak melihatnya karena ia hanya menyisir app/Livewire/, bukan app/Services/. Sesudah perbaikan: PG 10/10, SQLite 5114/5114. Penyisiran lanjutan atas seluruh app/ menghasilkan 32 kandidat lain, SELURUHNYA diverifikasi positif palsu — resolveBusinessUnit() di kesebelas report service fail closed dengan ValidationException sebelum query apa pun, dan ScopesToActorMill memakai null, bukan string kosong. Heuristik penyisirnya mencocokkan variabel per-berkas, bukan per-alur; karena itu pemindai statis yang di-commit TIDAK diperluas ke app/Services berdasarkan heuristik senoisy itu — irisan PG inilah yang menutupnya. BATASNYA: irisan ini menguji jalur yang perbedaannya BISA menggigit, bukan seluruh 5.114 test di PostgreSQL; menjalankan semuanya akan menuntut database untuk setiap pengembang dan sebagian besarnya tidak pernah menyentuh perbedaan apa pun. Ia juga tidak berjalan otomatis bersama suite utama — tidak ada CI di repo, jadi penegakannya bergantung pada orang menjalankan composer test:pgsql; itu didokumentasikan di README.",
       "severity": "minor"
     }
   ],

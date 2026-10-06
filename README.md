@@ -123,12 +123,50 @@ dibutuhkan (koneksi database, Sanctum, base URL API, dsb).
 ## Testing
 
 ```bash
-make test                     # backend (Pest/PHPUnit)
+make test                     # backend (Pest/PHPUnit) — SQLite in-memory, 5.100+ test
 cd mobile && npm test              # mobile unit/component (Vitest)
 cd mobile && npm run test:e2e      # mobile browser/e2e (Playwright) — perlu backend (php artisan serve)
                                     # dan mobile dev server (npm run dev) sudah berjalan; baca
                                     # mobile/tests/e2e/helpers.ts untuk pola login/seed yang dipakai
 ```
+
+### Irisan PostgreSQL
+
+Suite utama berjalan di SQLite in-memory — cepat, tanpa setup, dan itulah sebabnya ia dipakai
+untuk 5.100+ test. Tetapi produksi memakai PostgreSQL, dan keduanya **berbeda perilaku** pada
+hal yang tidak terlihat dari kode: SQLite menerima perbandingan `''` dengan kolom `uuid`,
+PostgreSQL menolaknya dengan `SQLSTATE[22P02]` → HTTP 500. `ILIKE` hanya ada di PostgreSQL.
+`LIKE` tanpa `ESCAPE` eksplisit berperilaku lain di masing-masing. `whereDate` diterjemahkan
+berbeda per driver.
+
+Dua defek nyata dari kelas itu pernah hidup di produksi dan lolos dari seluruh suite.
+
+```bash
+createdb mill_smart_log_pgtest     # sekali saja
+cd backend && composer test:pgsql  # irisan PostgreSQL (tests/Postgres/)
+```
+
+Databasenya **tersendiri** dan itu disengaja: bukan `mill_smart_log` (dev, berisi data kerja)
+dan bukan `mill_smart_log_e2e` (dipakai 87 spec browser). `tests/Postgres/PostgresGuardTest`
+menolak berjalan bila namanya tidak berakhiran `_pgtest`, dan juga bila drivernya ternyata
+SQLite — dijalankan dengan konfigurasi yang salah, seluruh irisan ini akan lolos tanpa menguji
+apa pun.
+
+Yang masuk ke `tests/Postgres/` hanyalah jalur yang **perbedaannya bisa menggigit**; sisanya
+tetap di suite utama. Kelas defek `'' → uuid` juga dijaga pemindai statis
+(`tests/Feature/EmptyStringUuidComparisonTest.php`) yang ikut berjalan di suite utama.
+
+### Gerbang cakupan
+
+```bash
+cd backend && composer test:coverage   # gagal bila tidak ada Xdebug/PCOV
+```
+
+`php artisan test --coverage --min=80` **keluar dengan kode 0 dan diam** ketika tidak ada driver
+coverage terpasang — tanpa tabel, tanpa peringatan. Gerbang apa pun yang bersandar padanya
+melaporkan sukses tanpa mengukur apa pun. `composer test:coverage` menjalankan
+`php artisan coverage:gate` lebih dulu, yang menolak keadaan itu dan menjelaskan cara
+memasang drivernya.
 
 ## Deploying
 

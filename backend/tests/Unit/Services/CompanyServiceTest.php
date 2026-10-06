@@ -252,6 +252,17 @@ it('updates a company keeping its own unchanged name without a validation error'
 // unit_test_case 14 (409 branch): delete a company that has related
 // business units -> 409 (not deleted, row still exists after). UNCHANGED
 // by the entity-catalog v4 rework.
+it('menyebut JUMLAH Business Unit pada pesan penolakan, bukan hanya "ada Business Unit terkait"', function () {
+    // Alasannya sama persis dengan CorporateServiceTest: layar merender
+    // getMessage() apa adanya, jadi angka yang tidak ada di sini tidak akan
+    // muncul di mana pun.
+    $company = Company::factory()->create();
+    BusinessUnit::factory()->count(2)->create(['company_id' => $company->id]);
+
+    expect(fn () => $this->service->delete($company->id))
+        ->toThrow(CompanyHasBusinessUnitsException::class, '2 Business Unit');
+});
+
 it('throws a CompanyHasBusinessUnitsException when deleting a company that has related business units', function () {
     $company = Company::factory()->create();
     BusinessUnit::factory()->create(['company_id' => $company->id]);

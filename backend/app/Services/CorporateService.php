@@ -204,8 +204,26 @@ class CorporateService
     {
         $corporate = Corporate::findOrFail($id);
 
-        if ($corporate->companies()->count() > 0) {
-            throw new CorporateHasCompaniesException;
+        // Jumlah penghalang IKUT DISEBUT dalam pesannya (2026-10-06),
+        // menyamakan perilakunya dengan BusinessUnitService::delete() dan
+        // ProductionLineService::delete() yang sudah melakukannya. Pesan
+        // default kelas exception-nya tidak membawa angka, dan layar yang
+        // merendernya menampilkan getMessage() APA ADANYA — jadi tanpa ini
+        // Admin hanya diberi tahu "masih memiliki Company terkait" dan harus
+        // menebak berapa serta yang mana.
+        //
+        // Hanya Company yang dihitung, dan itu memang satu-satunya penghalang
+        // langsung: companies.corporate_id adalah satu-satunya FK yang
+        // menunjuk corporates. Mill di bawahnya TIDAK ikut disebut, karena ia
+        // tidak menghalangi penghapusan ini — begitu Company-nya hilang,
+        // Corporate-nya terhapus.
+        $companyCount = $corporate->companies()->count();
+
+        if ($companyCount > 0) {
+            throw new CorporateHasCompaniesException(
+                "Corporate tidak dapat dihapus karena masih memiliki {$companyCount} Company"
+                .'. Pindahkan atau hapus data tersebut terlebih dahulu.'
+            );
         }
 
         $corporate->delete();

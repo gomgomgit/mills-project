@@ -253,8 +253,19 @@ class CompanyService
     {
         $company = Company::findOrFail($id);
 
-        if (BusinessUnit::where('company_id', $company->id)->count() > 0) {
-            throw new CompanyHasBusinessUnitsException;
+        // Jumlah penghalang IKUT DISEBUT dalam pesannya (2026-10-06) —
+        // alasan dan bentuknya sama persis dengan CorporateService::delete().
+        //
+        // Hanya Business Unit yang dihitung: business_units.company_id adalah
+        // satu-satunya FK yang menunjuk companies. Apa pun di bawah mill tidak
+        // menghalangi penghapusan ini.
+        $businessUnitCount = BusinessUnit::where('company_id', $company->id)->count();
+
+        if ($businessUnitCount > 0) {
+            throw new CompanyHasBusinessUnitsException(
+                "Company tidak dapat dihapus karena masih memiliki {$businessUnitCount} Business Unit"
+                .'. Pindahkan atau hapus data tersebut terlebih dahulu.'
+            );
         }
 
         $company->delete();

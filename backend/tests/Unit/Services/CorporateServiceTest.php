@@ -166,6 +166,24 @@ it('throws a ModelNotFoundException when deleting a non-existent corporate', fun
 // unit_test_case 6: delete a corporate that has related Company rows ->
 // 409 (not deleted, row still exists after). UNCHANGED by the
 // entity-catalog v4 rework.
+it('menyebut JUMLAH Company pada pesan penolakan, bukan hanya "ada Company terkait"', function () {
+    // Business rule screen-127 #5: pesan penolakan ditampilkan apa adanya
+    // beserta jumlah penghalangnya. Layar merender getMessage() tanpa
+    // menyusun ulang kalimatnya, jadi kalau angkanya tidak ada di sini, tidak
+    // ada tempat lain yang bisa memunculkannya — Admin hanya diberi tahu
+    // "masih memiliki Company terkait" dan harus menebak berapa.
+    //
+    // Sampai 2026-10-06 service ini melempar exception TANPA argumen sehingga
+    // pesan default-nya yang terpakai, dan default itu tidak membawa angka —
+    // berbeda dari BusinessUnitService dan ProductionLineService yang sudah
+    // menyebutkannya. Dua dari empat penjaga hapus bicara, dua diam.
+    $corporate = Corporate::factory()->create();
+    Company::factory()->count(3)->create(['corporate_id' => $corporate->id]);
+
+    expect(fn () => $this->service->delete($corporate->id))
+        ->toThrow(CorporateHasCompaniesException::class, '3 Company');
+});
+
 it('throws a CorporateHasCompaniesException when deleting a corporate that has related companies', function () {
     $corporate = Corporate::factory()->create();
     Company::factory()->create(['corporate_id' => $corporate->id]);

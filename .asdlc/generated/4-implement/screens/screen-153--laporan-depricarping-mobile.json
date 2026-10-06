@@ -1,0 +1,119 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-153--laporan-depricarping-mobile",
+  "name": "Laporan Depricarping (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/depricarpingReportRepo.ts",
+    "mobile/src/views/LaporanDepricarpingView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/depricarpingReportRepo.spec.ts",
+    "mobile/tests/LaporanDepricarpingView.spec.ts",
+    "mobile/tests/e2e/laporan-depricarping.spec.ts",
+    "mobile/tests/ReportingPilihStasiunView.spec.ts"
+  ],
+  "implementation_notes": [
+    "NOL PERUBAHAN BACKEND — BUKAN KEBETULAN, MELAINKAN HASIL DARI screen-152. Keempat endpoint /api/depricarping-reports/* dipakai ulang apa adanya: rutenya sudah 'role:supervisor,mill_management,admin,operator' sejak hari pertama, guardAccess() sudah menerima Operator, dan cabang TERIKAT MILL pada resolveBusinessUnit() sudah memuatnya. api-index pun tidak berubah — ketiga endpoint data sudah tercatat dengan actor-station-operator pada v72. Berkas backend yang disentuh layar ini: tidak ada. Pola yang terbukti pada pasangan 146/147, 148/149, 150/151; pasangan Weighbridge (143 → 144) harus menambal tiga perubahan sekaligus justru karena layar web-nya dibangun sebelum pasangan mobile-nya diketahui.",
+    "KONSEKUENSI: tidak ada test backend baru dan tidak ada test backend yang berubah arah. Suite backend dijalankan utuh sebagai regresi pada commit screen-152 (5024 lolos), bukan sebagai bukti layar ini.",
+    "TABEL DELAPAN KOLOM MENJADI KARTU, dan itu satu-satunya perubahan bentuk yang disengaja. Pada 390px tabel parameter versi web tidak muat tanpa menggulir mendatar, jadi tiap parameter menjadi kartu bertumpuk: min / rata-rata / maks berdampingan di dalam satu kartu (bukan tiga kartu — ketiganya satu pengukuran dilihat dari tiga sisi), lalu penyebut, lalu ketiga kolom target. Yang TIDAK ikut berubah adalah daftar isinya.",
+    "TUJUH KARTU, BUKAN LIMA seperti pada Threshing dan Pressing mobile — halaman ini memang lebih panjang, dan helper expectSingleColumn() pada spec browser diubah dari toBe(5) menjadi toBe(7) beserta alasannya. Ketujuhnya tetap dirender termasuk yang penyebutnya 0.",
+    "KOLOM AKIBAT OPERASIONAL ADALAH YANG PALING BERISIKO DIBUANG DI LAYAR INI, dan karena itu diuji di tiga lapis: kehadiran data-testid=metric-consequence, teksnya di dalam kartu yang sama (component test), dan teksnya pada kartu di 390px (browser test). Teksnya satu sampai dua kalimat penuh, jadi pada kartu sempit ia memakan ruang terbanyak dari ketiga kolom target. Dirender PENUH, tidak dilipat: melipatnya berarti pembaca harus tahu dulu bahwa ada yang perlu dibuka, dan yang dipertaruhkan adalah informasi yang menentukan parameter mana yang mendesak.",
+    "KETERANGAN STANDAR-BERSAMA LEBIH PENTING DI SINI DARIPADA DI WEB, bukan sama pentingnya — dan itu alasan yang nyata, bukan pengulangan. Di tabel web kedua baris nut silo terpisah oleh garis baris; di kartu mobile keduanya BERTUMPUK LANGSUNG berurutan, sehingga standar '60C - 70C' yang identik muncul dua kali tepat beruntun. Label saudara kolomnya diambil dari metrics[].label pada payload lewat labelForColumn(), bukan dari peta yang ditulis ulang di view, supaya satu perubahan label di server tidak meninggalkan dua ejaan di layar.",
+    "KETERANGAN STANDAR-TIDAK-DIPASANGKAN pada kartu kernel recovery dibaca dari target.unmapped_reason, BUKAN dari pencocokan nama kolom di klien. Pencocokan nama di klien akan pecah senyap begitu server mengubah keputusannya — dan keputusan itu memang sedang menunggu manusia. Pada kartu itu ketiga kolom target TIDAK dirender sama sekali (diasersi toHaveCount(0)), diganti satu keterangan yang menyebut sebabnya.",
+    "SATU KETIDAKKONSISTENAN SAYA SENDIRI DITANGKAP TEST, DAN ITU GUNANYA: saya menulis cabang 'bagian digambar walau kosong' di DALAM bagian itu, tetapi penjaga luarnya masih v-else-if=\"targetsWithoutMetric.length > 0\" — sehingga bagiannya tetap hilang ketika kosong, persis yang hendak dicegah. Test baru menjatuhkannya, penjaga diubah menjadi v-else, dan alasan mengapa ia BUKAN v-else-if dicatat di tempatnya.",
+    "SATU PERILAKU SENGAJA BERBEDA DARI LAPORAN PRESSING MOBILE, dan test lamanya digantikan bukan dihapus: di sana bagian standar-tanpa-pengukuran hilang ketika daftarnya kosong; di sini ia tetap digambar. Satu-satunya keadaan di mana ia hilang adalah master yang belum terisi — karena daftar kosong di sana berarti hal yang BERLAWANAN (master belum diisi, bukan semua standar sudah terukur), dan mencampurnya akan membuat master kosong terbaca sebagai 'tidak ada yang tertinggal'. Keduanya diasersi terpisah.",
+    "BLOK DOWNTIME NUMERIK: tiga kartu angka (total menit, slot pencatat, rata-rata per slot pencatat) atau satu keterangan ketiadaan. Teks '0 menit' TIDAK boleh muncul ketika tidak ada yang mencatat — diasersi dengan toHaveCount(0) pada downtime-total, bukan dengan ketiadaan frasa. Keterangan cara-hitung dirender di KEDUA keadaan, karena ia menjelaskan cara hitungnya bukan hasilnya, dan ada test yang mengunci itu.",
+    "BAGIAN TEMUAN TERPISAH DARI BLOK DOWNTIME, dan ada test yang mengasersi KEDUANYA ada sekaligus — bukan hanya bahwa masing-masing ada. Menggabungkannya akan membuat slot yang punya keduanya terhitung dua kali pada satu pengertian.",
+    "LAPISAN KLIEN: depricarpingReportRepo.ts sejajar kedelapan repo laporan lain — scopeParams() tidak pernah mengirim business_unit_id untuk peran terikat mill (dan ada test yang menjalankan ketiga bentuk 'bukan Admin'), productionLineParams() hanya mengirim ke /summary dan /export, dan unwrap() menerima respons dengan maupun tanpa pembungkus 'data'.",
+    "BAHAYA DIAM YANG DICATAT DAN DIUJI: KETIGA master laporan kondisi tidak berbagi satu pun nama kolom (Threshing parameter/standard_operational_target/action_plan_on_deviation; Pressing parameter_metric/target_operating_range/critical_trigger_action_limit; Depricarping parameter_metric/target_range/critical_limit/operational_consequence_justification). Menyalin nama dari salah satu saudaranya menghasilkan blok target yang SELURUHNYA null tanpa satu pun galat TypeScript — layar akan tampil normal dengan setiap standar hilang. Ada test yang mengasersi keempat nama yang benar secara eksplisit.",
+    "NOL ARITMETIKA DI KLIEN, DAN FIXTURE TEST YANG MEMBUKTIKANNYA. Angka pada depricarpingReportRepo.spec.ts sengaja dibuat BERTENTANGAN dengan sumbernya: coverage_percent 88 padahal 96/480 = 20; metrics[0].avg 12,5 padahal min 10 dan max 11 (di luar rentangnya sendiri — mustahil dari perhitungan apa pun); filled_slot_count 2 padahal filled_slots 96; daily_total.filled_slot_count 99 padahal baris hariannya 3 + 4; daily_total.downtime_minutes 999 padahal baris hariannya 10 + null; dan downtime.avg 99 padahal total 60 atas 3 slot. Repo yang menghitung sendiri PASTI gagal; dengan payload yang konsisten, separuh berkas itu menjadi test yang selalu hijau.",
+    "URUTAN findings SENGAJA TIDAK MENURUN pada fixture (2 lalu 3), dengan satu test yang mengasersi urutan server dipertahankan apa adanya. Repo yang mengurutkan sendiri akan membalikkannya dan test itu jatuh.",
+    "SATU KEJANGGALAN YANG BENAR, DICATAT DI TIGA TEMPAT (docblock repo, docblock view, dan keterangan di layar): coverage.filled_slots BISA LEBIH BESAR daripada penyebut kartu mana pun. Slot dihitung terisi bila salah satu dari SEMBILAN kolom bacaan terisi, dan dua di antaranya (downtime_minutes, findings) bukan kolom ukur. Dicatat supaya pembaca berikutnya tidak 'memperbaiki' selisih yang memang benar.",
+    "PENYEBUT TIAP KARTU TERCETAK APA ADANYA sebagai 'N dari M slot'. Fixture test sengaja memberi TUJUH penyebut BERBEDA (2, 10, 0, 7, 1, 5, 3) — dengan penyebut yang seragam, satu penyebut bersama akan lolos tanpa terlihat. Component test mengasersi new Set(texts).size === 7, jadi fixture yang kelak diseragamkan pun akan menjatuhkannya.",
+    "CAKUPAN TETAP PALING ATAS, dan posisinya diuji dua kali dengan cara yang berbeda: di component test atas URUTAN DOM (indexOf), dan di browser test atas POSISI KOTAK DI VIEWPORT (boundingBox().y). Di layar sempit pembaca melihat lebih sedikit sekaligus.",
+    "URUTAN CABANG KETERANGAN CAKUPAN BENAR SEJAK BARIS PERTAMA: days_counted DIPERIKSA SEBELUM period_running. Kekeliruan itu nyata terjadi pada tiga layar dan diperbaiki pada commit screen-148; ada test yang mengunci kasus days_counted 0 BERSAMA period_running true.",
+    "KETIADAAN PENANDAAN DIUJI ATAS NAMA KELAS, bukan atas frasa — kalimat yang menyatakan ketiadaannya sendiri memuat frasa 'di luar batas'. Pelajaran yang harganya sudah dibayar delapan kali (screen-146 sampai 153). Selain itu ketiga alasan penolakan diasersi hadir UTUH pada browser test ('berhenti memperingatkan', 'satuannya ikut di dalam teks', 'terbalik'), supaya keterangan yang kelak diringkas demi ruang akan terlihat sebagai kegagalan.",
+    "PRODUCTION LINE WAJIB, dijaga di FUNGSI loadSummary() bukan hanya di template. Ingatan line (msl_production_line_{userId}) dibagi dengan StationListView, urutan penyelesaian rute → ingatan → satu-satunya line → tidak ada, dan kegagalan penyimpanan (mode privat) diperlakukan sebagai 'tidak ada ingatan'.",
+    "VIEWPORT 390x844 PADA BROWSER TEST, bukan 1280px bawaan proyek. Tiga klaim diuji di sana dan hanya di sana: satu kolom (ketujuh kartu bertumpuk, diukur dari boundingBox), halaman tidak pernah menggulir mendatar, dan kedua tabel rekap menggulir DI DALAM kartunya sendiri — sembilan kolom (tanggal + downtime + tujuh rata-rata) jelas lebih lebar daripada 390px.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri 'depricarping' pada REPORT_ROUTES di ReportingPilihStasiunView.vue, dengan browser test yang menekan tile itu LEWAT KLIK (bukan page.goto — tabel station lokal hidup di memori sql.js dan hilang pada tiap muat ulang) setelah menyemai station lokal.",
+    "SPEC ReportingPilihStasiunView.spec.ts IKUT DIPERBAIKI, dan ini kali KEEMPAT contoh 'tile tanpa laporan' di sana dipindahkan: Weighbridge → Engine Room (screen-144), Threshing → Process Water (screen-149), Pressing → Kernel Plant (screen-151), dan Depricarping → Effluent Plant di sini. Test itu MENGHITUNG tile nonaktif (4 dari 5), jadi tile Depricarping yang menjadi aktif menurunkannya ke 3 — dijalankan dulu untuk memastikan ia memang merah, bukan diduga. Effluent Plant dipilih karena ia belum dipakai sebagai contoh di tempat lain mana pun. Dipindahkan, bukan dihapus, berikut catatan di docblock-nya.",
+    "api-index TIDAK BERUBAH: keempat endpoint sudah tercatat dengan actor-station-operator pada v72, ditulis bersama screen-152."
+  ],
+  "deferred_items": [
+    {
+      "description": "Mock HTML statis layar ini (screen-mock-agent, mock_generation_level = full) tidak dibuat, mengikuti delapan layar terakhir yang juga melewatinya (screen-144, 146, 147, 148, 149, 150, 151, 152). Layar sungguhannya dibangun pada sesi yang sama sehingga mock 1-state tidak lagi menambah informasi apa pun; non-blocking dan tidak memengaruhi satu pun test.",
+      "reason": "Konsisten dengan delapan layar sebelumnya; layar nyatanya sudah ada pada perubahan yang sama"
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Rekap harian versi mobile menampilkan ketujuh kolom rata-rata DITAMBAH kolom downtime dalam satu tabel yang menggulir mendatar di dalam kartunya — sembilan kolom, dua lebih banyak daripada laporan Threshing dan Pressing mobile. Belum diputuskan apakah pada layar sempit lebih berguna memecahnya menjadi satu kartu per hari; bentuk tabel dipilih lebih dulu karena ia sejajar dengan versi web dan membuat perbandingan antar hari tetap mungkin. Pada stasiun ini pertanyaannya lebih tajam justru karena tabelnya lebih lebar.",
+      "severity": "minor"
+    },
+    {
+      "description": "Kolom akibat operasional dirender penuh pada kartu, dan pada parameter dengan teks terpanjang ia membuat kartunya jauh lebih tinggi daripada kartu lain. Belum diputuskan apakah ia perlu dapat dilipat. Dipilih selalu tampil penuh lebih dulu karena melipatnya berarti pembaca harus tahu dulu bahwa ada yang perlu dibuka.",
+      "severity": "minor"
+    },
+    {
+      "description": "PERTANYAAN TERBUKA PALING PENTING, dibawa dari screen-152 dan berlaku sama di sini: arah 'Kernel Loss in Fibre' (master, target '< 0,50%', sebuah kehilangan) versus 'Kernel Recovery in Fibre' (nama kolom dan label keempat layar input, sebuah perolehan). Tidak ada data yang menyelesaikannya. Sampai diputuskan, kedua layar melaporkan angkanya tanpa standar dan menyatakan sebabnya.",
+      "severity": "minor"
+    },
+    {
+      "description": "Dibawa dari screen-152 dan belum diputuskan: apakah satu baris master 'Nut Silo Temperature' memang dimaksudkan mengatur kedua kolom silo, atau master perlu dipecah dua karena kedua silo berbeda peran. Laporan tidak dapat membedakannya dari skema.",
+      "severity": "minor"
+    },
+    {
+      "description": "Dibawa dari screen-152: total menit downtime baru bermakna dibandingkan antar periode bila proporsi slot yang mencatatnya serupa. Jumlah slot pencatat ikut ditampilkan justru untuk itu, tetapi belum diputuskan apakah laporan perlu menyatakan secara eksplisit ketika proporsinya sangat rendah.",
+      "severity": "minor"
+    },
+    {
+      "description": "Ekspor .xlsx tidak tersedia di layar mobile (hanya CSV), sementara layar web screen-152 menawarkan keduanya. Disengaja dan sama dengan kedelapan laporan mobile lain: menyimpan dan membuka .xlsx di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "DRIFT ARTEFAK DI LUAR CAKUPAN LAYAR INI (dibawa dari screen-144/147/148/149/150/151/152): pada project.3-tech-spec.api-index, kelima prefix laporan saudaranya (/api/sterilizer-reports/*, /api/cages-track-reports/*, /api/boiler-room-reports/*, /api/clarification-reports/*, /api/storage-tank-reports/*) masih mencantumkan actor_ids tanpa actor-station-operator, padahal routes/api.php dan service masing-masing sudah menerima Operator sejak screen-135..139.",
+      "severity": "minor"
+    },
+    {
+      "description": "Contoh 'stasiun yang laporannya belum dibangun' kini bersandar pada tiga stasiun berbeda: process-water di tujuh tempat (lima test backend, satu spec browser web, satu spec komponen mobile), kernel-plant di spec komponen mobile, dan effluent-plant di satu test spec komponen mobile. Bila salah satunya dibuatkan laporan, test yang memakainya akan merah — disengaja, tetapi perlu diketahui pembangun laporan berikutnya supaya kegagalannya tidak dicari-cari sebabnya.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage unit test tidak terukur — tidak ada provider coverage terpasang di package mobile. Gap pre-existing project-wide, bukan diperkenalkan layar ini.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-06T11:25:00Z",
+      "passed": 32,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-06T11:25:00Z",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-06T11:35:00Z",
+      "passed": 55,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-06T11:50:00Z",
+      "passed": 34,
+      "failed": 0
+    }
+  }
+}

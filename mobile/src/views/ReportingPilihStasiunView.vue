@@ -111,6 +111,10 @@ const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   // menentukannya: tanpa entri ini layar laporan Pressing ada, rutenya ada,
   // seluruh test-nya lulus, dan tile-nya tetap kelabu.
   pressing: 'report-pressing',
+  // screen-153--laporan-depricarping-mobile. Satu baris yang sama
+  // menentukannya: tanpa entri ini layar laporan Depricarping ada, rutenya
+  // ada, seluruh test-nya lulus, dan tile-nya tetap kelabu.
+  depricarping: 'report-depricarping',
   sterilizer: 'report-sterilizer',
   'cages-track': 'report-cages-track',
   'boiler-room': 'report-boiler-room',

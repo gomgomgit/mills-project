@@ -1011,6 +1011,29 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanPressingView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-153--laporan-depricarping-mobile /
+    // usecase-156--laporan-depricarping-mobile "Lihat Laporan Periode
+    // Depricarping (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor).
+    //
+    // NOL PERUBAHAN BACKEND, sama seperti report-pressing di atasnya:
+    // keempat rute /api/depricarping-reports/* sudah menerima peran mobile
+    // sejak screen-152 dibangun, karena kedua layar direncanakan dalam satu
+    // seri. Yang TIDAK terbuka tetap tidak terbuka:
+    // /business-units/options Admin saja, dan rute WEB /reports/depricarping
+    // tanpa Operator.
+    //
+    // Pintu masuknya: rute 'report-stations' (screen-141) menampilkan grid
+    // stasiun, dan tile Depricarping-lah yang menavigasi ke sini — entri
+    // 'depricarping' pada REPORT_ROUTES di ReportingPilihStasiunView.vue
+    // adalah satu-satunya penentu tile itu hidup atau mati.
+    path: '/reports/depricarping',
+    name: 'report-depricarping',
+    component: () => import('@/views/LaporanDepricarpingView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

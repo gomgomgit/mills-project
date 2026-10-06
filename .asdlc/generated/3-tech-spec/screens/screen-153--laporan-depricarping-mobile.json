@@ -1,0 +1,1201 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-153--laporan-depricarping-mobile",
+  "name": "Laporan Depricarping (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports/depricarping",
+  "auth_requirement": "authenticated; role: station-operator, supervisor",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id tidak pernah dikirim ke server. Diterima pada ketiga endpoint data sejak screen-152 — tidak ada perubahan backend yang dituntut layar ini."
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id tidak pernah dikirim ke server."
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "Tidak memakai aplikasi mobile — sama dengan kedelapan laporan mobile lain."
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": false,
+      "conditions": "Tidak memakai aplikasi mobile. Konsekuensinya /api/depricarping-reports/business-units/options tidak pernah dipanggil dari layar ini."
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "usecase_name": "Lihat Laporan Periode Depricarping (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/depricarping-reports/periods",
+          "description": "DIPAKAI ULANG APA ADANYA dari screen-152 — bukan endpoint baru. Operator sudah diterima sejak endpoint ini dibangun, karena layar mobile ini dibangun pada seri yang sama. business_unit_id tidak dikirim dari layar ini: kedua perannya terikat satu mill dan server mengabaikannya untuk peran terikat mill.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "draft|open|closed"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku → diarahkan ke Login TANPA pesan jaringan"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Akun terikat mill yang users.business_unit_id-nya NULL"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/depricarping-reports/summary",
+          "description": "DIPAKAI ULANG APA ADANYA dari screen-152. Bentuk payloadnya sama persis — termasuk ketujuh metrik dengan penyebut masing-masing, target empat kolom plus shares_standard_with dan unmapped_reason, blok downtime numerik, rekap findings, dan all_targets_measured. Layar mobile TIDAK menghitung apa pun dari payload ini.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "validation": "Absen → 422"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "validation": "Absen → 422. Layar menjaganya di fungsi pemuatan ringkasan supaya permintaan tanpa line tidak pernah terkirim."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": "object",
+              "business_unit": "object",
+              "production_line": "object",
+              "has_data": "bool",
+              "coverage": "object — filled_slots, expected_slots, coverage_percent (null bukan 0.0), presser_count, slots_per_presser_per_day, days_in_period, days_counted, period_running",
+              "metrics": "list[7] — column, label, unit, min, avg, max, filled_slot_count, target{parameter_metric, target_range, critical_limit, operational_consequence_justification, shares_standard_with, unmapped_reason}",
+              "targets_without_metric": "list — parameter_metric, target_range, critical_limit, operational_consequence_justification, reason",
+              "targets_master_empty": "bool",
+              "all_targets_measured": "bool",
+              "downtime": "object — total_minutes (null bukan 0), recorded_slot_count, avg_minutes_per_recorded_slot, has_standard (selalu false)",
+              "findings": "list — finding, slot_count",
+              "by_presser": "list — presser_id, day_count, filled_slot_count, downtime_minutes, averages",
+              "daily": "list — date, filled_slot_count, downtime_minutes, averages",
+              "daily_total": "object",
+              "total": "object"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir → Login tanpa pesan jaringan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau Production Line milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/depricarping-reports/export",
+          "description": "DIPAKAI ULANG APA ADANYA. Layar mobile hanya menawarkan format=csv — .xlsx tidak ditawarkan karena menyimpan dan membukanya di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini. Endpointnya sendiri tetap menerima excel; yang dibatasi adalah apa yang layar ini kirimkan.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "validation": "Absen → 422"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "validation": "Absen → 422"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "validation": "Layar ini selalu mengirim 'csv'"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "content_type": "text/csv; charset=UTF-8",
+              "body": "Aliran berkas — satu baris per slot waktu, kesembilan kolom bacaan"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "Jumlah baris slot melampaui 50.000"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "DIPAKAI ULANG APA ADANYA dari screen-135 — bukan endpoint baru. Memasok daftar Production Line untuk pemilih line. Dicatat karena layar ini tidak dapat menampilkan satu angka pun tanpa endpoint ini, sehingga kegagalannya adalah kegagalan layar ini — dan pesannya HARUS berbeda dari pesan 'mill belum punya line'.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Layar dicapai dari Reporting (screen-141) lewat tile Depricarping — satu entri 'depricarping' pada REPORT_ROUTES di ReportingPilihStasiunView.vue. Tanpa satu baris itu layar ada tetapi tidak dapat dicapai.",
+        "2. Saat masuk, selesaikan Production Line dengan urutan: query rute (?production_line_id=) → ingatan perangkat (msl_production_line_{userId}) → satu-satunya line bila daftar hanya berisi satu → tidak ada (pemilih ditampilkan). Urutan ini sama dengan kedelapan laporan mobile lain dan dibagi dengan StationListView.",
+        "3. Panggil GET /api/production-lines/options-for-report. Daftar kosong → arahan menghubungi Admin TANPA tombol coba lagi (mencoba lagi tidak mengubah apa pun). Kegagalan jaringan → pesan BERBEDA dengan tombol coba lagi sendiri — dua keadaan yang menuntut tindakan berbeda tidak boleh memakai satu pesan.",
+        "4. Kegagalan membaca/menulis localStorage (mode privat) diperlakukan sebagai 'tidak ada ingatan', bukan sebagai galat — dibungkus try/catch dan tidak pernah menghentikan pemuatan.",
+        "5. Panggil GET /api/depricarping-reports/periods. Daftar kosong → pemilih tetap ada dalam keadaan kosong disertai arahan, bukan galat. business_unit_id TIDAK dikirim: kedua peran layar ini terikat satu mill.",
+        "6. PRODUCTION LINE WAJIB dijaga di FUNGSI loadSummary(), bukan hanya di template — supaya jalur coba-lagi, ganti periode, dan pemulihan dari ingatan perangkat tidak melewatinya. Tanpa line, permintaan ringkasan tidak pernah terkirim.",
+        "7. Panggil GET /api/depricarping-reports/summary dengan period_id dan production_line_id. Dibungkus createLatestRequestGuard() — pengguna yang mengganti periode dengan cepat tidak boleh melihat respons permintaan yang lebih tua menimpa yang lebih baru.",
+        "8. unwrap() menerima respons dengan maupun tanpa pembungkus 'data', sejajar kedelapan repo laporan lain.",
+        "9. NOL ARITMETIKA DI KLIEN. Setiap angka pada payload dipakai apa adanya — repo tidak menghitung rata-rata, tidak menjumlahkan downtime, tidak menormalkan temuan, dan tidak menurunkan persen cakupan. Fixture test dibuat BERTENTANGAN dengan sumbernya justru untuk membuktikan ini.",
+        "10. Render cakupan pencatatan PALING ATAS — diuji atas urutan DOM (component test) dan atas posisi kotak di viewport (browser test). Di layar sempit pembaca melihat lebih sedikit sekaligus, jadi apa yang dilihat lebih dulu menentukan lebih banyak.",
+        "11. Urutan cabang keterangan cakupan: coverage.days_counted === 0 DIPERIKSA SEBELUM coverage.period_running. Server menandai periode yang belum mulai sebagai masih berjalan juga, sehingga memeriksa period_running lebih dulu membuat keterangan 'belum mulai' tidak pernah terender — cacat yang nyata terjadi pada tiga layar dan diperbaiki pada commit screen-148.",
+        "12. Render TUJUH kartu parameter dari metrics[], dalam urutan payload. Kartu yang kolomnya tidak pernah terisi TETAP dirender dengan 'tidak tersedia' dan penyebut 0 slot.",
+        "13. Tiap kartu memuat min / rata-rata / maks BERDAMPINGAN di dalam kartu itu — bukan tiga kartu terpisah, karena ketiganya satu pengukuran dilihat dari tiga sisi — lalu penyebutnya 'N dari M slot', lalu ketiga kolom target.",
+        "14. KETIGA kolom target dirender pada kartu yang sama: target_range, critical_limit, dan operational_consequence_justification. Yang ketiga paling panjang teksnya dan karena itu paling berisiko dibuang demi ruang; ia tetap dirender penuh.",
+        "15. Kartu yang target.shares_standard_with-nya tidak kosong membawa keterangan bahwa standarnya SATU baris master yang sama, menyebut label saudara kolomnya. Di layar sempit kedua kartu nut silo bertumpuk LANGSUNG berurutan, sehingga standar identik yang muncul dua kali beruntun lebih kuat lagi terbaca sebagai data terduplikasi daripada di tabel web.",
+        "16. Kartu yang target.unmapped_reason-nya tidak null (hari ini hanya kernel_recovery_in_fibre_percent) menampilkan keterangan bahwa standarnya TIDAK dipasangkan beserta sebabnya — bukan sel target kosong, yang terbaca seperti master yang belum terisi.",
+        "17. Render bagian standar-tanpa-pengukuran dengan ALASAN per baris. Bagian itu DIGAMBAR WALAU KOSONG (dibaca dari all_targets_measured) dengan keterangannya sendiri — bagian yang hilang tidak dapat dibedakan dari bagian yang belum pernah dibuat, dan di layar ini bagian itulah yang memuat temuan paling perlu dibaca manusia.",
+        "18. Render keterangan ketiadaan penandaan UTUH, tidak diringkas demi ruang — ketiadaan yang tidak dijelaskan terbaca sebagai fitur yang belum selesai.",
+        "19. Render blok downtime dari downtime{}: total menit, jumlah slot pencatat, rata-rata per slot pencatat. total_minutes null → tampilkan keterangan ketiadaannya, JANGAN cetak 0 menit (yang terbaca seperti 'stasiun tidak pernah berhenti'). Keterangan bahwa slot tanpa catatan bukan nol menit, dan bahwa parameter ini tidak punya standar master, dirender di kedua keadaan.",
+        "20. Render rekap temuan dari findings[] pada bagian TERPISAH dari downtime, dengan keterangan pengelompokan harfiah. Terpisah karena satu menjawab 'berapa lama' dan satu menjawab 'apa yang terlihat'; menggabungkannya membuat slot yang punya keduanya terhitung dua kali pada satu pengertian.",
+        "21. Render rekap per presser dan rekap per hari dalam CollapsibleSection, keduanya memuat kolom downtime. Tabelnya menggulir DI DALAM kartunya sendiri — sembilan kolom (tanggal + downtime + tujuh rata-rata) jelas lebih lebar daripada 390px, dan halaman itu sendiri tidak boleh pernah menggulir mendatar.",
+        "22. CollapsibleSection memakai v-show, bukan v-if — keadaan tertutup berarti elemennya ADA tetapi tersembunyi, sehingga asersinya toBeHidden() bukan toHaveCount(0).",
+        "23. Ekspor memanggil endpoint export dengan format 'csv' saja.",
+        "24. Footer hanya memuat Ekspor dan Back — layar ini hanya membaca, dan tidak ada satu pun kontrol yang mengubah data stasiun.",
+        "25. 401 pada permintaan apa pun → diarahkan ke Login TANPA pesan jaringan. 'Periksa koneksi Anda' pada sesi yang berakhir mengirim pembaca ke arah yang salah."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Lewat API — nama dan rentang tanggal pada pemilih dan header. Tidak ada akses basis data lokal: layar ini online-only, sama dengan kedelapan laporan mobile lain."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Lewat API /api/production-lines/options-for-report — daftar untuk pemilih line."
+        },
+        {
+          "entity_id": "depricarping-record",
+          "operation": "SELECT",
+          "description": "Lewat API /summary — tidak diakses langsung. Tabel lokal sql.js TIDAK dipakai layar ini."
+        },
+        {
+          "entity_id": "depricarping-detail",
+          "operation": "SELECT",
+          "description": "Lewat API /summary."
+        },
+        {
+          "entity_id": "depricarping-operational-target",
+          "operation": "SELECT",
+          "description": "Lewat API /summary — keempat kolom master diteruskan server verbatim."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Production Line belum terselesaikan",
+          "handling": "Pemilih line tampil dan TIDAK ADA satu angka pun di layar — permintaan ringkasan tidak pernah terkirim. Bukan angka gabungan seluruh mill."
+        },
+        {
+          "condition": "Mill tanpa Production Line",
+          "handling": "Arahan menghubungi Admin, TANPA tombol coba lagi — mencoba lagi tidak akan mengubah apa pun."
+        },
+        {
+          "condition": "Daftar Production Line gagal dimuat (jaringan)",
+          "handling": "Pesan BERBEDA dari 'mill belum punya line', dengan tombol coba lagi sendiri. Dua keadaan yang menuntut tindakan berbeda tidak boleh memakai satu pesan."
+        },
+        {
+          "condition": "Line dari query rute",
+          "handling": "Dipakai dan DITULIS ke ingatan perangkat, sehingga kunjungan berikutnya tidak meminta memilih lagi."
+        },
+        {
+          "condition": "Line yang diingat perangkat",
+          "handling": "Dipakai tanpa menampilkan pemilih."
+        },
+        {
+          "condition": "Line yang diingat sudah tidak ada pada daftar",
+          "handling": "Pemilih muncul lagi; TIDAK menebak line lain, dan ingatan yang basi tidak dipakai."
+        },
+        {
+          "condition": "localStorage gagal (mode privat)",
+          "handling": "Diperlakukan sebagai 'tidak ada ingatan' — try/catch pada setiap baca dan tulis; tidak pernah menghentikan pemuatan."
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup Depricarping",
+          "handling": "Pemilih tetap ada dalam keadaan kosong disertai arahan menghubungi Admin — bukan galat."
+        },
+        {
+          "condition": "Periode tanpa satu pun slot terisi",
+          "handling": "Keterangan periode kosong; seluruh angka 'tidak tersedia'; blok cakupan TETAP dirender — justru itu yang menjelaskan kekosongannya."
+        },
+        {
+          "condition": "Satu kolom ukur kosong sepanjang periode",
+          "handling": "Kartunya TETAP dirender dengan 'tidak tersedia' dan penyebut 0 slot, dan ketiga kolom targetnya tetap tampil. Kartu yang hilang terbaca sebagai 'tidak ada parameter ini'."
+        },
+        {
+          "condition": "Tujuh penyebut berbeda pada periode yang sama",
+          "handling": "Ketujuhnya tercetak pada kartunya masing-masing. Fixture test sengaja memakai tujuh penyebut BERBEDA — dengan penyebut seragam, satu penyebut bersama akan lolos tanpa terlihat."
+        },
+        {
+          "condition": "Satu nut silo terisi dan satu tidak",
+          "handling": "Dua kartu tetap ada — satu dengan angka, satu 'tidak tersedia' — dan keterangan standar-bersama tetap tampil pada KEDUANYA."
+        },
+        {
+          "condition": "Kedua nut silo terisi dengan angka yang sangat berbeda",
+          "handling": "Keduanya tampil apa adanya; tidak dirata-ratakan menjadi satu kartu dan selisihnya tidak ditandai."
+        },
+        {
+          "condition": "Kartu kernel recovery",
+          "handling": "Angkanya tampil di bawah label kolomnya sendiri, dengan keterangan bahwa standarnya tidak dipasangkan beserta sebabnya — bukan sel target kosong."
+        },
+        {
+          "condition": "Tidak ada satu pun slot yang mencatat downtime",
+          "handling": "Blok downtime menyatakan ketiadaannya; teks '0 menit' TIDAK dirender, karena total 0 menit terbaca seperti 'stasiun tidak pernah berhenti'."
+        },
+        {
+          "condition": "downtime_minutes bernilai 0 pada sebagian slot",
+          "handling": "Ikut sebagai slot pencatat — angka dari server dipakai apa adanya; layar tidak membedakannya sendiri, server yang sudah melakukannya."
+        },
+        {
+          "condition": "Satu slot memuat downtime DAN temuan",
+          "handling": "Terhitung sekali pada blok downtime dan sekali pada rekap temuan, pada dua bagian yang berbeda — tidak ada satu pun elemen yang menggabungkan keduanya."
+        },
+        {
+          "condition": "Temuan kosong pada seluruh slot",
+          "handling": "Keterangan, bukan tabel kosong — tabel kosong tidak membedakan 'tidak ada temuan' dari 'tidak ada yang mencatatnya'."
+        },
+        {
+          "condition": "Satu temuan dengan dua ejaan",
+          "handling": "Dua baris terpisah, dan keterangan menyatakan pengelompokannya harfiah."
+        },
+        {
+          "condition": "Temuan sangat panjang",
+          "handling": "Dibungkus utuh — tidak dipotong dengan ellipsis yang menghilangkan isi."
+        },
+        {
+          "condition": "Teks akibat operasional sangat panjang",
+          "handling": "Dirender penuh pada kartunya. Tidak dilipat, karena melipatnya berarti pembaca harus tahu dulu bahwa ada yang perlu dibuka — dan yang dipertaruhkan adalah informasi yang menentukan parameter mana yang mendesak. Dicatat sebagai open_question."
+        },
+        {
+          "condition": "Master target kosong",
+          "handling": "Angka ukur tetap dirender; ketiga kolom target dirender sebagai keterangan bahwa master belum terisi. Layar membaca targets_master_empty LEBIH DULU daripada all_targets_measured — keduanya dapat menunjuk daftar kosong untuk sebab yang berlawanan."
+        },
+        {
+          "condition": "Periode masih berjalan",
+          "handling": "Keterangan 'sampai hari ini' dirender."
+        },
+        {
+          "condition": "Periode belum mulai",
+          "handling": "Persen cakupan em dash dan keterangan 'belum mulai' — cabang ini diperiksa SEBELUM period_running, yang juga true untuk periode yang belum mulai."
+        },
+        {
+          "condition": "Periode tertutup",
+          "handling": "Laporan tampil penuh; ekspor tetap aktif."
+        },
+        {
+          "condition": "Jaringan gagal saat memuat ringkasan",
+          "handling": "Pesan dan tombol coba lagi; periode dan line yang sudah dipilih TIDAK hilang."
+        },
+        {
+          "condition": "Dua permintaan ringkasan saling mendahului",
+          "handling": "Hanya respons permintaan TERAKHIR yang dipakai — createLatestRequestGuard(). Tanpa itu, pengguna yang mengganti periode cepat dapat melihat angka periode sebelumnya di bawah judul periode yang baru."
+        },
+        {
+          "condition": "Sesi berakhir (401)",
+          "handling": "Diarahkan ke Login TANPA pesan jaringan."
+        },
+        {
+          "condition": "Lebar viewport 390px",
+          "handling": "Kartu bertumpuk satu kolom; halaman tidak pernah menggulir mendatar; kedua tabel rekap menggulir DI DALAM kartunya sendiri."
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca — footer hanya Ekspor dan Back.",
+        "Keempat endpoint dipakai ulang apa adanya; nol perubahan backend dan nol perubahan api-index.",
+        "Production Line wajib, dijaga di fungsi pemuatan bukan hanya di template.",
+        "Ingatan line dibagi dengan StationListView lewat kunci msl_production_line_{userId}; kegagalan penyimpanan diperlakukan sebagai 'tidak ada ingatan'.",
+        "business_unit_id tidak pernah dikirim — kedua peran terikat satu mill.",
+        "Nol aritmetika di klien; seluruh angka dipakai apa adanya dari payload.",
+        "Ketujuh kartu parameter selalu dirender, termasuk yang penyebutnya 0.",
+        "Tiap kartu mencetak penyebutnya sendiri.",
+        "Ketiga kolom target dirender penuh pada kartu yang sama dengan angkanya, termasuk kolom akibat operasional yang paling panjang.",
+        "Kartu yang berbagi standar membawa keterangannya, menyebut label saudara kolomnya.",
+        "Kartu yang standarnya tidak dipasangkan membawa keterangan beserta sebabnya.",
+        "Bagian standar-tanpa-pengukuran digambar walau kosong.",
+        "Tidak ada penandaan di luar batas; keterangannya dirender utuh.",
+        "Blok downtime menyatakan ketiadaan alih-alih mencetak 0 menit.",
+        "Rekap temuan terpisah dari blok downtime.",
+        "Cakupan dirender paling atas dan tetap dirender pada periode kosong.",
+        "days_counted nol diperiksa sebelum period_running.",
+        "Nilai null dirender sebagai keterangan, bukan 0; persen tanpa penyebut dirender em dash.",
+        "Permintaan ringkasan dibungkus penjaga permintaan-terakhir.",
+        "Ekspor hanya CSV.",
+        "401 mengarahkan ke Login tanpa pesan jaringan.",
+        "Halaman tidak pernah menggulir mendatar pada 390px; tabel rekap menggulir di dalam kartunya."
+      ],
+      "unit_test_cases": [
+        {
+          "description": "scopeParams tidak pernah mengirim business_unit_id untuk peran terikat mill",
+          "given": "Store auth berisi Operator, lalu Supervisor, lalu akun tanpa peran yang dikenali",
+          "expect": "Ketiga bentuk 'bukan Admin' menghasilkan params tanpa kunci business_unit_id — diuji ketiganya, bukan satu, karena satu bentuk saja akan meloloskan cabang yang salah"
+        },
+        {
+          "description": "productionLineParams hanya dikirim ke /summary dan /export",
+          "given": "Keempat pemanggilan repo",
+          "expect": "periods dan options-for-report TIDAK membawa production_line_id — periode milik mill, bukan milik line"
+        },
+        {
+          "description": "unwrap menerima respons dengan maupun tanpa pembungkus data",
+          "given": "{ data: [...] } lalu [...] mentah",
+          "expect": "Keduanya menghasilkan daftar yang sama"
+        },
+        {
+          "description": "fetchSummary meneruskan period_id dan production_line_id",
+          "given": "Keduanya diberikan",
+          "expect": "Keduanya ada pada query string yang dikirim"
+        },
+        {
+          "description": "metrics diteruskan apa adanya — TUJUH entri, tanpa penghitungan ulang",
+          "given": "Payload dengan tujuh metrik yang avg-nya sengaja DI LUAR rentang min..max-nya sendiri",
+          "expect": "Ketujuh avg sama persis dengan payload — mustahil dari perhitungan apa pun, jadi repo yang menghitung sendiri PASTI gagal"
+        },
+        {
+          "description": "filled_slot_count per metrik diteruskan apa adanya walau bertentangan dengan filled_slots",
+          "given": "coverage.filled_slots 96 sementara metrics[0].filled_slot_count 2",
+          "expect": "Keduanya diteruskan apa adanya — repo tidak menyelaraskan angka yang berselisih"
+        },
+        {
+          "description": "coverage_percent diteruskan apa adanya walau bukan filled/total",
+          "given": "filled 96, expected 480, coverage_percent 88 (seharusnya 20)",
+          "expect": "88 — repo tidak menghitung persen"
+        },
+        {
+          "description": "coverage_percent null diteruskan sebagai null, bukan 0",
+          "given": "coverage_percent null",
+          "expect": "null identik — bukan 0, dan bukan dihilangkan dari objek"
+        },
+        {
+          "description": "target memuat KEEMPAT nama kolom master Depricarping yang benar",
+          "given": "Payload dengan target lengkap",
+          "expect": "parameter_metric, target_range, critical_limit, DAN operational_consequence_justification keempatnya terbaca — diasersi eksplisit karena menyalin nama field dari repo Threshing atau Pressing menghasilkan blok target yang seluruhnya null TANPA satu pun galat TypeScript"
+        },
+        {
+          "description": "shares_standard_with diteruskan sebagai daftar, kosong maupun berisi",
+          "given": "Kedua kolom nut silo saling menyebut; lima metrik lain berdaftar kosong",
+          "expect": "Dua daftar berisi satu entri, lima daftar kosong — bukan undefined, karena view memeriksanya dengan !== []"
+        },
+        {
+          "description": "unmapped_reason diteruskan, null pada metrik terpetakan",
+          "given": "kernel_recovery_in_fibre_percent dengan unmapped_reason terisi; enam lainnya null",
+          "expect": "Nilainya terbaca apa adanya — view tidak boleh menyimpulkannya dari nama kolom, karena keputusannya ada di server dan sedang menunggu manusia"
+        },
+        {
+          "description": "targets_without_metric meneruskan reason per baris",
+          "given": "Dua entri dengan reason 'direction_unresolved' dan 'no_column'",
+          "expect": "Kedua reason terbaca — perbedaannya menentukan tindakan, dan menggabungkannya menyembunyikan tindakan mana yang diperlukan"
+        },
+        {
+          "description": "all_targets_measured dan targets_master_empty keduanya diteruskan",
+          "given": "Payload dengan all_targets_measured false dan targets_master_empty false",
+          "expect": "Keduanya terbaca sebagai boolean — view membacanya terpisah karena keduanya dapat sama-sama menunjuk daftar kosong untuk sebab yang berlawanan"
+        },
+        {
+          "description": "downtime diteruskan sebagai OBJEK, bukan daftar alasan",
+          "given": "downtime { total_minutes, recorded_slot_count, avg_minutes_per_recorded_slot, has_standard }",
+          "expect": "Keempat kunci terbaca — bentuknya berbeda dari downtime_reasons pada repo Threshing/Pressing, dan menyalin tipe dari sana akan menghasilkan undefined di mana-mana"
+        },
+        {
+          "description": "downtime.total_minutes null diteruskan sebagai null, bukan 0",
+          "given": "total_minutes null, recorded_slot_count 0",
+          "expect": "null identik — 0 akan membuat view mencetak '0 menit', yang terbaca seperti 'stasiun tidak pernah berhenti'"
+        },
+        {
+          "description": "downtime.avg diteruskan apa adanya walau bukan total/recorded",
+          "given": "total 60, recorded 3, avg 99 (seharusnya 20)",
+          "expect": "99 — repo tidak membagi"
+        },
+        {
+          "description": "findings diteruskan dengan kunci finding dan slot_count",
+          "given": "Dua entri",
+          "expect": "Keduanya terbaca — kuncinya 'finding', bukan 'reason' seperti pada repo Threshing/Pressing"
+        },
+        {
+          "description": "findings TIDAK dinormalkan di klien: dua ejaan tetap dua entri",
+          "given": "'Fan bergetar' dan 'fan bergetar'",
+          "expect": "DUA entri — normalisasi akan menggabungkan hal yang penulisnya memang maksudkan berbeda DAN membuat layar ini berselisih dengan laporan web yang memakai sumber yang sama"
+        },
+        {
+          "description": "Urutan findings dari server dipertahankan apa adanya",
+          "given": "Urutan server sengaja TIDAK menurun menurut slot_count",
+          "expect": "Urutan sama persis dengan payload — repo tidak mengurutkan ulang"
+        },
+        {
+          "description": "by_presser dan daily meneruskan downtime_minutes, null maupun angka",
+          "given": "Satu presser 30 menit, satu null",
+          "expect": "30 dan null identik — null bukan 0"
+        },
+        {
+          "description": "daily_total.downtime_minutes diteruskan apa adanya walau berselisih dengan baris hariannya",
+          "given": "Baris harian 10 dan 20, daily_total.downtime_minutes 99",
+          "expect": "99 — repo tidak menjumlahkan baris harian"
+        },
+        {
+          "description": "EMPTY_COVERAGE / EMPTY_DAILY_TOTAL / EMPTY_TOTALS dipakai saat payload tidak lengkap",
+          "given": "Respons tanpa kunci coverage",
+          "expect": "Nilai bawaan yang seluruhnya null/0 dengan BENTUK yang sama — supaya view tidak perlu memeriksa keberadaan tiap kunci"
+        },
+        {
+          "description": "Daftar kunci ringkasan dikunci satu test",
+          "given": "Objek hasil fetchSummary",
+          "expect": "Object.keys terurut sama persis dengan daftar yang ditetapkan — kunci yang hilang terlihat sebagai kegagalan, bukan sebagai bagian layar yang diam-diam kosong"
+        },
+        {
+          "description": "Penyisiran kunci penilaian pada hasil repo",
+          "given": "Objek hasil fetchSummary dirata-kan menjadi JSON",
+          "expect": "Tidak satu pun kunci bernama severity, is_out_of_range, flag, threshold, atau breach — menjaga kelalaian yang disengaja agar tidak 'dilengkapi' di lapisan klien"
+        },
+        {
+          "description": "401 pada permintaan apa pun dilempar sebagai galat sesi, bukan galat jaringan",
+          "given": "Respons 401 pada periods, lalu pada summary",
+          "expect": "Keduanya menghasilkan galat yang dikenali view sebagai sesi berakhir — supaya view mengarahkan ke Login tanpa pesan 'periksa koneksi Anda'"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "depricarping-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "depricarping-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "depricarping-operational-target",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-152--laporan-depricarping-web",
+      "reason": "Sumber seluruh endpoint DAN seluruh aturan isi. Layar ini tidak memperkenalkan satu pun angka baru; perbedaannya hanya bentuk pada layar sempit. Nol perubahan backend dituntut, karena keempat rute sudah membuka Operator sejak screen-152 — pasangan Weighbridge (143 → 144) harus menambal tiga tempat menyusul justru karena layar web-nya dibangun sebelum pasangan mobile-nya diketahui."
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "Pintu masuk satu-satunya. Tile Depricarping di sana harus berubah dari nonaktif menjadi aktif lewat satu entri pada REPORT_ROUTES — tanpa itu layar ini ada tetapi tidak dapat dicapai. Spec komponen layar itu memakai satu stasiun sebagai contoh 'tile tanpa laporan', dan contoh itu harus dipindahkan lagi."
+    },
+    {
+      "screen_id": "screen-151--laporan-pressing-mobile",
+      "reason": "Acuan bentuk terdekat. Struktur view, repo klien, pemilih line, CollapsibleSection, dan pola uji diambil dari sana; yang baru adalah tujuh kartu bukan lima, blok downtime numerik, bagian temuan terpisah, keterangan standar-bersama, dan keterangan standar-tidak-dipasangkan."
+    },
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Berbagi ingatan Production Line lewat kunci msl_production_line_{userId}. Mengganti line di salah satu layar mengubah yang tersimpan untuk keduanya — disengaja: line adalah konteks yang dipilih, bukan ikatan akun."
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Sumber endpoint /api/production-lines/options-for-report dan pola pemilih line yang dipakai ulang verbatim sejak screen-135/136."
+    }
+  ],
+  "implementation_notes": [
+    "NOL PERUBAHAN BACKEND, DAN ITU WARISAN screen-152 — bukan kebetulan. Keempat endpoint /api/depricarping-reports/* dipakai ulang apa adanya: rutenya sudah 'role:supervisor,mill_management,admin,operator' sejak ditulis, guardAccess() sudah menerima Operator, dan cabang TERIKAT MILL pada resolveBusinessUnit() sudah memuatnya. api-index pun tidak berubah — ketiga endpoint data sudah tercatat dengan actor-station-operator pada v72. Berkas backend yang disentuh layar ini: tidak ada. Konsekuensinya: tidak ada test backend baru dan tidak ada test backend yang berubah arah.",
+    "BERKAS YANG DIBUAT: mobile/src/services/depricarpingReportRepo.ts (lapisan klien), mobile/src/views/LaporanDepricarpingView.vue (layar), satu entri rute /reports/depricarping pada mobile/src/router/index.ts, dan satu entri 'depricarping' pada REPORT_ROUTES di mobile/src/views/ReportingPilihStasiunView.vue.",
+    "TABEL DELAPAN KOLOM MENJADI KARTU, dan itu satu-satunya perubahan bentuk yang disengaja. Pada 390px tabel parameter versi web tidak muat tanpa menggulir mendatar. Tiap parameter menjadi satu kartu: min / rata-rata / maks berdampingan di dalamnya (bukan tiga kartu — ketiganya satu pengukuran dilihat dari tiga sisi), lalu penyebut, lalu rentang target, batas kritis, dan akibat bila dilewati. Yang TIDAK ikut berubah adalah daftar isinya.",
+    "TUJUH KARTU, BUKAN LIMA seperti pada Threshing dan Pressing mobile — dan itu berarti halaman ini lebih panjang dari keduanya. Ketujuhnya tetap dirender termasuk yang penyebutnya 0.",
+    "KOLOM AKIBAT OPERASIONAL ADALAH YANG PALING BERISIKO DIBUANG di layar ini, dan karena itu diuji secara eksplisit. Teksnya satu sampai dua kalimat penuh ('Low pressure drops fibre early (heavy losses). High pressure sucks clean small nuts into the fibre cyclone.'), jadi pada kartu 390px ia memakan ruang terbanyak dari ketiga kolom target. Memotongnya adalah kehilangan yang paling mudah terjadi dan paling sulit terlihat: tanpa itu tiga parameter yang sama-sama melewati batas tampak sama pentingnya.",
+    "KETERANGAN STANDAR-BERSAMA LEBIH PENTING DI SINI DARIPADA DI WEB, bukan sama pentingnya. Di tabel web kedua baris nut silo terpisah oleh garis baris; di kartu mobile keduanya BERTUMPUK LANGSUNG berurutan, sehingga standar '60C - 70C' yang identik muncul dua kali tepat beruntun — terbaca sebagai data terduplikasi lebih kuat lagi. Label saudara kolomnya diambil dari payload (shares_standard_with) dipetakan ke label metrik yang sudah ada di payload itu sendiri, bukan ditulis ulang di view.",
+    "KETERANGAN STANDAR-TIDAK-DIPASANGKAN pada kartu kernel recovery dibaca dari target.unmapped_reason, bukan dari pencocokan nama kolom di klien. Pencocokan nama di klien akan pecah senyap begitu server mengubah keputusannya — dan keputusan itu memang sedang menunggu manusia.",
+    "BLOK DOWNTIME: dua keadaan, dan keduanya dirender. total_minutes null → keterangan ketiadaan, dan teks '0 menit' TIDAK boleh muncul. total_minutes terisi → tiga angka (total, slot pencatat, rata-rata per slot pencatat). Keterangan 'slot tanpa catatan bukan nol menit' dan 'parameter ini tidak punya standar master' dirender di KEDUA keadaan — keduanya menjelaskan cara hitungnya, bukan hasilnya.",
+    "BAGIAN TEMUAN TERPISAH DARI BLOK DOWNTIME, dan ada test yang mengasersi KEDUANYA ada sekaligus. Menggabungkannya akan membuat slot yang punya keduanya terhitung dua kali pada satu pengertian dan menghilangkan kemampuan menjawab salah satunya sendiri.",
+    "BAGIAN STANDAR-TANPA-PENGUKURAN DIGAMBAR WALAU KOSONG, dibaca dari all_targets_measured — tetapi layar membaca targets_master_empty LEBIH DULU, karena kedua kunci itu dapat sama-sama menunjuk daftar kosong untuk sebab yang berlawanan (master belum terisi vs seluruh standar sudah terukur).",
+    "LAPISAN KLIEN: depricarpingReportRepo.ts sejajar kedelapan repo laporan lain — scopeParams() tidak pernah mengirim business_unit_id untuk peran terikat mill, productionLineParams() hanya mengirim ke /summary dan /export, dan unwrap() menerima respons dengan maupun tanpa pembungkus 'data'. Antarmuka TypeScript-nya memuat target dengan EMPAT kolom plus shares_standard_with dan unmapped_reason, dan downtime sebagai objek — bukan daftar alasan seperti pada repo Threshing/Pressing.",
+    "BAHAYA DIAM YANG DICATAT DI DOCBLOCK REPO: menyalin nama field target dari threshingReportRepo.ts atau pressingReportRepo.ts ke antarmuka ini menghasilkan blok target yang SELURUHNYA null tanpa satu pun galat TypeScript — ketiga master tidak berbagi satu pun nama kolom (Threshing: parameter/standard_operational_target/action_plan_on_deviation; Pressing: parameter_metric/target_operating_range/critical_trigger_action_limit; Depricarping: parameter_metric/target_range/critical_limit/operational_consequence_justification). Ada test yang mengasersi keempat nama yang benar secara eksplisit.",
+    "NOL ARITMETIKA DI KLIEN, DAN FIXTURE TEST YANG MEMBUKTIKANNYA. Angka pada depricarpingReportRepo.spec.ts sengaja dibuat BERTENTANGAN dengan sumbernya: coverage_percent yang tidak sama dengan filled/total; avg di luar rentang min..max-nya sendiri (mustahil dari perhitungan apa pun); filled_slot_count yang berselisih dengan filled_slots; downtime.total_minutes yang bukan jumlah downtime_minutes baris harian; dan downtime.avg_minutes_per_recorded_slot yang bukan total/recorded. Repo yang menghitung sendiri PASTI gagal; dengan payload yang konsisten, separuh berkas itu menjadi test yang selalu hijau.",
+    "SATU KEJANGGALAN YANG BENAR, DICATAT DI TIGA TEMPAT (docblock repo, docblock view, dan satu test): coverage.filled_slots BISA LEBIH BESAR daripada penyebut kolom ukur mana pun. Slot dihitung terisi bila salah satu dari SEMBILAN kolom bacaan terisi, dan dua di antaranya (downtime_minutes, findings) bukan kolom ukur. Dicatat supaya pembaca berikutnya tidak 'memperbaiki' selisih yang memang benar.",
+    "PRODUCTION LINE WAJIB, dijaga di FUNGSI loadSummary() bukan hanya di template — supaya jalur coba-lagi, ganti periode, dan pemulihan dari ingatan perangkat tidak melewatinya. Ingatan line (msl_production_line_{userId}) dibagi dengan StationListView, urutan penyelesaian rute → ingatan → satu-satunya line → tidak ada, dan kegagalan penyimpanan (mode privat) diperlakukan sebagai 'tidak ada ingatan'.",
+    "createLatestRequestGuard() DIPAKAI pada permintaan ringkasan — pengguna yang mengganti periode dengan cepat tidak boleh melihat angka periode sebelumnya di bawah judul periode yang baru.",
+    "CollapsibleSection MEMAKAI v-show, bukan v-if — keadaan tertutup berarti elemennya ADA tetapi tersembunyi. Asersinya toBeHidden(), BUKAN toHaveCount(0). Jebakan yang sudah terjadi pada laporan mobile sebelumnya.",
+    "CAKUPAN TETAP PALING ATAS, diuji dua kali dengan cara yang berbeda: di component test atas URUTAN DOM (indexOf) dan di browser test atas POSISI KOTAK DI VIEWPORT (boundingBox().y). Di layar sempit pembaca melihat lebih sedikit sekaligus.",
+    "URUTAN CABANG KETERANGAN CAKUPAN BENAR SEJAK BARIS PERTAMA: days_counted DIPERIKSA SEBELUM period_running. Cacat ini nyata terjadi pada tiga layar dan diperbaiki pada commit screen-148; ada test yang mengunci kasus days_counted 0 BERSAMA period_running true.",
+    "KETIADAAN PENANDAAN DIUJI ATAS NAMA KELAS, bukan atas frasa — kalimat yang menyatakan ketiadaannya sendiri memuat frasa 'di luar batas'. Pelajaran yang harganya sudah dibayar delapan kali (screen-146 sampai 153). Asersinya: ketiadaan .md-threshold / .is-danger / .is-warning / .md-chip--danger.",
+    "VIEWPORT 390x844 PADA BROWSER TEST, bukan 1280px bawaan proyek. Tiga klaim diuji di sana dan hanya di sana: satu kolom (ketujuh kartu bertumpuk, diukur dari boundingBox), halaman tidak pernah menggulir mendatar, dan kedua tabel rekap menggulir DI DALAM kartunya sendiri — sembilan kolom (tanggal + downtime + tujuh rata-rata) jelas lebih lebar daripada 390px.",
+    "TILE DICAPAI LEWAT KLIK, bukan page.goto — tabel station lokal hidup di memori sql.js dan hilang pada tiap muat ulang, jadi menavigasi langsung ke rute akan mendarat di layar tanpa stasiun.",
+    "SPEC ReportingPilihStasiunView.spec.ts IKUT DIPERBAIKI, dan ini kali KEEMPAT contoh 'tile tanpa laporan' di sana dipindahkan: Weighbridge → Engine Room (screen-144), Threshing → Process Water (screen-149), Pressing → Kernel Plant (screen-151), dan Depricarping → pilihan berikutnya di sini. Dipindahkan, bukan dihapus, berikut catatan di docblock-nya: bila stasiun contoh itu pun dibuatkan laporan, spec itu gagal lagi — dan itu benar, karena ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Depricarping (Mobile) — sukses sebagai Operator",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount sebagai Operator dengan satu line, pilih periode",
+        "assert": "blok cakupan terender SEBELUM kartu parameter (diuji atas urutan DOM lewat indexOf); TUJUH kartu parameter terender; blok downtime dan bagian temuan keduanya terender; tidak ada pemilih mill"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "viewport 390x844, masuk sebagai Operator, buka Reporting, TEKAN tile Depricarping (bukan page.goto — tabel station lokal hidup di memori sql.js), pilih periode",
+        "assert": "seluruh bagian terender; ketujuh kartu bertumpuk satu kolom (diukur dari boundingBox); halaman tidak menggulir mendatar; tidak ada satu pun kelas penandaan"
+      }
+    },
+    {
+      "scenario_ref": "Tujuh kartu dengan tujuh penyebut berbeda",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan fixture yang memberi KETUJUH kolom penyebut berbeda",
+        "assert": "tujuh teks penyebut yang BERBEDA terender — penyebut seragam akan meloloskan satu penyebut bersama tanpa terlihat"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "buka laporan pada data tersemai",
+        "assert": "ketujuh kartu punya sel penyebutnya sendiri, dibaca lewat allInnerTexts"
+      }
+    },
+    {
+      "scenario_ref": "Kartu parameter tanpa pembacaan tetap dirender penuh",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan satu kolom yang tidak pernah terisi",
+        "assert": "kartunya TETAP terender dengan 'tidak tersedia', penyebut 0 slot, dan ketiga kolom targetnya tetap tampil — kartu yang hilang terbaca sebagai 'tidak ada parameter ini'"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "buka laporan",
+        "assert": "jumlah kartu selalu tujuh, berapa pun yang terisi"
+      }
+    },
+    {
+      "scenario_ref": "Ketiga kolom target pada kartu yang sama, termasuk akibat operasional",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan master tersemai",
+        "assert": "tiap kartu memuat data-testid metric-target-range, metric-critical-limit, DAN metric-consequence; teks akibat operasional terender PENUH (bukan terpotong ellipsis) — kolom itu paling panjang dan paling berisiko dibuang demi ruang"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "buka laporan pada 390px",
+        "assert": "teks akibat operasional terlihat utuh pada kartu pertama, dan kartunya tidak melebihi lebar viewport"
+      }
+    },
+    {
+      "scenario_ref": "Kedua kartu nut silo menyatakan standarnya satu",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan kedua kolom silo terisi angka BERBEDA",
+        "assert": "DUA keterangan standar-bersama terender, masing-masing menyebut label saudara kolomnya; kedua kartu menampilkan standar yang sama; dan TIDAK ADA satu pun kartu berisi rata-rata kedua silo"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "buka laporan",
+        "assert": "kedua keterangan terlihat pada kartu yang bertumpuk berurutan — di sinilah standar identik yang muncul dua kali beruntun paling mudah terbaca sebagai duplikasi"
+      }
+    },
+    {
+      "scenario_ref": "Kartu kernel recovery menyatakan standarnya tidak dipasangkan",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan kolom kernel recovery terisi dan unmapped_reason terisi",
+        "assert": "angkanya terender DI BAWAH label kolomnya sendiri; keterangan bahwa standarnya tidak dipasangkan terender; dan sel target TIDAK kosong tanpa keterangan — sel kosong terbaca seperti master yang belum terisi"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "buka laporan",
+        "assert": "keterangan itu terlihat pada kartu kernel recovery"
+      }
+    },
+    {
+      "scenario_ref": "Bagian standar-tanpa-pengukuran memuat alasan per baris, dan tetap digambar walau kosong",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan satu entri; terpisah, mount dengan all_targets_measured true dan daftar kosong",
+        "assert": "keadaan pertama: barisnya terender beserta alasannya; keadaan kedua: BAGIANNYA TETAP terender dengan keterangan bahwa seluruh standar sudah punya pengukuran — bagian yang hilang tidak dapat dibedakan dari bagian yang belum pernah dibuat"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "buka laporan pada data tersemai",
+        "assert": "bagiannya terlihat, dan tiap baris membawa sel alasannya"
+      }
+    },
+    {
+      "scenario_ref": "Blok downtime numerik dengan penyebut slot pencatatnya",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan downtime total 60 menit atas 3 slot pencatat dari 5 slot terisi",
+        "assert": "total, jumlah slot pencatat, dan rata-rata per slot pencatat ketiganya terender; keterangan bahwa slot tanpa catatan bukan nol menit terender; keterangan bahwa parameter ini tidak punya standar master terender"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "buka laporan",
+        "assert": "INVARIAN: jumlah slot pencatat tidak pernah melampaui jumlah slot terisi periode — diturunkan dari DOM, bukan angka keras, karena basis data e2e dibagi antar spec"
+      }
+    },
+    {
+      "scenario_ref": "Tanpa satu pun slot pencatat, blok downtime menyatakan ketiadaan bukan nol",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan downtime.total_minutes null dan recorded_slot_count 0",
+        "assert": "keterangan ketiadaan terender; teks '0 menit' TIDAK terender — total 0 menit terbaca seperti 'stasiun tidak pernah berhenti'; dan kedua keterangan cara-hitung TETAP terender karena keduanya menjelaskan cara hitungnya bukan hasilnya"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "N/A — bergantung pada data semai",
+        "assert": "N/A"
+      }
+    },
+    {
+      "scenario_ref": "Bagian temuan terpisah dari blok downtime",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan satu slot yang punya downtime 15 menit DAN temuan 'Belt kendur'",
+        "assert": "KEDUA bagian terender terpisah dengan judulnya masing-masing; tidak ada satu pun elemen yang menggabungkan keduanya menjadi satu angka"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "buka laporan",
+        "assert": "kedua bagian terlihat sekaligus"
+      }
+    },
+    {
+      "scenario_ref": "Temuan dikelompokkan harfiah, dua ejaan menjadi dua baris",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan findings 'Fan bergetar' (2 slot) dan 'fan bergetar' (1 slot)",
+        "assert": "DUA baris terender; keterangan pengelompokan harfiah terender; urutan server dipertahankan apa adanya"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "buka laporan",
+        "assert": "tabel temuan terender di dalam bagiannya"
+      }
+    },
+    {
+      "scenario_ref": "Cakupan paling atas dan tetap tampil pada periode kosong",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode tanpa slot terisi>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount pada periode tanpa satu slot terisi",
+        "assert": "keterangan periode kosong terender; blok cakupan TETAP terender dan indexOf-nya lebih kecil daripada kartu parameter"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "pilih periode tanpa data",
+        "assert": "boundingBox().y blok cakupan lebih kecil daripada kartu parameter pertama"
+      }
+    },
+    {
+      "scenario_ref": "Periode belum mulai — persen em dash, bukan 0%",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode mendatang>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan coverage days_counted 0 DAN period_running true",
+        "assert": "keterangan 'belum mulai' terender dan keterangan 'sampai hari ini' TIDAK terender — mengunci urutan cabang, karena server menandai periode yang belum mulai sebagai masih berjalan juga"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "N/A — bergantung data semai",
+        "assert": "N/A"
+      }
+    },
+    {
+      "scenario_ref": "Tidak ada penandaan di luar batas",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan angka yang JELAS melewati batas kritis master",
+        "assert": "tidak satu pun kelas md-threshold / is-danger / is-warning / md-chip--danger pada keluaran render; DAN kalimat penjelas ketiadaan penandaan terender UTUH. Diasersi atas NAMA KELAS, bukan atas frasa — kalimat penjelasnya sendiri memuat frasa 'di luar batas'"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "buka laporan",
+        "assert": "nol elemen dengan keempat kelas itu"
+      }
+    },
+    {
+      "scenario_ref": "Production Line wajib dan diingat perangkat",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dengan DUA line tanpa pilihan; lalu dengan line dari query rute; lalu dengan line dari ingatan perangkat; lalu dengan ingatan yang sudah tidak ada",
+        "assert": "dua line tanpa pilihan: pemilih tampil dan TIDAK ada satu angka pun; query rute dipakai dan DITULIS ke ingatan; ingatan dipakai tanpa meminta memilih; ingatan basi memunculkan pemilih lagi tanpa menebak line lain"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "stub jaringan untuk tiap keadaan, viewport 390x844",
+        "assert": "keempat keadaan berperilaku seperti di atas, dan kunci penyimpanan yang dipakai sama dengan StationListView"
+      }
+    },
+    {
+      "scenario_ref": "Rekap dapat ditutup, dan menutupnya tidak mengubah angka",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount lalu tutup rekap harian",
+        "assert": "tabelnya TERSEMBUNYI, bukan hilang dari DOM — CollapsibleSection memakai v-show, jadi asersinya toBeHidden() BUKAN toHaveCount(0); dan tidak ada permintaan jaringan baru yang terpicu"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "tekan tombol tutup rekap harian",
+        "assert": "tabel tersembunyi; angka pada blok cakupan tidak berubah"
+      }
+    },
+    {
+      "scenario_ref": "Tata letak layar sempit",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "N/A — klaim tata letak hanya dapat diuji di browser",
+        "action": "N/A",
+        "assert": "N/A"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "viewport 390x844, buka laporan dengan data",
+        "assert": "ketujuh kartu bertumpuk SATU KOLOM (boundingBox().x sama untuk ketujuhnya); halaman TIDAK pernah menggulir mendatar (scrollWidth <= clientWidth); kedua tabel rekap menggulir DI DALAM kartunya sendiri (scrollWidth tabel > clientWidth kartunya) — sembilan kolom jelas lebih lebar daripada 390px"
+      }
+    },
+    {
+      "scenario_ref": "Layar hanya membaca dan Back kembali ke Reporting",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "mount dan periksa footer",
+        "assert": "footer HANYA memuat Ekspor dan Back; tidak ada tombol Simpan, Hapus, atau kontrol input apa pun"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "tekan Back",
+        "assert": "kembali ke Reporting (screen-141)"
+      }
+    },
+    {
+      "scenario_ref": "Sesi berakhir dan kegagalan jaringan dibedakan",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid>",
+            "production_line_id": "<uuid>"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanDepricarpingView",
+        "action": "paksa 401; terpisah, paksa kegagalan jaringan",
+        "assert": "401 → diarahkan ke Login TANPA pesan jaringan; kegagalan jaringan → pesan dan tombol coba lagi, dan periode serta line yang sudah dipilih TIDAK hilang"
+      },
+      "browser_test": {
+        "route": "/reports/depricarping",
+        "action": "stub 401 pada /summary",
+        "assert": "mendarat di Login tanpa pesan 'periksa koneksi Anda'"
+      }
+    },
+    {
+      "scenario_ref": "Tile Depricarping pada Reporting aktif dan menavigasi",
+      "usecase_id": "usecase-156--laporan-depricarping-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount layar Reporting",
+        "assert": "REPORT_ROUTES memuat entri 'depricarping' → 'report-depricarping'; dan contoh 'tile tanpa laporan' pada spec itu DIPINDAHKAN ke stasiun lain — kali keempat, dan catatan di docblock menyatakan ia akan berpindah lagi"
+      },
+      "browser_test": {
+        "route": "/reporting",
+        "action": "semai station lokal lalu TEKAN tile Depricarping (bukan page.goto — tabel station lokal hidup di memori sql.js dan hilang pada tiap muat ulang)",
+        "assert": "berpindah ke /reports/depricarping dan judul laporannya tampil"
+      }
+    }
+  ]
+}

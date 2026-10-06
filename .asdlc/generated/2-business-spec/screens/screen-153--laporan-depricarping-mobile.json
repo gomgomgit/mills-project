@@ -1,0 +1,147 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-153--laporan-depricarping-mobile",
+  "name": "Laporan Depricarping (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Versi mobile dari Laporan Depricarping (screen-152). Isi laporannya SAMA PERSIS — keempat endpoint /api/depricarping-reports/* dipakai ulang apa adanya, sehingga layar web, API, dan ponsel tidak mungkin berselisih tentang satu angka pun. Yang berubah hanyalah bentuknya pada layar sempit, dan apa yang TIDAK berubah justru yang perlu dinyatakan.\n\nTABEL DELAPAN KOLOM MENJADI KARTU, dan itu satu-satunya perubahan bentuk yang disengaja. Pada lebar 390px tabel parameter versi web tidak muat tanpa menggulir mendatar, jadi tiap parameter menjadi satu kartu bertumpuk: min / rata-rata / maks berdampingan di dalam kartu itu (bukan tiga kartu — ketiganya satu pengukuran dilihat dari tiga sisi), lalu penyebutnya, lalu rentang target, batas kritis, dan akibat bila dilewati. YANG TIDAK IKUT BERUBAH ADALAH DAFTAR ISINYA. Memotong kolom penyebut atau salah satu dari ketiga kolom target demi ruang adalah kehilangan yang paling mudah terjadi dan paling sulit terlihat — dan pada stasiun ini yang paling berisiko dibuang adalah kolom akibat operasional, karena ia paling panjang teksnya. Tanpa kolom itu, tiga parameter yang sama-sama melewati batasnya tampak sama pentingnya, padahal tidak.\n\nTUJUH KARTU PARAMETER, BUKAN LIMA seperti pada laporan Threshing dan Pressing mobile. Depricarping punya tujuh kolom ukur, dan ketujuhnya tetap dirender — termasuk yang tidak pernah terisi sepanjang periode, yang tampil dengan angka 'tidak tersedia' dan penyebut 0 slot. Kartu yang hilang terbaca sebagai 'tidak ada parameter ini', padahal yang benar adalah 'tidak ada yang mengukurnya'.\n\nTIGA HAL YANG DIWARISI DARI screen-152 DAN HARUS TETAP TERBACA DI LAYAR SEMPIT, karena justru di sinilah ketiganya paling mudah hilang:\n\nPERTAMA, BLOK DOWNTIME BERUPA ANGKA — yang pertama di seluruh laporan stasiun, karena downtime_minutes adalah kolom integer sementara Threshing dan Pressing hanya punya teks. Total menit berhenti, jumlah slot yang mencatatnya, dan rata-rata per slot pencatat. Layar menyatakan bahwa slot tanpa catatan BUKAN nol menit, dan bahwa parameter ini tidak punya standar pada master sama sekali. Bila tidak ada satu pun slot mencatat, blok itu MENYATAKANNYA alih-alih mencetak 0 menit — yang akan terbaca seperti 'stasiun tidak pernah berhenti'. Teks bebasnya ada di bagian TERPISAH (Temuan), karena satu menjawab 'berapa lama' dan satu menjawab 'apa yang terlihat'.\n\nKEDUA, KEDUA KARTU NUT SILO MEMBAWA KETERANGAN BAHWA STANDARNYA SATU. Master hanya memuat satu baris 'Nut Silo Temperature' sementara tabel detail punya dua kolom silo. Keduanya tetap dua kartu dengan penyebut masing-masing — dua silo fisik, dan merata-ratakannya akan menyembunyikan silo yang menyimpang di belakang silo yang normal. Di layar sempit kedua kartu itu BERTUMPUK LANGSUNG berurutan, sehingga standar '60°C - 70°C' yang identik muncul dua kali tepat beruntun — tanpa keterangannya, itu terbaca seperti data yang terduplikasi lebih kuat lagi daripada di tabel web.\n\nKETIGA, SATU STANDAR TAMPIL TANPA ANGKA DAN SATU ANGKA TAMPIL TANPA STANDAR, dengan sengaja. Master menyebut standarnya 'Kernel Loss in Fibre' (target '< 0,50%', sebuah KEHILANGAN) sementara kolom yang tersedia bernama kernel_recovery_in_fibre_percent dan keempat layar input Depricarping melabelinya PEROLEHAN. Dua pembingkaian yang berlawanan atas kuantitas yang sama, dan tidak ada apa pun di sistem yang menyelesaikannya. Jadi kartu itu menampilkan angkanya di bawah label kolomnya sendiri beserta keterangan bahwa standarnya tidak dipasangkan, dan standarnya muncul di bagian standar-tanpa-pengukuran dengan alasannya. Bagian itu DIGAMBAR WALAU KOSONG, karena bagian yang hilang tidak dapat dibedakan dari bagian yang belum pernah dibuat.\n\nDAN TETAP TIDAK ADA PENANDAAN OTOMATIS DI LUAR BATAS, sebabnya dinyatakan di layar sama lengkapnya dengan versi web — tidak diringkas demi ruang, karena ketiadaan yang tidak dijelaskan terbaca sebagai fitur yang belum selesai.\n\nCAKUPAN PENCATATAN TETAP PALING ATAS. Di layar sempit pembaca melihat lebih sedikit sekaligus, jadi apa yang dilihat lebih dulu menentukan lebih banyak — periode yang terisi seperlima pun menghasilkan rata-rata yang terlihat rapi.\n\nREAD-ONLY, dicapai dari Reporting (screen-141).",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Reporting (screen-141) → tekan tile Depricarping",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Depricarping, beserta status Depricarping pada periode itu",
+    "Pemilih Production Line — wajib; satu line langsung berlaku tanpa pemilih, lebih dari satu menuntut pemilihan dan tidak ada angka sebelum itu",
+    "Nama mill akun yang sedang masuk — tanpa pemilih mill; kedua peran pada layar ini terikat satu mill",
+    "Badge status periode beserta rentang tanggalnya",
+    "CAKUPAN PENCATATAN, paling atas: slot terisi, slot yang diharapkan, dan persennya — beserta jumlah presser yang beroperasi, jumlah hari yang dihitung, dan 24 slot kanonis per presser per hari",
+    "Keterangan bahwa penyebut hari berhenti di hari ini bila periode masih berjalan; atau bahwa periode belum mulai sehingga persennya '—' bukan 0%",
+    "TUJUH kartu parameter — satu per kolom ukur, masing-masing memuat min, rata-rata, maks berdampingan, JUMLAH SLOT penyebutnya, lalu rentang target, batas kritis, dan akibat bila dilewati",
+    "Pada kedua kartu nut silo: keterangan bahwa standarnya SATU baris master yang sama, dan bahwa angkanya tetap dipisah karena keduanya silo yang berbeda",
+    "Pada kartu kernel recovery: keterangan bahwa standarnya TIDAK dipasangkan, beserta sebabnya",
+    "Keterangan bahwa ketiga kolom target adalah teks bebas yang dapat disunting kapan pun, dan karena itu laporan ini tidak menandai satu nilai pun sebagai di luar batas",
+    "Keterangan bahwa ketiga kolom target berlaku umum untuk seluruh mill, bukan khusus mill yang sedang dilihat",
+    "Bagian standar yang belum diukur sistem, beserta ALASAN per baris — dan tetap digambar dengan keterangannya sendiri walau isinya kosong",
+    "BLOK DOWNTIME: total menit berhenti sepanjang periode, jumlah slot yang mencatatnya, dan rata-rata menit per slot pencatat",
+    "Keterangan bahwa total menit dijumlahkan atas slot yang mencatatnya saja, sehingga slot tanpa catatan tidak dihitung sebagai nol menit",
+    "Keterangan bahwa downtime_minutes tidak punya standar pada master, sehingga tidak ada rentang maupun batas yang dapat ditampilkan bersamanya",
+    "REKAP TEMUAN — satu baris per teks temuan beserta jumlah slot yang mencatatnya, diurutkan dari terbanyak, pada bagian terpisah dari downtime",
+    "Keterangan bahwa temuan dikelompokkan harfiah, sehingga dua ejaan untuk hal yang sama muncul sebagai dua baris",
+    "Jumlah record pada periode dan line itu, jumlah hari yang punya record, jumlah record draft, jumlah yang belum diperiksa, dan jumlah yang belum disahkan",
+    "Rekap per presser — satu baris per presser_id: jumlah hari tercatat, jumlah slot terisi, total menit downtime, dan rata-rata tiap kolom ukur",
+    "Rekap per hari — satu baris per tanggal: jumlah slot terisi, total menit downtime, dan rata-rata tiap kolom ukur, beserta baris total periode",
+    "Keterangan periode kosong bila tidak ada satu slot pun terisi — dengan cakupan pencatatan TETAP ditampilkan",
+    "Nama Production Line yang sedang berlaku, selalu terlihat"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan line yang angkanya dilihat. Wajib — tidak ada angka sebelum satu line berlaku. Pilihan diingat perangkat dan dibagi dengan Station List.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka / Tutup Bagian",
+      "description": "Menyingkap atau menyembunyikan rekap per presser, rekap harian, dan rekap temuan. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh seluruh slot waktu periode dan line terpilih sebagai CSV, satu baris per slot. Hanya CSV — .xlsx tidak tersedia di WebView ponsel.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Reporting (screen-141).",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Keempat endpoint /api/depricarping-reports/* dipakai ulang APA ADANYA dari screen-152 — tidak ada endpoint baru, tidak ada perubahan backend, dan karena itu tidak mungkin ada angka yang berselisih dengan versi web.",
+    "Production Line WAJIB dipilih sebelum satu angka pun ditampilkan, dan penjagaannya ada di FUNGSI pemuatan ringkasan — bukan hanya di template — supaya jalur coba-lagi, ganti periode, dan pemulihan dari ingatan perangkat tidak melewatinya.",
+    "Pilihan Production Line diingat perangkat dengan kunci yang sama seperti Station List, dan urutan penyelesaiannya: query rute → ingatan perangkat → satu-satunya line → tidak ada. Kegagalan penyimpanan (mode privat) diperlakukan sebagai 'tidak ada ingatan', bukan sebagai galat.",
+    "Tidak ada pemilih mill. Kedua peran pada layar ini terikat satu mill, dan business_unit_id tidak pernah dikirim ke server untuk keduanya.",
+    "KETUJUH kartu parameter selalu dirender, termasuk yang tidak pernah terisi — dengan angka 'tidak tersedia' dan penyebut 0 slot, dan ketiga kolom targetnya tetap tampil.",
+    "Setiap kartu mencetak PENYEBUTNYA SENDIRI. Ketujuh kolom nullable dan terisi saling bebas, sehingga satu penyebut bersama akan salah untuk setidaknya enam di antaranya.",
+    "Nilai yang tidak tersedia dirender sebagai keterangan, bukan sebagai 0. Persen cakupan tanpa penyebut dirender '—', bukan 0%.",
+    "Cakupan pencatatan dirender DI ATAS seluruh angka lain, dan TETAP dirender meski periode kosong.",
+    "Urutan cabang keterangan cakupan: days_counted nol DIPERIKSA SEBELUM period_running, karena server menandai periode yang belum mulai sebagai masih berjalan juga.",
+    "KETIGA kolom target dirender pada kartu yang sama dengan angkanya, verbatim — termasuk kolom akibat operasional, yang paling panjang teksnya dan karena itu paling berisiko dibuang demi ruang.",
+    "Kedua kartu nut silo membawa keterangan bahwa standarnya SATU baris master yang sama. Di layar sempit kedua kartu itu bertumpuk langsung berurutan, sehingga standar identik yang muncul dua kali beruntun lebih kuat lagi terbaca sebagai data terduplikasi daripada di tabel web.",
+    "Kartu kernel recovery membawa keterangan bahwa standarnya tidak dipasangkan beserta sebabnya, bukan sel target yang kosong — sel kosong terbaca seperti master yang belum terisi.",
+    "Bagian standar-tanpa-pengukuran TETAP digambar walau kosong, dengan keterangan bahwa seluruh standar sudah punya pengukuran.",
+    "TIDAK ADA penandaan otomatis di luar batas, dan keterangannya dirender UTUH — tidak diringkas demi ruang layar.",
+    "Downtime diterbitkan sebagai angka pada bloknya sendiri: total menit atas slot yang mencatat saja, jumlah slot yang mencatat, dan rata-rata per slot pencatat. Tanpa satu pun slot pencatat, blok itu menyatakan ketiadaannya alih-alih mencetak 0 menit.",
+    "Nilai downtime_minutes nol dibedakan dari tidak tercatat: nol berarti seseorang menyatakan tidak ada berhenti pada slot itu.",
+    "Temuan direkap harfiah tanpa normalisasi, pada bagian TERPISAH dari downtime — satu menjawab 'berapa lama', satu menjawab 'apa yang terlihat'.",
+    "Tidak ada aritmetika di klien. Seluruh angka diambil apa adanya dari respons server; repo klien tidak menghitung, tidak merata-ratakan, dan tidak menormalkan apa pun.",
+    "Record draft ikut terhitung pada seluruh angka, dan jumlahnya dinyatakan terpisah.",
+    "Ekspor hanya CSV. .xlsx tidak ditawarkan karena menyimpan dan membuka berkas itu di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini.",
+    "Sesi yang berakhir mengarahkan ke Login tanpa pesan jaringan — 'periksa koneksi Anda' pada sesi yang berakhir mengirim pembaca ke arah yang salah."
+  ],
+  "usecase_ids": [
+    "usecase-156--laporan-depricarping-mobile"
+  ],
+  "edge_cases": [
+    "Production Line belum dipilih — pemilih tampil dan TIDAK ada satu angka pun; bukan angka gabungan seluruh mill.",
+    "Mill tanpa Production Line — arahan menghubungi Admin, tanpa tombol coba lagi.",
+    "Daftar Production Line gagal dimuat — pesan BERBEDA dari 'mill belum punya line', dengan tombol coba lagi sendiri.",
+    "Line dari query rute dipakai dan diingat perangkat.",
+    "Line yang diingat perangkat dipakai tanpa diminta memilih lagi.",
+    "Line yang diingat sudah tidak ada — pemilih muncul lagi, tanpa menebak line lain.",
+    "Penyimpanan perangkat gagal (mode privat) — diperlakukan sebagai 'tidak ada ingatan', bukan galat.",
+    "Mill belum punya periode yang mencakup Depricarping — arahan menghubungi Admin, pemilih tetap ada dalam keadaan kosong.",
+    "Periode tanpa satu pun slot terisi — keterangan periode kosong, seluruh angka 'tidak tersedia', cakupan TETAP tampil.",
+    "Satu kolom ukur kosong sepanjang periode — kartunya tetap ada dengan 'tidak tersedia', penyebut 0 slot, dan ketiga kolom target tetap tampil.",
+    "Tujuh penyebut yang berbeda pada periode yang sama — ketujuhnya tercetak, masing-masing pada kartunya sendiri.",
+    "Satu nut silo terisi dan satu tidak — dua kartu tetap ada, dan keterangan standar-bersama tetap tampil pada keduanya.",
+    "Kedua nut silo terisi dengan angka yang sangat berbeda — keduanya tampil apa adanya, tidak dirata-ratakan, dan selisihnya tidak ditandai.",
+    "Tidak ada satu pun slot yang mencatat downtime — blok downtime menyatakan ketiadaannya, bukan total 0 menit.",
+    "downtime_minutes bernilai 0 pada sebagian slot — ikut sebagai slot pencatat, dan dibedakan dari slot yang tidak mencatat.",
+    "Satu slot memuat downtime DAN temuan — terhitung sekali pada masing-masing bagian, tidak digabungkan.",
+    "Temuan kosong pada seluruh slot — keterangan, bukan tabel kosong.",
+    "Satu temuan muncul dengan ejaan berbeda — dua baris, dan keterangan menyatakan pengelompokannya harfiah.",
+    "Temuan sangat panjang — dibungkus utuh tanpa pemotongan yang menghilangkan isi.",
+    "Master target kosong — angka ukur tetap tampil, ketiga kolom target dirender sebagai keterangan bahwa master belum terisi.",
+    "Periode masih berjalan — penyebut hari berhenti di hari ini, dan hal itu dinyatakan.",
+    "Periode belum mulai — persen cakupan '—' bukan 0%, dan keterangan itu menang atas keterangan 'periode berjalan'.",
+    "Periode tertutup — laporan tampil penuh, ekspor tetap aktif.",
+    "Jaringan gagal saat memuat ringkasan — pesan dan tombol coba lagi, dan periode serta line yang sudah dipilih tidak hilang.",
+    "Dua permintaan ringkasan saling mendahului (pengguna mengganti periode cepat) — hanya respons permintaan terakhir yang dipakai.",
+    "Sesi berakhir (401) — diarahkan ke Login tanpa pesan jaringan.",
+    "Halaman tidak pernah menggulir mendatar pada lebar 390px; kedua tabel rekap menggulir DI DALAM kartunya sendiri."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Rekap harian versi mobile menampilkan ketujuh kolom rata-rata ditambah kolom downtime dalam satu tabel yang menggulir mendatar di dalam kartunya — sembilan kolom, dua lebih banyak daripada laporan Threshing dan Pressing mobile. Belum diputuskan apakah pada layar sempit lebih berguna memecahnya menjadi satu kartu per hari; bentuk tabel dipilih lebih dulu karena ia sejajar dengan versi web dan membuat perbandingan antar hari tetap mungkin. Pada stasiun ini pertanyaannya lebih tajam daripada pada kedua laporan sebelumnya justru karena tabelnya lebih lebar.",
+    "Kolom akibat operasional adalah teks panjang (satu sampai dua kalimat penuh), dan pada kartu di lebar 390px ia memakan ruang paling banyak dari ketiga kolom target. Belum diputuskan apakah ia perlu dapat dilipat (terbuka saat ditekan) alih-alih selalu tampil penuh. Dipilih selalu tampil penuh lebih dulu, karena melipatnya berarti pembaca harus tahu dulu bahwa ada yang perlu dibuka — dan yang dipertaruhkan adalah informasi yang menentukan parameter mana yang mendesak.",
+    "Keempat pertanyaan terbuka screen-152 berlaku sama di sini dan tidak diputuskan di layar ini: arah 'Kernel Loss in Fibre' versus 'Kernel Recovery in Fibre'; apakah satu standar untuk dua nut silo memang yang dimaksud; apakah master perlu dipecah menjadi kolom batas numerik agar penandaan otomatis mungkin; dan apakah laporan perlu menyatakan secara eksplisit ketika proporsi slot yang mencatat downtime sangat rendah sehingga totalnya tidak layak dibandingkan antar periode."
+  ]
+}

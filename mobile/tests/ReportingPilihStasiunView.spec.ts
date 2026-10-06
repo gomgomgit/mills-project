@@ -18,13 +18,15 @@
  * ada khusus untuk menjatuhkannya, dengan fixture yang sengaja dibuat
  * "tidak realistis":
  *
- * CONTOH "LAPORAN BELUM DIBANGUN" SUDAH TIGA KALI DIPINDAHKAN, dan ketiganya
+ * CONTOH "LAPORAN BELUM DIBANGUN" SUDAH EMPAT KALI DIPINDAHKAN, dan keempatnya
  * karena laporannya memang dibangun: Weighbridge -> Engine Room pada
- * screen-144, Threshing -> Process Water pada screen-149, lalu Pressing ->
- * Kernel Plant pada screen-151 (ketiganya 2026-10-06).
- * Dipindahkan, BUKAN dihapus: bila Process Water atau Kernel Plant pun
- * dibuatkan laporan mobile, spec ini akan gagal lagi — dan itu benar, karena
- * ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
+ * screen-144, Threshing -> Process Water pada screen-149, Pressing ->
+ * Kernel Plant pada screen-151, lalu Depricarping -> Effluent Plant pada
+ * screen-153 (keempatnya 2026-10-06).
+ * Dipindahkan, BUKAN dihapus: bila Process Water, Kernel Plant atau Effluent
+ * Plant pun dibuatkan laporan mobile, spec ini akan gagal lagi — dan itu
+ * benar, karena ia memaksa contohnya diperbarui alih-alih diam-diam menjadi
+ * selalu hijau.
  *
  *   - 'process-water' dengan isActive = true → tile WAJIB nonaktif (kodenya
  *     tidak ada di REPORT_ROUTES).
@@ -554,7 +556,11 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
       makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
       makeStation({ id: 'st-3', name: 'Kernel Plant', type: 'kernel-plant', isActive: true }),
-      makeStation({ id: 'st-4', name: 'Depricarping', type: 'depricarping', isActive: true }),
+      // DIPINDAHKAN dari Depricarping pada screen-153 — stasiun itu kini
+      // punya laporan mobile, jadi tile-nya aktif dan jumlah tile nonaktif
+      // turun jadi 3. Effluent Plant dipilih karena ia belum dipakai sebagai
+      // contoh di tempat lain mana pun.
+      makeStation({ id: 'st-4', name: 'Effluent Plant', type: 'effluent-plant', isActive: true }),
       makeStation({ id: 'st-5', name: 'Kernel Plant', type: 'kernel-plant', isActive: true }),
     ])
 

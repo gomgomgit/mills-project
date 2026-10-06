@@ -71,6 +71,30 @@ class PressingRecordService
     protected const FORM_FIELDS = ['presser_id', 'date', 'note'];
 
     /**
+     * The SIX detail columns that count as a reading on one time slot.
+     *
+     * Public since 2026-10-06 (screen-150 — the Pressing period report),
+     * because that report needs the SAME definition of "which columns count
+     * as a reading" that the input screens enforce. Visibility widened and
+     * the list centralised here rather than copied — two copies of this list
+     * is how the report and the form start disagreeing about what was
+     * recorded. Same precedent as BoilerRoomRecordService and
+     * ThreshingRecordService. Purely additive: no behaviour changed.
+     *
+     * downtime_reason BELONGS in this list. A slot where the operator wrote
+     * only "Cone macet" was unmistakably visited, and treating it as an
+     * untouched slot would report a slot that was plainly filled in as blank.
+     */
+    public const READING_FIELDS = [
+        'digester_temp_c',
+        'digester_level_percent',
+        'press_motor_current_amps',
+        'cone_hydraulic_pressure_bar',
+        'dilution_water_temp_c',
+        'downtime_reason',
+    ];
+
+    /**
      * The 24 canonical hourly time-slot labels, in order: 07:00, 08:00,
      * ..., 23:00, 00:00, ..., 06:00. Mirrors mobile's
      * pressingRecordRepo.ts's canonicalTimeSlots() exactly (`for i in
@@ -293,14 +317,28 @@ class PressingRecordService
     /**
      * @param  array{digester_temp_c: mixed, digester_level_percent: mixed, press_motor_current_amps: mixed, cone_hydraulic_pressure_bar: mixed, dilution_water_temp_c: mixed, downtime_reason: mixed}  $row
      */
-    protected function isRowFilled(array $row): bool
+    /**
+     * Is this slot a reading at all? True as soon as ONE of READING_FIELDS
+     * carries a value.
+     *
+     * Public since 2026-10-06 so PressingReportService can ask the same
+     * question the input screens ask, instead of re-deriving it (see
+     * READING_FIELDS). Behaviour is unchanged: the loop below treats null and
+     * '' as empty, which for the five float columns is exactly the old
+     * `!== null` test and for downtime_reason is exactly the old
+     * `!== null && !== ''` test.
+     */
+    public function isRowFilled(array $row): bool
     {
-        return $row['digester_temp_c'] !== null
-            || $row['digester_level_percent'] !== null
-            || $row['press_motor_current_amps'] !== null
-            || $row['cone_hydraulic_pressure_bar'] !== null
-            || $row['dilution_water_temp_c'] !== null
-            || ($row['downtime_reason'] !== null && $row['downtime_reason'] !== '');
+        foreach (self::READING_FIELDS as $field) {
+            $value = $row[$field] ?? null;
+
+            if ($value !== null && $value !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

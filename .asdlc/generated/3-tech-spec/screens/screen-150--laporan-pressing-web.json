@@ -1,0 +1,1853 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-150--laporan-pressing-web",
+  "name": "Laporan Pressing (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/pressing",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill lewat pemilih Mill"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Rute WEB tidak dibuka untuk Operator. Komponen Livewire punya daftar perannya SENDIRI (canAccess()) dan tidak meminjam guardAccess() service, sehingga pasangan mobile screen-151 yang memakai ulang endpoint yang sama tidak dapat melebarkan layar web ini secara tidak sengaja. Pada API, Operator DITERIMA sejak awal pada ketiga rute data"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "usecase_name": "Lihat Laporan Periode Pressing (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/pressing-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — ADMIN SAJA; 403 untuk peran terikat mill termasuk Operator, ditegakkan di dalam service bukan oleh middleware",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan Admin — peran terikat satu mill tidak punya pemilih, dan menyerahkan daftar seluruh mill kepadanya adalah kebocoran"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/pressing-reports/periods",
+          "description": "Daftar Periode Pelaporan yang mencakup stasiun Pressing pada satu mill; status per baris period_stations. Periode tertutup IKUT dicantumkan",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Diabaikan untuk peran terikat mill; WAJIB untuk Admin — ketiadaannya 422, bukan daftar kosong"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "draft|open|closed",
+                  "station_type": "pressing",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar operator/supervisor/mill_management/admin"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id, atau akun terikat mill yang business_unit_id-nya NULL — dan dalam kasus kedua daftar seluruh mill tidak pernah dibaca"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/pressing-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode pada satu Production Line: cakupan pencatatan, min/avg/max per kolom ukur beserta penyebutnya, KEDUA kolom master target per parameter (target_operating_range + critical_trigger_action_limit), daftar target yang belum punya kolom pengukuran, rekap per presser, rekap harian, dan rekap alasan downtime",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Ketiadaannya 422 VALIDATION_ERROR dengan errors.period_id"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "description": "WAJIB. Tidak pernah di-default ke 'semua line'"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Diabaikan untuk peran terikat mill; WAJIB untuk Admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "draft|open|closed",
+                "business_unit_name": "string"
+              },
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "has_data": "bool — true hanya bila ada minimal satu slot terisi",
+              "coverage": {
+                "filled_slots": "int",
+                "expected_slots": "int — presser_count × days_counted × slots_per_presser_per_day",
+                "coverage_percent": "float|null — null bila expected_slots nol, BUKAN 0.0",
+                "presser_count": "int — presser_id yang benar-benar muncul",
+                "slots_per_presser_per_day": "int — 24, dari PressingRecordService::canonicalTimeSlots()",
+                "days_in_period": "int",
+                "days_counted": "int — berhenti di hari ini bila periode berjalan",
+                "period_running": "bool"
+              },
+              "metrics": [
+                {
+                  "column": "string",
+                  "label": "string",
+                  "unit": "string",
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "filled_slot_count": "int — PENYEBUT angka di baris ini",
+                  "target": {
+                    "parameter_metric": "string|null",
+                    "target_operating_range": "string|null — rentang kerja yang DITUJU",
+                    "critical_trigger_action_limit": "string|null — batas yang MENUNTUT TINDAKAN, beserta akibatnya"
+                  }
+                }
+              ],
+              "targets_without_metric": [
+                {
+                  "parameter_metric": "string",
+                  "target_operating_range": "string",
+                  "critical_trigger_action_limit": "string"
+                }
+              ],
+              "targets_master_empty": "bool",
+              "by_presser": [
+                {
+                  "presser_id": "string",
+                  "day_count": "int",
+                  "filled_slot_count": "int",
+                  "averages": {
+                    "column_name": "float|null"
+                  }
+                }
+              ],
+              "daily": [
+                {
+                  "date": "date",
+                  "filled_slot_count": "int",
+                  "averages": {
+                    "column_name": "float|null"
+                  }
+                }
+              ],
+              "daily_total": {
+                "filled_slot_count": "int",
+                "averages": {
+                  "column_name": "float|null"
+                }
+              },
+              "downtime_reasons": [
+                {
+                  "reason": "string",
+                  "slot_count": "int"
+                }
+              ],
+              "total": {
+                "record_count": "int",
+                "days_with_records": "int",
+                "draft_record_count": "int",
+                "records_not_checked": "int",
+                "records_not_acknowledged": "int"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran tidak diterima; atau production_line_id milik mill lain; atau period_id milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada — diperiksa SETELAH line"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id absen, production_line_id absen, atau Admin tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/pressing-reports/export",
+          "description": "Unduhan CSV/Excel — SATU BARIS PER SLOT WAKTU, kolom konteks diulang verbatim. Bukan respons JSON",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Ketiadaannya 422"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "description": "WAJIB, sama seperti /summary"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Diabaikan untuk peran terikat mill; WAJIB untuk Admin"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "description": "csv (bawaan) atau excel; nilai lain 422"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "content_type": "text/csv | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "body": "StreamedResponse — header + satu baris per pressing_details"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran tidak diterima; atau line/periode milik mill lain — dibangkitkan EAGER sebelum aliran dimulai"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen, atau format di luar csv|excel"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "Jumlah BARIS SLOT melebihi EXPORT_ROW_LIMIT (50.000) — dihitung atas baris slot, bukan record"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "DIPAKAI ULANG VERBATIM dari screen-135 — bukan endpoint baru",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Diabaikan untuk peran terikat mill; dikirim Admin setelah memilih mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "code": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Gate sesi + peran (guardAccess): 401 tanpa sesi, 403 bila peran di luar operator/supervisor/mill_management/admin. Dua lapis lebih dalam daripada middleware rute, supaya melewati middleware tidak cukup dengan sendirinya.",
+        "2. resolveBusinessUnit(): supervisor/mill_management/operator SELALU business_unit_id akun — argumen klien tidak divalidasi, tidak dibandingkan, dibuang. Admin WAJIB mengirimkannya; absen = 422. Operator berada pada cabang TERIKAT MILL, dan penempatan itu yang menanggung beban keamanan.",
+        "3. Akun terikat mill yang business_unit_id-nya NULL: 422 fail-closed, dan daftar seluruh mill tidak pernah dibaca.",
+        "4. businessUnitOptions(): 403 untuk setiap peran selain admin, dibangkitkan di SERVICE bukan middleware.",
+        "5. listPeriods(): periods JOIN period_stations WHERE station_type = 'pressing' AND business_unit_id = mill berlaku. Status diambil dari BARIS period_stations. Status tidak menyaring: periode tertutup ikut tercantum.",
+        "6. requireProductionLineId(): absen = 422 errors.production_line_id. Ditegakkan di controller DAN lagi di dalam service.",
+        "7. resolveProductionLine(): line milik mill lain = 403. Berbeda dari business_unit_id yang diabaikan — di sini ada pegangan konkret pada data mill lain.",
+        "8. requirePeriodId(): absen = 422 errors.period_id.",
+        "9. authorizePeriod(): periode tidak ada = 404; periode mill lain = 403. Urutan 6-7-8-9 disengaja.",
+        "10. recordsFor(): pressing_records WHERE whereDate(date) BETWEEN periode AND production_line_id = line. whereDate, bukan where mentah. Penyaringan memakai kolom production_line_id pada RECORD, bukan join ke stations.",
+        "11. rowsOf(): memetakan setiap pressing_details menjadi baris datar dengan konteks record-nya, dan menandai 'filled' lewat PressingRecordService::isRowFilled() atas READING_FIELDS — definisi yang layar input itu sendiri tegakkan.",
+        "12. Baris 'filled' saja yang masuk perhitungan. Baris yang keenam kolomnya null adalah slot yang belum disentuh, sudah dilaporkan sebagai kekurangan oleh cakupan.",
+        "13. coverage: filled_slots = jumlah baris filled; presser_count = presser_id distinct yang muncul; slots_per_presser_per_day = count(PressingRecordService::canonicalTimeSlots()) = 24; days_counted = ReportPeriodDays::counted(); expected_slots = presser_count × days_counted × 24; coverage_percent = null bila expected_slots nol (BUKAN 0.0).",
+        "14. metricsOf(): untuk tiap kolom pada NUMERIC_METRICS, kumpulkan nilai non-null dari baris filled, lalu min/avg/max atas kumpulan ITU, dan sertakan filled_slot_count-nya sendiri. Seluruh agregasi di PHP, nol agregat SQL atas kolom nullable.",
+        "15. Kolom tanpa satu pun nilai: min/avg/max null dan filled_slot_count 0. Barisnya TETAP ada.",
+        "16. targetsByParameter(): baca pressing_operational_targets diurutkan sort_order, dikunci pada kolom parameter_metric — BUKAN 'parameter' seperti Threshing. Ketiga nama kolomnya berbeda dari master Threshing, dan menyalinnya tanpa memeriksa akan menghasilkan blok target yang seluruhnya null tanpa satu pun galat.",
+        "17. targetFor(): memasangkan kolom ukur ke parameter lewat PETA TETAP (COLUMN_TARGET_PARAMETER) — bukan pencocokan teks nama parameter saat render. Blok target membawa TIGA medan: parameter_metric, target_operating_range, critical_trigger_action_limit.",
+        "18. Parameter master yang tidak punya kolom masuk targets_without_metric. Pada Pressing ada DUA — 'Nut Breakage Rate' dan 'Press Cake Moisture' — karena master memuat tujuh parameter sementara pressing_details menyediakan lima kolom ukur.",
+        "19. targets_master_empty = true bila tabel master kosong; metrics tetap terisi penuh dan hanya blok target-nya yang kosong.",
+        "20. TIDAK ADA perbandingan antara nilai terukur dan kedua kolom target — tidak ada severity, tidak ada penanda di luar batas, tidak ada deteksi pencilan. Keduanya VARCHAR yang dapat disunting kapan pun; pengurai yang gagal pada bentuk teks baru akan BERHENTI MEMPERINGATKAN tanpa galat, dan peringatan yang hilang terbaca sebagai 'semuanya aman'. Satu nilai pada master pun sudah tidak dapat diurai tanpa menebak ('< 10% to 12%'). Paragraf ini ada supaya kelalaian ini tidak 'dilengkapi' belakangan.",
+        "21. byPresserOf(): kelompokkan baris filled menurut presser_id (penamaan unit, bukan kunci baris), hitung day_count, filled_slot_count, dan rata-rata tiap kolom dengan penyebutnya sendiri per kolom per presser.",
+        "22. dailyOf(): kelompokkan menurut tanggal record; daily_total menghitung ulang atas SELURUH baris filled, bukan merata-ratakan rata-rata harian.",
+        "23. downtimeReasonsOf(): kelompokkan downtime_reason non-kosong APA ADANYA (hanya trim whitespace tepi), hitung slot per teks, urutkan dari terbanyak lalu alfabetis. Slot ber-downtime tetap ikut angka ukur bila kolom ukurnya terisi.",
+        "24. total: record_count, days_with_records, draft_record_count, records_not_checked (checked_by NULL), records_not_acknowledged (acknowledged_by NULL).",
+        "25. has_data = filled_slots > 0.",
+        "26. buildExportRows(): hitung jumlah BARIS SLOT lebih dulu, tolak 422 EXPORT_FAILED bila melampaui static::EXPORT_ROW_LIMIT, baru alirkan baris dari kueri berpotong. Gate, resolusi mill, resolusi line, dan pemeriksaan batas berjalan EAGER sebelum aliran dimulai. static:: bukan self:: supaya subclass test dapat menurunkan batasnya.",
+        "27. streamExportRows(): satu baris per pressing_details, kolom konteks diulang verbatim. Slot yang seluruh kolom ukurnya kosong tetap menjadi baris dengan sel kosong. targets_without_metric tidak muncul pada ekspor.",
+        "28. Komponen Livewire LaporanPressing memakai canAccess()-nya SENDIRI dengan daftar tiga peran web, tidak meminjam guardAccess() service.",
+        "29. Parameter periode dan line dipertahankan di URL lewat atribut #[Url]."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Induk periode: nama dan rentang tanggal pada pemilih dan header laporan."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Penyaring daftar periode (station_type = 'pressing') dan sumber nilai status pada opsi periode serta badge."
+        },
+        {
+          "entity_id": "pressing-record",
+          "operation": "SELECT",
+          "description": "Record harian per presser: tanggal, presser_id, status, catatan, checked_by, acknowledged_by, production_line_id."
+        },
+        {
+          "entity_id": "pressing-detail",
+          "operation": "SELECT",
+          "description": "Baris slot waktu: kelima kolom ukur dan downtime_reason. Sumber seluruh angka min/avg/max."
+        },
+        {
+          "entity_id": "pressing-operational-target",
+          "operation": "SELECT",
+          "description": "Master rentang kerja dan batas tindakan per parameter. Global, tanpa kolom mill. Kolomnya parameter_metric / target_operating_range / critical_trigger_action_limit — BERBEDA dari master Threshing."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih line dan nama line pada header; juga penjagaan lintas-mill."
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin dan nama mill pada header."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "production_line_id absen",
+          "handling": "422 VALIDATION_ERROR dengan errors.production_line_id; NOL kueri pressing_records berjalan"
+        },
+        {
+          "condition": "production_line_id milik mill lain",
+          "handling": "403 FORBIDDEN dari resolveProductionLine, sebelum periode diperiksa"
+        },
+        {
+          "condition": "period_id absen",
+          "handling": "422 VALIDATION_ERROR dengan errors.period_id — bukan 404 untuk string kosong"
+        },
+        {
+          "condition": "period_id tidak ada",
+          "handling": "404 NOT_FOUND"
+        },
+        {
+          "condition": "period_id milik mill lain",
+          "handling": "403 FORBIDDEN dari authorizePeriod"
+        },
+        {
+          "condition": "Peran terikat mill mengirim business_unit_id mill lain",
+          "handling": "200 berisi data mill SENDIRI — sengaja bukan 403, karena 403 justru memastikan mill lain itu ada"
+        },
+        {
+          "condition": "Admin tanpa business_unit_id",
+          "handling": "422 VALIDATION_ERROR dengan errors.business_unit_id"
+        },
+        {
+          "condition": "Akun terikat mill dengan business_unit_id NULL",
+          "handling": "422 fail-closed; daftar seluruh mill tidak pernah dibaca"
+        },
+        {
+          "condition": "Mill belum punya Production Line",
+          "handling": "data: [] dengan HTTP 200 dari options-for-report; layar menampilkan arahan tanpa tombol coba lagi"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup Pressing",
+          "handling": "data: [] dengan HTTP 200 — pemilih kosong plus arahan, bukan 404"
+        },
+        {
+          "condition": "Periode tanpa satu pun slot terisi",
+          "handling": "has_data false; seluruh min/avg/max null; coverage.filled_slots 0; by_presser, daily dan downtime_reasons array kosong"
+        },
+        {
+          "condition": "Satu kolom ukur kosong sepanjang periode",
+          "handling": "Baris metrics-nya TETAP ada dengan min/avg/max null dan filled_slot_count 0; blok target-nya tetap terisi"
+        },
+        {
+          "condition": "Satu kolom ukur terisi tepat satu slot",
+          "handling": "min = avg = max = nilai itu, filled_slot_count 1"
+        },
+        {
+          "condition": "Dua kolom dengan penyebut sangat berbeda",
+          "handling": "Masing-masing memakai filled_slot_count-nya sendiri; tidak ada penyebut bersama"
+        },
+        {
+          "condition": "Nilai ukur negatif atau nol",
+          "handling": "Dilaporkan apa adanya; tidak ada penilaian kewajaran"
+        },
+        {
+          "condition": "Record ada tetapi seluruh baris slotnya kosong",
+          "handling": "Ikut record_count dan ikut penyebut cakupan, tetapi tidak menyumbang satu pun nilai ukur"
+        },
+        {
+          "condition": "Slot yang hanya berisi downtime_reason",
+          "handling": "Dihitung TERISI pada cakupan (definisi dari layar input), tetapi tidak menyumbang satu pun angka ukur — akibatnya filled_slots bisa lebih besar daripada penyebut kolom ukur mana pun, dan itu benar"
+        },
+        {
+          "condition": "Dua record dengan presser_id sama pada hari berbeda",
+          "handling": "Dikelompokkan sebagai SATU baris by_presser dengan day_count 2"
+        },
+        {
+          "condition": "Periode masih berjalan",
+          "handling": "coverage.days_counted berhenti di hari ini, period_running true"
+        },
+        {
+          "condition": "Periode belum mulai",
+          "handling": "days_counted 0, expected_slots 0, coverage_percent null — layar merender tanda pisah, bukan 0%, dan keterangan 'belum mulai' yang menang atas keterangan 'berjalan'"
+        },
+        {
+          "condition": "Periode tertutup",
+          "handling": "Laporan penuh, badge Tertutup, ekspor tetap aktif"
+        },
+        {
+          "condition": "Master target kosong",
+          "handling": "targets_master_empty true; metrics[].target seluruh ketiga medannya null; angka hasil ukur tetap lengkap"
+        },
+        {
+          "condition": "Master target memuat parameter tanpa kolom ukur",
+          "handling": "Masuk targets_without_metric. Pada Pressing ada DUA, dan keduanya tidak terukur di mana pun pada skema"
+        },
+        {
+          "condition": "Ejaan parameter_metric pada master diubah",
+          "handling": "Pemetaan kolom ke parameter bersifat tetap, jadi perubahan ejaan hanya memindahkan baris itu ke targets_without_metric alih-alih menghilangkan angkanya — dan itu terlihat, bukan senyap"
+        },
+        {
+          "condition": "downtime_reason kosong pada seluruh slot",
+          "handling": "downtime_reasons array kosong; layar menampilkan keterangan, bukan tabel kosong"
+        },
+        {
+          "condition": "downtime_reason dengan ejaan berbeda untuk sebab sama",
+          "handling": "Dua baris terpisah — pengelompokan harfiah, dan layar menyatakan hal itu"
+        },
+        {
+          "condition": "downtime_reason hanya berisi spasi",
+          "handling": "Diperlakukan sebagai kosong setelah trim whitespace tepi"
+        },
+        {
+          "condition": "Jumlah baris slot melampaui batas ekspor",
+          "handling": "422 EXPORT_FAILED sebelum satu baris pun dialirkan"
+        },
+        {
+          "condition": "Jumlah record di bawah batas tetapi baris slot di atas batas",
+          "handling": "Tetap 422 EXPORT_FAILED — batas dihitung atas baris slot"
+        },
+        {
+          "condition": "format di luar csv|excel",
+          "handling": "422 VALIDATION_ERROR"
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca — tidak ada endpoint tulis pada prefix /api/pressing-reports",
+        "Production Line wajib pada /summary dan /export",
+        "Penyaringan line memakai pressing_records.production_line_id, bukan join ke stations",
+        "business_unit_id klien diabaikan untuk peran terikat mill",
+        "Status periode tidak menyaring daftar periode",
+        "Tiap kolom ukur memakai penyebutnya sendiri, dan penyebut itu dipublikasikan",
+        "null bukan 0",
+        "coverage_percent null, bukan 0, ketika belum ada penyebut",
+        "Cakupan dipublikasikan beserta ketiga angka pembentuk penyebutnya",
+        "Penyebut hari berhenti di hari ini untuk periode berjalan",
+        "Slot kanonis diambil dari layar input, bukan ditetapkan ulang",
+        "Definisi slot terisi dipinjam dari layar input, termasuk downtime_reason sebagai kolom bacaan keenam",
+        "Record draft ikut terhitung dan jumlahnya dinyatakan",
+        "Status verifikasi bukan penyaring",
+        "KEDUA kolom target disajikan bersebelahan dengan angka, dan keduanya menjawab pertanyaan yang berbeda",
+        "Tidak ada penandaan otomatis di luar batas, dan sebabnya dinyatakan",
+        "Pemetaan parameter ke kolom bersifat tetap, bukan pencocokan teks",
+        "Target tanpa pengukuran tetap dipublikasikan — pada Pressing ada dua",
+        "Master target global, dan hal itu dinyatakan",
+        "Alasan downtime dikelompokkan harfiah",
+        "Ekspor satu baris per slot dengan konteks diulang",
+        "Slot kosong tetap menjadi baris ekspor",
+        "Batas ekspor dihitung atas baris slot"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "guardAccess menolak tamu 401 dan peran di luar keempatnya 403, sebelum satu kueri periode",
+          "given": "Tidak ada sesi; lalu sesi dengan peran yang tidak diterima",
+          "expect": "AuthenticationException lalu AuthorizationException — keduanya sebelum satu pun kueri periode berjalan"
+        },
+        {
+          "description": "resolveBusinessUnit membuang business_unit_id klien untuk Operator, Supervisor, dan Mill Management",
+          "given": "Ketiga peran mengirim id mill lain",
+          "expect": "Mengembalikan mill akun pada ketiganya — bukan 403, dan bukan mill lain"
+        },
+        {
+          "description": "resolveBusinessUnit menuntut business_unit_id dari Admin",
+          "given": "Admin tanpa argumen business_unit_id, lalu dengan string kosong",
+          "expect": "ValidationException pada keduanya"
+        },
+        {
+          "description": "akun terikat mill tanpa business_unit_id gagal tertutup tanpa membaca daftar mill",
+          "given": "Supervisor dengan users.business_unit_id NULL",
+          "expect": "ValidationException; spy mencatat nol pemanggilan allBusinessUnits()"
+        },
+        {
+          "description": "businessUnitOptions menolak setiap peran terikat mill, termasuk Operator",
+          "given": "Operator, Supervisor, Mill Management; lalu Admin",
+          "expect": "AuthorizationException pada ketiganya; Admin menerima daftar"
+        },
+        {
+          "description": "listPeriods menyaring menurut baris period_stations station_type pressing",
+          "given": "Mill dengan satu periode Pressing dan satu periode yang hanya mencakup Sterilizer",
+          "expect": "Hanya periode Pressing yang tercantum"
+        },
+        {
+          "description": "listPeriods tetap mencantumkan periode tertutup",
+          "given": "Mill dengan satu periode Pressing berstatus closed",
+          "expect": "Periode itu ada pada daftar — status tidak menyaring"
+        },
+        {
+          "description": "requirePeriod menolak ketiadaan period_id dengan 422",
+          "given": "buildSummary dengan null lalu string kosong",
+          "expect": "ValidationException pada keduanya"
+        },
+        {
+          "description": "resolveProductionLine memulangkan null untuk line mill lain dan untuk ketiadaan pilihan",
+          "given": "null, string kosong, line mill lain, lalu line mill berlaku",
+          "expect": "null, null, null, lalu id line itu"
+        },
+        {
+          "description": "authorizePeriod menolak periode mill lain 403 dan periode tak ada 404",
+          "given": "Id periode mill lain, lalu uuid yang tidak ada",
+          "expect": "AuthorizationException lalu ModelNotFoundException"
+        },
+        {
+          "description": "penyaringan line memakai kolom record, bukan join ke stations",
+          "given": "Satu stasiun yang kini di line-1, dengan satu record lama yang kolom production_line_id-nya menunjuk line lain",
+          "expect": "Hanya record berkolom line-1 terbaca saat line-1 diminta — join ke stations akan menarik keduanya"
+        },
+        {
+          "description": "keanggotaan periode inklusif di kedua ujung dan menolak satu hari di luarnya",
+          "given": "Record pada hari pertama, hari terakhir, dan satu hari sesudah periode",
+          "expect": "Dua record pertama terhitung, yang ketiga tidak"
+        },
+        {
+          "description": "baris slot yang keenam kolomnya null tidak dihitung terisi",
+          "given": "Satu record dengan tiga baris slot yang seluruhnya null",
+          "expect": "filled_slots 0, has_data false, record_count 1, presser_count 1"
+        },
+        {
+          "description": "baris slot yang HANYA berisi downtime_reason dihitung terisi",
+          "given": "Satu baris slot dengan kelima kolom ukur null dan downtime_reason 'Cone macet'",
+          "expect": "filled_slots 1, has_data true, seluruh min/avg/max tetap null, downtime_reasons satu baris"
+        },
+        {
+          "description": "tiap kolom memakai penyebutnya sendiri, bukan satu penyebut bersama",
+          "given": "10 slot ber-digester_temp; hanya 3 di antaranya ber-cone_hydraulic_pressure bernilai 45, 50, 55",
+          "expect": "filled_slot_count 10 dan 3; rata-rata kolom kedua 50,0 — penyebut bersama akan menjawab 15,0"
+        },
+        {
+          "description": "kolom tanpa satu pun nilai menghasilkan null, bukan 0, dan barisnya tetap ada",
+          "given": "Periode yang dilution_water_temp_c tidak pernah terisi",
+          "expect": "metrics tetap 5 baris; baris itu min/avg/max null dengan filled_slot_count 0"
+        },
+        {
+          "description": "kolom dengan satu nilai menghasilkan min = avg = max",
+          "given": "dilution_water_temp_c terisi tepat satu slot bernilai 87,5",
+          "expect": "Ketiganya 87,5 dengan filled_slot_count 1"
+        },
+        {
+          "description": "nilai nol dan negatif dilaporkan apa adanya",
+          "given": "digester_level_percent bernilai 0 pada satu slot dan -1 pada slot lain",
+          "expect": "min -1, max 0, avg -0,5"
+        },
+        {
+          "description": "seluruh agregasi di PHP: tidak ada agregat SQL atas kolom nullable",
+          "given": "Campuran nilai null dan non-null pada kelima kolom",
+          "expect": "Tidak satu kueri pun memuat avg( / min( / max( / sum( / group by"
+        },
+        {
+          "description": "expected_slots adalah presser kali hari dihitung kali 24",
+          "given": "2 presser, periode 10 hari yang sudah selesai",
+          "expect": "expected_slots 480, slots_per_presser_per_day 24, presser_count 2"
+        },
+        {
+          "description": "presser_count memakai presser yang muncul, bukan jumlah stasiun terdaftar",
+          "given": "Empat stasiun pressing terdaftar pada line itu; hanya dua presser_id muncul",
+          "expect": "presser_count 2"
+        },
+        {
+          "description": "days_counted berhenti di hari ini untuk periode berjalan",
+          "given": "Periode yang dimulai 4 hari lalu dan berakhir 10 hari ke depan",
+          "expect": "days_counted 5, days_in_period 15, period_running true"
+        },
+        {
+          "description": "coverage_percent null ketika expected_slots nol",
+          "given": "Periode yang belum mulai",
+          "expect": "coverage_percent null, bukan 0.0"
+        },
+        {
+          "description": "slots_per_presser_per_day diambil dari canonicalTimeSlots layar input",
+          "given": "PressingRecordService::canonicalTimeSlots() mengembalikan 24 entri mulai 07:00",
+          "expect": "slots_per_presser_per_day sama dengan count() daftar itu"
+        },
+        {
+          "description": "blok target membawa KEDUA kolom master, dengan nama kolom Pressing",
+          "given": "Master terisi; kolomnya parameter_metric / target_operating_range / critical_trigger_action_limit",
+          "expect": "metrics[].target memuat ketiga medan itu terisi — menyalin nama kolom Threshing akan menghasilkan ketiganya null tanpa satu pun galat"
+        },
+        {
+          "description": "kedua kolom target diteruskan verbatim, termasuk tanda kurung penjelasnya",
+          "given": "Master digester temp: rentang '90°C - 95°C', batas '< 85°C (Leads to poor oil liberation)'",
+          "expect": "Kedua string dipulangkan apa adanya, tanpa dipotong pada tanda kurung"
+        },
+        {
+          "description": "DUA parameter master tanpa kolom ukur masuk targets_without_metric",
+          "given": "Master tujuh parameter dengan Nut Breakage Rate dan Press Cake Moisture yang tidak punya kolom",
+          "expect": "metrics 5 baris; targets_without_metric tepat 2 entri, keduanya membawa rentang kerja dan batas tindakannya"
+        },
+        {
+          "description": "pemetaan memakai peta tetap: ejaan master yang diubah tidak menghapus angka",
+          "given": "parameter_metric 'Cone Hydraulic Pressure' diubah ejaannya",
+          "expect": "Angka kolom itu utuh; blok target-nya null; barisnya muncul pada targets_without_metric — keterlepasannya TERLIHAT"
+        },
+        {
+          "description": "master target kosong tidak menghapus angka hasil ukur",
+          "given": "Tabel master kosong, data slot lengkap",
+          "expect": "targets_master_empty true; metrics tetap 5 baris berisi angka; blok target seluruhnya null"
+        },
+        {
+          "description": "payload tidak memuat satu pun kunci penilaian terhadap kedua kolom target",
+          "given": "Rata-rata digester 82,3 terhadap rentang '90°C - 95°C' dan batas '< 85°C'",
+          "expect": "Payload tidak memuat severity / is_out_of_range / out_of_range / exceeds / flag / threshold / breach — diuji atas penyisiran JSON, dan ketiga angka tetap diterbitkan berdampingan"
+        },
+        {
+          "description": "by_presser mengelompokkan presser_id sebagai unit, bukan kunci baris",
+          "given": "presser_id PR-1 tercatat pada dua tanggal berbeda",
+          "expect": "Satu baris by_presser dengan day_count 2 dan filled_slot_count gabungan"
+        },
+        {
+          "description": "daily_total dihitung ulang atas seluruh slot, bukan merata-ratakan rata-rata harian",
+          "given": "Hari A 10 slot bernilai 10; hari B 1 slot bernilai 100",
+          "expect": "daily_total rata-rata 18,18, bukan 55"
+        },
+        {
+          "description": "hari tanpa record tidak mendapat baris pada rekap harian",
+          "given": "Satu record pada satu tanggal di tengah periode 10 hari",
+          "expect": "daily satu baris saja"
+        },
+        {
+          "description": "alasan downtime dikelompokkan harfiah tanpa penyeragaman huruf",
+          "given": "'Cone macet' pada 3 slot dan 'cone macet' pada 2 slot",
+          "expect": "Dua baris, diurutkan dari terbanyak"
+        },
+        {
+          "description": "alasan downtime berisi hanya spasi diperlakukan sebagai kosong",
+          "given": "Satu slot dengan downtime_reason tiga spasi",
+          "expect": "downtime_reasons kosong"
+        },
+        {
+          "description": "slot ber-downtime tetap ikut angka ukur bila kolom ukurnya terisi",
+          "given": "Satu slot dengan digester_temp_c 92 dan downtime_reason 'Cone macet'",
+          "expect": "Nilai 92 ikut min/avg/max kolom itu, dan alasannya ikut daftar downtime"
+        },
+        {
+          "description": "record draft ikut seluruh angka dan jumlahnya dinyatakan",
+          "given": "Tiga record: draft_ongoing, draft_paused, synced",
+          "expect": "record_count 3, filled_slot_count 3, draft_record_count 2"
+        },
+        {
+          "description": "status verifikasi bukan penyaring",
+          "given": "Satu record belum diperiksa, satu sudah",
+          "expect": "records_not_checked 1, records_not_acknowledged 1, keduanya tetap terhitung penuh"
+        },
+        {
+          "description": "has_data membedakan tidak ada yang dilaporkan dari angkanya nol",
+          "given": "Periode tanpa slot terisi; lalu satu slot bernilai 0",
+          "expect": "has_data false; lalu true dengan avg 0,0"
+        },
+        {
+          "description": "batas ekspor dihitung atas baris slot, bukan record",
+          "given": "Subclass test berbatas 5; satu record dengan enam baris slot",
+          "expect": "ExportFailedException; dan setelah satu baris dihapus, generator terbentuk"
+        },
+        {
+          "description": "penjagaan ekspor berjalan eager, bukan pada iterasi pertama",
+          "given": "Supervisor mill A mengekspor periode mill B",
+          "expect": "AuthorizationException dari pemanggilan itu sendiri"
+        },
+        {
+          "description": "ekspor memancarkan satu baris per slot dengan konteks diulang",
+          "given": "Dua record dengan tiga baris slot masing-masing",
+          "expect": "Enam baris; kolom periode/mill/line/tanggal/presser terulang verbatim; slot ber-format HH:MM"
+        },
+        {
+          "description": "slot kosong tetap menjadi baris ekspor dengan sel kosong",
+          "given": "Satu record dengan satu slot yang seluruh kolom ukurnya null",
+          "expect": "Satu baris dengan sel ukur kosong — bukan dibuang dan bukan 0"
+        },
+        {
+          "description": "format di luar csv dan excel ditolak sebelum satu baris dialirkan",
+          "given": "format 'pdf'",
+          "expect": "ValidationException"
+        },
+        {
+          "description": "ekspor CSV memuat header dan baris data, dan periode tertutup ikut terekspor",
+          "given": "Periode tertutup dengan satu slot berisi dan satu alasan downtime",
+          "expect": "Body memuat 'Slot Waktu', 'Alasan Downtime', penamaan presser, dan teks alasannya"
+        },
+        {
+          "description": "komponen Livewire menolak Operator meskipun service menerimanya",
+          "given": "Operator membuka rute web /reports/pressing",
+          "expect": "Ditolak oleh canAccess() komponen — daftar peran komponen terpisah dari guardAccess() service"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "pressing-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "pressing-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "pressing-operational-target",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Pintu masuk satu-satunya. Tile Pressing baru aktif setelah StationReportService::REPORT_ROUTES ditambah entri 'pressing' — satu baris yang menentukan layar ini dapat dicapai atau tidak"
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan yang mencakup Pressing, layar ini tidak punya apa pun untuk ditampilkan"
+    },
+    {
+      "screen_id": "screen-142--detail-periode-pelaporan",
+      "reason": "Status Pressing pada sebuah periode — yang ditampilkan sebagai badge di layar ini — ditetapkan di sana"
+    },
+    {
+      "screen_id": "screen-151--laporan-pressing-mobile",
+      "reason": "Kembaran mobile yang memakai ULANG keempat endpoint layar ini; karena ia dibangun dalam seri yang sama, ketiga rute data menerima Operator sejak awal — pola yang sudah terbukti pada pasangan screen-146/147 dan screen-148/149"
+    },
+    {
+      "screen_id": "screen-148--laporan-threshing-web",
+      "reason": "Sumber pola service dan tata letaknya. Pressing berstruktur identik (record harian per unit, 5 kolom ukur + 1 teks bebas per slot), tetapi master target-nya punya DUA kolom dengan nama dan arti yang berbeda — itulah satu-satunya bagian yang bukan salinan"
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Memakai ulang GET /api/production-lines/options-for-report yang dibangun untuk layar itu, verbatim"
+    }
+  ],
+  "implementation_notes": [
+    "POLA SERVICE MENGIKUTI ThreshingReportService, dan itu bukan kebetulan: pressing_records dan pressing_details berstruktur IDENTIK dengan padanan threshing — record harian per unit (presser_id, STRING pada header), satu baris per slot waktu, lima kolom ukur nullable plus satu kolom teks bebas (downtime_reason), dan 24 slot kanonis yang sama. Karena itu resolveBusinessUnit / businessUnitOptions / productionLineOptions / resolveProductionLine / authorizePeriod / listPeriods / buildSummary / export, statsOf, averagesOf, dailyOf, byUnitOf, downtimeReasonsOf, dan streamExportRows dipinjam strukturnya apa adanya.",
+    "YANG BUKAN SALINAN ADALAH BLOK TARGET, DAN ITU HARUS DIPERIKSA BUKAN DIASUMSIKAN. Master Pressing memakai TIGA NAMA KOLOM YANG BERBEDA dari master Threshing: parameter_metric (bukan 'parameter'), target_operating_range, dan critical_trigger_action_limit (bukan 'standard_operational_target' + 'action_plan_on_deviation'). Menyalin nama kolom Threshing akan menghasilkan blok target yang SELURUHNYA null tanpa satu pun galat — layar tetap terender, angka tetap benar, dan seluruh kolom standarnya kosong. Ada unit test khusus untuk ini.",
+    "DUA KOLOM TARGET, DUA PERTANYAAN YANG BERBEDA, DAN KEDUANYA DITERBITKAN. target_operating_range menjawab 'ke mana seharusnya' ('90C - 95C', '35 - 45 Amperes'); critical_trigger_action_limit menjawab 'kapan harus bertindak, dan apa akibatnya' ('< 85C (Leads to poor oil liberation)', '> 50 Amps (Indicates choke or heavy load)'). Keduanya diteruskan VERBATIM — termasuk tanda kurung penjelasnya, yang bukan hiasan melainkan satu-satunya tempat akibat penyimpangan dinyatakan. JUMLAH KOLOM TABELNYA SAMA dengan tabel Threshing (tujuh): Threshing pun punya dua kolom target yang dapat ditampilkan (standar + rencana tindakan). Yang berbeda adalah ARTI kedua kolom terakhir, bukan lebarnya — dan perbedaan arti itulah yang membuat keduanya tidak boleh digabung menjadi satu kolom.",
+    "TIDAK ADA PENANDAAN DI LUAR BATAS, DAN DI SINI ALASANNYA HARUS LEBIH TAJAM DARIPADA DI THRESHING. Pada Threshing standarnya prosa tanpa pembanding ('Within motor rated full-load current (FLC)') sehingga penguraiannya jelas mustahil. Pada Pressing critical_trigger_action_limit JUSTRU membawa pembanding yang teratur pada 5 dari 7 parameter ('< 85°C', '> 50 Amps', '> 60 Bar', '< 80°C', '< 50%'), jadi godaannya nyata. Tiga hal yang menahannya: (a) kedua kolom VARCHAR yang dapat disunting Admin/Mill Management kapan pun, dan pengurai yang gagal pada bentuk baru akan BERHENTI MEMPERINGATKAN tanpa galat — peringatan yang hilang terbaca sebagai 'semuanya aman', arah kegagalan terburuk untuk indikator mutu; (b) satu nilai pada master sudah tidak dapat diurai tanpa menebak hari ini ('< 10% to 12%'); (c) beberapa rentang membawa pernyataan ketiga di dalam tanda kurung ('75% - 80% (Minimum 3/4 full)'). Dicatat sebagai open_question dengan cara jujurnya: pecah master menjadi kolom batas NUMERIK di samping teksnya, bukan menguraikan teksnya saat render.",
+    "TUJUH TARGET, LIMA KOLOM UKUR — DAN KETIMPANGANNYA LEBIH TAJAM DARIPADA DI THRESHING. Dua yang tidak terukur adalah 'Nut Breakage Rate' dan 'Press Cake Moisture', dan keduanya TIDAK punya kolom pengukuran di mana pun pada skema ini — bukan hanya di pressing_details. Diverifikasi dengan menyisir seluruh migrasi: tidak ada kolom nut/breakage/press_cake, dan yang terdekat (depricarping_details.fibre_moisture_percent) adalah bahan lain di stasiun lain. Keduanya pun justru parameter yang paling menentukan mutu pengepresan. Diterbitkan lewat targets_without_metric karena target yang tidak pernah diukur TERBACA SEPERTI TERPENUHI.",
+    "PEMETAAN KOLOM->PARAMETER TETAP (COLUMN_TARGET_PARAMETER): digester_temp_c => 'Digester Temperature', digester_level_percent => 'Digester Fill Level', press_motor_current_amps => 'Screw Press Motor Current', cone_hydraulic_pressure_bar => 'Cone Hydraulic Pressure', dilution_water_temp_c => 'Dilution Water Temperature'. Lima kolom, lima parameter; dua sisa master selalu menjadi targets_without_metric. Tetap, bukan pencocokan teks saat render — perbaikan typo pada master tidak boleh memutus angka dari standarnya secara senyap.",
+    "SETIAP RATA-RATA MENERBITKAN PENYEBUTNYA SENDIRI (filled_slot_count per baris metrics). Fixture test mengisi satu kolom pada 10 slot dan kolom lain hanya pada 3, supaya satu penyebut bersama menjawab 15,0 alih-alih 50,0.",
+    "DEFINISI 'SLOT TERISI' DIPINJAM DARI LAYAR INPUT: PressingRecordService::isRowFilled() dan READING_FIELDS dijadikan public dalam perubahan yang sama (aditif, nol perubahan perilaku — loop-nya memperlakukan null dan '' sebagai kosong, identik dengan uji lama pada kelima kolom float dan pada downtime_reason). Precedent-nya BoilerRoomRecordService dan ThreshingRecordService, dengan alasan yang sama: dua salinan daftar kolom adalah cara laporan dan formulir mulai berselisih.",
+    "KONSEKUENSINYA SAMA SEPERTI DI THRESHING, DAN TETAP BENAR: downtime_reason adalah kolom bacaan keenam, jadi slot yang hanya memuat 'Cone macet' DIHITUNG TERISI, dan coverage.filled_slots bisa LEBIH BESAR daripada penyebut kolom ukur mana pun. Ada unit test yang mengunci keduanya sekaligus.",
+    "coverage_percent NULL, BUKAN 0.0, ketika expected_slots nol — dan URUTAN CABANG KETERANGANNYA sudah benar sejak baris pertama: days_counted diperiksa SEBELUM period_running, karena ReportPeriodDays::isRunning() juga true untuk periode yang belum mulai. Kekeliruan itu nyata terjadi pada laporan Grading dan Weighbridge dan diperbaiki pada commit screen-148.",
+    "SELURUH AGREGASI DI PHP, nol agregat SQL atas kolom nullable. whereDate dipakai pada pressing_records.date, dan keanggotaan periode diuji di KEDUA UJUNGNYA ditambah satu hari di luarnya.",
+    "BATAS EKSPOR DIHITUNG ATAS BARIS SLOT lewat hitungan pressing_details, bukan atas record, dan dibaca lewat static::EXPORT_ROW_LIMIT supaya subclass test dapat menurunkan batasnya tanpa menyemai 50.000 baris.",
+    "OPERATOR DITERIMA PADA KETIGA RUTE DATA SEJAK HARI PERTAMA, karena screen-151 (kembaran mobile) dibangun dalam seri yang sama — pola yang sudah terbukti pada screen-146/147 dan screen-148/149. Yang menanggung beban dari tiga perubahan yang dulu dibutuhkan Weighbridge adalah penempatan Operator pada cabang TERIKAT MILL resolveBusinessUnit(); menerimanya di guardAccess() saja akan menjatuhkannya ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI. Skenario API mengasersi HASIL-nya, bukan penerimaan perannya.",
+    "RUTE WEB TIDAK DIBUKA UNTUK OPERATOR, dan canAccess() komponen memegang daftar perannya SENDIRI justru supaya service dapat menerima Operator tanpa ikut membuka layar web. Dikunci di test Livewire dan di browser test atas status HTTP rutenya.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri 'pressing' pada StationReportService::REPORT_ROUTES, ditaruh DI ANTARA threshing (50) dan clarification (70) karena station_types.sort_order menempatkan pressing di 60 dan urutan peta itu load-bearing.",
+    "BLOK <style> BERADA DI SLOT styles LAYOUT, bukan di dalam komponen Livewire. Livewire 3 memasang wire:id pada elemen ter-render pertama; bila elemen itu sebuah <style>, SELURUH wire:model mati tanpa satu pun galat.",
+    "KETIADAAN PENANDAAN DIUJI ATAS NAMA KELAS DI LAYAR dan atas PENYISIRAN KUNCI pada payload — bukan atas frasa, karena kalimat yang menyatakan ketiadaannya sendiri memuat frasa 'di luar batas'. Pelajaran yang harganya sudah dibayar lima kali (screen-146, 147, 148 ×2, 149).",
+    "api-index ditambah empat endpoint baru (/api/pressing-reports/*), dengan actor_ids yang sudah memuat actor-station-operator sejak awal pada ketiga rute data."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Pressing (Web) — sukses sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount sebagai Supervisor terikat BU-A, pilih Production Line pertama, lalu pilih periode pertama",
+        "assert": "pemilih Mill tidak dirender; blok cakupan terender SEBELUM tabel parameter pada urutan DOM; kelima baris parameter terender masing-masing dengan min, rata-rata, maks, penyebut slot, rentang kerja, DAN batas tindakan; daftar dua target tanpa pengukuran, rekap per presser, downtime, kelengkapan record, dan rekap harian terender; kedua tombol ekspor aktif; tidak ada satu pun kontrol tulis"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "masuk sebagai Supervisor, buka Laporan Stasiun, tekan tile Pressing, pilih line lalu periode",
+        "assert": "seluruh bagian laporan tampil dengan angka dari data tersemai; tidak ada tombol simpan/ubah/hapus"
+      }
+    },
+    {
+      "scenario_ref": "Sukses sebagai Admin setelah memilih mill",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}",
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount sebagai Admin tanpa mill, lalu pilih satu mill dan satu line",
+        "assert": "pemilih Mill terender; tidak ada satu angka pun sebelum mill dipilih; angka muncul setelah mill + line terpilih"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "sebagai Admin, pilih mill lalu line lalu periode",
+        "assert": "angka muncul hanya setelah ketiganya terpilih"
+      }
+    },
+    {
+      "scenario_ref": "Admin belum memilih mill",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount sebagai Admin tanpa business_unit_id",
+        "assert": "arahan memilih mill terender; daftar periode tidak pernah dipanggil dan tidak ada angka"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "buka layar sebagai Admin tanpa memilih mill",
+        "assert": "pemilih periode belum terisi dan arahan memilih mill terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Production Line belum dipilih",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan dua Production Line tersedia dan tidak ada yang terpilih, lalu pilih periode",
+        "assert": "arahan memilih line terender; tidak ada satu angka pun; permintaan ringkasan tidak dikirim"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "dengan dua line tersedia, pilih periode tanpa memilih line",
+        "assert": "tidak ada angka dan arahan memilih line terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Mill belum punya Production Line",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan daftar Production Line kosong",
+        "assert": "arahan menghubungi Admin terender tanpa tombol coba lagi"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Mill belum punya periode yang mencakup Pressing",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan daftar periode kosong",
+        "assert": "pemilih periode tetap terender dalam keadaan kosong beserta arahan menghubungi Admin"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Periode tanpa satu pun slot terisi",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode-kosong",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan payload has_data false dan seluruh min/avg/max null",
+        "assert": "keterangan periode kosong terender; angka tampil sebagai tidak tersedia bukan 0; blok cakupan TETAP terender; rekap harian, rekap per presser, dan tabel downtime tidak digambar"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode tanpa data pada line terpilih",
+        "assert": "keterangan belum ada data tampil dan tidak ada angka 0 yang menyesatkan"
+      }
+    },
+    {
+      "scenario_ref": "Satu kolom ukur tidak pernah terisi sepanjang periode",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan metrics yang salah satu barisnya filled_slot_count 0",
+        "assert": "baris itu TETAP terender dengan tidak tersedia dan penyebut 0 slot; KEDUA kolom target tetap tampil"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode yang satu kolom ukurnya tidak pernah diisi",
+        "assert": "baris parameter yang kosong tidak hilang dari tabel"
+      }
+    },
+    {
+      "scenario_ref": "Setiap parameter memakai penyebutnya sendiri",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan dua baris metrics berpenyebut berbeda",
+        "assert": "kedua penyebut tercetak pada barisnya masing-masing dan tidak ada satu penyebut bersama"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode dengan dua kolom berpenyebut sangat berbeda",
+        "assert": "kedua penyebut tercetak apa adanya dan berbeda"
+      }
+    },
+    {
+      "scenario_ref": "Cakupan pencatatan ditampilkan sebelum angka lain",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan coverage filled_slots 96 dari expected_slots 480",
+        "assert": "blok cakupan berada di atas tabel parameter pada urutan DOM, dan ketiga angka pembentuk penyebut tercetak"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode berdata lalu ukur posisi vertikal kedua bagian",
+        "assert": "blok cakupan berada di atas tabel parameter pada halaman terender"
+      }
+    },
+    {
+      "scenario_ref": "Periode belum mulai",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan coverage_percent null, days_counted 0, period_running true",
+        "assert": "persen cakupan terender tanda pisah bukan 0%; keterangan 'periode belum mulai' yang menang — BUKAN keterangan 'dihitung sampai hari ini'"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Periode berjalan",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan period_running true, days_counted 18, days_in_period 30",
+        "assert": "keterangan dihitung sampai hari ini terender beserta kedua angka hari itu"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Kedua kolom target ditampilkan bersama angka hasil ukur",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan blok target terisi, lalu potong satu baris <tr>",
+        "assert": "baris itu memuat angka, target_operating_range, DAN critical_trigger_action_limit sekaligus — termasuk tanda kurung penjelas pada batas tindakannya"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode berdata dan periksa baris parameter pertama",
+        "assert": "ketiganya berada pada baris DOM yang sama; tabel punya delapan kolom"
+      }
+    },
+    {
+      "scenario_ref": "Tidak ada penandaan otomatis di luar batas",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan rata-rata digester 82,3 terhadap rentang '90°C - 95°C' dan batas '< 85°C'",
+        "assert": "tidak ada kelas md-threshold / is-danger / is-warning / md-chip--danger di mana pun pada hasil render; kalimat yang menyatakan kedua kolom target teks bebas dan dapat disunting kapan pun hadir"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode yang rata-ratanya jelas di bawah batas tindakannya",
+        "assert": "sisir hasil render untuk KETIADAAN kelas penanda — bukan ketiadaan frasa"
+      }
+    },
+    {
+      "scenario_ref": "Dua parameter master tanpa kolom pengukuran",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan targets_without_metric memuat Nut Breakage Rate dan Press Cake Moisture",
+        "assert": "kedua baris terender beserta rentang kerja, batas tindakan, dan keterangan bahwa sistem belum mengukurnya SAMA SEKALI — bukan hanya di pressing_details"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode berdata dan periksa bagian standar operasional",
+        "assert": "kedua parameter tampil sebagai target tanpa pengukuran, bukan hilang"
+      }
+    },
+    {
+      "scenario_ref": "Master target belum terisi",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan targets_master_empty true dan metrics berisi angka lengkap",
+        "assert": "keterangan master belum terisi terender sementara seluruh angka ukur tetap tampil"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Standar dinyatakan berlaku umum, bukan per mill",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan master target terisi",
+        "assert": "kalimat yang menyatakan kedua kolom target berlaku umum untuk seluruh mill hadir"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Rekap per presser memakai presser_id sebagai nama unit",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan by_presser dua baris berjumlah hari berbeda",
+        "assert": "satu baris per presser_id dengan day_count dan filled_slot_count-nya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode yang presser_id-nya tercatat pada dua tanggal",
+        "assert": "kedua tanggal menghasilkan satu baris berjumlah 2 hari"
+      }
+    },
+    {
+      "scenario_ref": "Slot yang hanya berisi alasan downtime dihitung terisi",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Record ada tetapi seluruh baris slotnya kosong",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan record_count 1 dan filled_slots 0",
+        "assert": "jumlah record terender 1 sementara seluruh angka ukur tetap tidak tersedia"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Record draft ikut terhitung dan jumlahnya dinyatakan",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan draft_record_count 4 dari record_count 12",
+        "assert": "jumlah draft terender beserta keterangan bahwa draft IKUT terhitung"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Status pemeriksaan bukan penyaring",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan records_not_checked dan records_not_acknowledged tak nol",
+        "assert": "keduanya terender sebagai informasi kelengkapan, dan angka utama tidak berubah karenanya"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Alasan downtime dikelompokkan harfiah",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan downtime_reasons memuat 'Cone macet' 3 dan 'cone macet' 2",
+        "assert": "dua baris terender terpisah beserta jumlah slot masing-masing, dan keterangan sifat harfiahnya hadir"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode yang alasannya tercatat dengan dua ejaan",
+        "assert": "kedua ejaan tampil terpisah"
+      }
+    },
+    {
+      "scenario_ref": "Alasan downtime kosong pada seluruh slot",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan downtime_reasons kosong dan has_data true",
+        "assert": "keterangan tidak ada alasan tercatat terender, bukan tabel kosong"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Periode tertutup tetap dapat dibaca dan diekspor",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode-tertutup",
+            "production_line_id": "uuid-line",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan periode berstatus closed",
+        "assert": "badge Tertutup terender dan tombol Ekspor tidak dinonaktifkan"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode tertutup lalu tekan Ekspor",
+        "assert": "laporan tampil penuh dan ekspor tetap dapat ditekan"
+      }
+    },
+    {
+      "scenario_ref": "Periode milik mill lain ditolak",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode-mill-lain",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan periode mill lain lewat properti",
+        "assert": "penolakan terlihat, dan tidak ada satu angka mill lain yang terender"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Production Line milik mill lain ditolak",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line-mill-lain"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount dengan line mill lain lewat properti",
+        "assert": "jatuh ke keadaan belum memilih line, dan tidak ada angka mill lain"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "business_unit_id kiriman klien diabaikan untuk peran terikat mill",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "uuid-mill-lain",
+            "period_id": "uuid-periode-mill-sendiri",
+            "production_line_id": "uuid-line-mill-sendiri"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount sebagai Supervisor dengan businessUnitId dipaksa ke mill lain",
+        "assert": "layar tetap menampilkan mill sendiri — properti itu tidak dibaca sama sekali untuk peran terikat mill"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Ekspor satu baris per slot dengan konteks diulang",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "panggil exportCsv pada periode dan line terpilih",
+        "assert": "berkas terunduh"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "tekan Ekspor pada periode berdata",
+        "assert": "unduhan terpicu dan nama berkasnya memuat slug periode"
+      }
+    },
+    {
+      "scenario_ref": "Slot kosong tetap menjadi baris pada ekspor",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Batas ekspor dihitung atas baris slot",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode-besar",
+            "production_line_id": "uuid-line",
+            "format": "csv"
+          },
+          "expected_status": 422,
+          "expected_error_code": "EXPORT_FAILED"
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Format ekspor tidak dikenal ditolak",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line",
+            "format": "pdf"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Layar ini hanya membaca",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount pada periode berdata lalu telusuri seluruh kontrol",
+        "assert": "tidak ada kontrol tulis — hanya pemilih, Ekspor, dan navigasi"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "sisir seluruh tombol pada halaman",
+        "assert": "tidak ada tombol Simpan, Ubah, Hapus, maupun Verifikasi"
+      }
+    },
+    {
+      "scenario_ref": "Rekap harian dapat ditutup tanpa mengubah angka",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount pada periode berdata lalu panggil toggleDailyRecap dua kali",
+        "assert": "tabel harian benar-benar hilang dari DOM saat ditutup dan kembali saat dibuka; angka utama tidak berubah; baris total periode memuat angka yang dihitung ulang server"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "tutup lalu buka rekap harian",
+        "assert": "tabel hilang dan kembali; angka cakupan tidak bergerak"
+      }
+    },
+    {
+      "scenario_ref": "Sesi berakhir saat memuat ringkasan",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Operator ditolak pada rute WEB meski diterima pada API",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressing",
+        "action": "mount sebagai Operator",
+        "assert": "ditolak oleh canAccess() komponen, meski guardAccess() service menerima Operator"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "buka rute sebagai Operator",
+        "assert": "status HTTP 403 dan layar laporan tidak terender"
+      }
+    },
+    {
+      "scenario_ref": "Tile Pressing pada Laporan Stasiun aktif",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "StationReportService",
+        "action": "periksa REPORT_ROUTES",
+        "assert": "memuat kunci 'pressing' => 'reports.pressing', dan posisinya tepat di antara sterilizer/threshing dan clarification menurut sort_order"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "pilih line lalu tekan tile Pressing",
+        "assert": "tile aktif dengan href ke /reports/pressing, dan mendarat di layar laporan tanpa diminta memilih line lagi"
+      }
+    }
+  ]
+}

@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\EngineRoomRecordController;
 use App\Http\Controllers\Api\GradingParameterController;
 use App\Http\Controllers\Api\GradingRecordController;
 use App\Http\Controllers\Api\GradingReportController;
+use App\Http\Controllers\Api\PressingReportController;
 use App\Http\Controllers\Api\ThreshingReportController;
 use App\Http\Controllers\Api\KernelDispatchRecordController;
 use App\Http\Controllers\Api\KernelPlantRecordController;
@@ -1364,6 +1365,38 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/threshing-reports/periods', [ThreshingReportController::class, 'periods']);
     Route::get('/threshing-reports/summary', [ThreshingReportController::class, 'summary']);
     Route::get('/threshing-reports/export', [ThreshingReportController::class, 'export']);
+});
+
+// === LAPORAN PERIODE PRESSING (screen-150 web + screen-151 mobile) ===
+//
+// Read-only: four GET routes and nothing else on this prefix.
+//
+// OPERATOR IS IN THE ROLE LIST FROM DAY ONE, because screen-151 (the mobile
+// twin) is built in the same series — the pattern proved by screen-146/147 and
+// screen-148/149, and the one the Weighbridge pair had to retro-fit with three
+// changes at once. Note which of the three carries the weight: role list plus
+// guardAccess() WITHOUT the mill-bound branch of resolveBusinessUnit() drops
+// Operator into the unbound Admin branch, where the client's business_unit_id
+// IS honoured — a cross-mill leak, not a display defect.
+//
+// /business-units/options is the ONE route here Operator cannot use. The
+// refusal is raised inside PressingReportService::businessUnitOptions(), not
+// by this middleware, precisely because this middleware admits Operator for
+// the other three.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for every mill-bound role, and probing another mill still returns
+// 200 with the caller's own data: a 403 would confirm the other mill exists.
+// The real cross-mill guards are on production_line_id and period_id.
+//
+// The production-line OPTION LIST is NOT duplicated here: GET
+// /api/production-lines/options-for-report (built for screen-135) is reused
+// verbatim.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/pressing-reports/business-units/options', [PressingReportController::class, 'businessUnitOptions']);
+    Route::get('/pressing-reports/periods', [PressingReportController::class, 'periods']);
+    Route::get('/pressing-reports/summary', [PressingReportController::class, 'summary']);
+    Route::get('/pressing-reports/export', [PressingReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

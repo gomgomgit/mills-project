@@ -1,5 +1,5 @@
 {
-  "ver": 70,
+  "ver": 71,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-06"
@@ -2261,6 +2261,59 @@
       "description": "Unduhan CSV/Excel Laporan Threshing — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, thresher, status, catatan) diulang verbatim di setiap baris; slot yang seluruh kolom ukurnya kosong tetap menjadi baris bersel kosong. Batas 50.000 dihitung atas BARIS SLOT bukan record, karena satu record harian menghasilkan sampai 24 baris. Bukan respons JSON.",
       "screen_id": "screen-148--laporan-threshing-web",
       "usecase_id": "usecase-151--laporan-threshing-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/pressing-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Pressing — ADMIN SAJA; 403 untuk setiap peran yang terikat satu mill, termasuk Operator, ditegakkan di dalam service bukan oleh middleware. Satu-satunya rute pada prefix ini yang tidak terbuka bagi Operator.",
+      "screen_id": "screen-150--laporan-pressing-web",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/pressing-reports/periods",
+      "description": "Daftar Periode Pelaporan yang mencakup stasiun Pressing pada satu mill; status per baris period_stations, dan periode tertutup ikut tercantum. Dipakai bersama oleh screen-150 (web) dan screen-151 (mobile) — Operator diterima sejak endpoint ini dibangun; business_unit_id diabaikan untuk seluruh peran terikat mill.",
+      "screen_id": "screen-150--laporan-pressing-web",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/pressing-reports/summary",
+      "description": "Seluruh angka Laporan Pressing untuk satu periode pada satu Production Line: cakupan pencatatan (slot terisi terhadap presser × hari terhitung × 24 slot kanonis), min/rata-rata/maks kelima kolom ukur MASING-MASING dengan penyebutnya sendiri, dan KEDUA kolom master target per parameter — target_operating_range (rentang kerja yang dituju) dan critical_trigger_action_limit (batas yang menuntut tindakan beserta akibatnya), keduanya verbatim. TANPA penandaan otomatis di luar batas: kedua kolom itu teks bebas yang dapat disunting kapan pun, dan pengurai yang gagal pada bentuk baru akan berhenti memperingatkan tanpa galat. Juga memuat targets_without_metric (pada Pressing DUA entri: Nut Breakage Rate dan Press Cake Moisture, keduanya tanpa kolom pengukuran di mana pun pada skema), rekap per presser, rekap harian, dan rekap alasan downtime yang dikelompokkan harfiah. period_id dan production_line_id keduanya WAJIB (422 bila absen); line milik mill lain 403.",
+      "screen_id": "screen-150--laporan-pressing-web",
+      "usecase_id": "usecase-153--laporan-pressing-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/pressing-reports/export",
+      "description": "Unduhan CSV/Excel Laporan Pressing — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, presser, status, catatan) diulang verbatim di setiap baris; slot yang seluruh kolom ukurnya kosong tetap menjadi baris bersel kosong. Batas 50.000 dihitung atas BARIS SLOT bukan record. Bukan respons JSON.",
+      "screen_id": "screen-150--laporan-pressing-web",
+      "usecase_id": "usecase-153--laporan-pressing-web",
       "auth_required": true,
       "actor_ids": [
         "actor-supervisor",

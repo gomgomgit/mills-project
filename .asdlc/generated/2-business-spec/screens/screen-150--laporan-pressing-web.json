@@ -1,0 +1,162 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-150--laporan-pressing-web",
+  "name": "Laporan Pressing (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Pressing di web. Seperti Threshing, yang dilaporkan adalah KONDISI OPERASI: tiap record adalah satu hari kerja satu presser, dan tiap barisnya satu slot waktu dengan lima kolom ukur — suhu digester (°C), level isi digester (%), arus motor screw press (A), tekanan hidrolik cone (bar), dan suhu air pengencer (°C). Inti laporannya min / rata-rata / maks per parameter, masing-masing dengan penyebutnya sendiri karena kelima kolom nullable dan tidak pernah terisi bersamaan.\n\nSATU HAL YANG MEMBEDAKANNYA DARI LAPORAN THRESHING, DAN ITULAH SEBABNYA LAYAR INI BUKAN SALINAN. Master target Threshing membawa satu standar plus satu rencana tindakan; master Pressing membawa DUA KOLOM YANG ARTINYA BERBEDA, dengan nama kolom yang juga berbeda:\n  • target_operating_range — rentang kerja yang DITUJU ('90°C - 95°C', '35 - 45 Amperes', '45 - 55 Bar')\n  • critical_trigger_action_limit — batas yang MENUNTUT TINDAKAN beserta akibatnya ('< 85°C (Leads to poor oil liberation)', '> 50 Amps (Indicates choke or heavy load)')\nKeduanya ditampilkan bersebelahan dengan angka hasil ukur karena keduanya menjawab pertanyaan yang berbeda: yang pertama 'ke mana seharusnya', yang kedua 'kapan harus bertindak, dan apa akibatnya kalau tidak'. Menampilkan salah satunya saja menghapus separuh informasi yang dipakai pembaca untuk memutuskan.\n\nDAN TETAP TIDAK ADA PENANDAAN OTOMATIS DI LUAR BATAS — tetapi sebabnya di sini LEBIH TAJAM daripada pada Threshing, dan karena itu harus dinyatakan lebih hati-hati. Pada Threshing standarnya prosa tanpa pembanding sama sekali ('Within motor rated full-load current (FLC)'), sehingga penguraiannya jelas mustahil. Pada Pressing, critical_trigger_action_limit JUSTRU membawa pembanding yang terlihat teratur ('< 85°C', '> 50 Amps', '> 60 Bar') — godaan untuk menguraikannya nyata, dan itulah mengapa penolakannya perlu beralasan:\n  1. Kedua kolom itu VARCHAR yang dapat disunting Admin/Mill Management kapan pun. Nilai berikutnya bisa '≈ 90C', 'sesuai SOP rev 3', atau '< 85°C pada beban penuh'. Pengurai yang gagal pada bentuk baru akan BERHENTI MEMPERINGATKAN tanpa satu pun galat — dan peringatan yang hilang terbaca sebagai 'semuanya aman'. Itu arah kegagalan terburuk yang mungkin untuk indikator mutu.\n  2. Satu nilai pada master pun sudah tidak dapat diurai tanpa menebak hari ini: rentang kerja Nut Breakage Rate tertulis '< 10% to 12%', dan tidak ada cara jujur memutuskan apakah batasnya 10 atau 12.\n  3. Beberapa rentang membawa pernyataan KETIGA di dalam tanda kurung ('75% - 80% (Minimum 3/4 full)'), yang bukan bagian dari rentangnya dan bukan pula akibatnya.\nLaporan ini karena itu menerbitkan ketiga angka — hasil ukur, rentang kerja, batas tindakan — berdampingan dan apa adanya, dan menyerahkan penilaiannya kepada manusia. Ketiadaan penandaan DINYATAKAN di layar, karena ketiadaan yang tidak dijelaskan terbaca sebagai fitur yang belum selesai.\n\nKETIMPANGAN MASTER-VS-KOLOM DI SINI LEBIH BESAR DARIPADA DI THRESHING, DAN LEBIH TAJAM. Master memuat TUJUH parameter sementara pressing_details hanya menyediakan lima kolom ukur. Dua yang tidak terukur — 'Nut Breakage Rate' dan 'Press Cake Moisture' — bukan sekadar tidak ada di pressing_details: keduanya tidak punya kolom pengukuran DI MANA PUN pada skema ini (yang terdekat, depricarping_details.fibre_moisture_percent, adalah bahan lain di stasiun lain). Keduanya pun justru parameter yang paling menentukan mutu pengepresan. Ditampilkan sebagai temuan pada bagiannya sendiri, karena target yang tidak pernah diukur TERBACA SEPERTI TERPENUHI padahal ia sekadar tidak ada.\n\nDi samping itu laporan menampilkan cakupan pencatatan DI ATAS segalanya (slot terisi terhadap jumlah presser × hari terhitung × 24 slot kanonis), rekap per presser, rekap per hari, dan daftar alasan downtime — dikelompokkan harfiah tanpa normalisasi ejaan, dan kenyataan itu pun dinyatakan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Pressing",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Pressing, beserta status Pressing pada periode itu (Draft / Terbuka / Tertutup)",
+    "Pemilih Mill — hanya untuk Admin; peran terikat mill hanya melihat nama mill akunnya",
+    "Pemilih Production Line — wajib; satu line langsung berlaku tanpa pemilih, lebih dari satu menuntut pemilihan dan tidak ada angka sebelum itu",
+    "Badge status periode beserta rentang tanggalnya",
+    "CAKUPAN PENCATATAN, paling atas: slot terisi, slot yang diharapkan, dan persennya — beserta jumlah presser yang beroperasi, jumlah hari yang dihitung, dan 24 slot kanonis per presser per hari",
+    "Keterangan bahwa penyebut hari berhenti di hari ini bila periode masih berjalan; atau bahwa periode belum mulai sehingga persennya '—' bukan 0%",
+    "Tabel parameter — satu baris per kolom ukur, memuat min, rata-rata, maks, dan JUMLAH SLOT penyebutnya",
+    "Pada baris parameter yang sama: target_operating_range (rentang kerja yang dituju) DAN critical_trigger_action_limit (batas yang menuntut tindakan, beserta akibatnya)",
+    "Keterangan bahwa kedua kolom target adalah teks bebas yang dapat disunting kapan pun, dan karena itu laporan ini tidak menandai satu nilai pun sebagai di luar batas — penilaiannya ada pada pembaca",
+    "Keterangan bahwa kedua kolom target berlaku umum untuk seluruh mill, bukan khusus mill yang sedang dilihat",
+    "Daftar parameter master yang TIDAK punya kolom pengukuran pada pressing_details, beserta keterangan bahwa sistem belum mengukurnya sama sekali — pada Pressing ada DUA, dan keduanya tidak terukur di mana pun pada skema",
+    "Jumlah record pada periode dan line itu, dan jumlah hari yang punya record",
+    "Jumlah record berstatus draft — dinyatakan terpisah, karena record draft ikut terhitung",
+    "Jumlah record yang belum diperiksa dan jumlah yang belum disahkan — informasi kelengkapan, bukan penyaring",
+    "Rekap per presser — satu baris per presser_id: jumlah hari tercatat, jumlah slot terisi, dan rata-rata tiap kolom ukur",
+    "Rekap per hari — satu baris per tanggal: jumlah slot terisi dan rata-rata tiap kolom ukur, beserta baris total periode",
+    "Daftar alasan downtime — satu baris per teks alasan beserta jumlah slot yang mencatatnya, diurutkan dari terbanyak",
+    "Keterangan bahwa alasan downtime dikelompokkan harfiah, sehingga dua ejaan untuk sebab yang sama muncul sebagai dua baris",
+    "Keterangan periode kosong bila tidak ada satu slot pun terisi — dengan cakupan pencatatan TETAP ditampilkan",
+    "Nama mill dan nama Production Line yang sedang berlaku, selalu terlihat",
+    "Tombol Ekspor beserta pilihan format CSV atau Excel"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Mill",
+      "description": "Hanya untuk Admin. Mengganti mill mengosongkan Production Line dan periode yang terpilih, karena keduanya milik mill sebelumnya.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan line yang angkanya dilihat. Wajib — tidak ada angka sebelum satu line berlaku.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka / Tutup Rekap Harian",
+      "description": "Menyingkap atau menyembunyikan tabel rekap per hari. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh seluruh slot waktu periode dan line terpilih sebagai CSV atau Excel, satu baris per slot dengan kolom konteks diulang di setiap baris.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Production Line WAJIB dipilih sebelum satu angka pun ditampilkan. Laporan ini menghasilkan angka gabungan, dan mencampur beberapa line membuat angkanya menyesatkan.",
+    "Penyaringan line memakai kolom production_line_id pada pressing_records, bukan join ke stations — record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
+    "business_unit_id kiriman klien diabaikan untuk peran yang terikat satu mill; Admin wajib mengirimkannya, dan ketiadaannya adalah galat validasi bukan hasil kosong.",
+    "Status periode tidak menyaring daftar periode. Periode tertutup tetap dibaca dan tetap dapat diekspor.",
+    "Setiap kolom ukur dirata-ratakan atas baris yang kolom ITU terisi, dan penyebutnya ikut ditampilkan. Kelima kolom nullable dan tidak selalu terisi bersamaan, sehingga satu penyebut bersama akan salah untuk setidaknya empat di antaranya.",
+    "Min dan maks juga diambil hanya atas baris yang kolom itu terisi, dan keduanya menjadi 'tidak tersedia' bersama rata-rata bila penyebutnya nol.",
+    "Nilai yang tidak tersedia dirender sebagai keterangan, bukan sebagai 0.",
+    "Cakupan pencatatan ditampilkan DI ATAS seluruh angka lain, dan TETAP ditampilkan meski periode kosong — justru itu yang menjelaskan kekosongannya.",
+    "Penyebut hari pada cakupan berhenti di hari ini untuk periode yang masih berjalan. Persen tanpa penyebut dirender '—', bukan 0%.",
+    "Jumlah slot yang diharapkan per presser per hari diambil dari daftar slot kanonis layar input itu sendiri (24 slot mulai 07:00), bukan dari angka yang ditetapkan ulang di laporan.",
+    "Jumlah presser pada penyebut cakupan adalah jumlah presser_id yang BENAR-BENAR muncul pada periode dan line itu, bukan jumlah stasiun terdaftar.",
+    "Slot dihitung terisi bila minimal satu dari ENAM kolom bacaan terisi — kelima kolom ukur ATAU alasan downtime. Definisinya dipinjam dari layar input itu sendiri, bukan diturunkan ulang.",
+    "Record berstatus draft IKUT terhitung pada seluruh angka, dan jumlahnya dinyatakan terpisah.",
+    "Status pemeriksaan dan pengesahan adalah informasi kelengkapan, bukan penyaring.",
+    "KEDUA KOLOM TARGET DITERBITKAN BERSAMAAN pada baris yang sama dengan angkanya. target_operating_range menjawab 'ke mana seharusnya'; critical_trigger_action_limit menjawab 'kapan harus bertindak, dan apa akibatnya'. Keduanya teks bebas dan diteruskan verbatim.",
+    "TIDAK ADA penandaan otomatis di luar batas, tanpa warna peringatan, tanpa severity, dan tanpa deteksi pencilan. Kedua kolom target adalah VARCHAR yang dapat disunting Admin/Mill Management kapan pun; pengurai yang gagal pada bentuk teks baru akan BERHENTI MEMPERINGATKAN tanpa galat, dan peringatan yang hilang terbaca sebagai 'semuanya aman'. Selain itu satu nilai pada master pun sudah tidak dapat diurai tanpa menebak ('< 10% to 12%'). Ketiadaan penandaan dinyatakan di layar supaya tidak 'dilengkapi' belakangan.",
+    "Pemetaan parameter master ke kolom ukur bersifat TETAP dan ditulis di satu tempat, bukan dicocokkan dari teks nama parameter saat render — pencocokan teks akan pecah begitu seseorang memperbaiki ejaan pada master, dan pecahnya akan senyap.",
+    "Parameter master yang tidak punya kolom pengukuran tetap ditampilkan pada bagiannya sendiri dengan keterangannya. Pada Pressing ada DUA, dan keduanya tidak punya kolom pengukuran di mana pun pada skema — bukan hanya di pressing_details.",
+    "Master target bersifat global, satu daftar untuk seluruh mill. Laporan menyatakan hal itu.",
+    "Alasan downtime dikelompokkan harfiah tanpa normalisasi ejaan maupun huruf besar-kecil, dan keterangan di layar menyatakan hal itu.",
+    "Slot yang mencatat alasan downtime tetap ikut pada angka ukur bila kolom ukurnya terisi — downtime bukan penyaring melainkan keterangan tambahan pada slot yang sama.",
+    "Ekspor menghasilkan satu baris per slot waktu, dengan kolom konteks (periode, mill, line, tanggal, presser, status, catatan) diulang di setiap baris.",
+    "Slot yang seluruh kolom ukurnya kosong tetap menjadi baris pada ekspor dengan sel kosong, tidak dibuang dan tidak ditulis 0.",
+    "Batas baris ekspor dihitung atas BARIS SLOT, bukan atas record — satu record harian dapat menghasilkan sampai 24 baris.",
+    "Periode dan Production Line yang dipilih tercermin pada alamat halaman, sehingga keadaan layar dapat dibagikan dan dibuka kembali apa adanya."
+  ],
+  "usecase_ids": [
+    "usecase-153--laporan-pressing-web"
+  ],
+  "edge_cases": [
+    "Production Line belum dipilih — tidak ada angka, diganti arahan memilih line; bukan angka seluruh mill.",
+    "Mill tanpa Production Line — arahan menghubungi Admin, tanpa tombol coba lagi.",
+    "Daftar Production Line gagal dimuat — pesan berbeda dari 'mill belum punya line', dengan tombol coba lagi sendiri.",
+    "Admin belum memilih mill — daftar line dan periode tidak dimuat sama sekali.",
+    "Akun terikat mill tetapi business_unit_id-nya kosong — arahan menghubungi Admin, dan daftar seluruh mill tidak pernah dibentuk.",
+    "Mill belum punya periode yang mencakup Pressing — pemilih tetap ada dalam keadaan kosong, disertai arahan.",
+    "Periode tanpa satu pun slot terisi — keterangan periode kosong, seluruh angka 'tidak tersedia', cakupan TETAP tampil, rekap dan downtime tidak digambar.",
+    "Satu kolom ukur kosong sepanjang periode — barisnya tetap ada, min/rata-rata/maks 'tidak tersedia', penyebut 0 slot, kedua kolom target tetap ditampilkan.",
+    "Satu kolom ukur hanya terisi pada satu slot — min, rata-rata, dan maks ketiganya sama, dan penyebut 1 slot menjelaskan mengapa.",
+    "Dua kolom ukur dengan penyebut yang sangat berbeda pada periode yang sama — masing-masing memakai penyebutnya sendiri, dan keduanya tercetak.",
+    "Nilai negatif atau nol pada kolom ukur — ditampilkan apa adanya; laporan tidak menilai kewajaran angka karena tidak punya dasar untuk itu.",
+    "Record ada tetapi seluruh baris slotnya kosong — ikut jumlah record dan ikut penyebut cakupan, tetapi tidak menyumbang satu pun angka ukur.",
+    "Slot yang hanya berisi alasan downtime — dihitung terisi pada cakupan, tetapi tidak menyumbang satu pun angka ukur.",
+    "Satu presser hanya tercatat pada sebagian hari — rekap per presser menampilkan jumlah harinya sendiri.",
+    "Dua record dengan presser_id sama pada hari berbeda — dikelompokkan sebagai satu presser, karena presser_id adalah penamaan unit bukan kunci baris.",
+    "Periode masih berjalan — penyebut hari berhenti di hari ini, dan hal itu dinyatakan.",
+    "Periode belum mulai — persen cakupan dirender '—' bukan 0%, disertai keterangan; dan keterangan itu menang atas keterangan 'periode berjalan' meski keduanya berlaku.",
+    "Periode tertutup — laporan tampil penuh, badge Tertutup, ekspor tetap aktif.",
+    "Periode milik mill lain — ditolak dengan galat akses, bukan laporan kosong.",
+    "Production Line milik mill lain — ditolak dengan galat akses sebelum periode diperiksa.",
+    "business_unit_id mill lain dikirim oleh peran terikat mill — diabaikan, menampilkan data mill sendiri, sengaja bukan galat akses.",
+    "Seluruh record periode berstatus draft — angka tetap dihitung, dan jumlah draft dinyatakan.",
+    "Master target kosong — angka ukur tetap ditampilkan, kedua kolom target dirender sebagai keterangan bahwa master belum terisi.",
+    "Master target memuat parameter tanpa kolom pengukuran — tetap ditampilkan dengan keterangan, tidak ikut perhitungan, tidak muncul pada ekspor. Pada Pressing ada dua.",
+    "Master target diubah ejaan nama parameternya — pemetaan ke kolom ukur tidak boleh ikut pecah; barisnya berpindah ke daftar 'belum diukur' dan angkanya tetap utuh, sehingga keterlepasannya TERLIHAT.",
+    "Alasan downtime kosong pada seluruh slot — keterangan, bukan tabel kosong.",
+    "Satu alasan downtime muncul dengan ejaan berbeda — muncul sebagai dua baris, dan keterangan menyatakan pengelompokannya harfiah.",
+    "Alasan downtime sangat panjang — dirender utuh tanpa pemotongan yang menghilangkan isi.",
+    "Ekspor melampaui batas baris — ditolak dengan galat yang menyebut batasnya, tanpa berkas setengah jadi.",
+    "Jumlah record di bawah batas tetapi jumlah baris slot di atas batas — tetap ditolak, karena batas dihitung atas baris slot.",
+    "Format ekspor di luar CSV dan Excel — ditolak dengan galat validasi.",
+    "Jaringan gagal saat memuat ringkasan — pesan dan tombol coba lagi, dan periode yang sudah dipilih tidak hilang.",
+    "Sesi berakhir saat memuat — diarahkan ke Login tanpa pesan jaringan."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "DUA TARGET TANPA PENGUKURAN, DAN KEDUANYA PALING MENENTUKAN MUTU PENGEPRESAN. 'Nut Breakage Rate' dan 'Press Cake Moisture' punya rentang kerja dan batas tindakan pada master, tetapi tidak punya kolom pengukuran di mana pun pada skema ini — bukan hanya di pressing_details. Perlu diputuskan: menambahkan kedua kolom itu pada formulir Pressing, memindahkannya ke Process Quality Control (yang sudah mengukur oil loss di fibre dan sludge), atau mencabut keduanya dari master. Sampai itu diputuskan, laporan menampilkan keduanya sebagai target tanpa pengukuran — dan itu memang keadaan yang sebenarnya, bukan cacat laporan.",
+    "PENANDAAN OTOMATIS LEBIH MUNGKIN DI SINI DARIPADA DI MANA PUN SEBELUMNYA, DAN TETAP DITOLAK — ini keputusan yang perlu ditinjau manusia. critical_trigger_action_limit membawa pembanding yang teratur pada 5 dari 7 parameter ('< 85°C', '> 50 Amps', '> 60 Bar', '< 80°C', '< 50%'), sehingga penguraiannya secara teknis mungkin hari ini. Yang menahannya adalah tiga hal: kolomnya VARCHAR yang dapat disunting kapan pun sehingga pengurai bisa berhenti bekerja tanpa galat (dan peringatan yang hilang terbaca sebagai 'aman'); satu nilai sudah tidak dapat diurai tanpa menebak ('< 10% to 12%'); dan beberapa rentang membawa pernyataan ketiga dalam tanda kurung. Bila penandaan diinginkan, cara yang jujur adalah memecah master menjadi kolom BATAS NUMERIK (min, maks, arah pembanding) di samping teksnya — bukan menguraikan teksnya saat render. Keputusan itu juga perlu menetapkan apa yang ditampilkan ketika batas numeriknya belum diisi, karena diam bukan jawaban yang aman.",
+    "Master target bersifat global sementara rentang kerja bisa berbeda antar mill (kapasitas desain screw press berbeda). Perlu diputuskan apakah master perlu dipecah per mill; selama belum, laporan menyatakan bahwa kedua kolom target berlaku umum.",
+    "Belum ada keputusan apakah laporan ini perlu menampilkan tren per slot waktu (grafik 24 slot seperti laporan Boiler Room) atau cukup min/rata-rata/maks per periode. Dipilih yang kedua lebih dulu, sejajar dengan Threshing, karena nilai yang dicari pembaca adalah kestabilan terhadap rentang kerja; penambahan tren tidak akan mengubah bentuk angka yang sudah ada.",
+    "Suhu digester dan suhu air pengencer keduanya bergantung pada pasokan uap dari Boiler Room, dan arus motor screw press bergantung pada umpan dari Threshing. Belum ada keputusan apakah laporan Pressing perlu dikaitkan dengan kedua stasiun itu pada periode yang sama; keterkaitan lintas stasiun semacam itu belum pernah dibuat pada satu pun laporan dan akan menjadi keputusan desain tersendiri."
+  ]
+}

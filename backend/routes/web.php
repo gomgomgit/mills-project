@@ -6,6 +6,7 @@ use App\Livewire\Dashboard\LaporanBoilerRoom;
 use App\Livewire\Dashboard\LaporanCagesTrack;
 use App\Livewire\Dashboard\LaporanClarification;
 use App\Livewire\Dashboard\LaporanGrading;
+use App\Livewire\Dashboard\LaporanPressing;
 use App\Livewire\Dashboard\LaporanThreshing;
 use App\Livewire\Dashboard\LaporanStasiun;
 use App\Livewire\Dashboard\LaporanSterilizer;
@@ -953,5 +954,23 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/threshing', LaporanThreshing::class)
     ->name('reports.threshing');
+
+// === LAPORAN PERIODE PRESSING (screen-150--laporan-pressing-web) ===
+//
+// Supervisor / Mill Management / Admin only. Operator is NOT admitted here and
+// has no web report UI at all — and on this screen that refusal is worth
+// stating twice, because the API prefix DOES admit Operator: the mobile
+// Pressing report (screen-151) ships in the same series and reuses the same
+// four endpoints. LaporanPressing::canAccess() therefore keeps its OWN role
+// list rather than borrowing PressingReportService::guardAccess(); if it ever
+// delegates, this web screen silently opens to Operator.
+//
+// Reachable from the UI ONLY through the Pressing tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES now
+// maps the 'pressing' code to this route name. Without that one line the
+// report exists, every test here passes, and the screen stays unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/pressing', LaporanPressing::class)
+    ->name('reports.pressing');
 
 // === ASDLC_ROUTES_END ===

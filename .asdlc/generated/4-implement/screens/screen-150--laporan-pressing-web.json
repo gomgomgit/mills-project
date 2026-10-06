@@ -1,0 +1,105 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-150--laporan-pressing-web",
+  "name": "Laporan Pressing (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/PressingReportService.php",
+    "backend/app/Http/Controllers/Api/PressingReportController.php",
+    "backend/app/Livewire/Dashboard/LaporanPressing.php",
+    "backend/resources/views/livewire/dashboard/laporan-pressing.blade.php",
+    "backend/resources/views/dashboard/laporan-pressing.blade.php",
+    "backend/app/Services/PressingRecordService.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/PressingReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanPressingTest.php",
+    "backend/tests/Feature/Livewire/LaporanPressingTest.php",
+    "backend/tests/Feature/Api/LaporanThreshingTest.php",
+    "e2e-web/tests/laporan-pressing.spec.ts"
+  ],
+  "fe_files_generated": [],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "POLA SERVICE MENGIKUTI ThreshingReportService, dan itu bukan kemalasan: pressing_records dan pressing_details berstruktur IDENTIK dengan padanan threshing — record harian per unit (presser_id, STRING pada header bukan foreign key), satu baris per slot waktu, LIMA kolom ukur nullable plus SATU kolom teks bebas (downtime_reason), dan 24 slot kanonis yang sama mulai 07:00. Karena itu seluruh kerangka akses, cakupan, statistik, rekap, dan ekspor dipinjam apa adanya. Yang diperiksa satu per satu dan TIDAK diasumsikan adalah blok target.",
+    "TIGA NAMA KOLOM MASTER BERBEDA, DAN MENYALINNYA GAGAL SECARA SENYAP. threshing_operational_targets memakai parameter / standard_operational_target / action_plan_on_deviation; pressing_operational_targets memakai parameter_metric / target_operating_range / critical_trigger_action_limit. Tidak satu pun dari ketiganya terbawa. Menyalin nama Threshing menghasilkan blok target yang SELURUHNYA null tanpa satu pun galat — layar tetap terender, setiap angka tetap benar, dan setiap kolom standarnya kosong. Itu kegagalan yang hanya terlihat kalau diasersi, dan ada unit test khusus (case 27) yang mengasersi ketiga medannya terisi.",
+    "DUA KOLOM TARGET, DUA PERTANYAAN YANG BERBEDA, DAN KEDUANYA DITERBITKAN. target_operating_range menjawab 'ke mana seharusnya' ('90C - 95C', '35 - 45 Amperes'); critical_trigger_action_limit menjawab 'kapan harus bertindak, dan apa akibatnya kalau tidak' ('< 85C (Leads to poor oil liberation)'). Keduanya diteruskan VERBATIM termasuk tanda kurung penjelasnya — di situlah akibat penyimpangan satu-satunya tertulis, dan memotongnya akan membuang tempat itu. CATATAN KOREKSI: jumlah kolom tabelnya SAMA dengan tabel Threshing (tujuh), karena Threshing pun punya dua kolom target yang ditampilkan. Yang berbeda adalah ARTI kedua kolom terakhir, bukan lebarnya — klaim 'satu kolom lebih lebar' sempat tertulis pada docblock dan test dan sudah diperbaiki.",
+    "TIDAK ADA PENANDAAN DI LUAR BATAS, DAN DI SINI ALASANNYA HARUS DIARGUMENTASIKAN, BUKAN DIASERSI. Pada Threshing standarnya prosa tanpa pembanding sama sekali, sehingga penguraiannya jelas mustahil. Pada Pressing critical_trigger_action_limit JUSTRU membawa pembanding yang teratur pada LIMA dari TUJUH parameter ('< 85C', '> 50 Amps', '> 60 Bar', '< 80C', '< 50%') — penandaan otomatis secara teknis mungkin hari ini, dan godaannya nyata. Tiga hal yang menahannya: (a) kedua kolom VARCHAR yang dapat disunting Admin/Mill Management kapan pun, dan pengurai yang gagal pada bentuk teks berikutnya akan BERHENTI MEMPERINGATKAN tanpa satu pun galat — peringatan yang hilang terbaca sebagai 'semuanya aman', arah kegagalan terburuk untuk indikator mutu; (b) satu nilai pada master sudah tidak dapat diurai tanpa menebak hari ini ('< 10% to 12%' — 10 atau 12?); (c) beberapa rentang membawa pernyataan KETIGA di dalam tanda kurung ('75% - 80% (Minimum 3/4 full)') yang bukan bagian rentangnya dan bukan pula akibatnya. Cara jujur bila penandaan diinginkan dicatat sebagai open_question: pecah master menjadi kolom BATAS NUMERIK di samping teksnya, jangan menguraikan teksnya saat render — dan tetapkan apa yang ditampilkan ketika batas numeriknya belum diisi, karena diam bukan jawaban yang aman.",
+    "TUJUH TARGET, LIMA KOLOM UKUR — DUA TANPA PENGUKURAN, DAN KETIMPANGANNYA LEBIH TAJAM DARIPADA DI THRESHING. 'Nut Breakage Rate' dan 'Press Cake Moisture' punya rentang kerja dan batas tindakan, tetapi tidak punya kolom pengukuran DI MANA PUN pada skema ini — bukan hanya di pressing_details. Diverifikasi dengan menyisir seluruh migrasi: tidak ada kolom nut/breakage/press_cake sama sekali, dan yang terdekat (depricarping_details.fibre_moisture_percent) adalah bahan lain di stasiun lain. Keduanya pun justru parameter yang paling menentukan mutu pengepresan. Diterbitkan lewat targets_without_metric; unit test, API test, Livewire test, dan browser test semuanya mengasersi DUA entri, bukan satu.",
+    "PEMETAAN KOLOM->PARAMETER TETAP (COLUMN_TARGET_PARAMETER): digester_temp_c => 'Digester Temperature', digester_level_percent => 'Digester Fill Level', press_motor_current_amps => 'Screw Press Motor Current', cone_hydraulic_pressure_bar => 'Cone Hydraulic Pressure', dilution_water_temp_c => 'Dilution Water Temperature'. Case 29 membuktikan konsekuensinya: ejaan parameter_metric pada master yang diubah TIDAK menghapus angkanya — angkanya utuh, blok target-nya menjadi null, dan barisnya bergabung dengan kedua parameter tak terukur sehingga daftarnya menjadi TIGA. Keterlepasan itu TERLIHAT, bukan senyap.",
+    "SETIAP RATA-RATA MENERBITKAN PENYEBUTNYA SENDIRI (filled_slot_count per baris metrics). Fixture test mengisi satu kolom pada 10 slot dan kolom lain hanya pada 3 bernilai 45/50/55, supaya satu penyebut bersama menjawab 15,0 alih-alih 50,0 — dan 15,0 adalah justru jenis angka yang tidak akan dipertanyakan siapa pun.",
+    "DEFINISI 'SLOT TERISI' DIPINJAM DARI LAYAR INPUT. PressingRecordService::isRowFilled() dan READING_FIELDS dijadikan public dalam perubahan yang sama — aditif, nol perubahan perilaku: loop-nya memperlakukan null dan '' sebagai kosong, identik dengan uji lama pada kelima kolom float dan pada downtime_reason. Precedent-nya BoilerRoomRecordService dan ThreshingRecordService, dengan alasan yang sama: dua salinan daftar kolom adalah cara laporan dan formulir mulai berselisih tentang apa yang tercatat.",
+    "KONSEKUENSINYA SAMA SEPERTI DI THRESHING DAN TETAP BENAR: downtime_reason adalah kolom bacaan keenam, jadi slot yang hanya memuat 'Cone macet' DIHITUNG TERISI, dan coverage.filled_slots bisa LEBIH BESAR daripada penyebut kolom ukur mana pun. Case 16 mengunci keduanya sekaligus: filled_slots 1 sementara seluruh min/avg/max tetap null.",
+    "coverage_percent NULL, BUKAN 0.0, ketika expected_slots nol — dan urutan cabang keterangannya sudah benar sejak baris pertama: days_counted diperiksa SEBELUM period_running, karena ReportPeriodDays::isRunning() juga true untuk periode yang belum mulai. Kekeliruan itu nyata terjadi pada laporan Grading dan Weighbridge dan diperbaiki pada commit screen-148.",
+    "SELURUH AGREGASI DI PHP, nol agregat SQL. Case 21 menyisir setiap kueri yang benar-benar dijalankan terhadap avg( / min( / max( / sum( / group by. SQLite (suite) dan PostgreSQL (produksi) berbeda perilaku pada AVG atas kolom bernull. whereDate dipakai pada pressing_records.date, dan keanggotaan periode diuji di KEDUA UJUNGNYA ditambah satu hari di luarnya.",
+    "BATAS EKSPOR DIHITUNG ATAS BARIS SLOT, bukan record, dan dibaca lewat static::EXPORT_ROW_LIMIT supaya subclass test (batas 5) dapat membuktikannya dengan 1 record berisi 6 baris slot alih-alih menyemai 50.000.",
+    "OPERATOR DITERIMA PADA KETIGA RUTE DATA SEJAK HARI PERTAMA, karena screen-151 (kembaran mobile) dibangun dalam seri yang sama — pola yang terbukti pada screen-146/147 dan screen-148/149. Yang menanggung beban adalah penempatan Operator pada cabang TERIKAT MILL resolveBusinessUnit(); menerimanya di guardAccess() saja akan menjatuhkannya ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI. Skenario 11 API mengasersi HASIL-nya, bukan penerimaan perannya.",
+    "RUTE WEB TIDAK DIBUKA UNTUK OPERATOR, dan canAccess() komponen memegang daftar perannya SENDIRI justru supaya service dapat menerima Operator tanpa ikut membuka layar web. Dikunci dua kali: skenario 24 Livewire (assertForbidden) dan satu browser test atas status HTTP rutenya.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri 'pressing' pada StationReportService::REPORT_ROUTES, disisipkan DI ANTARA threshing (50) dan clarification (70) karena station_types.sort_order menempatkan pressing di 60 dan urutan peta itu load-bearing.",
+    "SATU TEST LAMA IKUT BERUBAH, DAN ITU MEMANG GUNANYA. Skenario 25 pada tests/Feature/Api/LaporanThreshingTest.php mengasersi tetangga kanan 'threshing' pada peta itu; penyisipan Pressing mengubahnya dari 'clarification' menjadi 'pressing'. Asersi ber-urutan seperti itu DIRANCANG untuk gagal ketika petanya berubah — diperbarui, bukan dilemahkan.",
+    "SPEC e2e-web/tests/laporan-stasiun.spec.ts TIDAK PERLU DISENTUH kali ini: contoh 'stasiun tanpa laporan' di sana sudah dipindahkan ke process-water pada screen-148, bukan pressing. Diverifikasi dengan menjalankan spec itu (14/14), bukan diasumsikan.",
+    "BLOK <style> BERADA DI SLOT styles LAYOUT, bukan di dalam komponen Livewire. Livewire 3 memasang wire:id pada elemen ter-render pertama; bila elemen itu sebuah <style>, SELURUH wire:model mati tanpa satu pun galat — component test tidak menangkapnya, browser test menangkapnya.",
+    "KETIADAAN PENANDAAN DIUJI DUA CARA YANG BERBEDA: di payload lewat penyisiran kunci (severity / is_out_of_range / out_of_range / exceeds / flag / threshold / breach), dan di layar lewat KETIADAAN NAMA KELAS (.md-threshold / .is-danger / .is-warning / .md-chip--danger). Bukan atas frasa — kalimat yang menyatakan ketiadaannya sendiri memuat frasa 'di luar batas'. Pelajaran yang harganya sudah dibayar enam kali (screen-146, 147, 148 ×2, 149, dan di sini).",
+    "SPEC BROWSER BERBASIS INVARIAN, pola yang sama dengan screen-146/148: tidak menanam data sendiri, dan lima invarian diturunkan DARI DOM sehingga benar untuk data apa pun. Ditambah satu test khusus Pressing: kedua kolom target hadir pada baris yang sama, masing-masing dengan testid-nya sendiri (metric-target-range, metric-action-limit), supaya satu kolom yang hilang terlihat sebagai kegagalan alih-alih sebagai sel kosong.",
+    "api-index ditambah empat endpoint /api/pressing-reports/* (v71), dengan actor_ids yang sudah memuat actor-station-operator sejak awal pada ketiga rute data."
+  ],
+  "deferred_items": [
+    {
+      "description": "Mock HTML statis layar ini (screen-mock-agent, mock_generation_level = full) tidak dibuat, mengikuti lima layar terakhir yang juga melewatinya (screen-144, 146, 147, 148, 149). Layar sungguhannya dibangun pada sesi yang sama sehingga mock 1-state tidak menambah informasi apa pun.",
+      "reason": "Konsisten dengan lima layar sebelumnya; layar nyatanya sudah ada pada perubahan yang sama"
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "DUA TARGET TANPA PENGUKURAN, DAN KEDUANYA PALING MENENTUKAN MUTU PENGEPRESAN. 'Nut Breakage Rate' dan 'Press Cake Moisture' punya rentang kerja dan batas tindakan pada master, tetapi tidak punya kolom pengukuran di mana pun pada skema ini. Perlu diputuskan: menambahkan kedua kolom pada formulir Pressing, memindahkannya ke Process Quality Control (yang sudah mengukur oil loss di fibre dan sludge), atau mencabut keduanya dari master. Dicatat sebagai open_question pada business spec screen-150.",
+      "severity": "minor"
+    },
+    {
+      "description": "PENANDAAN OTOMATIS LEBIH MUNGKIN DI SINI DARIPADA DI LAPORAN MANA PUN SEBELUMNYA, DAN TETAP DITOLAK — ini keputusan yang sebaiknya ditinjau manusia. critical_trigger_action_limit membawa pembanding yang teratur pada 5 dari 7 parameter, jadi penguraiannya secara teknis mungkin hari ini. Yang menahannya: kolomnya VARCHAR yang dapat disunting kapan pun (pengurai bisa berhenti bekerja tanpa galat, dan peringatan yang hilang terbaca sebagai 'aman'), satu nilai sudah tidak dapat diurai tanpa menebak, dan beberapa rentang membawa pernyataan ketiga dalam tanda kurung. Cara jujurnya: pecah master menjadi kolom batas numerik di samping teksnya.",
+      "severity": "minor"
+    },
+    {
+      "description": "Master target bersifat global (pressing_operational_targets tidak punya business_unit_id) sementara rentang kerja bisa berbeda antar mill karena kapasitas desain screw press berbeda. Layar menyatakan bahwa kedua kolom target berlaku umum; pemecahan per mill belum diputuskan.",
+      "severity": "minor"
+    },
+    {
+      "description": "DRIFT ARTEFAK DI LUAR CAKUPAN LAYAR INI (dibawa dari screen-144/147/148/149): pada project.3-tech-spec.api-index, kelima prefix laporan saudaranya (/api/sterilizer-reports/*, /api/cages-track-reports/*, /api/boiler-room-reports/*, /api/clarification-reports/*, /api/storage-tank-reports/*) masih mencantumkan actor_ids tanpa actor-station-operator, padahal routes/api.php dan service masing-masing sudah menerima Operator sejak screen-135..139. Endpoint weighbridge, grading, threshing dan pressing sudah benar.",
+      "severity": "minor"
+    },
+    {
+      "description": "Contoh 'stasiun yang laporannya belum dibangun' bersandar pada process-water di TUJUH tempat (lima test backend, satu spec browser web, satu spec komponen mobile). Bila Process Water dibuatkan laporan, ketujuhnya akan merah bersamaan — disengaja, tetapi perlu diketahui pembangun laporan berikutnya.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-06T07:50:00Z",
+      "passed": 46,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-06T07:52:00Z",
+      "passed": 25,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-06T07:55:00Z",
+      "passed": 29,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-06T08:05:00Z",
+      "passed": 16,
+      "failed": 0
+    }
+  }
+}

@@ -87,6 +87,13 @@ class StationReportService
         // below). Without this one line the report exists, every one of its
         // own tests passes, and the tile stays greyed out.
         StationTypeEnum::Threshing->value => 'reports.threshing',
+        // screen-150--laporan-pressing-web. BETWEEN threshing and
+        // clarification, never appended: station_types.sort_order puts
+        // pressing at 60, behind threshing (50) and ahead of clarification
+        // (70), and the ordering of this map is load-bearing (see the note
+        // below). Without this one line the report exists, every one of its
+        // own tests passes, and the tile stays greyed out.
+        StationTypeEnum::Pressing->value => 'reports.pressing',
         // screen-132--laporan-clarification-web. BETWEEN sterilizer and
         // boiler-room, never appended: station_types.sort_order puts
         // clarification (70) behind cages-track (30) and sterilizer (40) but

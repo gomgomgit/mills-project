@@ -81,6 +81,37 @@ class DepricarpingRecordService
     protected const FORM_FIELDS = ['presser_id', 'date', 'note'];
 
     /**
+     * The NINE reading columns of depricarping_details, in the order the
+     * input grid and the period report both read them.
+     *
+     * Made a public constant — alongside isRowFilled() becoming public —
+     * for DepricarpingReportService, which must borrow the definition of a
+     * "filled" slot from this screen rather than deriving its own. Two
+     * definitions that disagree would mean the coverage figure in the
+     * report does not match what the input screen accepts, and nobody would
+     * be able to tell which one was wrong. Precedent:
+     * BoilerRoomRecordService, then Threshing and Pressing.
+     *
+     * NINE, not six: Depricarping has seven measurement columns rather than
+     * five, and its downtime is `downtime_minutes` (an INTEGER, summable)
+     * plus a separate free-text `findings` — where Threshing and Pressing
+     * had only a text `downtime_reason`.
+     *
+     * @var list<string>
+     */
+    public const READING_FIELDS = [
+        'fan_static_pressure_mmh2o',
+        'polishing_drum_speed_rpm',
+        'air_velocity_ms',
+        'fibre_moisture_percent',
+        'kernel_recovery_in_fibre_percent',
+        'nut_silo_1_temp_c',
+        'nut_silo_2_temp_c',
+        'downtime_minutes',
+        'findings',
+    ];
+
+    /**
      * The 24 canonical hourly time-slot labels, in order: 07:00, 08:00,
      * ..., 23:00, 00:00, ..., 06:00. Mirrors mobile's
      * depricarpingRecordRepo.ts's canonicalTimeSlots() exactly (`for i in
@@ -306,17 +337,29 @@ class DepricarpingRecordService
     /**
      * @param  array{fan_static_pressure_mmh2o: mixed, polishing_drum_speed_rpm: mixed, air_velocity_ms: mixed, fibre_moisture_percent: mixed, kernel_recovery_in_fibre_percent: mixed, nut_silo_1_temp_c: mixed, nut_silo_2_temp_c: mixed, downtime_minutes: mixed, findings: mixed}  $row
      */
-    protected function isRowFilled(array $row): bool
+    public function isRowFilled(array $row): bool
     {
-        return $row['fan_static_pressure_mmh2o'] !== null
-            || $row['polishing_drum_speed_rpm'] !== null
-            || $row['air_velocity_ms'] !== null
-            || $row['fibre_moisture_percent'] !== null
-            || $row['kernel_recovery_in_fibre_percent'] !== null
-            || $row['nut_silo_1_temp_c'] !== null
-            || $row['nut_silo_2_temp_c'] !== null
-            || $row['downtime_minutes'] !== null
-            || ($row['findings'] !== null && $row['findings'] !== '');
+        foreach (static::READING_FIELDS as $field) {
+            $value = $row[$field] ?? null;
+
+            if ($value === null) {
+                continue;
+            }
+
+            // EMPTY STRING COUNTS AS EMPTY ONLY FOR THE TEXT COLUMN, and
+            // that asymmetry is deliberate, not an oversight: `findings`
+            // arrives from the form as '' when untouched, while
+            // downtime_minutes arriving as 0 is a STATEMENT that the
+            // station did not stop. Treating them alike either way would
+            // change what the input screen accepts.
+            if ($field === 'findings' && $value === '') {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**

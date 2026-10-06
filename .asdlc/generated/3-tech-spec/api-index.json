@@ -1,5 +1,5 @@
 {
-  "ver": 71,
+  "ver": 72,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-06"
@@ -2314,6 +2314,59 @@
       "description": "Unduhan CSV/Excel Laporan Pressing — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, presser, status, catatan) diulang verbatim di setiap baris; slot yang seluruh kolom ukurnya kosong tetap menjadi baris bersel kosong. Batas 50.000 dihitung atas BARIS SLOT bukan record. Bukan respons JSON.",
       "screen_id": "screen-150--laporan-pressing-web",
       "usecase_id": "usecase-153--laporan-pressing-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/depricarping-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Depricarping — ADMIN SAJA; 403 untuk setiap peran yang terikat satu mill, termasuk Operator, ditegakkan di dalam service bukan oleh middleware. Satu-satunya rute pada prefix ini yang tidak terbuka bagi Operator.",
+      "screen_id": "screen-152--laporan-depricarping-web",
+      "usecase_id": "usecase-155--laporan-depricarping-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/depricarping-reports/periods",
+      "description": "Daftar Periode Pelaporan yang mencakup stasiun Depricarping pada satu mill; status per baris period_stations, dan periode tertutup ikut tercantum. Dipakai bersama oleh screen-152 (web) dan screen-153 (mobile) — Operator diterima sejak endpoint ini dibangun; business_unit_id diabaikan untuk seluruh peran terikat mill. production_line_id sengaja bukan parameter: periode milik mill, bukan milik line.",
+      "screen_id": "screen-152--laporan-depricarping-web",
+      "usecase_id": "usecase-155--laporan-depricarping-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/depricarping-reports/summary",
+      "description": "Seluruh angka Laporan Depricarping untuk satu periode pada satu Production Line: cakupan pencatatan (slot terisi terhadap presser × hari terhitung × 24 slot kanonis, dengan slot terisi memakai SEMBILAN kolom bacaan sehingga nilainya dapat melebihi penyebut kolom ukur mana pun), min/rata-rata/maks KETUJUH kolom ukur MASING-MASING dengan penyebutnya sendiri, dan KEEMPAT kolom master target per parameter — parameter_metric, target_range, critical_limit, dan operational_consequence_justification, yang terakhir tidak ada pada master Threshing maupun Pressing. TIGA HAL YANG TIDAK ADA PADA LAPORAN SAUDARANYA: (1) blok downtime NUMERIK — total menit, jumlah slot yang mencatat, dan rata-rata per slot yang mencatat, dengan total NULL bukan 0 bila tidak ada yang mencatat; (2) shares_standard_with per metrik, karena satu baris master 'Nut Silo Temperature' mengatur DUA kolom (nut_silo_1_temp_c dan nut_silo_2_temp_c) yang tetap dilaporkan terpisah dan tidak pernah dirata-ratakan; (3) targets_without_metric yang membawa ALASAN per baris — 'no_column' atau 'direction_unresolved'. Pada Depricarping ada SATU entri: 'Kernel Loss in Fibre', yang sengaja TIDAK dipetakan ke kernel_recovery_in_fibre_percent karena master menyebutnya kehilangan (target '< 0.50%') sementara kolom dan keempat layar input melabelinya perolehan, dan tidak ada data di sistem yang menyelesaikan pertentangan arah itu. Metriknya tetap diterbitkan dengan target null dan unmapped_reason terisi. Juga memuat rekap temuan (findings) yang dikelompokkan harfiah dan TIDAK dicampur dengan downtime, rekap per presser, dan rekap harian. TANPA penandaan otomatis di luar batas. period_id dan production_line_id keduanya WAJIB (422 bila absen); line milik mill lain 403, diperiksa sebelum periode.",
+      "screen_id": "screen-152--laporan-depricarping-web",
+      "usecase_id": "usecase-155--laporan-depricarping-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/depricarping-reports/export",
+      "description": "Unduhan CSV/Excel Laporan Depricarping — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, presser, status, catatan) diulang verbatim di setiap baris, memuat ketujuh kolom ukur ditambah downtime_minutes dan findings; slot yang seluruh kolom ukurnya kosong tetap menjadi baris bersel kosong. Batas 50.000 dihitung atas BARIS SLOT bukan record, dibaca lewat static::EXPORT_ROW_LIMIT. Gate peran, resolusi mill, resolusi line, dan pemeriksaan batas berjalan eager sebelum aliran dimulai. Bukan respons JSON.",
+      "screen_id": "screen-152--laporan-depricarping-web",
+      "usecase_id": "usecase-155--laporan-depricarping-web",
       "auth_required": true,
       "actor_ids": [
         "actor-supervisor",

@@ -111,6 +111,17 @@ class StationReportService
         // boiler-room (90), so appending is exactly what keeps this map in
         // sort_order — and the ordering of this map is load-bearing, see the
         // note below.
+        // screen-152--laporan-depricarping-web. BETWEEN boiler-room and
+        // storage-tank, and NOT after pressing where the process flow would
+        // suggest: station_types.sort_order puts depricarping at 110 — behind
+        // clarification (70) and boiler-room (90), ahead of storage-tank
+        // (140). The process order and the sort_order disagree here, and this
+        // map follows sort_order, because that is what screen-140 renders the
+        // tiles in. Verified against the station_types table, not inferred
+        // from the enum's declaration order (where depricarping sits sixth).
+        // Without this one line the report exists, every one of its own tests
+        // passes, and the tile stays greyed out.
+        StationTypeEnum::Depricarping->value => 'reports.depricarping',
         StationTypeEnum::StorageTank->value => 'reports.storage-tank',
     ];
 

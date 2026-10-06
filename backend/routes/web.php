@@ -6,6 +6,7 @@ use App\Livewire\Dashboard\LaporanBoilerRoom;
 use App\Livewire\Dashboard\LaporanCagesTrack;
 use App\Livewire\Dashboard\LaporanClarification;
 use App\Livewire\Dashboard\LaporanGrading;
+use App\Livewire\Dashboard\LaporanDepricarping;
 use App\Livewire\Dashboard\LaporanPressing;
 use App\Livewire\Dashboard\LaporanThreshing;
 use App\Livewire\Dashboard\LaporanStasiun;
@@ -972,5 +973,19 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/pressing', LaporanPressing::class)
     ->name('reports.pressing');
+
+// Laporan Periode Depricarping (screen-152). Operator is NOT admitted here
+// even though the API prefix admits it for the mobile twin (screen-153):
+// LaporanDepricarping::canAccess() keeps its OWN role list rather than
+// borrowing DepricarpingReportService::guardAccess(); if it ever delegates,
+// this web screen silently opens to Operator.
+//
+// Reachable from the UI ONLY through the Depricarping tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES now
+// maps the 'depricarping' code to this route name. Without that one line the
+// report exists, every test here passes, and the screen stays unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/depricarping', LaporanDepricarping::class)
+    ->name('reports.depricarping');
 
 // === ASDLC_ROUTES_END ===

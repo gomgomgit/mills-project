@@ -1,5 +1,5 @@
 {
-  "ver": 19,
+  "ver": 20,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-06"
@@ -910,6 +910,18 @@
       "name": "Laporan Pressing (Mobile)",
       "module_id": "module-dashboard",
       "description": "Versi mobile dari Laporan Pressing — pilih periode pelaporan dan Production Line lalu lihat cakupan pencatatan, min/rata-rata/maks per parameter beserta rentang kerja dan batas tindakannya, dua target yang belum diukur sistem, rekap per presser, rekap per hari, dan alasan downtime dalam tata letak layar sempit (read-only). Dicapai dari Reporting (screen-141)."
+    },
+    {
+      "id": "screen-152--laporan-depricarping-web",
+      "name": "Laporan Depricarping (Web)",
+      "module_id": "module-dashboard",
+      "description": "Pilih periode pelaporan dan Production Line (WAJIB dipilih) lalu lihat rekap kondisi operasi stasiun Depricarping: min / rata-rata / maks untuk KETUJUH kolom ukur pada depricarping_details (tekanan statis fan mmH2O, putaran polishing drum RPM, kecepatan udara aspirator m/s, kadar air fibre %, kernel recovery in fibre %, suhu nut silo 1 °C, dan suhu nut silo 2 °C), masing-masing dengan penyebutnya sendiri karena setiap kolom nullable dan tidak selalu terisi bersamaan. Menampilkan cakupan pencatatan (slot terisi terhadap 24 slot kanonis per presser per hari) DI ATAS seluruh angka, rekap per presser_id, rekap per hari, dan ekspor satu baris per slot waktu. TIGA HAL MEMBEDAKANNYA DARI LAPORAN THRESHING DAN PRESSING. Pertama, DOWNTIME DI SINI BERUPA ANGKA, bukan teks: depricarping_details.downtime_minutes adalah kolom integer, sehingga laporan ini untuk pertama kalinya dapat menjumlahkan berapa menit stasiun berhenti dalam satu periode — bukan hanya mendaftar sebabnya; teks bebas yang setara dengan 'alasan downtime' pada dua laporan sebelumnya ada di kolom terpisah bernama findings, dan direkap apa adanya tanpa normalisasi. Kedua, SATU STANDAR MENGATUR DUA KOLOM: master hanya memuat 'Nut Silo Temperature' sementara tabel detail punya nut_silo_1_temp_c dan nut_silo_2_temp_c; keduanya tetap dilaporkan sebagai dua metrik terpisah (dua silo fisik, tidak boleh dirata-ratakan menjadi satu angka) tetapi berbagi satu standar, dan hubungan satu-ke-dua itu dinyatakan di layar. Ketiga, MASTER MEMBAWA EMPAT KOLOM — parameter_metric, target_range, critical_limit, dan operational_consequence_justification — dan kolom keempat itu (yang tidak ada pada master Threshing maupun Pressing) menjelaskan APA AKIBATNYA bila batas dilewati, sehingga ikut ditampilkan: pembaca yang melihat angka di luar rentang perlu tahu apa yang dipertaruhkan, bukan hanya bahwa angkanya menyimpang. TETAP TANPA penandaan otomatis di luar batas, sebabnya dinyatakan di layar. Satu standar sengaja DIBIARKAN TANPA PENGUKURAN meskipun ada kolom yang namanya mirip: master menyebut 'Kernel Loss in Fibre' dengan target '< 0.50%' (sebuah KEHILANGAN) sementara kolom yang tersedia bernama kernel_recovery_in_fibre_percent dan layar input melabelinya 'Kernel Recovery in Fibre' (sebuah PEROLEHAN) — dua pembingkaian yang berlawanan, dan tidak ada data di sistem yang menyelesaikannya. Angkanya tetap dilaporkan di bawah label kolomnya sendiri, standarnya masuk daftar standar-tanpa-pengukuran beserta alasannya, dan laporan tidak pernah mencetak angka di bawah standar yang mungkin kebalikannya."
+    },
+    {
+      "id": "screen-153--laporan-depricarping-mobile",
+      "name": "Laporan Depricarping (Mobile)",
+      "module_id": "module-dashboard",
+      "description": "Versi mobile dari Laporan Depricarping — pilih periode pelaporan dan Production Line lalu lihat cakupan pencatatan, min/rata-rata/maks untuk ketujuh parameter beserta rentang target, batas kritis, dan akibat operasionalnya, total menit downtime periode, rekap temuan (findings), rekap per presser, dan rekap per hari dalam tata letak layar sempit (read-only). Dicapai dari Reporting (screen-141)."
     }
   ]
 }

@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\EngineRoomRecordController;
 use App\Http\Controllers\Api\GradingParameterController;
 use App\Http\Controllers\Api\GradingRecordController;
 use App\Http\Controllers\Api\GradingReportController;
+use App\Http\Controllers\Api\DepricarpingReportController;
 use App\Http\Controllers\Api\PressingReportController;
 use App\Http\Controllers\Api\ThreshingReportController;
 use App\Http\Controllers\Api\KernelDispatchRecordController;
@@ -1397,6 +1398,27 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/pressing-reports/periods', [PressingReportController::class, 'periods']);
     Route::get('/pressing-reports/summary', [PressingReportController::class, 'summary']);
     Route::get('/pressing-reports/export', [PressingReportController::class, 'export']);
+});
+
+// === LAPORAN PERIODE DEPRICARPING (screen-152 web + screen-153 mobile) ===
+// Same four-endpoint shape and the same role list as the Pressing prefix
+// above, and Operator is admitted here from the FIRST commit because the
+// mobile twin is built in the same series — the Weighbridge pair (143 -> 144)
+// had to patch three places afterwards precisely because its web screen
+// shipped before its mobile twin was known.
+//
+// /business-units/options still REFUSES Operator with 403, raised inside
+// DepricarpingReportService rather than by this middleware, which admits all
+// four roles for the other three.
+//
+// The production-line OPTION LIST is NOT duplicated here: GET
+// /api/production-lines/options-for-report (built for screen-135) is reused
+// verbatim.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/depricarping-reports/business-units/options', [DepricarpingReportController::class, 'businessUnitOptions']);
+    Route::get('/depricarping-reports/periods', [DepricarpingReportController::class, 'periods']);
+    Route::get('/depricarping-reports/summary', [DepricarpingReportController::class, 'summary']);
+    Route::get('/depricarping-reports/export', [DepricarpingReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

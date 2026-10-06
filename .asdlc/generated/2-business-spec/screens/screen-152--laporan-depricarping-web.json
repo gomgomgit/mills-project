@@ -1,0 +1,180 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-152--laporan-depricarping-web",
+  "name": "Laporan Depricarping (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Depricarping di web. Seperti Threshing dan Pressing, yang dilaporkan adalah KONDISI OPERASI: tiap record adalah satu hari kerja satu presser, dan tiap barisnya satu slot waktu. Bedanya, di sini ada TUJUH kolom ukur, bukan lima — tekanan statis fan (mmH2O), putaran polishing drum (RPM), kecepatan udara aspirator (m/s), kadar air fibre (%), kernel recovery in fibre (%), suhu nut silo 1 (°C), dan suhu nut silo 2 (°C). Inti laporannya tetap min / rata-rata / maks per parameter, masing-masing dengan penyebutnya sendiri karena ketujuh kolom nullable dan tidak pernah terisi bersamaan.\n\nTIGA HAL MEMBUAT LAYAR INI BUKAN SALINAN DARI DUA LAPORAN SEBELUMNYA.\n\nPERTAMA — DOWNTIME DI SINI BERUPA ANGKA, BUKAN TEKS. Pada Threshing dan Pressing downtime hanya ada sebagai downtime_reason, sebuah kolom teks, sehingga yang bisa dilaporkan hanyalah daftar sebab beserta berapa slot yang mencatatnya; berapa lama stasiun berhenti tidak pernah dapat dijawab. depricarping_details punya downtime_minutes, sebuah kolom INTEGER. Karena itu laporan ini untuk pertama kalinya menerbitkan TOTAL MENIT BERHENTI dalam satu periode, berapa slot yang mencatatnya, dan rata-rata per slot yang mencatat — dan itu angka yang dapat dibandingkan antar periode, bukan sekadar daftar. Teks bebasnya ada di kolom terpisah bernama findings, dan direkap harfiah apa adanya — persis sebagaimana downtime_reason direkap pada dua laporan sebelumnya. Keduanya dilaporkan berdampingan tetapi TIDAK dicampur: satu menjawab 'berapa lama', satu menjawab 'apa yang terlihat'.\n\nKEDUA — SATU STANDAR MENGATUR DUA KOLOM. Master hanya memuat 'Nut Silo Temperature' (satu baris, target '60°C - 70°C'), sementara tabel detail punya nut_silo_1_temp_c DAN nut_silo_2_temp_c. Keduanya tetap dilaporkan sebagai DUA metrik terpisah dengan penyebutnya masing-masing — dua silo fisik, dan merata-ratakannya menjadi satu angka akan menyembunyikan silo yang menyimpang di belakang silo yang normal, kesalahan yang sama dengan menjumlahkan dua blok unit pada laporan Grading. Tetapi keduanya berbagi satu standar, dan hubungan satu-ke-dua itu DINYATAKAN di layar, karena standar yang sama tercetak dua kali tanpa penjelasan terbaca seperti data yang terduplikasi.\n\nKETIGA — MASTER MEMBAWA EMPAT KOLOM, DAN YANG KEEMPAT BARU. Master Threshing membawa standar + rencana tindakan; master Pressing membawa rentang kerja + batas tindakan. Master Depricarping membawa parameter_metric, target_range, critical_limit, DAN operational_consequence_justification — kolom terakhir itu tidak ada pada kedua master sebelumnya dan menjelaskan APA YANG DIPERTARUHKAN bila batas dilewati ('Direct operational revenue loss', 'Low pressure drops fibre early (heavy losses)'). Kolom itu ikut ditampilkan, karena pembaca yang melihat angka menyimpang perlu tahu akibatnya, bukan hanya bahwa angkanya menyimpang. Tanpa itu, tiga parameter dengan batas yang sama-sama terlewati tampak sama pentingnya, padahal tidak.\n\nDAN TETAP TIDAK ADA PENANDAAN OTOMATIS DI LUAR BATAS. Di sini godaannya paling besar dari seluruh laporan yang sudah dibuat: critical_limit pada master Depricarping adalah yang PALING teratur bentuknya — '< 35 or > 55 mmH2O', '> 40%', '> 1.00%', '< 55°C or > 75°C' — lima dari enam membawa pembanding numerik yang jelas, sebagian bahkan dua sisi sekaligus. Penolakannya karena itu harus beralasan, bukan diwarisi:\n  1. Kedua kolom batas adalah VARCHAR yang dapat disunting Admin/Mill Management kapan pun. Pengurai yang gagal pada bentuk berikutnya BERHENTI MEMPERINGATKAN tanpa satu pun galat — dan peringatan yang hilang terbaca sebagai 'semuanya aman'. Untuk indikator mutu, itu arah kegagalan terburuk yang mungkin.\n  2. Bentuk dua sisi ('< 35 or > 55 mmH2O') memerlukan pengurai yang berbeda dari bentuk satu sisi ('> 40%'), dan satuannya pun ikut di dalam teks — mmH2O, %, °C, RPM, m/s. Pengurai yang benar untuk keenamnya hari ini adalah pengurai yang paling mungkin salah besok.\n  3. '< 0.50%' pada master adalah target untuk parameter yang kolomnya justru bernama 'recovery' (lihat di bawah). Menguraikan batas dan membandingkannya dengan angka yang arahnya belum pasti akan menghasilkan peringatan yang terbalik — lebih buruk daripada tidak ada peringatan.\nLaporan karena itu menerbitkan keempatnya — hasil ukur, rentang target, batas kritis, akibat operasional — berdampingan dan apa adanya, dan menyerahkan penilaiannya kepada manusia. Ketiadaan penandaan DINYATAKAN di layar, karena ketiadaan yang tidak dijelaskan terbaca sebagai fitur yang belum selesai.\n\nSATU STANDAR SENGAJA DIBIARKAN TANPA PENGUKURAN MESKIPUN ADA KOLOM YANG NAMANYA MIRIP, dan ini temuan yang paling perlu dibaca manusia. Master menyebut standarnya 'Kernel Loss in Fibre', target '< 0.50%', batas '> 1.00%' — jelas sebuah KEHILANGAN, makin kecil makin baik. Kolom yang tersedia bernama kernel_recovery_in_fibre_percent, dan keempat layar input/detail Depricarping melabelinya 'Kernel Recovery in Fibre' — sebuah PEROLEHAN, yang lazimnya makin besar makin baik. Keduanya pembingkaian yang BERLAWANAN atas kuantitas yang sama, dan hanya satu yang bisa benar. Tidak ada apa pun di sistem yang menyelesaikannya: factory mengisinya null, tidak ada seeder yang mengisinya, dan basis data tidak punya satu pun nilai pada kolom itu. Karena itu laporan ini TIDAK memetakan kolom tersebut ke standar tersebut. Angkanya tetap dilaporkan di bawah label kolomnya sendiri, standarnya masuk daftar standar-tanpa-pengukuran beserta alasan yang dinyatakan apa adanya, dan laporan tidak pernah mencetak sebuah angka di bawah standar yang mungkin kebalikannya. Menebak akan membuat laporan ini menilai dengan arah yang terbalik tanpa ada yang menyadarinya.\n\nDi samping itu laporan menampilkan cakupan pencatatan DI ATAS segalanya (slot terisi terhadap jumlah presser × hari terhitung × 24 slot kanonis), rekap per presser, dan rekap per hari.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Depricarping",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Depricarping, beserta status Depricarping pada periode itu (Draft / Terbuka / Tertutup)",
+    "Pemilih Mill — hanya untuk Admin; peran terikat mill hanya melihat nama mill akunnya",
+    "Pemilih Production Line — wajib; satu line langsung berlaku tanpa pemilih, lebih dari satu menuntut pemilihan dan tidak ada angka sebelum itu",
+    "Badge status periode beserta rentang tanggalnya",
+    "CAKUPAN PENCATATAN, paling atas: slot terisi, slot yang diharapkan, dan persennya — beserta jumlah presser yang beroperasi, jumlah hari yang dihitung, dan 24 slot kanonis per presser per hari",
+    "Keterangan bahwa penyebut hari berhenti di hari ini bila periode masih berjalan; atau bahwa periode belum mulai sehingga persennya '—' bukan 0%",
+    "Tabel parameter — satu baris per kolom ukur (TUJUH baris), memuat min, rata-rata, maks, dan JUMLAH SLOT penyebutnya",
+    "Pada baris parameter yang sama: target_range (rentang yang dituju), critical_limit (batas kritis), dan operational_consequence_justification (apa akibatnya bila batas dilewati)",
+    "Keterangan pada kedua baris nut silo bahwa keduanya berbagi SATU standar master ('Nut Silo Temperature'), sehingga standar yang sama tercetak dua kali bukan karena data terduplikasi",
+    "Keterangan bahwa ketiga kolom target adalah teks bebas yang dapat disunting kapan pun, dan karena itu laporan ini tidak menandai satu nilai pun sebagai di luar batas — penilaiannya ada pada pembaca",
+    "Keterangan bahwa ketiga kolom target berlaku umum untuk seluruh mill, bukan khusus mill yang sedang dilihat",
+    "Daftar parameter master yang TIDAK punya kolom pengukuran yang dapat dipercaya, beserta ALASANNYA masing-masing — pada Depricarping ada SATU, 'Kernel Loss in Fibre', dan alasannya bukan 'tidak ada kolomnya' melainkan 'ada kolom yang namanya berlawanan arah dan tidak ada data yang menyelesaikannya'",
+    "BLOK DOWNTIME tersendiri: total menit berhenti sepanjang periode, jumlah slot yang mencatat downtime, dan rata-rata menit per slot yang mencatatnya",
+    "Keterangan bahwa total menit downtime dijumlahkan atas slot yang mencatatnya saja, sehingga slot tanpa catatan downtime tidak dihitung sebagai nol menit",
+    "Keterangan bahwa downtime_minutes tidak punya standar pada master, sehingga tidak ada rentang target maupun batas kritis yang dapat ditampilkan bersamanya",
+    "REKAP TEMUAN (findings) — satu baris per teks temuan beserta jumlah slot yang mencatatnya, diurutkan dari terbanyak",
+    "Keterangan bahwa temuan dikelompokkan harfiah, sehingga dua ejaan untuk hal yang sama muncul sebagai dua baris",
+    "Jumlah record pada periode dan line itu, dan jumlah hari yang punya record",
+    "Jumlah record berstatus draft — dinyatakan terpisah, karena record draft ikut terhitung",
+    "Jumlah record yang belum diperiksa dan jumlah yang belum disahkan — informasi kelengkapan, bukan penyaring",
+    "Rekap per presser — satu baris per presser_id: jumlah hari tercatat, jumlah slot terisi, total menit downtime, dan rata-rata tiap kolom ukur",
+    "Rekap per hari — satu baris per tanggal: jumlah slot terisi, total menit downtime, dan rata-rata tiap kolom ukur, beserta baris total periode",
+    "Keterangan periode kosong bila tidak ada satu slot pun terisi — dengan cakupan pencatatan TETAP ditampilkan",
+    "Nama mill dan nama Production Line yang sedang berlaku, selalu terlihat",
+    "Tombol Ekspor beserta pilihan format CSV atau Excel"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Mill",
+      "description": "Hanya untuk Admin. Mengganti mill mengosongkan Production Line dan periode yang terpilih, karena keduanya milik mill sebelumnya.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan line yang angkanya dilihat. Wajib — tidak ada angka sebelum satu line berlaku.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka / Tutup Rekap Harian",
+      "description": "Menyingkap atau menyembunyikan tabel rekap per hari. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh seluruh slot waktu periode dan line terpilih sebagai CSV atau Excel, satu baris per slot dengan kolom konteks diulang di setiap baris.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Production Line WAJIB dipilih sebelum satu angka pun ditampilkan. Laporan ini menghasilkan angka gabungan, dan mencampur beberapa line membuat angkanya menyesatkan.",
+    "Penyaringan line memakai kolom production_line_id pada depricarping_records, bukan join ke stations — record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
+    "business_unit_id kiriman klien diabaikan untuk peran yang terikat satu mill; Admin wajib mengirimkannya, dan ketiadaannya adalah galat validasi bukan hasil kosong.",
+    "Status periode tidak menyaring daftar periode. Periode tertutup tetap dibaca dan tetap dapat diekspor.",
+    "Setiap kolom ukur dirata-ratakan atas baris yang kolom ITU terisi, dan penyebutnya ikut ditampilkan. Ketujuh kolom nullable dan tidak selalu terisi bersamaan, sehingga satu penyebut bersama akan salah untuk setidaknya enam di antaranya.",
+    "Min dan maks juga diambil hanya atas baris yang kolom itu terisi, dan keduanya menjadi 'tidak tersedia' bersama rata-rata bila penyebutnya nol.",
+    "Nilai yang tidak tersedia dirender sebagai keterangan, bukan sebagai 0.",
+    "Cakupan pencatatan ditampilkan DI ATAS seluruh angka lain, dan TETAP ditampilkan meski periode kosong — justru itu yang menjelaskan kekosongannya.",
+    "Penyebut hari pada cakupan berhenti di hari ini untuk periode yang masih berjalan. Persen tanpa penyebut dirender '—', bukan 0%.",
+    "Jumlah slot yang diharapkan per presser per hari diambil dari daftar slot kanonis layar input itu sendiri (24 slot mulai 07:00), bukan dari angka yang ditetapkan ulang di laporan.",
+    "Jumlah presser pada penyebut cakupan adalah jumlah presser_id yang BENAR-BENAR muncul pada periode dan line itu, bukan jumlah stasiun terdaftar.",
+    "Slot dihitung terisi bila minimal satu dari SEMBILAN kolom bacaan terisi — ketujuh kolom ukur, ATAU downtime_minutes, ATAU findings. Definisinya dipinjam dari layar input itu sendiri, bukan diturunkan ulang. Konsekuensinya: jumlah slot terisi pada cakupan dapat LEBIH BESAR daripada penyebut kolom ukur mana pun, dan itu benar.",
+    "Record berstatus draft IKUT terhitung pada seluruh angka, dan jumlahnya dinyatakan terpisah.",
+    "Status pemeriksaan dan pengesahan adalah informasi kelengkapan, bukan penyaring.",
+    "KETIGA KOLOM TARGET DITERBITKAN BERSAMAAN pada baris yang sama dengan angkanya. target_range menjawab 'ke mana seharusnya'; critical_limit menjawab 'kapan sudah terlalu jauh'; operational_consequence_justification menjawab 'apa yang dipertaruhkan'. Ketiganya teks bebas dan diteruskan verbatim.",
+    "SATU PARAMETER MASTER DAPAT MENGATUR LEBIH DARI SATU KOLOM UKUR. 'Nut Silo Temperature' mengatur nut_silo_1_temp_c dan nut_silo_2_temp_c. Kedua kolom tetap menjadi dua baris dengan penyebut masing-masing — dua silo fisik, dan merata-ratakannya menjadi satu angka akan menyembunyikan silo yang menyimpang di belakang silo yang normal. Hubungan satu-ke-dua itu dinyatakan di layar.",
+    "TIDAK ADA penandaan otomatis di luar batas, tanpa warna peringatan, tanpa severity, dan tanpa deteksi pencilan. Ketiga kolom target adalah VARCHAR yang dapat disunting kapan pun; pengurai yang gagal pada bentuk teks baru akan BERHENTI MEMPERINGATKAN tanpa galat, dan peringatan yang hilang terbaca sebagai 'semuanya aman'. Di sini bentuk batasnya paling teratur dari seluruh master yang ada ('< 35 or > 55 mmH2O', '> 1.00%'), sehingga godaannya paling besar dan penolakannya paling perlu dinyatakan — termasuk bahwa bentuk dua sisi menuntut pengurai yang berbeda dari bentuk satu sisi, dan satuannya ikut di dalam teks.",
+    "Pemetaan parameter master ke kolom ukur bersifat TETAP dan ditulis di satu tempat, bukan dicocokkan dari teks nama parameter saat render — pencocokan teks akan pecah begitu seseorang memperbaiki ejaan pada master, dan pecahnya akan senyap.",
+    "KOLOM kernel_recovery_in_fibre_percent SENGAJA TIDAK DIPETAKAN ke standar 'Kernel Loss in Fibre'. Master menyebutnya kehilangan dengan target '< 0.50%'; kolom dan keempat layar input melabelinya perolehan. Keduanya berlawanan arah, dan tidak ada data di sistem yang menyelesaikannya. Angka kolom itu tetap dilaporkan di bawah label kolomnya sendiri tanpa standar, dan standarnya masuk daftar standar-tanpa-pengukuran dengan alasan yang dinyatakan. Laporan tidak pernah mencetak angka di bawah standar yang mungkin kebalikannya.",
+    "Parameter master yang tidak punya kolom pengukuran yang dapat dipercaya tetap ditampilkan pada bagiannya sendiri BESERTA ALASANNYA — bukan hanya namanya. Pada Depricarping alasannya berbeda dari pada Threshing/Pressing: di sana kolomnya memang tidak ada, di sini kolomnya ada tetapi artinya belum pasti.",
+    "Daftar standar-tanpa-pengukuran TETAP DIGAMBAR sebagai bagian walau isinya kosong, dengan keterangan bahwa keenam standar sudah punya pengukuran. Bagian yang hilang ketika kosong tidak dapat dibedakan dari bagian yang belum pernah dibuat.",
+    "Master target bersifat global, satu daftar untuk seluruh mill. Laporan menyatakan hal itu.",
+    "DOWNTIME DILAPORKAN SEBAGAI ANGKA, pada bloknya sendiri: total menit sepanjang periode, jumlah slot yang mencatatnya, dan rata-rata per slot yang mencatat. Total dijumlahkan atas slot yang mencatatnya saja — slot tanpa catatan downtime BUKAN nol menit melainkan tidak tercatat, dan memperlakukannya sebagai nol akan membuat rata-ratanya mengecil seiring bertambahnya slot yang tidak dicatat.",
+    "downtime_minutes tidak punya baris pada master target, sehingga tidak ada rentang maupun batas yang ditampilkan bersamanya. Hal itu dinyatakan, bukan dibiarkan terbaca sebagai master yang belum terisi.",
+    "Nilai downtime_minutes nol dibedakan dari tidak tercatat: nol berarti seseorang menyatakan tidak ada berhenti pada slot itu, dan ikut sebagai slot yang mencatat.",
+    "TEMUAN (findings) DIREKAP HARFIAH tanpa normalisasi ejaan maupun huruf besar-kecil, dan keterangan di layar menyatakan hal itu. findings TIDAK digabungkan dengan downtime: satu menjawab 'berapa lama', satu menjawab 'apa yang terlihat', dan menggabungkannya akan membuat slot yang punya keduanya terhitung dua kali pada satu pengertian.",
+    "Slot yang mencatat downtime atau temuan tetap ikut pada angka ukur bila kolom ukurnya terisi — keduanya keterangan tambahan pada slot yang sama, bukan penyaring.",
+    "Ekspor menghasilkan satu baris per slot waktu, dengan kolom konteks (periode, mill, line, tanggal, presser, status, catatan) diulang di setiap baris, dan memuat ketujuh kolom ukur ditambah downtime_minutes dan findings.",
+    "Slot yang seluruh kolom ukurnya kosong tetap menjadi baris pada ekspor dengan sel kosong, tidak dibuang dan tidak ditulis 0.",
+    "Batas baris ekspor dihitung atas BARIS SLOT, bukan atas record — satu record harian dapat menghasilkan sampai 24 baris.",
+    "Periode dan Production Line yang dipilih tercermin pada alamat halaman, sehingga keadaan layar dapat dibagikan dan dibuka kembali apa adanya."
+  ],
+  "usecase_ids": [
+    "usecase-155--laporan-depricarping-web"
+  ],
+  "edge_cases": [
+    "Production Line belum dipilih — tidak ada angka, diganti arahan memilih line; bukan angka seluruh mill.",
+    "Mill tanpa Production Line — arahan menghubungi Admin, tanpa tombol coba lagi.",
+    "Daftar Production Line gagal dimuat — pesan berbeda dari 'mill belum punya line', dengan tombol coba lagi sendiri.",
+    "Admin belum memilih mill — daftar line dan periode tidak dimuat sama sekali.",
+    "Akun terikat mill tetapi business_unit_id-nya kosong — arahan menghubungi Admin, dan daftar seluruh mill tidak pernah dibentuk.",
+    "Mill belum punya periode yang mencakup Depricarping — pemilih tetap ada dalam keadaan kosong, disertai arahan.",
+    "Periode tanpa satu pun slot terisi — keterangan periode kosong, seluruh angka 'tidak tersedia', cakupan TETAP tampil, rekap/downtime/temuan tidak digambar.",
+    "Satu kolom ukur kosong sepanjang periode — barisnya tetap ada, min/rata-rata/maks 'tidak tersedia', penyebut 0 slot, ketiga kolom target tetap ditampilkan.",
+    "Satu kolom ukur hanya terisi pada satu slot — min, rata-rata, dan maks ketiganya sama, dan penyebut 1 slot menjelaskan mengapa.",
+    "Tujuh kolom ukur dengan tujuh penyebut yang berbeda pada periode yang sama — masing-masing memakai penyebutnya sendiri, dan ketujuhnya tercetak.",
+    "Nut silo 1 terisi tetapi nut silo 2 tidak sepanjang periode — dua baris tetap ada, satu dengan angka dan satu 'tidak tersedia', dan standar yang sama tetap tercetak pada keduanya beserta keterangan bahwa standarnya satu.",
+    "Kedua nut silo terisi dengan angka yang sangat berbeda — keduanya tampil apa adanya; laporan tidak merata-ratakannya dan tidak menandai selisihnya.",
+    "Nilai negatif atau nol pada kolom ukur — ditampilkan apa adanya; laporan tidak menilai kewajaran angka karena tidak punya dasar untuk itu.",
+    "Record ada tetapi seluruh baris slotnya kosong — ikut jumlah record dan ikut penyebut cakupan, tetapi tidak menyumbang satu pun angka ukur.",
+    "Slot yang hanya berisi downtime_minutes — dihitung terisi pada cakupan dan ikut total downtime, tetapi tidak menyumbang satu pun angka ukur.",
+    "Slot yang hanya berisi findings — dihitung terisi pada cakupan dan ikut rekap temuan, tetapi tidak menyumbang angka ukur maupun total downtime.",
+    "downtime_minutes bernilai 0 pada sebagian slot — ikut sebagai slot yang mencatat, dan membuat rata-rata per slot lebih kecil; dibedakan dari slot yang tidak mencatat sama sekali.",
+    "Tidak ada satu pun slot yang mencatat downtime — blok downtime menampilkan keterangan, bukan total 0 menit yang terbaca seperti 'stasiun tidak pernah berhenti'.",
+    "downtime_minutes sangat besar pada satu slot — ikut total apa adanya; laporan tidak membuang pencilan karena tidak punya dasar untuk menyebutnya salah.",
+    "Satu presser hanya tercatat pada sebagian hari — rekap per presser menampilkan jumlah harinya sendiri.",
+    "Dua record dengan presser_id sama pada hari berbeda — dikelompokkan sebagai satu presser, karena presser_id adalah penamaan unit bukan kunci baris.",
+    "Periode masih berjalan — penyebut hari berhenti di hari ini, dan hal itu dinyatakan.",
+    "Periode belum mulai — persen cakupan dirender '—' bukan 0%, disertai keterangan; dan keterangan itu menang atas keterangan 'periode berjalan' meski keduanya berlaku.",
+    "Periode tertutup — laporan tampil penuh, badge Tertutup, ekspor tetap aktif.",
+    "Periode milik mill lain — ditolak dengan galat akses, bukan laporan kosong.",
+    "Production Line milik mill lain — ditolak dengan galat akses sebelum periode diperiksa.",
+    "business_unit_id mill lain dikirim oleh peran terikat mill — diabaikan, menampilkan data mill sendiri, sengaja bukan galat akses.",
+    "Seluruh record periode berstatus draft — angka tetap dihitung, dan jumlah draft dinyatakan.",
+    "Master target kosong — angka ukur tetap ditampilkan, ketiga kolom target dirender sebagai keterangan bahwa master belum terisi, dan daftar standar-tanpa-pengukuran menjadi kosong dengan keterangannya sendiri.",
+    "Master target diubah ejaan nama parameternya — pemetaan ke kolom ukur tidak boleh ikut pecah; barisnya berpindah ke daftar 'belum diukur' dan angkanya tetap utuh, sehingga keterlepasannya TERLIHAT.",
+    "Master target memuat parameter baru yang tidak punya kolom ukur — ikut pada daftar standar-tanpa-pengukuran beserta alasan 'tidak ada kolomnya', yang dibedakan dari alasan 'arah kolomnya belum pasti' milik Kernel Loss in Fibre.",
+    "Temuan kosong pada seluruh slot — keterangan, bukan tabel kosong.",
+    "Satu temuan muncul dengan ejaan berbeda — muncul sebagai dua baris, dan keterangan menyatakan pengelompokannya harfiah.",
+    "Temuan sangat panjang — dirender utuh tanpa pemotongan yang menghilangkan isi.",
+    "Ekspor melampaui batas baris — ditolak dengan galat yang menyebut batasnya, tanpa berkas setengah jadi.",
+    "Jumlah record di bawah batas tetapi jumlah baris slot di atas batas — tetap ditolak, karena batas dihitung atas baris slot.",
+    "Format ekspor di luar CSV dan Excel — ditolak dengan galat validasi.",
+    "Jaringan gagal saat memuat ringkasan — pesan dan tombol coba lagi, dan periode yang sudah dipilih tidak hilang.",
+    "Sesi berakhir saat memuat — diarahkan ke Login tanpa pesan jaringan."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "ARAH 'KERNEL LOSS IN FIBRE' VS 'KERNEL RECOVERY IN FIBRE' HARUS DIPUTUSKAN MANUSIA, DAN INI PERTANYAAN PALING PENTING PADA LAYAR INI. Master menetapkan standar 'Kernel Loss in Fibre' dengan target '< 0.50%' dan batas '> 1.00%' — sebuah kehilangan. Kolomnya bernama kernel_recovery_in_fibre_percent dan keempat layar input/detail Depricarping melabelinya 'Kernel Recovery in Fibre' — sebuah perolehan. Tidak ada data yang menyelesaikannya: factory mengisinya null, tidak ada seeder yang mengisinya, dan basis data tidak punya satu pun nilai pada kolom itu. Yang perlu diputuskan: apakah kolom dan labelnya diubah menjadi 'loss' (bila yang diinput Operator memang kehilangan), atau standar pada master yang diubah menjadi 'recovery' beserta rentang yang sesuai (bila yang diinput memang perolehan). Keduanya perubahan sederhana; yang tidak boleh dilakukan adalah membiarkannya sambil memasangkan angka dengan standarnya, karena itu akan menghasilkan penilaian dengan arah yang terbalik. Sampai diputuskan, laporan melaporkan angkanya tanpa standar dan menyatakan sebabnya.",
+    "SATU STANDAR UNTUK DUA NUT SILO — PERLU DIPASTIKAN ITU MEMANG YANG DIMAKSUD. Master memuat satu baris 'Nut Silo Temperature' (60°C - 70°C) sementara tabel detail punya dua kolom suhu silo. Laporan memperlakukannya sebagai satu standar yang berlaku untuk kedua silo, yang masuk akal bila keduanya silo sejenis dengan fungsi sama. Bila kedua silo sebenarnya berbeda peran (misal satu pemanas awal dan satu pengondisian akhir) maka masing-masing semestinya punya standarnya sendiri, dan master perlu dipecah menjadi dua baris. Laporan tidak dapat membedakannya dari skema.",
+    "PENANDAAN OTOMATIS PALING MUNGKIN DI SINI DARI SELURUH LAPORAN YANG SUDAH DIBUAT, DAN TETAP DITOLAK — keputusan ini perlu ditinjau manusia. critical_limit pada master Depricarping adalah yang paling teratur bentuknya: lima dari enam membawa pembanding numerik eksplisit, sebagian dua sisi sekaligus ('< 35 or > 55 mmH2O', '< 55°C or > 75°C'). Yang menahannya: kolomnya VARCHAR yang dapat disunting kapan pun sehingga pengurai dapat berhenti bekerja tanpa galat; bentuk dua sisi menuntut pengurai berbeda dari bentuk satu sisi dan satuannya ikut di dalam teks (mmH2O, %, °C, RPM, m/s); dan satu parameter arah angkanya sendiri belum pasti. Bila penandaan diinginkan, cara yang jujur adalah memecah master menjadi kolom BATAS NUMERIK (min, maks, arah pembanding, satuan) di samping teksnya — bukan menguraikan teksnya saat render — dan menetapkan apa yang ditampilkan ketika batas numeriknya belum diisi, karena diam bukan jawaban yang aman.",
+    "TOTAL MENIT DOWNTIME BARU BERMAKNA BILA PENCATATANNYA KONSISTEN, dan belum diputuskan bagaimana menyatakan ketidakkonsistenannya. Slot tanpa catatan downtime diperlakukan sebagai 'tidak tercatat', bukan nol menit — yang benar, tetapi berarti total 120 menit atas 5 slot tercatat dan total 120 menit atas 200 slot tercatat tampil sebagai angka yang sama. Jumlah slot yang mencatat ikut ditampilkan justru untuk itu, tetapi belum diputuskan apakah laporan perlu menyatakan secara eksplisit ketika proporsi slot yang mencatat downtime sangat rendah sehingga totalnya tidak layak dibandingkan antar periode.",
+    "Master target bersifat global sementara rentang kerja bisa berbeda antar mill (kapasitas desain fan dan aspirator berbeda). Perlu diputuskan apakah master perlu dipecah per mill; selama belum, laporan menyatakan bahwa ketiga kolom target berlaku umum.",
+    "Kadar air fibre dan kernel di fibre keduanya ditentukan oleh mutu pengepresan di stasiun Pressing, dan suhu nut silo bergantung pada pasokan uap dari Boiler Room. Belum ada keputusan apakah laporan Depricarping perlu dikaitkan dengan kedua stasiun itu pada periode yang sama; keterkaitan lintas stasiun semacam itu belum pernah dibuat pada satu pun laporan dan akan menjadi keputusan desain tersendiri.",
+    "Belum ada keputusan apakah laporan ini perlu menampilkan tren per slot waktu (grafik 24 slot seperti laporan Boiler Room) atau cukup min/rata-rata/maks per periode. Dipilih yang kedua lebih dulu, sejajar dengan Threshing dan Pressing; penambahan tren tidak akan mengubah bentuk angka yang sudah ada."
+  ]
+}

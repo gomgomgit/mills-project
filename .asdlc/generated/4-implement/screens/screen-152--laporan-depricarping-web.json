@@ -1,0 +1,116 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-152--laporan-depricarping-web",
+  "name": "Laporan Depricarping (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/DepricarpingReportService.php",
+    "backend/app/Services/DepricarpingRecordService.php",
+    "backend/app/Http/Controllers/Api/DepricarpingReportController.php",
+    "backend/app/Livewire/Dashboard/LaporanDepricarping.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/resources/views/livewire/dashboard/laporan-depricarping.blade.php",
+    "backend/resources/views/dashboard/laporan-depricarping.blade.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/DepricarpingReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanDepricarpingTest.php",
+    "backend/tests/Feature/Livewire/LaporanDepricarpingTest.php",
+    "e2e-web/tests/laporan-depricarping.spec.ts"
+  ],
+  "fe_files_generated": [],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "POLA SERVICE MENGIKUTI PressingReportService — tetapi EMPAT HAL menuntut kode baru, bukan penggantian nama, dan itulah sebabnya layar ini bukan salinan. Kerangka yang dipakai ulang apa adanya: resolveBusinessUnit / businessUnitOptions / productionLineOptions / resolveProductionLine / authorizePeriod / listPeriods / buildSummary / export, plus statistik per metrik. Yang baru: tujuh kolom ukur bukan lima, downtime numerik bukan teks, kolom justifikasi keempat pada master, dan satu parameter master yang mengatur dua kolom.",
+    "ASUMSI YANG SAYA PUNYA DI AWAL DAN TERBUKTI SALAH — DICATAT KARENA MAHAL: saya mengira depricarping masuk REPORT_ROUTES tepat setelah pressing, karena itulah urutan alur proses DAN urutan deklarasi StationType enum (Depricarping di posisi keenam, langsung setelah Pressing). Kueri langsung ke tabel station_types menunjukkan sort_order depricarping = 110, di BELAKANG clarification (70) dan boiler-room (90), di depan storage-tank (140). Peta ini mengikuti sort_order karena itulah urutan yang dirender screen-140. Entrinya disisipkan di antara boiler-room dan storage-tank, dan tech spec diperbaiki setelah temuan ini (implementation_notes[17] dan test_scenarios[23] semula menyebut posisi yang salah).",
+    "KONSTANTA YANG MENENTUKAN BENTUK LAYAR, semuanya pada DepricarpingReportService: EXPORT_ROW_LIMIT = 50000; STATION_TYPE = StationType::Depricarping->value; NUMERIC_METRICS (TUJUH kolom dalam urutan tabel detail); METRIC_LABELS; COLUMN_TARGET_PARAMETER dengan ENAM entri yang hanya menyebut LIMA parameter berbeda; dan empat konstanta baru — UNMAPPED_NO_COLUMN, UNMAPPED_DIRECTION_UNRESOLVED, DIRECTION_UNRESOLVED_COLUMN, DIRECTION_UNRESOLVED_PARAMETER — supaya service, blade, dan test menyebut pasangan yang sama alih-alih tiga literal string yang menyimpang sendiri-sendiri.",
+    "SATU STANDAR MENGATUR DUA KOLOM, dan itu memaksa dua perubahan yang mudah terlewat. Pertama, targetFor() mengembalikan baris master yang SAMA untuk nut_silo_1_temp_c dan nut_silo_2_temp_c — benar, bukan duplikasi yang perlu dihilangkan. Kedua, targetsWithoutMetric() membandingkan atas HIMPUNAN nilai COLUMN_TARGET_PARAMETER (array_unique), BUKAN atas count(): memakai count() akan membuat 'Nut Silo Temperature' tampak terpakai dua kali dan satu standar lain tampak tak terpakai. Ada unit test (case 52) yang mengunci bahwa enam entri hanya menyebut lima parameter.",
+    "shares_standard_with DITURUNKAN DARI KONSTANTA, bukan ditulis tangan — dan ada test (case 49 + subclass pada test yang sama) yang membuktikannya dengan menambah kolom silo ketiga: ketiga kolom lalu saling menyebut. Ditulis tangan, nilainya akan mulai berbohong begitu kolom ketiga ditambahkan.",
+    "KOLOM kernel_recovery_in_fibre_percent SENGAJA TIDAK DIPETAKAN, dan ini keputusan yang paling mudah 'dilengkapi' menjadi salah oleh pembaca berikutnya. Master menyebut standarnya 'Kernel Loss in Fibre' dengan target '< 0.50%' dan batas '> 1.00%' — jelas sebuah KEHILANGAN, makin kecil makin baik. Kolomnya bernama recovery, dan keempat layar input/detail Depricarping melabelinya 'Kernel Recovery in Fibre' — sebuah PEROLEHAN. Pembingkaian yang berlawanan atas kuantitas yang sama. TERVERIFIKASI tidak ada data yang menyelesaikannya, bukan diasumsikan: DepricarpingDetailFactory menulis null, tidak ada seeder yang mengisinya, dan kueri langsung ke basis data dev mengembalikan NOL baris non-null. Memetakannya akan membuat laporan menilai dengan arah TERBALIK tanpa ada yang menyadarinya. Angkanya tetap diterbitkan (target null + unmapped_reason terisi); standarnya masuk targets_without_metric dengan reason 'direction_unresolved'. case 52 mengunci ketidakhadirannya pada konstanta.",
+    "DUA ALASAN BERBEDA PADA targets_without_metric, dan perbedaannya diterbitkan per baris: 'no_column' (tidak ada kolom ukurnya di skema — termasuk ketika nama parameter master diubah ejaannya) dan 'direction_unresolved'. Yang pertama menuntut kolom baru, yang kedua menuntut keputusan penamaan. Menggabungkannya menjadi satu 'belum terukur' akan menyembunyikan tindakan mana yang diperlukan. Diuji dengan dua kasus bersebelahan (case 54) yang mengasersi kedua alasan pada satu payload.",
+    "BAGIAN STANDAR-TANPA-PENGUKURAN DIGAMBAR WALAU KOSONG, dibaca dari kunci baru all_targets_measured. Bagian yang hilang ketika kosong tidak dapat dibedakan dari bagian yang belum pernah dibuat — dan di layar ini bagian itulah yang memuat temuan paling perlu dibaca manusia. Diuji di Livewire (skenario 9b) dan di browser (cabang rowCount === 0).",
+    "BLOK DOWNTIME NUMERIK ADALAH BAGIAN YANG TIDAK PUNYA PADANAN pada laporan Threshing maupun Pressing: di sana downtime hanya ada sebagai teks, sehingga 'berapa lama stasiun berhenti' tidak pernah dapat dijawab. total_minutes dijumlahkan atas slot yang kolom itu TERISI saja dan menjadi NULL — bukan 0 — bila tidak ada satu pun slot mencatat. Dua kekeliruan yang mungkin, keduanya diuji terpisah: memperlakukan slot yang tidak mencatat sebagai nol menit (case 55, membuat rata-rata mengecil justru seiring bertambahnya slot yang tidak dicatat) dan memperlakukan nilai 0 yang tercatat sebagai tidak tercatat (case 56, membuang pernyataan Operator bahwa stasiun tidak berhenti).",
+    "findings DIREKAP SEPERTI downtime_reason pada dua laporan sebelumnya — harfiah, tanpa normalisasi — dan SENGAJA TIDAK digabungkan dengan blok downtime (case 60). Penggabungan akan membuat slot yang punya keduanya terhitung dua kali pada satu pengertian dan menghilangkan kemampuan menjawab 'berapa lama' secara terpisah dari 'apa yang terlihat'. Pengurutan memakai SATU komparator sort() — slot_count menurun lalu strcmp menaik; Laravel sortBy([closure, closure]) bukan API itu, kekeliruan yang sudah terjadi sekali pada screen-148.",
+    "DepricarpingRecordService DIUBAH DUA HAL KECIL: public const READING_FIELDS (SEMBILAN kolom) dan isRowFilled() dari protected menjadi public, isinya berputar atas READING_FIELDS alih-alih rantai || yang ditulis tangan. Presedennya BoilerRoomRecordService, lalu Threshing dan Pressing. Laporan WAJIB memakai fungsi itu — dua definisi 'terisi' yang berselisih berarti cakupan di laporan tidak sama dengan apa yang diterima layar input, dan tidak ada yang bisa tahu mana yang salah.",
+    "SATU ASIMETRI DIPERTAHANKAN APA ADANYA saat isRowFilled() dipindahkan ke perulangan: findings memperlakukan string kosong sebagai kosong, downtime_minutes hanya memperlakukan null sebagai kosong. Itu bukan kelalaian — findings tiba sebagai '' bila tidak disentuh, sementara downtime_minutes 0 adalah PERNYATAAN. Mengubahnya akan mengubah apa yang diterima layar input. case 65 mengunci keduanya beserta ketujuh kolom ukur satu per satu.",
+    "KONSEKUENSI SEMBILAN KOLOM BACAAN: coverage.filled_slots DAPAT LEBIH BESAR daripada penyebut metrik mana pun, karena dua dari sembilan (downtime_minutes, findings) bukan kolom ukur. case 62 mengunci selisih itu dengan fixture 3 slot berkolom-ukur + 7 slot bertemuan — filled_slots 10, penyebut terbesar 3. Dicatat di tiga tempat (docblock service, docblock blade, satu test) supaya pembaca berikutnya tidak 'memperbaiki' selisih yang memang benar.",
+    "TABEL PARAMETER DI BLADE DELAPAN KOLOM, satu lebih banyak daripada Threshing dan Pressing yang tujuh, karena master di sini membawa operational_consequence_justification yang tidak ada pada keduanya. Kolom itu yang paling mudah dibuang demi ruang dan paling merugikan bila dibuang: tanpa itu tiga parameter yang sama-sama melewati batas tampak sama pentingnya. Diuji di tiga lapis — jumlah <td> (browser), kehadiran data-testid=metric-consequence (Livewire), dan teks justifikasi di dalam satu <tr> yang sama (Livewire skenario 7).",
+    "KEDUA BARIS NUT SILO MEMBAWA BARIS KETERANGAN TAMBAHAN (metric-shared-standard) bahwa standarnya SATU. Tanpa itu, standar '60C - 70C' yang tercetak dua kali berturut-turut terbaca seperti data terduplikasi dan seseorang akan 'membersihkannya'. Label saudara kolomnya diambil dari METRIC_LABELS, bukan ditulis ulang di blade, supaya satu perubahan label tidak meninggalkan dua ejaan di layar.",
+    "PENOLAKAN PENANDAAN HARUS DITULIS ULANG, BUKAN DIWARISI. critical_limit pada master Depricarping adalah yang PALING rapi dari ketiga master yang ada — '< 35 or > 55 mmH2O', '> 1.00%', '< 55C or > 75C'; lima dari enam membawa pembanding numerik eksplisit, sebagian dua sisi sekaligus. Jadi 'tidak bisa diparse' saja tidak cukup. Tiga alasan yang dinyatakan di layar: kolomnya VARCHAR yang dapat disunting kapan pun sehingga pengurai yang gagal BERHENTI MEMPERINGATKAN tanpa galat; bentuk dua sisi menuntut pengurai yang berbeda dari bentuk satu sisi dan satuannya ikut di dalam teks (mmH2O, %, C, RPM, m/s); dan satu parameter arah angkanya sendiri belum pasti, sehingga menguraikan batasnya akan menghasilkan peringatan TERBALIK — lebih buruk daripada tidak ada peringatan.",
+    "KETIADAAN PENANDAAN DIUJI ATAS NAMA KELAS, bukan atas frasa — kalimat penjelasnya sendiri memuat frasa 'di luar batas'. Pelajaran yang harganya sudah dibayar tujuh kali (screen-146 sampai 152). Asersinya: ketiadaan .md-threshold / .is-danger / .is-warning / .md-chip--danger pada HTML ter-render, ditambah satu unit test (case 31) yang menyisir seluruh payload untuk kunci severity / is_out_of_range / out_of_range / exceeds / flag / threshold / breach.",
+    "AUDIT CSS DIJALANKAN ATAS HTML TER-RENDER SUNGGUHAN, bukan atas sumber blade: 55 kelas dipakai, NOL tanpa definisi. Audit pertama saya melaporkan lima kelas .ld-* sebagai hilang — keliru, karena ia hanya memeriksa report-styles.blade.php sementara kelas itu didefinisikan di components/loading-assets.blade.php yang disertakan layout. Audit diperlebar ke seluruh berkas gaya yang benar-benar dimuat halaman sebelum hasilnya dipercaya.",
+    "SPEC BROWSER BERBASIS INVARIAN, bukan angka keras, karena basis data e2e dibagi antar spec: jumlah slot yang mencatat downtime tidak pernah melampaui slot terisi periode; penyebut tiap metrik tidak pernah melampaui slot terisi; slot per presser menjumlah ke slot terisi periode; baris total rekap harian menjumlah seluruh baris hariannya. Terverifikasi BrowserTestFixtureSeeder memang menyemai record depricarping (prefix DP) pada BU Browser Test, dan DatabaseSeeder memang menjalankan DepricarpingOperationalTargetSeeder.",
+    "api-index DIPERBARUI ke v72 dengan keempat endpoint /api/depricarping-reports/*, dan actor_ids ketiga endpoint data memuat actor-station-operator SEJAK PENULISAN PERTAMA karena pasangan mobile screen-153 dibangun pada seri yang sama — pasangan Weighbridge (143 → 144) harus menambal tiga tempat menyusul justru karena layar web-nya dibangun sebelum pasangan mobile-nya diketahui. /business-units/options tetap actor-admin saja.",
+    "REGRESI PENUH DIJALANKAN, bukan hanya test layar ini: suite backend 5024 lolos / 0 gagal setelah penyisipan REPORT_ROUTES. Penyisipan itu tidak memecahkan satu pun asersi tetangga berurutan pada test laporan saudaranya — kebetulan yang menguntungkan, karena tetangga baru (boiler-room, storage-tank) tidak dipakai sebagai contoh di sana. Contoh 'stasiun yang laporannya belum dibangun' pun disisir dan ternyata bersandar pada process-water, jadi aman; disisir, bukan diasumsikan."
+  ],
+  "deferred_items": [
+    {
+      "description": "Mock HTML statis layar ini (screen-mock-agent, mock_generation_level = full) tidak dibuat, mengikuti tujuh layar terakhir yang juga melewatinya (screen-144, 146, 147, 148, 149, 150, 151). Layar sungguhannya dibangun pada sesi yang sama sehingga mock 1-state tidak lagi menambah informasi apa pun; non-blocking dan tidak memengaruhi satu pun test.",
+      "reason": "Konsisten dengan tujuh layar sebelumnya; layar nyatanya sudah ada pada perubahan yang sama"
+    },
+    {
+      "description": "Pasangan mobile screen-153--laporan-depricarping-mobile belum dibangun pada commit ini. Keempat endpoint API sudah membuka Operator sejak sekarang, jadi layar mobile tidak akan menuntut perubahan backend sama sekali — itulah maksud membangunnya pada seri yang sama.",
+      "reason": "Dikerjakan sebagai layar terpisah pada commit berikutnya, mengikuti pola pasangan 148/149 dan 150/151"
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "PERTANYAAN TERBUKA PALING PENTING PADA LAYAR INI, dan keputusannya milik manusia: arah 'Kernel Loss in Fibre' (master, target '< 0.50%', sebuah kehilangan) versus 'Kernel Recovery in Fibre' (nama kolom dan label keempat layar input, sebuah perolehan). Tidak ada data yang menyelesaikannya — kolom itu belum pernah terisi satu nilai pun di mana pun. Yang perlu diputuskan: ubah kolom dan labelnya menjadi 'loss', atau ubah standar pada master menjadi 'recovery' beserta rentang yang sesuai. Keduanya perubahan sederhana; yang tidak boleh adalah membiarkannya sambil memasangkan angka dengan standarnya, karena itu menghasilkan penilaian dengan arah terbalik. Sampai diputuskan, laporan melaporkan angkanya tanpa standar dan menyatakan sebabnya di layar.",
+      "severity": "minor"
+    },
+    {
+      "description": "SATU STANDAR UNTUK DUA NUT SILO — perlu dipastikan itu memang yang dimaksud. Master memuat satu baris 'Nut Silo Temperature' (60C - 70C) sementara tabel detail punya dua kolom suhu silo. Laporan memperlakukannya sebagai satu standar yang berlaku untuk keduanya, yang masuk akal bila keduanya silo sejenis. Bila sebenarnya berbeda peran (misal satu pemanas awal, satu pengondisian akhir), masing-masing semestinya punya standarnya sendiri dan master perlu dipecah menjadi dua baris. Laporan tidak dapat membedakannya dari skema.",
+      "severity": "minor"
+    },
+    {
+      "description": "PENANDAAN OTOMATIS PALING MUNGKIN DI SINI dari seluruh laporan yang sudah dibuat, dan tetap ditolak — keputusan ini perlu ditinjau manusia. Bila diinginkan, cara yang jujur adalah memecah master menjadi kolom BATAS NUMERIK (minimum, maksimum, arah pembanding, satuan) di samping teksnya, bukan menguraikan teksnya saat render, dan menetapkan apa yang ditampilkan ketika batas numeriknya belum diisi — karena diam bukan jawaban yang aman.",
+      "severity": "minor"
+    },
+    {
+      "description": "TOTAL MENIT DOWNTIME BARU BERMAKNA bila proporsi slot yang mencatatnya serupa antar periode. Jumlah slot pencatat ikut ditampilkan justru untuk itu, tetapi belum diputuskan apakah laporan perlu menyatakan secara eksplisit ketika proporsinya sangat rendah sehingga totalnya tidak layak dibandingkan. Total 120 menit atas 5 slot tercatat dan 120 menit atas 200 slot tercatat tampil sebagai angka yang sama.",
+      "severity": "minor"
+    },
+    {
+      "description": "BrowserTestFixtureSeeder menyemai depricarping_details.polishing_drum_speed_rpm = 1200, sementara master menetapkan rentang 20 - 24 RPM. Nilai semai itu PRE-EXISTING (ditulis sebelum laporan ini ada, untuk spec detail/form) dan tidak memengaruhi satu pun asersi di sini karena spec browser layar ini berbasis invarian, bukan angka keras. Dicatat karena pada layar ini angka itu kini tampil berdampingan dengan standarnya dan terlihat mencolok bagi pembaca manusia.",
+      "severity": "minor"
+    },
+    {
+      "description": "DRIFT ARTEFAK DI LUAR CAKUPAN LAYAR INI (dibawa dari screen-144/147/148/149/150/151): pada project.3-tech-spec.api-index, kelima prefix laporan saudaranya (/api/sterilizer-reports/*, /api/cages-track-reports/*, /api/boiler-room-reports/*, /api/clarification-reports/*, /api/storage-tank-reports/*) masih mencantumkan actor_ids tanpa actor-station-operator, padahal routes/api.php dan service masing-masing sudah menerima Operator sejak screen-135..139. Endpoint weighbridge, grading, threshing, pressing dan depricarping sudah benar.",
+      "severity": "minor"
+    },
+    {
+      "description": "Ekspor .xlsx memakai SheetWriter bersama dan belum diuji isi selnya pada layar ini — hanya content-type-nya. Sama dengan kedelapan laporan web lain; gap pre-existing, bukan diperkenalkan layar ini.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-06T09:40:00Z",
+      "passed": 66,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-06T09:45:00Z",
+      "passed": 25,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-06T09:50:00Z",
+      "passed": 32,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-06T10:05:00Z",
+      "passed": 18,
+      "failed": 0
+    }
+  }
+}

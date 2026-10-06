@@ -51,7 +51,22 @@ function loadingStateViolations(string $source, string $label): array
     // klik ganda (area datanya sudah meredup); aksi tulis juga wajib teks
     // sibuk.
     $writeAction = '/^(save\w*|confirm\w*|toggleChecked|toggleAcknowledged|toggleStatus|removeDetailRow|addDetailRow|export\w*|\{\{ \$exportAction \}\})/';
-    $pagingAction = '/^(previousPage|nextPage|goToPage)\b/';
+    // Pola ini DIPERLEBAR 2026-10-06. Sebelumnya ia dipaku pada tiga nama
+    // persis — previousPage, nextPage, goToPage — sehingga setiap pager
+    // BERNAMA-SCOPE tidak terlihat olehnya sama sekali. Itu bukan soal teori:
+    // layar Struktur Mills (screen-127) punya TIGA pager independen, dan
+    // keempat tombol ber-scope-nya (previousCorporatePage, nextCorporatePage,
+    // previousCompanyPage, nextCompanyPage) duduk tepat di samping dua tombol
+    // tanpa scope yang memang terdeteksi. Pemindai melaporkan dua, dan
+    // memperbaiki hanya yang dilaporkan akan menghasilkan suite HIJAU di atas
+    // berkas yang separuh diperbaiki — kegagalan paling mahal yang bisa
+    // dihasilkan sebuah pemindai.
+    //
+    // Keempat tombol itu sudah benar saat pola ini diperlebar, jadi perubahan
+    // ini TIDAK memperbaiki apa pun hari ini; ia menutup lubangnya untuk layar
+    // berikutnya. Setiap layar ber-pager lebih dari satu terpapar lubang yang
+    // sama, karena satu komponen tidak bisa punya dua metode bernama nextPage.
+    $pagingAction = '/^(previous|next|goTo)\w*Page\b/';
 
     preg_match_all('/<button\b[^>]*>(.*?)<\/button>/s', $source, $buttons, PREG_SET_ORDER);
     foreach ($buttons as [$whole, $content]) {
@@ -135,6 +150,44 @@ it('pemindai benar-benar menangkap tombol tanpa loading state (kontrol negatif)'
     // submit (2: tanpa disabled + tanpa teks sibuk), confirmDelete (2),
     // nextPage (1), tautan ekspor (1). openEditForm sengaja tidak dihitung.
     expect($violations)->toHaveCount(6);
+});
+
+it('pemindai menangkap pager BERNAMA-SCOPE, bukan hanya nextPage/previousPage', function () {
+    // KONTROL NEGATIF UNTUK PERLEBARAN POLA 2026-10-06.
+    //
+    // Kontrol negatif di atas memakai `nextPage` — nama yang SUDAH tertangkap
+    // pola lama, jadi ia tidak pernah bisa membuktikan perbaikan ini. Test
+    // inilah yang memakukannya: dengan pola lama
+    // /^(previousPage|nextPage|goToPage)\b/ keenam tombol di bawah tidak
+    // terlihat sama sekali dan test ini akan melaporkan NOL pelanggaran.
+    //
+    // Kenapa ini penting: satu komponen Livewire tidak bisa punya dua metode
+    // bernama nextPage, jadi BEGITU sebuah layar punya lebih dari satu pager,
+    // nama ber-scope adalah satu-satunya jalan — dan tepat di titik itu
+    // pemindainya dulu berhenti melihat.
+    $bad = <<<'BLADE'
+        <button type="button" wire:click="previousCorporatePage">Sebelumnya</button>
+        <button type="button" wire:click="nextCorporatePage">Berikutnya</button>
+        <button type="button" wire:click="previousCompanyPage">Sebelumnya</button>
+        <button type="button" wire:click="nextCompanyPage">Berikutnya</button>
+        <button type="button" wire:click="goToMillPage(3)">3</button>
+        <button type="button" wire:click="goToPage(2)">2</button>
+        BLADE;
+
+    $violations = loadingStateViolations($bad, 'contoh');
+
+    // Keenamnya aksi paging tanpa wire:loading.attr="disabled" + wire:target,
+    // satu pelanggaran masing-masing. Paging tidak menuntut teks sibuk.
+    expect($violations)->toHaveCount(6);
+
+    // Dan yang BUKAN pager tetap tidak ikut terjaring — perlebaran polanya
+    // tidak boleh menelan nama lain yang kebetulan memuat kata "Page".
+    $ok = <<<'BLADE'
+        <button type="button" wire:click="openPageSettings">Pengaturan</button>
+        <button type="button" wire:click="showPageHelp">Bantuan</button>
+        BLADE;
+
+    expect(loadingStateViolations($ok, 'contoh'))->toBe([]);
 });
 
 it('ke-18 Data Browser: area hasil .ld-region diredupkan pada perubahan filter & halaman', function () {

@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-06"
@@ -59,8 +59,8 @@
       "severity": "major"
     },
     {
-      "description": "TINGKAT FRAMEWORK, MENGENAI SETIAP LAYAR BER-PAGER LEBIH DARI SATU. tests/Feature/LoadingStateTest.php baris 53 memaku matcher-nya pada /^(previousPage|nextPage|goToPage)\\b/, sehingga pager bernama-scope (previousCorporatePage, next<Thing>Page, dan sejenisnya) TIDAK TERLIHAT olehnya. Di berkas layar ini sendiri empat defek identik duduk di samping dua yang dilaporkan scanner — memperbaiki hanya yang dilaporkan akan menghasilkan suite hijau di atas berkas yang separuh diperbaiki. Pola seperti /^(previous|next)\\w*Page\\b|^goToPage\\b/ akan memperbaikinya sekali secara terpusat. Tidak disentuh: itu berkas uji, di luar cakupan.",
-      "severity": "medium"
+      "description": "SELESAI 2026-10-06 atas keputusan user. tests/Feature/LoadingStateTest.php memaku pola pemindai paging-nya pada tiga nama persis, /^(previousPage|nextPage|goToPage)\\b/, sehingga setiap pager BERNAMA-SCOPE tidak terlihat olehnya. Diperlebar menjadi /^(previous|next|goTo)\\w*Page\\b/. DIUKUR sebelum diubah: di seluruh aplikasi hanya ada 4 pager ber-scope (previousCorporatePage, nextCorporatePage, previousCompanyPage, nextCompanyPage), semuanya di layar ini, dan keempatnya SUDAH benar — jadi perlebaran ini tidak memperbaiki apa pun hari ini, ia menutup lubangnya untuk layar berikutnya. Setiap layar ber-pager lebih dari satu terpapar, karena satu komponen Livewire tidak bisa punya dua metode bernama nextPage. Ditambahkan kontrol negatif tersendiri: kontrol negatif yang sudah ada memakai `nextPage`, nama yang SUDAH tertangkap pola lama, sehingga ia tidak pernah bisa membuktikan perbaikan ini. Kontrol baru memakai enam tombol ber-scope plus dua nama yang kebetulan memuat kata 'Page' tetapi bukan pager (openPageSettings, showPageHelp) untuk memastikan polanya tidak menelan yang salah. DIBUKTIKAN BERGIGI: dengan pola lama dikembalikan sementara, uji baru itu gagal — pemindainya hanya melihat 1 dari 6 tombol. Backend 5105 lolos sesudahnya.",
+      "severity": "minor"
     },
     {
       "description": "SELESAI 2026-10-06. Premis data di brief salah: brief menyatakan 'pada volume sekarang (5 mill) tidak ada satu pun kontrol paginasi yang dirender' — benar untuk basis data dev, SALAH untuk e2e, di mana prepare-db.sh meninggalkan 19 business unit dan spec menanam ~15 lagi sehingga jumlahnya 34-35 selama run, DI ATAS perPage 20. Tiga skenario browser yang mengasersi jumlah kartu / ketiadaan paginasi dari angka 5 mill tidak akan pernah bisa lolos; ketiganya sudah dibuat data-driven oleh agen implementasi (paginasi dirender JIKA DAN HANYA JIKA total > perPage, diasersi dua arah) — lebih kuat daripada yang dispesifikasikan. Dua komentar basi yang tertinggal SUDAH dibetulkan: header spec yang menyebut '23 mills' kini menyebut 19 (terukur) beserta ~15 yang ditanam, dan kedua komentar blade yang mengklaim 'tidak satu pun kontrol halaman muncul' kini menyatakan bahwa itu tergantung basis datanya (dev 5 mill: tidak muncul; e2e 19+15: justru muncul) beserta peringatan agar klaim mutlak itu tidak dituliskan lagi.",

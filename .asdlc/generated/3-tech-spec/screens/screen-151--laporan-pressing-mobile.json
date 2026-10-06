@@ -1,0 +1,1252 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-151--laporan-pressing-mobile",
+  "name": "Laporan Pressing (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports/pressing",
+  "auth_requirement": "authenticated (operator, supervisor, mill_management, admin)",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id tidak pernah dikirim untuk peran ini dan diabaikan server bila terkirim. Operator diterima pada ketiga rute data SEJAK endpoint itu dibangun — nol perubahan backend untuk layar ini"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — satu-satunya peran yang melihat pemilih Mill dan satu-satunya yang boleh memanggil /business-units/options"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "usecase_name": "Lihat Laporan Periode Pressing (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/pressing-reports/business-units/options",
+          "description": "DIPAKAI ULANG dari screen-150, ADMIN SAJA. Layar ini tidak pernah memanggilnya untuk peran terikat mill",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — layar mengarahkan ke Login"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan Admin — layar tidak merender pemilih mill sama sekali"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/pressing-reports/periods",
+          "description": "DIPAKAI ULANG dari screen-150. Daftar periode yang mencakup stasiun Pressing pada satu mill; periode tertutup ikut tercantum",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Dikirim HANYA oleh Admin. scopeParams() layar ini tidak pernah mengirimkannya untuk peran terikat mill — pertahanan berlapis di atas penjagaan server"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "draft|open|closed",
+                  "station_type": "pressing",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — layar mengarahkan ke Login"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id, atau akun terikat mill yang business_unit_id-nya NULL"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/pressing-reports/summary",
+          "description": "DIPAKAI ULANG dari screen-150, dan bentuk payload-nya dipakai APA ADANYA — nol perhitungan di klien",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Wajib"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Wajib. Layar menjaganya di fungsi pemuat ringkasan, bukan hanya di tampilan"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Admin saja"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": "blok periode",
+              "business_unit": "blok mill — SUMBER nama mill di layar",
+              "production_line": "blok line",
+              "has_data": "bool — penentu apakah rekap digambar",
+              "coverage": "filled_slots, expected_slots, coverage_percent (null bila nol), presser_count, slots_per_presser_per_day, days_in_period, days_counted, period_running",
+              "metrics": "lima entri: column, label, unit, min, avg, max, filled_slot_count, target{parameter_metric, target_operating_range, critical_trigger_action_limit} — DUA kolom target, dengan nama kolom Pressing bukan Threshing",
+              "targets_without_metric": "parameter master tanpa kolom ukur — pada Pressing DUA entri",
+              "targets_master_empty": "bool",
+              "by_presser": "presser_id, day_count, filled_slot_count, averages",
+              "daily": "date, filled_slot_count, averages",
+              "daily_total": "filled_slot_count, averages",
+              "downtime_reasons": "reason, slot_count — dikelompokkan harfiah oleh server",
+              "total": "record_count, days_with_records, draft_record_count, records_not_checked, records_not_acknowledged"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — layar mengarahkan ke Login tanpa pesan jaringan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/pressing-reports/export",
+          "description": "DIPAKAI ULANG dari screen-150, format=csv saja di mobile. Berkasnya disimpan ke penyimpanan perangkat",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Wajib"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Wajib"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "description": "Selalu 'csv' dari layar ini"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "content_type": "text/csv",
+              "body": "Blob — satu baris per slot waktu"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "Jumlah baris slot melampaui batas ekspor"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "DIPAKAI ULANG VERBATIM dari screen-135 — bukan endpoint baru",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Admin saja"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "code": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Tentukan peran dari store auth. Admin: muat daftar mill lewat /business-units/options; 403 di sana berarti pemilih mill TIDAK dirender sama sekali.",
+        "2. Peran terikat mill: pakai business_unit_id akun. Bila kosong, tampilkan arahan menghubungi Admin dan JANGAN kirim satu pun permintaan — termasuk jangan memanggil /business-units/options.",
+        "3. Muat daftar Production Line lewat /api/production-lines/options-for-report. Daftar kosong = arahan menghubungi Admin tanpa tombol coba lagi; kegagalan jaringan = pesan BERBEDA dengan tombol coba lagi tersendiri.",
+        "4. Tentukan line yang berlaku: query rute → ingatan perangkat msl_production_line_{userId} → satu-satunya line → tidak ada. Setiap kegagalan penyimpanan diperlakukan sebagai 'tidak ada ingatan'.",
+        "5. Line yang diingat tetapi tidak ada pada daftar DIBUANG, dan layar meminta memilih — tidak menebak line lain.",
+        "6. Muat daftar periode. Selama memuat, tampilkan indikator muat — BUKAN keterangan 'belum punya periode'.",
+        "7. Pilih periode. Kirim /summary dengan period_id + production_line_id. PENJAGAAN LINE ADA DI FUNGSI PEMUAT, bukan hanya di tampilan.",
+        "8. Pakai seluruh angka APA ADANYA. Tidak ada satu pun nilai yang dihitung ulang di perangkat.",
+        "9. Render cakupan pencatatan PALING ATAS, berikut presser_count, days_counted, dan slots_per_presser_per_day. coverage_percent null → tanda pisah, bukan 0%. days_counted 0 → keterangan 'periode belum mulai' (diperiksa SEBELUM period_running, karena isRunning() di server juga true untuk periode yang belum mulai).",
+        "10. Render satu KARTU per entri metrics: min, rata-rata, maks, penyebut 'N dari M slot', RENTANG KERJA, dan BATAS TINDAKAN. Enam baris informasi per kartu — satu lebih banyak daripada kartu Threshing, karena master Pressing membawa dua kolom target yang artinya berbeda. Kartu dengan filled_slot_count 0 TETAP dirender dengan angka 'tidak tersedia' dan kedua kolom targetnya tetap tampil.",
+        "11. Render keterangan ketiadaan penandaan di luar batas beserta sebabnya (kedua kolom target teks bebas yang dapat disunting kapan pun) dan pernyataan bahwa keduanya berlaku umum untuk seluruh mill.",
+        "12. targets_master_empty true → keterangan master belum terisi, angka ukur tetap tampil. targets_without_metric tidak kosong → bagiannya sendiri; pada Pressing dua entri.",
+        "13. Render rekap per presser, daftar alasan downtime (dengan keterangan pengelompokan harfiah), penghitung kelengkapan record, lalu rekap harian di dalam CollapsibleSection yang TERTUTUP secara bawaan.",
+        "14. has_data false → keterangan periode kosong; cakupan TETAP dirender; rekap per presser, rekap harian, dan daftar downtime tidak digambar.",
+        "15. Ekspor: minta /export?format=csv untuk periode dan line yang BERLAKU SAAT TOMBOL DITEKAN, simpan ke perangkat dengan nama ber-slug periode itu. Tombol dinonaktifkan selama berjalan.",
+        "16. Seluruh pemuatan dijaga createLatestRequestGuard(): hanya jawaban permintaan TERBARU yang boleh menulis state, termasuk galatnya.",
+        "17. Galat 401 → arahkan ke Login tanpa pesan jaringan dan tanpa tombol coba lagi. Galat tanpa 'status' (jaringan putus) → pesan + tombol coba lagi, dan periode terpilih TIDAK dikosongkan."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Lewat /periods dan /summary — layar ini tidak menyentuh basis data sendiri."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Sumber status Pressing pada opsi periode dan badge."
+        },
+        {
+          "entity_id": "pressing-record",
+          "operation": "SELECT",
+          "description": "Lewat /summary dan /export."
+        },
+        {
+          "entity_id": "pressing-detail",
+          "operation": "SELECT",
+          "description": "Lewat /summary dan /export — sumber seluruh angka ukur."
+        },
+        {
+          "entity_id": "pressing-operational-target",
+          "operation": "SELECT",
+          "description": "Lewat /summary — rentang kerja dan batas tindakan per parameter. Kolomnya parameter_metric / target_operating_range / critical_trigger_action_limit."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Lewat /api/production-lines/options-for-report."
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Lewat /business-units/options (Admin saja) dan blok business_unit pada ringkasan."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Akun terikat mill tanpa business_unit_id",
+          "handling": "Arahan menghubungi Admin; NOL permintaan dikirim, termasuk /business-units/options"
+        },
+        {
+          "condition": "Admin belum memilih mill",
+          "handling": "Pemilih mill + arahan; daftar line dan periode tidak dimuat"
+        },
+        {
+          "condition": "/business-units/options menjawab 403 untuk Admin",
+          "handling": "Pemilih mill tidak dirender sama sekali, dengan keterangan"
+        },
+        {
+          "condition": "Mill tanpa Production Line",
+          "handling": "Arahan menghubungi Admin, TANPA tombol coba lagi"
+        },
+        {
+          "condition": "Daftar Production Line gagal dimuat",
+          "handling": "Pesan BERBEDA, dengan tombol coba lagi tersendiri; tidak menyamar sebagai galat laporan"
+        },
+        {
+          "condition": "Line dari query rute dan ingatan perangkat berbeda",
+          "handling": "Query rute menang, dan ingatan diperbarui menjadi line itu"
+        },
+        {
+          "condition": "Line yang diingat tidak ada pada daftar",
+          "handling": "Dibuang; pemilih tampil; TIDAK ada permintaan ringkasan yang berangkat"
+        },
+        {
+          "condition": "Penyimpanan perangkat melempar (mode privat)",
+          "handling": "Diperlakukan sebagai 'tidak ada ingatan'; layar tetap tampil tanpa galat"
+        },
+        {
+          "condition": "Ingatan line milik pengguna lain",
+          "handling": "Tidak dipakai — kuncinya dipisah per userId"
+        },
+        {
+          "condition": "Daftar periode masih dimuat",
+          "handling": "Indikator muat, BUKAN keterangan 'belum punya periode'"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup Pressing",
+          "handling": "Pemilih TETAP dirender dalam keadaan kosong, beserta arahan"
+        },
+        {
+          "condition": "has_data false",
+          "handling": "Keterangan periode kosong; seluruh angka 'tidak tersedia'; cakupan TETAP tampil; rekap dan downtime tidak digambar"
+        },
+        {
+          "condition": "filled_slot_count 0 pada satu entri metrics",
+          "handling": "Kartunya TETAP dirender; min/avg/max 'tidak tersedia'; penyebut '0 dari M slot'; KEDUA kolom target tetap tampil"
+        },
+        {
+          "condition": "filled_slot_count 1 pada satu entri metrics",
+          "handling": "Ketiga angka sama, dan penyebut '1 dari M slot' yang menjelaskan mengapa"
+        },
+        {
+          "condition": "coverage_percent null",
+          "handling": "Dirender tanda pisah, bukan 0%"
+        },
+        {
+          "condition": "days_counted 0 sementara period_running true",
+          "handling": "Keterangan 'periode belum mulai' yang menang — diperiksa SEBELUM period_running"
+        },
+        {
+          "condition": "targets_master_empty true",
+          "handling": "Keterangan master belum terisi; seluruh angka ukur tetap tampil"
+        },
+        {
+          "condition": "targets_without_metric kosong",
+          "handling": "Bagiannya tidak digambar"
+        },
+        {
+          "condition": "downtime_reasons kosong",
+          "handling": "Keterangan 'tidak ada alasan tercatat', bukan tabel kosong"
+        },
+        {
+          "condition": "Periode tertutup",
+          "handling": "Laporan penuh, badge Tertutup, ekspor TIDAK dinonaktifkan"
+        },
+        {
+          "condition": "Admin mengganti mill",
+          "handling": "Line dan periode dikosongkan; tidak ada angka mill lama yang bertahan"
+        },
+        {
+          "condition": "Ketukan ganda pada Ekspor",
+          "handling": "Satu permintaan; tombol dinonaktifkan dengan label 'Mengekspor'"
+        },
+        {
+          "condition": "Periode berganti selama ekspor berjalan",
+          "handling": "Nama berkas mengikuti periode yang ISINYA diekspor"
+        },
+        {
+          "condition": "Periode dikosongkan saat ringkasan masih dimuat",
+          "handling": "Jawaban yang tiba kemudian diabaikan; tidak ada angka yang muncul"
+        },
+        {
+          "condition": "Galat tanpa 'status' (jaringan putus)",
+          "handling": "Pesan + tombol coba lagi; periode terpilih tidak dikosongkan"
+        },
+        {
+          "condition": "Galat 401",
+          "handling": "Arahkan ke Login; tanpa pesan jaringan dan tanpa tombol coba lagi"
+        },
+        {
+          "condition": "Jawaban permintaan lama tiba belakangan",
+          "handling": "Diabaikan oleh createLatestRequestGuard(), termasuk galatnya"
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca",
+        "Nol endpoint baru dan nol perubahan backend",
+        "Endpoint daftar mill tetap Admin saja, dan tidak pernah dipanggil untuk peran terikat mill",
+        "Nol perhitungan di klien",
+        "Production Line wajib, dijaga di fungsi pemuat",
+        "Urutan penentuan line: rute, ingatan, satu-satunya line",
+        "Penyimpanan perangkat tidak boleh membuat layar gagal",
+        "Tiap rata-rata mencetak penyebutnya sendiri",
+        "Cakupan dirender paling atas, dan tetap dirender meski periode kosong",
+        "Persen tanpa penyebut dirender tanda pisah, bukan 0%",
+        "Keterangan 'belum mulai' diperiksa sebelum keterangan 'berjalan'",
+        "null bukan 0, dan terlihat bergaya non-angka",
+        "Kartu parameter tanpa pembacaan tetap dirender",
+        "KEDUA kolom target menyertai angkanya pada kartu yang sama, verbatim",
+        "Tidak ada penandaan otomatis di luar batas, dan ketiadaannya dinyatakan beserta sebabnya",
+        "Target tanpa pengukuran tetap ditampilkan — pada Pressing dua entri",
+        "Alasan downtime dikelompokkan harfiah oleh server, dan layar menyatakannya",
+        "Record draft ikut terhitung; status verifikasi bukan penyaring",
+        "Periode tertutup tetap dapat dibaca dan diekspor",
+        "Ekspor hanya CSV, dan namanya mengikuti periode yang diekspor",
+        "Hanya jawaban permintaan terbaru yang berlaku",
+        "Satu kolom, tanpa gulir mendatar halaman, sasaran sentuh minimal 44px",
+        "Rekap harian tertutup secara bawaan dan membuka/menutupnya tidak memicu permintaan"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "scopeParams tidak pernah mengirim business_unit_id untuk peran terikat mill",
+          "given": "Store auth memulangkan Operator, lalu Supervisor, lalu Mill Management",
+          "expect": "Tidak satu pun permintaan membawa business_unit_id"
+        },
+        {
+          "description": "scopeParams mengirim business_unit_id untuk Admin",
+          "given": "Store auth memulangkan Admin dengan mill terpilih",
+          "expect": "Permintaan membawa business_unit_id mill itu"
+        },
+        {
+          "description": "productionLineParams hanya dikirim ke summary dan export",
+          "given": "Keempat pemanggilan repo dijalankan dengan line terpilih",
+          "expect": "Hanya /summary dan /export membawa production_line_id"
+        },
+        {
+          "description": "unwrap menerima respons dengan maupun tanpa pembungkus data",
+          "given": "Dua bentuk respons: { data: {...} } dan {...}",
+          "expect": "Keduanya menghasilkan ringkasan yang sama"
+        },
+        {
+          "description": "fetchSummary tidak menghitung ulang satu angka pun",
+          "given": "Payload yang angka-angkanya sengaja BERTENTANGAN: coverage_percent tidak sama dengan filled/expected; avg di luar rentang min..max; daily_total tidak dapat diturunkan dari daily",
+          "expect": "Setiap nilai dipulangkan apa adanya — repo yang menghitung sendiri PASTI gagal"
+        },
+        {
+          "description": "fetchSummary memulangkan kelima entri metrics beserta KEDUA kolom targetnya",
+          "given": "Payload ringkasan lengkap dengan parameter_metric, target_operating_range, dan critical_trigger_action_limit",
+          "expect": "metrics 5 entri, masing-masing membawa ketiga medan target itu — memakai nama medan Threshing akan menghasilkan ketiganya undefined"
+        },
+        {
+          "description": "kedua kolom target diteruskan verbatim termasuk tanda kurung penjelasnya",
+          "given": "critical_trigger_action_limit bernilai '< 85C (Leads to poor oil liberation)'",
+          "expect": "String dipulangkan utuh, tidak dipotong pada tanda kurung — di situlah akibat penyimpangan tertulis"
+        },
+        {
+          "description": "fetchSummary meneruskan DUA entri targets_without_metric apa adanya",
+          "given": "Payload dengan Nut Breakage Rate dan Press Cake Moisture",
+          "expect": "Kedua entri dipulangkan dengan parameter_metric, target_operating_range, dan critical_trigger_action_limit-nya"
+        },
+        {
+          "description": "fetchSummary meneruskan coverage_percent null tanpa menggantinya 0",
+          "given": "Payload dengan coverage_percent null",
+          "expect": "null, bukan 0"
+        },
+        {
+          "description": "fetchSummary meneruskan downtime_reasons tanpa menormalkan ejaan",
+          "given": "Payload dengan 'Cone macet' dan 'cone macet' sebagai dua entri",
+          "expect": "Dua entri, apa adanya, dalam urutan yang sama"
+        },
+        {
+          "description": "exportCsv meminta format csv untuk periode dan line yang diberikan",
+          "given": "Periode dan line terpilih",
+          "expect": "Permintaan membawa period_id, production_line_id, dan format=csv"
+        },
+        {
+          "description": "saveCsvFile menyimpan blob dengan nama yang diberikan",
+          "given": "Blob CSV dan nama berkas ber-slug periode",
+          "expect": "Berkas tersimpan dengan nama itu"
+        },
+        {
+          "description": "galat tanpa 'status' dibedakan dari galat ber-status",
+          "given": "Dua bentuk galat: { message } dan { message, status: 401 }",
+          "expect": "Keduanya diteruskan dengan bentuk aslinya"
+        },
+        {
+          "description": "fetchBusinessUnits tidak dipanggil untuk peran terikat mill",
+          "given": "Layar dipasang sebagai Operator",
+          "expect": "Nol pemanggilan"
+        },
+        {
+          "description": "daftar kunci ringkasan dikunci, dan tidak memuat satu pun kunci penilaian",
+          "given": "Payload ringkasan lengkap",
+          "expect": "Kunci yang dipulangkan tepat sama dengan kontrak screen-150, dan penyisiran JSON tidak menemukan severity / is_out_of_range / flag / threshold / breach"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "pressing-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "pressing-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "pressing-operational-target",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-150--laporan-pressing-web",
+      "reason": "Sumber keempat endpoint yang dipakai ulang verbatim. Nol endpoint baru dan nol perubahan backend untuk layar ini"
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "Pintu masuk satu-satunya. Tile Pressing baru aktif setelah entri 'pressing' ditambahkan ke REPORT_ROUTES di ReportingPilihStasiunView.vue — satu baris yang menentukan layar ini dapat dicapai atau tidak. Tile itu juga membawa production_line_id"
+    },
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Pemilik kunci ingatan Production Line (msl_production_line_{userId}) yang dibaca dan ditulis layar ini"
+    },
+    {
+      "screen_id": "screen-149--laporan-threshing-mobile",
+      "reason": "Sumber pola view dan repo. Strukturnya identik; yang berbeda hanya blok target — dua kolom dengan nama dan arti yang berbeda, dan dua target tanpa pengukuran alih-alih satu"
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Memakai ulang GET /api/production-lines/options-for-report yang dibangun untuk layar itu, verbatim"
+    }
+  ],
+  "implementation_notes": [
+    "NOL PERUBAHAN BACKEND, DAN ITU HASIL DARI screen-150. Keempat endpoint /api/pressing-reports/* dipakai ulang apa adanya: rutenya sudah menerima peran mobile sejak hari pertama, guardAccess() sudah menerima Operator, dan cabang TERIKAT MILL resolveBusinessUnit() sudah memuatnya. Pola yang terbukti pada pasangan screen-146/147 dan screen-148/149. Berkas backend yang disentuh layar ini: tidak ada.",
+    "LAPISAN KLIEN MENGIKUTI threshingReportRepo.ts, dengan SATU bagian yang diperiksa bukan disalin: nama medan blok target. Master Pressing memakai parameter_metric / target_operating_range / critical_trigger_action_limit; memakai nama medan Threshing akan menghasilkan ketiganya undefined tanpa satu pun galat TypeScript, karena keduanya hanya berbeda pada tipe yang dideklarasikan sendiri. Ada test yang mengasersi ketiga medan itu terisi.",
+    "KEDUA KOLOM TARGET DITERUSKAN, DAN KEDUANYA DIRENDER PADA KARTU YANG SAMA. Di layar sempit godaan memangkas satu kolom paling besar justru di sini; yang dipangkas akan selalu 'batas tindakan', dan itu satu-satunya tempat akibat penyimpangan tertulis. Kartu parameter di sini karena itu memuat ENAM baris informasi — satu lebih banyak daripada kartu Threshing.",
+    "NOL ARITMETIKA DI KLIEN, DAN FIXTURE TEST YANG MEMBUKTIKANNYA. Angka pada pressingReportRepo.spec.ts sengaja dibuat bertentangan dengan sumbernya, sama seperti pada Threshing: coverage_percent tidak sesuai pembilang/penyebutnya, avg di luar rentang min..max, dan daily_total tidak dapat diturunkan dari daily.",
+    "KETIADAAN PENANDAAN DIUJI ATAS NAMA KELAS DI LAYAR dan atas PENYISIRAN KUNCI pada payload — bukan atas frasa, karena kalimat yang menyatakan ketiadaannya sendiri memuat frasa 'di luar batas'. Pelajaran yang harganya sudah dibayar tujuh kali.",
+    "DUA TARGET TANPA PENGUKURAN, bukan satu. Component test dan browser test keduanya mengasersi DUA baris pada bagian itu, bukan satu — asersi 'bagiannya ada' saja akan tetap hijau walau satu entri hilang.",
+    "URUTAN CABANG KETERANGAN CAKUPAN SUDAH BENAR SEJAK BARIS PERTAMA: days_counted diperiksa SEBELUM period_running, karena ReportPeriodDays::isRunning() di server juga true untuk periode yang belum mulai. Ada test yang mengunci kasus days_counted 0 BERSAMA period_running true.",
+    "PRODUCTION LINE WAJIB, dijaga di FUNGSI loadSummary() bukan hanya di template. Ingatan line (msl_production_line_{userId}) dibagi dengan StationListView, dengan urutan rute → ingatan → satu-satunya line → tidak ada, dan kegagalan penyimpanan diperlakukan sebagai 'tidak ada ingatan'.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri 'pressing' pada REPORT_ROUTES di ReportingPilihStasiunView.vue, dengan browser test yang menekan tile itu LEWAT KLIK (bukan page.goto — tabel station lokal hidup di memori sql.js dan hilang pada tiap muat ulang).",
+    "VIEWPORT 390x844 PADA BROWSER TEST. Tiga klaim diuji di sana dan hanya di sana: satu kolom (kelima kartu bertumpuk, diukur dari boundingBox), halaman tidak pernah menggulir mendatar, dan kedua tabel rekap menggulir DI DALAM kartunya sendiri.",
+    "SPEC ReportingPilihStasiunView.spec.ts TIDAK PERLU DISENTUH: contoh 'tile tanpa laporan' di sana sudah process-water sejak screen-149, bukan pressing. Diverifikasi dengan menjalankan spec itu.",
+    "api-index TIDAK BERUBAH: keempat endpoint sudah tercatat dengan actor-station-operator pada v71, ditulis bersama screen-150."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Pressing (Mobile) — sukses sebagai Operator",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount sebagai Operator pada mill ber-satu-line, lalu pilih periode pertama",
+        "assert": "pemilih mill tidak dirender; cakupan terender SEBELUM kartu parameter pada urutan DOM; kelima kartu terender masing-masing dengan min, rata-rata, maks, penyebut, RENTANG KERJA, dan BATAS TINDAKAN; bagian dua target tanpa pengukuran, rekap per presser, downtime, kelengkapan record, dan rekap harian terender; tidak ada satu pun kontrol tulis"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "masuk sebagai Operator, buka layar pada viewport 390x844, pilih periode",
+        "assert": "seluruh bagian laporan tampil satu kolom, tanpa gulir mendatar halaman, sasaran sentuh minimal 44px"
+      }
+    },
+    {
+      "scenario_ref": "Supervisor dan Mill Management melihat layar yang sama persis dengan Operator",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount sebagai Supervisor, lalu sebagai Mill Management",
+        "assert": "pemilih mill tidak dirender pada keduanya; angka terender; fetchBusinessUnits TIDAK pernah dipanggil"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount sebagai Admin tanpa mill, lalu pilih satu mill",
+        "assert": "pemilih mill dan arahan terender; daftar line dan periode TIDAK dimuat sebelum mill dipilih"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Akun terikat mill tanpa business_unit_id",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount sebagai Operator yang business_unit_id-nya null",
+        "assert": "arahan menghubungi Admin terender; fetchBusinessUnits, fetchPeriods dan fetchProductionLinesForReport semuanya NOL pemanggilan"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Nol perhitungan di klien",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "pressingReportRepo",
+        "action": "fetchSummary atas payload yang angka-angkanya sengaja bertentangan satu sama lain",
+        "assert": "setiap nilai dipulangkan apa adanya"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Setiap rata-rata mencetak penyebutnya sendiri",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan kelima entri metrics berpenyebut berbeda-beda",
+        "assert": "setiap kartu mencetak penyebutnya sendiri sebagai 'N dari M slot', dan teks-teks itu memang berbeda"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode berdata lalu periksa kelima kartu",
+        "assert": "penyebut tiap kartu tercetak dan tidak pernah melampaui jumlah slot terisi periode"
+      }
+    },
+    {
+      "scenario_ref": "Kedua kolom target menyertai angkanya pada kartu yang sama",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan blok target terisi, lalu periksa satu kartu",
+        "assert": "angka, rentang kerja, dan batas tindakan ketiganya ada di dalam kartu yang sama; batas tindakannya memuat keterangan akibat di dalam tanda kurung apa adanya"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "periksa kartu parameter pertama",
+        "assert": "kedua kolom target hadir dengan testid-nya sendiri, sehingga satu kolom yang hilang terlihat sebagai kegagalan"
+      }
+    },
+    {
+      "scenario_ref": "Kartu parameter tanpa pembacaan tetap ditampilkan",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan satu entri metrics ber-filled_slot_count 0",
+        "assert": "kartunya TETAP terender dengan 'tidak tersedia' dan penyebut 0 slot; KEDUA kolom targetnya tetap tampil"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode yang satu kolom ukurnya tidak pernah diisi",
+        "assert": "kelima kartu parameter selalu ada"
+      }
+    },
+    {
+      "scenario_ref": "Cakupan pencatatan dibaca lebih dulu",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan coverage terisi",
+        "assert": "blok cakupan berada di atas kartu parameter pada urutan DOM, dan presser_count, days_counted serta slots_per_presser_per_day ketiganya tercetak"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "ukur posisi vertikal blok cakupan terhadap kartu parameter",
+        "assert": "cakupan berada di atas kartu parameter pada viewport 390px"
+      }
+    },
+    {
+      "scenario_ref": "Periode belum mulai",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan coverage_percent null, days_counted 0, dan period_running true",
+        "assert": "persen cakupan terender tanda pisah bukan 0%; keterangan 'periode belum mulai' yang terender — BUKAN keterangan 'dihitung sampai hari ini'"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "stub ringkasan periode yang belum mulai",
+        "assert": "persen cakupan tanda pisah dan keterangan belum mulai terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Periode berjalan",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan period_running true dan days_counted lebih kecil daripada days_in_period",
+        "assert": "keterangan dihitung sampai hari ini terender"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Tidak ada penandaan di luar batas",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan rata-rata di bawah batas tindakannya",
+        "assert": "tidak ada kelas md-threshold, is-danger, is-warning, maupun md-chip--danger pada hasil render; kalimat yang menyatakan kedua kolom target teks bebas yang dapat disunting kapan pun hadir"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "sisir hasil render untuk ketiadaan kelas penanda",
+        "assert": "nol kemunculan keempat kelas itu"
+      }
+    },
+    {
+      "scenario_ref": "Dua standar yang belum diukur sistem tetap ditampilkan",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan dua entri targets_without_metric",
+        "assert": "DUA baris terender — bukan satu — beserta rentang kerja, batas tindakan, dan keterangan bahwa sistem belum mengukurnya di mana pun"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "periksa bagian standar yang belum diukur",
+        "assert": "kedua parameter tampil dan jumlah barisnya dua"
+      }
+    },
+    {
+      "scenario_ref": "Master target belum terisi",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan targets_master_empty true",
+        "assert": "keterangan master belum terisi terender; seluruh angka ukur tetap tampil"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "stub master target kosong",
+        "assert": "keterangan tampil dan angka ukur tetap ada"
+      }
+    },
+    {
+      "scenario_ref": "Rekap per presser memakai presser_id sebagai nama unit",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan by_presser dua baris berjumlah hari berbeda",
+        "assert": "satu baris per presser_id dengan day_count dan filled_slot_count-nya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "periksa tabel rekap per presser",
+        "assert": "tabelnya menggulir di dalam kartunya sendiri"
+      }
+    },
+    {
+      "scenario_ref": "Alasan downtime dikelompokkan harfiah",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan dua entri downtime_reasons berejaan berbeda",
+        "assert": "dua baris terender terpisah; keterangan sifat harfiahnya hadir; klien tidak menormalkan apa pun"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "periksa daftar alasan downtime",
+        "assert": "dua baris terpisah"
+      }
+    },
+    {
+      "scenario_ref": "Tidak ada alasan downtime tercatat",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan downtime_reasons kosong dan has_data true",
+        "assert": "keterangan terender, bukan tabel kosong"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "stub daftar downtime kosong",
+        "assert": "keterangan tampil dan tabel downtime tidak digambar"
+      }
+    },
+    {
+      "scenario_ref": "Periode tanpa data",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan has_data false",
+        "assert": "keterangan periode kosong terender; angka 'tidak tersedia'; cakupan TETAP terender; rekap harian, rekap per presser, dan downtime tidak digambar"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode tanpa data",
+        "assert": "keterangan tampil, cakupan tetap ada, dan tidak ada angka 0 yang menyesatkan"
+      }
+    },
+    {
+      "scenario_ref": "Rekap harian tertutup secara bawaan",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount pada periode berdata lalu buka dan tutup rekap harian",
+        "assert": "badan rekap tersembunyi pada awalnya (toBeHidden, bukan toHaveCount 0 — v-show); membuka/menutupnya tidak memicu satu permintaan pun"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "buka rekap harian lalu ukur gulirnya",
+        "assert": "tabelnya menggulir di dalam kartunya sendiri dan halaman tetap tidak bergeser mendatar"
+      }
+    },
+    {
+      "scenario_ref": "Line dari alamat tile dipakai dan diingat",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan query production_line_id berbeda dari ingatan perangkat",
+        "assert": "line dari query yang dipakai, dan ingatan perangkat diperbarui"
+      },
+      "browser_test": {
+        "route": "/reports/pressing?production_line_id=...",
+        "action": "buka layar dengan line pada alamat",
+        "assert": "nama line itu terender dan tersimpan sebagai ingatan perangkat"
+      }
+    },
+    {
+      "scenario_ref": "Ingatan perangkat milik pengguna lain tidak dipakai",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan ingatan tersimpan untuk dua userId berbeda",
+        "assert": "ingatan milik pengguna yang sedang masuk yang dipakai"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Line yang diingat sudah tidak ada",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan ingatan line yang tidak ada pada daftar, lalu pilih periode",
+        "assert": "arahan memilih line terender; fetchSummary TIDAK dipanggil"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "setel ingatan ke line yang tidak ada lalu buka layar",
+        "assert": "pemilih muncul lagi dan nol permintaan ringkasan"
+      }
+    },
+    {
+      "scenario_ref": "Penyimpanan perangkat tidak dapat dibaca",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan localStorage.getItem yang melempar",
+        "assert": "layar tetap terender tanpa galat dan memperlakukannya sebagai tidak ada ingatan"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Mill belum punya Production Line",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan daftar line kosong",
+        "assert": "arahan menghubungi Admin terender TANPA tombol coba lagi"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "stub daftar line kosong",
+        "assert": "arahan tampil dan tidak ada tombol coba lagi"
+      }
+    },
+    {
+      "scenario_ref": "Daftar Production Line gagal dimuat",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan fetchProductionLinesForReport yang gagal, lalu tekan coba lagi",
+        "assert": "pesan BERBEDA dari keadaan 'mill belum punya line'; tombol coba lagi tersendiri; TIDAK ada pesan galat laporan; coba lagi berhasil"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "putus jaringan pada daftar line lalu tekan coba lagi",
+        "assert": "kedua keadaan dibedakan dan coba lagi bekerja"
+      }
+    },
+    {
+      "scenario_ref": "Mill belum punya periode yang mencakup Pressing",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan daftar periode kosong, dan selama pemuatannya",
+        "assert": "selama memuat: indikator muat, BUKAN keterangan belum punya periode; setelah selesai: keterangan terender dan pemilih tetap ada dalam keadaan kosong"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "stub daftar periode kosong",
+        "assert": "arahan tampil dan pemilih tetap ada"
+      }
+    },
+    {
+      "scenario_ref": "Periode tertutup tetap dapat dibaca dan diekspor",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan periode berstatus closed",
+        "assert": "badge Tertutup terender dan tombol Ekspor TIDAK dinonaktifkan"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "pilih periode tertutup",
+        "assert": "laporan penuh dan ekspor tetap aktif"
+      }
+    },
+    {
+      "scenario_ref": "Ekspor CSV tersimpan di perangkat",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "tekan Ekspor pada periode berdata",
+        "assert": "exportCsv dipanggil dengan periode dan line terpilih; saveCsvFile dipanggil dengan nama ber-slug periode"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "tekan Ekspor",
+        "assert": "permintaan ekspor membawa period_id, production_line_id dan format=csv"
+      }
+    },
+    {
+      "scenario_ref": "Ketukan ganda pada Ekspor hanya menghasilkan satu berkas",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "tekan Ekspor dua kali sebelum unduhan pertama selesai",
+        "assert": "exportCsv dipanggil tepat sekali; tombol dinonaktifkan dengan label 'Mengekspor'"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Nama berkas mengikuti periode yang diekspor",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "tekan Ekspor lalu ganti periode sebelum unduhan selesai",
+        "assert": "nama berkas mengikuti periode yang ISINYA diekspor"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Kegagalan jaringan saat memuat ringkasan",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan fetchSummary yang gagal tanpa 'status', lalu tekan coba lagi",
+        "assert": "pesan dan tombol coba lagi terender; pilihan periode TIDAK hilang; coba lagi memuat ulang periode yang sama"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "putus jaringan pada ringkasan lalu tekan coba lagi",
+        "assert": "pesan tampil, periode tetap terpilih, dan coba lagi berhasil"
+      }
+    },
+    {
+      "scenario_ref": "Sesi berakhir saat memuat ringkasan",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/pressing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "mount dengan fetchSummary yang gagal 401",
+        "assert": "diarahkan ke Login; TANPA pesan jaringan dan TANPA tombol coba lagi"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "stub 401 pada ringkasan",
+        "assert": "halaman berpindah ke Login"
+      }
+    },
+    {
+      "scenario_ref": "Hanya jawaban permintaan terbaru yang berlaku",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "pilih periode pertama lalu kedua sebelum jawaban pertama tiba; ulangi dengan jawaban pertama berupa galat; ulangi dengan mengosongkan pilihan",
+        "assert": "angka di layar milik periode terakhir; galat basi tidak memunculkan pesan; mengosongkan pilihan tidak memunculkan angka kemudian"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Tile Pressing pada Reporting aktif",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "tekan tile Pressing",
+        "assert": "navigasi ke rute report-pressing, bukan pesan belum tersedia"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "semai station lokal lalu tekan tile Pressing LEWAT KLIK",
+        "assert": "mendarat di layar Laporan Pressing, dan tidak ada pesan belum tersedia"
+      }
+    },
+    {
+      "scenario_ref": "Layar hanya membaca",
+      "usecase_id": "usecase-154--laporan-pressing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanPressingView",
+        "action": "telusuri seluruh tombol pada footer dan badan layar",
+        "assert": "footer hanya Ekspor dan Back; tidak ada tombol yang menambah, mengubah, atau menghapus data"
+      },
+      "browser_test": {
+        "route": "/reports/pressing",
+        "action": "sisir seluruh tombol",
+        "assert": "tidak ada Simpan, Hapus, maupun Verifikasi"
+      }
+    }
+  ]
+}

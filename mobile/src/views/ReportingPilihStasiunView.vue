@@ -76,12 +76,13 @@ const infoMessage = ref<string | null>(null)
  * ada di peta ini atau tidak. Tidak ada hubungannya dengan
  * StationSlot.isActive (lihat komentar kepala berkas).
  *
- * Hari ini baru DELAPAN stasiun yang layar laporan mobile-nya sudah dibangun —
+ * Hari ini baru SEMBILAN stasiun yang layar laporan mobile-nya sudah dibangun —
  * Weighbridge (screen-144), Grading (screen-147), Threshing (screen-149),
- * Sterilizer (screen-135), Cages & Tracks (screen-136), Boiler Room
- * (screen-137), Clarification (screen-138), dan Storage Tank (screen-139); 10
- * stasiun lain menunggu layar laporannya masing-masing dan tetap ditampilkan
- * dalam keadaan nonaktif, bukan disembunyikan.
+ * Pressing (screen-151), Sterilizer (screen-135), Cages & Tracks
+ * (screen-136), Boiler Room (screen-137), Clarification (screen-138), dan
+ * Storage Tank (screen-139); 9 stasiun lain menunggu layar laporannya
+ * masing-masing dan tetap ditampilkan dalam keadaan nonaktif, bukan
+ * disembunyikan.
  *
  * URUTAN PETA INI TIDAK MENENTUKAN URUTAN TILE — grid mengikuti
  * station_types.sort_order dari server. Weighbridge ditulis pertama di sini
@@ -106,6 +107,10 @@ const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   // menentukannya: tanpa entri ini layar laporan Threshing ada, rutenya ada,
   // seluruh test-nya lulus, dan tile-nya tetap kelabu.
   threshing: 'report-threshing',
+  // screen-151--laporan-pressing-mobile. Satu baris yang sama
+  // menentukannya: tanpa entri ini layar laporan Pressing ada, rutenya ada,
+  // seluruh test-nya lulus, dan tile-nya tetap kelabu.
+  pressing: 'report-pressing',
   sterilizer: 'report-sterilizer',
   'cages-track': 'report-cages-track',
   'boiler-room': 'report-boiler-room',

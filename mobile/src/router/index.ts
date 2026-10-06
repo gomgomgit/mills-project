@@ -989,6 +989,28 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanThreshingView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-151--laporan-pressing-mobile /
+    // usecase-154--laporan-pressing-mobile "Lihat Laporan Periode Pressing
+    // (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor, mill_management, admin).
+    //
+    // NOL PERUBAHAN BACKEND, sama seperti report-threshing di atasnya:
+    // keempat rute /api/pressing-reports/* sudah menerima peran mobile sejak
+    // screen-150 dibangun, karena kedua layar direncanakan dalam satu seri.
+    // Yang TIDAK terbuka tetap tidak terbuka: /business-units/options Admin
+    // saja, dan rute WEB /reports/pressing tanpa Operator.
+    //
+    // Pintu masuknya: rute 'report-stations' (screen-141) menampilkan grid
+    // stasiun, dan tile Pressing-lah yang menavigasi ke sini — entri
+    // 'pressing' pada REPORT_ROUTES di ReportingPilihStasiunView.vue adalah
+    // satu-satunya penentu tile itu hidup atau mati.
+    path: '/reports/pressing',
+    name: 'report-pressing',
+    component: () => import('@/views/LaporanPressingView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

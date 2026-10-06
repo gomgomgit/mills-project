@@ -1,0 +1,447 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "usecase-154--laporan-pressing-mobile",
+  "name": "Lihat Laporan Periode Pressing (Mobile)",
+  "description": "Operator, Supervisor, Mill Management, atau Admin membuka Laporan Pressing dari layar Reporting di aplikasi mobile, memilih satu periode pelaporan dan satu Production Line, lalu membaca kondisi operasi stasiun Pressing pada periode itu dalam tata letak satu kolom: cakupan pencatatan paling atas, lalu satu kartu per parameter berisi min/rata-rata/maks, penyebutnya, RENTANG KERJA dan BATAS TINDAKAN, lalu dua standar yang belum diukur sistem, rekap per presser, rekap per hari, dan alasan downtime. Dapat mengekspor seluruh slot periode itu sebagai CSV ke penyimpanan perangkat. Layar ini hanya membaca.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk pada aplikasi mobile",
+    "Mill yang berlaku memiliki minimal satu Production Line",
+    "Ada minimal satu Periode Pelaporan yang mendaftarkan stasiun Pressing pada mill itu"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Pengguna membuka Reporting dari Dashboard & Reporting, lalu menekan tile Pressing"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Sistem menentukan mill yang berlaku: mill akun itu sendiri untuk Operator, Supervisor dan Mill Management; untuk Admin ditampilkan pemilih mill dan belum ada yang dimuat sampai satu mill dipilih"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Sistem menentukan Production Line menurut urutan: parameter pada alamat tujuan tile, lalu ingatan perangkat, lalu satu-satunya line milik mill itu; bila tidak ada yang berlaku, pemilih line ditampilkan dan tidak ada angka yang digambar"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Sistem memuat daftar periode yang mendaftarkan stasiun Pressing pada mill itu beserta status Pressing pada tiap periode"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Pengguna memilih satu periode"
+    },
+    {
+      "step": 6,
+      "actor": "actor-station-operator",
+      "description": "Sistem mengambil ringkasan periode itu untuk line terpilih dari endpoint yang sama dengan layar web, lalu menampilkannya apa adanya tanpa menghitung ulang satu angka pun"
+    },
+    {
+      "step": 7,
+      "actor": "actor-station-operator",
+      "description": "Sistem menampilkan cakupan pencatatan paling atas, lalu kartu per parameter berisi min/rata-rata/maks dengan penyebut, rentang kerja, dan batas tindakannya, lalu standar yang belum diukur sistem, rekap per presser, rekap harian, dan alasan downtime — seluruhnya bertumpuk satu kolom"
+    },
+    {
+      "step": 8,
+      "actor": "actor-station-operator",
+      "description": "Pengguna menekan Ekspor dan menerima berkas CSV yang tersimpan di perangkat"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Admin belum memilih mill",
+      "trigger": "Pada langkah 2, Admin membuka layar ini tanpa memilih mill",
+      "steps": [
+        "Sistem menampilkan pemilih mill dan arahan memilih mill lebih dulu",
+        "Daftar Production Line dan daftar periode TIDAK dimuat sama sekali"
+      ]
+    },
+    {
+      "name": "Akun terikat mill tanpa mill",
+      "trigger": "Pada langkah 2, akun terikat mill tetapi business_unit_id-nya kosong",
+      "steps": [
+        "Sistem menampilkan arahan menghubungi Admin",
+        "Daftar seluruh mill TIDAK pernah dibentuk di perangkat itu",
+        "Tidak ada satu pun permintaan laporan yang dikirim"
+      ]
+    },
+    {
+      "name": "Line dari alamat tile mengalahkan ingatan perangkat",
+      "trigger": "Pada langkah 3, alamat tujuan membawa production_line_id sementara perangkat juga mengingat sebuah line",
+      "steps": [
+        "Sistem memakai line dari alamat",
+        "Sistem memperbarui ingatan perangkat menjadi line itu"
+      ]
+    },
+    {
+      "name": "Line yang diingat sudah tidak ada",
+      "trigger": "Pada langkah 3, line yang diingat perangkat tidak lagi ada pada daftar line mill itu",
+      "steps": [
+        "Sistem menampilkan pemilih line dan arahan memilihnya",
+        "Sistem TIDAK menebak line lain, termasuk tidak memilih line pertama"
+      ]
+    },
+    {
+      "name": "Mill belum punya Production Line",
+      "trigger": "Pada langkah 3, daftar line kosong",
+      "steps": [
+        "Sistem menampilkan arahan menghubungi Admin",
+        "Tidak ada tombol coba lagi — ini keadaan data, bukan kegagalan teknis"
+      ]
+    },
+    {
+      "name": "Daftar Production Line gagal dimuat",
+      "trigger": "Pada langkah 3, permintaan daftar line gagal karena jaringan",
+      "steps": [
+        "Sistem menampilkan pesan yang BERBEDA dari keadaan “mill belum punya line”",
+        "Sistem menyediakan tombol coba lagi khusus daftar line",
+        "Kegagalan ini tidak menyamar sebagai galat laporan"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode yang mencakup Pressing",
+      "trigger": "Pada langkah 4, daftar periode kosong",
+      "steps": [
+        "Sistem tetap menampilkan pemilih periode dalam keadaan kosong",
+        "Sistem menampilkan arahan menghubungi Admin"
+      ]
+    },
+    {
+      "name": "Periode tanpa satu pun slot terisi",
+      "trigger": "Pada langkah 6, ringkasan memulangkan has_data false",
+      "steps": [
+        "Sistem menampilkan keterangan bahwa periode ini belum punya data",
+        "Seluruh angka dirender sebagai keterangan “tidak tersedia”, bukan 0",
+        "Cakupan pencatatan TETAP ditampilkan — justru itu yang menjelaskan kekosongannya",
+        "Rekap harian, rekap per presser, dan daftar downtime tidak digambar"
+      ]
+    },
+    {
+      "name": "Satu kolom ukur tidak pernah terisi sepanjang periode",
+      "trigger": "Pada langkah 7, sebuah kartu parameter berpenyebut nol",
+      "steps": [
+        "Kartu parameter itu TETAP ditampilkan",
+        "Min, rata-rata, dan maks dirender “tidak tersedia” dengan penyebut 0 slot",
+        "Rentang kerja dan batas tindakannya tetap ditampilkan"
+      ]
+    },
+    {
+      "name": "Master target belum terisi",
+      "trigger": "Pada langkah 7, ringkasan memulangkan targets_master_empty true",
+      "steps": [
+        "Seluruh angka hasil ukur tetap ditampilkan",
+        "Kedua kolom target dirender sebagai keterangan bahwa master belum terisi"
+      ]
+    },
+    {
+      "name": "Periode belum mulai",
+      "trigger": "Pada langkah 7, coverage_percent null",
+      "steps": [
+        "Persen cakupan dirender “—”, bukan 0%",
+        "Sistem menyatakan bahwa belum ada hari yang dapat dijadikan pembagi, dan keterangan itu menang atas keterangan “periode berjalan” meski keduanya berlaku"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pengguna memilih periode yang status Pressing-nya Tertutup",
+      "steps": [
+        "Laporan tampil penuh",
+        "Badge Tertutup ditampilkan",
+        "Ekspor tetap aktif"
+      ]
+    },
+    {
+      "name": "Jaringan gagal saat memuat ringkasan",
+      "trigger": "Pada langkah 6, permintaan gagal karena jaringan",
+      "steps": [
+        "Sistem menampilkan pesan kegagalan dan tombol coba lagi",
+        "Periode yang sudah dipilih TIDAK hilang",
+        "Menekan coba lagi memuat ulang periode yang sama"
+      ]
+    },
+    {
+      "name": "Sesi berakhir",
+      "trigger": "Pada langkah 6, server menjawab 401",
+      "steps": [
+        "Pengguna diarahkan ke layar Login",
+        "Sistem tidak menampilkan pesan kegagalan jaringan dan tidak menampilkan tombol coba lagi"
+      ]
+    },
+    {
+      "name": "Pemilih mill ditolak server",
+      "trigger": "Admin membuka layar dan permintaan daftar mill dijawab 403",
+      "steps": [
+        "Pemilih mill tidak dirender sama sekali",
+        "Sistem menampilkan keterangan bahwa daftar mill tidak tersedia untuk peran itu"
+      ]
+    },
+    {
+      "name": "Pengguna mengganti periode saat ringkasan masih dimuat",
+      "trigger": "Pada langkah 6, pengguna memilih periode lain sebelum jawaban pertama tiba",
+      "steps": [
+        "Hanya jawaban permintaan TERBARU yang boleh menulis angka ke layar",
+        "Jawaban permintaan lama yang tiba belakangan diabaikan, termasuk galatnya"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Tidak ada perubahan apa pun pada data stasiun — layar ini hanya membaca",
+    "Production Line yang berlaku tersimpan sebagai ingatan perangkat milik pengguna itu, dan dipakai lagi pada kunjungan berikutnya"
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Layar ini memakai ULANG keempat endpoint /api/pressing-reports/* milik screen-150 tanpa satu pun perubahan backend — ketiga rute data sudah menerima Operator sejak endpoint itu dibangun.",
+    "Endpoint daftar mill tetap Admin saja; layar ini tidak pernah memanggilnya untuk peran yang terikat satu mill.",
+    "NOL perhitungan di klien. Seluruh angka dipakai apa adanya dari ringkasan.",
+    "Production Line WAJIB berlaku sebelum satu angka pun ditampilkan, dan penjagaannya ada di fungsi pemuat ringkasan — bukan hanya di tampilan.",
+    "Urutan penentuan line: parameter alamat, lalu ingatan perangkat, lalu satu-satunya line. Ingatan perangkat dipisah per pengguna dan dibagi dengan layar Daftar Stasiun.",
+    "Kegagalan membaca atau menulis ingatan perangkat diperlakukan sebagai “tidak ada ingatan”, bukan sebagai galat.",
+    "Setiap rata-rata menampilkan penyebutnya sendiri. Pada layar sempit kolom itulah yang paling mudah dikorbankan demi ruang.",
+    "Cakupan pencatatan ditampilkan DI ATAS seluruh angka lain, dan tetap ditampilkan meski periode kosong.",
+    "Persen cakupan yang null dirender “—”, bukan 0%.",
+    "Nilai yang tidak tersedia dirender sebagai keterangan bergaya non-angka, bukan sebagai 0.",
+    "KEDUA kolom target ditampilkan bersama angkanya pada kartu parameter yang sama, karena keduanya menjawab pertanyaan yang berbeda: rentang kerja adalah “ke mana seharusnya”, batas tindakan adalah “kapan harus bertindak dan apa akibatnya”. Keduanya dirender verbatim, termasuk tanda kurung penjelasnya.",
+    "TIDAK ADA penandaan otomatis di luar batas, dan ketiadaannya dinyatakan di layar beserta sebabnya — kedua kolom target adalah teks bebas yang dapat disunting kapan pun.",
+    "Standar yang belum punya kolom pengukuran tetap ditampilkan pada bagiannya sendiri. Pada Pressing ada DUA, dan keduanya tidak terukur di mana pun pada skema.",
+    "Alasan downtime dikelompokkan harfiah oleh server, dan layar menyatakan hal itu tanpa menormalkannya sendiri.",
+    "Record draft ikut terhitung; jumlahnya dinyatakan. Status pemeriksaan adalah kelengkapan, bukan penyaring.",
+    "Periode tertutup tetap dapat dibaca dan diekspor.",
+    "Ekspor hanya CSV di mobile. Nama berkas mengikuti periode yang DIEKSPOR, bukan periode yang terpilih saat berkas selesai diunduh.",
+    "Hanya jawaban permintaan terbaru yang boleh menulis angka ke layar.",
+    "Tata letak satu kolom: tidak ada dua kartu angka berdampingan mendatar, halaman tidak pernah menggulir mendatar, sasaran sentuh minimal 44px, dan tabel yang lebih lebar daripada layar menggulir DI DALAM kartunya sendiri."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Pressing (Mobile) — sukses sebagai Operator",
+      "given": "Operator sudah masuk pada aplikasi mobile dan akunnya terikat pada satu mill yang punya satu Production Line serta satu periode pelaporan yang mencakup Pressing dengan pencatatan slot",
+      "when": "Operator membuka Reporting, menekan tile Pressing, lalu memilih sebuah periode",
+      "then": "Sistem memakai mill dari akun tanpa menawarkan pemilih mill, memakai satu-satunya line itu tanpa pemilih, lalu menampilkan cakupan pencatatan paling atas disusul kartu per parameter berisi min, rata-rata, maks, penyebut, rentang kerja dan batas tindakannya, dua standar yang belum diukur sistem, rekap per presser, rekap harian, dan alasan downtime — seluruhnya satu kolom tanpa gulir mendatar halaman"
+    },
+    {
+      "scenario": "Supervisor dan Mill Management melihat layar yang sama persis dengan Operator",
+      "given": "Pengguna sudah masuk sebagai Supervisor atau Mill Management dan akunnya terikat pada satu mill",
+      "when": "Pengguna membuka Laporan Pressing dan memilih sebuah periode",
+      "then": "Layar yang tampil identik dengan yang dilihat Operator, tanpa pemilih mill, dan endpoint daftar mill tidak pernah dipanggil"
+    },
+    {
+      "scenario": "Admin memilih mill lebih dulu",
+      "given": "Pengguna sudah masuk sebagai Admin dan tidak terikat pada satu mill",
+      "when": "Pengguna membuka Laporan Pressing",
+      "then": "Sistem menampilkan pemilih mill beserta arahan memilih mill lebih dulu, dan tidak memuat daftar Production Line maupun daftar periode sampai satu mill dipilih"
+    },
+    {
+      "scenario": "Akun terikat mill tanpa business_unit_id",
+      "given": "Akun pengguna terikat mill tetapi business_unit_id-nya kosong",
+      "when": "Pengguna membuka Laporan Pressing",
+      "then": "Sistem menampilkan arahan menghubungi Admin, tidak menampilkan pemilih mill, dan tidak mengirim satu pun permintaan — termasuk tidak memanggil endpoint daftar mill"
+    },
+    {
+      "scenario": "Nol perhitungan di klien",
+      "given": "Server memulangkan ringkasan yang angka-angkanya sengaja tidak konsisten satu sama lain",
+      "when": "Layar menampilkan ringkasan itu",
+      "then": "Setiap angka tampil persis seperti yang dikirim server, tanpa satu pun nilai yang dihitung ulang di perangkat"
+    },
+    {
+      "scenario": "Setiap rata-rata mencetak penyebutnya sendiri",
+      "given": "Kelima kolom ukur terisi pada jumlah slot yang berbeda-beda",
+      "when": "Pengguna melihat kartu parameter",
+      "then": "Setiap kartu mencetak penyebutnya sendiri sebagai “N dari M slot”, dan penyebut-penyebut itu memang berbeda satu sama lain"
+    },
+    {
+      "scenario": "Kartu parameter tanpa pembacaan tetap ditampilkan",
+      "given": "Satu kolom ukur tidak pernah terisi sepanjang periode",
+      "when": "Pengguna melihat kartu parameter",
+      "then": "Kartu kolom itu tetap ditampilkan dengan min, rata-rata dan maks sebagai tidak tersedia serta penyebut 0 slot, sementara rentang kerja dan batas tindakannya tetap tampil"
+    },
+    {
+      "scenario": "Kedua kolom target menyertai angkanya pada kartu yang sama",
+      "given": "Ringkasan memulangkan rentang kerja dan batas tindakan pada tiap entri parameter",
+      "when": "Pengguna melihat sebuah kartu parameter",
+      "then": "Angka, rentang kerja, dan batas tindakan ketiganya tampil di dalam kartu yang sama, dan batas tindakannya memuat keterangan akibat di dalam tanda kurung apa adanya"
+    },
+    {
+      "scenario": "Tidak ada penandaan di luar batas",
+      "given": "Rata-rata suhu digester 82,3 sementara rentang kerjanya 90C - 95C dan batas tindakannya < 85C",
+      "when": "Pengguna melihat kartu parameter itu",
+      "then": "Ketiga nilai tampil apa adanya tanpa warna peringatan, tanpa severity dan tanpa penanda di luar batas, dan layar menyatakan bahwa kedua kolom target adalah teks bebas yang dapat disunting kapan pun sehingga penilaiannya milik pembaca"
+    },
+    {
+      "scenario": "Dua standar yang belum diukur sistem tetap ditampilkan",
+      "given": "Ringkasan memulangkan dua entri pada daftar target tanpa pengukuran",
+      "when": "Pengguna melihat laporan",
+      "then": "Kedua entri tampil pada bagiannya sendiri beserta rentang kerja, batas tindakan, dan keterangan bahwa sistem belum punya kolom untuk mengukurnya di mana pun"
+    },
+    {
+      "scenario": "Master target belum terisi",
+      "given": "Ringkasan memulangkan penanda master target kosong",
+      "when": "Pengguna melihat laporan",
+      "then": "Seluruh angka hasil ukur tetap tampil, dan kedua kolom target dirender sebagai keterangan bahwa master belum terisi"
+    },
+    {
+      "scenario": "Cakupan pencatatan dibaca lebih dulu",
+      "given": "Periode terpilih punya 2 presser, 10 hari terhitung, dan sebagian slot terisi",
+      "when": "Pengguna melihat laporan",
+      "then": "Cakupan slot terisi terhadap slot yang diharapkan beserta persennya tampil di bagian paling atas, di atas seluruh kartu parameter, lengkap dengan jumlah presser, jumlah hari, dan 24 slot kanonis per hari"
+    },
+    {
+      "scenario": "Periode belum mulai",
+      "given": "Ringkasan memulangkan persen cakupan null dengan hari terhitung nol dan penanda periode berjalan true",
+      "when": "Pengguna melihat cakupan pencatatan",
+      "then": "Persen cakupan dirender sebagai tanda pisah bukan 0%, dan keterangan “periode belum mulai” yang tampil — bukan keterangan “dihitung sampai hari ini”"
+    },
+    {
+      "scenario": "Periode berjalan",
+      "given": "Ringkasan memulangkan penanda periode berjalan dengan hari terhitung lebih kecil daripada hari periode",
+      "when": "Pengguna melihat cakupan pencatatan",
+      "then": "Sistem menyatakan bahwa penyebutnya berhenti di hari ini karena periode masih berjalan"
+    },
+    {
+      "scenario": "Rekap per presser memakai presser_id sebagai nama unit",
+      "given": "Ringkasan memulangkan dua baris per presser dengan jumlah hari yang berbeda",
+      "when": "Pengguna melihat rekap per presser",
+      "then": "Setiap baris menampilkan jumlah hari dan jumlah slot terisinya sendiri"
+    },
+    {
+      "scenario": "Alasan downtime dikelompokkan harfiah",
+      "given": "Ringkasan memulangkan dua ejaan berbeda untuk sebab yang sama",
+      "when": "Pengguna melihat daftar alasan downtime",
+      "then": "Kedua ejaan tampil sebagai dua baris beserta jumlah slot masing-masing, dan layar menyatakan bahwa pengelompokan dilakukan harfiah"
+    },
+    {
+      "scenario": "Tidak ada alasan downtime tercatat",
+      "given": "Ringkasan memulangkan daftar alasan downtime kosong sementara periode berdata",
+      "when": "Pengguna melihat bagian downtime",
+      "then": "Sistem menampilkan keterangan bahwa tidak ada alasan tercatat, bukan tabel kosong tanpa penjelasan"
+    },
+    {
+      "scenario": "Periode tanpa data",
+      "given": "Ringkasan memulangkan penanda tidak ada data",
+      "when": "Pengguna memilih periode itu",
+      "then": "Sistem menampilkan keterangan periode belum punya data, merender seluruh angka sebagai tidak tersedia alih-alih 0, tetap menampilkan cakupan pencatatan, dan tidak menggambar rekap harian, rekap per presser maupun daftar downtime"
+    },
+    {
+      "scenario": "Rekap harian tertutup secara bawaan",
+      "given": "Periode terpilih punya belasan hari bercatatan",
+      "when": "Pengguna melihat laporan lalu membuka dan menutup rekap harian",
+      "then": "Rekap harian tertutup saat laporan pertama tampil, membuka dan menutupnya tidak memicu satu pun permintaan jaringan, dan tabelnya menggulir di dalam kartunya sendiri tanpa menggeser halaman"
+    },
+    {
+      "scenario": "Line dari alamat tile dipakai dan diingat",
+      "given": "Mill punya dua Production Line dan perangkat sudah mengingat salah satunya",
+      "when": "Pengguna mendarat di layar ini dari tile Reporting yang membawa line yang lain",
+      "then": "Sistem memakai line dari alamat itu dan memperbarui ingatan perangkat menjadi line tersebut"
+    },
+    {
+      "scenario": "Ingatan perangkat dipakai tanpa diminta memilih lagi",
+      "given": "Mill punya dua Production Line dan perangkat mengingat salah satunya milik pengguna ini",
+      "when": "Pengguna membuka layar ini tanpa parameter line pada alamat",
+      "then": "Sistem memakai line yang diingat itu dan tidak menampilkan arahan memilih line"
+    },
+    {
+      "scenario": "Ingatan perangkat milik pengguna lain tidak dipakai",
+      "given": "Perangkat menyimpan ingatan line untuk dua pengguna berbeda",
+      "when": "Salah satu dari keduanya membuka layar ini",
+      "then": "Sistem memakai ingatan milik pengguna ITU, bukan milik pengguna lain"
+    },
+    {
+      "scenario": "Line yang diingat sudah tidak ada",
+      "given": "Line yang diingat perangkat tidak lagi ada pada daftar line mill itu",
+      "when": "Pengguna membuka layar ini dan memilih sebuah periode",
+      "then": "Sistem menampilkan arahan memilih line, tidak mengirim permintaan ringkasan sama sekali, dan tidak menebak line lain"
+    },
+    {
+      "scenario": "Penyimpanan perangkat tidak dapat dibaca",
+      "given": "Penyimpanan lokal perangkat menolak dibaca, misalnya pada mode privat",
+      "when": "Pengguna membuka layar ini",
+      "then": "Layar tetap tampil tanpa galat dan memperlakukan keadaan itu sebagai tidak ada ingatan line"
+    },
+    {
+      "scenario": "Mill belum punya Production Line",
+      "given": "Mill yang berlaku belum punya satu pun Production Line",
+      "when": "Pengguna membuka layar ini",
+      "then": "Sistem menampilkan arahan menghubungi Admin tanpa tombol coba lagi"
+    },
+    {
+      "scenario": "Daftar Production Line gagal dimuat",
+      "given": "Jaringan ke server terputus saat daftar line diminta",
+      "when": "Pengguna membuka layar ini",
+      "then": "Sistem menampilkan pesan yang berbeda dari keadaan mill belum punya line, menyediakan tombol coba lagi khusus daftar line, dan tidak menampilkan pesan galat laporan"
+    },
+    {
+      "scenario": "Mill belum punya periode yang mencakup Pressing",
+      "given": "Mill yang berlaku belum punya satu pun periode yang mendaftarkan Pressing",
+      "when": "Pengguna membuka layar ini",
+      "then": "Sistem tetap menampilkan pemilih periode dalam keadaan kosong beserta arahan menghubungi Admin, dan selama daftarnya masih dimuat yang tampil adalah indikator muat bukan keterangan belum punya periode"
+    },
+    {
+      "scenario": "Periode tertutup tetap dapat dibaca dan diekspor",
+      "given": "Periode terpilih berstatus Tertutup untuk stasiun Pressing",
+      "when": "Pengguna memilih periode itu",
+      "then": "Laporan tampil penuh dengan badge Tertutup dan tombol Ekspor tetap aktif"
+    },
+    {
+      "scenario": "Ekspor CSV tersimpan di perangkat",
+      "given": "Pengguna sudah memilih periode dan line yang berlaku",
+      "when": "Pengguna menekan Ekspor",
+      "then": "Sistem meminta berkas CSV untuk periode dan line itu lalu menyimpannya di perangkat dengan nama yang memuat slug periode"
+    },
+    {
+      "scenario": "Ketukan ganda pada Ekspor hanya menghasilkan satu berkas",
+      "given": "Pengguna sudah memilih periode dan line yang berlaku",
+      "when": "Pengguna menekan Ekspor dua kali berturut-turut",
+      "then": "Hanya satu permintaan ekspor dikirim, dan tombolnya dinonaktifkan beserta label sedang mengekspor sampai berkasnya selesai"
+    },
+    {
+      "scenario": "Nama berkas mengikuti periode yang diekspor",
+      "given": "Sebuah ekspor sedang berjalan untuk periode pertama",
+      "when": "Pengguna mengganti periode sebelum unduhan selesai",
+      "then": "Nama berkas yang tersimpan mengikuti periode yang isinya benar-benar diekspor"
+    },
+    {
+      "scenario": "Kegagalan jaringan saat memuat ringkasan",
+      "given": "Jaringan terputus saat ringkasan diminta",
+      "when": "Pengguna memilih sebuah periode",
+      "then": "Sistem menampilkan pesan kegagalan dan tombol coba lagi, periode yang dipilih tidak hilang, dan menekan coba lagi memuat ulang periode yang sama"
+    },
+    {
+      "scenario": "Sesi berakhir saat memuat ringkasan",
+      "given": "Sesi pengguna sudah tidak berlaku di server",
+      "when": "Pengguna memilih sebuah periode",
+      "then": "Pengguna diarahkan ke layar Login tanpa pesan kegagalan jaringan dan tanpa tombol coba lagi"
+    },
+    {
+      "scenario": "Hanya jawaban permintaan terbaru yang berlaku",
+      "given": "Pengguna memilih satu periode lalu memilih periode lain sebelum jawaban pertama tiba",
+      "when": "Jawaban permintaan pertama tiba belakangan",
+      "then": "Angka di layar tetap milik periode terakhir yang dipilih, dan jawaban yang basi — termasuk galatnya — diabaikan"
+    },
+    {
+      "scenario": "Tile Pressing pada Reporting aktif",
+      "given": "Pengguna sudah masuk pada aplikasi mobile",
+      "when": "Pengguna membuka Reporting dan menekan tile Pressing",
+      "then": "Sistem menavigasi ke layar Laporan Pressing, bukan menampilkan keterangan belum tersedia"
+    },
+    {
+      "scenario": "Layar hanya membaca",
+      "given": "Pengguna sudah membuka laporan sebuah periode berdata",
+      "when": "Pengguna menelusuri seluruh kontrol di layar",
+      "then": "Hanya ada pemilih, Ekspor, dan navigasi — tidak ada satu pun kontrol yang menambah, mengubah, atau menghapus data stasiun"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-151--laporan-pressing-mobile"
+  ]
+}

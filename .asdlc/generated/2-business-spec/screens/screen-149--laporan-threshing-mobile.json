@@ -1,0 +1,171 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-149--laporan-threshing-mobile",
+  "name": "Laporan Threshing (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Versi mobile dari Laporan Threshing (screen-148), read-only, tata letak layar sempit, dicapai dari Reporting (screen-141). Memakai ULANG keempat endpoint /api/threshing-reports/* tanpa satu pun perubahan backend — ketiga rute data sudah menerima Operator sejak endpoint itu dibangun, karena kedua layar direncanakan dalam satu seri. Pola yang sama sudah terbukti pada pasangan screen-146/147; pasangan Weighbridge (143/144) harus menambal tiga perubahan akses menyusul justru karena layar web-nya dibangun sebelum pasangan mobile-nya diketahui.\n\nYANG BERUBAH DARI VERSI WEB HANYALAH BENTUKNYA, BUKAN ANGKANYA. Tabel tujuh kolom milik layar web tidak muat pada lebar 390px, jadi tiap parameter menjadi KARTU bertumpuk: min, rata-rata, maks, penyebut, standar operasional, dan rencana tindakan disusun vertikal dalam satu kartu. Apa yang tidak boleh ikut berubah justru itulah yang paling mudah hilang di layar sempit:\n\n1. PENYEBUT TIAP RATA-RATA TETAP TERCETAK. Pada layar sempit kolom penyebut adalah hal pertama yang dikorbankan demi ruang, dan tanpanya rata-rata sebuah parameter terbaca sebagai angka seluruh periode. Kelima kolom ukur nullable dan terisi saling bebas, jadi penyebutnya memang berbeda-beda.\n\n2. CAKUPAN PENCATATAN TETAP PALING ATAS, berikut ketiga angka pembentuk penyebutnya. Periode yang terisi seperlima pun menghasilkan rata-rata yang terlihat rapi, dan di layar sempit pembaca melihat lebih sedikit sekaligus — justru karena itu urutannya lebih menentukan, bukan kurang.\n\n3. STANDAR OPERASIONAL TETAP MENYERTAI ANGKANYA, pada kartu yang sama. Memindahkannya ke bagian terpisah akan membuang satu-satunya keunggulan yang diberikan master target: penilaian manusia terjadi di tempat angkanya dibaca.\n\n4. KETIADAAN PENANDAAN DI LUAR BATAS TETAP DINYATAKAN, dengan sebab yang sama seperti versi web: standard_operational_target adalah teks bebas, dan mengubah prosa menjadi pembanding berarti mengarang batas yang tidak pernah ditetapkan siapa pun.\n\n5. STANDAR YANG BELUM DIUKUR SISTEM TETAP DITAMPILKAN. Master memuat enam parameter untuk lima kolom ukur, dan membuang baris yang tak terukur di layar sempit akan membuat standar yang tidak pernah diukur tampak terpenuhi.\n\nNOL PERHITUNGAN DI KLIEN: seluruh angka dipakai apa adanya dari ringkasan, termasuk persen cakupan dan rata-rata per hari maupun per thresher.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Reporting (screen-141) → tile Threshing, yang sekaligus membawa Production Line yang sedang berlaku",
+    "Kembali ke layar ini dengan Production Line yang sama masih diingat perangkat"
+  ],
+  "information_displayed": [
+    "Nama mill yang sedang berlaku, dibaca dari blok business_unit pada ringkasan — selalu terlihat, supaya angka di layar tidak pernah terbaca tanpa konteksnya",
+    "Pemilih Mill — hanya untuk Admin; peran yang terikat satu mill hanya melihat nama mill akunnya",
+    "Nama Production Line yang sedang berlaku; pemilihnya hanya tampil bila mill punya lebih dari satu line dan belum ada yang berlaku",
+    "Pemilih Periode Pelaporan — hanya periode yang mendaftarkan stasiun Threshing, beserta status Threshing pada periode itu",
+    "Badge status periode: Draft / Terbuka / Tertutup, beserta rentang tanggalnya",
+    "CAKUPAN PENCATATAN, paling atas: slot terisi, slot yang diharapkan, dan persennya — beserta jumlah thresher yang beroperasi, jumlah hari yang dihitung, dan 24 slot kanonis per thresher per hari",
+    "Keterangan bahwa penyebut hari berhenti di hari ini bila periode masih berjalan; atau bahwa periode belum mulai sehingga persennya '—' bukan 0%",
+    "Kartu per parameter — satu kartu per kolom ukur, memuat min, rata-rata, maks, JUMLAH SLOT penyebutnya, standar operasional, dan rencana tindakan bila menyimpang",
+    "Keterangan bahwa laporan ini tidak menandai satu nilai pun sebagai di luar batas, beserta sebabnya (standar berupa teks bebas), dan bahwa standar berlaku umum untuk seluruh mill",
+    "Daftar standar yang belum punya kolom pengukuran pada formulir, beserta keterangannya",
+    "Rekap per thresher — satu baris per thresher_id: jumlah hari, jumlah slot terisi, dan rata-rata tiap kolom ukur",
+    "Daftar alasan downtime beserta jumlah slot yang mencatatnya, dan keterangan bahwa pengelompokannya harfiah",
+    "Jumlah record, jumlah hari bercatatan, jumlah record draft, jumlah yang belum diperiksa, dan jumlah yang belum disahkan",
+    "Rekap per hari — dapat dibuka/tutup, tertutup secara bawaan karena periode sebulan menghasilkan puluhan baris; tabelnya menggulir di dalam kartunya sendiri",
+    "Keterangan periode kosong bila tidak ada satu slot pun terisi — dengan cakupan pencatatan TETAP ditampilkan",
+    "Tombol Ekspor (CSV) dan tombol Back"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Mill",
+      "description": "Hanya untuk Admin. Mengganti mill mengosongkan Production Line dan periode yang terpilih, karena keduanya milik mill sebelumnya.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Hanya tampil bila mill punya lebih dari satu line dan belum ada yang berlaku. Line yang dipilih disimpan sebagai ingatan perangkat milik pengguna itu.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka, dan hanya jawaban permintaan terbaru yang boleh menulis ke layar.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka / Tutup Rekap Harian",
+      "description": "Menyingkap atau menyembunyikan tabel rekap per hari. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh seluruh slot periode dan line terpilih sebagai CSV lalu menyimpannya di perangkat. Ketukan ganda hanya menghasilkan satu berkas.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Coba Lagi",
+      "description": "Memuat ulang ringkasan setelah kegagalan jaringan, pada periode yang sama. Daftar Production Line punya tombol coba lagi tersendiri.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Dashboard & Reporting.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Memakai ULANG keempat endpoint /api/threshing-reports/* milik screen-148 — nol endpoint baru, nol perubahan backend.",
+    "Endpoint daftar mill tetap Admin saja, dan layar ini tidak pernah memanggilnya untuk peran terikat satu mill: menyerahkan daftar seluruh mill ke perangkat yang tidak berhak adalah kebocoran, bukan ketidaknyamanan.",
+    "NOL perhitungan di klien. Seluruh angka dipakai apa adanya dari ringkasan.",
+    "Production Line WAJIB berlaku sebelum satu angka pun ditampilkan, dan penjagaannya ada di fungsi pemuat ringkasan — bukan hanya di tampilan.",
+    "Urutan penentuan line: parameter alamat → ingatan perangkat → satu-satunya line → tidak ada. Ingatan perangkat dipisah per pengguna dan dibagi dengan layar Daftar Stasiun.",
+    "Kegagalan membaca atau menulis penyimpanan perangkat diperlakukan sebagai 'tidak ada ingatan', bukan sebagai galat.",
+    "Setiap rata-rata menampilkan penyebutnya sendiri, tercetak apa adanya sebagai 'N dari M slot'.",
+    "Cakupan pencatatan ditampilkan DI ATAS seluruh angka lain.",
+    "Persen cakupan yang null dirender '—', bukan 0%.",
+    "Nilai yang tidak tersedia dirender sebagai keterangan bergaya non-angka, bukan sebagai 0, supaya tidak pernah terbaca sekilas sebagai bilangan.",
+    "Kartu parameter tanpa satu pun pembacaan TETAP dirender, dengan standar operasionalnya tetap tampil.",
+    "Standar operasional dan rencana tindakan berada pada kartu yang sama dengan angkanya.",
+    "TIDAK ADA penandaan otomatis di luar batas, dan ketiadaannya dinyatakan di layar.",
+    "Standar yang belum punya kolom pengukuran tetap ditampilkan pada bagiannya sendiri.",
+    "Alasan downtime dikelompokkan harfiah oleh server; layar menyatakan hal itu dan tidak menormalkannya sendiri.",
+    "Record draft ikut terhitung dan jumlahnya dinyatakan; status pemeriksaan adalah kelengkapan, bukan penyaring.",
+    "Periode tertutup tetap dapat dibaca dan diekspor.",
+    "Ekspor hanya CSV. Nama berkas mengikuti periode yang DIEKSPOR, bukan periode yang terpilih saat berkas selesai.",
+    "Hanya jawaban permintaan terbaru yang boleh menulis angka ke layar — jawaban basi diabaikan, termasuk galatnya.",
+    "Tata letak satu kolom: tidak ada dua kartu angka berdampingan mendatar, halaman tidak pernah menggulir mendatar, sasaran sentuh minimal 44px, dan tabel yang lebih lebar daripada layar menggulir DI DALAM kartunya sendiri."
+  ],
+  "usecase_ids": [
+    "usecase-152--laporan-threshing-mobile"
+  ],
+  "edge_cases": [
+    "Production Line belum berlaku — pemilih line tampil, tidak ada satu angka pun, dan tidak ada permintaan ringkasan yang dikirim.",
+    "Mill tanpa Production Line — arahan menghubungi Admin, tanpa tombol coba lagi.",
+    "Daftar Production Line gagal dimuat — pesan berbeda, dengan tombol coba lagi sendiri, dan tidak menyamar sebagai galat laporan.",
+    "Admin belum memilih mill — daftar line dan periode tidak dimuat sama sekali.",
+    "Akun terikat mill tanpa business_unit_id — arahan menghubungi Admin, dan endpoint daftar mill tidak pernah dipanggil.",
+    "Pemilih mill ditolak server (403) — pemilihnya tidak dirender sama sekali, dengan keterangan.",
+    "Mill belum punya periode yang mencakup Threshing — pemilih tetap ada dalam keadaan kosong, disertai arahan.",
+    "Daftar periode masih dimuat — indikator muat, bukan keterangan 'belum punya periode'.",
+    "Periode tanpa satu slot terisi — keterangan periode kosong, seluruh angka 'tidak tersedia', cakupan tetap tampil, rekap dan downtime tidak digambar.",
+    "Satu kolom ukur kosong sepanjang periode — kartunya tetap ada, angkanya 'tidak tersedia', penyebut 0 slot, standar tetap tampil.",
+    "Satu kolom ukur terisi tepat satu slot — min, rata-rata dan maks sama, dan penyebut 1 slot menjelaskan mengapa.",
+    "Dua kolom dengan penyebut yang sangat berbeda — keduanya tercetak apa adanya pada kartunya masing-masing.",
+    "Persen cakupan null — dirender '—', bukan 0%.",
+    "Periode berjalan — keterangan penyebut berhenti di hari ini.",
+    "Master target kosong — angka ukur tetap tampil, kolom standar dirender sebagai keterangan.",
+    "Daftar standar tanpa kolom ukur kosong — bagiannya tidak digambar, dan itu bukan kekeliruan: bentuk itu hanya muncul bila master memang selaras dengan formulir.",
+    "Alasan downtime kosong — keterangan, bukan tabel kosong.",
+    "Dua ejaan alasan downtime untuk sebab yang sama — dua baris, dengan keterangan bahwa pengelompokannya harfiah.",
+    "Periode tertutup — laporan penuh, badge Tertutup, ekspor tetap aktif.",
+    "Ingatan line milik pengguna lain — tidak dipakai.",
+    "Ingatan line sudah tidak ada pada daftar — pemilih tampil lagi tanpa menebak line lain.",
+    "Penyimpanan perangkat menolak dibaca — layar tetap tampil, diperlakukan sebagai tidak ada ingatan.",
+    "Admin mengganti mill — line dan periode dikosongkan, dan tidak ada angka mill lama yang bertahan di layar.",
+    "Ketukan ganda pada Ekspor — satu permintaan, tombol dinonaktifkan dengan label sedang mengekspor.",
+    "Periode berganti saat ekspor berjalan — nama berkas mengikuti periode yang isinya diekspor.",
+    "Periode dikosongkan saat ringkasan masih dimuat — tidak ada angka yang muncul kemudian.",
+    "Jaringan gagal — pesan dan tombol coba lagi; periode terpilih tidak hilang.",
+    "Sesi berakhir — diarahkan ke Login tanpa pesan jaringan.",
+    "Jawaban permintaan lama tiba belakangan — diabaikan, termasuk galatnya."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Ekspor .xlsx tidak tersedia di layar mobile (hanya CSV), sementara layar web screen-148 menawarkan keduanya. Disengaja dan sama dengan ketujuh laporan mobile lain: menyimpan dan membuka .xlsx di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini.",
+    "Rekap harian versi mobile menampilkan kelima kolom rata-rata dalam satu tabel yang menggulir mendatar di dalam kartunya. Belum diputuskan apakah pada layar sempit lebih berguna memecahnya menjadi satu kartu per hari; bentuk tabel dipilih lebih dulu karena ia sejajar dengan versi web dan membuat perbandingan antar hari tetap mungkin.",
+    "Sama dengan screen-148: bila master target dipecah menjadi batas numerik, layar ini perlu ditinjau ulang bersamaan dengan versi web agar penyimpangan dapat ditandai — dan keputusan warna/severity-nya perlu disepakati lebih dulu."
+  ]
+}

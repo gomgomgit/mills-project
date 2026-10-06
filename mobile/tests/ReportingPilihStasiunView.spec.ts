@@ -18,7 +18,14 @@
  * ada khusus untuk menjatuhkannya, dengan fixture yang sengaja dibuat
  * "tidak realistis":
  *
- *   - 'threshing' dengan isActive = true → tile WAJIB nonaktif (kodenya
+ * CONTOH "LAPORAN BELUM DIBANGUN" SUDAH DUA KALI DIPINDAHKAN, dan keduanya
+ * karena laporannya memang dibangun: Weighbridge -> Engine Room pada
+ * screen-144, lalu Threshing -> Process Water pada screen-149 (2026-10-06).
+ * Dipindahkan, BUKAN dihapus: bila Process Water pun dibuatkan laporan
+ * mobile, spec ini akan gagal lagi — dan itu benar, karena ia memaksa
+ * contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
+ *
+ *   - 'process-water' dengan isActive = true → tile WAJIB nonaktif (kodenya
  *     tidak ada di REPORT_ROUTES).
  *   - 'sterilizer' dengan isActive = false → tile WAJIB tetap tersedia dan
  *     tetap bernavigasi (kodenya ada di REPORT_ROUTES).
@@ -133,7 +140,7 @@ function makeStation(overrides: Partial<StationSlot> & { id: string }): StationS
  */
 const THREE_STATIONS: StationSlot[] = [
   makeStation({ id: 'st-1', name: 'Sterilizer Lini A', type: 'sterilizer', isActive: true }),
-  makeStation({ id: 'st-2', name: 'Threshing Lini A', type: 'threshing', isActive: true }),
+  makeStation({ id: 'st-2', name: 'Process Water Lini A', type: 'process-water', isActive: true }),
   makeStation({ id: 'st-3', name: 'Pressing Lini A', type: 'pressing', isActive: true }),
 ]
 
@@ -181,8 +188,8 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(tiles).toHaveLength(3)
     expect(tiles[0].attributes('data-testid')).toBe('station-tile-sterilizer')
     expect(tiles[0].text()).toContain('Sterilizer Lini A')
-    expect(tiles[1].attributes('data-testid')).toBe('station-tile-threshing')
-    expect(tiles[1].text()).toContain('Threshing Lini A')
+    expect(tiles[1].attributes('data-testid')).toBe('station-tile-process-water')
+    expect(tiles[1].text()).toContain('Process Water Lini A')
     expect(tiles[2].attributes('data-testid')).toBe('station-tile-pressing')
     expect(tiles[2].text()).toContain('Pressing Lini A')
   })
@@ -231,19 +238,19 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // `isActive && REPORT_ROUTES[type]` lolos tanpa terdeteksi.
   it('menandai tile nonaktif bila kodenya tidak ada di REPORT_ROUTES MESKIPUN isActive=true', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Threshing', type: 'threshing', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
     ])
 
-    const tile = wrapper.get('[data-testid="station-tile-threshing"]')
+    const tile = wrapper.get('[data-testid="station-tile-process-water"]')
     expect(tile.attributes('aria-disabled')).toBe('true')
     expect(tile.text()).toContain('Belum tersedia')
     expect(tile.classes()).toContain('station-tile--unavailable')
 
     // Ditekan pun hanya mengisi pesan — tidak berpindah rute.
     await tile.trigger('click')
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Threshing belum tersedia di aplikasi mobile.')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Process Water belum tersedia di aplikasi mobile.')
     expect(pushMock).not.toHaveBeenCalled()
-    expect(wrapper.find('[data-testid="station-tile-threshing"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="station-tile-process-water"]').exists()).toBe(true)
   })
 
   // unit_test_case 4.
@@ -348,7 +355,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
 
     const wrapper = await mountWithStations(THREE_STATIONS)
 
-    await wrapper.get('[data-testid="station-tile-threshing"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-process-water"]').trigger('click')
     await wrapper.get('[data-testid="station-tile-sterilizer"]').trigger('click')
     await flushPromises()
 
@@ -441,19 +448,19 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // unit_test_case 10 + Scenario "Menekan stasiun yang belum tersedia".
   it('scenario: menekan stasiun yang belum tersedia — mengisi pesan dan tidak berpindah rute', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Threshing', type: 'threshing', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
     ])
 
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
 
-    await wrapper.get('[data-testid="station-tile-threshing"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-process-water"]').trigger('click')
 
     const infoMessage = wrapper.get('[data-testid="info-message"]')
-    expect(infoMessage.text()).toBe('Laporan Threshing belum tersedia di aplikasi mobile.')
+    expect(infoMessage.text()).toBe('Laporan Process Water belum tersedia di aplikasi mobile.')
     expect(infoMessage.attributes('role')).toBe('status')
     expect(pushMock).not.toHaveBeenCalled()
 
-    const tile = wrapper.get('[data-testid="station-tile-threshing"]')
+    const tile = wrapper.get('[data-testid="station-tile-process-water"]')
     expect(tile.attributes('aria-disabled')).toBe('true')
     expect(tile.text()).toContain('Belum tersedia')
   })
@@ -463,21 +470,21 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // bentuk konkret dari aturan "pesan tidak menumpuk".
   it('scenario: menekan berkali-kali — pesan tidak pernah menumpuk, hanya tertimpa', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Threshing', type: 'threshing', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
       makeStation({ id: 'st-3', name: 'Pressing', type: 'pressing', isActive: true }),
     ])
 
-    const threshing = wrapper.get('[data-testid="station-tile-threshing"]')
-    await threshing.trigger('click')
+    const unbuilt = wrapper.get('[data-testid="station-tile-process-water"]')
+    await unbuilt.trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.findAll('[data-testid="info-message"]')).toHaveLength(1)
-    await threshing.trigger('click')
+    await unbuilt.trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.findAll('[data-testid="info-message"]')).toHaveLength(1)
-    await threshing.trigger('click')
+    await unbuilt.trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.findAll('[data-testid="info-message"]')).toHaveLength(1)
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Threshing belum tersedia di aplikasi mobile.')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Process Water belum tersedia di aplikasi mobile.')
 
     await wrapper.get('[data-testid="station-tile-pressing"]').trigger('click')
     await wrapper.vm.$nextTick()
@@ -530,7 +537,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(wrapper.get('[data-testid="station-grid"]').exists()).toBe(true)
     expect(wrapper.findAll('[data-testid^="station-tile-"]')).toHaveLength(3)
     expect(wrapper.get('[data-testid="station-tile-sterilizer"]').attributes('aria-disabled')).toBe('false')
-    expect(wrapper.get('[data-testid="station-tile-threshing"]').attributes('aria-disabled')).toBe('true')
+    expect(wrapper.get('[data-testid="station-tile-process-water"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.get('[data-testid="station-tile-pressing"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="no-stations"]').exists()).toBe(false)
@@ -544,7 +551,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   it('scenario: stasiun belum tersedia tidak disembunyikan — 5 StationSlot menghasilkan 5 tile, 4 nonaktif', async () => {
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
-      makeStation({ id: 'st-2', name: 'Threshing', type: 'threshing', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
       makeStation({ id: 'st-3', name: 'Pressing', type: 'pressing', isActive: true }),
       makeStation({ id: 'st-4', name: 'Depricarping', type: 'depricarping', isActive: true }),
       makeStation({ id: 'st-5', name: 'Kernel Plant', type: 'kernel-plant', isActive: true }),
@@ -567,7 +574,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   it('tidak memakai atribut disabled native di mana pun pada grid', async () => {
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
-      makeStation({ id: 'st-2', name: 'Threshing', type: 'threshing', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
       makeStation({ id: 'st-3', name: 'Pressing', type: 'pressing', isActive: false }),
     ])
 
@@ -614,7 +621,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       expect(tiles.map((tile) => tile.attributes('aria-disabled'))).toEqual(['false', 'true', 'true'])
       expect(tiles.map((tile) => tile.attributes('data-testid'))).toEqual([
         'station-tile-sterilizer',
-        'station-tile-threshing',
+        'station-tile-process-water',
         'station-tile-pressing',
       ])
       expect(wrapper.text()).not.toMatch(/akses ditolak|tidak diizinkan|forbidden/i)
@@ -626,13 +633,13 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // sisa teks Inggris pada label yang ditulis layar ini sendiri.
   it('menulis seluruh teks layar dalam Bahasa Indonesia', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Threshing', type: 'threshing', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
     ])
 
-    await wrapper.get('[data-testid="station-tile-threshing"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-process-water"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="station-tile-threshing"]').text()).toContain('Belum tersedia')
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Threshing belum tersedia di aplikasi mobile.')
+    expect(wrapper.get('[data-testid="station-tile-process-water"]').text()).toContain('Belum tersedia')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Process Water belum tersedia di aplikasi mobile.')
     expect(wrapper.text()).not.toMatch(/not available|no stations|loading\b/i)
   })
 })

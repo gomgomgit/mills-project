@@ -1,0 +1,100 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-149--laporan-threshing-mobile",
+  "name": "Laporan Threshing (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/threshingReportRepo.ts",
+    "mobile/src/views/LaporanThreshingView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/threshingReportRepo.spec.ts",
+    "mobile/tests/LaporanThreshingView.spec.ts",
+    "mobile/tests/e2e/laporan-threshing.spec.ts",
+    "mobile/tests/ReportingPilihStasiunView.spec.ts"
+  ],
+  "implementation_notes": [
+    "NOL PERUBAHAN BACKEND — BUKAN KEBETULAN, MELAINKAN HASIL DARI screen-148. Keempat endpoint /api/threshing-reports/* dipakai ulang apa adanya: rutenya sudah 'role:supervisor,mill_management,admin,operator' sejak hari pertama, guardAccess() sudah menerima Operator, dan cabang TERIKAT MILL pada resolveBusinessUnit() sudah memuatnya. Pola yang terbukti pada pasangan screen-146/147; pasangan Weighbridge (143 → 144) harus menambal tiga perubahan sekaligus justru karena layar web-nya dibangun sebelum pasangan mobile-nya diketahui. Berkas backend yang disentuh layar ini: tidak ada.",
+    "KONSEKUENSI: tidak ada test backend baru dan tidak ada test backend yang berubah arah. Suite backend dijalankan utuh sebagai regresi (4801 lolos pada commit screen-148), bukan sebagai bukti layar ini.",
+    "TABEL TUJUH KOLOM MENJADI KARTU, dan itu satu-satunya perubahan bentuk yang disengaja. Pada lebar 390px tabel parameter versi web tidak muat tanpa menggulir mendatar, jadi tiap parameter menjadi kartu bertumpuk: min / rata-rata / maks berdampingan di dalam satu kartu (bukan tiga kartu — ketiganya satu pengukuran dilihat dari tiga sisi), lalu penyebut, standar operasional, dan rencana tindakan. Yang TIDAK ikut berubah adalah daftar isinya; memotong kolom penyebut atau kolom standar demi ruang adalah kehilangan yang paling mudah terjadi dan paling sulit terlihat.",
+    "PENYEBUT TIAP KARTU TERCETAK APA ADANYA sebagai 'N dari M slot'. Fixture test sengaja memberi lima penyebut BERBEDA (2, 10, 0, 7, 1) atas 10 slot terisi — dengan penyebut yang seragam, satu penyebut bersama akan lolos tanpa terlihat. Diasersi di component test (lima teks berbeda) dan di browser test (allInnerTexts atas kelima kartu).",
+    "CAKUPAN TETAP PALING ATAS, dan posisinya diuji dua kali dengan cara yang berbeda: di component test atas URUTAN DOM (indexOf), dan di browser test atas POSISI KOTAK DI VIEWPORT (boundingBox().y). Di layar sempit pembaca melihat lebih sedikit sekaligus, jadi apa yang dilihat lebih dulu menentukan lebih banyak.",
+    "URUTAN CABANG KETERANGAN CAKUPAN SUDAH BENAR SEJAK BARIS PERTAMA: days_counted DIPERIKSA SEBELUM period_running. ReportPeriodDays::isRunning() di server juga true untuk periode yang BELUM MULAI (tanggal akhirnya masih di masa depan), jadi memeriksa period_running lebih dulu membuat keterangan 'belum mulai' tidak pernah terender. Kekeliruan itu nyata terjadi pada laporan Grading (web + mobile) dan Weighbridge (mobile) dan diperbaiki pada commit screen-148; layar ini dibangun dengan urutan yang sudah benar, dan ada test yang mengunci kasus days_counted 0 BERSAMA period_running true.",
+    "KETIADAAN PENANDAAN DI LUAR BATAS DIUJI ATAS NAMA KELAS, bukan atas frasa — kalimat yang menyatakan ketiadaannya sendiri memuat frasa 'di luar batas'. Pelajaran yang harganya sudah dibayar empat kali: screen-146 (Livewire), screen-147 (browser mobile), screen-148 (Livewire + browser web), dan kini di sini. Asersinya: ketiadaan .md-threshold / .is-danger / .is-warning / .md-chip--danger, ditambah kehadiran empat frasa kunci kalimat penjelasnya.",
+    "KARTU PARAMETER TANPA PEMBACAAN TETAP DIRENDER, dengan angka 'tidak tersedia', penyebut 0 slot, dan standarnya tetap tampil. Fixture memberi satu kolom (Arus Motor) yang tidak pernah terisi justru supaya bentuk ini dapat diasersi — kartu yang hilang terbaca sebagai 'tidak ada parameter ini', padahal yang benar adalah 'tidak ada yang mengukurnya'.",
+    "LAPISAN KLIEN: threshingReportRepo.ts sejajar ketujuh repo laporan lain — scopeParams() tidak pernah mengirim business_unit_id untuk peran terikat mill (dan ada test yang menjalankan ketiga bentuk 'bukan Admin'), productionLineParams() hanya mengirim ke /summary dan /export, dan unwrap() menerima respons dengan maupun tanpa pembungkus 'data'.",
+    "NOL ARITMETIKA DI KLIEN, DAN FIXTURE TEST YANG MEMBUKTIKANNYA. Angka pada threshingReportRepo.spec.ts sengaja dibuat BERTENTANGAN dengan sumbernya: coverage_percent 88 padahal 96/480 = 20; metrics[0].avg 12,5 padahal min 10 dan max 11 (di luar rentangnya sendiri — mustahil dari perhitungan apa pun); filled_slot_count 2 padahal filled_slots 96; daily_total.filled_slot_count 99 padahal baris hariannya 3 + 4. Repo yang menghitung sendiri PASTI gagal; dengan payload yang konsisten, separuh berkas itu menjadi test yang selalu hijau.",
+    "SATU KEJANGGALAN YANG BENAR, DICATAT DI TIGA TEMPAT (docblock repo, docblock view, dan satu test): coverage.filled_slots BISA LEBIH BESAR daripada penyebut kolom ukur mana pun. Slot dihitung terisi bila salah satu dari ENAM kolom bacaan terisi, dan kolom keenam adalah downtime_reason. Dicatat supaya pembaca berikutnya tidak 'memperbaiki' selisih yang memang benar.",
+    "DAFTAR KUNCI RINGKASAN DIKUNCI SATU TEST (Object.keys(summary).sort()), bersama penyisiran atas kunci penilaian (severity / is_out_of_range / flag / threshold / breach). Kunci yang hilang terlihat sebagai kegagalan, bukan sebagai bagian layar yang diam-diam kosong — dan kunci penilaian yang muncul terlihat sebagai kegagalan pula, yang menjaga kelalaian yang disengaja itu tidak 'dilengkapi' belakangan.",
+    "ALASAN DOWNTIME TIDAK DINORMALKAN DI KLIEN, dan ada dua test untuknya: satu mengasersi dua ejaan tetap dua entri, satu lagi mengasersi urutan server dipertahankan apa adanya. Normalisasi di klien akan menggabungkan sebab yang penulisnya memang maksudkan berbeda DAN membuat layar ini berselisih dengan laporan web yang memakai sumber yang sama.",
+    "PRODUCTION LINE WAJIB, dijaga di FUNGSI loadSummary() bukan hanya di template — supaya jalur coba-lagi, ganti periode, dan ganti mill tidak melewatinya. Ingatan line (msl_production_line_{userId}) dibagi dengan StationListView, urutan penyelesaian rute → ingatan → satu-satunya line → tidak ada, dan kegagalan penyimpanan (mode privat) diperlakukan sebagai 'tidak ada ingatan'.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri 'threshing' pada REPORT_ROUTES di ReportingPilihStasiunView.vue, dengan browser test yang menekan tile itu LEWAT KLIK (bukan page.goto — tabel station lokal hidup di memori sql.js dan hilang pada tiap muat ulang) setelah menyemai station lokal.",
+    "VIEWPORT 390x844 PADA BROWSER TEST, bukan 1280px bawaan proyek. Tiga klaim diuji di sana dan hanya di sana: satu kolom (kelima kartu bertumpuk, diukur dari boundingBox), halaman tidak pernah menggulir mendatar, dan kedua tabel rekap menggulir DI DALAM kartunya sendiri — lima kolom rata-rata plus tanggal jelas lebih lebar daripada 390px.",
+    "SPEC ReportingPilihStasiunView.spec.ts IKUT DIPERBAIKI, dan ini kali KEDUA contoh 'tile tanpa laporan' di sana dipindahkan: Weighbridge → Engine Room pada screen-144, lalu Threshing → Process Water di sini. 23 rujukan diganti pada 10 test. Dipindahkan, bukan dihapus, berikut catatan di docblock-nya: bila Process Water pun dibuatkan laporan mobile, spec itu gagal lagi — dan itu benar, karena ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.",
+    "api-index TIDAK BERUBAH: keempat endpoint sudah tercatat dengan actor-station-operator pada v70, ditulis bersama screen-148."
+  ],
+  "deferred_items": [
+    {
+      "description": "Mock HTML statis layar ini (screen-mock-agent, mock_generation_level = full) tidak dibuat, mengikuti empat layar terakhir yang juga melewatinya (screen-144, 146, 147, 148). Layar sungguhannya dibangun pada sesi yang sama sehingga mock 1-state tidak lagi menambah informasi apa pun; non-blocking dan tidak memengaruhi satu pun test.",
+      "reason": "Konsisten dengan empat layar sebelumnya; layar nyatanya sudah ada pada perubahan yang sama"
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Rekap harian versi mobile menampilkan kelima kolom rata-rata dalam satu tabel yang menggulir mendatar di dalam kartunya. Belum diputuskan apakah pada layar sempit lebih berguna memecahnya menjadi satu kartu per hari; bentuk tabel dipilih lebih dulu karena ia sejajar dengan versi web dan membuat perbandingan antar hari tetap mungkin. Dicatat sebagai open_question pada business spec screen-149.",
+      "severity": "minor"
+    },
+    {
+      "description": "Ekspor .xlsx tidak tersedia di layar mobile (hanya CSV), sementara layar web screen-148 menawarkan keduanya. Disengaja dan sama dengan ketujuh laporan mobile lain: menyimpan dan membuka .xlsx di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "Dibawa dari screen-148 dan belum diputuskan: 'Bearing Temperature' adalah target tanpa pengukuran (master menyediakan standarnya, threshing_details tidak punya kolomnya), dan master target bersifat global sementara standar seperti 'As per mill capacity design' menyiratkan standar per mill. Kedua layar menyatakannya; keputusannya milik manusia.",
+      "severity": "minor"
+    },
+    {
+      "description": "DRIFT ARTEFAK DI LUAR CAKUPAN LAYAR INI (dibawa dari screen-144/147/148): pada project.3-tech-spec.api-index, kelima prefix laporan saudaranya (/api/sterilizer-reports/*, /api/cages-track-reports/*, /api/boiler-room-reports/*, /api/clarification-reports/*, /api/storage-tank-reports/*) masih mencantumkan actor_ids tanpa actor-station-operator, padahal routes/api.php dan service masing-masing sudah menerima Operator sejak screen-135..139. Endpoint weighbridge, grading dan threshing sudah benar.",
+      "severity": "minor"
+    },
+    {
+      "description": "Contoh 'stasiun yang laporannya belum dibangun' kini bersandar pada process-water di TUJUH tempat: lima test backend, satu spec browser web, dan satu spec komponen mobile. Bila Process Water dibuatkan laporan, ketujuhnya akan merah bersamaan — disengaja, tetapi perlu diketahui pembangun laporan berikutnya supaya kegagalannya tidak dicari-cari sebabnya.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage unit test tidak terukur — tidak ada provider coverage terpasang di package mobile. Gap pre-existing project-wide, bukan diperkenalkan layar ini.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-06T07:17:28Z",
+      "passed": 25,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-06T07:17:28Z",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-06T07:20:34Z",
+      "passed": 50,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-06T07:30:00Z",
+      "passed": 29,
+      "failed": 0
+    }
+  }
+}

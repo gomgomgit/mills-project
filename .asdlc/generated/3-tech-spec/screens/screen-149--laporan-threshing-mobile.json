@@ -1,0 +1,1216 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-06"
+  },
+  "id": "screen-149--laporan-threshing-mobile",
+  "name": "Laporan Threshing (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports/threshing",
+  "auth_requirement": "authenticated (operator, supervisor, mill_management, admin)",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id tidak pernah dikirim untuk peran ini dan diabaikan server bila terkirim. Operator diterima pada ketiga rute data SEJAK endpoint itu dibangun — nol perubahan backend untuk layar ini"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — satu-satunya peran yang melihat pemilih Mill dan satu-satunya yang boleh memanggil /business-units/options"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "usecase_name": "Lihat Laporan Periode Threshing (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/threshing-reports/business-units/options",
+          "description": "DIPAKAI ULANG dari screen-148, ADMIN SAJA. Layar ini tidak pernah memanggilnya untuk peran terikat mill",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — layar mengarahkan ke Login"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan Admin — layar tidak merender pemilih mill sama sekali"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/threshing-reports/periods",
+          "description": "DIPAKAI ULANG dari screen-148. Daftar periode yang mencakup stasiun Threshing pada satu mill; periode tertutup ikut tercantum",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Dikirim HANYA oleh Admin. scopeParams() layar ini tidak pernah mengirimkannya untuk peran terikat mill — pertahanan berlapis di atas penjagaan server, bukan penggantinya"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "draft|open|closed",
+                  "station_type": "threshing",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — layar mengarahkan ke Login"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id, atau akun terikat mill yang business_unit_id-nya NULL"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/threshing-reports/summary",
+          "description": "DIPAKAI ULANG dari screen-148, dan bentuk payload-nya dipakai APA ADANYA — nol perhitungan di klien",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Wajib"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Wajib. Layar menjaganya di fungsi pemuat ringkasan, bukan hanya di tampilan, sehingga permintaan tanpa line tidak pernah berangkat"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Admin saja"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": "blok periode",
+              "business_unit": "blok mill — SUMBER nama mill di layar",
+              "production_line": "blok line",
+              "has_data": "bool — penentu apakah rekap digambar",
+              "coverage": "filled_slots, expected_slots, coverage_percent (null bila nol), thresher_count, slots_per_thresher_per_day, days_in_period, days_counted, period_running",
+              "metrics": "lima entri: column, label, unit, min, avg, max, filled_slot_count, target{parameter, standard_operational_target, action_plan_on_deviation}",
+              "targets_without_metric": "parameter master tanpa kolom ukur",
+              "targets_master_empty": "bool",
+              "by_thresher": "thresher_id, day_count, filled_slot_count, averages",
+              "daily": "date, filled_slot_count, averages",
+              "daily_total": "filled_slot_count, averages",
+              "downtime_reasons": "reason, slot_count — dikelompokkan harfiah oleh server",
+              "total": "record_count, days_with_records, draft_record_count, records_not_checked, records_not_acknowledged"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — layar mengarahkan ke Login tanpa pesan jaringan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/threshing-reports/export",
+          "description": "DIPAKAI ULANG dari screen-148, format=csv saja di mobile. Berkasnya disimpan ke penyimpanan perangkat",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Wajib"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "description": "Wajib"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "description": "Selalu 'csv' dari layar ini — .xlsx menuntut penanganan berkas native yang belum ada"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "content_type": "text/csv",
+              "body": "Blob — satu baris per slot waktu"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "Jumlah baris slot melampaui batas ekspor"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "DIPAKAI ULANG VERBATIM dari screen-135 — bukan endpoint baru",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "description": "Admin saja"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "code": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Tentukan peran dari store auth. Admin: muat daftar mill lewat /business-units/options; 403 di sana berarti pemilih mill TIDAK dirender sama sekali, bukan dirender kosong.",
+        "2. Peran terikat mill: pakai business_unit_id akun. Bila kosong, tampilkan arahan menghubungi Admin dan JANGAN kirim satu pun permintaan — termasuk jangan memanggil /business-units/options, yang justru akan membentuk daftar seluruh mill di perangkat yang tidak berhak melihatnya.",
+        "3. Muat daftar Production Line lewat /api/production-lines/options-for-report untuk mill yang berlaku. Daftar kosong = arahan menghubungi Admin tanpa tombol coba lagi; kegagalan jaringan = pesan BERBEDA dengan tombol coba lagi tersendiri.",
+        "4. Tentukan line yang berlaku menurut urutan: query rute (dari tile Reporting) → ingatan perangkat msl_production_line_{userId} → satu-satunya line → tidak ada. Setiap kegagalan membaca/menulis penyimpanan diperlakukan sebagai 'tidak ada ingatan', bukan sebagai galat.",
+        "5. Line yang diingat tetapi tidak ada pada daftar DIBUANG, dan layar meminta memilih — tidak menebak line lain, termasuk tidak memilih line pertama.",
+        "6. Muat daftar periode lewat /periods. Selama memuat, tampilkan indikator muat — BUKAN keterangan 'belum punya periode', yang menceritakan hal lain sama sekali.",
+        "7. Pilih periode. Kirim /summary dengan period_id + production_line_id. PENJAGAAN LINE ADA DI FUNGSI PEMUAT, bukan hanya di tampilan, supaya jalur coba-lagi, ganti periode, dan ganti mill tidak melewatinya.",
+        "8. Pakai seluruh angka APA ADANYA. Tidak ada satu pun nilai yang dihitung ulang di perangkat — min, rata-rata, maks, filled_slot_count, coverage_percent, dan seluruh averages diteruskan ke tampilan tanpa diubah.",
+        "9. Render cakupan pencatatan PALING ATAS, berikut thresher_count, days_counted, dan slots_per_thresher_per_day. coverage_percent null → tanda pisah, bukan 0%. days_counted 0 → keterangan 'periode belum mulai' (diperiksa SEBELUM period_running, karena isRunning() di server juga true untuk periode yang belum mulai).",
+        "10. Render satu KARTU per entri metrics: min, rata-rata, maks, penyebut 'N dari M slot', standar operasional, dan rencana tindakan. Kartu dengan filled_slot_count 0 TETAP dirender dengan angka 'tidak tersedia' dan standarnya tetap tampil.",
+        "11. Render keterangan ketiadaan penandaan di luar batas, beserta sebabnya dan pernyataan bahwa standar berlaku umum untuk seluruh mill.",
+        "12. targets_master_empty true → keterangan master belum terisi, angka ukur tetap tampil. targets_without_metric tidak kosong → bagiannya sendiri beserta keterangan 'belum diukur sistem'.",
+        "13. Render rekap per thresher, daftar alasan downtime (dengan keterangan pengelompokan harfiah), penghitung kelengkapan record, lalu rekap harian di dalam CollapsibleSection yang TERTUTUP secara bawaan.",
+        "14. has_data false → keterangan periode kosong; cakupan TETAP dirender; rekap per thresher, rekap harian, dan daftar downtime tidak digambar — tabel kosong terbaca sebagai hasil pengukuran bernilai nol.",
+        "15. Ekspor: minta /export?format=csv untuk periode dan line yang BERLAKU SAAT TOMBOL DITEKAN, simpan ke perangkat dengan nama ber-slug periode itu. Tombol dinonaktifkan selama berjalan sehingga ketukan ganda hanya menghasilkan satu berkas, dan nama berkasnya mengikuti periode yang ISINYA diekspor meski pilihan berganti selama unduhan.",
+        "16. Seluruh pemuatan dijaga createLatestRequestGuard(): hanya jawaban permintaan TERBARU yang boleh menulis state, termasuk galatnya. Mengosongkan pilihan periode saat ringkasan masih dimuat tidak boleh memunculkan angka kemudian.",
+        "17. Galat 401 → arahkan ke Login tanpa pesan jaringan dan tanpa tombol coba lagi. Galat tanpa 'status' (jaringan putus) → pesan + tombol coba lagi, dan periode terpilih TIDAK dikosongkan."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Lewat /periods dan /summary — layar ini tidak menyentuh basis data sendiri."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Sumber status Threshing pada opsi periode dan badge, lewat endpoint yang sama."
+        },
+        {
+          "entity_id": "threshing-record",
+          "operation": "SELECT",
+          "description": "Lewat /summary dan /export."
+        },
+        {
+          "entity_id": "threshing-detail",
+          "operation": "SELECT",
+          "description": "Lewat /summary dan /export — sumber seluruh angka ukur."
+        },
+        {
+          "entity_id": "threshing-operational-target",
+          "operation": "SELECT",
+          "description": "Lewat /summary — standar dan rencana tindakan per parameter."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Lewat /api/production-lines/options-for-report."
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Lewat /business-units/options (Admin saja) dan blok business_unit pada ringkasan."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Akun terikat mill tanpa business_unit_id",
+          "handling": "Arahan menghubungi Admin; NOL permintaan dikirim, termasuk /business-units/options"
+        },
+        {
+          "condition": "Admin belum memilih mill",
+          "handling": "Pemilih mill + arahan; daftar line dan periode tidak dimuat"
+        },
+        {
+          "condition": "/business-units/options menjawab 403 untuk Admin",
+          "handling": "Pemilih mill tidak dirender sama sekali, dengan keterangan bahwa daftar mill tidak tersedia untuk peran itu"
+        },
+        {
+          "condition": "Mill tanpa Production Line",
+          "handling": "Arahan menghubungi Admin, TANPA tombol coba lagi — keadaan data, bukan kegagalan teknis"
+        },
+        {
+          "condition": "Daftar Production Line gagal dimuat",
+          "handling": "Pesan BERBEDA dari keadaan di atas, dengan tombol coba lagi tersendiri; tidak menyamar sebagai galat laporan"
+        },
+        {
+          "condition": "Line dari query rute dan ingatan perangkat berbeda",
+          "handling": "Query rute menang, dan ingatan perangkat diperbarui menjadi line itu"
+        },
+        {
+          "condition": "Line yang diingat tidak ada pada daftar",
+          "handling": "Dibuang; pemilih tampil; TIDAK ada permintaan ringkasan yang berangkat"
+        },
+        {
+          "condition": "Penyimpanan perangkat melempar (mode privat)",
+          "handling": "Diperlakukan sebagai 'tidak ada ingatan'; layar tetap tampil tanpa galat"
+        },
+        {
+          "condition": "Ingatan line milik pengguna lain",
+          "handling": "Tidak dipakai — kuncinya dipisah per userId"
+        },
+        {
+          "condition": "Daftar periode masih dimuat",
+          "handling": "Indikator muat, BUKAN keterangan 'belum punya periode'"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup Threshing",
+          "handling": "Pemilih TETAP dirender dalam keadaan kosong, beserta arahan"
+        },
+        {
+          "condition": "has_data false",
+          "handling": "Keterangan periode kosong; seluruh angka 'tidak tersedia'; cakupan TETAP tampil; rekap dan downtime tidak digambar"
+        },
+        {
+          "condition": "filled_slot_count 0 pada satu entri metrics",
+          "handling": "Kartunya TETAP dirender; min/avg/max 'tidak tersedia'; penyebut '0 dari M slot'; standar tetap tampil"
+        },
+        {
+          "condition": "filled_slot_count 1 pada satu entri metrics",
+          "handling": "Ketiga angka sama, dan penyebut '1 dari M slot' yang menjelaskan mengapa"
+        },
+        {
+          "condition": "coverage_percent null",
+          "handling": "Dirender tanda pisah, bukan 0%"
+        },
+        {
+          "condition": "days_counted 0 sementara period_running true",
+          "handling": "Keterangan 'periode belum mulai' yang menang — diperiksa SEBELUM period_running"
+        },
+        {
+          "condition": "targets_master_empty true",
+          "handling": "Keterangan master belum terisi; seluruh angka ukur tetap tampil"
+        },
+        {
+          "condition": "targets_without_metric kosong",
+          "handling": "Bagiannya tidak digambar — bentuk itu hanya muncul bila master selaras dengan formulir"
+        },
+        {
+          "condition": "downtime_reasons kosong",
+          "handling": "Keterangan 'tidak ada alasan tercatat', bukan tabel kosong"
+        },
+        {
+          "condition": "Periode tertutup",
+          "handling": "Laporan penuh, badge Tertutup, ekspor TIDAK dinonaktifkan"
+        },
+        {
+          "condition": "Admin mengganti mill",
+          "handling": "Line dan periode dikosongkan; tidak ada angka mill lama yang bertahan"
+        },
+        {
+          "condition": "Ketukan ganda pada Ekspor",
+          "handling": "Satu permintaan; tombol dinonaktifkan dengan label 'Mengekspor'"
+        },
+        {
+          "condition": "Periode berganti selama ekspor berjalan",
+          "handling": "Nama berkas mengikuti periode yang ISINYA diekspor"
+        },
+        {
+          "condition": "Periode dikosongkan saat ringkasan masih dimuat",
+          "handling": "Jawaban yang tiba kemudian diabaikan; tidak ada angka yang muncul"
+        },
+        {
+          "condition": "Galat tanpa 'status' (jaringan putus)",
+          "handling": "Pesan + tombol coba lagi; periode terpilih tidak dikosongkan"
+        },
+        {
+          "condition": "Galat 401",
+          "handling": "Arahkan ke Login; tanpa pesan jaringan dan tanpa tombol coba lagi"
+        },
+        {
+          "condition": "Jawaban permintaan lama tiba belakangan",
+          "handling": "Diabaikan oleh createLatestRequestGuard(), termasuk galatnya"
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca",
+        "Nol endpoint baru dan nol perubahan backend",
+        "Endpoint daftar mill tetap Admin saja, dan tidak pernah dipanggil untuk peran terikat mill",
+        "Nol perhitungan di klien",
+        "Production Line wajib, dijaga di fungsi pemuat",
+        "Urutan penentuan line: rute, ingatan, satu-satunya line",
+        "Penyimpanan perangkat tidak boleh membuat layar gagal",
+        "Tiap rata-rata mencetak penyebutnya sendiri",
+        "Cakupan dirender paling atas",
+        "Persen tanpa penyebut dirender tanda pisah, bukan 0%",
+        "null bukan 0, dan terlihat bergaya non-angka",
+        "Kartu parameter tanpa pembacaan tetap dirender",
+        "Standar menyertai angkanya pada kartu yang sama",
+        "Tidak ada penandaan otomatis di luar batas, dan ketiadaannya dinyatakan",
+        "Target tanpa pengukuran tetap ditampilkan",
+        "Alasan downtime dikelompokkan harfiah oleh server, dan layar menyatakannya",
+        "Record draft ikut terhitung; status verifikasi bukan penyaring",
+        "Periode tertutup tetap dapat dibaca dan diekspor",
+        "Ekspor hanya CSV, dan namanya mengikuti periode yang diekspor",
+        "Hanya jawaban permintaan terbaru yang berlaku",
+        "Satu kolom, tanpa gulir mendatar halaman, sasaran sentuh minimal 44px",
+        "Rekap harian tertutup secara bawaan dan membuka/menutupnya tidak memicu permintaan"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "scopeParams tidak pernah mengirim business_unit_id untuk peran terikat mill",
+          "given": "Store auth memulangkan Operator, lalu Supervisor, lalu Mill Management",
+          "expect": "Tidak satu pun permintaan membawa business_unit_id — pertahanan berlapis di atas penjagaan server, bukan penggantinya"
+        },
+        {
+          "description": "scopeParams mengirim business_unit_id untuk Admin",
+          "given": "Store auth memulangkan Admin dengan mill terpilih",
+          "expect": "Permintaan membawa business_unit_id mill itu"
+        },
+        {
+          "description": "productionLineParams hanya dikirim ke summary dan export",
+          "given": "Keempat pemanggilan repo dijalankan dengan line terpilih",
+          "expect": "Hanya /summary dan /export membawa production_line_id; /periods dan /business-units/options tidak"
+        },
+        {
+          "description": "unwrap menerima respons dengan maupun tanpa pembungkus data",
+          "given": "Dua bentuk respons: { data: [...] } dan [...]",
+          "expect": "Keduanya menghasilkan daftar yang sama"
+        },
+        {
+          "description": "fetchSummary tidak menghitung ulang satu angka pun",
+          "given": "Payload yang angka-angkanya sengaja BERTENTANGAN: coverage_percent 88 padahal 96/480 = 20; metrics[0].avg 12,5 padahal min 10 dan max 11; daily_total.averages tidak sama dengan rata-rata daily",
+          "expect": "Setiap nilai dipulangkan apa adanya — repo yang menghitung sendiri PASTI gagal. Dengan payload yang konsisten, test ini tidak membuktikan apa pun"
+        },
+        {
+          "description": "fetchSummary memulangkan kelima entri metrics beserta blok target-nya",
+          "given": "Payload ringkasan lengkap",
+          "expect": "metrics 5 entri, masing-masing dengan column, label, unit, min, avg, max, filled_slot_count, dan target"
+        },
+        {
+          "description": "fetchSummary meneruskan targets_without_metric dan targets_master_empty apa adanya",
+          "given": "Payload dengan satu entri targets_without_metric dan targets_master_empty false",
+          "expect": "Keduanya dipulangkan tanpa diubah"
+        },
+        {
+          "description": "fetchSummary meneruskan coverage_percent null tanpa menggantinya 0",
+          "given": "Payload dengan coverage_percent null",
+          "expect": "null, bukan 0 — 0% mengklaim ada yang diukur dan hasilnya nol"
+        },
+        {
+          "description": "fetchSummary meneruskan downtime_reasons tanpa menormalkan ejaan",
+          "given": "Payload dengan 'Belt kendur' dan 'belt kendur' sebagai dua entri",
+          "expect": "Dua entri, apa adanya — normalisasi di klien akan menggabungkan sebab yang penulisnya maksudkan berbeda"
+        },
+        {
+          "description": "exportCsv meminta format csv untuk periode dan line yang diberikan",
+          "given": "Periode dan line terpilih",
+          "expect": "Permintaan membawa period_id, production_line_id, dan format=csv"
+        },
+        {
+          "description": "saveCsvFile menyimpan blob dengan nama yang diberikan",
+          "given": "Blob CSV dan nama berkas ber-slug periode",
+          "expect": "Berkas tersimpan dengan nama itu"
+        },
+        {
+          "description": "Galat tanpa 'status' dibedakan dari galat ber-status",
+          "given": "Dua bentuk galat: { message } dan { message, status: 401 }",
+          "expect": "Keduanya diteruskan dengan bentuk aslinya, sehingga layar dapat membedakan jaringan putus dari jawaban server"
+        },
+        {
+          "description": "fetchBusinessUnits tidak dipanggil untuk peran terikat mill",
+          "given": "Layar dipasang sebagai Operator",
+          "expect": "Nol pemanggilan — memanggilnya akan membentuk daftar seluruh mill di perangkat yang tidak berhak melihatnya"
+        },
+        {
+          "description": "Daftar kunci ringkasan dikunci",
+          "given": "Payload ringkasan lengkap",
+          "expect": "Kunci yang dipulangkan tepat sama dengan kontrak screen-148 — kunci yang hilang atau bertambah terlihat sebagai kegagalan, bukan sebagai bagian layar yang diam-diam kosong"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "threshing-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "threshing-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "threshing-operational-target",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-148--laporan-threshing-web",
+      "reason": "Sumber keempat endpoint yang dipakai ulang verbatim. Nol endpoint baru dan nol perubahan backend untuk layar ini"
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "Pintu masuk satu-satunya. Tile Threshing baru aktif setelah entri 'threshing' ditambahkan ke REPORT_ROUTES di ReportingPilihStasiunView.vue — satu baris yang menentukan layar ini dapat dicapai atau tidak. Tile itu juga membawa production_line_id"
+    },
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Pemilik kunci ingatan Production Line (msl_production_line_{userId}) yang dibaca dan ditulis layar ini"
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Memakai ulang GET /api/production-lines/options-for-report yang dibangun untuk layar itu, verbatim"
+    }
+  ],
+  "implementation_notes": [
+    "NOL PERUBAHAN BACKEND, DAN ITU HASIL DARI screen-148, BUKAN KEBETULAN. Keempat rute /api/threshing-reports/* sudah 'role:supervisor,mill_management,admin,operator' sejak hari pertama, guardAccess() sudah menerima Operator, dan cabang TERIKAT MILL resolveBusinessUnit() sudah memuatnya. Pasangan Weighbridge (143 → 144) menuntut tiga perubahan backend menyusul karena layar web-nya dibangun sebelum pasangan mobile-nya diketahui; screen-146/147 membuktikan bahwa merencanakan keduanya sekaligus menghapus perluasan itu sama sekali, dan pasangan ini mengikutinya. Berkas backend yang disentuh layar ini: tidak ada.",
+    "KONSEKUENSI: tidak ada test backend baru dan tidak ada test backend yang berubah arah. Suite backend dijalankan utuh sebagai regresi, bukan sebagai bukti layar ini.",
+    "LAPISAN KLIEN: threshingReportRepo.ts sejajar ketujuh repo laporan lain — scopeParams() tidak pernah mengirim business_unit_id untuk peran terikat mill, productionLineParams() hanya mengirim ke /summary dan /export, dan unwrap() menerima respons dengan maupun tanpa pembungkus 'data'.",
+    "NOL ARITMETIKA DI KLIEN, DAN FIXTURE TEST YANG MEMBUKTIKANNYA. Angka pada threshingReportRepo.spec.ts sengaja dibuat BERTENTANGAN dengan sumbernya: coverage_percent 88 padahal 96/480 = 20; metrics[0].avg 12,5 padahal min 10 dan max 11; daily_total.averages tidak sama dengan rata-rata baris harian. Repo yang menghitung sendiri PASTI gagal; dengan payload yang konsisten, test 'tidak menghitung ulang' tidak membuktikan apa pun.",
+    "TABEL TUJUH KOLOM MENJADI KARTU, dan itu satu-satunya perubahan bentuk yang disengaja. Pada lebar 390px tabel parameter versi web tidak muat tanpa menggulir mendatar, jadi tiap parameter menjadi kartu bertumpuk: min, rata-rata, maks, penyebut, standar, rencana tindakan. Yang TIDAK ikut berubah adalah daftar isinya — memotong kolom penyebut atau kolom standar demi ruang adalah justru kehilangan yang paling mudah terjadi dan paling sulit terlihat.",
+    "PENYEBUT TIAP RATA-RATA TERCETAK APA ADANYA sebagai 'N dari M slot'. Di layar sempit kolom itu yang paling mudah dikorbankan, dan tanpanya rata-rata sebuah parameter terbaca sebagai angka seluruh periode. Fixture memberi satu kolom berpenyebut 2 dan satu lagi 10 supaya kedua penyebut dapat dicari apa adanya pada teks terender.",
+    "KARTU PARAMETER TANPA PEMBACAAN TETAP DIRENDER, dengan angka 'tidak tersedia', penyebut 0 slot, dan standarnya tetap tampil. Kartu yang hilang terbaca sebagai 'tidak ada parameter ini', padahal yang benar adalah 'tidak ada yang mengukurnya'.",
+    "CAKUPAN TETAP PALING ATAS, dan di layar sempit urutannya lebih menentukan, bukan kurang: pembaca melihat lebih sedikit sekaligus, jadi apa yang dilihat lebih dulu menentukan lebih banyak. Diasersi atas urutan DOM pada component test dan atas posisi viewport pada browser test.",
+    "URUTAN CABANG KETERANGAN CAKUPAN: days_counted DIPERIKSA SEBELUM period_running. ReportPeriodDays::isRunning() di server juga true untuk periode yang BELUM MULAI (tanggal akhirnya masih di masa depan), jadi memeriksa period_running lebih dulu membuat keterangan 'belum mulai' tidak pernah terender. Kekeliruan ini nyata terjadi pada laporan Grading (web + mobile) dan Weighbridge (mobile) dan diperbaiki pada commit screen-148; layar ini dibangun dengan urutan yang sudah benar.",
+    "KETIADAAN PENANDAAN DI LUAR BATAS DIUJI ATAS NAMA KELAS, bukan atas frasa — kalimat yang menyatakan ketiadaannya sendiri memuat frasa 'di luar batas'. Pelajaran yang harganya sudah dibayar tiga kali: screen-146 (Livewire), screen-147 (browser mobile), screen-148 (Livewire + browser).",
+    "REKAP HARIAN MEMAKAI CollapsibleSection (v-show), TERTUTUP SECARA BAWAAN. Saat tertutup barisnya tetap ada di DOM dengan display:none, jadi keadaan tertutup diasersi toBeHidden() dan tidak pernah toHaveCount(0); dan membuka/menutupnya diasersi TIDAK memicu satu permintaan pun.",
+    "PRODUCTION LINE WAJIB, dijaga di FUNGSI loadSummary() bukan hanya di template — supaya jalur coba-lagi, ganti periode, dan ganti mill tidak melewatinya. Ingatan line (msl_production_line_{userId}) dibagi dengan StationListView, dengan urutan penyelesaian rute → ingatan → satu-satunya line → tidak ada, dan setiap kegagalan penyimpanan diperlakukan sebagai 'tidak ada ingatan'.",
+    "SATU BARIS YANG MENENTUKAN LAYAR DAPAT DICAPAI: entri 'threshing' pada REPORT_ROUTES di ReportingPilihStasiunView.vue, dengan browser test yang menekan tile itu LEWAT KLIK (bukan page.goto — tabel station lokal hidup di memori sql.js dan hilang pada tiap muat ulang) setelah menyemai station lokal.",
+    "VIEWPORT 390x844, BUKAN 1280px BAWAAN PROYEK. Separuh klaim layar ini adalah klaim tata letak, dan seluruhnya hampa pada kanvas 1280px karena apa pun muat di sana.",
+    "SPEC ReportingPilihStasiunView.spec.ts TIDAK PERLU DISENTUH: contoh 'tile tanpa laporan' di sana adalah Engine Room (dipindahkan ke sana pada screen-144), bukan Threshing. Diverifikasi dengan menjalankan spec itu, bukan diasumsikan.",
+    "api-index TIDAK BERUBAH: keempat endpoint sudah tercatat dengan actor-station-operator pada v70, ditulis bersama screen-148."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Threshing (Mobile) — sukses sebagai Operator",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount sebagai Operator pada mill ber-satu-line, lalu pilih periode pertama",
+        "assert": "pemilih mill tidak dirender; nama mill dari blok business_unit terlihat; cakupan terender SEBELUM kartu parameter pada urutan DOM; kelima kartu parameter terender masing-masing dengan min, rata-rata, maks, penyebut, standar, dan rencana tindakan; rekap per thresher, downtime, kelengkapan record, dan rekap harian terender; tidak ada satu pun kontrol tulis"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "masuk sebagai Operator, buka layar pada viewport 390x844, pilih periode",
+        "assert": "seluruh bagian laporan tampil satu kolom, tanpa gulir mendatar halaman, sasaran sentuh minimal 44px"
+      }
+    },
+    {
+      "scenario_ref": "Supervisor dan Mill Management melihat layar yang sama persis dengan Operator",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount sebagai Supervisor, lalu sebagai Mill Management",
+        "assert": "pemilih mill tidak dirender pada keduanya; angka terender; fetchBusinessUnits TIDAK pernah dipanggil"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount sebagai Admin tanpa mill, lalu pilih satu mill",
+        "assert": "pemilih mill dan arahan terender; daftar line dan periode TIDAK dimuat sebelum mill dipilih, lalu keduanya dimuat"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Akun terikat mill tanpa business_unit_id",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount sebagai Operator yang business_unit_id-nya null",
+        "assert": "arahan menghubungi Admin terender; pemilih mill tidak ada; fetchBusinessUnits, fetchPeriods dan fetchProductionLinesForReport semuanya NOL pemanggilan"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Nol perhitungan di klien",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "threshingReportRepo",
+        "action": "fetchSummary atas payload yang angka-angkanya sengaja bertentangan satu sama lain",
+        "assert": "setiap nilai dipulangkan apa adanya — coverage_percent 88 walau 96/480, avg 12,5 walau min 10 dan max 11"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Setiap rata-rata mencetak penyebutnya sendiri",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan dua entri metrics berpenyebut 2 dan 10 dari 10 slot",
+        "assert": "teks '2 dari 10 slot' dan '10 dari 10 slot' keduanya terender, pada kartunya masing-masing"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode berdata lalu periksa kartu parameter",
+        "assert": "penyebut tiap kartu tercetak dan tidak pernah melampaui jumlah slot terisi periode"
+      }
+    },
+    {
+      "scenario_ref": "Kartu parameter tanpa pembacaan tetap ditampilkan",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan satu entri metrics ber-filled_slot_count 0",
+        "assert": "kartunya TETAP terender dengan 'tidak tersedia' dan penyebut 0 slot; standar operasionalnya tetap tampil"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode yang satu kolom ukurnya tidak pernah diisi",
+        "assert": "kelima kartu parameter selalu ada"
+      }
+    },
+    {
+      "scenario_ref": "Cakupan pencatatan dibaca lebih dulu",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan coverage 96 dari 480 slot",
+        "assert": "blok cakupan berada di atas kartu parameter pada urutan DOM, dan thresher_count, days_counted serta slots_per_thresher_per_day ketiganya tercetak"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "ukur posisi vertikal blok cakupan terhadap kartu parameter",
+        "assert": "cakupan berada di atas kartu parameter pada viewport 390px"
+      }
+    },
+    {
+      "scenario_ref": "Periode belum mulai",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan coverage_percent null, days_counted 0, dan period_running true",
+        "assert": "persen cakupan terender tanda pisah bukan 0%; keterangan 'periode belum mulai' yang terender — BUKAN keterangan 'dihitung sampai hari ini', meski period_running true"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Standar operasional menyertai angkanya",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan blok target terisi pada tiap entri metrics",
+        "assert": "standar dan rencana tindakan terender di dalam kartu yang sama dengan angkanya"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Tidak ada penandaan di luar batas",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan rata-rata 27,4 terhadap standar '21 - 23 RPM'",
+        "assert": "tidak ada kelas md-threshold, is-danger, is-warning, maupun md-chip--danger pada hasil render; kalimat yang menyatakan laporan tidak menilai hadir — diasersi atas NAMA KELAS, bukan atas frasa"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "sisir hasil render untuk ketiadaan kelas penanda",
+        "assert": "nol kemunculan keempat kelas itu"
+      }
+    },
+    {
+      "scenario_ref": "Standar yang belum diukur sistem tetap ditampilkan",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan satu entri targets_without_metric",
+        "assert": "bagiannya terender beserta keterangan bahwa sistem belum punya kolom untuk mengukurnya"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Master target belum terisi",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan targets_master_empty true",
+        "assert": "keterangan master belum terisi terender; seluruh angka ukur tetap tampil"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Alasan downtime dikelompokkan harfiah",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan dua entri downtime_reasons berejaan berbeda",
+        "assert": "dua baris terender terpisah; keterangan sifat harfiahnya hadir; klien tidak menormalkan apa pun"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Tidak ada alasan downtime tercatat",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan downtime_reasons kosong dan has_data true",
+        "assert": "keterangan terender, bukan tabel kosong"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Periode tanpa data",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan has_data false",
+        "assert": "keterangan periode kosong terender; angka 'tidak tersedia'; cakupan TETAP terender; rekap harian, rekap per thresher, dan downtime tidak digambar"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode tanpa data",
+        "assert": "keterangan tampil dan tidak ada angka 0 yang menyesatkan"
+      }
+    },
+    {
+      "scenario_ref": "Rekap harian tertutup secara bawaan",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount pada periode berdata lalu buka dan tutup rekap harian",
+        "assert": "badan rekap tersembunyi pada awalnya (toBeHidden, bukan toHaveCount 0 — v-show); membuka/menutupnya tidak memicu satu permintaan pun"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "buka rekap harian lalu ukur gulirnya",
+        "assert": "tabelnya menggulir di dalam kartunya sendiri dan halaman tetap tidak bergeser mendatar"
+      }
+    },
+    {
+      "scenario_ref": "Line dari query rute dipakai dan diingat",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan query production_line_id berbeda dari ingatan perangkat",
+        "assert": "line dari query yang dipakai, dan ingatan perangkat diperbarui menjadi line itu"
+      },
+      "browser_test": {
+        "route": "/reports/threshing?production_line_id=...",
+        "action": "buka layar dengan line pada alamat",
+        "assert": "nama line itu terender dan tersimpan sebagai ingatan perangkat"
+      }
+    },
+    {
+      "scenario_ref": "Ingatan perangkat milik pengguna lain tidak dipakai",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan ingatan tersimpan untuk dua userId berbeda",
+        "assert": "ingatan milik pengguna yang sedang masuk yang dipakai"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Line yang diingat sudah tidak ada",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan ingatan line yang tidak ada pada daftar, lalu pilih periode",
+        "assert": "arahan memilih line terender; fetchSummary TIDAK dipanggil — penjagaannya di fungsi pemuat, bukan hanya di template"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "setel ingatan ke line yang tidak ada lalu buka layar",
+        "assert": "pemilih muncul lagi dan nol permintaan ringkasan"
+      }
+    },
+    {
+      "scenario_ref": "Penyimpanan perangkat tidak dapat dibaca",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan localStorage.getItem yang melempar",
+        "assert": "layar tetap terender tanpa galat dan memperlakukannya sebagai tidak ada ingatan"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Mill belum punya Production Line",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan daftar line kosong",
+        "assert": "arahan menghubungi Admin terender TANPA tombol coba lagi"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "stub daftar line kosong",
+        "assert": "arahan tampil dan tidak ada tombol coba lagi"
+      }
+    },
+    {
+      "scenario_ref": "Daftar Production Line gagal dimuat",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan fetchProductionLinesForReport yang gagal, lalu tekan coba lagi",
+        "assert": "pesan BERBEDA dari keadaan 'mill belum punya line'; tombol coba lagi tersendiri; TIDAK ada pesan galat laporan; coba lagi berhasil memuatnya"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "putus jaringan pada daftar line lalu tekan coba lagi",
+        "assert": "kedua keadaan dibedakan dan coba lagi bekerja"
+      }
+    },
+    {
+      "scenario_ref": "Mill belum punya periode yang mencakup Threshing",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan daftar periode kosong, dan selama pemuatannya",
+        "assert": "selama memuat: indikator muat, BUKAN keterangan belum punya periode; setelah selesai: keterangan terender dan pemilih tetap ada dalam keadaan kosong"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Periode tertutup tetap dapat dibaca dan diekspor",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan periode berstatus closed",
+        "assert": "badge Tertutup terender dan tombol Ekspor TIDAK dinonaktifkan"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "pilih periode tertutup",
+        "assert": "laporan penuh dan ekspor tetap aktif"
+      }
+    },
+    {
+      "scenario_ref": "Ekspor CSV tersimpan di perangkat",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/export"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "tekan Ekspor pada periode berdata",
+        "assert": "exportCsv dipanggil dengan periode dan line terpilih; saveCsvFile dipanggil dengan nama ber-slug periode"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "tekan Ekspor",
+        "assert": "permintaan ekspor membawa period_id, production_line_id dan format=csv"
+      }
+    },
+    {
+      "scenario_ref": "Ketukan ganda pada Ekspor hanya menghasilkan satu berkas",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "tekan Ekspor dua kali sebelum unduhan pertama selesai",
+        "assert": "exportCsv dipanggil tepat sekali; tombol dinonaktifkan dengan label 'Mengekspor'"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Nama berkas mengikuti periode yang diekspor",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "tekan Ekspor lalu ganti periode sebelum unduhan selesai",
+        "assert": "nama berkas mengikuti periode yang ISINYA diekspor, bukan periode yang terpilih saat berkas selesai"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Kegagalan jaringan saat memuat ringkasan",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan fetchSummary yang gagal tanpa 'status', lalu tekan coba lagi",
+        "assert": "pesan dan tombol coba lagi terender; pilihan periode TIDAK hilang; coba lagi memuat ulang periode yang sama"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "putus jaringan pada ringkasan lalu tekan coba lagi",
+        "assert": "pesan tampil, periode tetap terpilih, dan coba lagi berhasil"
+      }
+    },
+    {
+      "scenario_ref": "Sesi berakhir saat memuat ringkasan",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-reports/summary"
+          },
+          "request_example": {
+            "period_id": "uuid-periode",
+            "production_line_id": "uuid-line"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "mount dengan fetchSummary yang gagal 401",
+        "assert": "diarahkan ke Login; TANPA pesan jaringan dan TANPA tombol coba lagi"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "stub 401 pada ringkasan",
+        "assert": "halaman berpindah ke Login"
+      }
+    },
+    {
+      "scenario_ref": "Hanya jawaban permintaan terbaru yang berlaku",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "pilih periode pertama lalu periode kedua sebelum jawaban pertama tiba; ulangi dengan jawaban pertama berupa galat; ulangi dengan mengosongkan pilihan",
+        "assert": "angka di layar milik periode terakhir; galat basi tidak memunculkan pesan; mengosongkan pilihan tidak memunculkan angka kemudian"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Tile Threshing pada Reporting aktif",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "tekan tile Threshing",
+        "assert": "navigasi ke rute report-threshing, bukan pesan belum tersedia"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "semai station lokal lalu tekan tile Threshing LEWAT KLIK (bukan page.goto — tabel station lokal hidup di memori dan hilang pada muat ulang)",
+        "assert": "mendarat di layar Laporan Threshing, dan tidak ada pesan belum tersedia"
+      }
+    },
+    {
+      "scenario_ref": "Layar hanya membaca",
+      "usecase_id": "usecase-152--laporan-threshing-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanThreshingView",
+        "action": "telusuri seluruh tombol pada footer dan badan layar",
+        "assert": "footer hanya Ekspor dan Back; tidak ada tombol yang menambah, mengubah, atau menghapus data"
+      },
+      "browser_test": {
+        "route": "/reports/threshing",
+        "action": "sisir seluruh tombol",
+        "assert": "tidak ada Simpan, Hapus, maupun Verifikasi"
+      }
+    }
+  ]
+}

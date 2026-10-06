@@ -965,6 +965,30 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanGradingView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-149--laporan-threshing-mobile /
+    // usecase-152--laporan-threshing-mobile "Lihat Laporan Periode Threshing
+    // (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor, mill_management, admin).
+    //
+    // NOL PERUBAHAN BACKEND, sama seperti report-grading di atasnya: keempat
+    // rute /api/threshing-reports/* sudah menerima peran mobile sejak
+    // screen-148 (laporan Threshing web) dibangun, karena kedua layar
+    // direncanakan dalam satu seri. Yang TIDAK terbuka tetap tidak terbuka:
+    // /business-units/options Admin saja, dan rute WEB /reports/threshing
+    // tanpa Operator.
+    //
+    // Pintu masuknya: rute 'report-stations' (screen-141) menampilkan grid
+    // stasiun, dan tile Threshing-lah yang menavigasi ke sini — entri
+    // 'threshing' pada REPORT_ROUTES di ReportingPilihStasiunView.vue adalah
+    // satu-satunya penentu tile itu hidup atau mati. Tile itu juga membawa
+    // ?production_line_id=, nilai pertama pada urutan penentuan line.
+    path: '/reports/threshing',
+    name: 'report-threshing',
+    component: () => import('@/views/LaporanThreshingView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

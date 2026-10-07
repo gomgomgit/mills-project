@@ -1,5 +1,5 @@
 {
-  "ver": 23,
+  "ver": 24,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-07"
@@ -934,6 +934,18 @@
       "name": "Laporan Kernel Plant (Mobile)",
       "module_id": "module-dashboard",
       "description": "Versi mobile dari Laporan Kernel Plant (screen-154), read-only, tata letak layar sempit — persis pola screen-147/149/151/153 terhadap pasangan web-nya. Dicapai dari Reporting (screen-141). Memakai ulang endpoint /api/kernel-plant-reports/* tanpa perubahan backend. Tabel tujuh kolom tidak muat pada lebar 390px, jadi tiap parameter menjadi kartu bertumpuk; penyebut tiap rata-rata tetap tercetak, cakupan pencatatan tetap paling atas, kedua kolom target tetap menyertai angkanya, dan keterangan ketiadaan penandaan di luar batas tetap dinyatakan."
+    },
+    {
+      "id": "screen-156--laporan-effluent-plant-web",
+      "name": "Laporan Effluent Plant (Web)",
+      "module_id": "module-dashboard",
+      "description": "Laporan periode stasiun Effluent Plant di web: pilih periode pelaporan dan Production Line (WAJIB dipilih, mengikuti pola sebelas laporan yang sudah ada), lalu baca rekap kondisi operasi per periode, rekap per hari dan per unit, serta ekspor CSV. INI LAPORAN KONDISI PALING BESAR DAN PALING BERBEDA BENTUKNYA sejauh ini, dan ketiga perbedaannya menentukan isinya. PERTAMA, EMPAT BELAS kolom ukur numerik — dua kali Kernel Plant yang punya tujuh — masing-masing nullable dan terisi saling bebas sehingga masing-masing menerbitkan penyebutnya sendiri. Tiga di antaranya berakhiran _lab (final_discharge_bod_mgl_lab, _cod_, _tss_), yang berarti angkanya datang dari laboratorium dan karena itu terisi jauh lebih jarang daripada bacaan per jam; di sinilah penyebut per metrik lebih menentukan daripada di laporan mana pun sebelumnya. KEDUA, TIGA KOLOM STATUS KATEGORIS yang min/rata-rata/maks-nya tidak punya arti sama sekali: biogas_flare_status (on/off/fault), dosing_pump_1_status (run/stop), dan sludge_dewatering_status (run/stop). Ketiganya diterbitkan sebagai SEBARAN — jumlah slot per nilai — dan dikelompokkan HARFIAH tanpa mengandaikan himpunan tertutup, karena kolomnya varchar tanpa batasan di basis data sementara daftar pilihannya hanya ada di layar input: satu seeder atau satu suntingan langsung dapat memperkenalkan nilai di luar daftar itu. KETIGA, DUA kolom teks bebas — remarks_maintenance_actions DAN findings — yang diterbitkan pada dua bagian TERPISAH; menyatukannya akan menghitung dua kali slot yang mengisi keduanya, dan keduanya menjawab pertanyaan berbeda. Yang TIDAK ADA di sini dan ada di Kernel Plant: tidak ada kolom downtime sama sekali, sehingga tidak ada blok downtime; dan TIDAK ADA TABEL MASTER TARGET, sehingga tidak ada kolom target, tidak ada bagian standar-tanpa-pengukuran, dan tidak ada pasangan berbagi standar. Ketiadaan master itu justru yang membuat satu pernyataan wajib ada di layar: angka BOD, COD, TSS, dan pH buangan akhir adalah angka kepatuhan lingkungan yang punya batas regulasi di luar sistem ini, dan laporan ini TIDAK dapat mengatakan apakah angkanya patuh — menampilkan angka lingkungan tanpa batas hukumnya mengundang pembaca memasok batas itu dari ingatan."
+    },
+    {
+      "id": "screen-157--laporan-effluent-plant-mobile",
+      "name": "Laporan Effluent Plant (Mobile)",
+      "module_id": "module-dashboard",
+      "description": "Versi mobile dari Laporan Effluent Plant (screen-156), read-only, tata letak layar sempit — pola yang sama dengan screen-147/149/151/153/155 terhadap pasangan web-nya. Dicapai dari Reporting (screen-141). Empat belas kolom ukur menjadi empat belas kartu bertumpuk, dan itu dua kali lebih banyak daripada laporan mobile mana pun sebelumnya; tiga sebaran status dan dua rekap teks bebas menyusul di bawahnya. Keempat endpoint /api/effluent-plant-reports/* dipakai ulang apa adanya dari screen-156 sehingga ponsel tidak mungkin berselisih dengan web tentang satu angka pun."
     }
   ]
 }

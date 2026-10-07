@@ -8,16 +8,14 @@ MOBILE_DIR=$(pwd)/mobile
 
 echo -e "\n\n-> PULLING CHANGES \n\n"
 
-git add .
-git stash
+git reset --hard
 git pull
-git stash pop
 
 echo -e "\n\n-> DEPLOYING BACKEND \n\n"
 
 cd $BACKEND_DIR
 composer install
-php artisan migrate
+php artisan migrate:fresh --seed
 php artisan optimize
 
 echo -e "\n\n-> DEPLOYING MOBILE \n\n"

@@ -1,8 +1,8 @@
 {
-  "ver": 22,
+  "ver": 23,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-06"
+    "updated_at": "2026-10-07"
   },
   "screens": [
     {
@@ -922,6 +922,18 @@
       "name": "Laporan Depricarping (Mobile)",
       "module_id": "module-dashboard",
       "description": "Versi mobile dari Laporan Depricarping — pilih periode pelaporan dan Production Line lalu lihat cakupan pencatatan, min/rata-rata/maks untuk ketujuh parameter beserta rentang target, batas kritis, dan akibat operasionalnya, total menit downtime periode, rekap temuan (findings), rekap per presser, dan rekap per hari dalam tata letak layar sempit (read-only). Dicapai dari Reporting (screen-141)."
+    },
+    {
+      "id": "screen-154--laporan-kernel-plant-web",
+      "name": "Laporan Kernel Plant (Web)",
+      "module_id": "module-dashboard",
+      "description": "Laporan periode stasiun Kernel Plant di web. Pilih periode pelaporan + Production Line (WAJIB dipilih, mengikuti pola sepuluh laporan yang sudah ada), rekap per hari + baris total periode, dan ekspor. Kelompok KONDISI OPERASI seperti Threshing/Pressing/Depricarping: tiap record satu hari kerja satu unit kernel plant, tiap barisnya satu slot waktu dengan TUJUH kolom ukur — arus ripple mill 1 dan 2 (A), berat jenis claybath/hydrocyclone, suhu kernel silo 1 dan 2 (C), kadar air kernel (%), dan kehilangan kernel di shell (%). Inti laporannya min/rata-rata/maks per parameter dengan penyebut masing-masing, karena ketujuh kolom nullable dan terisi saling bebas. downtime_minutes INTEGER (dapat dijumlahkan) dengan findings sebagai kolom teks terpisah, sama seperti Depricarping. Master target membawa dua kolom (target_benchmark + corrective_action_plan) dan bentuknya KETIGA yang berbeda dari tiga laporan kondisi sebelumnya. DUA master mengatur DUA kolom sekaligus (Ripple Mill -> ripple_mill_1/2_amps, Kernel Silo 1 & 2 -> kernel_silo_1/2_temp_c), dan SATU master tidak punya kolom pengukuran sama sekali (Final Kernel Dirt)."
+    },
+    {
+      "id": "screen-155--laporan-kernel-plant-mobile",
+      "name": "Laporan Kernel Plant (Mobile)",
+      "module_id": "module-dashboard",
+      "description": "Versi mobile dari Laporan Kernel Plant (screen-154), read-only, tata letak layar sempit — persis pola screen-147/149/151/153 terhadap pasangan web-nya. Dicapai dari Reporting (screen-141). Memakai ulang endpoint /api/kernel-plant-reports/* tanpa perubahan backend. Tabel tujuh kolom tidak muat pada lebar 390px, jadi tiap parameter menjadi kartu bertumpuk; penyebut tiap rata-rata tetap tercetak, cakupan pencatatan tetap paling atas, kedua kolom target tetap menyertai angkanya, dan keterangan ketiadaan penandaan di luar batas tetap dinyatakan."
     }
   ]
 }

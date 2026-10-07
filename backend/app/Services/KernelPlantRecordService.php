@@ -81,6 +81,33 @@ class KernelPlantRecordService
     protected const FORM_FIELDS = ['kernel_plant_id', 'date', 'note'];
 
     /**
+     * The NINE reading columns of one kernel_plant_details row, in the
+     * order the input grid shows them — the seven measurement columns,
+     * then downtime, then findings.
+     *
+     * Made a public constant — alongside isRowFilled() becoming public —
+     * for KernelPlantReportService, which must BORROW the definition of a
+     * "filled" slot from this screen rather than deriving its own. Two
+     * definitions that disagree would mean the coverage figure in the
+     * period report does not match what this input screen accepts, and
+     * nobody would be able to tell which one was wrong. Precedent:
+     * BoilerRoomRecordService, then Threshing, Pressing, Depricarping.
+     *
+     * @var list<string>
+     */
+    public const READING_FIELDS = [
+        'ripple_mill_1_amps',
+        'ripple_mill_2_amps',
+        'claybath_hydro_sg',
+        'kernel_silo_1_temp_c',
+        'kernel_silo_2_temp_c',
+        'kernel_moisture_percent',
+        'shell_loss_percent',
+        'downtime_minutes',
+        'findings',
+    ];
+
+    /**
      * The 24 canonical hourly time-slot labels, in order: 07:00, 08:00,
      * ..., 23:00, 00:00, ..., 06:00. Mirrors mobile's
      * kernelPlantRecordRepo.ts's canonicalTimeSlots() exactly (`for i in
@@ -306,17 +333,29 @@ class KernelPlantRecordService
     /**
      * @param  array{ripple_mill_1_amps: mixed, ripple_mill_2_amps: mixed, claybath_hydro_sg: mixed, kernel_silo_1_temp_c: mixed, kernel_silo_2_temp_c: mixed, kernel_moisture_percent: mixed, shell_loss_percent: mixed, downtime_minutes: mixed, findings: mixed}  $row
      */
-    protected function isRowFilled(array $row): bool
+    public function isRowFilled(array $row): bool
     {
-        return $row['ripple_mill_1_amps'] !== null
-            || $row['ripple_mill_2_amps'] !== null
-            || $row['claybath_hydro_sg'] !== null
-            || $row['kernel_silo_1_temp_c'] !== null
-            || $row['kernel_silo_2_temp_c'] !== null
-            || $row['kernel_moisture_percent'] !== null
-            || $row['shell_loss_percent'] !== null
-            || $row['downtime_minutes'] !== null
-            || ($row['findings'] !== null && $row['findings'] !== '');
+        foreach (static::READING_FIELDS as $field) {
+            $value = $row[$field] ?? null;
+
+            if ($value === null) {
+                continue;
+            }
+
+            // EMPTY STRING COUNTS AS EMPTY ONLY FOR THE TEXT COLUMN, and
+            // that asymmetry is deliberate, not an oversight: `findings`
+            // arrives from the form as '' when untouched, while
+            // downtime_minutes arriving as 0 is a STATEMENT that the
+            // station did not stop. Treating them alike either way would
+            // change what this input screen accepts.
+            if ($field === 'findings' && $value === '') {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     /**

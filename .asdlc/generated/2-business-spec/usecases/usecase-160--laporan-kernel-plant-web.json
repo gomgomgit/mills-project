@@ -1,0 +1,379 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-07"
+  },
+  "ver": 1,
+  "id": "usecase-160--laporan-kernel-plant-web",
+  "name": "Lihat Laporan Periode Kernel Plant (Web)",
+  "description": "Supervisor, Mill Management, dan Admin membuka laporan periode stasiun Kernel Plant di web: memilih periode pelaporan dan Production Line, lalu membaca min/rata-rata/maks ketujuh parameter kondisi operasi beserta penyebut masing-masing, cakupan pencatatan, rekap per unit dan per hari, total downtime, dan daftar temuan. Laporan ini tidak menandai satu nilai pun sebagai di luar batas, dan menyatakan sebabnya di layar.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah login ke web dengan salah satu dari ketiga peran itu.",
+    "Operator tidak dapat membuka rute web ini (ia aktor mobile pada laporan ini), meski ketiga rute API menerimanya.",
+    "Ada periode pelaporan Kernel Plant pada mill yang bersangkutan."
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka Laporan Kernel Plant dari tile pada Laporan Stasiun (screen-140) atau dari menu Dashboard & Reporting."
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan pemilih periode (periode terbaru terpilih sendiri) dan pemilih Production Line yang BELUM terpilih. Untuk Admin, menampilkan juga pemilih mill."
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Selama Production Line belum dipilih, menampilkan arahan memilih line dan NOL angka — bukan angka nol, melainkan tidak ada angka sama sekali."
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Memilih Production Line."
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Menampilkan cakupan pencatatan DI PALING ATAS: slot terisi terhadap jumlah unit kernel plant x hari terhitung x 24 slot kanonis, beserta ketiga angka pembentuk penyebutnya."
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menampilkan tabel parameter: tujuh baris, satu per kolom ukur, masing-masing dengan min/rata-rata/maks DAN penyebutnya sendiri ('N dari M slot')."
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Menyertakan kedua kolom target pada tiap baris parameter (target_benchmark dan corrective_action_plan), dengan keterangan di dalam tanda kurung dirender utuh."
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Menandai bahwa ripple mill 1 dan 2 berbagi satu standar, dan kernel silo 1 dan 2 berbagi satu standar, serta menyatakan bahwa angka keduanya TIDAK dirata-ratakan menjadi satu."
+    },
+    {
+      "step": 9,
+      "actor": "System",
+      "description": "Menampilkan blok downtime: total menit yang dapat dijumlahkan beserta jumlah slot yang mencatatnya sebagai penyebut."
+    },
+    {
+      "step": 10,
+      "actor": "System",
+      "description": "Menampilkan bagian temuan terpisah dari downtime, dikelompokkan harfiah dan diurutkan dari yang paling sering, beserta pernyataan bahwa pengelompokannya harfiah."
+    },
+    {
+      "step": 11,
+      "actor": "System",
+      "description": "Menampilkan bagian 'standar tanpa pengukuran' berisi 'Final Kernel Dirt', dan bagian itu tetap digambar meski kosong."
+    },
+    {
+      "step": 12,
+      "actor": "System",
+      "description": "Menampilkan rekap per unit kernel plant dan rekap per hari, dengan baris total periode yang dihitung ulang dari slot."
+    },
+    {
+      "step": 13,
+      "actor": "System",
+      "description": "Menyatakan bahwa laporan ini tidak menandai satu nilai pun sebagai di luar batas, beserta sebabnya."
+    },
+    {
+      "step": 14,
+      "actor": "actor-supervisor",
+      "description": "Dapat menutup rekap harian, dan dapat mengekspor CSV untuk periode serta line yang terpilih."
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 3, Admin/Supervisor belum memilih Production Line.",
+      "steps": [
+        "System menampilkan arahan memilih line.",
+        "System tidak menampilkan satu angka pun, termasuk tidak menampilkan nol."
+      ]
+    },
+    {
+      "name": "Mill hanya punya satu Production Line",
+      "trigger": "Pada langkah 2, mill yang bersangkutan hanya punya satu line.",
+      "steps": [
+        "Line itu TETAP tidak terpilih otomatis.",
+        "Memilihnya sendiri akan membuat pembaca mengira ia melihat seluruh mill, padahal ia melihat satu line yang kebetulan satu-satunya hari ini."
+      ]
+    },
+    {
+      "name": "Mill tanpa periode Kernel Plant sama sekali",
+      "trigger": "Pada langkah 2, mill yang bersangkutan belum punya satu pun periode pelaporan Kernel Plant.",
+      "steps": [
+        "System menampilkan arahan, tanpa satu angka pun.",
+        "Kernel Plant adalah stasiun aktif MVP, tetapi periodenya tetap harus dibuka per jenis stasiun — ketiadaannya bukan galat."
+      ]
+    },
+    {
+      "name": "Periode tanpa satu pun slot terisi",
+      "trigger": "Pada langkah 5, tidak ada slot terisi pada periode dan line itu.",
+      "steps": [
+        "coverage_percent bernilai null dan dirender sebagai tanda pisah, BUKAN 0%.",
+        "Tabel parameter TETAP menampilkan ketujuh barisnya dengan nilai kosong."
+      ]
+    },
+    {
+      "name": "Periode belum mulai",
+      "trigger": "Pada langkah 5, periode yang dipilih tanggal mulainya masih di masa depan.",
+      "steps": [
+        "System menjelaskannya sebagai BELUM MULAI, bukan sebagai sedang berjalan.",
+        "days_counted === 0 diperiksa lebih dulu daripada period_running justru untuk ini."
+      ]
+    },
+    {
+      "name": "Periode sedang berjalan",
+      "trigger": "Pada langkah 5, periode yang dipilih sudah mulai tetapi belum berakhir.",
+      "steps": [
+        "Keterangan penyebut berhenti di hari terakhir yang terhitung, bukan di akhir periode yang belum tiba."
+      ]
+    },
+    {
+      "name": "Satu slot hanya mengisi findings",
+      "trigger": "Pada langkah 6, ada slot yang mengisi findings tanpa satu pun kolom ukur.",
+      "steps": [
+        "Slot itu TERHITUNG terisi pada cakupan.",
+        "Slot itu TIDAK menambah penyebut metrik mana pun.",
+        "Akibatnya coverage.filled_slots dapat MELEBIHI penyebut tiap metrik, dan itu benar."
+      ]
+    },
+    {
+      "name": "Ripple mill 2 atau salah satu silo tidak pernah diisi",
+      "trigger": "Pada langkah 6, satu dari pasangan kolom tidak pernah terisi.",
+      "steps": [
+        "Kedua baris TETAP tampil, yang tidak terisi dengan penyebut nol dan nilai kosong.",
+        "Penanda berbagi standar tetap tampil pada kedua baris.",
+        "Menyembunyikan baris kosong akan menyembunyikan bahwa satu mesin tidak pernah dicatat."
+      ]
+    },
+    {
+      "name": "Master disunting tangan sehingga nama parameternya tidak cocok dengan peta kolom",
+      "trigger": "Pada langkah 11, nama parameter pada master sudah tidak lagi cocok dengan peta kolom-ke-parameter.",
+      "steps": [
+        "Parameter itu muncul pada bagian 'standar tanpa pengukuran'.",
+        "Di situlah suntingan itu terlihat — bukan hilang diam-diam dari laporan."
+      ]
+    },
+    {
+      "name": "Admin berganti mill",
+      "trigger": "Pada langkah 2, Admin mengganti pilihan mill.",
+      "steps": [
+        "Pilihan line dan periode direset, karena keduanya milik mill."
+      ]
+    },
+    {
+      "name": "Akun terikat mill tanpa business_unit_id",
+      "trigger": "Pada langkah 1, akun Supervisor/Mill Management tidak punya business_unit_id.",
+      "steps": [
+        "System gagal tertutup dengan pesan yang menyebut sebabnya, sebelum satu query pun berjalan."
+      ]
+    },
+    {
+      "name": "Mill atau line milik mill lain diminta lewat properti",
+      "trigger": "Pada langkah 4, peran terikat mill mengirim id milik mill lain.",
+      "steps": [
+        "Permintaan itu DIABAIKAN, bukan ditolak dengan galat yang membocorkan keberadaannya."
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka rute web",
+      "trigger": "Pada langkah 1, sesi yang membuka adalah Operator.",
+      "steps": [
+        "System menolak dengan halaman terlarang.",
+        "Ketiga rute API tetap menerima Operator — ia aktor mobile pada laporan ini."
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pembaca mengetahui min/rata-rata/maks ketujuh parameter beserta penyebut masing-masing, seberapa lengkap pencatatannya, total downtime, temuan apa saja yang tercatat, dan standar mana yang tidak pernah diukur.",
+    "Tidak ada satu pun data yang berubah — laporan ini hanya membaca."
+  ],
+  "business_rules": [
+    "Production Line wajib dipilih sebelum satu angka pun ditampilkan; penyaringan memakai production_line_id pada tabel record, bukan join ke stations.",
+    "Hanya Admin melihat pemilih mill; mill yang diminta lewat properti diabaikan untuk peran terikat mill.",
+    "Operator tidak dapat membuka rute web ini meski ketiga rute API menerimanya.",
+    "Tiap parameter menerbitkan penyebutnya sendiri karena ketujuh kolom nullable dan terisi saling bebas.",
+    "coverage_percent null, bukan 0.0, ketika tidak ada slot terisi.",
+    "days_counted === 0 diperiksa lebih dulu daripada period_running.",
+    "Definisi slot 'terisi' dipinjam dari layar input, sehingga coverage.filled_slots dapat melebihi penyebut tiap metrik.",
+    "downtime_minutes dapat dijumlahkan; total_minutes null bukan 0; recorded_slot_count menghitung nol yang tercatat; downtime tidak punya standar di master.",
+    "Temuan dikelompokkan harfiah tanpa normalisasi, diurutkan slot_count terbanyak lalu alfabetis.",
+    "Dua master mengatur dua kolom masing-masing, dan penandanya diturunkan dari peta kolom-ke-parameter, bukan dipaku.",
+    "Angka kedua ripple mill dan kedua silo tidak pernah dirata-ratakan menjadi satu.",
+    "'Final Kernel Dirt' tidak punya kolom pengukuran; perbandingannya terhadap HIMPUNAN parameter terpeta, bukan jumlahnya.",
+    "Bagian 'standar tanpa pengukuran' tetap digambar meski kosong.",
+    "Tidak ada penandaan otomatis di luar batas, dan ketiadaannya dinyatakan di layar.",
+    "Baris total periode dihitung ulang dari slot, bukan merata-ratakan rata-rata harian.",
+    "Seluruh agregasi dilakukan di PHP, nol agregat SQL atas kolom nullable — suite berjalan di SQLite sementara produksi PostgreSQL."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — sukses sebagai Supervisor atau Mill Management",
+      "given": "Supervisor atau Mill Management sudah login ke web, akunnya terikat pada satu mill yang punya business_unit_id, dan ada periode pelaporan Kernel Plant pada mill itu",
+      "when": "ia membuka Laporan Kernel Plant dari tile pada Laporan Stasiun atau dari menu Dashboard & Reporting, periode terbaru terpilih sendiri, lalu ia memilih satu Production Line",
+      "then": "ia melihat cakupan pencatatan di paling atas beserta ketiga angka pembentuk penyebutnya (jumlah unit kernel plant x hari terhitung x 24 slot kanonis), tabel tujuh baris parameter dengan min/rata-rata/maks dan penyebutnya sendiri berformat 'N dari M slot', kedua kolom target (target_benchmark dan corrective_action_plan) dirender utuh termasuk keterangan di dalam tanda kurung, penanda berbagi standar pada pasangan ripple mill 1-2 dan pasangan kernel silo 1-2, blok downtime berisi total menit beserta jumlah slot pencatatnya, bagian temuan yang terpisah dari downtime, bagian 'standar tanpa pengukuran' berisi 'Final Kernel Dirt', rekap per unit kernel plant dan rekap per hari dengan baris total periode, serta pernyataan bahwa laporan ini tidak menandai satu nilai pun sebagai di luar batas beserta sebabnya; pemilih mill tidak ditampilkan untuknya, dan tidak ada satu pun data yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — sukses sebagai Admin",
+      "given": "Admin sudah login ke web, tidak terikat mill mana pun, dan ada periode pelaporan Kernel Plant pada mill-mill yang ada",
+      "when": "ia membuka Laporan Kernel Plant, memilih satu mill pada pemilih mill, lalu memilih satu Production Line pada mill itu",
+      "then": "ia melihat pemilih mill — satu-satunya peran yang melihatnya — dan setelah mill serta line terpilih ia melihat isi laporan yang sama lengkapnya dengan peran terikat mill: cakupan pencatatan di paling atas beserta ketiga angka penyebutnya, tujuh baris parameter dengan min/rata-rata/maks dan penyebut masing-masing, kedua kolom target utuh, penanda berbagi standar pada kedua pasangan, blok downtime, bagian temuan, bagian 'standar tanpa pengukuran', rekap per unit dan per hari dengan baris total periode, serta pernyataan ketiadaan penandaan di luar batas; dan tidak ada satu pun data yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — Production Line belum dipilih",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant pada mill yang bersangkutan",
+      "when": "ia membuka laporan dan belum memilih Production Line",
+      "then": "laporan menampilkan arahan untuk memilih line lebih dulu dan tidak menampilkan satu angka pun — bukan menampilkan angka nol, melainkan tidak ada angka sama sekali"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — mill hanya punya satu Production Line",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan mill yang bersangkutan hanya punya satu Production Line pada periode pelaporan Kernel Plant yang ada",
+      "when": "ia membuka laporan pada mill yang hanya punya satu line itu",
+      "then": "line tunggal itu tetap tidak terpilih otomatis dan laporan tetap menampilkan arahan memilih line tanpa satu angka pun, agar pembaca tidak mengira ia melihat seluruh mill padahal ia melihat satu line yang kebetulan satu-satunya hari ini"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — mill belum punya satu pun periode Kernel Plant",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan mill yang bersangkutan belum punya satu pun periode pelaporan Kernel Plant meski Kernel Plant adalah stasiun aktif MVP",
+      "when": "ia membuka Laporan Kernel Plant pada mill itu",
+      "then": "laporan menampilkan arahan tanpa satu angka pun dan tidak memperlakukan keadaan itu sebagai galat, karena periode tetap harus dibuka per jenis stasiun — pemilih periode kosong, bukan terisi periode milik jenis stasiun lain"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — periode tanpa satu pun slot terisi",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant pada mill yang bersangkutan",
+      "when": "ia memilih Production Line pada periode yang tidak punya satu pun slot terisi",
+      "then": "coverage_percent bernilai null dan dirender sebagai tanda pisah — bukan 0% — dan tabel parameter tetap menampilkan ketujuh barisnya dengan nilai kosong"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — periode belum mulai",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant yang tanggal mulainya masih di masa depan",
+      "when": "ia memilih Production Line pada periode yang belum mulai itu",
+      "then": "laporan menjelaskan keadaannya sebagai BELUM MULAI, bukan sebagai sedang berjalan, karena days_counted === 0 diperiksa lebih dulu daripada period_running justru untuk kasus ini"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — periode sedang berjalan",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant yang sudah mulai tetapi belum berakhir",
+      "when": "ia memilih Production Line pada periode yang sedang berjalan itu",
+      "then": "keterangan penyebut berhenti di hari terakhir yang terhitung, bukan di akhir periode yang belum tiba"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — satu slot hanya mengisi findings",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant pada mill yang bersangkutan",
+      "when": "ia memilih Production Line pada periode yang punya slot mengisi findings tanpa satu pun kolom ukur",
+      "then": "slot itu terhitung terisi pada cakupan tetapi tidak menambah penyebut metrik mana pun, sehingga coverage.filled_slots dapat melebihi penyebut tiap metrik dan keadaan itu benar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — ripple mill 2 atau salah satu silo tidak pernah diisi",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant pada mill yang bersangkutan",
+      "when": "ia memilih Production Line pada periode yang salah satu kolom pasangannya — ripple mill 2 atau salah satu kernel silo — tidak pernah terisi",
+      "then": "kedua baris pasangan tetap tampil, baris yang tidak terisi menampilkan penyebut nol dan nilai kosong, dan penanda berbagi standar tetap tampil pada kedua baris, karena menyembunyikan baris kosong akan menyembunyikan bahwa satu mesin tidak pernah dicatat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — master disunting tangan sehingga nama parameternya tidak cocok dengan peta kolom",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan satu baris master standar sudah disunting langsung sehingga nama parameternya tidak lagi cocok dengan peta kolom-ke-parameter",
+      "when": "ia memilih Production Line dan membaca bagian 'standar tanpa pengukuran'",
+      "then": "parameter yang namanya tidak lagi cocok itu muncul pada bagian 'standar tanpa pengukuran' — bukan hilang diam-diam dari laporan — sehingga suntingan itu terlihat justru di tempat yang orang akan membacanya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — Admin berganti mill",
+      "given": "Admin sudah login ke web, tidak terikat mill mana pun, dan sudah memilih satu mill beserta line dan periodenya sehingga laporan menampilkan angka",
+      "when": "ia mengganti pilihan mill pada pemilih mill",
+      "then": "pilihan line dan periode direset karena keduanya milik mill, dan laporan kembali tidak menampilkan satu angka pun sampai line pada mill baru dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — akun terikat mill tanpa business_unit_id",
+      "given": "akun Supervisor atau Mill Management sudah login ke web tetapi tidak punya business_unit_id",
+      "when": "ia mencoba membuka Laporan Kernel Plant",
+      "then": "system gagal tertutup dengan pesan yang menyebut sebabnya, sebelum satu query pun berjalan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — mill atau line milik mill lain diminta lewat properti",
+      "given": "pengguna sudah login ke web sebagai Supervisor atau Mill Management dengan akun terikat pada satu mill, dan ada periode pelaporan Kernel Plant pada mill itu",
+      "when": "ia mengirim id mill atau id Production Line milik mill lain lewat properti permintaan",
+      "then": "permintaan itu diabaikan dan laporan tetap dibatasi pada mill akunnya — bukan ditolak dengan galat yang justru membocorkan keberadaan mill atau line milik orang lain"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — Operator mencoba membuka rute web",
+      "given": "sesi yang aktif adalah Station Operator, yang merupakan aktor mobile pada laporan ini",
+      "when": "ia mencoba membuka rute web Laporan Kernel Plant",
+      "then": "system menolak dengan halaman terlarang, sementara ketiga rute API tetap menerima Operator karena ia aktor mobile pada laporan ini"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — penyaringan line memakai production_line_id pada tabel record, bukan join ke stations",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan satu mill punya lebih dari satu Production Line dengan slot terisi pada periode pelaporan Kernel Plant yang sama",
+      "when": "ia memilih satu Production Line saja",
+      "then": "semua angka — cakupan, ketujuh parameter beserta penyebutnya, downtime, temuan, rekap per unit dan per hari — hanya berasal dari record yang production_line_id-nya sama dengan line terpilih, dan tidak satu pun record dari line lain pada mill yang sama ikut terhitung"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — penyebut tiap parameter tidak boleh disamakan satu dengan lainnya",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant yang slot-slotnya mengisi himpunan kolom ukur yang berbeda-beda",
+      "when": "ia memilih Production Line dan membaca tabel parameter",
+      "then": "tiap baris parameter menerbitkan penyebutnya sendiri sesuai jumlah slot yang benar-benar mengisi kolomnya, sehingga ketujuh baris dapat menampilkan M yang berbeda-beda, dan tidak ada satu penyebut tunggal yang dipakai bersama oleh semua parameter"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — total downtime null bukan nol, dan nol yang tercatat tetap dihitung",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant pada mill yang bersangkutan",
+      "when": "ia memilih Production Line pada periode yang tidak satu pun slotnya mencatat downtime_minutes, lalu pada periode lain yang beberapa slotnya mencatat downtime 0 menit",
+      "then": "pada periode pertama total_minutes bernilai null dan dirender sebagai tanda pisah — bukan 0 — sedangkan pada periode kedua slot yang mencatat nol tetap dihitung pada recorded_slot_count sehingga penyebut downtime mencerminkan jumlah slot yang mencatatnya, bukan hanya slot yang downtime-nya lebih dari nol"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — temuan dikelompokkan harfiah tanpa normalisasi dan diurutkan dari yang paling sering",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant yang temuannya ditulis dengan variasi kapitalisasi dan spasi pada teks yang sebenarnya mirip",
+      "when": "ia memilih Production Line dan membaca bagian temuan",
+      "then": "teks yang berbeda sedikit pun tetap menjadi kelompok yang berbeda tanpa normalisasi, urutannya dari slot_count terbanyak lalu alfabetis bila jumlahnya sama, dan layar menyatakan bahwa pengelompokannya harfiah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — penanda berbagi standar diturunkan dari peta kolom-ke-parameter, bukan dipaku",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan dua master standar masing-masing mengatur dua kolom — satu untuk pasangan ripple mill, satu untuk pasangan kernel silo",
+      "when": "ia memilih Production Line dan membaca penanda berbagi standar beserta kedua kolom target pada baris-baris pasangan itu",
+      "then": "penanda dan nilai target pada tiap baris mengikuti peta kolom-ke-parameter dan master yang berlaku, bukan nilai yang dipaku di kode, sehingga perubahan pada master langsung tercermin pada kedua baris yang berbagi standar itu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — angka kedua ripple mill dan kedua silo tidak pernah dirata-ratakan menjadi satu",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant yang kedua ripple mill dan kedua kernel silo-nya terisi dengan nilai berbeda",
+      "when": "ia memilih Production Line dan membaca tabel parameter",
+      "then": "ripple mill 1 dan 2 tampil sebagai dua baris dengan min/rata-rata/maks dan penyebutnya sendiri, demikian pula kernel silo 1 dan 2, dan tidak ada satu baris gabungan yang merata-ratakan pasangan itu menjadi satu angka meski keduanya berbagi satu standar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — 'Final Kernel Dirt' dibandingkan terhadap himpunan parameter terpeta, bukan jumlahnya",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan 'Final Kernel Dirt' adalah standar yang tidak punya kolom pengukuran sama sekali",
+      "when": "ia memilih Production Line pada periode yang jumlah standarnya kebetulan sama dengan jumlah parameter terpeta",
+      "then": "'Final Kernel Dirt' tetap muncul pada bagian 'standar tanpa pengukuran' karena perbandingannya dilakukan terhadap himpunan parameter yang terpeta — bukan terhadap jumlahnya — sehingga kesamaan jumlah tidak membuatnya luput dari daftar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — bagian 'standar tanpa pengukuran' tetap digambar meski kosong",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant yang setiap standarnya punya kolom pengukuran yang terpeta",
+      "when": "ia memilih Production Line dan membaca bagian 'standar tanpa pengukuran'",
+      "then": "bagian itu tetap digambar dalam keadaan kosong dengan keterangannya, tidak dihilangkan dari layar, agar pembaca tahu pemeriksaan itu memang dilakukan dan hasilnya nihil"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — tidak ada penandaan otomatis di luar batas dan ketiadaannya dinyatakan",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant yang beberapa nilainya jauh di luar target_benchmark",
+      "when": "ia memilih Production Line dan membaca tabel parameter",
+      "then": "tidak satu pun nilai ditandai sebagai di luar batas — tanpa warna, ikon, atau label peringatan — dan layar menyatakan secara tegas bahwa laporan ini tidak melakukan penandaan itu beserta sebabnya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — baris total periode dihitung ulang dari slot, bukan merata-ratakan rata-rata harian",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant yang jumlah slot terisi per harinya tidak sama",
+      "when": "ia memilih Production Line dan membandingkan baris total periode dengan rata-rata dari rata-rata harian pada rekap per hari",
+      "then": "baris total periode dihitung ulang langsung dari seluruh slot sehingga nilainya berbeda dari rata-rata atas rata-rata harian ketika jumlah slot per hari tidak sama, dan nilai yang ditampilkan adalah hasil hitung ulang dari slot itu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Web) — slot yang kolom ukurnya null tidak diperlakukan sebagai nol",
+      "given": "pengguna sudah login ke web sebagai Supervisor, Mill Management, atau Admin, dan ada periode pelaporan Kernel Plant yang sebagian slotnya mengisi satu kolom ukur sementara membiarkan kolom ukur lain null",
+      "when": "ia memilih Production Line dan membaca min/rata-rata/maks pada baris parameter yang sebagian slotnya null",
+      "then": "nilai null dilewati sama sekali dari perhitungan — tidak diperlakukan sebagai nol yang akan menarik minimum ke 0 dan merata-rata ke bawah — dan penyebut baris itu hanya menghitung slot yang kolomnya benar-benar terisi, sehingga angka yang sama keluar baik di SQLite maupun di PostgreSQL"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-154--laporan-kernel-plant-web"
+  ]
+}

@@ -100,6 +100,18 @@ class StationReportService
         // ahead of boiler-room (90), and the ordering of this map is
         // load-bearing — see the note below.
         StationTypeEnum::Clarification->value => 'reports.clarification',
+        // screen-154--laporan-kernel-plant-web. BETWEEN clarification and
+        // boiler-room, never appended: station_types.sort_order puts
+        // kernel-plant at 80 — behind clarification (70), ahead of
+        // boiler-room (90) — and the ordering of this map is load-bearing,
+        // see the note below. Verified against the station_types table, not
+        // inferred from the enum's declaration order (where kernel-plant
+        // sits third). Note the key is 'kernel-plant' WITH A HYPHEN, which
+        // is what StationTypeEnum::KernelPlant->value holds; a snake_case
+        // key would compile, look right, and never match a master row.
+        // Without this one line the report exists, every one of its own
+        // tests passes, and the tile stays greyed out.
+        StationTypeEnum::KernelPlant->value => 'reports.kernel-plant',
         // screen-131--laporan-boiler-room-web. LAST, after sterilizer:
         // station_types.sort_order puts boiler-room (90) behind cages-track
         // (30) and sterilizer (40), and the ordering of this map is

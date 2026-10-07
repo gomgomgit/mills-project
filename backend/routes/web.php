@@ -7,6 +7,7 @@ use App\Livewire\Dashboard\LaporanCagesTrack;
 use App\Livewire\Dashboard\LaporanClarification;
 use App\Livewire\Dashboard\LaporanGrading;
 use App\Livewire\Dashboard\LaporanDepricarping;
+use App\Livewire\Dashboard\LaporanKernelPlant;
 use App\Livewire\Dashboard\LaporanPressing;
 use App\Livewire\Dashboard\LaporanThreshing;
 use App\Livewire\Dashboard\LaporanStasiun;
@@ -987,5 +988,19 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/depricarping', LaporanDepricarping::class)
     ->name('reports.depricarping');
+
+// Laporan Periode Kernel Plant (screen-154). Operator is NOT admitted here
+// even though the API prefix admits it for the mobile twin (screen-155):
+// LaporanKernelPlant::canAccess() keeps its OWN role list rather than
+// borrowing KernelPlantReportService::guardAccess(); if it ever delegates,
+// this web screen silently opens to Operator.
+//
+// Reachable from the UI ONLY through the Kernel Plant tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES now
+// maps the 'kernel-plant' code to this route name. Without that one line the
+// report exists, every test here passes, and the screen stays unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/kernel-plant', LaporanKernelPlant::class)
+    ->name('reports.kernel-plant');
 
 // === ASDLC_ROUTES_END ===

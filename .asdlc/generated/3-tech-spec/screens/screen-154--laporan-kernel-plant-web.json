@@ -1,0 +1,1954 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-07"
+  },
+  "ver": 1,
+  "id": "screen-154--laporan-kernel-plant-web",
+  "name": "Laporan Kernel Plant (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/kernel-plant",
+  "auth_requirement": "role: supervisor, mill_management, admin (web session). Operator DITOLAK di rute web ini meski keempat rute API menerimanya untuk kembaran mobile (screen-155).",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat mill. WAJIB mengirim business_unit_id — hilang = 422 VALIDATION_ERROR, bukan null diam-diam yang akan terbaca sebagai 'mill ini tidak punya data'."
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Hanya mill pada business_unit_id akunnya. business_unit_id yang dikirim DIABAIKAN, bukan divalidasi. Akun tanpa business_unit_id gagal tertutup dengan 403 sebelum satu query pun berjalan."
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Sama dengan Supervisor — terikat mill akunnya, business_unit_id yang dikirim diabaikan."
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Rute web menolak dengan 403. Keempat rute API menerimanya sejak commit pertama karena kembaran mobile (screen-155) dibangun di rangkaian yang sama — kecuali /business-units/options yang menolaknya dengan 403 dari dalam service, bukan dari middleware."
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "usecase_name": "Lihat Laporan Periode Kernel Plant (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/kernel-plant-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih mill. HANYA Admin — menolak Operator, Supervisor, dan Mill Management dengan 403 yang diangkat DI DALAM service, bukan oleh middleware (middleware prefix ini menerima keempat peran demi tiga endpoint lainnya).",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tidak ada sesi web maupun token sanctum."
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan Admin — diangkat di dalam KernelPlantReportService, bukan di middleware."
+              }
+            ]
+          },
+          "performance": {
+            "cache": "Tanpa cache — daftar mill berubah lewat master data.",
+            "rate_limit": "Tanpa batas khusus"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-plant-reports/periods",
+          "description": "Daftar periode pelaporan Kernel Plant pada satu mill, terbaru lebih dulu. TIDAK menyaring berdasarkan status — periode draft pun tampil, konsisten dengan lima laporan kondisi sebelumnya.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "null",
+                "description": "WAJIB untuk Admin (hilang = 422). DIABAIKAN untuk peran terikat mill — bukan divalidasi, diabaikan, sehingga menyelidik id mill lain adalah no-op yang tetap mengembalikan 200 berisi data mill sendiri."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "business_unit_name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tanpa sesi/token."
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar keempat peran, ATAU akun terikat mill tanpa business_unit_id — gagal tertutup sebelum satu query pun berjalan."
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id. Bukan null diam-diam dan bukan hasil kosong, yang akan terbaca sebagai 'mill ini tidak punya data'."
+              }
+            ]
+          },
+          "performance": {
+            "cache": "Tanpa cache",
+            "rate_limit": "Tanpa batas khusus"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-plant-reports/summary",
+          "description": "Seluruh isi laporan dalam satu respons: cakupan, tujuh metrik beserta penyebut masing-masing, standar tanpa pengukuran, rekap per unit kernel plant, rekap per hari, baris total periode, blok downtime, dan kelompok temuan. CATATAN BENTUK: master Kernel Plant hanya punya DUA kolom target (target_benchmark, corrective_action_plan), bukan empat seperti Depricarping (target_range, critical_limit, operational_consequence_justification) — jadi `target` di sini lebih ramping, dan tidak ada medan yang perlu dikarang supaya 'sebangun'.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "Periode yang dibaca. Tidak dikirim = 422; milik mill lain = 403 untuk peran terikat mill."
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "null",
+                "description": "WAJIB untuk Admin; diabaikan untuk peran terikat mill."
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": false,
+                "default": "null",
+                "description": "WAJIB dipilih di layar sebelum satu angka pun ditampilkan. Null tetap sah di API (seluruh mill), tetapi layar web tidak pernah memanggil dalam keadaan itu. Id milik mill lain diabaikan — diselesaikan resolveProductionLine() terhadap mill yang sudah terkunci, bukan divalidasi dengan galat yang membocorkan keberadaannya."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string",
+                "business_unit_name": "string"
+              },
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": "null | {id, name, code}",
+              "has_data": "bool — membedakan 'tidak ada yang bisa dilaporkan' dari 'angkanya kebetulan nol'",
+              "coverage": {
+                "filled_slots": "int",
+                "expected_slots": "int — kernel_plant_count x days_counted x 24",
+                "coverage_percent": "float | NULL — null HANYA ketika expected_slots === 0, yaitu ketika penyebutnya tidak terbentuk: tidak ada unit yang punya record, atau tidak ada hari terhitung (periode belum mulai). Periode yang punya record tetapi seluruh kolom detailnya kosong menghasilkan 0.0, dan itu BENAR — penyebutnya ada, dan 0% adalah pernyataan sah tentang kelengkapan. Catatan: komentar yang diwarisi dari Depricarping ('0% mengklaim sesuatu sudah diukur') menerangkan niat null secara lebih longgar daripada syarat yang sebenarnya dijaganya; syaratnya adalah tentang PENYEBUT, bukan tentang pembilang.",
+                "kernel_plant_count": "int — unit yang BENAR-BENAR punya record, bukan yang terdaftar",
+                "slots_per_kernel_plant_per_day": "int — 24, dari KernelPlantRecordService::canonicalTimeSlots()",
+                "days_in_period": "int",
+                "days_counted": "int — berhenti di hari ini untuk periode yang masih berjalan",
+                "period_running": "bool — DIPERIKSA SETELAH days_counted === 0, karena isRunning() juga true untuk periode yang belum mulai"
+              },
+              "metrics": [
+                {
+                  "column": "string — salah satu dari tujuh NUMERIC_METRICS",
+                  "label": "string — dari METRIC_LABELS",
+                  "unit": "string — dari METRIC_LABELS",
+                  "min": "float | null",
+                  "avg": "float | null",
+                  "max": "float | null",
+                  "filled_slot_count": "int — N: jumlah slot terisi yang kolom INI-nya non-null. PENYEBUT MILIK BARIS INI SENDIRI, berbeda-beda antar baris.",
+                  "target": {
+                    "equipment_parameter": "string | null — nama parameter pada master (nama kolom master Kernel Plant, bukan 'parameter_metric' seperti Depricarping)",
+                    "target_benchmark": "string | null — dirender utuh termasuk keterangan dalam tanda kurung",
+                    "corrective_action_plan": "string | null",
+                    "shares_standard_with": "list<string> — kolom ukur LAIN yang diatur master parameter yang sama; DITURUNKAN dari COLUMN_TARGET_PARAMETER, bukan dipaku. Bersarang DI BAWAH `target`, bukan di tingkat metrik — bentuk yang sama dengan lima laporan kondisi sebelumnya."
+                  }
+                }
+              ],
+              "targets_without_metric": [
+                {
+                  "equipment_parameter": "string — nama kolom master APA ADANYA. targetsWithoutMetric() mengembalikan baris master verbatim ditambah `reason` ($target + ['reason' => …]), jadi kuncinya adalah nama kolom sungguhan, bukan nama lain. Draf pertama spec ini menulis 'parameter' — satu konsep dengan dua nama di satu payload, dan itu dikoreksi.",
+                  "target_benchmark": "string",
+                  "corrective_action_plan": "string",
+                  "reason": "string — 'no_column', nilai dari konstanta UNMAPPED_NO_COLUMN. SATU nilai, dan tidak ada nilai kedua yang dikarang: master Kernel Plant tidak punya kolom yang arahnya dapat bertentangan dengan standarnya, jadi 'direction_unresolved' milik Depricarping tidak punya padanan di sini. Normalnya daftar ini berisi TEPAT SATU baris ('Final Kernel Dirt') — kebalikan dari Depricarping yang normalnya kosong."
+                }
+              ],
+              "targets_master_empty": "bool",
+              "all_targets_measured": "bool — agar layar MENGGAMBAR bagian 'standar tanpa pengukuran' dengan keterangan, bukan menyembunyikannya saat kosong",
+              "by_kernel_plant": [
+                {
+                  "kernel_plant_id": "string — BUKAN uuid dan BUKAN kunci asing. kernel_plant_records.kernel_plant_id adalah kolom `string` biasa (migrasi 2026_08_23_000011) berisi LABEL unit yang ditulis tangan, persis seperti presser_id pada Depricarping. Draf pertama spec ini menulis 'uuid' — salah, dan tidak ada apa pun untuk dijadikan kuncinya.",
+                  "kernel_plant_name": "string — SAMA DENGAN kernel_plant_id. Tidak ada tabel master kernel_plants di skema ini (hanya _records, _details, _operational_targets), jadi tidak ada nama untuk dicari; mengembalikan null akan meninggalkan satu kolom kosong di samping id yang terisi. Diisolasi di kernelPlantNameOf() supaya memperkenalkan master kelak adalah satu perubahan metode tanpa mengubah bentuk payload.",
+                  "day_count": "int — jumlah TANGGAL berbeda yang unit ini punya record-nya. Inilah yang memberi tahu bahwa label yang sama pada dua tanggal adalah satu unit dengan dua hari, bukan dua unit.",
+                  "filled_slot_count": "int",
+                  "downtime_minutes": "int | null",
+                  "averages": "map kolom -> float|null"
+                }
+              ],
+              "daily": [
+                {
+                  "date": "date",
+                  "filled_slot_count": "int",
+                  "downtime_minutes": "int | null",
+                  "averages": "map kolom -> float|null"
+                }
+              ],
+              "daily_total": {
+                "filled_slot_count": "int",
+                "downtime_minutes": "int | null",
+                "averages": "map kolom -> float|null — DIHITUNG ULANG atas SELURUH slot terisi, bukan merata-ratakan rata-rata harian"
+              },
+              "downtime": {
+                "total_minutes": "int | NULL — null, bukan 0, ketika tak satu slot pun mencatatnya",
+                "recorded_slot_count": "int — MENGHITUNG nol yang tercatat; 'tercatat nol menit' dan 'tidak dicatat' dua kenyataan berbeda",
+                "avg_minutes_per_recorded_slot": "float | null — rata-rata atas slot yang MENCATAT saja, bukan atas seluruh slot terisi. Draf pertama spec ini melewatkannya; ia ada pada Depricarping dan pada implementasi yang mendarat.",
+                "has_standard": "bool — selalu false; downtime tidak punya baris di master"
+              },
+              "findings": [
+                {
+                  "finding": "string — teks temuan HARFIAH, tanpa normalisasi ejaan/huruf besar-kecil/spasi. Kuncinya `finding`, BUKAN `text`; draf pertama spec ini menulis `text` dan itu dikoreksi terhadap findingsOf() yang sebenarnya.",
+                  "slot_count": "int"
+                }
+              ],
+              "total": {
+                "record_count": "int",
+                "days_with_records": "int",
+                "draft_record_count": "int",
+                "records_not_checked": "int",
+                "records_not_acknowledged": "int"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tanpa sesi/token."
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar keempat peran; akun terikat mill tanpa business_unit_id; atau periode milik mill lain untuk peran terikat mill."
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada."
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id tidak dikirim, atau Admin tanpa business_unit_id."
+              }
+            ]
+          },
+          "performance": {
+            "cache": "Tanpa cache — angka harus mencerminkan input terakhir. Seluruh agregasi di PHP atas koleksi yang sudah dimuat; satu query record + satu eager-load detail, bukan N+1.",
+            "rate_limit": "Tanpa batas khusus"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-plant-reports/export",
+          "description": "Ekspor CSV/Excel — SATU BARIS PER SLOT WAKTU (baris kernel_plant_details), dengan kolom konteks DIULANG pada setiap baris supaya berkasnya bisa langsung dipivot di spreadsheet.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "Sama dengan /summary."
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "null",
+                "description": "Sama dengan /summary."
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": false,
+                "default": "null",
+                "description": "Sama dengan /summary — ekspor mengikuti line yang terpilih di layar."
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "'csv' atau 'excel'. Nilai lain = 422."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_": "StreamedResponse. Header: Periode, Mill, Production Line, Tanggal, Unit Kernel Plant, Status, Catatan, Slot Waktu, lalu KESEMBILAN kolom READING_FIELDS berurutan: Ripple Mill 1 (Amps), Ripple Mill 2 (Amps), Claybath/Hydrocyclone (SG), Suhu Kernel Silo 1 (C), Suhu Kernel Silo 2 (C), Kadar Air Kernel (%), Shell Bin Kernel Loss (%), Downtime (Menit), Temuan. Menghilangkan downtime atau temuan di sini membuat berkasnya tak dapat menggantikan laporan — justru inti dari mengekspornya."
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tanpa sesi/token."
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Sama dengan /summary."
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada."
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id tidak dikirim; Admin tanpa business_unit_id; format tak dikenal; ATAU jumlah baris melebihi EXPORT_ROW_LIMIT (50000)."
+              }
+            ]
+          },
+          "performance": {
+            "cache": "Tanpa cache",
+            "rate_limit": "Tanpa batas khusus. Guard dan pemeriksaan batas baris berjalan EAGER saat pemanggilan, sementara barisnya di-yield lazy dari query berpetak — menjadikan metodenya sendiri generator akan menunda 403/422 sampai pengaliran dimulai, yaitu setelah header terkirim."
+          }
+        }
+      ],
+      "business_logic": [
+        "1. guardAccess() — tolak peran di luar {supervisor, mill_management, admin, operator} dengan 403. Rute WEB menolak Operator lebih dulu lewat middleware role-nya sendiri, dan LaporanKernelPlant::canAccess() memegang daftar perannya sendiri tanpa mendelegasikan ke sini.",
+        "2. resolveBusinessUnit() — peran terikat mill: SELALU business_unit_id akunnya, argumennya DIABAIKAN. → jika akunnya tanpa business_unit_id: 403 dengan pesan yang menyebut sebabnya, sebelum satu query pun berjalan. Admin: nilainya WAJIB dari pemanggil → jika hilang: 422 VALIDATION_ERROR. Operator masuk cabang TERIKAT MILL — memasukkannya hanya di guardAccess() akan menjatuhkannya ke cabang Admin tempat business_unit_id dari klien DIHORMATI.",
+        "3. requirePeriod() — → jika period_id tidak dikirim: 422. → jika tidak ada: 404.",
+        "4. authorizePeriodModel() — → jika periode milik mill lain dan peran terikat mill: 403. Urutannya disengaja: peran (403) → mill (422) → id periode (422) → periode itu sendiri (404/403), supaya pemanggil yang tak berhak sama sekali tidak pernah tahu id periode mana yang ada.",
+        "5. resolveProductionLine() — selesaikan production_line_id terhadap mill yang sudah terkunci; id milik mill lain menghasilkan null (diabaikan), bukan galat.",
+        "6. recordsFor() — SELECT kernel_plant_records WHERE period_id, dengan scopeToProductionLine() memakai kolom production_line_id PADA TABEL RECORD, bukan join ke stations. Eager-load kernelPlantDetails diurutkan canonical.",
+        "7. rowsOf() — ratakan setiap detail menjadi satu baris; `filled` MEMINJAM KernelPlantRecordService::isRowFilled() atas READING_FIELDS-nya — definisi yang sudah ditegakkan layar input, bukan versi baru.",
+        "8. Saring hanya baris `filled`. Slot yang kesembilan kolomnya kosong adalah slot tak tersentuh, sudah dilaporkan hilang oleh cakupan; menghitungnya lagi melaporkan kekosongan yang sama dua kali.",
+        "9. Cakupan: kernel_plant_count dari unit yang BENAR-BENAR punya record (bukan yang terdaftar — penyebut dari stasiun terdaftar akan menghukum mill yang sengaja tidak mengoperasikan satu unitnya); days_counted dari ReportPeriodDays::counted(); slots_per_kernel_plant_per_day = count(canonicalTimeSlots()) = 24. expected_slots = hasil kali ketiganya. → jika expected_slots === 0: coverage_percent = NULL, bukan 0.0.",
+        "10. targetsByParameter() — SELECT kernel_plant_operational_targets diurutkan sort_order, diindeks equipment_parameter.",
+        "11. metricsOf() — untuk MASING-MASING dari tujuh NUMERIC_METRICS: ambil nilai non-null dari baris terisi, hitung min/avg/max DI PHP (null dilewati, tidak diperlakukan sebagai nol), dan terbitkan filled_slot_count MILIKNYA SENDIRI. targetFor() melekatkan standar lewat COLUMN_TARGET_PARAMETER; sharesStandardWith() mengembalikan kolom lain yang parameter_name-nya sama — diturunkan dari peta, bukan dipaku. → jika tak ada nilai non-null: min/avg/max null dan filled_slot_count 0, baris TETAP TAMPIL.",
+        "12. targetsWithoutMetric() — bandingkan baris master terhadap HIMPUNAN nilai COLUMN_TARGET_PARAMETER (lima parameter), NEVER terhadap count() (tujuh entri). 'Final Kernel Dirt' terbit di sini dengan reason 'no_column'. all_targets_measured = (daftar itu kosong), supaya layar menggambar bagiannya dengan keterangan alih-alih menyembunyikannya.",
+        "13. byKernelPlantOf() dan dailyOf() — rekap per unit dan per hari; masing-masing dengan filled_slot_count, downtime_minutes, dan averages per kolom.",
+        "14. daily_total — DIHITUNG ULANG atas seluruh baris terisi lewat averagesOf(), bukan merata-ratakan rata-rata harian: merata-ratakan rata-rata memberi bobot sama pada hari berisi 2 slot dan hari berisi 24 slot.",
+        "15. downtimeOf() — JUMLAHKAN downtime_minutes atas baris terisi. → jika tak satu baris pun mencatatnya: total_minutes NULL, bukan 0. recorded_slot_count menghitung baris yang mencatat nilai apa pun TERMASUK 0. has_standard selalu false — downtime tidak punya baris di master.",
+        "16. findingsOf() — kelompokkan findings non-kosong HARFIAH, tanpa normalisasi; urutkan slot_count turun lalu teks naik sebagai pemutus seri agar stabil antar-render. Blok terpisah dari downtime: downtime menjawab 'berapa lama', temuan menjawab 'apa yang terlihat'; menyatukannya akan menghitung dua kali slot yang membawa keduanya.",
+        "17. Kembalikan seluruh blok di atas dalam satu respons. TIDAK ADA satu pun langkah yang menandai nilai di luar batas — tanpa warna, severity, maupun deteksi pencilan — dan ketiadaannya dinyatakan di layar.",
+        "18. export: guardAccess + resolveBusinessUnit + requirePeriod + authorizePeriod + resolveProductionLine + pemeriksaan format dan EXPORT_ROW_LIMIT berjalan EAGER, lalu baris di-yield lazy satu per slot waktu dengan kolom konteks diulang."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "kernel-plant-record",
+          "operation": "SELECT",
+          "description": "SELECT WHERE period_id = ? dan (bila line terpilih) production_line_id = ?, eager-load kernelPlantDetails. Satu query + satu eager-load, bukan N+1."
+        },
+        {
+          "entity_id": "kernel-plant-detail",
+          "operation": "SELECT",
+          "description": "Dimuat lewat eager-load, diurutkan time_slot canonical. Sumber kesembilan kolom READING_FIELDS."
+        },
+        {
+          "entity_id": "kernel-plant-operational-target",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris diurutkan sort_order, diindeks equipment_parameter untuk targetFor() dan targetsWithoutMetric()."
+        },
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "SELECT by id untuk authorizePeriod, dan daftar periode Kernel Plant per mill (tanpa penyaringan status)."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Dibaca untuk menetapkan status baris stasiun Kernel Plant pada periode itu."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "SELECT untuk productionLineInfo() (nama + kode line terpilih). Daftar OPSI tidak diduplikasi di sini — memakai /api/production-lines/options-for-report."
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "SELECT untuk pemilih mill (Admin saja) dan nama mill pada header laporan."
+        },
+        {
+          "entity_id": "station-type",
+          "operation": "SELECT",
+          "description": "SELECT code => name, dihafal per instance service, untuk label jenis stasiun."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Production Line belum dipilih di layar",
+          "handling": "Komponen Livewire tidak memanggil service sama sekali; blade menggambar arahan memilih line dan NOL angka. Bukan nol sebagai nilai — tidak ada angka yang dirender."
+        },
+        {
+          "condition": "Mill hanya punya satu Production Line",
+          "handling": "TIDAK ada pemilihan otomatis. $productionLineId tetap null dan layar tetap menampilkan arahan. Memilihnya sendiri akan membuat pembaca mengira ia melihat seluruh mill."
+        },
+        {
+          "condition": "Mill belum punya satu pun periode Kernel Plant",
+          "handling": "listPeriods() mengembalikan array kosong; layar menggambar arahan tanpa satu angka pun. Bukan galat — periode dibuka per jenis stasiun."
+        },
+        {
+          "condition": "Periode tanpa satu pun slot terisi",
+          "handling": "has_data = false, coverage_percent = null (dirender sebagai tanda pisah, bukan 0%). Tabel metrik TETAP menampilkan ketujuh barisnya dengan min/avg/max null dan filled_slot_count 0 — tujuh baris yang menyusut menjadi nol akan terbaca sebagai parameternya tidak ada."
+        },
+        {
+          "condition": "Periode belum mulai (start_date di masa depan)",
+          "handling": "days_counted === 0 DIPERIKSA LEBIH DULU daripada period_running, lalu layar menjelaskannya sebagai BELUM MULAI. Memeriksa period_running lebih dulu akan salah, karena ReportPeriodDays::isRunning() juga true untuk periode yang belum mulai."
+        },
+        {
+          "condition": "Periode sedang berjalan",
+          "handling": "days_counted berhenti di hari ini lewat ReportPeriodDays::counted(); keterangan penyebut menyebut hari terakhir yang terhitung, bukan akhir periode yang belum tiba."
+        },
+        {
+          "condition": "Satu slot hanya mengisi findings tanpa satu pun kolom ukur",
+          "handling": "isRowFilled() mengembalikan true — slot itu masuk coverage.filled_slots — sementara valuesOf() tidak menemukan nilai non-null untuk kolom mana pun sehingga tak satu filled_slot_count metrik pun bertambah. Akibatnya coverage.filled_slots DAPAT MELEBIHI penyebut tiap metrik. Dinyatakan di layar supaya tidak 'diperbaiki' menjadi salah."
+        },
+        {
+          "condition": "ripple_mill_2_amps atau salah satu kernel silo tidak pernah diisi",
+          "handling": "Baris itu tetap tampil dengan filled_slot_count 0 dan min/avg/max null, dan shares_standard_with tetap menunjuk pasangannya. Menyembunyikan baris kosong akan menyembunyikan bahwa satu mesin tidak pernah dicatat."
+        },
+        {
+          "condition": "Nama parameter pada master disunting sehingga tak lagi cocok dengan COLUMN_TARGET_PARAMETER",
+          "handling": "Metriknya tetap menerbitkan angkanya dengan has_standard = false, dan standar itu pindah ke targets_without_metric dengan reason 'no_column'. Terlihat, bukan hilang diam-diam — itulah sebabnya peta dipaku alih-alih dicocokkan lewat teks saat render."
+        },
+        {
+          "condition": "Master kernel_plant_operational_targets kosong seluruhnya",
+          "handling": "targets_master_empty = true; ketujuh metrik terbit dengan has_standard = false dan kedua kolom target kosong. Laporan tetap berguna sebagai angka."
+        },
+        {
+          "condition": "Admin berganti mill",
+          "handling": "Komponen mereset production_line_id dan period_id karena keduanya milik mill, lalu memuat ulang daftar periode dan daftar line."
+        },
+        {
+          "condition": "Akun terikat mill tanpa business_unit_id",
+          "handling": "resolveBusinessUnit() melempar AuthorizationException 403 dengan pesan 'Akun Anda belum terhubung ke mill' SEBELUM satu query pun berjalan — gagal tertutup, bukan mengembalikan hasil kosong."
+        },
+        {
+          "condition": "Periode atau line milik mill lain diminta lewat properti",
+          "handling": "Untuk peran terikat mill keduanya DIABAIKAN: business_unit_id yang dikirim tidak dibaca, dan resolveProductionLine() mengembalikan null untuk line di luar mill itu. Bukan 403/404 yang justru membocorkan keberadaannya. Periode milik mill lain adalah pengecualian yang disengaja: ia 403, karena period_id selalu eksplisit dari pemanggil."
+        },
+        {
+          "condition": "Downtime tercatat nol pada beberapa slot",
+          "handling": "total_minutes = 0 (bukan null) dan recorded_slot_count menghitung slot-slot itu. Membedakan 'tercatat nol menit' dari 'tidak dicatat' adalah inti maknanya."
+        },
+        {
+          "condition": "Dua temuan dengan ejaan berbeda untuk masalah yang sama",
+          "handling": "Dua baris terpisah pada findings[], dan layar menyatakan bahwa pengelompokannya harfiah. Normalisasi otomatis akan menggabungkan hal yang mungkin bukan satu hal."
+        },
+        {
+          "condition": "Jumlah baris ekspor melebihi 50.000",
+          "handling": "422 VALIDATION_ERROR, diangkat EAGER saat pemanggilan — sebelum satu byte header pun terkirim."
+        },
+        {
+          "condition": "Operator membuka rute web",
+          "handling": "Middleware role rute web menolaknya dengan 403. Keempat rute API tetap menerimanya (kecuali /business-units/options yang Admin-saja)."
+        }
+      ],
+      "business_rules_applied": [
+        "Production Line wajib dipilih di layar sebelum satu angka pun ditampilkan; penyaringan memakai production_line_id pada tabel record, bukan join ke stations.",
+        "Hanya Admin melihat pemilih mill; untuk peran terikat mill, business_unit_id yang dikirim diabaikan — bukan divalidasi.",
+        "Operator ditolak di rute web meski keempat rute API menerimanya; LaporanKernelPlant::canAccess() memegang daftar perannya sendiri.",
+        "Tiap metrik menerbitkan filled_slot_count-nya sendiri karena ketujuh kolom nullable dan terisi saling bebas.",
+        "coverage_percent null, bukan 0.0, ketika expected_slots nol.",
+        "days_counted === 0 diperiksa lebih dulu daripada period_running.",
+        "Definisi slot 'terisi' dipinjam dari KernelPlantRecordService::isRowFilled() atas READING_FIELDS-nya; konsekuensinya coverage.filled_slots dapat melebihi penyebut tiap metrik.",
+        "downtime_minutes dijumlahkan; total_minutes null bukan 0; recorded_slot_count menghitung nol yang tercatat; has_standard selalu false.",
+        "Temuan dikelompokkan harfiah tanpa normalisasi, diurutkan slot_count turun lalu teks naik.",
+        "Dua pasangan kolom berbagi satu standar masing-masing; shares_standard_with diturunkan dari COLUMN_TARGET_PARAMETER, bukan dipaku.",
+        "Angka kedua ripple mill dan kedua silo tidak pernah dirata-ratakan menjadi satu.",
+        "targetsWithoutMetric() membandingkan terhadap HIMPUNAN nilai peta (5 parameter), bukan terhadap jumlah entrinya (7).",
+        "Bagian 'standar tanpa pengukuran' tetap digambar meski kosong — all_targets_measured memberi layar sinyalnya.",
+        "Tidak ada penandaan otomatis di luar batas, dan ketiadaannya dinyatakan di layar.",
+        "daily_total dihitung ulang dari seluruh slot, bukan merata-ratakan rata-rata harian.",
+        "Seluruh agregasi di PHP; nilai null dilewati, tidak diperlakukan sebagai nol."
+      ],
+      "unit_test_cases": [
+        {
+          "description": "guardAccess() melempar 403 untuk peran di luar keempat peran yang diizinkan",
+          "given": "pengguna berperan 'weighbridge_operator' (di luar {supervisor, mill_management, admin, operator}) memanggil summary()",
+          "expect": "melempar AuthorizationException (403 FORBIDDEN) sebelum satu query pun berjalan; tidak ada SELECT ke kernel_plant_records"
+        },
+        {
+          "description": "guardAccess() meloloskan keempat peran termasuk operator, karena kembaran mobile screen-155 memakai rute API yang sama",
+          "given": "summary() dipanggil berturut-turut oleh supervisor, mill_management, admin, dan operator dengan period_id serta mill yang sah",
+          "expect": "tidak ada pengecualian untuk keempatnya; keempatnya menerima struktur respons penuh"
+        },
+        {
+          "description": "listBusinessUnitOptions() melempar 403 DARI DALAM service untuk supervisor, mill_management, dan operator",
+          "given": "listBusinessUnitOptions() dipanggil oleh supervisor, lalu mill_management, lalu operator — middleware prefix sengaja meloloskan keempat peran demi tiga endpoint lainnya",
+          "expect": "ketiganya melempar AuthorizationException 403; penolakan berasal dari service, bukan dari middleware — uji ini gagal bila guard dipindah ke rute"
+        },
+        {
+          "description": "listBusinessUnitOptions() mengembalikan daftar mill untuk Admin",
+          "given": "admin memanggil listBusinessUnitOptions(); ada 3 business_unit aktif",
+          "expect": "array 3 entri berisi {id, name}; tanpa cache — pemanggilan kedua setelah mill keempat dibuat mengembalikan 4 entri"
+        },
+        {
+          "description": "resolveBusinessUnit() MENGABAIKAN business_unit_id argumen untuk supervisor dan memakai business_unit_id akunnya",
+          "given": "supervisor terikat mill A memanggil summary() dengan business_unit_id = id mill B",
+          "expect": "mengembalikan 200 berisi business_unit.id = mill A; TIDAK melempar 403/422 — diabaikan, bukan divalidasi"
+        },
+        {
+          "description": "resolveBusinessUnit() MENGABAIKAN business_unit_id argumen untuk mill_management juga",
+          "given": "mill_management terikat mill A memanggil summary() dengan business_unit_id = id mill B",
+          "expect": "business_unit.id = mill A; perilaku identik dengan supervisor"
+        },
+        {
+          "description": "operator masuk cabang TERIKAT MILL, bukan cabang Admin",
+          "given": "operator terikat mill A memanggil summary() dengan business_unit_id = id mill B",
+          "expect": "business_unit.id = mill A — business_unit_id dari klien DIABAIKAN. Uji regresi langsung: bila operator hanya ditambahkan di guardAccess() tanpa ditambahkan ke cabang terikat mill, ia jatuh ke cabang Admin dan uji ini mengembalikan mill B"
+        },
+        {
+          "description": "resolveBusinessUnit() gagal tertutup dengan 403 untuk akun terikat mill tanpa business_unit_id",
+          "given": "supervisor dengan business_unit_id = null memanggil summary()",
+          "expect": "melempar AuthorizationException 403 berpesan 'Akun Anda belum terhubung ke mill' SEBELUM satu query pun berjalan; bukan hasil kosong yang akan terbaca sebagai 'mill ini tidak punya data'. Assert dengan DB::listen / query-log bahwa nol query dieksekusi"
+        },
+        {
+          "description": "resolveBusinessUnit() melempar 422 VALIDATION_ERROR untuk Admin tanpa business_unit_id",
+          "given": "admin memanggil summary() dengan business_unit_id = null dan period_id sah",
+          "expect": "melempar ValidationException 422 VALIDATION_ERROR; BUKAN null diam-diam dan BUKAN hasil kosong"
+        },
+        {
+          "description": "resolveBusinessUnit() memakai business_unit_id dari pemanggil untuk Admin",
+          "given": "admin memanggil summary() dengan business_unit_id = id mill B",
+          "expect": "business_unit.id = mill B — satu-satunya peran yang nilainya dihormati"
+        },
+        {
+          "description": "requirePeriod() melempar 422 ketika period_id tidak dikirim",
+          "given": "supervisor memanggil summary() tanpa period_id (null)",
+          "expect": "melempar ValidationException 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "requirePeriod() melempar 404 ketika period_id tidak ada",
+          "given": "supervisor memanggil summary() dengan period_id uuid acak yang tidak ada di tabel periods",
+          "expect": "melempar ModelNotFoundException / 404 NOT_FOUND"
+        },
+        {
+          "description": "authorizePeriodModel() melempar 403 ketika periode milik mill lain diminta peran terikat mill",
+          "given": "supervisor terikat mill A memanggil summary() dengan period_id milik mill B",
+          "expect": "melempar AuthorizationException 403. Ini pengecualian yang disengaja dari aturan 'diabaikan': period_id selalu eksplisit dari pemanggil, jadi ia ditolak, bukan diabaikan"
+        },
+        {
+          "description": "urutan guard peran → mill → id periode → periode itu sendiri dipertahankan",
+          "given": "pengguna berperan di luar keempat peran memanggil summary() dengan period_id uuid acak yang tidak ada",
+          "expect": "melempar 403 FORBIDDEN, BUKAN 404 — pemanggil yang tak berhak sama sekali tidak boleh bisa menyimpulkan id periode mana yang ada"
+        },
+        {
+          "description": "Admin tanpa business_unit_id mendapat 422 sebelum 404 untuk period_id yang tidak ada",
+          "given": "admin memanggil summary() dengan business_unit_id = null DAN period_id uuid acak yang tidak ada",
+          "expect": "melempar 422 VALIDATION_ERROR (mill diperiksa sebelum id periode), bukan 404"
+        },
+        {
+          "description": "resolveProductionLine() mengembalikan null untuk production_line_id milik mill lain — diabaikan, bukan galat",
+          "given": "supervisor terikat mill A memanggil summary() dengan production_line_id milik mill B",
+          "expect": "production_line = null dan status 200; angka mencakup seluruh mill A. TIDAK melempar 403/404 yang akan membocorkan keberadaan line milik mill lain"
+        },
+        {
+          "description": "resolveProductionLine() dengan null menghasilkan cakupan seluruh mill",
+          "given": "supervisor memanggil summary() tanpa production_line_id",
+          "expect": "production_line = null; record dari SEMUA line pada mill itu ikut terhitung — sah di API meski layar web tidak pernah memanggil dalam keadaan ini"
+        },
+        {
+          "description": "scopeToProductionLine() menyaring memakai kolom production_line_id PADA kernel_plant_records, bukan join ke stations",
+          "given": "satu record dihasilkan di line A lalu stasiunnya DIPINDAH ke line B (stations.production_line_id = B, kernel_plant_records.production_line_id tetap A); summary() dipanggil dengan production_line_id = A",
+          "expect": "record itu TETAP terhitung di line A. Uji ini gagal bila implementasinya join ke stations — justru alasan polanya dipilih"
+        },
+        {
+          "description": "recordsFor() tidak menimbulkan N+1 — satu query record plus satu eager-load detail",
+          "given": "5 record masing-masing dengan 24 detail; DB::enableQueryLog() aktif lalu summary() dipanggil",
+          "expect": "jumlah query untuk pemuatan record+detail tepat 2, bukan 6; kernelPlantDetails ter-eager-load dan terurut time_slot kanonis"
+        },
+        {
+          "description": "rowsOf() meminjam KernelPlantRecordService::isRowFilled() atas READING_FIELDS, bukan definisi baru",
+          "given": "KernelPlantRecordService::READING_FIELDS dan isRowFilled() sudah publik (prasyarat refactor); satu detail mengisi hanya kernel_moisture_percent",
+          "expect": "baris itu dianggap filled. Uji struktural pendamping: KernelPlantReportService memanggil KernelPlantRecordService::isRowFilled() dan TIDAK memuat daftar sembilan kolomnya sendiri — dua definisi berbeda berarti cakupan di laporan tidak sama dengan yang diterima layar input"
+        },
+        {
+          "description": "Slot yang kesembilan kolom READING_FIELDS-nya kosong disaring keluar dan tidak dihitung",
+          "given": "periode berisi 24 detail yang seluruh sembilan kolomnya null/''",
+          "expect": "coverage.filled_slots = 0, has_data = false; slot tak tersentuh sudah dilaporkan hilang oleh penyebut cakupan — menghitungnya lagi melaporkan kekosongan yang sama dua kali"
+        },
+        {
+          "description": "Asimetri '' versus 0 dipertahankan: downtime_minutes = 0 adalah PERNYATAAN, findings = '' adalah kosong",
+          "given": "slot X mengisi hanya downtime_minutes = 0 dan sisanya null; slot Y mengisi hanya findings = '' dan sisanya null",
+          "expect": "slot X dianggap filled (masuk coverage.filled_slots dan downtime.recorded_slot_count); slot Y TIDAK dianggap filled"
+        },
+        {
+          "description": "expected_slots = kernel_plant_count x days_counted x 24",
+          "given": "2 unit kernel plant punya record, periode 5 hari yang sudah selesai (days_counted = 5)",
+          "expect": "coverage.expected_slots = 240; slots_per_kernel_plant_per_day = 24 dari count(KernelPlantRecordService::canonicalTimeSlots()); ketiga angka pembentuk penyebut terbit terpisah di respons"
+        },
+        {
+          "description": "kernel_plant_count dihitung dari unit yang BENAR-BENAR punya record, bukan unit yang terdaftar",
+          "given": "mill punya 4 stasiun kernel plant terdaftar, tetapi hanya 2 yang punya record pada periode dan line itu",
+          "expect": "coverage.kernel_plant_count = 2 (bukan 4); penyebut dari stasiun terdaftar akan menghukum mill yang sengaja tidak mengoperasikan satu unitnya"
+        },
+        {
+          "description": "coverage_percent bernilai NULL, bukan 0.0, ketika expected_slots nol",
+          "given": "periode tanpa satu pun record sehingga kernel_plant_count = 0 dan expected_slots = 0",
+          "expect": "coverage.coverage_percent === null (assertNull, BUKAN assertSame(0.0)); 0% mengklaim sesuatu sudah diukur dan hasilnya nol"
+        },
+        {
+          "description": "days_counted === 0 diperiksa LEBIH DULU daripada period_running untuk periode yang BELUM MULAI",
+          "given": "periode dengan start_date 10 hari di masa depan; ReportPeriodDays::isRunning() mengembalikan true juga untuk keadaan ini",
+          "expect": "coverage.days_counted === 0 dan respons menandai keadaan 'belum mulai'; implementasi yang memeriksa period_running lebih dulu akan menjelaskannya sebagai 'sedang berjalan' dan gagal di uji ini"
+        },
+        {
+          "description": "days_counted berhenti di hari ini untuk periode yang sedang berjalan",
+          "given": "periode start_date 3 hari lalu, end_date 7 hari ke depan (days_in_period = 11), hari ini hari ke-4",
+          "expect": "coverage.days_counted = 4, days_in_period = 11, period_running = true; days_counted < days_in_period"
+        },
+        {
+          "description": "has_data membedakan 'tidak ada yang bisa dilaporkan' dari 'angkanya kebetulan nol'",
+          "given": "kasus A: nol slot terisi. kasus B: slot terisi dengan downtime_minutes = 0 dan nilai ukur 0.0",
+          "expect": "kasus A has_data = false; kasus B has_data = true"
+        },
+        {
+          "description": "PENYEBUT PER METRIK: ketujuh filled_slot_count berbeda-beda karena ketujuh kolom nullable dan terisi saling bebas",
+          "given": "semai slot yang mengisi HIMPUNAN KOLOM BERBEDA-BEDA: 6 slot mengisi ripple_mill_1_amps, 2 slot mengisi ripple_mill_2_amps, 5 slot mengisi claybath_hydro_sg, 4 slot mengisi kernel_silo_1_temp_c, 3 slot mengisi kernel_silo_2_temp_c, 7 slot mengisi kernel_moisture_percent, 1 slot mengisi shell_loss_percent",
+          "expect": "metrics[] berisi 7 entri dengan filled_slot_count berturut-turut 6, 2, 5, 4, 3, 7, 1 — TUJUH NILAI YANG GENUIN BERBEDA. Assert per kolom, jangan pernah assert satu penyebut bersama: satu penyebut bersama akan lolos terhadap implementasi yang salah"
+        },
+        {
+          "description": "coverage.filled_slots DAPAT MELEBIHI penyebut setiap metrik, dan itu benar",
+          "given": "10 slot mengisi kolom ukur dengan sebaran seperti kasus di atas, DITAMBAH 4 slot yang hanya mengisi findings tanpa satu pun kolom ukur",
+          "expect": "coverage.filled_slots = 14, sementara max(metrics[*].filled_slot_count) = 7. Assert KETIDAKSAMAAN: coverage.filled_slots > setiap metrics[i].filled_slot_count — jangan assert kesamaan, karena kesamaan adalah justru bug yang hendak dicegah"
+        },
+        {
+          "description": "Metrik tanpa satu pun nilai non-null tetap TAMPIL dengan min/avg/max null dan filled_slot_count 0",
+          "given": "periode yang tidak pernah mengisi shell_loss_percent sama sekali",
+          "expect": "metrics[] TETAP berisi 7 entri; entri shell_loss_percent punya min === null, avg === null, max === null, filled_slot_count === 0. Tujuh baris yang menyusut menjadi enam akan terbaca sebagai parameternya tidak ada"
+        },
+        {
+          "description": "Nilai null DILEWATI, tidak diperlakukan sebagai nol, pada min/avg/max",
+          "given": "ripple_mill_1_amps terisi pada 3 slot dengan nilai 20, 22, 24 sementara 21 slot lain null untuk kolom itu",
+          "expect": "min = 20.0 (BUKAN 0.0), avg = 22.0 (BUKAN 2.75), max = 24.0, filled_slot_count = 3. Nol akan menarik minimum ke 0 dan merata-rata ke bawah"
+        },
+        {
+          "description": "Seluruh agregasi di PHP — nol agregat SQL atas kolom nullable",
+          "given": "DB::enableQueryLog() aktif; summary() dipanggil atas periode berisi data",
+          "expect": "tidak ada query yang memuat AVG(/MIN(/MAX( atas kolom kernel_plant_details; angka yang sama keluar di SQLite in-memory maupun PostgreSQL. whereDate dipakai apa adanya atas kolom timestamp, bukan where biasa"
+        },
+        {
+          "description": "DUA pasangan berbagi standar terbit lewat shares_standard_with, bukan satu",
+          "given": "master berisi 'Ripple Mill (Cracker)' dan 'Kernel Silo 1 & 2'; summary() dipanggil",
+          "expect": "ripple_mill_1_amps.shares_standard_with = ['ripple_mill_2_amps'] DAN ripple_mill_2_amps.shares_standard_with = ['ripple_mill_1_amps']; kernel_silo_1_temp_c.shares_standard_with = ['kernel_silo_2_temp_c'] DAN kernel_silo_2_temp_c.shares_standard_with = ['kernel_silo_1_temp_c']. Keempat baris, bukan dua. Depricarping hanya punya SATU pasangan, jadi kode yang mengistimewakan satu pasangan lolos di sana dan gagal di sini. Tiga kolom sisanya ber-shares_standard_with = []"
+        },
+        {
+          "description": "shares_standard_with DITURUNKAN dari COLUMN_TARGET_PARAMETER, bukan dipaku",
+          "given": "uji struktural atas peta: hitung shares_standard_with sebagai 'kolom lain yang nilai COLUMN_TARGET_PARAMETER-nya sama', lalu bandingkan dengan keluaran service untuk ketujuh kolom",
+          "expect": "keluaran service identik dengan hasil turunan dari peta untuk ketujuh kolom. Grep pendamping: badan sharesStandardWith() tidak memuat literal 'ripple_mill_2_amps' maupun 'kernel_silo_2_temp_c' — penambahan ripple mill atau silo ketiga harus tertandai benar tanpa menyentuh kode penanda"
+        },
+        {
+          "description": "targetFor() mengembalikan baris master yang SAMA untuk kedua anggota pasangan, dan itu benar",
+          "given": "master 'Ripple Mill (Cracker)' dengan target_benchmark '20 - 25 Amps (Nut Breakage >95%)'",
+          "expect": "ripple_mill_1_amps dan ripple_mill_2_amps keduanya has_standard = true dengan target_benchmark dan corrective_action_plan yang IDENTIK; keterangan dalam tanda kurung dibawa UTUH, tanpa dipotong"
+        },
+        {
+          "description": "Angka kedua ripple mill dan kedua silo TIDAK PERNAH dirata-ratakan menjadi satu",
+          "given": "ripple_mill_1_amps konsisten 24.0 dan ripple_mill_2_amps konsisten 12.0 pada slot-slot yang sama",
+          "expect": "metrics[] memuat dua entri terpisah dengan avg 24.0 dan 12.0 masing-masing dengan penyebutnya sendiri; TIDAK ADA entri bernilai 18.0 dan tidak ada entri gabungan dengan column seperti 'ripple_mill_amps'. Hal yang sama diuji untuk kedua silo"
+        },
+        {
+          "description": "targetsWithoutMetric() membandingkan terhadap HIMPUNAN 5 nama parameter, bukan count() 7 entri peta",
+          "given": "master berisi 6 baris standar; 5 di antaranya namanya cocok dengan nilai COLUMN_TARGET_PARAMETER, satu bernama 'Final Kernel Dirt'",
+          "expect": "targets_without_metric berisi TEPAT SATU entri, parameter = 'Final Kernel Dirt', reason = 'no_column'. 'Kernel Silo 1 & 2' dan 'Ripple Mill (Cracker)' TIDAK muncul di situ meski masing-masing dipakai dua kali"
+        },
+        {
+          "description": "Kesamaan JUMLAH tidak membuat 'Final Kernel Dirt' luput — peta punya 7 entri, master dibuat 7 baris",
+          "given": "master sengaja diisi 7 baris (5 terpeta + 'Final Kernel Dirt' + satu baris tambahan tak terpeta), sehingga count(master) === count(COLUMN_TARGET_PARAMETER) === 7",
+          "expect": "targets_without_metric TETAP memuat 'Final Kernel Dirt' dengan reason 'no_column' beserta baris tambahan itu; implementasi yang membandingkan count() akan melihat 7 === 7 dan menerbitkan daftar kosong — tepat kegagalan yang diuji di sini"
+        },
+        {
+          "description": "all_targets_measured true dan bagiannya tetap bersinyal ketika targets_without_metric kosong",
+          "given": "master diisi HANYA 5 baris yang kelimanya namanya cocok dengan nilai COLUMN_TARGET_PARAMETER",
+          "expect": "targets_without_metric = [] dan all_targets_measured === true; kunci all_targets_measured HARUS ada di respons supaya layar menggambar bagiannya dengan keterangan alih-alih menyembunyikannya"
+        },
+        {
+          "description": "targets_master_empty true dan ketujuh metrik terbit dengan has_standard false",
+          "given": "tabel kernel_plant_operational_targets kosong seluruhnya",
+          "expect": "targets_master_empty === true; metrics[] tetap 7 entri, semuanya has_standard = false dengan target_benchmark dan corrective_action_plan kosong; angkanya tetap terbit — laporan tetap berguna sebagai angka"
+        },
+        {
+          "description": "Nama parameter master yang disunting membuat metriknya has_standard false DAN standarnya pindah ke targets_without_metric",
+          "given": "baris master 'Kernel Silo 1 & 2' disunting langsung menjadi 'Kernel Silo 1 and 2' sehingga tidak lagi cocok dengan COLUMN_TARGET_PARAMETER",
+          "expect": "kernel_silo_1_temp_c dan kernel_silo_2_temp_c tetap menerbitkan min/avg/max dan penyebutnya dengan has_standard = false; targets_without_metric memuat 'Kernel Silo 1 and 2' dengan reason 'no_column' DI SAMPING 'Final Kernel Dirt' (dua entri). Terlihat, bukan hilang diam-diam"
+        },
+        {
+          "description": "targetsByParameter() mempertahankan urutan sort_order master",
+          "given": "6 baris master dengan sort_order 1..6 diacak urutan penyisipannya",
+          "expect": "pembacaan master terurut sort_order dan diindeks equipment_parameter; urutan targets_without_metric mengikuti sort_order, bukan urutan penyisipan"
+        },
+        {
+          "description": "byKernelPlantOf() menerbitkan rekap per unit dengan filled_slot_count, downtime_minutes, dan averages per kolom",
+          "given": "2 unit kernel plant: unit A dengan 8 slot terisi, unit B dengan 3 slot terisi, nilai ukur berbeda",
+          "expect": "by_kernel_plant berisi 2 entri; filled_slot_count 8 dan 3; averages adalah map kolom -> float|null per unit, bukan angka tunggal"
+        },
+        {
+          "description": "dailyOf() menerbitkan satu entri per hari dengan penyebut dan rata-rata hari itu",
+          "given": "periode 3 hari: hari-1 dengan 2 slot terisi, hari-2 dengan 24 slot terisi, hari-3 tanpa slot terisi",
+          "expect": "daily memuat entri untuk hari-1 dan hari-2 dengan filled_slot_count 2 dan 24; averages per kolom per hari"
+        },
+        {
+          "description": "daily_total DIHITUNG ULANG atas seluruh slot terisi, bukan merata-ratakan rata-rata harian",
+          "given": "hari-1: 2 slot ripple_mill_1_amps bernilai 10 dan 10 (rata-rata harian 10). hari-2: 24 slot ripple_mill_1_amps semuanya 30 (rata-rata harian 30)",
+          "expect": "daily_total.averages['ripple_mill_1_amps'] = (2*10 + 24*30) / 26 = 28.46..., BUKAN (10+30)/2 = 20.0. Assert kedua angka sekaligus: sama dengan hitung ulang, dan BERBEDA dari rata-rata atas rata-rata harian"
+        },
+        {
+          "description": "daily_total.filled_slot_count sama dengan jumlah seluruh daily[].filled_slot_count",
+          "given": "hari-1 2 slot, hari-2 24 slot",
+          "expect": "daily_total.filled_slot_count = 26"
+        },
+        {
+          "description": "downtime.total_minutes bernilai NULL, bukan 0, ketika tak satu slot pun mencatatnya",
+          "given": "12 slot terisi yang seluruhnya meninggalkan downtime_minutes null",
+          "expect": "downtime.total_minutes === null (assertNull, BUKAN assertSame(0)) dan downtime.recorded_slot_count === 0"
+        },
+        {
+          "description": "downtime.total_minutes bernilai 0 dan recorded_slot_count MENGHITUNG nol yang tercatat",
+          "given": "3 slot mencatat downtime_minutes = 0 secara eksplisit; sisanya null",
+          "expect": "downtime.total_minutes === 0 (assertSame(0), bukan null) dan downtime.recorded_slot_count === 3. 'Tercatat nol menit' dan 'tidak dicatat' adalah dua kenyataan berbeda, dan uji ini satu-satunya yang membedakannya"
+        },
+        {
+          "description": "downtime.total_minutes menjumlahkan nilai campuran nol dan non-nol dengan penyebut yang benar",
+          "given": "slot mencatat downtime_minutes = 0, 0, 15, 45; dua slot lain null",
+          "expect": "total_minutes = 60 dan recorded_slot_count = 4 (bukan 2 — nol tetap pencatatan)"
+        },
+        {
+          "description": "downtime.has_standard selalu false karena downtime tidak punya baris di master",
+          "given": "master terisi penuh 6 baris dan downtime tercatat pada beberapa slot",
+          "expect": "downtime.has_standard === false; tidak ada upaya mencocokkan downtime ke equipment_parameter mana pun"
+        },
+        {
+          "description": "findingsOf() mengelompokkan HARFIAH tanpa normalisasi ejaan, huruf besar-kecil, maupun spasi",
+          "given": "slot mencatat findings 'Ripple mill bising', 'ripple mill bising', dan 'Ripple  mill bising' (spasi ganda)",
+          "expect": "findings berisi TIGA entri terpisah, masing-masing slot_count 1, dengan text HARFIAH persis seperti tersimpan; bukan satu entri slot_count 3"
+        },
+        {
+          "description": "findings diurutkan slot_count turun lalu teks naik sebagai pemutus seri",
+          "given": "'Bearing panas' pada 3 slot, 'Zink habis' pada 2 slot, 'Ayakan kotor' pada 2 slot",
+          "expect": "urutan tepat: ['Bearing panas' (3), 'Ayakan kotor' (2), 'Zink habis' (2)]; pemutus seri alfabetis membuat urutannya stabil antar-render, jadi assert urutan persis, bukan hanya keanggotaan"
+        },
+        {
+          "description": "findings terpisah dari downtime — slot yang membawa keduanya tidak dihitung dua kali",
+          "given": "1 slot mencatat downtime_minutes = 30 DAN findings = 'Ripple mill berhenti'",
+          "expect": "downtime.recorded_slot_count = 1 DAN findings[0].slot_count = 1; coverage.filled_slots = 1 — slot yang sama, dua blok yang menjawab dua pertanyaan berbeda, tanpa penggandaan"
+        },
+        {
+          "description": "findings kosong ('' maupun null) tidak pernah menjadi kelompok",
+          "given": "beberapa slot dengan findings = '' dan beberapa dengan findings = null, satu slot dengan findings = 'Kernel basah'",
+          "expect": "findings berisi tepat satu entri 'Kernel basah'; tidak ada entri bertext '' atau null"
+        },
+        {
+          "description": "TIDAK ADA satu pun penandaan di luar batas pada respons — tanpa warna, severity, maupun deteksi pencilan",
+          "given": "nilai ukur sengaja jauh di luar target_benchmark (ripple_mill_1_amps 90.0 terhadap target '20 - 25 Amps', kernel_moisture_percent 45.0 terhadap '≤ 7.0%')",
+          "expect": "tak satu pun entri metrics[] memuat kunci seperti severity, flag, is_out_of_range, status, warning, atau color; respons hanya memuat angka beserta kedua kolom target sebagai TEKS. Assert ketiadaan KUNCI pada struktur, dan serahkan asersi kelas CSS ke uji UI"
+        },
+        {
+          "description": "total[] menerbitkan kelima penghitung periodenya",
+          "given": "periode berisi 7 record: 2 draft, 3 belum diperiksa, 1 belum diakui, tersebar pada 4 hari",
+          "expect": "total.record_count = 7, total.days_with_records = 4, total.draft_record_count = 2, total.records_not_checked = 3, total.records_not_acknowledged = 1"
+        },
+        {
+          "description": "listPeriods() mengembalikan array kosong ketika mill belum punya satu pun periode Kernel Plant",
+          "given": "mill punya periode untuk jenis stasiun lain tetapi tidak satu pun untuk Kernel Plant",
+          "expect": "mengembalikan [] dengan status 200; BUKAN galat dan BUKAN periode milik jenis stasiun lain yang bocor masuk"
+        },
+        {
+          "description": "listPeriods() TIDAK menyaring berdasarkan status — periode draft pun tampil, terbaru lebih dulu",
+          "given": "mill punya 3 periode Kernel Plant berstatus draft, open, dan closed dengan start_date berbeda",
+          "expect": "ketiganya terbit, terurut terbaru lebih dulu; konsisten dengan lima laporan kondisi sebelumnya"
+        },
+        {
+          "description": "export() menerbitkan KESEMBILAN kolom READING_FIELDS berurutan di samping kolom konteks",
+          "given": "export(format: 'csv') atas periode berisi 2 slot terisi",
+          "expect": "header tepat: Periode, Mill, Production Line, Tanggal, Unit Kernel Plant, Status, Catatan, Slot Waktu, Ripple Mill 1 (Amps), Ripple Mill 2 (Amps), Claybath/Hydrocyclone (SG), Suhu Kernel Silo 1 (C), Suhu Kernel Silo 2 (C), Kadar Air Kernel (%), Shell Bin Kernel Loss (%), Downtime (Menit), Temuan. Downtime dan Temuan WAJIB ada — menghilangkannya membuat berkasnya tak dapat menggantikan laporan"
+        },
+        {
+          "description": "export() menerbitkan SATU BARIS PER SLOT WAKTU dengan kolom konteks DIULANG",
+          "given": "1 record berisi 3 slot terisi",
+          "expect": "3 baris data; kolom Periode, Mill, Production Line, Tanggal, Unit Kernel Plant berisi nilai yang SAMA pada ketiga baris — diulang, bukan dikosongkan, supaya berkasnya langsung dapat dipivot"
+        },
+        {
+          "description": "export() melempar 422 untuk format yang tidak dikenal",
+          "given": "export(format: 'pdf')",
+          "expect": "melempar ValidationException 422 VALIDATION_ERROR; 'csv' dan 'excel' saja yang diterima, dan format kosong jatuh ke default 'csv'"
+        },
+        {
+          "description": "export() melempar 422 EAGER ketika jumlah baris melebihi EXPORT_ROW_LIMIT (50000)",
+          "given": "periode yang jumlah baris detail terisinya 50001 (atau EXPORT_ROW_LIMIT di-stub lebih rendah dan data disemai di atasnya)",
+          "expect": "melempar ValidationException 422 SEBELUM satu byte header pun terkirim; assert bahwa tidak ada output ter-stream"
+        },
+        {
+          "description": "Guard export() berjalan EAGER saat pemanggilan, bukan tertunda sampai pengaliran dimulai",
+          "given": "supervisor terikat mill A memanggil export() dengan period_id milik mill B",
+          "expect": "403 dilempar pada pemanggilan itu sendiri, sebelum StreamedResponse di-kirim. Metode yang dijadikan generator akan menunda 403/422 sampai pengaliran dimulai — yaitu setelah header terkirim — dan gagal di uji ini"
+        },
+        {
+          "description": "KONTROL PASANGAN untuk case 25: coverage_percent bernilai 0.0 — BUKAN null — ketika periode PUNYA record tetapi tidak satu pun slotnya terisi",
+          "given": "satu unit kernel plant punya record pada 1 hari terhitung, dengan 24 baris detail yang kesembilan kolom READING_FIELDS-nya null; jadi kernel_plant_count = 1, days_counted = 1, expected_slots = 24, filled_slots = 0",
+          "expect": "coverage.coverage_percent === 0.0 (assertSame(0.0), BUKAN assertNull) dan has_data === false. Tanpa case ini, case 25 sendiri membuat orang menyimpulkan bahwa 'tidak ada slot terisi' selalu berarti null — kesimpulan yang salah, dan draf pertama business spec screen-154 memang menyatakannya salah. Syarat null adalah tentang PENYEBUT (expected_slots === 0: tidak ada unit yang punya record, atau tidak ada hari terhitung), bukan tentang pembilang. 0% di sini adalah pernyataan sah tentang kelengkapan: penyebutnya terbentuk, dan nol dari 24 slot memang terisi."
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "kernel-plant-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "kernel-plant-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "kernel-plant-operational-target",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "station-type",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-001--login",
+      "reason": "Sesi web wajib; rute memakai middleware auth."
+    },
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "SATU-SATUNYA jalan masuk dari UI. Tile Kernel Plant pada /reports menyala hanya jika StationReportService::REPORT_ROUTES memetakan kode StationTypeEnum::KernelPlant->value — yaitu 'kernel-plant' DENGAN TANDA HUBUNG, bukan garis bawah — ke route name 'reports.kernel-plant'. Tanpa satu baris itu laporannya ada, seluruh ujinya lolos, dan layarnya tak terjangkau; pelajaran yang sudah dibayar pada Weighbridge. DAN URUTAN PETA ITU LOAD-BEARING: station_types.sort_order menaruh kernel-plant di 80, jadi entrinya masuk ANTARA clarification (70) dan boiler-room (90), bukan di-append — ada uji yang mengasersikan array_keys(REPORT_ROUTES) secara strict dan berurutan, dan ia akan gagal karena sebab yang tak berhubungan dengan laporan ini."
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Periode Kernel Plant harus sudah dibuka per jenis stasiun; laporan hanya membaca."
+    },
+    {
+      "screen_id": "screen-120--form-kernel-plant",
+      "reason": "Sumber seluruh data. Definisi slot 'terisi' DIPINJAM dari KernelPlantRecordService, bukan diturunkan ulang."
+    },
+    {
+      "screen_id": "GET /api/production-lines/options-for-report",
+      "reason": "Daftar opsi Production Line TIDAK diduplikasi — endpoint yang dibangun untuk screen-135 dipakai apa adanya."
+    }
+  ],
+  "implementation_notes": [
+    "PRASYARAT REFACTOR KECIL DI LAYAR INPUT, dan harus dikerjakan LEBIH DULU: KernelPlantRecordService belum punya `public const READING_FIELDS` dan `isRowFilled()`-nya masih `protected` dengan sembilan kolom di-hardcode sebagai rantai `||`. Report service WAJIB meminjam definisi itu, bukan menurunkan versinya sendiri — dua definisi yang berbeda berarti angka cakupan di laporan tidak sama dengan yang diterima layar input, dan tak seorang pun bisa tahu mana yang salah. Jadikan konstanta publik berisi sembilan kolom dalam urutan grid input, lalu ubah isRowFilled() menjadi publik dan mengulangi konstanta itu — persis bentuk DepricarpingRecordService. Perilakunya identik, termasuk asimetri bahwa '' dianggap kosong HANYA untuk `findings` sementara downtime_minutes bernilai 0 adalah PERNYATAAN bahwa stasiun tidak berhenti.",
+    "TUJUH kolom ukur, satu lebih dari Threshing/Pressing dan sama dengan Depricarping. NUMERIC_METRICS: ripple_mill_1_amps, ripple_mill_2_amps, claybath_hydro_sg, kernel_silo_1_temp_c, kernel_silo_2_temp_c, kernel_moisture_percent, shell_loss_percent. Dua kolom READING_FIELDS sengaja TIDAK ada di sini: downtime_minutes (numerik tapi DIJUMLAHKAN, bukan dirata-ratakan, dan tanpa standar di master sehingga punya bloknya sendiri) dan findings (teks bebas, dikelompokkan). Dicatat sebagai pengecualian supaya tidak satu pun dari keduanya terlihat sebagai kelalaian yang perlu 'diperbaiki'.",
+    "COLUMN_TARGET_PARAMETER: TUJUH entri menyebut LIMA parameter berbeda, dan master punya ENAM baris. Dua pasangan berbagi satu standar masing-masing — ripple_mill_1_amps + ripple_mill_2_amps keduanya menunjuk 'Ripple Mill (Cracker)', dan kernel_silo_1_temp_c + kernel_silo_2_temp_c keduanya menunjuk 'Kernel Silo 1 & 2'. Depricarping punya SATU pasangan seperti ini (Nut Silo); di sini ada DUA, jadi kode yang menangani satu pasangan secara khusus akan gagal. Konsekuensi yang wajib dipegang: targetFor() mengembalikan baris master yang sama dua kali adalah BENAR, dan targetsWithoutMetric() HARUS membandingkan terhadap HIMPUNAN nilai (5 parameter), NEVER terhadap count() (7 entri) — kalau tidak, 'Kernel Silo 1 & 2' terlihat terpakai dua kali dan satu standar lain terlihat tak terpakai.",
+    "'Final Kernel Dirt' (≤ 6.0%) adalah satu-satunya baris master tanpa kolom pengukuran di mana pun pada skema ini — bukan di kernel_plant_details, bukan di tabel lain. Ia terbit di targets_without_metric dengan reason UNMAPPED_NO_COLUMN. Bagian itu TETAP DIGAMBAR meski kosong: bagian yang menghilang tak dapat dibedakan dari bagian yang tidak pernah dibuat.",
+    "ANGKA KEDUA RIPPLE MILL DAN KEDUA SILO TIDAK PERNAH DIRATA-RATAKAN MENJADI SATU, meski masing-masing pasangan berbagi satu standar. Keduanya mesin fisik terpisah, dan rata-rata gabungan menyembunyikan ketidakseimbangan beban yang justru menjadi alasan parameter itu diukur. Penanda 'berbagi standar' DITURUNKAN dari COLUMN_TARGET_PARAMETER (kolom lain yang nilai parameternya sama), BUKAN dipaku — supaya penambahan ripple mill atau silo ketiga tetap ditandai benar tanpa menyentuh kode penanda.",
+    "TIAP METRIK MENERBITKAN PENYEBUTNYA SENDIRI (filled_slot_count per kolom). Ketujuh kolom nullable dan terisi saling bebas, jadi satu penyebut bersama akan salah untuk hampir semua baris. Dan karena definisi 'terisi' dipinjam dari layar input, coverage.filled_slots DAPAT MELEBIHI penyebut tiap metrik — satu slot yang hanya mengisi findings terhitung terisi tanpa menambah penyebut metrik mana pun. Itu benar, bukan tidak konsisten, dan dinyatakan di layar supaya tidak 'diperbaiki' menjadi salah.",
+    "coverage_percent bernilai null, BUKAN 0.0, ketika tidak ada slot terisi — 0% mengklaim sesuatu sudah diukur dan hasilnya nol. Hal yang sama berlaku untuk downtime total_minutes. Sementara recorded_slot_count MENGHITUNG nol yang tercatat, karena 'tercatat nol menit' dan 'tidak dicatat' adalah dua kenyataan berbeda.",
+    "days_counted === 0 DIPERIKSA LEBIH DULU daripada period_running. ReportPeriodDays::isRunning() bernilai true juga untuk periode yang BELUM MULAI, jadi memeriksa period_running lebih dulu akan menjelaskan periode yang belum mulai sebagai 'sedang berjalan'.",
+    "Penyaringan Production Line memakai kolom production_line_id pada kernel_plant_records itu sendiri, BUKAN join ke stations — supaya record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan. Pola ini sudah dipakai lima laporan kondisi sebelumnya (scopeToProductionLine()).",
+    "SELURUH AGREGASI DI PHP, NOL agregat SQL atas kolom nullable. Suite uji berjalan di SQLite in-memory sementara produksi PostgreSQL, dan keduanya berbeda perilaku pada AVG/MIN/MAX atas null. Nilai null DILEWATI, tidak diperlakukan sebagai nol — nol akan menarik minimum ke 0 dan merata-rata ke bawah. whereDate dipakai apa adanya, bukan where biasa atas kolom timestamp.",
+    "Baris total periode DIHITUNG ULANG dari seluruh slot, bukan merata-ratakan rata-rata harian — merata-ratakan rata-rata memberi bobot sama pada hari berisi 2 slot dan hari berisi 24 slot.",
+    "Temuan dikelompokkan HARFIAH, tanpa normalisasi ejaan, huruf besar-kecil, maupun spasi; diurutkan slot_count terbanyak lalu alfabetis sebagai pemutus seri supaya urutannya stabil antar-render. Kenyataan bahwa pengelompokannya harfiah DINYATAKAN di layar — normalisasi otomatis akan menggabungkan hal yang mungkin bukan satu hal.",
+    "TIDAK ADA penandaan otomatis di luar batas: tanpa warna peringatan, tanpa severity, tanpa deteksi pencilan. Kedua kolom target adalah teks bebas yang bentuknya TIDAK DIBATASI SKEMA, dan satu nilai saja — '20 - 25 Amps (Nut Breakage >95%)' — sudah memuat dua angka dengan satuan dan arah pembanding berbeda di satu sel. Nilai '70°C - 80°C (Top/Middle zones)' bahkan menyebut ZONA yang tidak punya kolom. Ketiadaan penandaan dinyatakan di layar supaya tidak dilengkapi belakangan oleh orang yang menyangka itu kelalaian. Uji UI mengasersikan KETIADAAN nama kelas (md-threshold, is-danger), BUKAN ketiadaan frasa — kalimat penjelasnya sendiri memuat kata 'di luar batas'.",
+    "LaporanKernelPlant::canAccess() memegang DAFTAR PERANNYA SENDIRI, tidak mendelegasikan ke KernelPlantReportService::guardAccess(). Kalau ia pernah mendelegasikan, layar web ini diam-diam terbuka untuk Operator — karena guardAccess() menerima keempat peran demi kembaran mobile.",
+    "shell_loss_percent DIANGGAP kolom untuk 'Shell Bin Kernel Loss'. Namanya menyebut 'shell loss' sementara masternya menyebut 'Shell Bin KERNEL Loss' dengan target ≤ 1.5% — dua nama yang bisa berarti dua hal berbeda. Dipetakan apa adanya dan dicatat sebagai open question, BUKAN diganti nama sendiri. Tabelnya masih 0 baris, jadi biaya penggantian nama serendah penggantian nama di Depricarping (migrasi 2026_10_06_000001) kalau user memutuskan demikian.",
+    "Tabel kernel_plant_records dan kernel_plant_details keduanya masih 0 baris di basis data dev. Seluruh uji WAJIB menyemai datanya sendiri; tidak ada satu pun angka nyata yang bisa dipakai sebagai pembanding, dan ketiadaan data bukan alasan melewatkan uji.",
+    "PENYEBUT 'N dari M slot' DIPAKU: N = metrics[].filled_slot_count (jumlah slot terisi yang kolom itu non-null), M = coverage.filled_slots — SATU angka yang SAMA untuk ketujuh baris. Bentuk ini sudah berjalan di lima laporan kondisi; blade merendernya '{{ filled_slot_count }} dari {{ coverage.filled_slots }} slot'. API TIDAK menerbitkan M per kolom, dan jangan ditambahkan: ketujuh kolom ukur ada pada SETIAP baris detail, jadi skema ini tidak punya cara mengetahui 'unit mana mengukur parameter mana'. M per kolom yang berbeda-beda hanya bisa lahir dari karangan. Bacaannya pun lebih berguna begini — 'dari 503 slot yang benar-benar diisi orang, 487 di antaranya membawa parameter ini'. Dan di sinilah business rule soal filled_slots yang MELEBIHI penyebut metrik terbaca utuh: yang dilampaui adalah N, bukan M.",
+    "MOCK HTML screen-154 MENGANDUNG SATU NILAI YANG SALAH dan harus diperbaiki sebelum dipakai sebagai acuan visual: ia merender M berbeda-beda per baris (672 untuk pasangan ripple mill dan silo, 336 untuk tiga parameter lainnya) dengan mengandaikan 'jumlah unit yang mengukur parameter itu'. Andaian itu tidak bisa ada pada skema ini. Agent yang menulisnya menandai sendiri bahwa aturan penyebut adalah keputusan tech spec — dan keputusannya adalah M = coverage.filled_slots, seragam. Mock juga meniru screen-131 (Boiler Room), bukan screen-152 (Depricarping), karena mock Depricarping/Threshing/Pressing memang tidak pernah dibuat; itu benar dan bukan penyimpangan.",
+    "BENTUK PAYLOAD YANG DIKOREKSI TERHADAP IMPLEMENTASI YANG MENDARAT, bukan sebaliknya — tiga medan di mana draf pertama tech spec ini salah dan kodenya benar: (1) `findings[].finding`, bukan `.text`; (2) `targets_without_metric[].equipment_parameter`, bukan `.parameter` — targetsWithoutMetric() mengembalikan baris master verbatim ditambah `reason`, jadi kuncinya adalah nama kolom sungguhan; (3) `by_kernel_plant[].kernel_plant_id` adalah `string` LABEL yang ditulis tangan, bukan uuid dan bukan kunci asing — tidak ada tabel master kernel_plants di skema ini, sehingga kernel_plant_name sama dengan kernel_plant_id dan diisolasi di kernelPlantNameOf(). Dua medan juga ADA di implementasi tetapi tidak tercatat di draf pertama, dan keduanya dipertahankan karena Depricarping punya keduanya: `downtime.avg_minutes_per_recorded_slot` dan `by_kernel_plant[].day_count`.",
+    "JEBAKAN ASERSI '0%' — wajib dibaca sebelum menulis uji UI mana pun. Nilai target_benchmark master SENDIRI memuat '≤ 7.0%' dan '≤ 6.0%', dan keduanya memuat substring '0%' serta memang dirender verbatim pada tabel parameter. Jadi assertDontSee('0%') atau locator berbasis teks '0%' pada seluruh halaman TIDAK PERNAH dapat lolos, apa pun kebenaran produknya. Setiap asersi tentang '0%' wajib dilingkupi ke [data-testid=\"coverage-percent\"]. Ini kelas kesalahan yang sama dengan asersi ketiadaan penandaan di luar batas, yang juga harus atas NAMA KELAS dan bukan atas frasa karena kalimat penjelasnya sendiri memuat frasa itu.",
+    "TIGA PENYIMPANGAN SADAR dari tata letak Depricarping, masing-masing karena asersi spec ini menuntutnya, dan ketiganya sudah terpasang: (1) tabel parameter TETAP dirender ketika has_data false — Depricarping menggantinya dengan empty state, sementara spec ini menuntut 'tabel parameter tetap menampilkan ketujuh barisnya', jadi pemberitahuan kosong dirender DI ATAS tabel tujuh baris yang tetap utuh; (2) kartu KPI downtime SELALU dirender dan tanda pisahnya hidup di dalam sel total — Depricarping menukar seluruh baris kartu dengan satu kalimat, dan kalimat tidak punya sel untuk diasersikan; (3) keterangan 'periode sedang berjalan' MENYEBUT TANGGAL hari terakhir terhitung, dilewatkan dari render() sebagai countedUntil supaya dapat diasersikan tanpa menyentuh DOM, dan supaya blade tidak menyentuh jam.",
+    "DUA UJI YANG MUDAH TERLEWAT KARENA LETAKNYA TIDAK INTUITIF, dan keduanya konvensi keluarga ini: (1) di tests/Feature/Api/LaporanKernelPlantTest.php, satu asersi bahwa route(StationReportService::REPORT_ROUTES['kernel-plant'], [], false) === '/reports/kernel-plant' — pola yang dipakai LaporanDepricarpingTest baris 655 dan LaporanThreshingTest baris 621; ia yang mengikat entri peta ke nama rutenya, dan tanpa pengikat itu keduanya dapat menyimpang tanpa satu uji pun gagal. (2) di tests/Feature/Livewire/LaporanKernelPlantTest.php, penolakan Operator diuji pada RUTE lewat $this->actingAs($operator,'web')->get('/reports/kernel-plant')->assertStatus(403), bukan hanya pada komponennya — pola LaporanBoilerRoomTest baris 513. Uji komponen saja tidak melewati middleware, jadi ia tidak dapat membuktikan penjagaan rutenya. Keduanya sudah diverifikasi berjalan secara manual terhadap implementasi yang mendarat sebelum catatan ini ditulis.",
+    "ASERSI KETIADAAN PENANDAAN WAJIB ATAS KELAS YANG DITERAPKAN, bukan atas nama kelas di mana pun pada halaman — dan ini sudah terbukti menjebak sekali saat verifikasi. `.md-threshold` DIDEFINISIKAN di resources/views/dashboard/partials/report-styles.blade.php baris 359, partial stylesheet yang dipakai SELURUH laporan, jadi namanya memang muncul di sumber halaman setiap laporan tanpa pernah diterapkan ke satu elemen pun. str_contains('md-threshold') karenanya selalu true dan tidak pernah membuktikan apa pun. Bentuk yang benar di PHPUnit: cocokkan /class=\"[^\"]*\\bmd-threshold\\b[^\"]*\"/; di Playwright: locator('.md-threshold').count() === 0, yang memang hanya menghitung elemen. Diverifikasi: blade Kernel Plant tidak memuat md-threshold sama sekali, dan halaman ter-render tidak menerapkan satu pun dari md-threshold/is-danger/is-warning/is-critical.",
+    "SEED MASTER station_types ADALAH PRASYARAT setiap uji yang menyentuh /reports — tanpanya halaman itu merender NOL tile dan ujinya gagal karena sebab yang tidak ada hubungannya dengan laporan ini. Pola yang berlaku: laporanStasiunComponentMaster() di tests/Feature/Livewire/LaporanStasiunTest.php mengganti seluruh master dengan baris yang dibutuhkan lewat StationType::create([... 'is_active' => true]) — bukan factory(), yang tidak ada untuk model itu. Rantai tile Kernel Plant sendiri sudah dibuktikan dua uji milik proyek ('rantai tautan tile', 145 asersi) yang memeriksa SETIAP report_path yang dibangun StationReportService; tidak perlu diulang per laporan.",
+    "TUJUH TEMPAT DI MANA DRAF PERTAMA TECH SPEC INI KELIRU DAN KODENYA BENAR — dikoreksi di sini supaya tidak ada orang berikutnya yang menulis uji terhadap spec alih-alih terhadap perilaku: (1) akun terikat mill dengan business_unit_id null menghasilkan 422 ValidationException berisi errors.business_unit_id, BUKAN 403 — sama seperti kelima laporan saudaranya; sifat yang menentukan (gagal tertutup, allBusinessUnits() tak pernah dicapai, nol query ke business_units maupun kernel_plant_records) tetap sama. (2) production_line_id yang TIDAK dikirim menghasilkan 422 di controller lewat requireProductionLineId(), bukan 200 — layar wajib memilih line, jadi permintaan tanpa line adalah masukan tak lengkap; perilaku service 'null berarti seluruh line mill' tetap sah dan diuji di tingkat unit. (3) metrics[].target TIDAK punya kunci has_standard — ia punya tepat empat kunci, dan 'tanpa standar' dinyatakan sebagai ketiga kolom master bernilai null; has_standard hanya ada pada blok downtime. (4) Admin yang mengirim period_id mill A bersama business_unit_id mill B menghasilkan 200, bukan 403: authorizePeriodModel() meloloskan Admin untuk mill mana pun dan angkanya datang dari mill PERIODE-nya — dan justru itu sebabnya komponen WAJIB mereset period_id dan production_line_id saat mill berganti, alih-alih bersandar pada 403 yang tidak pernah datang. (5) Batas baris ekspor melempar ExportFailedException (HttpException berstatus 422, errorCode() 'EXPORT_FAILED', tanpa kunci errors), bukan ValidationException. (6) daily memuat entri untuk tanggal yang punya record meski seluruh slotnya kosong (filled_slot_count 0); hanya tanggal yang TIDAK punya record sama sekali yang tanpa entri. (7) format kosong jatuh ke 'csv' di CONTROLLER; service sendiri menolak '' dengan 422.",
+    "DEFEK KEAMANAN YANG DITEMUKAN DAN DITUTUP SAAT PENULISAN UJI, beserta cakupannya yang lebih luas. productionLineInfo() versi pertama mencari line dengan find($id) TANPA klausa business_unit_id, sehingga GET /summary?production_line_id=<line mill lain> menjawab 200 berisi id DAN NAMA MANUSIAWI line yang pemanggil tidak berhak melihatnya. Angkanya aman dengan sendirinya — scopeToProductionLine() menyaring ke nol baris dan query tetap terkurung pada mill periode — tetapi blok itu tidak. Ia merusak justru alasan line mill lain DIABAIKAN alih-alih ditolak 403: penolakan ditahan supaya tidak memastikan line itu ada, lalu blok ini memastikannya juga, lengkap dengan namanya. Dibuktikan lewat permintaan HTTP sungguhan (bukan dibaca dari kode), ditutup dengan satu klausa where, dan dijaga uji regresi di skenario 14 yang sudah dibuktikan bergigi dengan membalik perbaikannya (gagal saat dibalik, lolos saat dipulihkan). BENTUK TANPA SCOPE ITU ADA IDENTIK DI KESEPULUH REPORT SERVICE LAIN (Depricarping, Pressing, Threshing, BoilerRoom, StorageTank, Clarification, Grading, Weighbridge, CagesTrack, Sterilizer) dan di sana MASIH TERBUKA — diverifikasi dengan grep, bukan diduga. Tidak diperbaiki di sepuluh tempat itu karena mengubah laporan yang sudah berjalan adalah keputusan pemilik produk, bukan efek samping penambahan laporan kesebelas. Catatan terkait: docblock DepricarpingReportController menyatakan line mill lain 'IS refused with 403 in resolveProductionLine()' — itu TIDAK BENAR, metode itu hanya mengembalikan null, dan nilai kembaliannya pun dibuang di controller."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — sukses sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/periods"
+          },
+          "request_example": {
+            "note": "sesi supervisor terikat mill A; tanpa business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "<line-A1>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "<line-A1>",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor terikat mill A dengan periode Kernel Plant dan slot terisi tersemai, lalu set production_line_id ke line A1",
+        "assert": "periode terbaru terpilih sendiri; pemilih mill TIDAK dirender; blok cakupan muncul paling atas dengan ketiga angka pembentuk penyebut (jumlah unit, hari terhitung, 24 slot kanonis); tabel parameter berisi tepat 7 baris, tiap baris memuat min/rata-rata/maks dan penyebutnya sendiri berformat 'N dari M slot' dengan M = coverage.filled_slots yang seragam; kedua kolom target dirender utuh termasuk '(Nut Breakage >95%)'; penanda berbagi standar tampil pada pasangan ripple mill 1-2 dan pasangan kernel silo 1-2; blok downtime, bagian temuan terpisah, bagian 'standar tanpa pengukuran' berisi 'Final Kernel Dirt', rekap per unit dan per hari dengan baris total periode, serta pernyataan ketiadaan penandaan di luar batas semuanya terender; nol penulisan ke basis data"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, buka /reports/kernel-plant, pilih Production Line. TIDAK menyemai data laporan sendiri — ikuti pola laporan-depricarping.spec.ts: angkanya sudah dibuktikan tiga kali di backend (unit + Api + Livewire), dan basis data e2e BERBAGI data Kernel Plant dengan BrowserTestFixtureSeeder (KP-BROWSER-EDIT) serta spec form-kernel-plant.",
+        "assert": "Dirender tanpa satu angka pun DIPAKU. Pemilih mill tidak ada untuk Supervisor; sebelum line dipilih NOL angka. Invarian (a): blok cakupan berada DI ATAS tabel parameter, diukur dari posisi kotaknya di viewport bukan urutan sumber. Invarian (b+c): ketujuh baris parameter ada, masing-masing mencetak penyebutnya sendiri, dan tiap penyebut tidak pernah melebihi slot terisi periode. Kedua kolom target berada pada baris parameternya, masing-masing ber-testid sendiri sehingga satu kolom hilang terlihat sebagai kegagalan. Invarian (e): jumlah slot per unit kernel plant menjumlah ke slot terisi periode. Layar hanya-baca: tidak ada kontrol tulis apa pun. Ekspor CSV benar-benar mengunduh berkas."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — sukses sebagai Admin",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/business-units/options"
+          },
+          "request_example": {
+            "note": "sesi admin; tanpa parameter"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "business_unit_id": "{{step1.data[0].id}}",
+            "production_line_id": "<line-pada-mill-itu>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "business_unit_id": "{{step1.data[0].id}}",
+            "production_line_id": "<line-pada-mill-itu>",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai admin tanpa business_unit_id pada akun, pilih mill A pada pemilih mill, lalu pilih line A1",
+        "assert": "pemilih mill DIRENDER — satu-satunya peran yang melihatnya; setelah mill dan line terpilih, isi laporan sama lengkapnya dengan peran terikat mill: cakupan plus ketiga angka penyebut, 7 baris parameter dengan penyebut masing-masing, kedua kolom target utuh, dua penanda berbagi standar, blok downtime, bagian temuan, bagian 'standar tanpa pengukuran', rekap per unit dan per hari dengan baris total, pernyataan ketiadaan penandaan; nol penulisan"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Admin, buka /reports/kernel-plant, pilih mill lalu pilih Production Line. Tanpa menyemai data dan tanpa angka dipaku.",
+        "assert": "Pemilih mill DIRENDER untuk Admin — satu-satunya peran yang melihatnya; angka baru muncul setelah mill DAN line terpilih; blok-blok laporan terender dengan invarian yang sama seperti jalur Supervisor."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — Production Line belum dipilih",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/periods"
+          },
+          "request_example": {
+            "note": "sesi supervisor terikat mill A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "note": "production_line_id sengaja TIDAK dikirim — membuktikan API tetap sah 200 dengan production_line null; layarlah yang menahan pemanggilan, bukan API yang menolaknya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dengan periode tersemai dan slot terisi, TANPA menyetel production_line_id",
+        "assert": "arahan memilih line terender; properti $summary tetap null dan KernelPlantReportService::summary() tidak pernah dipanggil (mock/spy: nol pemanggilan); tidak ada satu angka pun di keluaran render — bukan 0, bukan '0%', bukan '0 dari 0 slot'; tabel parameter, blok cakupan, blok downtime, dan rekap tidak dirender sama sekali"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, buka /reports/kernel-plant dan JANGAN pilih Production Line. Tanpa menyemai data.",
+        "assert": "Arahan memilih line terlihat; pemilih Production Line bernilai kosong; locator blok cakupan dan tabel parameter ber-count() 0 SETELAH menunggu arahan muncul — jangan count() tanpa menunggu lebih dulu. Dan satu test terpisah membuktikan halamannya HIDUP: memilih Production Line memicu putaran Livewire yang mengubah halaman, yang hanya browser dapat tangkap (jebakan wire:id-menempel-pada-<style> pernah mematikan seluruh wire:model di screen-140)."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — mill hanya punya satu Production Line",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/periods"
+          },
+          "request_example": {
+            "note": "sesi supervisor pada mill yang hanya punya satu line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "<satu-satunya-line>",
+            "note": "dikirim EKSPLISIT — API tidak pernah mengisi sendiri dan tidak punya default"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor pada mill yang hanya punya SATU Production Line, tanpa interaksi apa pun",
+        "assert": "production_line_id tetap null — TIDAK ada pemilihan otomatis meski opsinya hanya satu; arahan memilih line tetap terender dan nol angka ditampilkan"
+      },
+      "browser_test": {
+        "route": "TIDAK ADA UJI BROWSER untuk skenario ini.",
+        "action": "Keadaannya adalah mill yang hanya punya SATU Production Line. Basis data e2e dipakai bersama 87 spec dan mill fixture-nya punya lebih dari satu line; mengurangi line-nya akan menjatuhkan spec form-* dan laporan-* lain yang memilih line tertentu.",
+        "assert": "Dibuktikan uji Livewire (basis data per-uji) dan unit case: line tunggal TIDAK terpilih otomatis. Yang hilang hanya bukti di browser sungguhan, ditukar sadar dengan tidak merusak spec lain."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — mill belum punya satu pun periode Kernel Plant",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/periods"
+          },
+          "request_example": {
+            "note": "sesi supervisor pada mill yang punya periode untuk jenis stasiun LAIN tetapi tidak satu pun untuk Kernel Plant"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor pada mill tanpa satu pun periode Kernel Plant, sementara mill itu punya periode Threshing dan Pressing",
+        "assert": "pemilih periode KOSONG — tidak terisi periode milik jenis stasiun lain; arahan terender dan nol angka ditampilkan; keadaan ini tidak diperlakukan sebagai galat (tidak ada blok error/alert bahaya)"
+      },
+      "browser_test": {
+        "route": "TIDAK ADA UJI BROWSER untuk skenario ini — dan alasannya wajib dibaca sebelum seseorang 'melengkapinya'.",
+        "action": "Keadaan yang diuji adalah KETIADAAN periode Kernel Plant pada mill itu. Setiap spec laporan-* diawali seedOpenPeriodForForms(browser,'kernel-plant'), yang justru MENYEMAI periode itu — jadi beforeAll dan asersinya saling bertentangan. Menghapus periodenya bukan jalan keluar: basis data e2e dipakai bersama 87 spec dengan workers: 1, fixture-nya idempoten dan MEMAKAI ULANG periode yang ada, dan menghapusnya akan membuat setiap uji lain di berkas ini — serta spec form-kernel-plant — gagal karena sebab yang tidak ada hubungannya.",
+        "assert": "Cakupannya ditutup di dua lapis lain yang dapat mengatur keadaannya dengan benar: uji Livewire (component_test di atas, basis data per-uji) dan unit case 'listPeriods() mengembalikan array kosong ketika mill belum punya satu pun periode Kernel Plant'. Yang hilang hanya bukti di browser sungguhan, dan itu ditukar sadar dengan tidak merusak 87 spec lain."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — periode tanpa satu pun slot terisi",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-tanpa-slot-terisi>",
+            "production_line_id": "<line-A1>",
+            "note": "periode punya 24 detail yang kesembilan kolomnya null"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang PUNYA record tetapi tidak satu pun slotnya terisi (24 detail dengan kesembilan kolom null), lalu pada kasus kedua pada periode yang TIDAK punya satu pun record",
+        "assert": "Kasus pertama: has_data false, dan coverage_percent bernilai 0.0 — BUKAN null — karena expected_slots terbentuk dari unit yang punya record itu; selnya merender '0,0%'. Kasus kedua: kernel_plant_count 0, expected_slots 0, coverage_percent === null, dan selnya merender tanda pisah. Pada kedua kasus tabel parameter TETAP menampilkan ketujuh barisnya dengan penyebut 0 — assert jumlah baris === 7, bukan >= 1. JANGAN assertDontSee('0%') pada seluruh halaman: nilai target_benchmark master sendiri memuat '≤ 7.0%' dan '≤ 6.0%', yang keduanya memuat substring '0%' dan memang dirender verbatim pada tabel parameter. Asersi apa pun tentang '0%' WAJIB dilingkupi ke [data-testid=\"coverage-percent\"]."
+      },
+      "browser_test": {
+        "route": "TIDAK ADA UJI BROWSER untuk skenario ini.",
+        "action": "Keadaannya adalah periode TANPA satu pun slot terisi. Basis data e2e selalu memuat data Kernel Plant — BrowserTestFixtureSeeder menanam KP-BROWSER-EDIT dan spec form-kernel-plant menanam record lain — jadi keadaan ini tidak dapat diatur tanpa mengosongkan data yang dipakai spec lain.",
+        "assert": "Dibuktikan uji Livewire (coverage_percent null dirender sebagai tanda pisah, bukan 0%; tabel tetap 7 baris) dan unit case yang mengasersikan assertNull alih-alih assertSame(0.0)."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — periode belum mulai",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-ber-start_date-10-hari-di-masa-depan>",
+            "production_line_id": "<line-A1>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang start_date-nya masih di masa depan",
+        "assert": "coverage.days_counted === 0 dan layar menjelaskannya sebagai BELUM MULAI; keterangan 'sedang berjalan' TIDAK terender meski ReportPeriodDays::isRunning() bernilai true untuk keadaan ini — cabang days_counted === 0 harus dievaluasi lebih dulu; coverage_percent dirender sebagai tanda pisah"
+      },
+      "browser_test": {
+        "route": "TIDAK ADA UJI BROWSER untuk skenario ini.",
+        "action": "Keadaannya adalah periode yang BELUM MULAI. Periode prasyarat yang disemai seedOpenPeriodForForms() berumur panjang dan mencakup hari ini; menambah periode bertanggal masa depan ke basis data bersama akan mengubah periode mana yang terpilih sendiri pada 18 spec form-* dan 4 spec laporan-*.",
+        "assert": "Dibuktikan uji Livewire dan unit case, yang keduanya menuntut days_counted === 0 dievaluasi SEBELUM period_running — justru karena ReportPeriodDays::isRunning() juga true untuk periode yang belum mulai."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — periode sedang berjalan",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-start_date-3-hari-lalu-end_date-7-hari-depan>",
+            "production_line_id": "<line-A1>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang sudah mulai tetapi belum berakhir",
+        "assert": "coverage.days_counted < coverage.days_in_period dan period_running true; keterangan penyebut menyebut HARI TERAKHIR YANG TERHITUNG (hari ini), bukan end_date periode yang belum tiba"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line pada periode prasyarat — yang memang periode sedang berjalan. Tanpa tanggal keras: tanggal apa pun dibaca DARI DOM.",
+        "assert": "Keterangan penyebut menyebut hari terakhir yang TERHITUNG, dan jumlah hari terhitung yang tercetak tidak pernah melebihi jumlah hari periode yang tercetak — asersi invarian atas dua angka yang dibaca dari DOM, bukan atas tanggal yang dipaku. Tanggal keras akan basi, dan audit statis tanggal fixture memang mencari pola itu."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — satu slot hanya mengisi findings",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-berisi-10-slot-berkolom-ukur-dan-4-slot-findings-saja>",
+            "production_line_id": "<line-A1>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang punya 4 slot mengisi HANYA findings tanpa satu pun kolom ukur, di samping 10 slot berkolom ukur dengan sebaran berbeda",
+        "assert": "coverage.filled_slots = 14 sementara setiap metrics[i].filled_slot_count <= 7 — assert KETIDAKSAMAAN coverage.filled_slots > setiap penyebut metrik, JANGAN assert kesamaan; keempat slot findings-saja tidak menambah satu pun penyebut metrik; layar menyatakan bahwa keadaan itu benar sehingga tidak 'diperbaiki' menjadi salah"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line. Tanpa menyemai slot findings-saja sendiri.",
+        "assert": "Invarian (b) yang dibaca dari DOM: untuk ketujuh baris, N tidak pernah melebihi slot terisi periode, sementara M pada ketujuh baris IDENTIK dan sama dengan angka slot terisi pada blok cakupan. Itulah bentuk yang dapat diperiksa tanpa mengetahui datanya: kalau satu slot hanya mengisi findings, ia menaikkan slot terisi tanpa menaikkan N mana pun, dan ketidaksamaan itu tetap benar. Keterangan yang menjelaskan sebabnya terlihat."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — ripple mill 2 atau salah satu silo tidak pernah diisi",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-yang-ripple_mill_2_amps-dan-kernel_silo_2_temp_c-nya-selalu-null>",
+            "production_line_id": "<line-A1>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang ripple_mill_1_amps dan kernel_silo_1_temp_c selalu terisi sementara ripple_mill_2_amps dan kernel_silo_2_temp_c tidak pernah terisi",
+        "assert": "tabel tetap 7 baris; baris ripple_mill_2_amps dan kernel_silo_2_temp_c terender dengan penyebut 0 dan nilai kosong; penanda berbagi standar TETAP tampil pada KEDUA anggota masing-masing pasangan (empat baris bertanda); menyembunyikan baris kosong akan menyembunyikan bahwa satu mesin tidak pernah dicatat"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line. Tanpa menyemai pasangan kolom yang kosong sendiri.",
+        "assert": "Invarian (c): baris tabel parameter ber-count() TEPAT 7 apa pun datanya — termasuk baris yang tak pernah terukur, yang tampil dengan penyebut 0 dan nilai bertanda pisah. Penanda berbagi standar terlihat pada KEEMPAT baris pasangan (ripple mill 1-2 dan silo 1-2), bukan hanya pada yang terisi. Menyembunyikan baris kosong akan menyembunyikan bahwa satu mesin tidak pernah dicatat, dan count() === 7 adalah bentuk yang menangkapnya tanpa mengetahui datanya."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — master disunting tangan sehingga nama parameternya tidak cocok dengan peta kolom",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-berisi-data>",
+            "production_line_id": "<line-A1>",
+            "note": "baris master 'Kernel Silo 1 & 2' sudah disunting menjadi 'Kernel Silo 1 and 2'"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dengan satu baris master yang namanya sudah disunting sehingga tidak lagi cocok dengan COLUMN_TARGET_PARAMETER, lalu pilih line dan baca bagian 'standar tanpa pengukuran'",
+        "assert": "baris kernel_silo_1_temp_c dan kernel_silo_2_temp_c TETAP menerbitkan angkanya dengan has_standard false dan kedua kolom target kosong; bagian 'standar tanpa pengukuran' memuat DUA entri — nama yang disunting DAN 'Final Kernel Dirt' — keduanya ber-reason 'no_column'; suntingan itu terlihat, bukan hilang diam-diam"
+      },
+      "browser_test": {
+        "route": "TIDAK ADA UJI BROWSER untuk skenario ini.",
+        "action": "Keadaannya menuntut MENYUNTING baris kernel_plant_operational_targets pada basis data bersama. Master itu dibaca juga oleh spec form-kernel-plant (yang mengasersikan tabel referensi 6 baris) dan oleh detail-kernel-plant; menyuntingnya di tengah jalan akan menjatuhkan keduanya, dan memulihkannya di afterAll tidak menolong bila satu test gagal di antaranya.",
+        "assert": "Dibuktikan uji Livewire dan unit case: nama master yang disunting membuat metriknya has_standard false DAN memindahkan standarnya ke targets_without_metric dengan reason 'no_column' — terlihat, bukan hilang diam-diam."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — Admin berganti mill",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/business-units/options"
+          },
+          "request_example": {
+            "note": "sesi admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<mill-A>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "business_unit_id": "<mill-A>",
+            "production_line_id": "<line-A1>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<mill-B>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 5,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "business_unit_id": "<mill-B>",
+            "production_line_id": "<line-A1>",
+            "note": "period_id milik mill A dan production_line_id milik mill A dikirim bersama business_unit_id mill B — membuktikan mengapa komponen WAJIB mereset keduanya saat mill berganti"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai admin, pilih mill A, pilih periode dan line A1 sampai angka tampil, lalu ganti pemilih mill ke mill B",
+        "assert": "production_line_id DAN period_id direset ke null karena keduanya milik mill; daftar periode dan daftar line dimuat ulang untuk mill B; laporan kembali ke arahan memilih line tanpa satu angka pun; TIDAK ADA angka mill A yang tersisa di bawah nama mill B"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Admin, pilih mill lalu line sampai angka terlihat, lalu GANTI pemilih mill. Tanpa angka dipaku.",
+        "assert": "Setelah penggantian, pemilih line dan pemilih periode kembali kosong dan arahan memilih line terlihat lagi; blok cakupan dan tabel parameter ber-count() 0. Tidak satu angka pun bertahan dari mill sebelumnya — diperiksa sebagai KETIADAAN blok, bukan sebagai perbandingan angka."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — akun terikat mill tanpa business_unit_id",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/periods"
+          },
+          "request_example": {
+            "note": "sesi supervisor dengan business_unit_id = null"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-sah>",
+            "production_line_id": "<line-sah>",
+            "note": "sesi supervisor dengan business_unit_id = null"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor yang business_unit_id akunnya null",
+        "assert": "komponen gagal tertutup dengan pesan yang menyebut sebabnya ('Akun Anda belum terhubung ke mill'); nol query dieksekusi (DB::listen / query-log kosong); BUKAN hasil kosong yang akan terbaca sebagai 'mill ini tidak punya data'"
+      },
+      "browser_test": {
+        "route": "TIDAK ADA UJI BROWSER untuk skenario ini.",
+        "action": "Keadaannya menuntut akun Supervisor yang business_unit_id-nya null. Akun uji di basis data bersama dipakai 87 spec; mengosongkan business_unit_id-nya, bahkan sementara, menjatuhkan setiap spec yang berjalan sesudahnya, dan urutan alfabetis dengan workers: 1 membuat itu pasti terjadi.",
+        "assert": "Dibuktikan uji Livewire (gagal tertutup dengan pesan yang menyebut sebabnya) dan unit case yang juga mengasersikan NOL query dieksekusi lewat query-log — bentuk yang browser tidak dapat buktikan."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — mill atau line milik mill lain diminta lewat properti",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<mill-B>",
+            "note": "sesi supervisor terikat mill A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-milik-mill-A>",
+            "business_unit_id": "<mill-B>",
+            "production_line_id": "<line-milik-mill-B>",
+            "note": "sesi supervisor terikat mill A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor terikat mill A, lalu set properti business_unit_id ke mill B dan production_line_id ke line milik mill B",
+        "assert": "status tetap 200: business_unit.id = mill A (business_unit_id yang dikirim DIABAIKAN, bukan divalidasi) dan production_line = null (resolveProductionLine() mengembalikan null untuk line di luar mill terkunci); tidak ada 403 maupun 404 yang akan membocorkan keberadaan mill atau line milik orang lain; tidak satu pun angka mill B terender"
+      },
+      "browser_test": {
+        "route": "TIDAK ADA UJI BROWSER untuk skenario ini.",
+        "action": "Keadaannya menuntut manipulasi properti Livewire agar mengirim id mill dan id line milik mill lain. Itu pemeriksaan tingkat properti, bukan tingkat tampilan, dan Livewire::test() dapat mengaturnya persis sementara browser hanya dapat menirunya lewat jalan berliku yang membuktikan lebih sedikit.",
+        "assert": "Dibuktikan uji Livewire dan unit case: business_unit_id yang dikirim DIABAIKAN (bukan divalidasi) dan resolveProductionLine() mengembalikan null untuk line di luar mill terkunci — status tetap 200, tanpa 403/404 yang justru membocorkan keberadaannya."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — Operator mencoba membuka rute web",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/periods"
+          },
+          "request_example": {
+            "note": "sesi/token station_operator terikat mill A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-mill-A>",
+            "production_line_id": "<line-A1>",
+            "note": "sesi station_operator"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode-mill-A>",
+            "production_line_id": "<line-A1>",
+            "format": "csv",
+            "note": "sesi station_operator"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/business-units/options"
+          },
+          "request_example": {
+            "note": "sesi station_operator — satu-satunya rute yang menolaknya, dari DALAM service"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "panggil LaporanKernelPlant::canAccess() dengan peran station_operator, lalu render komponen sebagai station_operator",
+        "assert": "canAccess() false dan render menolak dengan 403; uji struktural pendamping: canAccess() memegang daftar perannya SENDIRI dan TIDAK mendelegasikan ke KernelPlantReportService::guardAccess() — kalau ia mendelegasikan, layar web ini diam-diam terbuka untuk Operator karena guardAccess() menerima keempat peran demi kembaran mobile"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Operator, buka /reports/kernel-plant langsung.",
+        "assert": "Halaman terlarang 403 terender dan tidak ada blok laporan di DOM. Penjagaan diuji pada RUTE-nya, bukan hanya pada komponennya — itulah yang membuat test ini hanya bisa di browser. Ketiga rute API lainnya tetap menerima Operator untuk kembaran mobile (screen-155), jadi test ini juga yang menangkap bila canAccess() pernah didelegasikan ke guardAccess()."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — penyaringan line memakai production_line_id pada tabel record, bukan join ke stations",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-mill-A>",
+            "production_line_id": "<line-A1>",
+            "note": "mill A punya slot terisi pada line A1 DAN line A2 pada periode yang sama, dan satu record line A1 stasiunnya sudah dipindah ke line A2"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-mill-A>",
+            "production_line_id": "<line-A2>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor pada mill berdua line yang keduanya punya slot terisi pada periode sama, pilih line A1, lalu pilih line A2",
+        "assert": "untuk tiap pilihan line, SELURUH angka — coverage, ketujuh metrics beserta penyebutnya, downtime, findings, by_kernel_plant, daily, daily_total — hanya berasal dari record ber-production_line_id sama dengan line terpilih; tidak satu pun record line lain ikut; record yang stasiunnya sudah dipindah TETAP terhitung di line tempat datanya dihasilkan (gagal bila implementasinya join ke stations); jumlah coverage.filled_slots A1 + A2 sama dengan total tanpa filter line"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih satu Production Line lalu ganti ke line lain, dan tunggu putaran Livewire selesai di antaranya.",
+        "assert": "HALAMANNYA HIDUP: mengganti Production Line memicu putaran Livewire yang MENGUBAH halaman — dibandingkan sebagai 'isi berubah', bukan sebagai angka tertentu. Component test tidak dapat menangkap jebakan wire:id-menempel-pada-<style> yang pernah mematikan seluruh wire:model di screen-140, dan laporan ini menaruh partial ber-style-nya di slot `styles` layout justru karena itu. Penyaringan memakai production_line_id pada tabel record dibuktikan di lapis unit, bukan di sini."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — penyebut tiap parameter tidak boleh disamakan satu dengan lainnya",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-yang-slotnya-mengisi-himpunan-kolom-berbeda-beda>",
+            "production_line_id": "<line-A1>",
+            "note": "semai 6 slot ripple_mill_1_amps, 2 slot ripple_mill_2_amps, 5 slot claybath_hydro_sg, 4 slot kernel_silo_1_temp_c, 3 slot kernel_silo_2_temp_c, 7 slot kernel_moisture_percent, 1 slot shell_loss_percent"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang slot-slotnya mengisi himpunan kolom ukur berbeda-beda seperti sebaran di atas",
+        "assert": "ketujuh baris menampilkan N yang BERBEDA-BEDA — 6, 2, 5, 4, 3, 7, 1 — pada format 'N dari M slot', sementara M SAMA untuk ketujuhnya (coverage.filled_slots). Kumpulkan ketujuh N dan assert jumlah nilai uniknya > 1 DAN tiap nilai persis sesuai sebaran yang disemai; satu N bersama untuk semua baris akan lolos terhadap implementasi yang salah, jadi sebaran yang berbeda-beda adalah inti semainya. Jangan terbalik: M yang berbeda-beda per baris adalah BUG, bukan yang diuji di sini"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line. Tanpa menyemai sebaran kolom sendiri dan tanpa memaku 6/2/5/4/3/7/1.",
+        "assert": "Invarian (b) dibaca dari DOM: ketujuh baris mencetak penyebutnya MASING-MASING, tiap N tidak pernah melebihi slot terisi periode, dan M identik pada ketujuhnya. Jangan mengasersikan bahwa ketujuh N berbeda — pada data bersama kebetulan bisa sama, dan test yang gagal karena datanya kebetulan seragam adalah test yang akan diabaikan lalu dihapus. Bahwa N benar-benar dihitung per kolom dibuktikan unit case dengan sebaran yang dikendalikan penuh."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — total downtime null bukan nol, dan nol yang tercatat tetap dihitung",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-1-yang-tak-satu-slotnya-mencatat-downtime_minutes>",
+            "production_line_id": "<line-A1>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-2-yang-3-slotnya-mencatat-downtime_minutes-nol>",
+            "production_line_id": "<line-A1>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render dua kali: pertama pada periode yang tak satu slotnya mencatat downtime_minutes, kedua pada periode yang 3 slotnya mencatat downtime_minutes = 0",
+        "assert": "periode-1: downtime.total_minutes === null (assertNull, BUKAN assertSame(0)) dirender sebagai TANDA PISAH, string '0' tidak muncul pada sel itu, recorded_slot_count === 0. Periode-2: downtime.total_minutes === 0 (assertSame(0), bukan null) dan recorded_slot_count === 3 — penyebut downtime mencerminkan jumlah slot yang MENCATATNYA, bukan hanya slot yang downtime-nya lebih dari nol. downtime.has_standard false pada keduanya"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line, baca blok downtime. Tanpa menyemai dua periode sendiri.",
+        "assert": "Blok downtime menerbitkan angkanya BESERTA penyebut slot pencatatnya, ATAU menyatakan ketiadaannya — bercabang atas apa yang ada di DOM, bukan atas data yang dipaku. Bila ada angka, penyebutnya tidak pernah melebihi slot terisi periode. Bila tidak ada, selnya berisi tanda pisah dan BUKAN '0'. Perbedaan null-versus-nol-yang-tercatat dibuktikan unit case dengan assertNull dan assertSame(0) terpisah."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — temuan dikelompokkan harfiah tanpa normalisasi dan diurutkan dari yang paling sering",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-bertemuan-bervariasi>",
+            "production_line_id": "<line-A1>",
+            "note": "semai findings 'Bearing panas' x3, 'Zink habis' x2, 'Ayakan kotor' x2, 'ripple mill bising' x1, 'Ripple mill bising' x1, 'Ripple  mill bising' (spasi ganda) x1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang temuannya ditulis dengan variasi kapitalisasi dan spasi pada teks yang sebenarnya mirip",
+        "assert": "tiga varian 'ripple mill bising' menjadi TIGA kelompok terpisah dengan slot_count 1 masing-masing, bukan satu kelompok slot_count 3; teks dirender HARFIAH persis seperti tersimpan; urutan tepat ['Bearing panas'(3), 'Ayakan kotor'(2), 'Zink habis'(2), lalu ketiga varian ripple(1) alfabetis] — slot_count turun lalu teks naik, jadi assert URUTAN PERSIS, bukan hanya keanggotaan; bagian temuan terender TERPISAH dari blok downtime; pernyataan bahwa pengelompokannya harfiah terender"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line, baca bagian temuan. Tanpa menyemai varian ejaan sendiri.",
+        "assert": "Bagian temuan berada TERPISAH dari blok downtime (dua wadah berbeda di DOM) dan menyatakan bahwa pengelompokannya HARFIAH. Bila ada lebih dari satu baris, urutannya menurun menurut slot_count yang dibaca dari DOM — asersi atas keterurutan, bukan atas teks tertentu. Bahwa 'Ripple mill bising' dan 'ripple mill bising' menjadi dua kelompok dibuktikan unit case."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — penanda berbagi standar diturunkan dari peta kolom-ke-parameter, bukan dipaku",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-berisi-data>",
+            "production_line_id": "<line-A1>",
+            "note": "master berisi 'Ripple Mill (Cracker)' dan 'Kernel Silo 1 & 2'"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-yang-sama>",
+            "production_line_id": "<line-A1>",
+            "note": "SETELAH target_benchmark dan corrective_action_plan kedua baris master itu diperbarui"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor, pilih line dan baca penanda berbagi standar beserta kedua kolom target pada baris-baris pasangan; lalu perbarui nilai kedua baris master dan render ulang",
+        "assert": "DUA pasangan bertanda, bukan satu: ripple_mill_1_amps<->ripple_mill_2_amps dan kernel_silo_1_temp_c<->kernel_silo_2_temp_c — empat baris bertanda, tiga baris sisanya tanpa tanda. Nilai target pada kedua anggota tiap pasangan IDENTIK dan berubah mengikuti master setelah pembaruan (bukan nilai yang dipaku di kode). Uji struktural pendamping: shares_standard_with dihitung sebagai 'kolom lain yang nilai COLUMN_TARGET_PARAMETER-nya sama' dan badan fungsinya tidak memuat literal 'ripple_mill_2_amps' maupun 'kernel_silo_2_temp_c'. Depricarping hanya punya SATU pasangan, jadi kode yang mengistimewakan satu pasangan lolos di sana dan gagal di sini"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line, baca penanda berbagi standar pada baris-baris pasangan.",
+        "assert": "DUA PASANGAN menyatakan standarnya SATU — ini test yang paling membedakan Kernel Plant dari Depricarping, yang hanya punya satu pasangan. Keempat baris pasangan (ripple mill 1-2, silo 1-2) membawa penandanya, nilai target kedua anggota tiap pasangan IDENTIK, dan tiga baris sisanya TIDAK berpenanda. Markup yang menangani satu pasangan secara khusus akan lolos di Depricarping dan gagal di sini."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — angka kedua ripple mill dan kedua silo tidak pernah dirata-ratakan menjadi satu",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-ripple-1-24.0-ripple-2-12.0-silo-1-78.0-silo-2-66.0>",
+            "production_line_id": "<line-A1>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang kedua ripple mill dan kedua kernel silo terisi dengan nilai BERBEDA JELAS",
+        "assert": "ripple mill 1 dan 2 tampil sebagai DUA baris dengan min/rata-rata/maks dan penyebutnya sendiri (24.0 dan 12.0), demikian pula kedua silo (78.0 dan 66.0); TIDAK ADA baris gabungan dan TIDAK ADA nilai 18.0 maupun 72.0 di mana pun pada tabel; jumlah baris tetap 7 meski kedua pasangan berbagi satu standar masing-masing"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line, baca kedua baris ripple mill dan kedua baris silo.",
+        "assert": "Keempatnya tampil sebagai baris TERSENDIRI dengan min/rata-rata/maks dan penyebutnya masing-masing; tidak ada baris gabungan, dan jumlah baris tetap 7. Layar menyatakan bahwa angka keduanya TIDAK dirata-ratakan menjadi satu. Diperiksa sebagai struktur — jumlah baris dan ketiadaan baris gabungan — bukan sebagai nilai tertentu."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — 'Final Kernel Dirt' dibandingkan terhadap himpunan parameter terpeta, bukan jumlahnya",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-berisi-data>",
+            "production_line_id": "<line-A1>",
+            "note": "master SENGAJA diisi 7 baris sehingga count(master) === count(COLUMN_TARGET_PARAMETER) === 7"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang jumlah baris masternya kebetulan sama dengan jumlah entri peta kolom-ke-parameter (7 lawan 7)",
+        "assert": "'Final Kernel Dirt' TETAP muncul pada bagian 'standar tanpa pengukuran' dengan reason 'no_column'; perbandingannya dilakukan terhadap HIMPUNAN 5 nama parameter yang terpeta, NEVER terhadap count() 7 entri — implementasi yang membandingkan jumlah akan melihat 7 === 7 dan menerbitkan daftar kosong, tepat kegagalan yang dicegah di sini; 'Ripple Mill (Cracker)' dan 'Kernel Silo 1 & 2' TIDAK muncul di daftar itu meski masing-masing dipakai dua kali"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line, baca bagian 'standar tanpa pengukuran'. Tanpa menyunting master.",
+        "assert": "Bagian itu terender pada wadahnya sendiri dan memuat 'Final Kernel Dirt' beserta alasannya. Kedua parameter yang masing-masing mengatur dua kolom — 'Ripple Mill (Cracker)' dan 'Kernel Silo 1 & 2' — TIDAK muncul di bagian itu meski masing-masing dipakai dua kali; itulah bentuk yang menangkap perbandingan terhadap count() alih-alih terhadap himpunan, tanpa perlu menyunting master."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — bagian 'standar tanpa pengukuran' tetap digambar meski kosong",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-berisi-data>",
+            "production_line_id": "<line-A1>",
+            "note": "master diisi HANYA 5 baris yang kelimanya namanya cocok dengan nilai COLUMN_TARGET_PARAMETER (baris 'Final Kernel Dirt' dihapus)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang setiap standarnya punya kolom pengukuran terpeta",
+        "assert": "targets_without_metric = [] dan all_targets_measured === true; bagian 'standar tanpa pengukuran' TETAP DIRENDER dalam keadaan kosong beserta keterangannya — assert KEBERADAAN wadah bagian itu, bukan ketiadaannya; bagian yang menghilang tidak dapat dibedakan dari bagian yang tidak pernah dibuat, jadi pembaca harus tahu pemeriksaan itu dilakukan dan hasilnya nihil"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line.",
+        "assert": "Wadah bagian 'standar tanpa pengukuran' ber-count() 1 — ADA — tanpa peduli berapa baris di dalamnya. Asersi atas KEBERADAAN wadahnya, bukan atas isinya, justru karena itulah yang membedakan 'kosong dan dinyatakan' dari 'tidak pernah dibuat'. Keadaan kosong sungguhan (seluruh master terpeta) dibuktikan uji Livewire, yang dapat menghapus baris master pada basis datanya sendiri."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — tidak ada penandaan otomatis di luar batas dan ketiadaannya dinyatakan",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-bernilai-jauh-di-luar-target>",
+            "production_line_id": "<line-A1>",
+            "note": "semai ripple_mill_1_amps = 90.0 terhadap target '20 - 25 Amps (Nut Breakage >95%)' dan kernel_moisture_percent = 45.0 terhadap '≤ 7.0%'"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang beberapa nilainya jauh di luar target_benchmark, lalu periksa HTML yang dirender",
+        "assert": "ASERSIKAN KETIADAAN NAMA KELAS pada HTML hasil render: tidak ada 'md-threshold', 'is-danger', 'is-warning', 'is-critical', maupun atribut data-severity/data-flag di mana pun pada tabel parameter; tidak ada ikon atau label peringatan. JANGAN PERNAH mengasersikan ketiadaan FRASA — kalimat penjelas di layar sendiri memuat kata 'di luar batas', jadi assertDontSee atas frasa itu akan gagal (atau lebih buruk, lolos karena kalimatnya hilang). Sebaliknya, assert KEBERADAAN kalimat yang menyatakan laporan ini tidak melakukan penandaan beserta sebabnya. Pada tingkat data: tak satu pun entri metrics[] memuat kunci severity/flag/is_out_of_range/color"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line, lalu sisir HTML TERKOMPILASI di browser.",
+        "assert": "locator('.md-threshold, .is-danger, .is-warning, .is-critical') ber-count() 0, DAN tidak ada atribut data-severity/data-flag — setelah tabel parameter selesai dimuat, jangan count() tanpa menunggu. DISISIR ATAS NAMA KELAS, BUKAN ATAS FRASA: kalimat yang menyatakan ketiadaan penandaan sendiri memuat kata 'di luar batas', jadi assertDontSee atas frasa itu akan gagal — atau lebih buruk, lolos justru karena kalimatnya hilang. Dan assert KEBERADAAN kalimat itu. Godaannya di sini besar: target_benchmark Kernel Plant membawa pembanding yang teratur ('≤ 7.0%', '≤ 1.5%'), dan penolakan menandai tetap. Periksa hasil COMPILE, bukan sumbernya, dan tiap kelas yang dipakai markup harus punya definisi."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — baris total periode dihitung ulang dari slot, bukan merata-ratakan rata-rata harian",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-berslot-tak-sama-per-hari>",
+            "production_line_id": "<line-A1>",
+            "note": "hari-1 berisi 2 slot ripple_mill_1_amps = 10, hari-2 berisi 24 slot ripple_mill_1_amps = 30"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang jumlah slot terisi per harinya tidak sama, lalu bandingkan baris total periode dengan rata-rata atas rata-rata harian pada rekap per hari",
+        "assert": "daily_total.averages['ripple_mill_1_amps'] = (2*10 + 24*30)/26 = 28.46..., dan BERBEDA dari (10+30)/2 = 20.0; assert KEDUANYA — sama dengan hitung ulang dari slot DAN tidak sama dengan rata-rata atas rata-rata harian; daily_total.filled_slot_count = 26 = jumlah seluruh daily[].filled_slot_count. Merata-ratakan rata-rata memberi bobot sama pada hari berisi 2 slot dan hari berisi 24 slot"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line, buka rekap harian, lalu tutup kembali.",
+        "assert": "Invarian (d) dibaca dari DOM: baris total rekap harian menjumlah slot SELURUH baris hariannya — dihitung dari angka yang dibaca, jadi benar untuk data apa pun. Dan menutup rekap harian tidak mengubah satu angka pun di luar bagian itu. Bahwa total periode dihitung ULANG dari slot alih-alih merata-ratakan rata-rata harian dibuktikan unit case, yang satu-satunya dapat mengatur hari berisi 2 slot melawan hari berisi 24 slot."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Plant (Web) — slot yang kolom ukurnya null tidak diperlakukan sebagai nol",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-bersebagian-kolom-null>",
+            "production_line_id": "<line-A1>",
+            "note": "semai 3 slot ripple_mill_1_amps = 20, 22, 24 sementara 21 slot lain meninggalkan kolom itu null"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelPlant",
+        "action": "render sebagai supervisor dan pilih line pada periode yang sebagian slotnya mengisi satu kolom ukur sementara membiarkan kolom ukur lain null, lalu baca min/rata-rata/maks baris itu",
+        "assert": "min = 20.0 (BUKAN 0.0 — nol akan menarik minimum ke 0), avg = 22.0 (BUKAN 2.75 — nol akan merata-rata ke bawah), max = 24.0, dan penyebut baris itu = 3 (hanya slot yang kolomnya BENAR-BENAR terisi). Nilai null dilewati sama sekali dari perhitungan. Uji pendamping atas query-log: nol agregat SQL (AVG(/MIN(/MAX() atas kolom kernel_plant_details — seluruh agregasi di PHP, sehingga angka yang sama keluar baik di SQLite in-memory maupun di PostgreSQL produksi; whereDate dipakai apa adanya atas kolom timestamp, bukan where biasa"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-plant",
+        "action": "beforeAll seedOpenPeriodForForms(browser,'kernel-plant'); login sebagai Supervisor, pilih line, baca min/rata-rata/maks ketujuh baris.",
+        "assert": "Untuk setiap baris yang penyebutnya lebih dari nol: min <= rata-rata <= maks, ketiganya dibaca dari DOM — invarian yang benar untuk data apa pun dan yang GAGAL begitu null diperlakukan sebagai nol, karena min akan tertarik ke 0 di bawah rata-ratanya. Untuk baris yang penyebutnya nol: ketiga selnya bertanda pisah, bukan '0'. Bahwa null benar-benar dilewati, dan bahwa nol agregat SQL dipakai, dibuktikan unit case lewat query-log."
+      }
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-07"
+  },
+  "ver": 1,
+  "id": "screen-154--laporan-kernel-plant-web",
+  "name": "Laporan Kernel Plant (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-07T00:26:37Z",
+      "passed": 67,
+      "failed": 0,
+      "coverage": -1
+    },
+    "integration": {
+      "run_at": "2026-10-07T00:26:37Z",
+      "passed": 33,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-07T00:26:37Z",
+      "passed": 37,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-07T00:26:37Z",
+      "passed": 19,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/KernelPlantReportService.php",
+    "backend/app/Http/Controllers/Api/KernelPlantReportController.php",
+    "backend/app/Services/KernelPlantRecordService.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/KernelPlantReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanKernelPlantTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanKernelPlant.php",
+    "backend/resources/views/dashboard/laporan-kernel-plant.blade.php",
+    "backend/resources/views/livewire/dashboard/laporan-kernel-plant.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/LaporanKernelPlantTest.php",
+    "e2e-web/tests/laporan-kernel-plant.spec.ts"
+  ],
+  "implementation_notes": [
+    "PORT baris-demi-baris dari keluarga Depricarping, bukan ditulis dari nol. Depricarping dipilih sebagai model — bukan Threshing/Pressing — karena ia satu-satunya yang sudah punya ketiga hal yang juga ada di Kernel Plant: downtime_minutes numerik, findings teks bebas, dan kolom yang berbagi satu standar.",
+    "PRASYARAT yang dikerjakan LEBIH DULU dan bukan bagian dari laporan: KernelPlantRecordService mendapat `public const READING_FIELDS` (sembilan kolom) dan isRowFilled()-nya dijadikan publik serta mengulangi konstanta itu alih-alih memuat rantai || yang di-hardcode. Laporan WAJIB meminjam definisi slot 'terisi' dari layar input, bukan menurunkan versinya sendiri — dua definisi yang berbeda berarti angka cakupan di laporan tidak sama dengan yang diterima layar input, dan tak seorang pun bisa tahu mana yang salah. Perilakunya identik (sembilan kolom yang sama, semantik OR yang sama, asimetri ''-kosong-hanya-untuk-findings yang sama) dan dibuktikan dengan 130 uji layar input yang tetap lolos. Tetapi ia TETAP perubahan pada berkas yang sudah teruji, bukan hanya penambahan.",
+    "TUJUH kolom ukur, dan DUA pasangan berbagi satu standar — bukan satu seperti Depricarping. 'Ripple Mill (Cracker)' mengatur ripple_mill_1_amps dan ripple_mill_2_amps; 'Kernel Silo 1 & 2' mengatur kernel_silo_1_temp_c dan kernel_silo_2_temp_c. COLUMN_TARGET_PARAMETER punya TUJUH entri yang menyebut LIMA parameter berbeda, terhadap master berisi ENAM baris. Konsekuensi yang menentukan: targetsWithoutMetric() membandingkan terhadap HIMPUNAN lima nama, NEVER terhadap count() tujuh entri — menghitung akan membuat 'Kernel Silo 1 & 2' terlihat terpakai dua kali dan satu standar lain terlihat tak terpakai. Kode yang mengistimewakan SATU pasangan lolos di Depricarping dan gagal di sini; itu diuji eksplisit.",
+    "'Final Kernel Dirt' (≤ 6.0%) satu-satunya baris master tanpa kolom pengukuran di mana pun pada skema ini, jadi targets_without_metric NORMALNYA berisi tepat satu baris — kebalikan dari Depricarping yang normalnya kosong. Bagiannya tetap digambar meski kosong (all_targets_measured): bagian yang menghilang tak dapat dibedakan dari bagian yang tidak pernah dibuat.",
+    "Penyebut 'N dari M slot': N = filled_slot_count milik baris itu, M = coverage.filled_slots, SERAGAM pada ketujuh baris. API tidak menerbitkan M per kolom dan tidak boleh — ketujuh kolom ukur hadir pada SETIAP baris detail, jadi 'unit mana mengukur parameter mana' tidak dapat diketahui skema ini. Mock HTML draf pertama mengarang M per kolom (672/336) berdasarkan andaian itu dan sudah diperbaiki.",
+    "coverage_percent null HANYA ketika expected_slots === 0, yaitu ketika penyebutnya tak terbentuk (tidak ada unit ber-record, atau tidak ada hari terhitung). Periode yang PUNYA record tetapi seluruh kolom detailnya kosong menghasilkan 0.0 — dan itu benar, karena penyebutnya ada. Draf pertama business spec menyatakannya salah ('null ketika tidak ada slot terisi') dan sudah dikoreksi; kedua sisi kini punya unit case masing-masing.",
+    "Seluruh agregasi di PHP, NOL agregat SQL atas kolom nullable — suite berjalan di SQLite in-memory sementara produksi PostgreSQL, dan keduanya berbeda perilaku pada AVG/MIN/MAX atas null. Satu unit case menyisir SETIAP query untuk avg(/min(/max(/sum(/group by, dan juga mengasersikan `strftime` muncul pada query record di SQLite — bukti whereDate() dipakai, bukan where() biasa atas kolom timestamp.",
+    "TIDAK ADA penandaan otomatis di luar batas: tanpa warna, severity, ikon, maupun deteksi pencilan. Master Kernel Plant bahkan tidak punya kolom batas kritis sama sekali, jadi satu-satunya angka ada DI DALAM target_benchmark, dan keenam nilainya membawa sesuatu lain di samping batasnya — '20 - 25 Amps (Nut Breakage >95%)' memuat dua angka dengan satuan dan arah pembanding berbeda di satu sel, '70°C - 80°C (Top/Middle zones)' bahkan menyebut ZONA yang tak punya kolom. Ketiadaan penandaan DINYATAKAN di layar supaya tidak 'dilengkapi' belakangan.",
+    "TIGA PENYIMPANGAN SADAR dari tata letak Depricarping, masing-masing karena asersi spec menuntutnya: (1) tabel parameter TETAP dirender ketika has_data false, dengan pemberitahuan kosong DI ATAS tabel tujuh baris yang tetap utuh — Depricarping menggantinya dengan empty state, dan tujuh baris yang menyusut ke nol akan terbaca sebagai parameternya tidak ada; (2) kartu KPI downtime SELALU dirender dengan tanda pisah hidup di dalam selnya — Depricarping menukar seluruh baris kartu dengan satu kalimat, dan kalimat tidak punya sel untuk diasersikan; (3) keterangan 'periode sedang berjalan' MENYEBUT TANGGAL hari terakhir terhitung, dilewatkan dari render() sebagai countedUntil supaya dapat diasersikan tanpa DOM dan supaya blade tidak menyentuh jam.",
+    "Tabel parameter TUJUH kolom, bukan delapan — master Kernel Plant berbentuk tiga kolom (equipment_parameter / target_benchmark / corrective_action_plan), tanpa critical_limit dan tanpa operational_consequence_justification. Tidak ada medan yang dikarang sebagai kunci selalu-null agar 'sebangun' dengan Depricarping; itu akan memberi layar dua sel yang tak seorang pun dapat mengisinya. Satu uji Livewire mengasersikan lebar tabel 7 <th> dan ketiadaan metric-critical-limit/metric-consequence, supaya bentuk empat kolom tidak tersalin belakangan.",
+    "kernel_plant_name = kernel_plant_id. kernel_plant_records.kernel_plant_id adalah kolom `string` biasa berisi LABEL unit yang ditulis tangan (migrasi 2026_08_23_000011), BUKAN uuid dan BUKAN kunci asing — tidak ada tabel master kernel_plants di skema ini. Diisolasi di kernelPlantNameOf() supaya memperkenalkan master kelak adalah satu perubahan metode tanpa mengubah bentuk payload. Draf pertama tech spec menyebutnya 'uuid'; itu salah dan sudah dikoreksi.",
+    "LaporanKernelPlant::canAccess() memegang DAFTAR PERANNYA SENDIRI (supervisor, mill_management, admin) dan TIDAK mendelegasikan ke KernelPlantReportService::guardAccess() — kalau ia mendelegasikan, layar web ini diam-diam terbuka untuk Operator, karena guardAccess() menerima keempat peran demi kembaran mobile screen-155. Diuji dua arah: behavioural (guardAccess() sebagai Operator TIDAK melempar, jadi service memang menerimanya) dan struktural (badan canAccess() dibaca lewat ReflectionMethod dan diasersikan tidak memuat 'guardAccess' maupun 'UserRole::Operator'). Yang behavioural saja akan tetap hijau pada hari seseorang mempersempit guardAccess().",
+    "StationReportService::REPORT_ROUTES disisipkan ANTARA clarification (70) dan boiler-room (90), bukan di-append — station_types.sort_order menaruh kernel-plant di 80, dan LaporanStasiunTest mengasersikan array_keys(REPORT_ROUTES) secara strict terhadap daftar yang terurut sort_order. Kuncinya 'kernel-plant' DENGAN TANDA HUBUNG (nilai StationTypeEnum::KernelPlant); kunci bergaris-bawah akan terkompilasi, terlihat benar, dan tidak pernah cocok dengan satu baris master pun.",
+    "ENTRI PETA DAN RUTE WEB HARUS MENDARAT BERSAMA, dan itu terbukti saat dikerjakan: stationList() memanggil route($routeName), jadi entri peta tanpa rutenya melempar RouteNotFoundException pada 4 uji. Dan rute Livewire ME-RESOLVE kelas komponennya SAAT REGISTRASI (bukan saat permintaan masuk), jadi mendaftarkan rute sebelum komponennya ada membuat SELURUH suite merah dengan galat yang tidak menyebut sebabnya. Keduanya karenanya diparkir sampai komponennya ada. Rute controller biasa [Controller::class, 'method'] TIDAK begitu — ia tetap lazy, dan rute API aman didaftarkan lebih dulu.",
+    "Spec browser mengikuti pola rumah keluarga laporan-*: ASERSI INVARIAN yang dihitung DARI DOM, tanpa menyemai data sendiri dan tanpa satu angka dipaku. Alasannya dua dan keduanya menentukan: angkanya sudah dibuktikan tiga kali di backend (service, kontrak HTTP, markup ter-render), dan basis data e2e BERBAGI data Kernel Plant dengan BrowserTestFixtureSeeder (KP-BROWSER-EDIT) serta spec form-kernel-plant. Angka yang dipaku akan berubah setiap kali salah satunya berubah, dan test yang gagal bukan karena produknya salah adalah test yang akan diabaikan lalu dihapus. 19 uji: 18 sejajar Depricarping plus satu untuk pasangan berbagi standar KEDUA.",
+    "TUJUH skenario SENGAJA tanpa uji browser, masing-masing karena keadaannya tidak dapat diatur di basis data e2e bersama (87 spec, workers: 1) tanpa menjatuhkan spec lain: mill berline tunggal, mill tanpa periode Kernel Plant, periode tanpa slot terisi, periode belum mulai, master disunting tangan, akun tanpa business_unit_id, dan mill/line lain lewat properti. Ketujuhnya ditutup di lapis Livewire (basis data per-uji) dan unit."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "KEBOCORAN NAMA PRODUCTION LINE LINTAS MILL MASIH TERBUKA DI KESEPULUH REPORT SERVICE LAIN. productionLineInfo() di Depricarping, Pressing, Threshing, BoilerRoom, StorageTank, Clarification, Grading, Weighbridge, CagesTrack, dan Sterilizer mencari line dengan find($id) TANPA klausa business_unit_id, sehingga GET /summary?production_line_id=<line mill lain> menjawab 200 berisi id DAN NAMA MANUSIAWI line yang pemanggil tak berhak melihatnya. Angkanya aman pada kesepuluhnya (scopeToProductionLine() menyaring ke nol baris dan query tetap terkurung pada mill periode); yang bocor adalah keberadaan dan nama line itu. Ditemukan saat menulis uji screen-154, dibuktikan lewat permintaan HTTP sungguhan, dan DITUTUP di KernelPlantReportService saja — diverifikasi dengan grep bahwa kesepuluh lainnya masih memakai bentuk tanpa scope. Tidak diperbaiki di sana karena mengubah sepuluh laporan yang sudah berjalan adalah keputusan pemilik produk, bukan efek samping penambahan laporan kesebelas. Perbaikannya satu klausa where per berkas.",
+      "severity": "major"
+    },
+    {
+      "description": "Docblock DepricarpingReportController memuat pernyataan yang TIDAK BENAR dan menyesatkan siapa pun yang memakainya sebagai acuan: ia menyebut 'min / max for the five measurement columns' (sebenarnya tujuh), 'THE MASTER CARRIES TWO TARGET COLUMNS' (sebenarnya empat), dan 'targets_without_metric ... here that is TWO entries, Nut Breakage Rate and Press Cake Moisture' (sebenarnya normalnya kosong, dan kedua nama itu milik Pressing). Semuanya bertentangan dengan docblock DepricarpingReportService sendiri — teks era Pressing yang tak pernah diperbarui. Ia juga menyatakan line mill lain 'IS refused with 403 in resolveProductionLine()', padahal metode itu hanya mengembalikan null dan nilai kembaliannya pun dibuang di controller. Tidak diperbaiki di sini karena itu berkas layar lain; angka Kernel Plant ditulis benar alih-alih menyalin penyimpangannya.",
+      "severity": "minor"
+    },
+    {
+      "description": "Cakupan baris TIDAK DIUKUR pada jalan ini, dan test_results.unit.coverage = -1 adalah SENTINEL, bukan pengukuran. Template menuntut angka dan menolak null, sementara `php artisan test --coverage` keluar dengan kode 0 dan DIAM tanpa driver Xdebug/PCOV terpasang — gerbang apa pun yang bersandar padanya melaporkan sukses tanpa mengukur apa pun. `composer test:coverage` (yang menolak keadaan itu lewat artisan coverage:gate) tidak dijalankan. Nilai 0 akan mengklaim sudah diukur dan hasilnya nol, yang lebih buruk daripada jelas-jelas tak masuk akal.",
+      "severity": "minor"
+    },
+    {
+      "description": "Satu kegagalan uji FLAKY teramati SEKALI pada satu jalan suite penuh: Tests\\Unit\\Services\\DashboardServiceTest, 'returns success result with correct counts and sums when all conditions match'. TIDAK terulang pada dua jalan suite penuh berikutnya (5251 lolos, 0 gagal) maupun pada dua jalan terisolasi filter DashboardService (6 lolos). DashboardService tidak bersinggungan dengan satu pun berkas yang diubah pada screen-154 — diperiksa dengan grep terhadap KernelPlant dan StationReportService. Dicatat alih-alih disembunyikan; sebabnya belum diketahui dan belum diklaim beres.",
+      "severity": "minor"
+    },
+    {
+      "description": "shell_loss_percent dipetakan ke master 'Shell Bin Kernel Loss' APA ADANYA, dan ketidakcocokan namanya masih OPEN QUESTION yang belum diputuskan user: nama kolom menyebut 'shell loss' sementara master menyebut 'Shell Bin KERNEL Loss' dengan target ≤ 1.5% — dua nama yang dapat berarti dua kuantitas berbeda. Tidak diganti nama sendiri. Tabel kernel_plant_details masih 0 baris di seluruh basis data, jadi biaya penggantian nama masih serendah penggantian nama di Depricarping (migrasi 2026_10_06_000001) bila user memutuskan demikian. Bila diganti, uji header ekspor dan setiap request_example yang menyebut kolom itu harus ikut berubah.",
+      "severity": "minor"
+    }
+  ]
+}

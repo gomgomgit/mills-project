@@ -1,0 +1,124 @@
+{
+  "ver": 3,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-07"
+  },
+  "id": "screen-154--laporan-kernel-plant-web",
+  "name": "Laporan Kernel Plant (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Kernel Plant di web, laporan kondisi keempat sesudah Threshing, Pressing, dan Depricarping. Yang dilaporkan adalah KONDISI OPERASI: tiap record adalah satu hari kerja satu unit kernel plant, dan tiap barisnya satu slot waktu dengan TUJUH kolom ukur — arus ripple mill 1 (A), arus ripple mill 2 (A), berat jenis claybath/hydrocyclone, suhu kernel silo 1 (C), suhu kernel silo 2 (C), kadar air kernel (%), dan kehilangan kernel di shell (%). Inti laporannya min / rata-rata / maks per parameter, masing-masing dengan PENYEBUTNYA SENDIRI, karena ketujuh kolom nullable dan tidak pernah terisi bersamaan.\n\nTIGA HAL YANG MEMBEDAKANNYA DARI KETIGA LAPORAN KONDISI SEBELUMNYA, dan ketiganya datang dari masternya, bukan dari kolom ukurnya.\n\n1. BENTUK MASTER KETIGA YANG BERBEDA. Threshing membawa satu standar plus satu rencana tindakan; Pressing membawa rentang kerja plus batas tindakan; Depricarping membawa rentang, batas kritis, dan justifikasi akibat operasional. Kernel Plant membawa dua kolom lagi dengan arti lain: target_benchmark ('20 - 25 Amps (Nut Breakage >95%)', 'Specific Gravity 1.18 - 1.24', '≤ 7.0% (Prevents mold growth)') dan corrective_action_plan ('Adjust rotor-vane clearance if uncracked nut rate >5%.', 'Check heater elements/steam valves if temperature drops below 65°C.'). Perhatikan bedanya dari Pressing: di sana kolom kedua adalah BATAS yang menuntut tindakan; di sini kolom kedua adalah TINDAKANNYA ITU SENDIRI — instruksi teknis, bukan ambang. Keduanya ditampilkan bersebelahan dengan angka hasil ukur karena yang kedua menjawab pertanyaan yang tidak dijawab angka mana pun: kalau menyimpang, apa yang harus dikerjakan.\n\n2. DUA MASTER MENGATUR DUA KOLOM SEKALIGUS, bukan satu. Depricarping punya satu kasus seperti ini (Nut Silo Temperature untuk dua kolom silo); di sini ada DUA: 'Ripple Mill (Cracker)' mengatur ripple_mill_1_amps DAN ripple_mill_2_amps, dan 'Kernel Silo 1 & 2' mengatur kernel_silo_1_temp_c DAN kernel_silo_2_temp_c. Konsekuensinya sama dan harus dinyatakan di layar: kedua baris berbagi SATU standar, dan angkanya TIDAK BOLEH dirata-ratakan menjadi satu. Dua ripple mill adalah dua mesin fisik; satu bekerja 24 A dan satu bekerja 12 A bukan berarti keduanya 18 A — itu berarti yang kedua kurang beban, dan merata-ratakannya menyembunyikan tepat hal yang perlu dilihat.\n\n3. SATU MASTER TIDAK PUNYA KOLOM PENGUKURAN SAMA SEKALI. 'Final Kernel Dirt' (≤ 6.0%, standar premium mutu) tidak punya kolom di kernel_plant_details maupun di tabel mana pun pada skema ini. Ia ditampilkan pada bagiannya sendiri sebagai temuan, dengan alasan yang sama seperti pada Pressing dan Depricarping: target yang tidak pernah diukur TERBACA SEPERTI TERPENUHI, padahal ia sekadar tidak ada. Ketimpangannya di sini 7 kolom lawan 6 master — tetapi angka itu menipu, karena 5 master menutupi 7 kolom dan 1 master menutupi nol.\n\nTETAP TIDAK ADA PENANDAAN OTOMATIS DI LUAR BATAS, dan sebabnya kini punya satu lapis tambahan. Seperti pada Pressing dan Depricarping, target_benchmark adalah teks bebas yang bentuknya TIDAK DIBATASI SKEMA (nilainya dari seeder; satu seeder yang dijalankan atau satu suntingan langsung ke basis data dapat memperkenalkan bentuk baru tanpa satu pun uji menangkapnya), dan pengurai yang gagal pada bentuk berikutnya akan BERHENTI MEMPERINGATKAN tanpa galat — peringatan yang hilang terbaca sebagai 'semuanya aman'. Di sini bahkan satu nilai pun sudah tidak dapat diurai tanpa menebak: '20 - 25 Amps (Nut Breakage >95%)' memuat DUA angka dengan satuan berbeda dan arah pembanding berbeda di dalam satu sel — 20-25 adalah rentang arus, >95% adalah syarat mutu yang bukan tentang arus sama sekali. Pengurai yang membaca sel itu sebagai satu rentang akan salah; yang membaca angka terakhir akan jauh lebih salah.\n\nDi samping itu laporan menampilkan cakupan pencatatan DI ATAS segalanya (slot terisi terhadap jumlah unit × hari terhitung × 24 slot kanonis), rekap per unit kernel plant, rekap per hari, total downtime yang dapat dijumlahkan, dan daftar temuan — dikelompokkan harfiah tanpa normalisasi ejaan, dan kenyataan itu pun dinyatakan.",
+  "actors": [
+    "actor-admin",
+    "actor-supervisor",
+    "actor-mill-management"
+  ],
+  "entry_points": [
+    "Tile Kernel Plant pada Laporan Stasiun (screen-140) — tile itu kelabu dan tidak dapat diklik sampai layar ini ada, karena StationReportService::REPORT_ROUTES belum memuat entri kernel-plant",
+    "Menu sidebar Dashboard & Reporting bagi Supervisor, Mill Management, dan Admin"
+  ],
+  "information_displayed": [
+    "Pemilih periode pelaporan dan pemilih Production Line. Production Line WAJIB dipilih lebih dulu: laporan ini menghasilkan angka GABUNGAN, dan mencampur beberapa line membuat angkanya menyesatkan. Sebelum line dipilih, NOL angka ditampilkan — bukan angka nol, melainkan tidak ada angka sama sekali, beserta arahan memilih line",
+    "Pemilih mill hanya untuk Admin. Supervisor dan Mill Management terikat mill akunnya, dan menawarkan pemilih yang tidak bisa mereka pakai adalah kebohongan kecil yang mahal",
+    "CAKUPAN PENCATATAN DI ATAS SEGALANYA: slot terisi terhadap jumlah unit kernel plant × hari terhitung × 24 slot kanonis, beserta ketiga angka pembentuk penyebutnya. Angka mutu yang dibaca tanpa tahu seberapa lengkap pencatatannya adalah angka yang menipu",
+    "Tabel parameter: TUJUH baris, satu per kolom ukur, masing-masing dengan min / rata-rata / maks DAN PENYEBUTNYA SENDIRI, dirender 'N dari M slot'. N adalah jumlah slot terisi yang kolom ITU-nya terisi — ketujuh kolom nullable dan terisi saling bebas, jadi N memang berbeda-beda antar baris, dan tanpa N tercetak rata-rata sebuah parameter terbaca sebagai angka seluruh periode. M adalah jumlah slot terisi seluruhnya, SATU angka yang SAMA untuk ketujuh baris: 'dari 503 slot yang benar-benar diisi orang, 487 di antaranya membawa parameter ini'. M per kolom yang berbeda-beda TIDAK ADA dan tidak boleh dikarang — ketujuh kolom hadir pada setiap baris detail, jadi tidak ada cara mengetahui unit mana mengukur parameter mana.",
+    "Kedua kolom target menyertai tiap baris parameter: target_benchmark dan corrective_action_plan. Keterangan di dalam tanda kurung pada target ikut dirender UTUH — '(Nut Breakage >95%)' dan '(Prevents mold growth)' adalah bagian dari isinya, bukan hiasan",
+    "Penanda bahwa dua pasang baris BERBAGI SATU STANDAR: ripple mill 1 dan 2 berbagi master 'Ripple Mill (Cracker)', kernel silo 1 dan 2 berbagi master 'Kernel Silo 1 & 2'. Dinyatakan di layar, karena pembaca yang melihat standar yang sama di dua baris berbeda akan mengira salah satunya salah ketik",
+    "Pernyataan eksplisit bahwa angka kedua ripple mill dan angka kedua silo TIDAK DIRATA-RATAKAN menjadi satu. Dua ripple mill adalah dua mesin fisik; 24 A dan 12 A bukan berarti keduanya 18 A, melainkan yang kedua kurang beban — dan merata-ratakannya menyembunyikan tepat hal yang perlu dilihat",
+    "Blok downtime: total menit yang DAPAT DIJUMLAHKAN (downtime_minutes INTEGER), beserta jumlah slot yang benar-benar mencatatnya sebagai penyebut. Nol yang tercatat ikut dihitung sebagai slot pencatat, karena 'tercatat nol menit' dan 'tidak dicatat' adalah dua kenyataan berbeda",
+    "Bagian temuan TERPISAH dari downtime, dikelompokkan HARFIAH tanpa normalisasi ejaan, diurutkan dari yang paling sering. Kenyataan bahwa pengelompokannya harfiah ikut dinyatakan, supaya dua ejaan temuan yang sama tidak dibaca sebagai dua masalah berbeda",
+    "Bagian 'standar tanpa pengukuran': master yang tidak punya kolom pengukuran, yaitu 'Final Kernel Dirt'. Bagian ini TETAP DIGAMBAR meski kosong — bagian yang menghilang tidak dapat dibedakan dari bagian yang tidak pernah dibuat, dan di situlah nama parameter master yang disunting tangan akan muncul",
+    "Rekap per unit kernel plant dan rekap per hari, dengan baris total periode yang DIHITUNG ULANG dari slot — bukan merata-ratakan rata-rata harian, yang akan memberi bobot sama pada hari berisi 2 slot dan hari berisi 24 slot",
+    "Keterangan bahwa laporan ini tidak menandai satu nilai pun sebagai di luar batas, beserta sebabnya — kedua kolom target adalah teks bebas yang bentuknya TIDAK DIBATASI SKEMA, dan satu nilai pun sudah tidak dapat diurai tanpa menebak hari ini",
+    "Tombol ekspor CSV untuk periode dan line yang sedang terpilih"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih periode pelaporan",
+      "description": "Mengganti periode memuat ulang seluruh angka. Periode terbaru terpilih sendiri saat pertama dibuka.",
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "WAJIB. Sebelum dipilih, tidak ada satu angka pun ditampilkan — laporan ini menghasilkan angka gabungan dan mencampur beberapa line membuatnya menyesatkan.",
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "action": "Pilih mill",
+      "description": "Hanya Admin. Mengganti mill mereset pilihan line dan periode, karena keduanya milik mill — membiarkannya terpilih akan menampilkan angka satu mill di bawah nama mill lain.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka / tutup rekap harian",
+      "description": "Rekap harian bisa sangat panjang, jadi ia dapat ditutup. Menutupnya TIDAK mengubah satu angka pun — ia hanya menyembunyikan barisnya.",
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "action": "Ekspor CSV",
+      "description": "Mengunduh berkas untuk periode dan line yang sedang terpilih. Tanpa line terpilih, tidak menghasilkan apa pun — sama seperti layarnya.",
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Production Line WAJIB dipilih sebelum satu angka pun ditampilkan. Penyaringannya memakai kolom production_line_id pada tabel record itu sendiri, BUKAN join ke stations — supaya record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
+    "Hanya Admin yang melihat pemilih mill. Supervisor dan Mill Management terikat mill akunnya, dan mill yang diminta lewat properti diabaikan untuk peran terikat itu — bukan divalidasi, diabaikan.",
+    "Operator TIDAK dapat membuka rute web ini, meski ketiga rute API-nya menerimanya sejak hari pertama — Operator adalah aktor mobile pada laporan ini.",
+    "TIAP PARAMETER MENERBITKAN PENYEBUTNYA SENDIRI. Ketujuh kolom ukur nullable dan terisi saling bebas, jadi filled_slot_count dihitung per kolom, bukan sekali untuk seluruh laporan.",
+    "coverage_percent bernilai null ketika PENYEBUTNYA TIDAK TERBENTUK (expected_slots === 0), bukan ketika tidak ada slot terisi. Bedanya menentukan dan draf pertama aturan ini salah: expected_slots = jumlah unit yang punya record x hari terhitung x 24, jadi ia selalu lebih dari nol begitu ada satu record. Periode yang punya record tetapi SELURUH kolom detailnya kosong karenanya menghasilkan 0,0% — dan itu BENAR, karena penyebutnya terbentuk dan '0 dari 672 slot terisi' adalah pernyataan yang sah tentang kelengkapan. null disimpan untuk keadaan yang penyebutnya memang tak dapat dibentuk: tidak ada unit yang punya record, atau tidak ada hari yang terhitung (periode belum mulai).",
+    "days_counted === 0 DIPERIKSA LEBIH DULU daripada period_running. ReportPeriodDays::isRunning() bernilai true juga untuk periode yang BELUM MULAI, jadi memeriksanya lebih dulu akan menjelaskan periode yang belum mulai sebagai 'sedang berjalan'.",
+    "Definisi slot 'terisi' DIPINJAM dari layar input, yaitu KernelPlantRecordService::READING_FIELDS beserta isRowFilled() miliknya. Konsekuensinya harus diterima dan dinyatakan: coverage.filled_slots dapat MELEBIHI penyebut tiap metrik, karena satu slot yang hanya mengisi findings tetap terhitung terisi sementara tidak menambah penyebut metrik mana pun. Itu benar, bukan tidak konsisten.",
+    "downtime_minutes INTEGER dan DAPAT DIJUMLAHKAN. total_minutes bernilai null — bukan 0 — ketika tidak ada slot yang mencatatnya. recorded_slot_count MENGHITUNG nol yang tercatat, karena 'tercatat nol menit' dan 'tidak dicatat' adalah dua kenyataan berbeda. Downtime tidak punya standar di master, jadi has_standard selalu false.",
+    "Temuan dikelompokkan HARFIAH, tanpa normalisasi ejaan, huruf besar-kecil, maupun spasi. Diurutkan dari slot_count terbanyak, lalu alfabetis sebagai pemutus seri supaya urutannya stabil antar-render. Kenyataan bahwa pengelompokannya harfiah DINYATAKAN di layar.",
+    "DUA MASTER MENGATUR DUA KOLOM MASING-MASING: 'Ripple Mill (Cracker)' untuk ripple_mill_1_amps dan ripple_mill_2_amps, 'Kernel Silo 1 & 2' untuk kernel_silo_1_temp_c dan kernel_silo_2_temp_c. Penanda berbagi standar diturunkan dari peta kolom-ke-parameter, BUKAN dipaku — supaya penambahan kolom ripple mill atau silo ketiga tetap ditandai dengan benar tanpa menyentuh kode penanda.",
+    "ANGKA KEDUA RIPPLE MILL DAN KEDUA SILO TIDAK PERNAH DIRATA-RATAKAN MENJADI SATU. Keduanya mesin fisik terpisah, dan rata-rata gabungan menyembunyikan ketidakseimbangan beban yang justru menjadi alasan parameter itu diukur.",
+    "'Final Kernel Dirt' tidak punya kolom pengukuran di mana pun pada skema ini dan ditampilkan sebagai temuan pada bagiannya sendiri. Perbandingannya dilakukan terhadap HIMPUNAN parameter yang terpeta, bukan terhadap JUMLAHNYA — 7 entri peta hanya menyebut 5 parameter, jadi membandingkan jumlah akan salah.",
+    "Bagian 'standar tanpa pengukuran' TETAP DIGAMBAR meski kosong. Bagian yang menghilang tidak dapat dibedakan dari bagian yang tidak pernah dibuat.",
+    "TIDAK ADA penandaan otomatis di luar batas: tanpa warna peringatan, tanpa severity, tanpa deteksi pencilan. Kedua kolom target adalah teks bebas yang bentuknya TIDAK DIBATASI SKEMA (nilainya dari seeder; satu seeder yang dijalankan atau satu suntingan langsung ke basis data dapat memperkenalkan bentuk baru tanpa satu pun uji menangkapnya). Dan satu nilai pun sudah tidak dapat diurai tanpa menebak: '20 - 25 Amps (Nut Breakage >95%)' memuat dua angka dengan satuan dan arah pembanding berbeda di satu sel. Ketiadaan penandaan DINYATAKAN di layar supaya tidak 'dilengkapi' belakangan.",
+    "Baris total periode DIHITUNG ULANG dari slot, bukan merata-ratakan rata-rata harian — merata-ratakan rata-rata memberi bobot sama pada hari berisi 2 slot dan hari berisi 24 slot.",
+    "Seluruh agregasi dilakukan di PHP, NOL agregat SQL atas kolom nullable. Suite uji berjalan di SQLite sementara produksi PostgreSQL, dan keduanya berbeda perilaku pada agregat atas null; whereDate dipakai apa adanya, bukan where biasa atas kolom timestamp."
+  ],
+  "usecase_ids": [
+    "usecase-160--laporan-kernel-plant-web"
+  ],
+  "edge_cases": [
+    "Production Line belum dipilih — arahan memilih line, dan NOL angka. Bukan nol sebagai nilai, melainkan tidak ada angka sama sekali.",
+    "Mill hanya punya satu Production Line — line itu TETAP tidak terpilih otomatis. Memilihnya sendiri akan membuat pembaca mengira ia melihat seluruh mill, padahal ia melihat satu line yang kebetulan satu-satunya hari ini.",
+    "Periode yang punya record tetapi tidak satu pun slotnya terisi — has_data false, dan coverage_percent bernilai 0,0% BUKAN null, karena penyebutnya terbentuk dari unit yang punya record itu. Tabel parameter TETAP menampilkan ketujuh barisnya dengan nilai kosong dan penyebut 0. Tujuh baris yang menyusut menjadi nol baris akan terbaca sebagai parameternya tidak ada. Keadaan yang menghasilkan null adalah yang BERBEDA: periode tanpa satu pun record (tidak ada unit untuk dijadikan penyebut), atau periode yang belum mulai (tidak ada hari terhitung).",
+    "Periode belum mulai — dijelaskan sebagai belum mulai, BUKAN sebagai sedang berjalan. days_counted === 0 diperiksa lebih dulu daripada period_running justru untuk ini.",
+    "Periode sedang berjalan — keterangan penyebut berhenti di hari terakhir yang terhitung, bukan di akhir periode yang belum tiba.",
+    "Mill tanpa periode Kernel Plant sama sekali — arahan, tanpa satu angka pun. Kernel Plant adalah stasiun aktif MVP, tetapi periodenya tetap harus dibuka per jenis stasiun.",
+    "Akun terikat mill tanpa business_unit_id — gagal tertutup dengan pesan yang menyebut sebabnya ('Akun Anda belum terhubung ke mill'), sebelum satu query pun berjalan.",
+    "Periode atau line milik mill lain diminta lewat properti — untuk peran terikat mill, permintaan itu DIABAIKAN, bukan ditolak dengan galat yang membocorkan keberadaannya.",
+    "Admin berganti mill — pilihan line dan periode direset, karena keduanya milik mill.",
+    "Satu slot hanya mengisi findings tanpa satu pun kolom ukur — slot itu TERHITUNG terisi pada cakupan tetapi TIDAK menambah penyebut metrik mana pun. Itulah sebabnya coverage.filled_slots dapat melebihi penyebut tiap metrik.",
+    "Ripple mill 2 tidak pernah diisi sementara ripple mill 1 selalu diisi — kedua baris tetap tampil, yang kedua dengan penyebut nol dan nilai kosong. Menyembunyikan baris yang kosong akan menyembunyikan bahwa satu mesin tidak pernah dicatat.",
+    "Hanya satu dari dua silo yang diisi — perlakuan sama seperti ripple mill, dan penanda berbagi standar tetap tampil pada kedua baris.",
+    "downtime tercatat nol pada beberapa slot — total_minutes 0 (bukan null) dan recorded_slot_count menghitung slot-slot itu. Membedakan keduanya adalah inti maknanya.",
+    "Dua temuan dengan ejaan berbeda untuk masalah yang sama — dikelompokkan sebagai dua baris, dan kenyataan itu dinyatakan. Normalisasi otomatis akan menggabungkan hal yang mungkin bukan satu hal.",
+    "Master disunting tangan sehingga nama parameternya tidak lagi cocok dengan peta kolom — parameter itu muncul di bagian 'standar tanpa pengukuran', dan di situlah suntingan itu terlihat."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "NAMA KOLOM shell_loss_percent BERPOTENSI AMBIGU, dan ini pola yang sudah pernah berbiaya. Master menyebutnya 'Shell Bin Kernel Loss' — kernel yang HILANG ke bin shell — dengan target ≤ 1.5%. Nama kolomnya 'shell_loss_percent' terbaca sebagai 'kehilangan shell', yang artinya berbeda dan arahnya bisa dibaca terbalik. Target ≤ 1.5% hanya masuk akal untuk kehilangan kernel, jadi masternya yang benar dan kolomnya yang kurang tepat. TIDAK diubah sendiri di sini: perkara serupa pada Depricarping (kernel_recovery_in_fibre -> kernel_loss_in_fibre) menuntut migrasi, migrasi lokal mobile, daftar detailColumns syncService, factory, dan empat label layar — dan tabelnya saat itu masih kosong. kernel_plant_details juga masih kosong (0 baris) hari ini, jadi biayanya masih serendah itu. Perlu keputusan: ganti nama menjadi kernel_loss_in_shell_percent sekarang, atau biarkan dan terima bahwa pembaca kode harus mengingat artinya.",
+    "PENANDAAN OTOMATIS: target_benchmark Kernel Plant membawa pembanding yang terlihat teratur pada 4 dari 6 parameter ('≤ 7.0%', '≤ 6.0%', '≤ 1.5%', 'Specific Gravity 1.18 - 1.24'), jadi penguraiannya tampak lebih mungkin daripada pada Threshing. Yang menahannya tetap sama dan bertambah satu: kolomnya teks bebas yang bentuknya tidak dibatasi skema sehingga pengurai bisa berhenti bekerja tanpa galat; DAN satu sel memuat dua angka dengan satuan serta arah pembanding berbeda ('20 - 25 Amps (Nut Breakage >95%)'), yang tidak dapat diurai tanpa menebak yang mana yang dimaksud. Bila penandaan diinginkan, cara yang jujur tetap memecah master menjadi kolom BATAS NUMERIK di samping teksnya — bukan menguraikan teksnya saat render. Keputusan itu juga harus menetapkan apa yang ditampilkan ketika batas numeriknya belum diisi, karena diam bukan jawaban yang aman.",
+    "kernel_plant_records dan kernel_plant_details KOSONG di basis data dev (0 baris). Laporan ini karena itu belum pernah dilihat dengan data sungguhan, dan rentang nilai yang wajar untuk ketujuh parameter belum terbukti. Keputusan yang mungkin perlu ditinjau ulang begitu data nyata masuk: apakah 24 slot kanonis per hari memang bentuk pencatatan Kernel Plant, atau unit ini dicatat lebih jarang — bila jauh lebih jarang, persen cakupan akan selalu tampak rendah dan kehilangan daya jelasnya."
+  ]
+}

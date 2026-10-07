@@ -1,8 +1,8 @@
 {
-  "ver": 74,
+  "ver": 75,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-06"
+    "updated_at": "2026-10-07"
   },
   "endpoints": [
     {
@@ -2367,6 +2367,59 @@
       "description": "Unduhan CSV/Excel Laporan Depricarping — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, presser, status, catatan) diulang verbatim di setiap baris, memuat ketujuh kolom ukur ditambah downtime_minutes dan findings; slot yang seluruh kolom ukurnya kosong tetap menjadi baris bersel kosong. Batas 50.000 dihitung atas BARIS SLOT bukan record, dibaca lewat static::EXPORT_ROW_LIMIT. Gate peran, resolusi mill, resolusi line, dan pemeriksaan batas berjalan eager sebelum aliran dimulai. Bukan respons JSON.",
       "screen_id": "screen-152--laporan-depricarping-web",
       "usecase_id": "usecase-155--laporan-depricarping-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/kernel-plant-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Kernel Plant — ADMIN SAJA; 403 untuk setiap peran yang terikat satu mill, termasuk Operator, ditegakkan di dalam service bukan oleh middleware. Satu-satunya rute pada prefix ini yang tidak terbuka bagi Operator.",
+      "screen_id": "screen-154--laporan-kernel-plant-web",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/kernel-plant-reports/periods",
+      "description": "Daftar Periode Pelaporan yang mencakup stasiun Kernel Plant pada satu mill, terbaru lebih dulu; status per baris period_stations, dan periode tertutup maupun draft ikut tercantum — laporan ini tidak menyaring status, konsisten dengan lima laporan kondisi sebelumnya. Dipakai bersama oleh screen-154 (web) dan screen-155 (mobile); Operator diterima sejak endpoint ini dibangun karena kembaran mobile dibangun di rangkaian yang sama. business_unit_id diabaikan untuk seluruh peran terikat mill — diabaikan, bukan divalidasi, sehingga menyelidik id mill lain adalah no-op yang tetap 200. production_line_id sengaja bukan parameter: periode milik mill, bukan milik line.",
+      "screen_id": "screen-154--laporan-kernel-plant-web",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/kernel-plant-reports/summary",
+      "description": "Seluruh angka Laporan Kernel Plant untuk satu periode pada satu Production Line: cakupan pencatatan (slot terisi terhadap unit kernel plant × hari terhitung × 24 slot kanonis, dengan slot terisi memakai KESEMBILAN kolom bacaan yang dipinjam dari KernelPlantRecordService sehingga nilainya DAPAT MELEBIHI penyebut kolom ukur mana pun — satu slot yang hanya mengisi findings terhitung terisi tanpa menambah penyebut metrik mana pun, dan itu benar), min/rata-rata/maks KETUJUH kolom ukur MASING-MASING dengan penyebutnya sendiri, dan kedua kolom master target per parameter (target_benchmark dan corrective_action_plan — master Kernel Plant hanya punya dua, bukan empat seperti Depricarping). YANG MEMBEDAKANNYA DARI LIMA LAPORAN KONDISI SEBELUMNYA: DUA pasangan kolom berbagi satu standar, bukan satu — 'Ripple Mill (Cracker)' mengatur ripple_mill_1_amps DAN ripple_mill_2_amps, 'Kernel Silo 1 & 2' mengatur kernel_silo_1_temp_c DAN kernel_silo_2_temp_c. Keempatnya tetap dilaporkan terpisah dan tidak pernah dirata-ratakan menjadi satu, dan shares_standard_with per metrik DITURUNKAN dari COLUMN_TARGET_PARAMETER, bukan dipaku. Konsekuensi yang menentukan: targets_without_metric dihitung terhadap HIMPUNAN lima parameter berbeda, NEVER terhadap jumlah tujuh entri petanya — kalau tidak, 'Kernel Silo 1 & 2' terlihat terpakai dua kali dan satu standar lain terlihat tak terpakai. Daftar itu NORMALNYA berisi tepat SATU entri: 'Final Kernel Dirt' (≤ 6.0%), satu-satunya baris master tanpa kolom pengukuran di mana pun pada skema ini, dengan reason 'no_column'; bagiannya tetap digambar meski kosong. Juga memuat blok downtime numerik (total menit NULL bukan 0 bila tak satu slot pun mencatatnya, sementara recorded_slot_count MENGHITUNG nol yang tercatat, dan has_standard selalu false karena downtime tidak punya baris di master), rekap temuan yang dikelompokkan HARFIAH dan TIDAK dicampur dengan downtime, rekap per unit kernel plant, rekap harian, serta baris total periode yang DIHITUNG ULANG dari seluruh slot alih-alih merata-ratakan rata-rata harian. coverage_percent NULL bukan 0.0 bila penyebutnya nol, dan days_counted === 0 diperiksa LEBIH DULU daripada period_running karena isRunning() juga true untuk periode yang belum mulai. TANPA penandaan otomatis di luar batas, dan ketiadaannya dinyatakan di layar — kedua kolom target teks bebas tak dibatasi skema, dan '20 - 25 Amps (Nut Breakage >95%)' sendiri memuat dua angka dengan satuan dan arah pembanding berbeda di satu sel. Seluruh agregasi di PHP, nol agregat SQL atas kolom nullable. period_id WAJIB (422 bila absen); periode milik mill lain 403; production_line_id milik mill lain DIABAIKAN, bukan ditolak.",
+      "screen_id": "screen-154--laporan-kernel-plant-web",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/kernel-plant-reports/export",
+      "description": "Unduhan CSV/Excel Laporan Kernel Plant — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, unit kernel plant, status, catatan) diulang verbatim di setiap baris, memuat ketujuh kolom ukur ditambah downtime_minutes dan findings; menghilangkan kedua kolom terakhir membuat berkasnya tak dapat menggantikan laporan, yang justru inti dari mengekspornya. Batas 50.000 dihitung atas BARIS SLOT bukan record, dibaca lewat static::EXPORT_ROW_LIMIT. Gate peran, resolusi mill, resolusi line, pemeriksaan format, dan pemeriksaan batas berjalan EAGER sebelum aliran dimulai — menjadikan metodenya sendiri generator akan menunda 403/422 sampai setelah header terkirim. Bukan respons JSON.",
+      "screen_id": "screen-154--laporan-kernel-plant-web",
+      "usecase_id": "usecase-160--laporan-kernel-plant-web",
       "auth_required": true,
       "actor_ids": [
         "actor-supervisor",

@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-07"
+  },
+  "ver": 1,
+  "id": "screen-155--laporan-kernel-plant-mobile",
+  "name": "Laporan Kernel Plant (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-07T01:45:00Z",
+      "passed": 42,
+      "failed": 0,
+      "coverage": -1
+    },
+    "integration": {
+      "run_at": "2026-10-07T01:45:00Z",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-07T01:45:00Z",
+      "passed": 68,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-07T01:52:00Z",
+      "passed": 38,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "mobile/src/services/kernelPlantReportRepo.ts",
+    "mobile/src/router/index.ts"
+  ],
+  "test_files_generated": [
+    "mobile/tests/kernelPlantReportRepo.spec.ts"
+  ],
+  "fe_files_generated": [
+    "mobile/src/views/LaporanKernelPlantView.vue",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/LaporanKernelPlantView.spec.ts",
+    "mobile/tests/e2e/laporan-kernel-plant.spec.ts",
+    "mobile/tests/ReportingPilihStasiunView.spec.ts"
+  ],
+  "implementation_notes": [
+    "NOL PERUBAHAN BACKEND. Tiga endpoint dipakai ulang apa adanya dari screen-154 (/periods, /summary, /export) ditambah /api/production-lines/options-for-report yang sudah dipakai sepuluh laporan mobile lainnya. Itulah yang membuat ponsel tidak mungkin berselisih dengan web tentang satu angka pun — dan uji repo memaku HIMPUNAN EKSAK tiga alamat yang modul ini pernah minta, sehingga endpoint keempat yang diselipkan kelak akan menggagalkannya.",
+    "layar ini TIDAK PUNYA JALUR KODE ke /business-units/options sama sekali — bukan penjaga, melainkan ketiadaan jalur. Konsekuensinya business_unit_id tak dapat terkirim. Dasarnya: endpoint itu menolak Operator, Supervisor, dan Mill Management dengan 403 dari DALAM service, dan kedua aktor layar ini terikat satu mill sehingga server menyelesaikannya dari akun. Uji repo mengasersikannya dengan memanggil ketiga fungsi SAMBIL menyodorkan scope ber-businessUnitId/business_unit_id/isAdmin, lalu membandingkan params dengan toEqual (himpunan kunci eksak) — kunci tambahan akan gagal. Dan fetchBusinessUnits diasersikan TIDAK ADA di ekspor modul.",
+    "PENYIMPANGAN DARI SEPULUH LAPORAN MOBILE SAUDARANYA, disengaja dan layak dilihat manusia: layar ini tidak punya scopeParams/isAdmin/fetchBusinessUnits, sementara kesepuluh repo lain punya ketiganya dan kesepuluh view lain merender pemilih mill Admin. Catatan untuk arsip: tech spec screen-153 juga mengecualikan Admin, tetapi implementasi Depricarping tetap membawa cabang Admin — jadi di sini spec dan implementasi akhirnya sejalan, dan justru itu yang membuatnya berbeda dari saudaranya.",
+    "TABEL MENJADI KARTU, dan hanya itu perubahan bentuknya. Ketujuh kartu parameter selalu dirender — termasuk kolom yang tak pernah terisi (N=0, nilai 'tidak tersedia'), dan termasuk ketika has_data false. Uji mengasersikan jumlahnya TEPAT 7, bukan >= 1, pada lima keadaan berbeda.",
+    "DUA PASANGAN BERBAGI STANDAR, bukan satu — yang membedakan layar ini dari seluruh laporan mobile sebelumnya. Penandanya DITURUNKAN dari target.shares_standard_with pada respons, dan tak satu pun nama kolom atau nama parameter disebut di view. Uji membuktikan derivasi itu dengan SEBARAN 4/3/6: empat penanda pada keadaan normal, turun ke tiga ketika shares_standard_with satu anggota dikosongkan, naik ke enam ketika pasangan KETIGA dikarang (kernel_moisture_percent <-> shell_loss_percent). Sebaran itulah buktinya, bukan angka empatnya sendiri.",
+    "PENJAGA NULL pada keterangan pasangan adalah PERGANTIAN PERNYATAAN (v-if/v-else), bukan fallback nilai. Dengan equipment_parameter null, keterangan tidak memuat tanda kutip kosong dan tidak mengklaim 'master hanya memuat satu baris'; ia menyatakan pasangan itu tidak lagi terpeta ke baris master mana pun, DAN tetap menyatakan angkanya tidak dirata-ratakan. Defek persis ini ditemukan dan ditutup di layar web screen-154; uji di sini memastikan ia tidak kembali — dan negatifnya dipasangkan dengan positif pada kartu silo yang masternya masih terpeta, sehingga asersi itu mengukur percabangan, bukan frasa yang hilang.",
+    "NOL ARITMETIKA DI KLIEN, dan ujinya memakai fixture yang SENGAJA SALING BERTENTANGAN supaya klien yang menghitung akan terlihat: coverage_percent 41,7 padahal 12/288 = 4,2; metrics[0] avg 12,5 di luar min 10 dan maks 11; daily_total.filled_slot_count 99 padahal barisnya 3+4; downtime_minutes 999 padahal 10+null; avg_minutes_per_recorded_slot 99 padahal 60/3. Keluaran dibandingkan dengan nilai PAYLOAD. Rata-rata pasangan (22,75 dan 66,00) diasersikan TIDAK ADA di halaman.",
+    "'N dari M slot': N milik kartu itu, M = coverage.filled_slots, SAMA pada ketujuh kartu. Uji memakai N = 2, 9, 0, 5, 3, 7, 1 dengan M = 12, lalu mengasersikan ketujuh teksnya berbeda (Set berukuran 7) sementana semuanya memuat 'dari 12 slot'. Uji terpisah mengasersikan M MELAMPAUI setiap N (slot findings-saja) dirender apa adanya tanpa 'dikoreksi' layar.",
+    "coverage_percent dirender tanda pisah HANYA ketika null (expected_slots nol); nilai 0 dirender '0,0%'. Ketiganya diuji pada elemen coverage-percent yang DILINGKUPI — tidak ada asersi persentase selebar halaman, karena nilai target master sendiri memuat '≤ 7.0%', '≤ 6.0%', dan '≤ 1.5%' dan dirender verbatim.",
+    "days_counted nol DIPERIKSA SEBELUM period_running, diuji dengan payload yang days_counted 0 DAN period_running true sekaligus — persis yang dikirim server untuk periode yang belum mulai. Keterangan 'belum mulai' harus ada dan keterangan 'masih berjalan' harus tidak ada; fixture bawaan mengasersikan kebalikannya, jadi kedua cabang dijalankan.",
+    "PENJAGA PRODUCTION LINE ADA DI DALAM loadSummary(), diuji sebagai JALUR bukan sebagai keadaan: daftar line gagal -> tombol coba lagi -> klik -> pilih periode pertama -> pilih periode kedua -> /summary belum pernah diminta sama sekali; baru setelah line dipilih ia diminta tepat sekali. Versi browsernya mengasersikan state.hits.summary === 0, yaitu tidak ada permintaan yang meninggalkan peramban.",
+    "Urutan penyelesaian line diuji penuh: query rute mengalahkan ingatan perangkat (dan ditulis balik ke ingatan); ingatan dibaca per-pengguna (user-1 versus user-9); line tunggal berlaku tanpa pemilih; line yang diingat tetapi sudah tidak ada memunculkan pemilih lagi TANPA chip line berlaku dan tanpa /summary; localStorage.getItem yang melempar diperlakukan sebagai 'tidak ada ingatan' dengan layar tetap utuh dan tanpa banner galat.",
+    "Dua pesan yang WAJIB berbeda, diuji dengan asersi silang: 'mill belum punya line' memuat 'hubungi Admin' dan TANPA tombol coba lagi; 'daftar gagal dimuat' memuat 'Periksa koneksi jaringan Anda', punya tombol coba lagi sendiri, dan diasersikan TIDAK memuat 'belum memiliki Production Line'.",
+    "Dua permintaan yang saling mendahului diuji dengan membiarkan yang pertama menggantung, menyelesaikan yang kedua (avg 222), LALU menyelesaikan yang pertama (111) — layar harus tetap menampilkan 222 dan tidak pernah 111.",
+    "401 mengarahkan ke Login dengan network-error, error-message, retry-button, dan period-meta semuanya TIDAK ADA; uji 422 mengasersikan cabang satunya (error-message terbaca, tanpa network-error).",
+    "Asersi ketiadaan penandaan di luar batas dilakukan atas KELAS YANG DITERAPKAN dan jumlah elemen (findAll('.md-threshold').length === 0, locator(...).toHaveCount(0)) untuk md-threshold, is-danger, is-warning, md-chip--danger. TIDAK pernah atas substring sumber ter-render, dan TIDAK pernah atas frasa — kalimat yang menjelaskan ketiadaan penandaan sendiri memuat kata 'di luar batas'. Pola html.not.toContain(kelas) milik spec saudaranya sengaja tidak disalin.",
+    "SPEC BROWSER TIDAK DIJALANKAN agent yang menulisnya — ia menyatakannya terang-terangan bahwa asersinya belum terverifikasi runtime. Dijalankan kemudian oleh command: 38 dari 38 lolos pada jalan pertama. Playwright menyalakan Vite-nya sendiri di 5174 (webServer, reuseExistingServer) dan spec-nya menstub API lewat page.route, jadi ia tidak menyentuh server dev di :8000.",
+    "Satu asersi SENGAJA DILEMAHKAN oleh agent dan keputusannya dipertahankan: download.suggestedFilename() dibuang karena tidak dapat diverifikasi bahwa Playwright menyurfacekan atribut download di lingkungan ini. Slug nama berkasnya diasersikan DUA KALI di uji komponen, termasuk kasus 'pilihan berubah di tengah unduhan'. Uji merah yang lolos karena lingkungan lebih buruk daripada asersi yang dipindahkan ke lapis yang dapat membuktikannya.",
+    "Satu kelas CSS baru didefinisikan: .detail-table td.wrap (white-space: normal; min-width: 180px; overflow-wrap: anywhere) untuk edge case temuan sangat panjang. Depricarping memasang white-space: nowrap pada setiap sel, yang tidak memotong apa pun tetapi mendorong temuan panjang menjadi gulir-dalam-kartu yang sangat lebar. Dua definisi Depricarping yang tak terpakai (.metric-figure, .metric-unit) dibuang alih-alih dibawa sebagai CSS mati. Audit: 45 kelas dipakai markup, 45 terdefinisi, nol hilang.",
+    "PEMINDAHAN KELIMA fixture 'laporan belum dibangun' pada tests/ReportingPilihStasiunView.spec.ts, dari kernel-plant ke process-quality-control. Tujuh ujinya memang menjadi merah saat laporan ini dibangun, dan docblock spec itu (baris 21-30) MERAMALKANNYA: contohnya sudah empat kali dipindahkan karena laporannya memang dibangun, dan 'dipindahkan, BUKAN dihapus ... spec ini akan gagal lagi — dan itu benar, karena ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.' Jadi tujuh merah itu uji yang bekerja. process-quality-control dipilih karena sort_order-nya 180, paling akhir dari seluruh jenis stasiun, sehingga pemindahan keenam tertunda paling lama; alasan itu ditulis ke docblock.",
+    "KETERTELUSURAN 41 BDD SCENARIO DIPERIKSA command, bukan agent (agent tidak punya akses artifact). Pencocokan kata kunci menandai tiga skenario di bawah ambang, ketiganya diperiksa tangan dan terbukti tercakup: 'success' (happy-path, tercakup uji browser 1 dan banyak uji komponen), 'layar read-only' (uji browser 36, footer hanya Ekspor dan Back), dan 'angka identik dengan laporan web screen-154' — yang tercakup justru oleh asersi himpunan-alamat-eksak di uji repo baris 412-415 ditambah uji pass-through nol-aritmetika. 41 dari 41 punya rumah."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "targets-without-metric-reason mencetak kalimat TETAP ('Tidak ada kolom pengukurannya') tanpa membaca target.reason dari respons. Benar hari ini karena 'no_column' satu-satunya nilai yang dapat dicapai (KernelPlantReportService::UNMAPPED_NO_COLUMN, dan komentar konstanta itu menyatakan mengapa nilai kedua tidak dikarang). Keputusan ini diperiksa lalu dibiarkan: mengkodekan nilai yang belum bisa diproduksi siapa pun lebih buruk daripada kalimat tetap. KONSEKUENSINYA DICATAT ALIH-ALIH DIUJI — bila suatu saat ada alasan kedua di server, layar ini akan salah melabelinya dan suite TIDAK akan menangkapnya, karena ujinya mengasersikan kalimat yang berlaku sekarang.",
+      "severity": "minor"
+    },
+    {
+      "description": "DUA DEFEK LAMA di Laporan Depricarping Mobile, keduanya diverifikasi dan sengaja TIDAK disalin ke sini, dan keduanya masih terbuka di berkas aslinya: (1) LaporanDepricarpingView.vue baris 1485, 1498, dan 1512 membungkus ketiga angka downtime dengan kelas .metric-values yang tidak terdefinisi di satu berkas pun di seluruh src/ — jadi ketiganya div tanpa gaya, dan .metric-value di dalamnya (26px, untuk angka telanjang) membungkus pasangan <small>+<b>. (2) Keterangan cakupannya menyebut 'minimal satu dari ENAM kolom bacaan' padahal docblock repo-nya sendiri dan backend menyebut SEMBILAN. Keduanya berkas layar lain; perbaikannya keputusan pemilik produk.",
+      "severity": "minor"
+    },
+    {
+      "description": "Cakupan baris TIDAK DIUKUR; test_results.unit.coverage = -1 adalah SENTINEL, bukan pengukuran. Vitest dijalankan tanpa --coverage pada jalan ini, dan template menuntut angka serta menolak null. Nilai 0 akan mengklaim sudah diukur dan hasilnya nol, yang lebih buruk daripada jelas-jelas tak masuk akal.",
+      "severity": "minor"
+    },
+    {
+      "description": "test_results.integration bernilai 0/0 dan itu BENAR, bukan kelalaian: layar ini tidak menambah satu endpoint pun, sehingga tidak ada kontrak HTTP baru untuk diuji. Kontrak ketiga endpoint yang dipakainya sudah diuji 33 skenario Api pada screen-154. Yang diuji di sini adalah bahwa klien memakai endpoint itu dan tidak menambah apa pun — dan itu uji unit repo, bukan uji integrasi.",
+      "severity": "minor"
+    },
+    {
+      "description": "Satuan suhu dirender 'C', bukan '°C', karena itulah yang diterbitkan KernelPlantReportService::METRIC_LABELS dan klien merendernya verbatim. Instruksi awal command menulis '°C' dan itu keliru: memetakan C menjadi °C di klien tepat jenis normalisasi yang dilarang aturan nol-aritmetika, dan akan membuat ponsel berselisih dengan web tentang medan yang sama. Bila '°C' yang diinginkan, perubahannya satu baris di METRIC_LABELS — satu tempat, dua layar, dan itu suntingan backend yang belum dilakukan.",
+      "severity": "minor"
+    },
+    {
+      "description": "shell_loss_percent masih OPEN QUESTION yang belum diputuskan user, diwarisi dari screen-154: nama kolom menyebut 'shell loss' sementara master menyebut 'Shell Bin KERNEL Loss' dengan target ≤ 1,5%. Label kartu pada layar mobile ini mengikuti master. Bila kolomnya di-rename, label kartu dan asersi uji yang menyebutnya harus ikut berubah.",
+      "severity": "minor"
+    }
+  ]
+}

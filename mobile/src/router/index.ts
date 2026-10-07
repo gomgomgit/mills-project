@@ -1034,6 +1034,31 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanDepricarpingView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-155--laporan-kernel-plant-mobile /
+    // usecase-161--laporan-kernel-plant-mobile "Lihat Laporan Periode Kernel
+    // Plant (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor).
+    //
+    // NOL PERUBAHAN BACKEND, sama seperti report-depricarping di atasnya:
+    // rute /api/kernel-plant-reports/* sudah menerima peran mobile (termasuk
+    // Operator) sejak screen-154 dibangun, karena kedua layar direncanakan
+    // dalam satu seri. Yang TIDAK terbuka tetap tidak terbuka:
+    // /business-units/options Admin saja (403 diangkat service, bukan
+    // middleware), dan rute WEB /reports/kernel-plant tanpa Operator. Layar
+    // mobile ini memang tidak punya pemilih mill sama sekali.
+    //
+    // Pintu masuknya: rute 'report-stations' (screen-141) menampilkan grid
+    // stasiun, dan tile Kernel Plant-lah yang menavigasi ke sini — entri
+    // 'kernel-plant' pada REPORT_ROUTES di ReportingPilihStasiunView.vue
+    // adalah satu-satunya penentu tile itu hidup atau mati. Kuncinya WAJIB
+    // berkutip di sana karena bertanda hubung.
+    path: '/reports/kernel-plant',
+    name: 'report-kernel-plant',
+    component: () => import('@/views/LaporanKernelPlantView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

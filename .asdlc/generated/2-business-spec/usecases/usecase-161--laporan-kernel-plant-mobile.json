@@ -1,0 +1,538 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-07"
+  },
+  "ver": 1,
+  "id": "usecase-161--laporan-kernel-plant-mobile",
+  "name": "Lihat Laporan Periode Kernel Plant (Mobile)",
+  "description": "Station Operator dan Supervisor membuka laporan periode stasiun Kernel Plant di aplikasi mobile: memilih periode pelaporan dan Production Line, lalu membaca min/rata-rata/maks ketujuh parameter kondisi operasi sebagai KARTU bertumpuk (bukan tabel), beserta penyebut masing-masing, cakupan pencatatan, rekap per unit dan per hari, total downtime, dan daftar temuan. Keempat endpoint /api/kernel-plant-reports/* dipakai ulang apa adanya dari layar web screen-154, jadi tidak mungkin ada angka yang berselisih. Read-only.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor.",
+    "Kedua peran terikat satu mill; tidak ada pemilih mill dan business_unit_id tidak pernah dikirim.",
+    "Ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu."
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka Reporting (screen-141) dan menekan tile Kernel Plant."
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Memuat daftar Production Line mill itu dan daftar periode yang mencakup Kernel Plant."
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menyelesaikan Production Line dengan urutan: query rute → ingatan perangkat → satu-satunya line → tidak ada. Bila tidak ada, menampilkan pemilih dan NOL angka."
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Memilih Production Line bila belum berlaku."
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Menampilkan CAKUPAN PENCATATAN paling atas: slot terisi, slot diharapkan, persennya, beserta jumlah unit kernel plant, hari terhitung, dan 24 slot kanonis per unit per hari."
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menampilkan TUJUH kartu parameter bertumpuk, satu per kolom ukur, masing-masing dengan min/rata-rata/maks berdampingan, penyebutnya sendiri ('N dari M slot'), nama parameter masternya, target, dan rencana tindakan koreksinya."
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Pada KEEMPAT kartu pasangan (ripple mill 1 dan 2, kernel silo 1 dan 2) menampilkan keterangan bahwa standarnya SATU baris master yang sama, diturunkan dari shares_standard_with pada respons."
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Menampilkan blok downtime: total menit, jumlah slot pencatat, rata-rata per slot pencatat."
+    },
+    {
+      "step": 9,
+      "actor": "System",
+      "description": "Menampilkan rekap temuan pada bagian TERPISAH dari downtime, dikelompokkan harfiah, diurutkan terbanyak."
+    },
+    {
+      "step": 10,
+      "actor": "System",
+      "description": "Menampilkan bagian standar-tanpa-pengukuran, yang normalnya memuat 'Final Kernel Dirt'."
+    },
+    {
+      "step": 11,
+      "actor": "System",
+      "description": "Menampilkan rekap per unit kernel plant dan rekap per hari, masing-masing dalam kartu yang menggulir mendatar di dalam dirinya sendiri."
+    },
+    {
+      "step": 12,
+      "actor": "System",
+      "description": "Menyatakan bahwa laporan ini tidak menandai satu nilai pun sebagai di luar batas, beserta sebabnya, UTUH tanpa diringkas."
+    },
+    {
+      "step": 13,
+      "actor": "actor-station-operator",
+      "description": "Dapat membuka/menutup bagian rekap, dan mengekspor CSV untuk periode serta line terpilih."
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Production Line belum berlaku",
+      "trigger": "Pada langkah 3, tidak ada line dari query rute, ingatan perangkat, maupun line tunggal.",
+      "steps": [
+        "System menampilkan pemilih line.",
+        "System tidak menampilkan satu angka pun, dan BUKAN angka gabungan seluruh mill.",
+        "Penjagaannya ada di FUNGSI pemuatan ringkasan, bukan hanya di template, supaya jalur coba-lagi dan ganti-periode tidak melewatinya."
+      ]
+    },
+    {
+      "name": "Mill tanpa Production Line",
+      "trigger": "Pada langkah 2, mill tidak punya satu line pun.",
+      "steps": [
+        "System memberi arahan menghubungi Admin, TANPA tombol coba lagi."
+      ]
+    },
+    {
+      "name": "Daftar Production Line gagal dimuat",
+      "trigger": "Pada langkah 2, permintaan daftar line gagal.",
+      "steps": [
+        "System menampilkan pesan yang BERBEDA dari 'mill belum punya line', dengan tombol coba lagi sendiri."
+      ]
+    },
+    {
+      "name": "Line diingat perangkat",
+      "trigger": "Pada langkah 3, ada line tersimpan di perangkat.",
+      "steps": [
+        "Line itu dipakai tanpa pengguna diminta memilih lagi."
+      ]
+    },
+    {
+      "name": "Line yang diingat sudah tidak ada",
+      "trigger": "Pada langkah 3, line tersimpan tidak lagi ada di daftar.",
+      "steps": [
+        "Pemilih muncul lagi, dan System TIDAK menebak line lain."
+      ]
+    },
+    {
+      "name": "Penyimpanan perangkat gagal",
+      "trigger": "Pada langkah 3, penyimpanan tidak dapat dibaca (mode privat).",
+      "steps": [
+        "Diperlakukan sebagai 'tidak ada ingatan', BUKAN sebagai galat."
+      ]
+    },
+    {
+      "name": "Mill belum punya periode Kernel Plant",
+      "trigger": "Pada langkah 2, tidak ada periode yang mencakup Kernel Plant.",
+      "steps": [
+        "System memberi arahan menghubungi Admin; pemilih tetap ada dalam keadaan kosong."
+      ]
+    },
+    {
+      "name": "Periode punya record tetapi tanpa slot terisi",
+      "trigger": "Pada langkah 5, tidak ada slot terisi meski ada record.",
+      "steps": [
+        "Keterangan periode kosong, seluruh angka 'tidak tersedia', cakupan TETAP tampil.",
+        "Persennya 0,0% BUKAN tanda pisah, karena penyebutnya terbentuk dari unit yang punya record."
+      ]
+    },
+    {
+      "name": "Periode tanpa satu pun record",
+      "trigger": "Pada langkah 5, tidak ada record sama sekali.",
+      "steps": [
+        "Persen cakupan dirender tanda pisah, karena tidak ada unit untuk dijadikan penyebut."
+      ]
+    },
+    {
+      "name": "Satu kolom ukur kosong sepanjang periode",
+      "trigger": "Pada langkah 6, satu kolom tidak pernah terisi.",
+      "steps": [
+        "Kartunya TETAP ada dengan 'tidak tersedia' dan penyebut 0 slot.",
+        "Kedua kolom targetnya tetap tampil."
+      ]
+    },
+    {
+      "name": "Satu slot hanya mengisi temuan",
+      "trigger": "Pada langkah 6, ada slot yang hanya mengisi findings.",
+      "steps": [
+        "Slot itu terhitung pada cakupan tetapi tidak menambah N kartu mana pun.",
+        "Akibatnya slot terisi dapat MELEBIHI setiap N, dan itu benar serta dinyatakan."
+      ]
+    },
+    {
+      "name": "Satu anggota pasangan tidak pernah terisi",
+      "trigger": "Pada langkah 7, ripple mill 2 atau salah satu silo tidak pernah terisi.",
+      "steps": [
+        "Dua kartu TETAP ada, dan keterangan standar-bersama tetap tampil pada keduanya."
+      ]
+    },
+    {
+      "name": "Kedua anggota pasangan terisi sangat berbeda",
+      "trigger": "Pada langkah 7, kedua ripple mill atau kedua silo terisi dengan angka jauh berbeda.",
+      "steps": [
+        "Keduanya tampil apa adanya, TIDAK dirata-ratakan, dan selisihnya tidak ditandai."
+      ]
+    },
+    {
+      "name": "Nama parameter master disunting",
+      "trigger": "Pada langkah 7, nama parameter master tak lagi cocok dengan peta kolom.",
+      "steps": [
+        "Kartunya tetap menerbitkan angkanya tanpa target.",
+        "Keterangan standar-bersama TIDAK mengarang baris master yang sudah tidak ada.",
+        "Standar yang terlepas muncul pada bagian standar-tanpa-pengukuran."
+      ]
+    },
+    {
+      "name": "Tidak ada slot yang mencatat downtime",
+      "trigger": "Pada langkah 8, tak satu slot pun mencatat downtime_minutes.",
+      "steps": [
+        "Blok downtime MENYATAKAN ketiadaannya, bukan mencetak total 0 menit."
+      ]
+    },
+    {
+      "name": "downtime bernilai 0 pada sebagian slot",
+      "trigger": "Pada langkah 8, beberapa slot mencatat 0 menit.",
+      "steps": [
+        "Slot itu ikut sebagai slot pencatat, dan dibedakan dari slot yang tidak mencatat."
+      ]
+    },
+    {
+      "name": "Temuan dengan ejaan berbeda",
+      "trigger": "Pada langkah 9, satu masalah ditulis dengan dua ejaan.",
+      "steps": [
+        "Dua baris terpisah, dan keterangan menyatakan pengelompokannya harfiah."
+      ]
+    },
+    {
+      "name": "Master target kosong",
+      "trigger": "Pada langkah 6, tabel master tidak punya satu baris pun.",
+      "steps": [
+        "Angka ukur tetap tampil; kedua kolom target dirender sebagai keterangan bahwa master belum terisi."
+      ]
+    },
+    {
+      "name": "Periode masih berjalan",
+      "trigger": "Pada langkah 5, periode sudah mulai tetapi belum berakhir.",
+      "steps": [
+        "Penyebut hari berhenti di hari ini, dan hal itu dinyatakan."
+      ]
+    },
+    {
+      "name": "Periode belum mulai",
+      "trigger": "Pada langkah 5, tanggal mulai periode masih di masa depan.",
+      "steps": [
+        "Persen cakupan dirender tanda pisah, dan keterangan 'belum mulai' MENANG atas keterangan 'periode berjalan'.",
+        "days_counted nol diperiksa SEBELUM period_running, karena server menandai periode belum mulai sebagai masih berjalan juga."
+      ]
+    },
+    {
+      "name": "Jaringan gagal saat memuat ringkasan",
+      "trigger": "Pada langkah 5, permintaan ringkasan gagal.",
+      "steps": [
+        "Pesan dan tombol coba lagi; periode serta line yang sudah dipilih TIDAK hilang."
+      ]
+    },
+    {
+      "name": "Dua permintaan ringkasan saling mendahului",
+      "trigger": "Pada langkah 5, pengguna mengganti periode dengan cepat.",
+      "steps": [
+        "Hanya respons permintaan TERAKHIR yang dipakai."
+      ]
+    },
+    {
+      "name": "Sesi berakhir",
+      "trigger": "Pada langkah apa pun, server menjawab 401.",
+      "steps": [
+        "Diarahkan ke Login TANPA pesan jaringan — 'periksa koneksi Anda' pada sesi berakhir mengirim pembaca ke arah yang salah."
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pembaca mengetahui min/rata-rata/maks ketujuh parameter beserta penyebut masing-masing, seberapa lengkap pencatatannya, total downtime, temuan apa saja, dan standar mana yang tak pernah diukur.",
+    "Tidak ada satu pun data yang berubah — layar ini hanya membaca.",
+    "Pilihan Production Line tersimpan di perangkat untuk dipakai layar lain."
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca; tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Keempat endpoint /api/kernel-plant-reports/* dipakai ulang apa adanya dari screen-154 — tidak ada endpoint baru dan tidak ada perubahan backend.",
+    "Production Line wajib dipilih sebelum satu angka pun ditampilkan, dan penjagaannya ada di fungsi pemuatan ringkasan, bukan hanya di template.",
+    "Urutan penyelesaian line: query rute → ingatan perangkat → satu-satunya line → tidak ada.",
+    "Tidak ada pemilih mill; business_unit_id tidak pernah dikirim untuk kedua peran.",
+    "Ketujuh kartu parameter selalu dirender, termasuk yang tidak pernah terisi.",
+    "Setiap kartu mencetak penyebutnya sendiri; N milik kartu itu, M jumlah slot terisi seluruhnya dan SAMA pada ketujuh kartu. M per kolom yang berbeda-beda tidak ada dan tidak boleh dikarang.",
+    "Nilai tak tersedia dirender sebagai keterangan, bukan 0. Persen cakupan tanda pisah hanya ketika PENYEBUTNYA tak terbentuk.",
+    "Cakupan dirender di atas seluruh angka lain, dan tetap dirender meski periode kosong.",
+    "days_counted nol diperiksa sebelum period_running.",
+    "Kedua kolom target dirender pada kartu yang sama dengan angkanya, verbatim, termasuk keterangan dalam tanda kurung.",
+    "DUA pasangan kartu membawa keterangan standar-bersama, diturunkan dari shares_standard_with, bukan dipaku.",
+    "Angka anggota satu pasangan tidak pernah dirata-ratakan menjadi satu.",
+    "Bagian standar-tanpa-pengukuran tetap digambar walau kosong; di stasiun ini ia normalnya memuat satu baris.",
+    "Tidak ada penandaan otomatis di luar batas, dan keterangannya dirender utuh tanpa diringkas.",
+    "Downtime diterbitkan sebagai angka pada bloknya sendiri; tanpa slot pencatat ia menyatakan ketiadaannya.",
+    "downtime_minutes nol dibedakan dari tidak tercatat.",
+    "Temuan direkap harfiah pada bagian terpisah dari downtime.",
+    "Tidak ada aritmetika di klien; seluruh angka diambil apa adanya dari respons server.",
+    "Record draft ikut terhitung, dan jumlahnya dinyatakan terpisah.",
+    "Ekspor hanya CSV; .xlsx tidak tersedia di WebView ponsel.",
+    "Halaman tidak pernah menggulir mendatar pada lebar 390px; kedua tabel rekap menggulir di dalam kartunya sendiri.",
+    "401 mengarahkan ke Login tanpa pesan jaringan."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — success",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu dengan slot-slot yang sudah terisi",
+      "when": "Pengguna membuka Reporting (screen-141), menekan tile Kernel Plant, lalu periode dan Production Line sudah berlaku",
+      "then": "Laporan read-only tampil dengan cakupan pencatatan paling atas (slot terisi, slot diharapkan, persennya, jumlah unit kernel plant, hari terhitung, dan 24 slot kanonis per unit per hari), tujuh kartu parameter bertumpuk — satu per kolom ukur — masing-masing dengan min/rata-rata/maks berdampingan, penyebutnya sendiri ('N dari M slot'), nama parameter masternya, serta kedua kolom target dan rencana tindakan koreksinya, keterangan standar-bersama pada keempat kartu pasangan (ripple mill 1 dan 2, kernel silo 1 dan 2), blok downtime berisi total menit, jumlah slot pencatat, dan rata-rata per slot pencatat, rekap temuan pada bagian terpisah dari downtime yang dikelompokkan harfiah dan diurutkan terbanyak, bagian standar-tanpa-pengukuran, rekap per unit kernel plant dan rekap per hari yang masing-masing menggulir mendatar di dalam kartunya sendiri, dan pernyataan utuh tanpa diringkas bahwa laporan ini tidak menandai satu nilai pun sebagai di luar batas beserta sebabnya; pengguna dapat membuka/menutup bagian rekap dan mengekspor CSV untuk periode serta line terpilih; tidak ada satu pun data yang berubah dan pilihan Production Line tersimpan di perangkat untuk dipakai layar lain. Satu skenario happy-path saja untuk kedua aktor karena Station Operator dan Supervisor menghasilkan outcome identik — keduanya terikat satu mill, keduanya tanpa pemilih mill, dan keduanya membaca isi laporan yang sama"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Production Line belum berlaku",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Tidak ada Production Line yang berlaku — baik dari query rute, dari ingatan perangkat, maupun sebagai satu-satunya line",
+      "then": "System menampilkan pemilih line dan NOL angka, dan bukan angka gabungan seluruh mill; penjagaannya berada di FUNGSI pemuatan ringkasan dan bukan hanya di template, supaya jalur coba-lagi dan jalur ganti-periode tidak dapat melewatinya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Mill tanpa Production Line",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Mill itu tidak punya satu Production Line pun",
+      "then": "System memberi arahan untuk menghubungi Admin, TANPA tombol coba lagi, karena mencoba lagi tidak akan mengubah apa pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Daftar Production Line gagal dimuat",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Permintaan daftar Production Line gagal",
+      "then": "System menampilkan pesan yang BERBEDA dari pesan 'mill belum punya line', dengan tombol coba lagi sendiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Line diingat perangkat",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Ada Production Line tersimpan di perangkat saat penyelesaian line berjalan",
+      "then": "Line itu dipakai tanpa pengguna diminta memilih lagi"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Line yang diingat sudah tidak ada",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Line yang tersimpan di perangkat tidak lagi ada di daftar line mill",
+      "then": "Pemilih line muncul lagi, dan System TIDAK menebak line lain sebagai gantinya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Penyimpanan perangkat gagal",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Penyimpanan perangkat tidak dapat dibaca, misalnya karena mode privat",
+      "then": "Keadaan itu diperlakukan sebagai 'tidak ada ingatan' dan penyelesaian line berlanjut ke langkah berikutnya, BUKAN diperlakukan sebagai galat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Mill belum punya periode Kernel Plant",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill",
+      "when": "Tidak ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "then": "System memberi arahan untuk menghubungi Admin, dan pemilih periode tetap ada dalam keadaan kosong"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Periode punya record tetapi tanpa slot terisi",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Periode terpilih punya record tetapi tidak ada satu slot pun yang terisi",
+      "then": "Keterangan periode kosong tampil, seluruh angka dirender 'tidak tersedia', dan cakupan TETAP tampil; persennya 0,0% dan BUKAN tanda pisah, karena penyebutnya tetap terbentuk dari unit yang punya record"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Periode tanpa satu pun record",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Periode terpilih tidak punya record sama sekali",
+      "then": "Persen cakupan dirender sebagai tanda pisah, karena tidak ada unit yang dapat dijadikan penyebut"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Satu kolom ukur kosong sepanjang periode",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Satu kolom ukur tidak pernah terisi sepanjang periode",
+      "then": "Kartu kolom itu TETAP ada dengan nilai 'tidak tersedia' dan penyebut 0 slot, dan kedua kolom targetnya tetap tampil"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Satu slot hanya mengisi temuan",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Ada slot yang hanya mengisi findings tanpa satu nilai ukur pun",
+      "then": "Slot itu terhitung pada cakupan tetapi tidak menambah N kartu mana pun; akibatnya jumlah slot terisi dapat MELEBIHI setiap N, dan itu benar serta dinyatakan pada layar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Satu anggota pasangan tidak pernah terisi",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Ripple mill 2 atau salah satu kernel silo tidak pernah terisi sepanjang periode",
+      "then": "Dua kartu pasangan TETAP ada, dan keterangan standar-bersama tetap tampil pada KEDUANYA"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Kedua anggota pasangan terisi sangat berbeda",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Kedua ripple mill atau kedua kernel silo terisi dengan angka yang jauh berbeda",
+      "then": "Keduanya tampil apa adanya, TIDAK dirata-ratakan menjadi satu, dan selisihnya tidak ditandai"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Nama parameter master disunting",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Nama parameter master disunting sehingga tak lagi cocok dengan peta kolom",
+      "then": "Kartunya tetap menerbitkan angkanya tanpa target, keterangan standar-bersama TIDAK mengarang baris master yang sudah tidak ada, dan standar yang terlepas itu muncul pada bagian standar-tanpa-pengukuran"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Tidak ada slot yang mencatat downtime",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Tak satu slot pun mencatat downtime_minutes sepanjang periode",
+      "then": "Blok downtime MENYATAKAN ketiadaan pencatatan, bukan mencetak total 0 menit"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — downtime bernilai 0 pada sebagian slot",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Beberapa slot mencatat downtime 0 menit",
+      "then": "Slot itu ikut dihitung sebagai slot pencatat, dan dibedakan dari slot yang tidak mencatat downtime sama sekali"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Temuan dengan ejaan berbeda",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Satu masalah yang sama ditulis dengan dua ejaan berbeda pada findings",
+      "then": "Rekap menampilkan dua baris terpisah, dan keterangan menyatakan bahwa pengelompokannya harfiah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Master target kosong",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Tabel master target tidak punya satu baris pun",
+      "then": "Angka ukur tetap tampil, dan kedua kolom target dirender sebagai keterangan bahwa master belum terisi"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Periode masih berjalan",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Periode terpilih sudah mulai tetapi belum berakhir",
+      "then": "Penyebut hari berhenti di hari ini, dan hal itu dinyatakan pada layar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Periode belum mulai",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Tanggal mulai periode terpilih masih di masa depan",
+      "then": "Persen cakupan dirender sebagai tanda pisah, dan keterangan 'belum mulai' MENANG atas keterangan 'periode berjalan'; days_counted nol diperiksa SEBELUM period_running, karena server menandai periode yang belum mulai sebagai masih berjalan juga"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Jaringan gagal saat memuat ringkasan",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Permintaan ringkasan laporan gagal",
+      "then": "Pesan galat dan tombol coba lagi tampil, dan periode serta Production Line yang sudah dipilih TIDAK hilang"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Dua permintaan ringkasan saling mendahului",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Pengguna mengganti periode dengan cepat sehingga dua permintaan ringkasan saling mendahului",
+      "then": "Hanya respons permintaan TERAKHIR yang dipakai untuk merender laporan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — Sesi berakhir",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Server menjawab 401 pada langkah apa pun",
+      "then": "Pengguna diarahkan ke Login TANPA pesan jaringan, karena pesan seperti 'periksa koneksi Anda' pada sesi berakhir mengirim pembaca ke arah yang salah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — layar read-only, tidak ada aksi yang mengubah data",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Pengguna mencari aksi untuk menambah, mengubah, atau menghapus data stasiun dari layar laporan ini",
+      "then": "Tidak ada satu aksi mutasi pun yang tersedia, dan tidak ada data stasiun yang berubah sepanjang pemakaian layar — layar ini hanya membaca"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — angka identik dengan laporan web screen-154",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Laporan dimuat untuk periode dan Production Line yang sama dengan yang dibuka pada layar web screen-154",
+      "then": "Keempat endpoint /api/kernel-plant-reports/* dipakai ulang apa adanya sehingga setiap angka identik dengan layar web dan tidak mungkin berselisih; tidak ada endpoint baru dan tidak ada perubahan backend"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — penjagaan Production Line ada di fungsi pemuatan, bukan hanya di template",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Production Line belum berlaku dan pengguna menekan tombol coba lagi atau mengganti periode",
+      "then": "Fungsi pemuatan ringkasan menolak berjalan sehingga tetap NOL angka yang ditampilkan; penjagaan tidak dapat dilewati oleh jalur coba-lagi maupun jalur ganti-periode karena ia tidak diletakkan hanya di template"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — query rute mengalahkan ingatan perangkat",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Layar dibuka dengan Production Line pada query rute sementara perangkat mengingat line yang lain",
+      "then": "Line dari query rute yang dipakai, sesuai urutan penyelesaian query rute → ingatan perangkat → satu-satunya line → tidak ada"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — business_unit_id tidak pernah dikirim",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Permintaan laporan dikirim, baik oleh Station Operator maupun oleh Supervisor",
+      "then": "Tidak ada pemilih mill pada layar, dan tidak satu permintaan pun menyertakan business_unit_id untuk kedua peran itu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — tujuh kartu parameter selalu dirender",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Laporan dimuat untuk periode yang sebagian atau bahkan seluruh kolom ukurnya tidak pernah terisi",
+      "then": "Tetap TUJUH kartu parameter yang dirender, satu per kolom ukur, dan tidak ada kartu yang disembunyikan hanya karena kolomnya kosong"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — penyebut M sama pada ketujuh kartu dan tidak dikarang per kolom",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Penyebut setiap kartu dirender dalam bentuk 'N dari M slot'",
+      "then": "N adalah milik kartu itu sendiri, sedangkan M adalah jumlah slot terisi seluruhnya dan SAMA pada ketujuh kartu; M per kolom yang berbeda-beda tidak ada dan tidak pernah dikarang"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — cakupan pencatatan dirender di atas seluruh angka lain",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Laporan dimuat, termasuk ketika periodenya kosong",
+      "then": "Blok cakupan pencatatan berada paling atas, mendahului kartu parameter, blok downtime, rekap temuan, dan kedua rekap; dan ia tetap dirender walau periode kosong"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — kedua kolom target dirender verbatim pada kartunya",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Kartu parameter yang punya baris master dirender",
+      "then": "Target dan rencana tindakan koreksi tampil pada kartu yang SAMA dengan angkanya, verbatim, termasuk keterangan di dalam tanda kurung — tidak dipotong dan tidak diringkas"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — keterangan standar-bersama diturunkan dari respons, bukan dipaku",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Respons server tidak lagi menyertakan shares_standard_with pada kartu yang semula berpasangan",
+      "then": "Keterangan standar-bersama tidak muncul pada kartu itu; keterangan pada DUA pasangan kartu selalu diturunkan dari shares_standard_with pada respons dan tidak pernah dipaku di klien"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — bagian standar-tanpa-pengukuran tetap digambar walau kosong",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Seluruh standar master pada periode itu ternyata punya kolom ukurnya, sehingga tidak ada standar yang tak terukur",
+      "then": "Bagian standar-tanpa-pengukuran TETAP digambar dalam keadaan kosong, walau di stasiun ini ia normalnya memuat satu baris yaitu 'Final Kernel Dirt'"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — tidak ada penandaan otomatis di luar batas",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Satu nilai ukur jauh melampaui targetnya",
+      "then": "Tidak ada nilai yang ditandai sebagai di luar batas, dan keterangan mengenai sebab laporan ini tidak menandai apa pun dirender UTUH tanpa diringkas"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — temuan direkap pada bagian terpisah dari downtime",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Periode terpilih punya downtime tercatat maupun temuan sekaligus",
+      "then": "Rekap temuan dirender pada bagiannya sendiri, TERPISAH dari blok downtime, dan tidak digabung ke dalam blok downtime"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — tidak ada aritmetika di klien",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Min, rata-rata, maks, persen cakupan, dan rata-rata downtime per slot pencatat dirender",
+      "then": "Seluruh angka diambil apa adanya dari respons server; klien tidak menghitung, menjumlahkan, merata-ratakan, atau membulatkan ulang satu angka pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — record draft ikut terhitung dan dinyatakan terpisah",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Periode terpilih memuat record berstatus draft",
+      "then": "Record draft ikut terhitung pada angka laporan, dan jumlahnya dinyatakan terpisah sehingga pembaca tahu seberapa besar porsinya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — ekspor hanya tersedia dalam CSV",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Pengguna mengekspor laporan untuk periode dan Production Line terpilih",
+      "then": "Hanya ekspor CSV yang tersedia, dan tidak ada pilihan .xlsx sama sekali karena format itu tidak tersedia di WebView ponsel"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Kernel Plant (Mobile) — halaman tidak menggulir mendatar pada lebar 390px",
+      "given": "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor, perannya terikat satu mill sehingga tidak ada pemilih mill, dan ada periode pelaporan yang mencakup stasiun Kernel Plant pada mill itu",
+      "when": "Laporan dibuka pada lebar layar 390px dengan rekap per unit dan rekap per hari yang lebar",
+      "then": "Halaman tidak menggulir mendatar sama sekali; kedua tabel rekap menggulir mendatar di dalam kartunya masing-masing"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-155--laporan-kernel-plant-mobile"
+  ]
+}

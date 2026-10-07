@@ -1,0 +1,152 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-07"
+  },
+  "id": "screen-155--laporan-kernel-plant-mobile",
+  "name": "Laporan Kernel Plant (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Versi mobile dari Laporan Kernel Plant (screen-154). Isi laporannya SAMA PERSIS — keempat endpoint /api/kernel-plant-reports/* dipakai ulang apa adanya, sehingga layar web, API, dan ponsel tidak mungkin berselisih tentang satu angka pun. Yang berubah hanyalah bentuknya pada layar sempit, dan apa yang TIDAK berubah justru yang perlu dinyatakan.\n\nTABEL TUJUH KOLOM MENJADI KARTU, dan itu satu-satunya perubahan bentuk yang disengaja. Pada lebar 390px tabel parameter versi web tidak muat tanpa menggulir mendatar, jadi tiap parameter menjadi satu kartu bertumpuk: min / rata-rata / maks berdampingan di dalam kartu itu (bukan tiga kartu — ketiganya satu pengukuran dilihat dari tiga sisi), lalu penyebutnya, lalu nama parameter masternya, target, dan rencana tindakan koreksinya. YANG TIDAK IKUT BERUBAH ADALAH DAFTAR ISINYA. Memotong kolom penyebut atau salah satu dari kedua kolom target demi ruang adalah kehilangan yang paling mudah terjadi dan paling sulit terlihat — dan di sini yang paling berisiko dibuang adalah rencana tindakan koreksi, karena ia paling panjang teksnya. Tanpa kolom itu, dua parameter yang sama-sama melewati targetnya tampak menuntut tindakan yang sama, padahal satu menuntut penyetelan rotor dan satu menuntut pemeriksaan elemen pemanas.\n\nDUA KOLOM TARGET, BUKAN TIGA seperti Depricarping mobile. Master Kernel Plant berbentuk tiga kolom (equipment_parameter / target_benchmark / corrective_action_plan) tanpa kolom batas kritis sama sekali. Tidak ada medan yang dikarang sebagai keterangan selalu-kosong agar 'sebangun' dengan laporan sebelumnya — itu akan memberi pembaca satu baris yang tak pernah berisi apa pun.\n\nTUJUH KARTU PARAMETER, dan ketujuhnya tetap dirender — termasuk yang tidak pernah terisi sepanjang periode, yang tampil dengan angka 'tidak tersedia' dan penyebut 0 slot. Kartu yang hilang terbaca sebagai 'tidak ada parameter ini', padahal yang benar adalah 'tidak ada yang mengukurnya'.\n\nDAN INILAH YANG MEMBEDAKAN LAYAR INI DARI SELURUH LAPORAN MOBILE SEBELUMNYA: DUA PASANGAN KARTU BERBAGI SATU STANDAR, bukan satu. 'Ripple Mill (Cracker)' mengatur arus kedua ripple mill; 'Kernel Silo 1 & 2' mengatur suhu kedua kernel silo. Depricarping mobile punya SATU pasangan seperti itu (nut silo), jadi tata letak yang menangani satu pasangan secara khusus akan benar di sana dan salah di sini. Di layar sempit keempat kartu itu bertumpuk langsung berurutan, sehingga target yang identik muncul dua kali beruntun DUA KALI — pada pasangan ripple mill, lalu lagi pada pasangan silo. Tanpa keterangan 'standarnya satu baris master yang sama', pola itu terbaca sebagai data terduplikasi jauh lebih kuat daripada di tabel web, dan seseorang akan 'membersihkannya'.\n\nBAGIAN STANDAR-TANPA-PENGUKURAN DIGAMBAR WALAU KOSONG, dan di stasiun ini ia NORMALNYA BERISI SATU BARIS — kebalikan dari Depricarping yang normalnya kosong. 'Final Kernel Dirt' (≤ 6,0%) adalah satu-satunya baris master tanpa kolom pengukuran di mana pun pada skema ini. Ia bukan kelalaian yang perlu ditutup, melainkan temuan yang perlu dibaca manusia: ada standar mutu yang disepakati dan tak seorang pun mengukurnya lewat sistem ini.\n\nDAN TETAP TIDAK ADA PENANDAAN OTOMATIS DI LUAR BATAS, sebabnya dinyatakan di layar sama lengkapnya dengan versi web — tidak diringkas demi ruang, karena ketiadaan yang tidak dijelaskan terbaca sebagai fitur yang belum selesai. Di sini godaannya besar: target_benchmark Kernel Plant membawa pembanding yang kelihatan teratur ('≤ 7,0%', '≤ 1,5%'), tetapi keenam nilainya membawa sesuatu lain di samping batasnya — '20 - 25 Amps (Nut Breakage >95%)' memuat dua angka dengan satuan dan arah pembanding berbeda di satu sel, dan '70°C - 80°C (Top/Middle zones)' bahkan menyebut ZONA yang tak punya kolom.\n\nCAKUPAN PENCATATAN TETAP PALING ATAS. Di layar sempit pembaca melihat lebih sedikit sekaligus, jadi apa yang dilihat lebih dulu menentukan lebih banyak — periode yang terisi seperlima pun menghasilkan rata-rata yang terlihat rapi.\n\nREAD-ONLY, dicapai dari Reporting (screen-141).",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Reporting (screen-141) → tekan tile Kernel Plant",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Kernel Plant, beserta status Kernel Plant pada periode itu",
+    "Pemilih Production Line — wajib; satu line langsung berlaku tanpa pemilih, lebih dari satu menuntut pemilihan dan tidak ada angka sebelum itu",
+    "Nama mill akun yang sedang masuk — tanpa pemilih mill; kedua peran pada layar ini terikat satu mill",
+    "Badge status periode beserta rentang tanggalnya",
+    "CAKUPAN PENCATATAN, paling atas: slot terisi, slot yang diharapkan, dan persennya — beserta jumlah unit kernel plant yang beroperasi, jumlah hari yang dihitung, dan 24 slot kanonis per unit per hari",
+    "Keterangan bahwa penyebut hari berhenti di hari ini bila periode masih berjalan; atau bahwa periode belum mulai sehingga persennya '—' bukan 0%",
+    "TUJUH kartu parameter — satu per kolom ukur, masing-masing memuat min, rata-rata, maks berdampingan, JUMLAH SLOT penyebutnya, lalu nama parameter masternya, target, dan rencana tindakan koreksinya",
+    "Pada KEEMPAT kartu pasangan — kedua ripple mill dan kedua kernel silo — keterangan bahwa standarnya SATU baris master yang sama, dan bahwa angkanya tetap dipisah karena keduanya mesin fisik yang berbeda",
+    "Nama parameter master pada tiap kartu, karena itulah yang menjelaskan mengapa dua kartu berbeda membawa target yang identik",
+    "Keterangan bahwa kedua kolom target adalah teks bebas yang bentuknya TIDAK DIBATASI SKEMA (nilainya dari seeder; satu seeder yang dijalankan atau satu suntingan langsung ke basis data dapat memperkenalkan bentuk baru tanpa satu pun uji menangkapnya), dan karena itu laporan ini tidak menandai satu nilai pun sebagai di luar batas",
+    "Keterangan bahwa kedua kolom target berlaku umum untuk seluruh mill, bukan khusus mill yang sedang dilihat",
+    "Bagian standar yang belum diukur sistem, beserta ALASAN per baris — dan tetap digambar dengan keterangannya sendiri walau isinya kosong; di stasiun ini ia normalnya memuat 'Final Kernel Dirt'",
+    "BLOK DOWNTIME: total menit berhenti sepanjang periode, jumlah slot yang mencatatnya, dan rata-rata menit per slot pencatat",
+    "Keterangan bahwa total menit dijumlahkan atas slot yang mencatatnya saja, sehingga slot tanpa catatan tidak dihitung sebagai nol menit",
+    "Keterangan bahwa downtime_minutes tidak punya standar pada master, sehingga tidak ada target maupun tindakan koreksi yang dapat ditampilkan bersamanya",
+    "REKAP TEMUAN — satu baris per teks temuan beserta jumlah slot yang mencatatnya, diurutkan dari terbanyak, pada bagian terpisah dari downtime",
+    "Keterangan bahwa temuan dikelompokkan harfiah, sehingga dua ejaan untuk hal yang sama muncul sebagai dua baris",
+    "Jumlah record pada periode dan line itu, jumlah hari yang punya record, jumlah record draft, jumlah yang belum diperiksa, dan jumlah yang belum disahkan",
+    "Rekap per unit kernel plant — satu baris per kernel_plant_id: jumlah hari tercatat, jumlah slot terisi, total menit downtime, dan rata-rata tiap kolom ukur",
+    "Rekap per hari — satu baris per tanggal: jumlah slot terisi, total menit downtime, dan rata-rata tiap kolom ukur, beserta baris total periode",
+    "Keterangan periode kosong bila tidak ada satu slot pun terisi — dengan cakupan pencatatan TETAP ditampilkan",
+    "Nama Production Line yang sedang berlaku, selalu terlihat"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan line yang angkanya dilihat. Wajib — tidak ada angka sebelum satu line berlaku. Pilihan diingat perangkat dan dibagi dengan Station List.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka / Tutup Bagian",
+      "description": "Menyingkap atau menyembunyikan rekap per unit kernel plant, rekap harian, dan rekap temuan. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh seluruh slot waktu periode dan line terpilih sebagai CSV, satu baris per slot. Hanya CSV — .xlsx tidak tersedia di WebView ponsel.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Reporting (screen-141).",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Keempat endpoint /api/kernel-plant-reports/* dipakai ulang APA ADANYA dari screen-154 — tidak ada endpoint baru, tidak ada perubahan backend, dan karena itu tidak mungkin ada angka yang berselisih dengan versi web.",
+    "Production Line WAJIB dipilih sebelum satu angka pun ditampilkan, dan penjagaannya ada di FUNGSI pemuatan ringkasan — bukan hanya di template — supaya jalur coba-lagi, ganti periode, dan pemulihan dari ingatan perangkat tidak melewatinya.",
+    "Pilihan Production Line diingat perangkat dengan kunci yang sama seperti Station List, dan urutan penyelesaiannya: query rute → ingatan perangkat → satu-satunya line → tidak ada. Kegagalan penyimpanan (mode privat) diperlakukan sebagai 'tidak ada ingatan', bukan sebagai galat.",
+    "Tidak ada pemilih mill. Kedua peran pada layar ini terikat satu mill, dan business_unit_id tidak pernah dikirim ke server untuk keduanya.",
+    "KETUJUH kartu parameter selalu dirender, termasuk yang tidak pernah terisi — dengan angka 'tidak tersedia' dan penyebut 0 slot, dan kedua kolom targetnya tetap tampil.",
+    "Setiap kartu mencetak PENYEBUTNYA SENDIRI. Ketujuh kolom nullable dan terisi saling bebas, sehingga satu penyebut bersama akan salah untuk setidaknya enam di antaranya. Penyebut itu dibaca sebagai 'N dari M slot' dengan N milik kartu itu dan M jumlah slot terisi seluruhnya — M SAMA pada ketujuh kartu, dan M per kolom yang berbeda-beda tidak ada serta tidak boleh dikarang.",
+    "Nilai yang tidak tersedia dirender sebagai keterangan, bukan sebagai 0. Persen cakupan dirender '—' ketika PENYEBUTNYA tidak terbentuk; periode yang punya record tetapi tanpa satu slot terisi menghasilkan 0,0% dan itu benar, karena penyebutnya ada.",
+    "Cakupan pencatatan dirender DI ATAS seluruh angka lain, dan TETAP dirender meski periode kosong.",
+    "Urutan cabang keterangan cakupan: days_counted nol DIPERIKSA SEBELUM period_running, karena server menandai periode yang belum mulai sebagai masih berjalan juga.",
+    "KEDUA kolom target dirender pada kartu yang sama dengan angkanya, verbatim — termasuk rencana tindakan koreksi, yang paling panjang teksnya dan karena itu paling berisiko dibuang demi ruang. Keterangan di dalam tanda kurung dirender utuh, tidak dipotong.",
+    "DUA PASANGAN kartu membawa keterangan bahwa standarnya SATU baris master yang sama — ripple mill 1 dengan 2, dan kernel silo 1 dengan 2. Daftar pasangannya DITURUNKAN dari shares_standard_with pada respons, bukan dipaku, sehingga mesin ketiga pun ditandai benar. Tata letak yang menangani satu pasangan secara khusus benar di Depricarping mobile dan SALAH di sini.",
+    "Angka kedua ripple mill dan kedua silo tidak pernah dirata-ratakan menjadi satu, dan selisihnya tidak ditandai — keduanya mesin fisik yang berbeda, dan rata-rata gabungan menyembunyikan ketidakseimbangan beban yang justru menjadi alasan parameter itu diukur.",
+    "Bagian standar-tanpa-pengukuran TETAP digambar walau kosong. Di stasiun ini ia normalnya memuat SATU baris ('Final Kernel Dirt'), jadi keadaan kosong justru yang luar biasa — kebalikan dari Depricarping.",
+    "TIDAK ADA penandaan otomatis di luar batas, dan keterangannya dirender UTUH — tidak diringkas demi ruang layar.",
+    "Downtime diterbitkan sebagai angka pada bloknya sendiri: total menit atas slot yang mencatat saja, jumlah slot yang mencatat, dan rata-rata per slot pencatat. Tanpa satu pun slot pencatat, blok itu menyatakan ketiadaannya alih-alih mencetak 0 menit.",
+    "Nilai downtime_minutes nol dibedakan dari tidak tercatat: nol berarti seseorang menyatakan tidak ada berhenti pada slot itu.",
+    "Temuan direkap harfiah tanpa normalisasi, pada bagian TERPISAH dari downtime — satu menjawab 'berapa lama', satu menjawab 'apa yang terlihat'.",
+    "Tidak ada aritmetika di klien. Seluruh angka diambil apa adanya dari respons server; repo klien tidak menghitung, tidak merata-ratakan, dan tidak menormalkan apa pun.",
+    "Record draft ikut terhitung pada seluruh angka, dan jumlahnya dinyatakan terpisah.",
+    "Ekspor hanya CSV. .xlsx tidak ditawarkan karena menyimpan dan membuka berkas itu di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini.",
+    "Sesi yang berakhir mengarahkan ke Login tanpa pesan jaringan — 'periksa koneksi Anda' pada sesi yang berakhir mengirim pembaca ke arah yang salah."
+  ],
+  "usecase_ids": [
+    "usecase-161--laporan-kernel-plant-mobile"
+  ],
+  "edge_cases": [
+    "Production Line belum dipilih — pemilih tampil dan TIDAK ada satu angka pun; bukan angka gabungan seluruh mill.",
+    "Mill tanpa Production Line — arahan menghubungi Admin, tanpa tombol coba lagi.",
+    "Daftar Production Line gagal dimuat — pesan BERBEDA dari 'mill belum punya line', dengan tombol coba lagi sendiri.",
+    "Line dari query rute dipakai dan diingat perangkat.",
+    "Line yang diingat perangkat dipakai tanpa diminta memilih lagi.",
+    "Line yang diingat sudah tidak ada — pemilih muncul lagi, tanpa menebak line lain.",
+    "Penyimpanan perangkat gagal (mode privat) — diperlakukan sebagai 'tidak ada ingatan', bukan galat.",
+    "Mill belum punya periode yang mencakup Kernel Plant — arahan menghubungi Admin, pemilih tetap ada dalam keadaan kosong. Kernel Plant stasiun aktif MVP, tetapi periodenya tetap dibuka per jenis stasiun.",
+    "Periode yang PUNYA record tetapi tanpa satu pun slot terisi — keterangan periode kosong, seluruh angka 'tidak tersedia', cakupan TETAP tampil, dan persennya 0,0% BUKAN '—' karena penyebutnya terbentuk.",
+    "Periode tanpa satu pun record — persen cakupan '—', karena tidak ada unit untuk dijadikan penyebut.",
+    "Satu kolom ukur kosong sepanjang periode — kartunya tetap ada dengan 'tidak tersedia', penyebut 0 slot, dan kedua kolom target tetap tampil.",
+    "Tujuh penyebut N yang berbeda pada periode yang sama — ketujuhnya tercetak, masing-masing pada kartunya sendiri, dengan M yang sama.",
+    "Satu slot hanya mengisi temuan tanpa satu pun kolom ukur — ia terhitung pada cakupan tetapi tidak menambah N kartu mana pun, sehingga slot terisi dapat MELEBIHI setiap N. Itu benar dan dinyatakan.",
+    "Ripple mill 2 terisi dan ripple mill 1 tidak (atau sebaliknya) — dua kartu tetap ada, dan keterangan standar-bersama tetap tampil pada keduanya.",
+    "Satu kernel silo terisi dan satu tidak — perlakuan sama seperti pasangan ripple mill.",
+    "Kedua anggota satu pasangan terisi dengan angka yang sangat berbeda — keduanya tampil apa adanya, tidak dirata-ratakan, dan selisihnya tidak ditandai.",
+    "Nama parameter pada master disunting sehingga tak lagi cocok dengan peta kolom — kartunya tetap menerbitkan angkanya tanpa target, keterangan standar-bersama TIDAK mengarang baris master yang sudah tidak ada, dan standar yang terlepas muncul pada bagian standar-tanpa-pengukuran.",
+    "Tidak ada satu pun slot yang mencatat downtime — blok downtime menyatakan ketiadaannya, bukan total 0 menit.",
+    "downtime_minutes bernilai 0 pada sebagian slot — ikut sebagai slot pencatat, dan dibedakan dari slot yang tidak mencatat.",
+    "Satu slot memuat downtime DAN temuan — terhitung sekali pada masing-masing bagian, tidak digabungkan.",
+    "Temuan kosong pada seluruh slot — keterangan, bukan tabel kosong.",
+    "Satu temuan muncul dengan ejaan berbeda — dua baris, dan keterangan menyatakan pengelompokannya harfiah.",
+    "Temuan sangat panjang — dibungkus utuh tanpa pemotongan yang menghilangkan isi.",
+    "Master target kosong — angka ukur tetap tampil, kedua kolom target dirender sebagai keterangan bahwa master belum terisi.",
+    "Periode masih berjalan — penyebut hari berhenti di hari ini, dan hal itu dinyatakan.",
+    "Periode belum mulai — persen cakupan '—' dan keterangan itu menang atas keterangan 'periode berjalan'.",
+    "Periode tertutup — laporan tampil penuh, ekspor tetap aktif.",
+    "Jaringan gagal saat memuat ringkasan — pesan dan tombol coba lagi, dan periode serta line yang sudah dipilih tidak hilang.",
+    "Dua permintaan ringkasan saling mendahului (pengguna mengganti periode cepat) — hanya respons permintaan terakhir yang dipakai.",
+    "Sesi berakhir (401) — diarahkan ke Login tanpa pesan jaringan.",
+    "Halaman tidak pernah menggulir mendatar pada lebar 390px; kedua tabel rekap menggulir DI DALAM kartunya sendiri."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Rekap harian versi mobile menampilkan ketujuh kolom rata-rata ditambah kolom slot dan kolom downtime dalam satu tabel yang menggulir mendatar di dalam kartunya — sembilan kolom, sama lebarnya dengan Depricarping mobile. Belum diputuskan apakah pada layar sempit lebih berguna memecahnya menjadi satu kartu per hari; bentuk tabel dipilih lebih dulu karena ia sejajar dengan versi web dan membuat perbandingan antar hari tetap mungkin.",
+    "Rencana tindakan koreksi adalah teks panjang (satu kalimat penuh), dan pada kartu di lebar 390px ia memakan ruang paling banyak dari kedua kolom target. Belum diputuskan apakah ia perlu dapat dilipat (terbuka saat ditekan) alih-alih selalu tampil penuh. Dipilih selalu tampil penuh lebih dulu, karena melipatnya berarti pembaca harus tahu dulu bahwa ada yang perlu dibuka — dan yang dipertaruhkan justru keterangan yang membedakan tindakan satu parameter dari parameter lain.",
+    "DUA pasangan berbagi standar pada satu layar sempit adalah keadaan baru yang belum pernah diuji pada laporan mobile mana pun. Keempat kartu itu bertumpuk berurutan, jadi pembaca melihat target identik dua kali, lalu target identik lain dua kali lagi. Belum diputuskan apakah keterangan standar-bersama cukup, atau apakah kedua anggota satu pasangan sebaiknya dibingkai bersama secara visual (satu wadah berisi dua kartu). Dipilih keterangan lebih dulu karena ia tidak menambah vokabulari tata letak baru.",
+    "Tiga pertanyaan terbuka screen-154 masih berlaku di sini, dan satu di antaranya menyentuh layar ini secara langsung: apakah 'shell_loss_percent' memang kuantitas yang sama dengan master 'Shell Bin Kernel Loss' — nama kolom menyebut shell, master menyebut kernel. Bila kolomnya di-rename, label kartu pada layar ini ikut berubah. Dua lainnya: apakah satu standar untuk dua ripple mill dan satu standar untuk dua silo memang yang dimaksud, dan apakah master perlu dipecah menjadi kolom batas numerik agar penandaan otomatis mungkin."
+  ]
+}

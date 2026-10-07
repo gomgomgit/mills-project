@@ -115,6 +115,15 @@ const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   // menentukannya: tanpa entri ini layar laporan Depricarping ada, rutenya
   // ada, seluruh test-nya lulus, dan tile-nya tetap kelabu.
   depricarping: 'report-depricarping',
+  // screen-155--laporan-kernel-plant-mobile. Satu baris yang sama
+  // menentukannya: tanpa entri ini layar laporan Kernel Plant ada, rutenya
+  // ada, seluruh test-nya lulus, dan tile-nya tetap kelabu. Kuncinya WAJIB
+  // DIKUTIP karena bertanda hubung — sama seperti 'cages-track',
+  // 'boiler-room', dan 'storage-tank' di bawah, dan TIDAK seperti
+  // depricarping/pressing/threshing yang namanya satu kata. Kunci
+  // bergaris-bawah ('kernel_plant') akan terkompilasi, terlihat benar, dan
+  // tidak pernah cocok dengan satu station.type pun.
+  'kernel-plant': 'report-kernel-plant',
   sterilizer: 'report-sterilizer',
   'cages-track': 'report-cages-track',
   'boiler-room': 'report-boiler-room',

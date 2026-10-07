@@ -1,0 +1,452 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-07"
+  },
+  "ver": 1,
+  "id": "screen-155--laporan-kernel-plant-mobile",
+  "name": "Laporan Kernel Plant (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "report-kernel-plant (path '/reports/kernel-plant' pada router mobile Vue; meta.public false)",
+  "auth_requirement": "authenticated — token Sanctum. Aktor: actor-station-operator dan actor-supervisor, keduanya terikat mill akunnya.",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Hanya mill pada business_unit_id akunnya. business_unit_id TIDAK PERNAH dikirim ke server — server menyelesaikannya dari akun. Operator adalah aktor utama layar ini, dan itulah sebabnya keempat rute API menerimanya sejak screen-154 dibangun."
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Sama dengan Operator — terikat mill akunnya, business_unit_id tidak dikirim."
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "Bukan aktor mobile pada laporan ini; ia memakai layar web screen-154. Rute API menerimanya, tetapi layar mobile ini tidak dicapai dari alur mana pun miliknya."
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": false,
+      "conditions": "Admin memakai layar web, yang satu-satunya punya pemilih mill. Layar mobile ini tidak punya pemilih mill sama sekali, jadi ia tak dapat melayani peran yang tidak terikat satu mill."
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-161--laporan-kernel-plant-mobile",
+      "usecase_name": "Lihat Laporan Periode Kernel Plant (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/kernel-plant-reports/periods",
+          "description": "Daftar periode yang mencakup stasiun Kernel Plant pada mill akun. DIPAKAI ULANG APA ADANYA dari screen-154 — nol endpoint baru. Klien mobile TIDAK PERNAH mengirim business_unit_id: kedua perannya terikat satu mill dan server menyelesaikannya dari akun.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string — status stasiun Kernel Plant pada periode itu, dari baris period_stations",
+                  "station_type": "string — 'kernel-plant'",
+                  "station_type_label": "string — label jenis stasiun dari master; inilah yang dipakai periodOptionLabel() di klien"
+                }
+              ],
+              "_catatan": "BENTUK INI DIKOREKSI TERHADAP periodOption() YANG SEBENARNYA. Draf pertama spec ini menulis 'business_unit_name' sebagai medan keenam; itu TIDAK ADA pada respons /periods — yang ada adalah station_type dan station_type_label. Nama mill dibaca dari summary.business_unit.name, satu sumber saja, supaya keduanya tidak dapat menyimpang."
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak ada atau sudah berakhir — klien mengarahkan ke Login TANPA pesan jaringan."
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Akun terikat mill tanpa business_unit_id — gagal tertutup sebelum satu query pun berjalan."
+              }
+            ]
+          },
+          "performance": {
+            "cache": "Tanpa cache di klien. Nol aritmetika dan nol penyimpanan hasil — daftar diambil ulang saat layar dibuka.",
+            "rate_limit": "Tanpa batas khusus"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-plant-reports/summary",
+          "description": "Seluruh isi laporan dalam satu respons, DIPAKAI ULANG APA ADANYA dari screen-154. Bentuk lengkapnya ada di tech spec screen-154 dan TIDAK diulang di sini supaya tidak ada dua sumber kebenaran yang dapat menyimpang. Yang khas mobile: business_unit_id tidak pernah dikirim, dan production_line_id selalu dikirim karena layar menolak memuat tanpanya.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "Periode yang dibaca."
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "WAJIB dari sisi layar ini: penjaganya ada di FUNGSI pemuatan ringkasan, bukan hanya di template, supaya jalur coba-lagi, ganti-periode, dan pemulihan dari ingatan perangkat tidak melewatinya."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_": "Identik dengan screen-154 /summary. Yang dibaca layar ini: period, business_unit, production_line, has_data, coverage (8 medan), metrics (7 entri, masing-masing dengan filled_slot_count sendiri dan target bersarang berisi equipment_parameter + target_benchmark + corrective_action_plan + shares_standard_with), targets_without_metric, targets_master_empty, all_targets_measured, by_kernel_plant, daily, daily_total, downtime, findings, total."
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir — ke Login tanpa pesan jaringan."
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode milik mill lain, atau akun tanpa business_unit_id."
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada."
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id tidak dikirim."
+              }
+            ]
+          },
+          "performance": {
+            "cache": "Tanpa cache. Dua permintaan yang saling mendahului diselesaikan dengan penanda permintaan terakhir — bukan pembatalan — supaya angka periode lama tidak mendarat setelah angka periode baru.",
+            "rate_limit": "Tanpa batas khusus"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-plant-reports/export",
+          "description": "Ekspor CSV, satu baris per slot waktu. DIPAKAI ULANG APA ADANYA. Klien mobile hanya meminta format=csv — .xlsx tidak ditawarkan karena menyimpan dan membuka berkas itu di WebView ponsel menuntut penanganan berkas native yang belum ada, bukan karena endpoint-nya tidak mendukungnya.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "Sama dengan /summary."
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "Ekspor mengikuti line yang sedang berlaku di layar."
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "Selalu 'csv' dari klien ini."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_": "Blob CSV; klien menyimpannya lewat saveCsvFile() seperti sepuluh laporan mobile lainnya."
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir."
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter kurang, format tak dikenal, atau jumlah baris melebihi EXPORT_ROW_LIMIT (50000) — diangkat EAGER sebelum satu byte pun terkirim."
+              }
+            ]
+          },
+          "performance": {
+            "cache": "Tanpa cache",
+            "rate_limit": "Tanpa batas khusus"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "Daftar opsi Production Line mill akun. Dibangun untuk screen-135 dan dipakai ulang apa adanya oleh seluruh laporan mobile — TIDAK diduplikasi per stasiun.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "code": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir."
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Akun tanpa business_unit_id."
+              }
+            ]
+          },
+          "performance": {
+            "cache": "Tanpa cache; kegagalannya dibedakan dari 'mill belum punya line' dan punya tombol coba lagi sendiri.",
+            "rate_limit": "Tanpa batas khusus"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Layar dibuka dari tile Kernel Plant pada screen-141. Rute 'report-kernel-plant' ber-meta.public false; tanpa token, guard router mengarahkan ke Login.",
+        "2. Muat daftar Production Line lewat /api/production-lines/options-for-report. → bila mill tidak punya satu line pun: arahan menghubungi Admin, TANPA tombol coba lagi. → bila permintaannya GAGAL: pesan yang BERBEDA beserta tombol coba lagi sendiri — dua keadaan yang tidak boleh terbaca sama.",
+        "3. Selesaikan line: query rute → ingatan perangkat (kunci sama dengan Station List) → satu-satunya line → tidak ada. → bila penyimpanan tidak dapat dibaca (mode privat): diperlakukan sebagai 'tidak ada ingatan', BUKAN galat. → bila line yang diingat sudah tidak ada di daftar: pemilih muncul lagi dan TIDAK menebak line lain.",
+        "4. Muat daftar periode lewat /api/kernel-plant-reports/periods tanpa business_unit_id. → bila kosong: arahan menghubungi Admin, pemilih tetap ada dalam keadaan kosong.",
+        "5. PENJAGA: bila belum ada line berlaku, JANGAN panggil /summary sama sekali — tampilkan pemilih dan NOL angka. Penjaga ini ada di dalam fungsi pemuatan, sehingga jalur coba-lagi, ganti-periode, dan pemulihan ingatan semuanya terlindung.",
+        "6. Muat /summary dengan period_id dan production_line_id. Tandai permintaannya; → bila respons yang datang bukan milik permintaan terakhir, BUANG — jangan render.",
+        "7. Render cakupan pencatatan PALING ATAS, termasuk ketiga angka pembentuk penyebutnya. → bila days_counted nol: keterangan 'belum mulai', DIPERIKSA SEBELUM period_running karena server menandai periode yang belum mulai sebagai masih berjalan juga. → bila period_running: keterangan penyebut berhenti di hari ini.",
+        "8. Render TUJUH kartu parameter dari metrics[], selalu ketujuhnya. Tiap kartu: min/rata-rata/maks berdampingan, 'N dari M slot' dengan N = filled_slot_count kartu itu dan M = coverage.filled_slots, nama parameter master, target, dan rencana tindakan koreksi — keduanya verbatim termasuk keterangan dalam tanda kurung. → bila kolomnya tak pernah terisi: 'tidak tersedia' dan penyebut 0, kartunya TETAP ada.",
+        "9. Pada kartu yang target.shares_standard_with tidak kosong, render keterangan standar-bersama beserta nama kolom pasangannya. → bila target.equipment_parameter null (nama master disunting): JANGAN cetak nama itu; ganti PERNYATAANNYA menjadi 'keduanya tidak terpeta ke baris master mana pun', karena kalimat 'master hanya memuat satu baris X' sendiri menjadi tidak benar.",
+        "10. Render blok downtime. → bila recorded_slot_count nol: NYATAKAN ketiadaannya alih-alih mencetak 0 menit. → bila total_minutes nol tetapi recorded_slot_count lebih dari nol: cetak 0, karena seseorang menyatakan tidak ada berhenti.",
+        "11. Render rekap temuan pada bagian TERPISAH dari downtime, harfiah, urut terbanyak. → bila kosong: keterangan, bukan tabel kosong.",
+        "12. Render bagian standar-tanpa-pengukuran. TETAP digambar walau kosong (all_targets_measured); di stasiun ini ia normalnya memuat 'Final Kernel Dirt'.",
+        "13. Render rekap per unit kernel plant dan rekap per hari, masing-masing dalam kartu yang menggulir mendatar DI DALAM dirinya — halaman tidak pernah menggulir mendatar pada 390px.",
+        "14. Render pernyataan ketiadaan penandaan di luar batas, UTUH tanpa diringkas.",
+        "15. Ekspor: minta /export?format=csv, simpan lewat saveCsvFile().",
+        "16. Pada 401 dari rute mana pun: arahkan ke Login TANPA pesan jaringan."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "kernel-plant-record",
+          "operation": "SELECT",
+          "description": "Dibaca di server oleh KernelPlantReportService; klien tidak menyentuh basis data. Tidak ada penyimpanan lokal SQLite untuk laporan — layar ini online-only, berbeda dari layar input yang offline-first."
+        },
+        {
+          "entity_id": "kernel-plant-detail",
+          "operation": "SELECT",
+          "description": "Sama — di server."
+        },
+        {
+          "entity_id": "kernel-plant-operational-target",
+          "operation": "SELECT",
+          "description": "Sama — di server. Catatan: mobile punya src/data/kernelPlantOperationalTargets.ts (70 baris) untuk layar INPUT; laporan ini TIDAK memakainya, melainkan nilai master yang datang dari respons, supaya tidak ada dua sumber target yang dapat menyimpang."
+        },
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Sama — di server."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Sama — di server, lewat endpoint opsi yang dipakai ulang."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Production Line belum berlaku",
+          "handling": "Pemilih tampil; fungsi pemuatan ringkasan keluar lebih awal sehingga /summary tidak pernah dipanggil. NOL angka — bukan angka gabungan seluruh mill."
+        },
+        {
+          "condition": "Mill tanpa Production Line",
+          "handling": "Arahan menghubungi Admin, tanpa tombol coba lagi — mencoba lagi tidak akan mengubah apa pun."
+        },
+        {
+          "condition": "Daftar Production Line gagal dimuat",
+          "handling": "Pesan BERBEDA dari 'mill belum punya line', dengan tombol coba lagi sendiri. Menyatukan keduanya akan menyuruh pengguna menelepon Admin untuk masalah jaringan."
+        },
+        {
+          "condition": "Penyimpanan perangkat gagal (mode privat)",
+          "handling": "try/catch di sekeliling baca dan tulis; kegagalan diperlakukan sebagai 'tidak ada ingatan'. Layar tetap berfungsi penuh."
+        },
+        {
+          "condition": "Line yang diingat sudah tidak ada",
+          "handling": "Ingatan dibuang, pemilih muncul lagi, dan TIDAK ada line lain yang ditebak."
+        },
+        {
+          "condition": "Mill belum punya periode Kernel Plant",
+          "handling": "Arahan menghubungi Admin; pemilih periode tetap dirender dalam keadaan kosong, bukan dihilangkan."
+        },
+        {
+          "condition": "Periode punya record tetapi tanpa slot terisi",
+          "handling": "has_data false; keterangan periode kosong; cakupan TETAP tampil dengan persen 0,0% — BUKAN tanda pisah, karena penyebutnya terbentuk. Ketujuh kartu tetap ada dengan 'tidak tersedia'."
+        },
+        {
+          "condition": "Periode tanpa satu pun record",
+          "handling": "expected_slots nol sehingga coverage_percent null, dirender tanda pisah."
+        },
+        {
+          "condition": "Satu slot hanya mengisi temuan",
+          "handling": "Slot terisi dapat MELEBIHI setiap N. Dinyatakan di layar supaya tidak dibaca sebagai ketidakkonsistenan lalu 'diperbaiki' menjadi salah."
+        },
+        {
+          "condition": "Satu anggota pasangan tidak pernah terisi",
+          "handling": "Dua kartu tetap ada; keterangan standar-bersama tetap pada keduanya. Menyembunyikan kartu kosong akan menyembunyikan bahwa satu mesin tidak pernah dicatat."
+        },
+        {
+          "condition": "Nama parameter master disunting",
+          "handling": "Kartu tetap menerbitkan angkanya dengan target kosong; PERNYATAAN standar-bersama berganti alih-alih mencetak nama null; standar yang terlepas muncul di bagian standar-tanpa-pengukuran."
+        },
+        {
+          "condition": "Master target kosong seluruhnya",
+          "handling": "targets_master_empty true; angka ukur tetap tampil; kedua kolom target dirender sebagai keterangan bahwa master belum terisi — bukan sel kosong, yang terbaca seperti nilai yang hilang."
+        },
+        {
+          "condition": "Tidak ada slot yang mencatat downtime",
+          "handling": "Blok menyatakan ketiadaannya. Mencetak 0 menit akan terbaca sebagai 'stasiun tidak pernah berhenti'."
+        },
+        {
+          "condition": "Dua permintaan ringkasan saling mendahului",
+          "handling": "Penanda permintaan terakhir; respons yang bukan miliknya dibuang tanpa dirender."
+        },
+        {
+          "condition": "Jaringan gagal saat memuat ringkasan",
+          "handling": "Pesan dan tombol coba lagi; periode dan line yang sudah dipilih TIDAK hilang — memaksa memilih ulang setelah gagal jaringan adalah hukuman untuk hal yang bukan salah pengguna."
+        },
+        {
+          "condition": "Sesi berakhir (401)",
+          "handling": "Diarahkan ke Login tanpa pesan jaringan."
+        },
+        {
+          "condition": "Temuan sangat panjang",
+          "handling": "Dibungkus utuh; tanpa pemotongan yang menghilangkan isi."
+        },
+        {
+          "condition": "Lebar 390px",
+          "handling": "Halaman tidak pernah menggulir mendatar; kedua tabel rekap menggulir di dalam kartunya sendiri."
+        }
+      ],
+      "business_rules_applied": [
+        "Keempat endpoint dipakai ulang apa adanya; nol endpoint baru dan nol perubahan backend.",
+        "Production Line wajib, dan penjaganya di fungsi pemuatan ringkasan bukan di template.",
+        "Urutan penyelesaian line: query rute → ingatan perangkat → line tunggal → tidak ada.",
+        "Tidak ada pemilih mill; business_unit_id tidak pernah dikirim.",
+        "Ketujuh kartu selalu dirender, termasuk yang tak pernah terisi.",
+        "Tiap kartu mencetak N miliknya sendiri; M seragam pada ketujuhnya.",
+        "coverage_percent tanda pisah hanya ketika penyebutnya tak terbentuk.",
+        "Cakupan di atas seluruh angka lain, dan tetap dirender meski periode kosong.",
+        "days_counted nol diperiksa sebelum period_running.",
+        "Kedua kolom target verbatim pada kartu yang sama dengan angkanya.",
+        "Dua pasangan berbagi standar, diturunkan dari shares_standard_with bukan dipaku, dengan penjaga null pada pernyataannya.",
+        "Angka anggota satu pasangan tidak pernah dirata-ratakan.",
+        "Bagian standar-tanpa-pengukuran tetap digambar walau kosong.",
+        "Tidak ada penandaan otomatis di luar batas, keterangannya utuh.",
+        "Downtime pada bloknya sendiri; tanpa slot pencatat ia menyatakan ketiadaannya; nol yang tercatat dibedakan dari tidak tercatat.",
+        "Temuan harfiah, pada bagian terpisah dari downtime.",
+        "Nol aritmetika di klien.",
+        "Ekspor hanya CSV.",
+        "401 ke Login tanpa pesan jaringan."
+      ],
+      "unit_test_cases": []
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "kernel-plant-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "kernel-plant-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "kernel-plant-operational-target",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-154--laporan-kernel-plant-web",
+      "reason": "SUMBER SELURUH ANGKA. Keempat endpoint /api/kernel-plant-reports/* dipakai ulang APA ADANYA — nol endpoint baru, nol perubahan backend. Itulah yang membuat layar web, API, dan ponsel tidak mungkin berselisih tentang satu angka pun, dan itu pula sebabnya layar ini tidak boleh menghitung apa pun di klien."
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "SATU-SATUNYA pintu masuk. Tile Kernel Plant hidup hanya jika REPORT_ROUTES di ReportingPilihStasiunView.vue memuat entri 'kernel-plant': 'report-kernel-plant'. Tanpa satu baris itu layarnya ada, rutenya ada, seluruh ujinya lulus, dan tile-nya tetap kelabu."
+    },
+    {
+      "screen_id": "screen-002--login-mobile",
+      "reason": "Token Sanctum wajib; 401 mengarahkan ke Login tanpa pesan jaringan."
+    },
+    {
+      "screen_id": "GET /api/production-lines/options-for-report",
+      "reason": "Daftar opsi Production Line, dipakai ulang apa adanya — tidak diduplikasi."
+    }
+  ],
+  "implementation_notes": [
+    "NOL PERUBAHAN BACKEND, dan itu bukan kebetulan melainkan konsekuensi urutan pembangunan. Keempat rute /api/kernel-plant-reports/* sudah menerima peran mobile (termasuk Operator) sejak screen-154 dibangun, karena kedua layar direncanakan dalam satu seri. Pasangan Weighbridge (143 → 144) harus menambal tiga tempat setelahnya justru karena layar web-nya mendarat sebelum kembaran mobile-nya diketahui. Yang TIDAK terbuka tetap tidak terbuka: /business-units/options Admin saja (403 dari dalam service), dan rute WEB /reports/kernel-plant tanpa Operator.",
+    "BERKAS YANG DIBUAT, dan hanya ini: src/services/kernelPlantReportRepo.ts (repo klien + tipe respons), src/views/LaporanKernelPlantView.vue (layar), satu entri rute pada src/router/index.ts, dan SATU BARIS pada REPORT_ROUTES di src/views/ReportingPilihStasiunView.vue. Model: depricarpingReportRepo.ts (715 baris) dan LaporanDepricarpingView.vue (1809 baris), diport baris demi baris.",
+    "KUNCI PETA PEMILIH ADALAH 'kernel-plant' DENGAN TANDA HUBUNG, dan karena itu ia WAJIB dikutip pada literal objek — seperti 'cages-track', 'boiler-room', dan 'storage-tank' di sekitarnya, dan TIDAK seperti depricarping/pressing/threshing yang tak berkutip karena namanya satu kata. Kunci bergaris-bawah akan terkompilasi, terlihat benar, dan tidak pernah cocok dengan station.type mana pun.",
+    "TIPE RESPONS BERBEDA DARI DEPRICARPING PADA DUA TEMPAT, dan menyalinnya mentah akan membuat tipe berbohong: (1) target hanya punya TIGA medan isi — equipment_parameter, target_benchmark, corrective_action_plan — ditambah shares_standard_with; TIDAK ada target_range, critical_limit, maupun operational_consequence_justification, karena master Kernel Plant tidak punya kolom batas kritis sama sekali. (2) KernelPlantReportKernelPlantRow menggantikan DepricarpingReportPresserRow, dengan kernel_plant_id dan kernel_plant_name sebagai `string` — bukan uuid dan bukan kunci asing; tidak ada tabel master kernel_plants, dan kernel_plant_name sama nilainya dengan kernel_plant_id.",
+    "DUA PASANGAN BERBAGI STANDAR, bukan satu — inilah yang membedakan layar ini dari seluruh laporan mobile sebelumnya. 'Ripple Mill (Cracker)' mengatur ripple_mill_1_amps dan ripple_mill_2_amps; 'Kernel Silo 1 & 2' mengatur kernel_silo_1_temp_c dan kernel_silo_2_temp_c. Keterangan standar-bersama DITURUNKAN dari target.shares_standard_with pada respons, bukan dipaku di template, sehingga mesin ketiga pun ditandai benar. Tata letak yang mengistimewakan SATU pasangan benar di Depricarping mobile dan SALAH di sini.",
+    "DAN PENJAGA NULL PADA KETERANGAN ITU WAJIB. Ketika nama parameter master disunting sehingga tak lagi cocok dengan peta kolom, target.equipment_parameter bernilai null; mencetaknya apa adanya menghasilkan keterangan yang mengklaim baris master yang justru baru lepas. Defek persis itu ditemukan dan ditutup pada layar web screen-154, dan bentuk pernyataannya yang harus BERGANTI — bukan hanya nilainya — karena kalimatnya sendiri menjadi tidak benar.",
+    "PENYEBUT 'N dari M slot': N = metrics[].filled_slot_count milik kartu itu, M = coverage.filled_slots, SERAGAM pada ketujuh kartu. API tidak menerbitkan M per kolom dan tidak boleh; ketujuh kolom ukur hadir pada SETIAP baris detail, jadi 'unit mana mengukur parameter mana' tidak dapat diketahui skema ini. Dan di sinilah aturan 'slot terisi dapat melebihi setiap N' terbaca utuh: yang dilampaui adalah N, bukan M.",
+    "coverage_percent dirender tanda pisah HANYA ketika penyebutnya tidak terbentuk (expected_slots nol: tidak ada unit ber-record, atau tidak ada hari terhitung). Periode yang PUNYA record tetapi tanpa satu slot terisi menghasilkan 0,0% dan itu benar. Draf pertama spec screen-154 menyatakannya salah dan sudah dikoreksi; jangan mewarisi kesalahan itu ke sini.",
+    "PENJAGA PRODUCTION LINE ADA DI FUNGSI PEMUATAN RINGKASAN, bukan hanya di template. Jalur coba-lagi, ganti-periode, dan pemulihan dari ingatan perangkat semuanya memanggil fungsi itu; penjaga yang hanya ada di template dilewati oleh ketiganya. Urutan penyelesaian: query rute → ingatan perangkat (kunci yang sama dengan Station List) → satu-satunya line → tidak ada. Kegagalan penyimpanan (mode privat) diperlakukan sebagai 'tidak ada ingatan', bukan galat.",
+    "NOL ARITMETIKA DI KLIEN. Repo tidak menghitung, tidak merata-ratakan, dan tidak menormalkan apa pun — seluruh angka diambil apa adanya dari respons. Itu satu-satunya cara menjamin ponsel tidak pernah berselisih dengan web, dan ia juga memindahkan seluruh perbedaan SQLite-versus-PostgreSQL ke satu tempat yang sudah diuji.",
+    "DUA PERMINTAAN RINGKASAN YANG SALING MENDAHULUI harus diselesaikan dengan penanda permintaan terakhir (bukan membatalkan yang lama), supaya pengguna yang mengganti periode dengan cepat tidak melihat angka periode sebelumnya mendarat setelah angka periode barunya.",
+    "EKSPOR HANYA CSV. .xlsx tidak ditawarkan karena menyimpan dan membuka berkas itu di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini — bukan karena endpoint-nya tidak mendukungnya (ia mendukung).",
+    "401 MENGARAHKAN KE LOGIN TANPA PESAN JARINGAN. 'Periksa koneksi Anda' pada sesi yang berakhir mengirim pembaca ke arah yang salah — ia akan memeriksa sinyal alih-alih masuk kembali.",
+    "TABEL TUJUH KOLOM MENJADI KARTU, dan hanya itu perubahan bentuknya. Daftar isinya TIDAK berubah: memotong penyebut atau salah satu dari kedua kolom target demi ruang adalah kehilangan yang paling mudah terjadi dan paling sulit terlihat. Yang paling berisiko dibuang adalah corrective_action_plan karena ia paling panjang teksnya — dan tanpa itu, dua parameter yang sama-sama melewati targetnya tampak menuntut tindakan yang sama.",
+    "LAYAR INI DAPAT DIUJI DI BROWSER lewat Vite dev server; ia bukan 'mobile-only'. Spec Playwright-nya ada di mobile/tests/e2e/laporan-kernel-plant.spec.ts, sejajar sepuluh spec laporan mobile lainnya, dan menuntut backend (php artisan serve) plus mobile dev server (npm run dev) berjalan. Menunda uji browser dengan alasan 'ini mobile' adalah kesalahan yang pernah dibuat dan dikoreksi di proyek ini.",
+    "TIGA KOREKSI TERHADAP INSTRUKSI/SPEC SAYA SENDIRI, ditemukan saat implementasi dan diselesaikan dengan mengikuti KODE: (1) respons /periods tidak memuat business_unit_name — ia memuat station_type dan station_type_label; nama mill dibaca dari summary.business_unit.name saja. (2) Hanya TIGA dari empat endpoint menerima peran mobile; /business-units/options MENOLAK Operator, Supervisor, dan Mill Management dengan 403 dari dalam service. Konsekuensinya benar dan disengaja: layar ini tidak punya jalur kode untuk memanggilnya sama sekali, sehingga business_unit_id tak dapat terkirim karena ketiadaan jalur, bukan karena penjaga. (3) Satuan suhu diterbitkan master sebagai 'C', bukan '°C'. Klien merendernya VERBATIM — memetakan C menjadi °C di klien tepat jenis normalisasi yang dilarang aturan nol-aritmetika, dan akan membuat ponsel berselisih dengan web tentang medan yang sama. Bila '°C' yang diinginkan, perubahan satu barisnya ada di KernelPlantReportService::METRIC_LABELS — satu tempat, dua layar.",
+    "DUA DEFEK LAMA DI LAPORAN DEPRICARPING MOBILE yang SENGAJA TIDAK disalin ke sini, keduanya sudah diverifikasi: (1) LaporanDepricarpingView.vue baris 1485, 1498, dan 1512 membungkus ketiga angka downtime dengan kelas .metric-values yang TIDAK TERDEFINISI di satu berkas pun di seluruh src/ — jadi ketiga pembungkus itu div tanpa gaya, dan .metric-value di dalamnya (26px, dimaksudkan untuk angka telanjang) membungkus pasangan <small>+<b>. Layar Kernel Plant memakai .metric-row/.metric-row-item yang terdefinisi. (2) Keterangan cakupan di Depricarping mobile menyebut 'minimal satu dari ENAM kolom bacaan' padahal docblock repo-nya sendiri dan backend menyebut SEMBILAN. Layar Kernel Plant menyebut sembilan, cocok dengan KernelPlantRecordService::isRowFilled(). Keduanya berkas layar lain dan tidak diperbaiki di sini.",
+    "SATU KONSEKUENSI YANG HARUS DITANGANI DI BERKAS UJI LAIN, dan ia DISENGAJA oleh perancang uji itu: tests/ReportingPilihStasiunView.spec.ts memakai 'kernel-plant' sebagai fixture kanonis 'laporan belum dibangun', sehingga membangun laporan ini membuat 7 ujinya gagal. Docblock spec itu (baris 21–30) menyatakannya terang-terangan: contohnya sudah EMPAT KALI dipindahkan karena laporannya memang dibangun (Weighbridge, Threshing, Pressing, Depricarping), dan 'dipindahkan, BUKAN dihapus: bila Process Water, Kernel Plant atau Effluent Plant pun dibuatkan laporan mobile, spec ini akan gagal lagi — dan itu benar, karena ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.' Jadi 7 merah itu uji yang bekerja, bukan uji yang rusak. Pemindahan kelima adalah bagian dari mendaratkan layar ini, bukan pelebaran cakupan."
+  ],
+  "test_scenarios": []
+}

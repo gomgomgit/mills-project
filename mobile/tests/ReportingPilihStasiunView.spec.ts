@@ -22,11 +22,17 @@
  * karena laporannya memang dibangun: Weighbridge -> Engine Room pada
  * screen-144, Threshing -> Process Water pada screen-149, Pressing ->
  * Kernel Plant pada screen-151, lalu Depricarping -> Effluent Plant pada
- * screen-153 (keempatnya 2026-10-06).
- * Dipindahkan, BUKAN dihapus: bila Process Water, Kernel Plant atau Effluent
- * Plant pun dibuatkan laporan mobile, spec ini akan gagal lagi — dan itu
- * benar, karena ia memaksa contohnya diperbarui alih-alih diam-diam menjadi
- * selalu hijau.
+ * screen-153 (keempatnya 2026-10-06). PEMINDAHAN KELIMA pada screen-155
+ * (2026-10-07): Kernel Plant -> Process Quality Control, karena laporan
+ * Kernel Plant mobile dibangun dan tujuh test di berkas ini gagal — persis
+ * seperti yang diperingatkan di bawah.
+ * Dipindahkan, BUKAN dihapus: bila Process Water, Process Quality Control,
+ * Effluent Plant, Engine Room, Solid Waste Disposal, Kernel Dispatch atau
+ * CPO Dispatch pun dibuatkan laporan mobile, spec ini akan gagal lagi — dan
+ * itu benar, karena ia memaksa contohnya diperbarui alih-alih diam-diam
+ * menjadi selalu hijau. Process Quality Control dipilih karena sort_order-nya
+ * 180, paling akhir dari seluruh jenis stasiun, sehingga pemindahan keenam
+ * tertunda paling lama.
  *
  *   - 'process-water' dengan isActive = true → tile WAJIB nonaktif (kodenya
  *     tidak ada di REPORT_ROUTES).
@@ -144,7 +150,7 @@ function makeStation(overrides: Partial<StationSlot> & { id: string }): StationS
 const THREE_STATIONS: StationSlot[] = [
   makeStation({ id: 'st-1', name: 'Sterilizer Lini A', type: 'sterilizer', isActive: true }),
   makeStation({ id: 'st-2', name: 'Process Water Lini A', type: 'process-water', isActive: true }),
-  makeStation({ id: 'st-3', name: 'Kernel Plant Lini A', type: 'kernel-plant', isActive: true }),
+  makeStation({ id: 'st-3', name: 'Process Quality Control Lini A', type: 'process-quality-control', isActive: true }),
 ]
 
 function mockAuthUser(role: 'operator' | 'supervisor' | 'mill_management' | 'admin' = 'operator') {
@@ -193,8 +199,8 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(tiles[0].text()).toContain('Sterilizer Lini A')
     expect(tiles[1].attributes('data-testid')).toBe('station-tile-process-water')
     expect(tiles[1].text()).toContain('Process Water Lini A')
-    expect(tiles[2].attributes('data-testid')).toBe('station-tile-kernel-plant')
-    expect(tiles[2].text()).toContain('Kernel Plant Lini A')
+    expect(tiles[2].attributes('data-testid')).toBe('station-tile-process-quality-control')
+    expect(tiles[2].text()).toContain('Process Quality Control Lini A')
   })
 
   // unit_test_case 1 (bagian ikon) — tiap tile membawa ikon SVG per jenis
@@ -474,7 +480,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   it('scenario: menekan berkali-kali — pesan tidak pernah menumpuk, hanya tertimpa', async () => {
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
-      makeStation({ id: 'st-3', name: 'Kernel Plant', type: 'kernel-plant', isActive: true }),
+      makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
     ])
 
     const unbuilt = wrapper.get('[data-testid="station-tile-process-water"]')
@@ -489,12 +495,12 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(wrapper.findAll('[data-testid="info-message"]')).toHaveLength(1)
     expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Process Water belum tersedia di aplikasi mobile.')
 
-    await wrapper.get('[data-testid="station-tile-kernel-plant"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-process-quality-control"]').trigger('click')
     await wrapper.vm.$nextTick()
 
     const infoMessages = wrapper.findAll('[data-testid="info-message"]')
     expect(infoMessages).toHaveLength(1)
-    expect(infoMessages[0].text()).toBe('Laporan Kernel Plant belum tersedia di aplikasi mobile.')
+    expect(infoMessages[0].text()).toBe('Laporan Process Quality Control belum tersedia di aplikasi mobile.')
     expect(pushMock).not.toHaveBeenCalled()
   })
 
@@ -541,7 +547,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(wrapper.findAll('[data-testid^="station-tile-"]')).toHaveLength(3)
     expect(wrapper.get('[data-testid="station-tile-sterilizer"]').attributes('aria-disabled')).toBe('false')
     expect(wrapper.get('[data-testid="station-tile-process-water"]').attributes('aria-disabled')).toBe('true')
-    expect(wrapper.get('[data-testid="station-tile-kernel-plant"]').attributes('aria-disabled')).toBe('true')
+    expect(wrapper.get('[data-testid="station-tile-process-quality-control"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="no-stations"]').exists()).toBe(false)
     expect(apiClientGetMock).not.toHaveBeenCalled()
@@ -555,13 +561,13 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
       makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
-      makeStation({ id: 'st-3', name: 'Kernel Plant', type: 'kernel-plant', isActive: true }),
+      makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
       // DIPINDAHKAN dari Depricarping pada screen-153 — stasiun itu kini
       // punya laporan mobile, jadi tile-nya aktif dan jumlah tile nonaktif
       // turun jadi 3. Effluent Plant dipilih karena ia belum dipakai sebagai
       // contoh di tempat lain mana pun.
       makeStation({ id: 'st-4', name: 'Effluent Plant', type: 'effluent-plant', isActive: true }),
-      makeStation({ id: 'st-5', name: 'Kernel Plant', type: 'kernel-plant', isActive: true }),
+      makeStation({ id: 'st-5', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
     ])
 
     const tiles = wrapper.findAll('[data-testid^="station-tile-"]')
@@ -582,7 +588,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
       makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
-      makeStation({ id: 'st-3', name: 'Kernel Plant', type: 'kernel-plant', isActive: false }),
+      makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: false }),
     ])
 
     const tiles = wrapper.findAll('[data-testid^="station-tile-"]')
@@ -629,7 +635,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       expect(tiles.map((tile) => tile.attributes('data-testid'))).toEqual([
         'station-tile-sterilizer',
         'station-tile-process-water',
-        'station-tile-kernel-plant',
+        'station-tile-process-quality-control',
       ])
       expect(wrapper.text()).not.toMatch(/akses ditolak|tidak diizinkan|forbidden/i)
       expect(pushMock).not.toHaveBeenCalled()

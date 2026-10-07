@@ -459,7 +459,7 @@ class CagesTrackReportService
             // TAMBAHAN, bukan perubahan bentuk: kunci baru di samping yang
             // sudah ada, sehingga pembaca lama (blade dan layar mobile) tidak
             // terpengaruh sama sekali. null ketika tidak ada line berlaku.
-            'production_line' => $this->productionLineInfo($productionLineId),
+            'production_line' => $this->productionLineInfo($productionLineId, (string) $period->business_unit_id),
             'kpi' => [
                 'total_cages_tipped' => $totalCagesTipped,
                 'total_cages_out' => $totalCagesOut,
@@ -561,7 +561,7 @@ class CagesTrackReportService
             $exportContext = [
                 (string) $period->name,
                 (string) ($period->businessUnit?->name ?? ''),
-                (string) ($this->productionLineInfo($productionLineId)['name'] ?? ''),
+                (string) ($this->productionLineInfo($productionLineId, (string) $period->business_unit_id)['name'] ?? ''),
             ];
 
             return response()->streamDownload(function () use ($query, $format, $exportContext) {
@@ -1137,15 +1137,33 @@ class CagesTrackReportService
      * adanya nol perubahan. null ketika tidak ada line yang berlaku.
      *
      * @return array{id: string, name: string}|null
+     *
+     * DIBATASI KE MILL-NYA, dan itu bukan hiasan. Tanpa klausa
+     * business_unit_id di bawah, memanggil /summary dengan
+     * production_line_id milik mill LAIN menjawab 200 berisi id DAN NAMA
+     * MANUSIAWI line itu — angkanya aman (scopeToProductionLine() menyaring
+     * ke nol baris, dan query-nya tetap terkurung pada mill periode), tetapi
+     * keberadaan serta nama sebuah line yang pemanggil tidak berhak
+     * melihatnya tetap terbit. Itu justru yang hendak dicegah ketika line
+     * milik mill lain DIABAIKAN alih-alih ditolak 403: penolakan ditahan
+     * supaya tidak memastikan line itu ada, lalu blok ini memastikannya juga
+     * — lengkap dengan namanya.
+     *
+     * Ditemukan 2026-10-07 saat menulis uji KernelPlantReportService,
+     * dibuktikan lewat permintaan HTTP sungguhan, dan diperbaiki IDENTIK di
+     * kesebelas report service sekaligus karena bentuk tanpa scope itu ada
+     * identik di semuanya.
      */
-    protected function productionLineInfo(?string $productionLineId): ?array
+    protected function productionLineInfo(?string $productionLineId, string $businessUnitId): ?array
     {
         if ($productionLineId === null || $productionLineId === '') {
             return null;
         }
 
         /** @var ProductionLine|null $line */
-        $line = ProductionLine::query()->find($productionLineId, ['id', 'name']);
+        $line = ProductionLine::query()
+            ->where('business_unit_id', $businessUnitId)
+            ->find($productionLineId, ['id', 'name']);
 
         if ($line === null) {
             return null;

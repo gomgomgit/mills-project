@@ -655,7 +655,7 @@ class WeighbridgeReportService
 
         return [
             'business_unit' => $this->businessUnitInfo($businessUnitId),
-            'production_line' => $this->productionLineInfo($productionLineId),
+            'production_line' => $this->productionLineInfo($productionLineId, (string) $period->business_unit_id),
             'period' => [
                 'id' => (string) $period->id,
                 'name' => (string) $period->name,
@@ -764,7 +764,7 @@ class WeighbridgeReportService
         $context = [
             (string) $period->name,
             (string) ($period->businessUnit?->name ?? ''),
-            (string) ($this->productionLineInfo($productionLineId)['name'] ?? ''),
+            (string) ($this->productionLineInfo($productionLineId, (string) $period->business_unit_id)['name'] ?? ''),
         ];
 
         return $this->streamExportRows($recordQuery, $context);
@@ -1451,11 +1451,29 @@ class WeighbridgeReportService
      * choosing one is mandatory here.
      *
      * @return array{id: string, name: string}
+     *
+     * DIBATASI KE MILL-NYA, dan itu bukan hiasan. Tanpa klausa
+     * business_unit_id di bawah, memanggil /summary dengan
+     * production_line_id milik mill LAIN menjawab 200 berisi id DAN NAMA
+     * MANUSIAWI line itu — angkanya aman (scopeToProductionLine() menyaring
+     * ke nol baris, dan query-nya tetap terkurung pada mill periode), tetapi
+     * keberadaan serta nama sebuah line yang pemanggil tidak berhak
+     * melihatnya tetap terbit. Itu justru yang hendak dicegah ketika line
+     * milik mill lain DIABAIKAN alih-alih ditolak 403: penolakan ditahan
+     * supaya tidak memastikan line itu ada, lalu blok ini memastikannya juga
+     * — lengkap dengan namanya.
+     *
+     * Ditemukan 2026-10-07 saat menulis uji KernelPlantReportService,
+     * dibuktikan lewat permintaan HTTP sungguhan, dan diperbaiki IDENTIK di
+     * kesebelas report service sekaligus karena bentuk tanpa scope itu ada
+     * identik di semuanya.
      */
-    protected function productionLineInfo(string $productionLineId): array
+    protected function productionLineInfo(string $productionLineId, string $businessUnitId): array
     {
         /** @var ProductionLine|null $line */
-        $line = ProductionLine::query()->find($productionLineId, ['id', 'name']);
+        $line = ProductionLine::query()
+            ->where('business_unit_id', $businessUnitId)
+            ->find($productionLineId, ['id', 'name']);
 
         return [
             'id' => $productionLineId,

@@ -311,7 +311,7 @@ class StationReportService
             // TAMBAHAN, bukan perubahan bentuk: kunci baru di samping
             // business_unit dan stations, yang keduanya tidak berubah sama
             // sekali. null ketika tidak ada line yang berlaku.
-            'production_line' => $this->productionLineInfo($productionLineId),
+            'production_line' => $this->productionLineInfo($productionLineId, $businessUnitId),
             'stations' => $this->stationList($businessUnitId, $productionLineId),
         ];
     }
@@ -319,16 +319,36 @@ class StationReportService
     /**
      * Blok `production_line` pada respons stations().
      *
+     * DIBATASI KE MILL-NYA sebagai PERTAHANAN BERLAPIS, bukan sebagai
+     * perbaikan defek — dan perbedaannya layak dicatat karena layar ini
+     * satu-satunya yang berbeda dari kesebelas report service.
+     *
+     * Di sini pemanggilnya (baris ~304) MEMAKAI nilai kembalian
+     * resolveProductionLine(), yang sudah menyaring line milik mill lain
+     * menjadi null. Jadi line asing tidak pernah sampai ke metode ini, dan
+     * tidak ada kebocoran untuk ditutup. Kesebelas report service lain
+     * MEMBUANG nilai kembalian itu dan meneruskan id mentah dari pemanggil —
+     * di sanalah nama line mill lain terbit dengan status 200, dan di sana
+     * klausa yang sama memang memperbaiki defek nyata (lihat catatan panjang
+     * pada salah satunya).
+     *
+     * Klausanya ditambahkan di sini juga supaya keamanan metode ini tidak
+     * bergantung pada pemanggilnya tetap benar. Sebuah metode yang menerbitkan
+     * nama sebuah line sebaiknya tidak aman hanya karena seseorang di tempat
+     * lain ingat memakai nilai yang tepat.
+     *
      * @return array{id: string, name: string}|null
      */
-    protected function productionLineInfo(?string $productionLineId): ?array
+    protected function productionLineInfo(?string $productionLineId, string $businessUnitId): ?array
     {
         if ($productionLineId === null || $productionLineId === '') {
             return null;
         }
 
         /** @var ProductionLine|null $line */
-        $line = ProductionLine::query()->find($productionLineId, ['id', 'name']);
+        $line = ProductionLine::query()
+            ->where('business_unit_id', $businessUnitId)
+            ->find($productionLineId, ['id', 'name']);
 
         if ($line === null) {
             return null;

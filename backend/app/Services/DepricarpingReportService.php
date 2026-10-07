@@ -7,13 +7,13 @@ use App\Enums\StationType as StationTypeEnum;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Models\BusinessUnit;
+use App\Models\DepricarpingDetail;
+use App\Models\DepricarpingOperationalTarget;
+use App\Models\DepricarpingRecord;
 use App\Models\Period;
 use App\Models\PeriodStation;
 use App\Models\ProductionLine;
 use App\Models\StationType;
-use App\Models\DepricarpingDetail;
-use App\Models\DepricarpingOperationalTarget;
-use App\Models\DepricarpingRecord;
 use App\Support\ExportValue;
 use App\Support\ReportPeriodDays;
 use App\Support\SheetWriter;
@@ -724,7 +724,7 @@ class DepricarpingReportService
                 'id' => (string) $period->business_unit_id,
                 'name' => (string) ($period->businessUnit?->name ?? ''),
             ],
-            'production_line' => $this->productionLineInfo($productionLineId),
+            'production_line' => $this->productionLineInfo($productionLineId, (string) $period->business_unit_id),
             // has_data distinguishes "there is nothing to report" from "the
             // figures happen to be zero". The screen uses it to refuse to
             // draw an empty table, which would read as a measured zero.
@@ -833,7 +833,7 @@ class DepricarpingReportService
         $exportContext = [
             (string) $period->name,
             (string) ($period->businessUnit?->name ?? ''),
-            (string) ($this->productionLineInfo($productionLineId)['name'] ?? ''),
+            (string) ($this->productionLineInfo($productionLineId, (string) $period->business_unit_id)['name'] ?? ''),
         ];
 
         return $this->streamExportRows($recordQuery, $exportContext);
@@ -1651,15 +1651,33 @@ class DepricarpingReportService
      * line yang berlaku.
      *
      * @return array{id: string, name: string}|null
+     *
+     * DIBATASI KE MILL-NYA, dan itu bukan hiasan. Tanpa klausa
+     * business_unit_id di bawah, memanggil /summary dengan
+     * production_line_id milik mill LAIN menjawab 200 berisi id DAN NAMA
+     * MANUSIAWI line itu — angkanya aman (scopeToProductionLine() menyaring
+     * ke nol baris, dan query-nya tetap terkurung pada mill periode), tetapi
+     * keberadaan serta nama sebuah line yang pemanggil tidak berhak
+     * melihatnya tetap terbit. Itu justru yang hendak dicegah ketika line
+     * milik mill lain DIABAIKAN alih-alih ditolak 403: penolakan ditahan
+     * supaya tidak memastikan line itu ada, lalu blok ini memastikannya juga
+     * — lengkap dengan namanya.
+     *
+     * Ditemukan 2026-10-07 saat menulis uji KernelPlantReportService,
+     * dibuktikan lewat permintaan HTTP sungguhan, dan diperbaiki IDENTIK di
+     * kesebelas report service sekaligus karena bentuk tanpa scope itu ada
+     * identik di semuanya.
      */
-    protected function productionLineInfo(?string $productionLineId): ?array
+    protected function productionLineInfo(?string $productionLineId, string $businessUnitId): ?array
     {
         if ($productionLineId === null || $productionLineId === '') {
             return null;
         }
 
         /** @var ProductionLine|null $line */
-        $line = ProductionLine::query()->find($productionLineId, ['id', 'name']);
+        $line = ProductionLine::query()
+            ->where('business_unit_id', $businessUnitId)
+            ->find($productionLineId, ['id', 'name']);
 
         if ($line === null) {
             return null;

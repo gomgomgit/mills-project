@@ -50,8 +50,45 @@ TOPL = Alignment(vertical='top', horizontal='left', wrap_text=True)
 TOPC = Alignment(vertical='top', horizontal='center', wrap_text=True)
 MIDC = Alignment(vertical='center', horizontal='center', wrap_text=True)
 
+# Kode jalan masuk dari bagian 0.3 markdown. Di Excel kodenya DIPERLUAS
+# menjadi kalimat, supaya satu sel dapat dijalankan tanpa berpindah sheet —
+# di markdown kodenya dipertahankan supaya sumbernya tetap enak dibaca.
+PRELUDE = {
+ '[W-LOGIN]':     'Login di web (buka /login, isi username dan password akun pada kolom Peran, tekan Login)',
+ '[W-BROWSE]':    'Login di web, lalu sidebar > Data > nama stasiun (/data/<stasiun>)',
+ '[W-DETAIL]':    'Login di web, buka /data/<stasiun>, lalu klik salah satu baris tabel',
+ '[W-FORM-NEW]':  'Login di web, buka /data/<stasiun>, lalu tekan Tambah (/data/<stasiun>/create)',
+ '[W-FORM-EDIT]': 'Login di web, buka satu record, lalu tekan Edit (/data/<stasiun>/<id>/edit)',
+ '[W-REPORT]':    'Login di web, sidebar > Laporan Stasiun (/reports), tekan tile stasiunnya, lalu pilih Periode dan Production Line',
+ '[W-DASH]':      'Login di web, lalu sidebar > Dashboard (/dashboard)',
+ '[W-PPA]':       'Login di web, lalu sidebar > Production Process Activity (/production-process-activity)',
+ '[W-MGMT]':      'Login di web, lalu sidebar > Laporan Manajemen (/reports/management)',
+ '[W-PERIOD]':    'Login di web, lalu sidebar > Kelola Periode Pelaporan (/master-data/periods)',
+ '[W-TREE]':      'Login di web, lalu sidebar > Struktur Mills (/master-data/tree-view)',
+ '[W-KELOLA]':    'Login di web, lalu sidebar > Kelola <tingkat> (/master-data/<tingkat>)',
+ '[W-USERS]':     'Login di web, lalu sidebar > Kelola User & Role (/users)',
+ '[W-MILLSET]':   'Login di web, lalu sidebar > Mills Setting (/mill-settings)',
+ '[W-PWD]':       'Login di web, lalu sidebar > Ganti Password (/settings/password)',
+ '[M-LOGIN]':     'Login di mobile (buka aplikasi, isi username dan password, tekan Login), mendarat di /home',
+ '[M-LIST]':      'Login di mobile, tekan Station List (/stations); pilih Production Line bila diminta',
+ '[M-MON]':       'Login di mobile, Station List, lalu tekan tile stasiunnya (/stations/<stasiun>/monitor)',
+ '[M-FORM]':      'Login di mobile, buka Monitor stasiunnya, lalu tekan New Data (/stations/<stasiun>/form/<id>)',
+ '[M-PREVIEW]':   'Login di mobile, buka Monitor stasiunnya, lalu tekan Load Data (/stations/<stasiun>/preview)',
+ '[M-REPORT]':    'Login di mobile, Dashboard & Reporting > Reporting, tekan tile stasiunnya, lalu pilih Periode dan Production Line',
+ '[M-PWD]':       'Login di mobile, menu (ikon tiga garis) > Ganti Password (/settings/password)',
+}
+
+
+def expand(s):
+    """Mengganti setiap kode jalan masuk dengan kalimat penuhnya."""
+    for code, full in PRELUDE.items():
+        s = s.replace('`' + code + '`', full).replace(code, full)
+    return s
+
+
 def clean(s):
     """markdown -> teks datar untuk sel Excel"""
+    s = expand(s)
     s = s.replace('**', '').replace('`', '')
     s = s.replace('§', 'bagian ')
     return s.strip()
@@ -177,7 +214,7 @@ sheet_title(ws, 'Kasus Uji — 174 kasus',
   'Kolom "Jml Jalan" = berapa kali kasus ini dijalankan.', 12)
 COLS = ['No','Bagian','ID','Judul','Peran','Prasyarat','Langkah','Hasil Diharapkan',
         'Prioritas','Jalankan di','Jml Jalan','Catatan QA']
-W    = [5, 20, 12, 38, 16, 30, 46, 52, 10, 22, 10, 40]
+W    = [5, 18, 12, 34, 15, 26, 56, 58, 9, 18, 8, 34]
 header_row(ws, 4, COLS, W)
 ws.freeze_panes = 'D5'
 
@@ -198,9 +235,18 @@ for i, c in enumerate(CASES, start=1):
     put(ws, r, 10, clean(c['jalankan']) or '—', F_BODY, TOPL, band)
     put(ws, r, 11, f'{n}×' if n > 1 else '1×', F_BODY, TOPC, band)
     put(ws, r, 12, clean(c['catatan']) or '', F_BODY, TOPL, band)
-    longest = max(len(clean(c['langkah'])) / 44, len(clean(c['hasil'])) / 50,
-                  len(clean(c['catatan'] or '')) / 38, 1)
-    ws.row_dimensions[r].height = max(16, 13.5 * (int(longest) + 1))
+    # Langkah dan Hasil kini daftar bernomor berbaris banyak: tingginya
+    # dihitung dari jumlah baris nyata PLUS pembungkusan tiap baris, bukan
+    # dari total panjang teks. Tanpa ini baris terpotong dan dokumennya
+    # tidak terbaca justru di kolom yang paling penting.
+    def wrapped(text, per_line):
+        return sum(max(1, -(-len(ln) // per_line)) for ln in text.split('\n'))
+
+    tall = max(wrapped(clean(c['langkah']), 44),
+               wrapped(clean(c['hasil']), 50),
+               wrapped(clean(c['catatan'] or ''), 38),
+               1)
+    ws.row_dimensions[r].height = max(16, 13.2 * tall + 4)
     r += 1
 ws.auto_filter.ref = f'A4:L{r-1}'
 
@@ -212,7 +258,7 @@ sheet_title(ws, 'Lembar Hasil — satu baris per jalan',
   'Hasil Diharapkan diulang di sini supaya penguji tidak perlu berpindah sheet.', 12)
 COLS = ['No','ID','Judul','Stasiun / Varian','Peran','Hasil Diharapkan','Prioritas',
         'Tanggal','Penguji','Hasil','No. Bug','Catatan / apa yang terlihat']
-W    = [5, 12, 36, 24, 15, 54, 10, 12, 14, 14, 12, 40]
+W    = [5, 12, 32, 22, 14, 62, 9, 11, 13, 13, 11, 34]
 header_row(ws, 4, COLS, W)
 ws.freeze_panes = 'E5'
 
@@ -243,7 +289,8 @@ for c in CASES:
         if not na:
             DV_ROWS.append(r)
         txt = na or clean(c['hasil'])
-        ws.row_dimensions[r].height = max(16, 13.5 * (len(txt) // 56 + 1))
+        tall = sum(max(1, -(-len(ln) // 56)) for ln in txt.split('\n'))
+        ws.row_dimensions[r].height = max(16, 13.2 * tall + 4)
         r += 1
 # satu rentang per blok baris bersambung — bukan satu per sel
 spans, start, prev = [], None, None

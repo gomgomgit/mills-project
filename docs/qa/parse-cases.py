@@ -26,7 +26,7 @@ cur = None
 def flush():
     global cur
     if cur:
-        for k in ('langkah',):
+        for k in ('langkah', 'hasil'):
             cur[k] = '\n'.join(cur[k]).strip()
         cases.append(cur)
     cur = None
@@ -40,7 +40,7 @@ for ln in lines:
     if m:
         flush()
         cur = {'id': m.group(1), 'title': m.group(2), 'section': section,
-               'peran': '', 'prasyarat': '', 'langkah': [], 'hasil': '',
+               'peran': '', 'prasyarat': '', 'langkah': [], 'hasil': [],
                'prioritas': '', 'catatan': '', 'jalankan': ''}
         field = None
         continue
@@ -58,15 +58,15 @@ for ln in lines:
         if key is None:
             field = None; continue
         field = key
-        if key == 'langkah':
-            if val: cur['langkah'].append(val)
+        if key in ('langkah', 'hasil'):
+            if val: cur[key].append(val)
         else:
             cur[key] = val
         continue
     # continuation lines
-    if field == 'langkah' and ln.strip():
-        cur['langkah'].append(ln.strip())
-    elif field and ln.strip() and field != 'langkah':
+    if field in ('langkah', 'hasil') and ln.strip():
+        cur[field].append(ln.strip())
+    elif field and ln.strip():
         cur[field] = (cur[field] + ' ' + ln.strip()).strip()
 
 flush()

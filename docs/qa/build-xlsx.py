@@ -615,8 +615,13 @@ KNOWN = [
   'memang enam kolom. Kini dijaga uji yang menurunkan angkanya dari READING_FIELDS.'),
  ('K-4','Laporan Depricarping (Mobile): tiga angka pada blok downtime tampil tanpa gaya',
   'Kosmetik, sudah tercatat.'),
- ('K-5','Dashboard hanya meringkas 3 stasiun (Weighbridge, Grading, Cages Track), bukan 18',
-  'Disengaja. Dashboard bukan ringkasan seluruh pabrik.'),
+ ('K-5','DIPERBAIKI 2026-10-08 — catatan ini dulu salah',
+  'Ia berbunyi "Dashboard hanya meringkas 3 stasiun, bukan 18 — disengaja". Blok tiga-stasiun '
+  'itu SUDAH DIBUANG pada 2026-09-17 atas permintaan user. Keadaan sebenarnya: halaman '
+  '/dashboard adalah TAMPILAN DEMO dengan angka hard-coded — tanpa filter tanggal, tanpa '
+  'pemilih mill, tidak membaca data stasiun sama sekali. Ia menyatakan dirinya demo (judul '
+  '"CPO Mill Demo" + chip "Data dummy"). Ringkasan tiga stasiun kini hanya ada di balik API '
+  '/api/dashboard/summary, bukan di layar. DS-01..DS-03 ditulis ulang mengikuti keadaan ini.'),
  ('K-6','Satu kasus uji otomatis kadang gagal acak (DashboardServiceTest)',
   'Tidak memengaruhi perilaku aplikasi; sedang diselidiki.'),
  ('K-7','Cakupan baris kode belum diukur',
@@ -643,6 +648,9 @@ NOTBUG = [
   'memuat dua angka dengan satuan berbeda. Ada kalimat di layar yang menjelaskannya.'),
  ('MB-FORM-04','Slot waktu 01:00 dianggap SESUDAH 23:00',
   'BENAR. Shift dimulai 07:00, jadi urutannya 07:00 → 23:00 → 00:00 → 06:00.'),
+ ('DS-02','Dashboard menampilkan angka yang sama untuk semua peran dan semua mill',
+  'BENAR. Halaman itu demo dengan angka hard-coded, dan menyatakannya lewat chip "Data dummy". '
+  'Jangan jalankan uji isolasi mill di sana — ia tidak membaca mill sama sekali.'),
  ('DS-10','Satu stasiun menunjukkan "belum ada input hari ini" DAN "input terakhir 3 menit lalu"',
   'BENAR. Dua jendela waktu yang berbeda: "hari ini" dibatasi tanggal, "input terakhir" tidak. '
   'Keterangan di halaman menjelaskannya.'),

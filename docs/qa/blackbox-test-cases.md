@@ -2065,44 +2065,59 @@ laporannya belum ada harus **kelabu dan tidak dapat ditekan** — diuji oleh `DS
 
 ## 7. Dashboard & Laporan lain (`DS-`)
 
-### DS-01 — Dashboard Web menampilkan ringkasan tiga stasiun
-- **Peran:** `SPV-A`
-- **Prasyarat:** ada data Weighbridge, Grading, dan Cages Track hari ini
+### DS-01 — Dashboard adalah demo, dan layar MENYATAKANNYA
+- **Peran:** `SPV-A`, `MGR-A`, `ADM`
+- **Prasyarat:** —
 - **Langkah:**
   1. `[W-DASH]` sebagai `SPV-A`.
-  2. Catat stasiun mana saja yang diringkas di layar.
-  3. Ubah rentang tanggal ke satu hari yang punya data, lalu terapkan.
-  4. Bandingkan angka tiap ringkasan dengan jumlah record stasiun itu pada tanggal yang sama di Data Browser.
+  2. Baca judul di bagian atas halaman.
+  3. Cari penanda bahwa angkanya bukan data nyata — lencana, chip, atau keterangan.
+  4. Arahkan kursor (hover) ke penanda itu dan baca keterangan yang muncul.
+  5. Ulangi langkah 1–4 sebagai `MGR-A`, lalu `ADM`.
 - **Hasil diharapkan:**
-  - Dashboard meringkas **tiga** stasiun: **Weighbridge**, **Grading**, dan **Cages Track** — bukan 18. Itu disengaja (lihat `K-5`).
-  - Angkanya **cocok** dengan Data Browser untuk rentang tanggal yang sama.
-  - Setiap ringkasan menyebut stasiunnya, sehingga angkanya tidak ambigu.
+  - Judulnya menyebut **demo** — mis. "CPO Mill Demo · Laporan Harian".
+  - Ada penanda **"Data dummy"** yang terlihat tanpa perlu dicari.
+  - Keterangan hover-nya menyatakan angkanya **fiktif dan belum terhubung** ke data stasiun.
+  - Ketiga peran melihat penanda yang sama.
 - **Prioritas:** Tinggi
-- **Catatan QA:** Dashboard memang hanya meringkas **tiga** stasiun, bukan 18. Itu bukan bug.
+- **Catatan QA:** ini kasus **terpenting** di halaman ini. Angka seperti "Milling Hours 11.00" tanpa penanda akan dibaca Mill Management sebagai angka pabriknya sendiri. Kalau penandanya **hilang**, laporkan sebagai prioritas tinggi — bukan kosmetik.
 
-### DS-02 — Rentang tanggal Dashboard default ke hari ini
-- **Peran:** `SPV-A`
+### DS-02 — Angka dashboard tidak berubah oleh peran, mill, atau tanggal
+- **Peran:** `SPV-A`, `SPV-B`, `MGR-A`, `ADM`
+- **Prasyarat:** Mill A dan Mill B punya data stasiun yang berbeda jauh
 - **Langkah:**
-  1. `[W-DASH]` sebagai `SPV-A`.
-  2. Sebelum menyentuh apa pun, baca isi kedua kolom rentang tanggal.
-  3. Bandingkan dengan tanggal hari ini.
+  1. `[W-DASH]` sebagai `SPV-A`. Catat **lima** angka dari panel berbeda (mis. Penerimaan FFB, Stok FFB, Milling per Line, OER).
+  2. Cari kolom filter tanggal atau pemilih mill di halaman ini.
+  3. Logout. `[W-DASH]` sebagai `SPV-B` (mill berbeda). Bandingkan kelima angka itu.
+  4. Logout. Ulangi sebagai `MGR-A`, lalu `ADM`.
+  5. Buka halaman itu lagi besok (atau ubah tanggal perangkat) dan bandingkan lagi.
 - **Hasil diharapkan:**
-  - Kedua kolom sudah terisi **tanggal hari ini** tanpa diisi penguji.
-  - Angka yang tampil adalah angka hari ini.
-  - Penguji tidak perlu mengisi filter sebelum melihat sesuatu.
+  - **Tidak ada** kolom filter tanggal dan **tidak ada** pemilih mill di halaman ini.
+  - Kelima angka **sama persis** untuk keempat peran, termasuk `SPV-B` yang mill-nya berbeda.
+  - Angkanya juga **sama** pada hari berikutnya.
+  - Semua itu **benar**, bukan bug — halaman ini demo, bukan laporan mill.
 - **Prioritas:** Sedang
+- **Catatan QA:** jangan jalankan `LS-03` (isolasi mill) di sini. Halaman ini tidak membaca mill sama sekali, jadi "mill lain terlihat" bukan konsep yang berlaku. Isolasi mill diuji pada Laporan Periode, Data Browser, dan Production Process Activity.
 
-### DS-03 — Dashboard ter-scope mill aktor
-- **Peran:** `SPV-A`, `SPV-B`
+### DS-03 — Angka antar panel saling konsisten
+- **Peran:** `SPV-A`
+- **Prasyarat:** —
 - **Langkah:**
-  1. Jalankan seluruh langkah `LS-03` dengan Dashboard sebagai layar yang diuji.
-  2. `[W-DASH]` sebagai `SPV-A`, catat seluruh angka dan setiap nama Production Line yang terlihat.
-  3. Logout, `[W-DASH]` sebagai `SPV-B`, bandingkan.
+  1. `[W-DASH]` sebagai `SPV-A`. Gulir ke panel **Milling Hours per Line**.
+  2. Untuk **Line 1**, kolom **Today**, catat: Available, Milling, CDT, SDT, EDT.
+  3. Hitung sendiri: Total Downtime = CDT + SDT + EDT.
+  4. Hitung: Available Milling Hours = Available − Total Downtime.
+  5. Bandingkan kedua hasil hitungan itu dengan angka yang tercetak di panel.
+  6. Periksa Milling ≤ Available Milling Hours.
+  7. Gulir ke grafik **Milling per Line** dan bandingkan jam Line 1 dengan angka Milling di langkah 2.
+  8. Ulangi langkah 2–7 untuk **Line 2**, lalu untuk kolom **MTD** dan **YTD**.
 - **Hasil diharapkan:**
-  - Sesuai `LS-03`: `SPV-B` tidak melihat satu pun angka yang berasal dari Mill A.
-  - Tidak ada nama Production Line Mill A yang tercetak.
-  - Angka kedua peran berbeda, masing-masing hanya mill-nya sendiri.
-- **Prioritas:** Tinggi
+  - Total Downtime dan Available Milling Hours yang tercetak **cocok** dengan hitungan manual.
+  - Pada Line 1 / Today nilainya: Total Downtime **11,50**, Available Milling Hours **12,50**, Milling **11,00**, sisa (segmen abu-abu) **1,50**.
+  - Milling **tidak pernah** melebihi Available Milling Hours pada baris mana pun.
+  - Jam pada grafik **sama** dengan angka Milling di tabel — dua tempat, satu angka.
+- **Prioritas:** Sedang
+- **Catatan QA:** angkanya dummy, tetapi **hubungan antar angkanya tetap harus benar**. Ketiga panel ini dulu ditulis tangan di tiga tempat dan pernah berselisih; sejak 2026-09-30 ketiganya diturunkan dari satu sumber. Yang diuji di sini adalah bahwa ketiganya tidak berselisih lagi.
 
 ### DS-04 — Laporan Stasiun (Web): tile laporan yang ada aktif, sisanya kelabu
 - **Peran:** `SPV-A`
@@ -2886,7 +2901,7 @@ cukup rujuk nomor ini alih-alih membuat laporan bug baru.
 | K-2 | **SELESAI 2026-10-08 — tidak perlu dilaporkan lagi.** Kolom Kernel Plant yang dulu bernama `shell_loss_percent` kini **"Shell Bin Kernel Loss"** di seluruh layar (Form, Detail, Data Preview, Laporan, dan ekspor CSV), mengikuti nama standar di master. Nama lamanya menyebut zat yang salah — kehilangan *shell*, padahal yang diukur adalah **kernel yang terbuang ke shell bin**. Angkanya tidak pernah salah dan tidak berubah; hanya namanya. Yang perlu diperiksa QA: label barunya konsisten di kelima tempat itu, dan header CSV berbunyi `Shell Bin Kernel Loss (%)`. |
 | K-3 | **SELESAI 2026-10-08 — tidak perlu dilaporkan lagi.** Laporan Depricarping menulis "minimal satu dari **enam** kolom bacaan diisi"; kolom bacaan Depricarping ada **sembilan**, dan layar yang sama menyebut "sembilan" di tempat lain. Salah di **web dan mobile**, bukan mobile saja seperti catatan ini dulu menyebut, dan **bukan kosmetik**: angka itu dipakai pembaca untuk menafsirkan penyebut cakupan. Asal-usulnya salin-tempel dari Threshing dan Pressing, yang memang enam kolom. Kini dijaga uji yang menurunkan angkanya dari `READING_FIELDS` dan memeriksa web serta mobile sekaligus. |
 | K-4 | **Laporan Depricarping (Mobile)**: tiga angka pada blok downtime tampil tanpa gaya yang semestinya. Kosmetik. |
-| K-5 | **Dashboard hanya meringkas 3 stasiun** (Weighbridge, Grading, Cages Track), bukan 18. Disengaja. |
+| K-5 | **DIPERBAIKI 2026-10-08 — catatan ini dulu salah.** Ia berbunyi "Dashboard hanya meringkas 3 stasiun, bukan 18 — disengaja". Blok tiga-stasiun itu **sudah dibuang pada 2026-09-17** atas permintaan user. Keadaan sebenarnya: halaman `/dashboard` adalah **tampilan demo dengan angka hard-coded** — tanpa filter tanggal, tanpa pemilih mill, tidak membaca data stasiun sama sekali. Ia **menyatakan dirinya** demo (judul "CPO Mill Demo" + chip "Data dummy"). Ringkasan tiga stasiun kini hanya ada di balik API `/api/dashboard/summary`, bukan di layar. `DS-01`…`DS-03` ditulis ulang mengikuti keadaan ini. |
 | K-6 | **Satu kasus uji otomatis kadang gagal acak** (`DashboardServiceTest`). Tidak memengaruhi perilaku aplikasi; sedang diselidiki. |
 | K-7 | **Cakupan baris kode belum diukur.** Tidak ada hubungannya dengan hasil pengujian manual. |
 

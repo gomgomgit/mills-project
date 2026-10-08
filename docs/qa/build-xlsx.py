@@ -607,8 +607,12 @@ KNOWN = [
   'menyebut zat yang salah: kehilangan SHELL, padahal yang diukur KERNEL yang terbuang ke shell '
   'bin. Angkanya tidak pernah salah dan tidak berubah, hanya namanya. Yang diperiksa QA: label '
   'barunya konsisten di kelima tempat itu, dan header CSV berbunyi "Shell Bin Kernel Loss (%)".'),
- ('K-3','Laporan Depricarping (Mobile): keterangan cakupan menyebut "enam kolom bacaan"',
-  'Yang benar sembilan. Kosmetik, sudah tercatat.'),
+ ('K-3','SELESAI 2026-10-08 — jumlah kolom bacaan pada laporan Depricarping sudah benar',
+  'Dulu berbunyi "minimal satu dari ENAM kolom bacaan diisi"; kolom bacaan Depricarping ada '
+  'SEMBILAN, dan layar yang sama menyebut "sembilan" di tempat lain. Salah di WEB DAN MOBILE '
+  '(catatan ini dulu menyebut mobile saja), dan bukan kosmetik: angka itu dipakai pembaca untuk '
+  'menafsirkan penyebut cakupan. Asal-usulnya salin-tempel dari Threshing dan Pressing, yang '
+  'memang enam kolom. Kini dijaga uji yang menurunkan angkanya dari READING_FIELDS.'),
  ('K-4','Laporan Depricarping (Mobile): tiga angka pada blok downtime tampil tanpa gaya',
   'Kosmetik, sudah tercatat.'),
  ('K-5','Dashboard hanya meringkas 3 stasiun (Weighbridge, Grading, Cages Track), bukan 18',

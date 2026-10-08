@@ -325,7 +325,7 @@
                             {{ $nilai($coverage['coverage_percent'], 1) }}%
                         @endif
                     </p>
-                    <p class="md-kpi__foot">slot dihitung terisi bila minimal satu dari enam kolom bacaan diisi &mdash; termasuk bila yang diisi hanya alasan downtime</p>
+                    <p class="md-kpi__foot">slot dihitung terisi bila minimal satu dari sembilan kolom bacaan diisi &mdash; termasuk bila yang diisi hanya alasan downtime</p>
                 </article>
                 <article class="md-kpi" data-testid="coverage-denominator">
                     <div class="md-kpi__top">

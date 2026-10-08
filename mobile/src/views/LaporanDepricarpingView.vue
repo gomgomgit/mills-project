@@ -1121,7 +1121,7 @@ function onBack(): void {
                 {{ formatCompletenessPercent(coverage?.coverage_percent ?? null) }}
               </span>
               <span class="metric-note">
-                Slot dihitung terisi bila minimal satu dari enam kolom bacaan diisi — termasuk bila
+                Slot dihitung terisi bila minimal satu dari sembilan kolom bacaan diisi — termasuk bila
                 yang diisi hanya alasan downtime.
               </span>
             </div>

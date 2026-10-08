@@ -257,9 +257,17 @@ function onTileTap(station: StationSlot) {
     return
   }
 
-  // "di aplikasi mobile" — beberapa stasiun (mis. Weighbridge) SUDAH punya
-  // laporan di web; yang belum ada adalah layar laporan mobile-nya. Pesan
-  // lama "belum tersedia." menyiratkan laporannya tidak ada sama sekali.
+  // "di aplikasi mobile" — pesan lama "belum tersedia." menyiratkan
+  // laporannya tidak ada SAMA SEKALI, padahal yang dinyatakan hanyalah
+  // ketiadaan layar mobile-nya.
+  //
+  // Per 2026-10-08 kesebelas laporan yang ada memang ada di web DAN di
+  // mobile, jadi pembedaan itu sedang tidak membedakan apa pun. Kalimatnya
+  // tetap dipertahankan: urutan pembangunan web-lebih-dulu adalah pola yang
+  // berulang di proyek ini, dan asimetrinya akan kembali pada laporan
+  // berikutnya. Sebuah stasiun yang laporan web-nya sudah jadi sementara
+  // mobile-nya belum akan membaca benar dengan kalimat ini dan menyesatkan
+  // tanpanya.
   infoMessage.value = `Laporan ${station.name} belum tersedia di aplikasi mobile.`
 }
 

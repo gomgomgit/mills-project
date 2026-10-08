@@ -408,8 +408,33 @@ test.describe('Mobile Data Preview / Grading / Reporting UX (audit 2026-10-04)',
     await expect(page.locator('[data-testid^="station-tile-"]')).toHaveCount(18, { timeout: 15_000 })
     await expect(page.getByTestId('no-stations')).toHaveCount(0)
 
-    await page.getByTestId('station-tile-weighbridge').click()
-    await expect(page.getByTestId('info-message')).toHaveText('Laporan Weighbridge belum tersedia di aplikasi mobile.')
+    // STASIUNNYA TIDAK DISEBUT NAMANYA, DAN ITU DISENGAJA (2026-10-08).
+    // Uji ini dulu menekan tile Weighbridge dan menuntut pesan "Laporan
+    // Weighbridge belum tersedia di aplikasi mobile." Laporan Weighbridge
+    // mobile kemudian dibangun (screen-144), REPORT_ROUTES mendapat
+    // entrinya, dan tuntutan itu berubah dari benar menjadi salah tanpa
+    // satu baris pun di berkas ini berubah — uji ini gagal karena
+    // produknya MAJU. Fixture yang menyebut satu stasiun akan kedaluwarsa
+    // lagi setiap kali satu laporan mobile dibangun; sudah lima kali
+    // terjadi pada kerabatnya di ReportingPilihStasiunView.spec.ts.
+    //
+    // Jadi tile-nya ditemukan dari DOM lewat aria-disabled, dan nama yang
+    // diharapkan dibaca dari tile itu sendiri — bentuk yang sama dengan
+    // reporting-pilih-stasiun.spec.ts. Yang diuji tetap sama: tile dapat
+    // ditekan dan cabang "belum tersedia" berjalan, tanpa mengikat diri
+    // pada stasiun MANA yang belum punya laporan.
+    const unavailable = page.locator('[data-testid^="station-tile-"][aria-disabled="true"]').first()
+    await expect(unavailable).toBeVisible()
+    const stationName = (await unavailable.locator('.station-tile-name').innerText()).trim()
+
+    // force: true — tile memakai aria-disabled, bukan disabled native, dan
+    // Playwright menolak mengklik yang pertama. Lihat komentar panjang di
+    // reporting-pilih-stasiun.spec.ts: disabled native akan menelan
+    // ketukannya sehingga pesannya tidak pernah muncul.
+    await unavailable.click({ force: true })
+
+    await expect(page.getByTestId('info-message')).toHaveText(`Laporan ${stationName} belum tersedia di aplikasi mobile.`)
+    await expect(page).toHaveURL(/\/reports$/)
     g.assertClean()
   })
 

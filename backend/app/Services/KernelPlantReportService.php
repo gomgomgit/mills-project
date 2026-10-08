@@ -295,7 +295,7 @@ class KernelPlantReportService
         'kernel_silo_1_temp_c',
         'kernel_silo_2_temp_c',
         'kernel_moisture_percent',
-        'shell_loss_percent',
+        'shell_bin_kernel_loss_percent',
     ];
 
     /**
@@ -317,7 +317,7 @@ class KernelPlantReportService
         'kernel_silo_1_temp_c' => ['label' => 'Suhu Kernel Silo 1', 'unit' => 'C'],
         'kernel_silo_2_temp_c' => ['label' => 'Suhu Kernel Silo 2', 'unit' => 'C'],
         'kernel_moisture_percent' => ['label' => 'Kadar Air Kernel', 'unit' => '%'],
-        'shell_loss_percent' => ['label' => 'Shell Bin Kernel Loss', 'unit' => '%'],
+        'shell_bin_kernel_loss_percent' => ['label' => 'Shell Bin Kernel Loss', 'unit' => '%'],
     ];
 
     /**
@@ -370,7 +370,7 @@ class KernelPlantReportService
         'kernel_silo_1_temp_c' => 'Kernel Silo 1 & 2',
         'kernel_silo_2_temp_c' => 'Kernel Silo 1 & 2',
         'kernel_moisture_percent' => 'Final Kernel Moisture',
-        'shell_loss_percent' => 'Shell Bin Kernel Loss',
+        'shell_bin_kernel_loss_percent' => 'Shell Bin Kernel Loss',
     ];
 
     /**

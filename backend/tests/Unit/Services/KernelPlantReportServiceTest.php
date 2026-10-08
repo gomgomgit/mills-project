@@ -742,7 +742,7 @@ it('case 20 — definisi terisi DIPINJAM dari KernelPlantRecordService::isRowFil
         'kernel_silo_1_temp_c',
         'kernel_silo_2_temp_c',
         'kernel_moisture_percent',
-        'shell_loss_percent',
+        'shell_bin_kernel_loss_percent',
         'downtime_minutes',
         'findings',
     ]);
@@ -990,14 +990,14 @@ it('case 28 — has_data membedakan "tidak ada yang bisa dilaporkan" dari "angka
     // Kasus B: slot terisi dengan downtime_minutes = 0 dan nilai ukur 0.0.
     $record = kernelPlantReportRecord($this->stationA, $this->day2, 'KP-1');
     kernelPlantReportSlot($record, '07:00', [
-        'shell_loss_percent' => 0.0,
+        'shell_bin_kernel_loss_percent' => 0.0,
         'downtime_minutes' => 0,
     ]);
 
     $summary = $this->service->buildSummary($this->periodA, null, $this->lineA);
 
     expect($summary['has_data'])->toBeTrue();
-    expect(kernelPlantReportMetric($summary, 'shell_loss_percent')['avg'])->toBe(0.0);
+    expect(kernelPlantReportMetric($summary, 'shell_bin_kernel_loss_percent')['avg'])->toBe(0.0);
     expect($summary['downtime']['total_minutes'])->toBe(0);
 });
 
@@ -1017,7 +1017,7 @@ it('case 29 — PENYEBUT PER METRIK: ketujuh filled_slot_count genuin berbeda-be
         'kernel_silo_1_temp_c' => 4,
         'kernel_silo_2_temp_c' => 3,
         'kernel_moisture_percent' => 7,
-        'shell_loss_percent' => 1,
+        'shell_bin_kernel_loss_percent' => 1,
     ];
 
     foreach (array_slice($this->slots, 0, 7) as $index => $slot) {
@@ -1066,7 +1066,7 @@ it('case 30 — coverage.filled_slots DAPAT MELEBIHI penyebut setiap metrik, dan
         'kernel_silo_1_temp_c' => 4,
         'kernel_silo_2_temp_c' => 3,
         'ripple_mill_2_amps' => 2,
-        'shell_loss_percent' => 1,
+        'shell_bin_kernel_loss_percent' => 1,
     ];
 
     foreach (array_slice($this->slots, 0, 10) as $index => $slot) {
@@ -1118,7 +1118,7 @@ it('case 31 — metrik tanpa satu pun nilai non-null TETAP TAMPIL dengan min/avg
     // parameter ini", padahal yang benar adalah "tidak ada yang mengukurnya".
     expect($summary['metrics'])->toHaveCount(7);
 
-    $shell = kernelPlantReportMetric($summary, 'shell_loss_percent');
+    $shell = kernelPlantReportMetric($summary, 'shell_bin_kernel_loss_percent');
 
     expect($shell['min'])->toBeNull();
     expect($shell['avg'])->toBeNull();
@@ -1244,7 +1244,7 @@ it('case 34 — DUA pasangan berbagi standar terbit lewat shares_standard_with, 
         ->toBe(['kernel_silo_1_temp_c']);
 
     // TIGA kolom sisanya ber-shares_standard_with = [].
-    foreach (['claybath_hydro_sg', 'kernel_moisture_percent', 'shell_loss_percent'] as $column) {
+    foreach (['claybath_hydro_sg', 'kernel_moisture_percent', 'shell_bin_kernel_loss_percent'] as $column) {
         expect(kernelPlantReportMetric($summary, $column)['target']['shares_standard_with'])
             ->toBe([], "kolom {$column} tidak berbagi standar dengan siapa pun");
     }
@@ -1720,7 +1720,7 @@ it('case 44 — by_kernel_plant menerbitkan rekap per unit, dan kernel_plant_id 
     expect(array_keys($byUnit['KP-01']['averages']))->toBe(KernelPlantReportService::NUMERIC_METRICS);
     expect($byUnit['KP-01']['averages']['ripple_mill_1_amps'])->toBe(22.0);
     expect($byUnit['KP-02']['averages']['ripple_mill_1_amps'])->toBe(12.0);
-    expect($byUnit['KP-01']['averages']['shell_loss_percent'])->toBeNull();
+    expect($byUnit['KP-01']['averages']['shell_bin_kernel_loss_percent'])->toBeNull();
 
     // downtime per unit: 4 slot x 5 menit pada unit A; null — BUKAN 0 — pada
     // unit yang tak satu slotnya mencatat.

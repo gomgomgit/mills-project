@@ -85,7 +85,7 @@
                                 <th>Kernel Silo 1 Temp (°C)</th>
                                 <th>Kernel Silo 2 Temp (°C)</th>
                                 <th>Kernel Moisture (%)</th>
-                                <th>Shell Loss (%)</th>
+                                <th>Shell Bin Kernel Loss (%)</th>
                                 <th>Downtime (Mins)</th>
                                 <th>Findings</th>
                                 <th></th>
@@ -108,7 +108,7 @@
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.kernel_silo_1_temp_c" class="kf-input" data-testid="kernel-silo-1-temp-{{ $index }}"></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.kernel_silo_2_temp_c" class="kf-input" data-testid="kernel-silo-2-temp-{{ $index }}"></td>
                                     <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.kernel_moisture_percent" class="kf-input" data-testid="kernel-moisture-{{ $index }}"></td>
-                                    <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.shell_loss_percent" class="kf-input" data-testid="shell-loss-{{ $index }}"></td>
+                                    <td><input type="number" step="0.01" wire:model="detailRows.{{ $index }}.shell_bin_kernel_loss_percent" class="kf-input" data-testid="shell-loss-{{ $index }}"></td>
                                     <td><input type="number" step="1" wire:model="detailRows.{{ $index }}.downtime_minutes" class="kf-input" data-testid="downtime-minutes-{{ $index }}"></td>
                                     <td><input type="text" wire:model="detailRows.{{ $index }}.findings" class="kf-input" data-testid="findings-{{ $index }}"></td>
                                     <td>

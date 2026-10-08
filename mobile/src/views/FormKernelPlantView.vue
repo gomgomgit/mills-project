@@ -213,7 +213,7 @@ function dirtySnapshot(): string {
     kernel_silo_1_temp_c: row.kernel_silo_1_temp_c,
     kernel_silo_2_temp_c: row.kernel_silo_2_temp_c,
     kernel_moisture_percent: row.kernel_moisture_percent,
-    shell_loss_percent: row.shell_loss_percent,
+    shell_bin_kernel_loss_percent: row.shell_bin_kernel_loss_percent,
     downtime_minutes: row.downtime_minutes,
     findings: row.findings,
   }))
@@ -274,7 +274,7 @@ function populateDetailRows(rows: KernelPlantDraftWithDetails['details']): void 
     kernel_silo_1_temp_c: row.kernel_silo_1_temp_c ?? null,
     kernel_silo_2_temp_c: row.kernel_silo_2_temp_c ?? null,
     kernel_moisture_percent: row.kernel_moisture_percent ?? null,
-    shell_loss_percent: row.shell_loss_percent ?? null,
+    shell_bin_kernel_loss_percent: row.shell_bin_kernel_loss_percent ?? null,
     downtime_minutes: row.downtime_minutes ?? null,
     findings: row.findings ?? '',
   }))
@@ -382,7 +382,7 @@ function addDetailRow(): void {
     kernel_silo_1_temp_c: null,
     kernel_silo_2_temp_c: null,
     kernel_moisture_percent: null,
-    shell_loss_percent: null,
+    shell_bin_kernel_loss_percent: null,
     downtime_minutes: null,
     findings: null,
   })
@@ -432,7 +432,7 @@ function isRowFilled(row: KernelPlantDetailFormRow): boolean {
     row.kernel_silo_1_temp_c !== null ||
     row.kernel_silo_2_temp_c !== null ||
     row.kernel_moisture_percent !== null ||
-    row.shell_loss_percent !== null ||
+    row.shell_bin_kernel_loss_percent !== null ||
     row.downtime_minutes !== null ||
     (row.findings !== null && row.findings !== '')
   )
@@ -853,8 +853,8 @@ function goToMonitorKernelPlant(): void {
             :disabled="actionInProgress"
           />
           <FormField
-            v-model="row.shell_loss_percent"
-            label="Shell Loss (%)"
+            v-model="row.shell_bin_kernel_loss_percent"
+            label="Shell Bin Kernel Loss (%)"
             type="number"
             :id="`shell-loss-${index}`"
             :data-testid="`shell-loss-${index}`"

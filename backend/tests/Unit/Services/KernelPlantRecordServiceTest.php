@@ -33,6 +33,7 @@ use App\Services\KernelPlantRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -599,4 +600,83 @@ it('tetap mengizinkan create() dan update() pada line mill sendiri', function ()
     $this->service->update($created['id'], kernelPlantFormPayload(['kernel_plant_id' => 'SCOPE-OWN-2']), $this->creator);
 
     expect(KernelPlantRecord::find($created['id'])->kernel_plant_id)->toBe('SCOPE-OWN-2');
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// RENAME shell_loss_percent -> shell_bin_kernel_loss_percent (2026-10-08)
+//
+// Standar masternya bernama "Shell Bin Kernel Loss": yang diukur adalah
+// KERNEL yang terbuang ke shell bin. Nama lama menyebut kehilangan SHELL —
+// zat yang salah. Bukan kasus Depricarping: tidak ada pertentangan arah di
+// sini, keduanya kehilangan dalam persen, jadi nilai yang sudah tercatat
+// tetap sah dan yang berubah hanya namanya.
+// ───────────────────────────────────────────────────────────────────────────
+
+it('menyimpan Shell Bin Kernel Loss dari kunci baru', function () {
+    $created = $this->service->create(kernelPlantFormPayload([
+        'production_line_id' => $this->kernelPlantStation->production_line_id,
+        'details' => [['time_slot' => '07:00', 'shell_bin_kernel_loss_percent' => 1.25]],
+    ]), $this->creator);
+
+    $detail = KernelPlantDetail::where('kernel_plant_record_id', $created['id'])->sole();
+
+    expect($detail->shell_bin_kernel_loss_percent)->toBe(1.25);
+});
+
+it('ALIAS: draft perangkat lama yang mengirim shell_loss_percent tetap tersimpan, tidak hilang diam-diam', function () {
+    // Inilah jalur kehilangan diam yang alias itu tutup. TANPA alias, baris
+    // ini TETAP tersimpan — ia dianggap terisi oleh kolom bacaan lain — tapi
+    // angka Shell Bin Kernel Loss-nya jatuh ke null lewat `?? null`, tanpa
+    // satu pun galat. Karena itu asersinya BUKAN "create() tidak melempar",
+    // melainkan nilainya benar-benar mendarat di kolomnya.
+    $created = $this->service->create(kernelPlantFormPayload([
+        'production_line_id' => $this->kernelPlantStation->production_line_id,
+        'details' => [[
+            'time_slot' => '07:00',
+            'ripple_mill_1_amps' => 22,     // kolom lain terisi: tanpa ini baris
+                                            // ditolak dan jalur diam tak terbukti
+            'shell_loss_percent' => 1.4,    // kunci LAMA
+        ]],
+    ]), $this->creator);
+
+    $detail = KernelPlantDetail::where('kernel_plant_record_id', $created['id'])->sole();
+
+    expect($detail->shell_bin_kernel_loss_percent)->toBe(1.4);
+});
+
+it('ALIAS tidak menimpa: bila kedua kunci dikirim, yang baru menang', function () {
+    $created = $this->service->create(kernelPlantFormPayload([
+        'production_line_id' => $this->kernelPlantStation->production_line_id,
+        'details' => [[
+            'time_slot' => '07:00',
+            'shell_bin_kernel_loss_percent' => 0.9,
+            'shell_loss_percent' => 9.9,
+        ]],
+    ]), $this->creator);
+
+    $detail = KernelPlantDetail::where('kernel_plant_record_id', $created['id'])->sole();
+
+    expect($detail->shell_bin_kernel_loss_percent)->toBe(0.9);
+});
+
+it('baris yang HANYA memakai kunci lama tetap dihitung terisi oleh isRowFilled()', function () {
+    // isRowFilled() menyisir READING_FIELDS, yang kini memuat nama BARU saja.
+    // Jadi baris yang hanya memuat kunci lama akan terbaca KOSONG di sana dan
+    // ditolak dengan "Minimal satu baris..." — kecuali normalizeDetails()
+    // sudah memindahkannya lebih dulu. Urutan itulah yang diuji di sini.
+    $created = $this->service->create(kernelPlantFormPayload([
+        'production_line_id' => $this->kernelPlantStation->production_line_id,
+        'details' => [['time_slot' => '07:00', 'shell_loss_percent' => 1.1]],
+    ]), $this->creator);
+
+    $detail = KernelPlantDetail::where('kernel_plant_record_id', $created['id'])->sole();
+
+    expect($detail->shell_bin_kernel_loss_percent)->toBe(1.1);
+});
+
+it('kolom lama sudah tidak ada lagi di tabel', function () {
+    // Penjaga migrasi: rename yang tidak jalan akan membuat seluruh asersi di
+    // atas tetap hijau lewat kolom lama yang masih berdiri.
+    expect(Schema::hasColumn('kernel_plant_details', 'shell_bin_kernel_loss_percent'))->toBeTrue();
+    expect(Schema::hasColumn('kernel_plant_details', 'shell_loss_percent'))->toBeFalse();
 });

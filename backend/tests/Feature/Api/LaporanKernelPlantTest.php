@@ -915,7 +915,7 @@ it('skenario 17 — penyebut tiap parameter tidak boleh disamakan satu dengan la
         'kernel_silo_1_temp_c' => 4,
         'kernel_silo_2_temp_c' => 3,
         'kernel_moisture_percent' => 7,
-        'shell_loss_percent' => 1,
+        'shell_bin_kernel_loss_percent' => 1,
     ];
 
     foreach (range(0, 6) as $index) {
@@ -1077,7 +1077,7 @@ it('skenario 20 — penanda berbagi standar diturunkan dari peta kolom-ke-parame
     expect(laporanKernelPlantMetric($summary, 'kernel_silo_2_temp_c')['target']['shares_standard_with'])
         ->toBe(['kernel_silo_1_temp_c']);
 
-    foreach (['claybath_hydro_sg', 'kernel_moisture_percent', 'shell_loss_percent'] as $column) {
+    foreach (['claybath_hydro_sg', 'kernel_moisture_percent', 'shell_bin_kernel_loss_percent'] as $column) {
         expect(laporanKernelPlantMetric($summary, $column)['target']['shares_standard_with'])->toBe([]);
     }
 

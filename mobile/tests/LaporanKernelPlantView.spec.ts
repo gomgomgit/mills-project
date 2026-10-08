@@ -294,7 +294,7 @@ function metrics(): Array<Record<string, unknown>> {
       },
     },
     {
-      column: 'shell_loss_percent',
+      column: 'shell_bin_kernel_loss_percent',
       label: 'Shell Bin Kernel Loss',
       unit: '%',
       min: 1.1,
@@ -1030,7 +1030,7 @@ describe('standar bersama — dua pasangan, bukan satu', () => {
     const extended = metrics()
 
     ;(extended[5].target as Record<string, unknown>).equipment_parameter = 'Kadar Air Kernel'
-    ;(extended[5].target as Record<string, unknown>).shares_standard_with = ['shell_loss_percent']
+    ;(extended[5].target as Record<string, unknown>).shares_standard_with = ['shell_bin_kernel_loss_percent']
     ;(extended[6].target as Record<string, unknown>).equipment_parameter = 'Kadar Air Kernel'
     ;(extended[6].target as Record<string, unknown>).shares_standard_with = ['kernel_moisture_percent']
 

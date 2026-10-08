@@ -530,7 +530,7 @@ function goToMonitorKernelPlant(): void {
                 <span>Kernel Silo 1 Temp: {{ row.kernel_silo_1_temp_c ?? '-' }}</span>
                 <span>Kernel Silo 2 Temp: {{ row.kernel_silo_2_temp_c ?? '-' }}</span>
                 <span>Kernel Moisture: {{ row.kernel_moisture_percent ?? '-' }}</span>
-                <span>Shell Loss: {{ row.shell_loss_percent ?? '-' }}</span>
+                <span>Shell Bin Kernel Loss: {{ row.shell_bin_kernel_loss_percent ?? '-' }}</span>
                 <span>Downtime (Mins): {{ row.downtime_minutes ?? '-' }}</span>
                 <span>Findings: {{ row.findings ?? '-' }}</span>
               </div>

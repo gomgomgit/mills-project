@@ -398,7 +398,7 @@ describe('syncService — syncAllRecords()', () => {
         ]
       }
       if (sql.includes('FROM kernel_plant_detail')) {
-        return [{ time_slot: '07:00', ripple_mill_1_amps: null, ripple_mill_2_amps: null, claybath_hydro_sg: null, kernel_silo_1_temp_c: null, kernel_silo_2_temp_c: null, kernel_moisture_percent: null, shell_loss_percent: null, downtime_minutes: null, findings: null }]
+        return [{ time_slot: '07:00', ripple_mill_1_amps: null, ripple_mill_2_amps: null, claybath_hydro_sg: null, kernel_silo_1_temp_c: null, kernel_silo_2_temp_c: null, kernel_moisture_percent: null, shell_bin_kernel_loss_percent: null, downtime_minutes: null, findings: null }]
       }
       return []
     })

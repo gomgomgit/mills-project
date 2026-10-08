@@ -615,3 +615,91 @@ describe('localSchema — fetchAndCacheMillSetting() station icon override sync'
     expect(updateCalls).toHaveLength(0)
   })
 })
+
+/**
+ * initLocalSchema() — rename kernel_plant_detail.shell_loss_percent ->
+ * shell_bin_kernel_loss_percent (2026-10-08).
+ *
+ * Mengikuti rename backend (migrasi 2026_10_08_000001). Standar masternya
+ * bernama "Shell Bin Kernel Loss" — yang diukur KERNEL yang terbuang ke shell
+ * bin, sementara nama lama menyebut kehilangan SHELL: zat yang salah.
+ *
+ * RENAME, BUKAN KOLOM BARU, dan itu yang diuji di sini. Tidak ada
+ * pertentangan arah antara nama lama dan standarnya (keduanya kehilangan
+ * dalam persen, makin kecil makin baik), jadi nilai yang sudah tercatat di
+ * perangkat tetap sah. Menambahkan kolom baru dan membiarkan yang lama
+ * berdiri akan membuang seluruh pengukuran yang sudah ada tanpa satu pun
+ * galat — persis kegagalan diam yang alias di
+ * KernelPlantRecordService::normalizeDetails() juga menutup di sisi server.
+ */
+describe('localSchema — initLocalSchema() kernel_plant_detail shell loss rename', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(run).mockResolvedValue({ changes: 1 })
+  })
+
+  it('me-rename kolom lama pada tabel yang mendahului rename ini', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('kernel_plant_detail')) {
+        return [
+          { name: 'id' },
+          { name: 'time_slot' },
+          { name: 'kernel_moisture_percent' },
+          { name: 'shell_loss_percent' },
+        ] as never
+      }
+
+      return [{ name: 'id' }] as never
+    })
+
+    await initLocalSchema()
+
+    const calls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(calls).toContain(
+      'ALTER TABLE kernel_plant_detail RENAME COLUMN shell_loss_percent TO shell_bin_kernel_loss_percent',
+    )
+    // Dan BUKAN sebagai kolom baru: itu akan membuang nilai yang sudah ada.
+    expect(calls.some((sql) => sql.includes('ADD COLUMN shell_bin_kernel_loss_percent'))).toBe(false)
+  })
+
+  it('tidak me-rename apa pun pada tabel yang sudah memakai nama baru', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('kernel_plant_detail')) {
+        return [
+          { name: 'id' },
+          { name: 'time_slot' },
+          { name: 'shell_bin_kernel_loss_percent' },
+        ] as never
+      }
+
+      return [{ name: 'id' }] as never
+    })
+
+    await initLocalSchema()
+
+    const calls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(calls.some((sql) => sql.includes('RENAME COLUMN shell_loss_percent'))).toBe(false)
+  })
+
+  it('tidak me-rename dua kali pada tabel yang entah bagaimana memegang kedua kolom', async () => {
+    // Tanpa pemeriksaan ganda ini, rename-nya akan membentur kolom yang sudah
+    // ada dan initLocalSchema() gagal seluruhnya — artinya aplikasi tidak bisa
+    // dibuka, bukan sekadar satu kolom salah.
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('kernel_plant_detail')) {
+        return [
+          { name: 'id' },
+          { name: 'shell_loss_percent' },
+          { name: 'shell_bin_kernel_loss_percent' },
+        ] as never
+      }
+
+      return [{ name: 'id' }] as never
+    })
+
+    await initLocalSchema()
+
+    const calls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(calls.some((sql) => sql.includes('RENAME COLUMN shell_loss_percent'))).toBe(false)
+  })
+})

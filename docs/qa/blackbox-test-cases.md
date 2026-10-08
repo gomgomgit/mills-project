@@ -1597,7 +1597,7 @@ cukup rujuk nomor ini alih-alih membuat laporan bug baru.
 | No | Hal |
 |---|---|
 | K-1 | **Satuan suhu ditulis `C`, bukan `°C`** pada laporan Kernel Plant (web & mobile). Disengaja: nilainya datang dari data master apa adanya, dan mengubahnya di tampilan akan membuat web dan mobile berselisih. |
-| K-2 | **Nama kolom `shell_loss_percent` vs standar "Shell Bin Kernel Loss"** pada Kernel Plant — kemungkinan dua kuantitas berbeda. Keputusan penamaan belum diambil. Tabelnya masih kosong. |
+| K-2 | **SELESAI 2026-10-08 — tidak perlu dilaporkan lagi.** Kolom Kernel Plant yang dulu bernama `shell_loss_percent` kini **"Shell Bin Kernel Loss"** di seluruh layar (Form, Detail, Data Preview, Laporan, dan ekspor CSV), mengikuti nama standar di master. Nama lamanya menyebut zat yang salah — kehilangan *shell*, padahal yang diukur adalah **kernel yang terbuang ke shell bin**. Angkanya tidak pernah salah dan tidak berubah; hanya namanya. Yang perlu diperiksa QA: label barunya konsisten di kelima tempat itu, dan header CSV berbunyi `Shell Bin Kernel Loss (%)`. |
 | K-3 | **Laporan Depricarping (Mobile)**: keterangan cakupan menyebut "enam kolom bacaan" padahal yang benar sembilan. Kosmetik. |
 | K-4 | **Laporan Depricarping (Mobile)**: tiga angka pada blok downtime tampil tanpa gaya yang semestinya. Kosmetik. |
 | K-5 | **Dashboard hanya meringkas 3 stasiun** (Weighbridge, Grading, Cages Track), bukan 18. Disengaja. |

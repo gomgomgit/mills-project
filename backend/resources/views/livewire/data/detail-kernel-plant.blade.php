@@ -60,7 +60,7 @@
                             <th>Kernel Silo 1 Temp</th>
                             <th>Kernel Silo 2 Temp</th>
                             <th>Kernel Moisture</th>
-                            <th>Shell Loss</th>
+                            <th>Shell Bin Kernel Loss</th>
                             <th>Downtime (Mins)</th>
                             <th>Findings</th>
                         </tr>
@@ -75,7 +75,7 @@
                                 <td>{{ \App\Support\Display::value($row['kernel_silo_1_temp_c']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['kernel_silo_2_temp_c']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['kernel_moisture_percent']) }}</td>
-                                <td>{{ \App\Support\Display::value($row['shell_loss_percent']) }}</td>
+                                <td>{{ \App\Support\Display::value($row['shell_bin_kernel_loss_percent']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['downtime_minutes']) }}</td>
                                 <td>{{ \App\Support\Display::value($row['findings']) }}</td>
                             </tr>

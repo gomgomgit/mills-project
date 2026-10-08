@@ -26,7 +26,7 @@ class KernelPlantDetail extends Model
         'kernel_silo_1_temp_c',
         'kernel_silo_2_temp_c',
         'kernel_moisture_percent',
-        'shell_loss_percent',
+        'shell_bin_kernel_loss_percent',
         'downtime_minutes',
         'findings',
     ];
@@ -38,7 +38,7 @@ class KernelPlantDetail extends Model
         'kernel_silo_1_temp_c' => 'float',
         'kernel_silo_2_temp_c' => 'float',
         'kernel_moisture_percent' => 'float',
-        'shell_loss_percent' => 'float',
+        'shell_bin_kernel_loss_percent' => 'float',
         'downtime_minutes' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

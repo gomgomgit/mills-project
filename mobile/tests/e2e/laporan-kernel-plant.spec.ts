@@ -164,7 +164,7 @@ const METRIC_COLUMNS = [
   'kernel_silo_1_temp_c',
   'kernel_silo_2_temp_c',
   'kernel_moisture_percent',
-  'shell_loss_percent',
+  'shell_bin_kernel_loss_percent',
 ]
 
 function averages(values: Record<string, number | null> = {}): Record<string, number | null> {
@@ -283,7 +283,7 @@ function metrics(): Array<Record<string, unknown>> {
       },
     },
     {
-      column: 'shell_loss_percent',
+      column: 'shell_bin_kernel_loss_percent',
       label: 'Shell Bin Kernel Loss',
       unit: '%',
       min: 1.1,

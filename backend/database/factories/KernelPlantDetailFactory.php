@@ -39,7 +39,7 @@ class KernelPlantDetailFactory extends Factory
             'kernel_silo_1_temp_c' => null,
             'kernel_silo_2_temp_c' => null,
             'kernel_moisture_percent' => null,
-            'shell_loss_percent' => null,
+            'shell_bin_kernel_loss_percent' => null,
             'downtime_minutes' => null,
             'findings' => null,
         ];

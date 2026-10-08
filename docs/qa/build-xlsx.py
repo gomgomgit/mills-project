@@ -511,8 +511,12 @@ KNOWN = [
  ('K-1','Satuan suhu ditulis C, bukan °C pada laporan Kernel Plant (web & mobile)',
   'Disengaja: nilainya datang dari data master apa adanya, dan mengubahnya di tampilan akan '
   'membuat web dan mobile berselisih.'),
- ('K-2','Nama kolom shell_loss_percent vs standar "Shell Bin Kernel Loss" pada Kernel Plant',
-  'Kemungkinan dua kuantitas berbeda. Keputusan penamaan belum diambil; tabelnya masih kosong.'),
+ ('K-2','SELESAI 2026-10-08 — penamaan Shell Bin Kernel Loss pada Kernel Plant sudah seragam',
+  'Kolom yang dulu bernama shell_loss_percent kini "Shell Bin Kernel Loss" di Form, Detail, '
+  'Data Preview, Laporan, dan header ekspor CSV — mengikuti nama standar di master. Nama lamanya '
+  'menyebut zat yang salah: kehilangan SHELL, padahal yang diukur KERNEL yang terbuang ke shell '
+  'bin. Angkanya tidak pernah salah dan tidak berubah, hanya namanya. Yang diperiksa QA: label '
+  'barunya konsisten di kelima tempat itu, dan header CSV berbunyi "Shell Bin Kernel Loss (%)".'),
  ('K-3','Laporan Depricarping (Mobile): keterangan cakupan menyebut "enam kolom bacaan"',
   'Yang benar sembilan. Kosmetik, sudah tercatat.'),
  ('K-4','Laporan Depricarping (Mobile): tiga angka pada blok downtime tampil tanpa gaya',

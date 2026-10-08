@@ -496,7 +496,7 @@ it('skenario 9 — bagian standar-tanpa-pengukuran TETAP digambar walau isinya k
     laporanKernelPlantComponentSeedTargets(fn (string $parameter) => $parameter !== 'Final Kernel Dirt');
 
     $record = laporanKernelPlantComponentRecord($this->stationA, $this->day1);
-    laporanKernelPlantComponentSlot($record, $this->slots[0], ['shell_loss_percent' => 1.2]);
+    laporanKernelPlantComponentSlot($record, $this->slots[0], ['shell_bin_kernel_loss_percent' => 1.2]);
 
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanKernelPlant::class)

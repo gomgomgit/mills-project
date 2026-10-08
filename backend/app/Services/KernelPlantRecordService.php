@@ -65,7 +65,7 @@ use Throwable;
  * kernel_plant_detail row counts as filled when at least one of its 9
  * reading columns (ripple_mill_1_amps, ripple_mill_2_amps,
  * claybath_hydro_sg, kernel_silo_1_temp_c, kernel_silo_2_temp_c,
- * kernel_moisture_percent, shell_loss_percent, downtime_minutes) OR
+ * kernel_moisture_percent, shell_bin_kernel_loss_percent, downtime_minutes) OR
  * `findings` is non-null/non-empty. The model's own `saving` guard
  * (KernelPlantRecord::booted(), "minimal satu kernel-plant-detail sebelum
  * status=saved") checks ROW EXISTENCE, satisfied once at least one row has
@@ -102,7 +102,7 @@ class KernelPlantRecordService
         'kernel_silo_1_temp_c',
         'kernel_silo_2_temp_c',
         'kernel_moisture_percent',
-        'shell_loss_percent',
+        'shell_bin_kernel_loss_percent',
         'downtime_minutes',
         'findings',
     ];
@@ -249,7 +249,7 @@ class KernelPlantRecordService
     }
 
     /**
-     * @return array<int, array{id: ?string, time_slot: ?string, ripple_mill_1_amps: mixed, ripple_mill_2_amps: mixed, claybath_hydro_sg: mixed, kernel_silo_1_temp_c: mixed, kernel_silo_2_temp_c: mixed, kernel_moisture_percent: mixed, shell_loss_percent: mixed, downtime_minutes: mixed, findings: mixed}>
+     * @return array<int, array{id: ?string, time_slot: ?string, ripple_mill_1_amps: mixed, ripple_mill_2_amps: mixed, claybath_hydro_sg: mixed, kernel_silo_1_temp_c: mixed, kernel_silo_2_temp_c: mixed, kernel_moisture_percent: mixed, shell_bin_kernel_loss_percent: mixed, downtime_minutes: mixed, findings: mixed}>
      */
     protected function normalizeDetails(array $rawDetails): array
     {
@@ -263,7 +263,28 @@ class KernelPlantRecordService
                 'kernel_silo_1_temp_c' => $row['kernel_silo_1_temp_c'] ?? null,
                 'kernel_silo_2_temp_c' => $row['kernel_silo_2_temp_c'] ?? null,
                 'kernel_moisture_percent' => $row['kernel_moisture_percent'] ?? null,
-                'shell_loss_percent' => $row['shell_loss_percent'] ?? null,
+                // KUNCI LAMA DITERIMA SEBAGAI ALIAS, dan hanya di sini.
+                // Kolomnya di-rename shell_loss_percent ->
+                // shell_bin_kernel_loss_percent pada 2026-10-08 (migrasi
+                // 2026_10_08_000001). Tabel server kosong saat itu, tetapi
+                // DRAFT HIDUP DI SQLITE PERANGKAT, bukan di server — tabel
+                // kosong tidak membuktikan tidak ada perangkat yang masih
+                // memegang draft dengan kunci lama.
+                //
+                // Tanpa alias ini, draft seperti itu tetap TERSIMPAN: baris
+                // dianggap terisi oleh salah satu dari delapan kolom bacaan
+                // lainnya, kunci baru jatuh ke null lewat `?? null`, dan
+                // angka Shell Bin Kernel Loss-nya HILANG TANPA SATU PUN
+                // GALAT. Kehilangan yang diam seperti itu tidak dapat
+                // dibedakan dari slot yang memang tidak diukur.
+                //
+                // Berlaku untuk satu rilis; dapat dibuang setelah seluruh
+                // perangkat lapangan menjalankan versi yang memuat
+                // migrateKernelPlantDetailShellLossRename() di
+                // mobile/src/services/localSchema.ts.
+                'shell_bin_kernel_loss_percent' => $row['shell_bin_kernel_loss_percent']
+                    ?? $row['shell_loss_percent']
+                    ?? null,
                 'downtime_minutes' => $row['downtime_minutes'] ?? null,
                 'findings' => $row['findings'] ?? null,
             ])
@@ -331,7 +352,7 @@ class KernelPlantRecordService
     }
 
     /**
-     * @param  array{ripple_mill_1_amps: mixed, ripple_mill_2_amps: mixed, claybath_hydro_sg: mixed, kernel_silo_1_temp_c: mixed, kernel_silo_2_temp_c: mixed, kernel_moisture_percent: mixed, shell_loss_percent: mixed, downtime_minutes: mixed, findings: mixed}  $row
+     * @param  array{ripple_mill_1_amps: mixed, ripple_mill_2_amps: mixed, claybath_hydro_sg: mixed, kernel_silo_1_temp_c: mixed, kernel_silo_2_temp_c: mixed, kernel_moisture_percent: mixed, shell_bin_kernel_loss_percent: mixed, downtime_minutes: mixed, findings: mixed}  $row
      */
     public function isRowFilled(array $row): bool
     {
@@ -405,7 +426,7 @@ class KernelPlantRecordService
                 'kernel_silo_1_temp_c' => $row['kernel_silo_1_temp_c'],
                 'kernel_silo_2_temp_c' => $row['kernel_silo_2_temp_c'],
                 'kernel_moisture_percent' => $row['kernel_moisture_percent'],
-                'shell_loss_percent' => $row['shell_loss_percent'],
+                'shell_bin_kernel_loss_percent' => $row['shell_bin_kernel_loss_percent'],
                 'downtime_minutes' => $row['downtime_minutes'],
                 'findings' => $row['findings'],
             ];
@@ -453,7 +474,7 @@ class KernelPlantRecordService
                         ->orWhereNotNull('kernel_silo_1_temp_c')
                         ->orWhereNotNull('kernel_silo_2_temp_c')
                         ->orWhereNotNull('kernel_moisture_percent')
-                        ->orWhereNotNull('shell_loss_percent')
+                        ->orWhereNotNull('shell_bin_kernel_loss_percent')
                         ->orWhereNotNull('downtime_minutes')
                         ->orWhereNotNull('findings');
                 });
@@ -528,7 +549,7 @@ class KernelPlantRecordService
                     'Kernel Silo 1 Temp (°C)',
                     'Kernel Silo 2 Temp (°C)',
                     'Kernel Moisture (%)',
-                    'Shell Loss (%)',
+                    'Shell Bin Kernel Loss (%)',
                     'Downtime (Mins)',
                     'Findings',
                 ]);
@@ -564,7 +585,7 @@ class KernelPlantRecordService
                                 $detail->kernel_silo_1_temp_c,
                                 $detail->kernel_silo_2_temp_c,
                                 $detail->kernel_moisture_percent,
-                                $detail->shell_loss_percent,
+                                $detail->shell_bin_kernel_loss_percent,
                                 $detail->downtime_minutes,
                                 $detail->findings,
                             ]));
@@ -736,7 +757,7 @@ class KernelPlantRecordService
                 'kernel_silo_1_temp_c' => $row->kernel_silo_1_temp_c,
                 'kernel_silo_2_temp_c' => $row->kernel_silo_2_temp_c,
                 'kernel_moisture_percent' => $row->kernel_moisture_percent,
-                'shell_loss_percent' => $row->shell_loss_percent,
+                'shell_bin_kernel_loss_percent' => $row->shell_bin_kernel_loss_percent,
                 'downtime_minutes' => $row->downtime_minutes,
                 'findings' => $row->findings,
             ])

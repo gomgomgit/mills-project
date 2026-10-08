@@ -88,7 +88,7 @@ class FormKernelPlant extends Component
      * existing record (UPDATE target) and absent for rows added this
      * session (INSERT target).
      *
-     * @var array<int, array{id: ?string, time_slot: ?string, ripple_mill_1_amps: mixed, ripple_mill_2_amps: mixed, claybath_hydro_sg: mixed, kernel_silo_1_temp_c: mixed, kernel_silo_2_temp_c: mixed, kernel_moisture_percent: mixed, shell_loss_percent: mixed, downtime_minutes: mixed, findings: mixed}>
+     * @var array<int, array{id: ?string, time_slot: ?string, ripple_mill_1_amps: mixed, ripple_mill_2_amps: mixed, claybath_hydro_sg: mixed, kernel_silo_1_temp_c: mixed, kernel_silo_2_temp_c: mixed, kernel_moisture_percent: mixed, shell_bin_kernel_loss_percent: mixed, downtime_minutes: mixed, findings: mixed}>
      */
     public array $detailRows = [];
 
@@ -166,7 +166,7 @@ class FormKernelPlant extends Component
                 'kernel_silo_1_temp_c' => $row['kernel_silo_1_temp_c'],
                 'kernel_silo_2_temp_c' => $row['kernel_silo_2_temp_c'],
                 'kernel_moisture_percent' => $row['kernel_moisture_percent'],
-                'shell_loss_percent' => $row['shell_loss_percent'],
+                'shell_bin_kernel_loss_percent' => $row['shell_bin_kernel_loss_percent'],
                 'downtime_minutes' => $row['downtime_minutes'],
                 'findings' => $row['findings'],
             ])
@@ -184,7 +184,7 @@ class FormKernelPlant extends Component
             'kernel_silo_1_temp_c' => '',
             'kernel_silo_2_temp_c' => '',
             'kernel_moisture_percent' => '',
-            'shell_loss_percent' => '',
+            'shell_bin_kernel_loss_percent' => '',
             'downtime_minutes' => '',
             'findings' => '',
         ];
@@ -253,7 +253,7 @@ class FormKernelPlant extends Component
                 'kernel_silo_1_temp_c' => $row['kernel_silo_1_temp_c'] !== '' ? $row['kernel_silo_1_temp_c'] : null,
                 'kernel_silo_2_temp_c' => $row['kernel_silo_2_temp_c'] !== '' ? $row['kernel_silo_2_temp_c'] : null,
                 'kernel_moisture_percent' => $row['kernel_moisture_percent'] !== '' ? $row['kernel_moisture_percent'] : null,
-                'shell_loss_percent' => $row['shell_loss_percent'] !== '' ? $row['shell_loss_percent'] : null,
+                'shell_bin_kernel_loss_percent' => $row['shell_bin_kernel_loss_percent'] !== '' ? $row['shell_bin_kernel_loss_percent'] : null,
                 'downtime_minutes' => $row['downtime_minutes'] !== '' ? $row['downtime_minutes'] : null,
                 'findings' => $row['findings'] !== '' ? $row['findings'] : null,
             ])

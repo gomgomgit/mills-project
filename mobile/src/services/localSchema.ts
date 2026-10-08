@@ -531,7 +531,7 @@ const CREATE_KERNEL_PLANT_DETAIL = `
     kernel_silo_1_temp_c REAL,
     kernel_silo_2_temp_c REAL,
     kernel_moisture_percent REAL,
-    shell_loss_percent REAL,
+    shell_bin_kernel_loss_percent REAL,
     downtime_minutes INTEGER,
     findings TEXT,
     created_at TEXT NOT NULL,
@@ -1296,6 +1296,7 @@ export async function initLocalSchema(): Promise<void> {
   await migrateMillSettingForImmediateSync()
   await migrateRecordTablesForSyncError()
   await migrateDepricarpingDetailKernelLossRename()
+  await migrateKernelPlantDetailShellLossRename()
   await normalizeLegacyUtcDates()
   await dedupeStationRows()
 }
@@ -1347,6 +1348,39 @@ async function migrateDepricarpingDetailKernelLossRename(): Promise<void> {
 
   await run(
     'ALTER TABLE depricarping_detail RENAME COLUMN kernel_recovery_in_fibre_percent TO kernel_loss_in_fibre_percent',
+  )
+}
+
+/**
+ * kernel_plant_detail.shell_loss_percent
+ *   -> shell_bin_kernel_loss_percent (2026-10-08)
+ *
+ * Mengikuti rename backend (migrasi 2026_10_08_000001) dan bentuk
+ * migrateDepricarpingDetailKernelLossRename() di atas. Standar masternya
+ * bernama "Shell Bin Kernel Loss" — yang diukur adalah KERNEL yang terbuang
+ * ke shell bin, sementara nama lama menyebut kehilangan SHELL: zat yang
+ * salah. Tidak ada pertentangan arah di sini (keduanya kehilangan dalam
+ * persen, makin kecil makin baik), jadi NILAI YANG SUDAH ADA DI PERANGKAT
+ * TETAP SAH — hanya namanya yang kini menyebutnya dengan benar, dan karena
+ * itu rename, bukan kolom baru yang dibiarkan kosong.
+ *
+ * CREATE TABLE di berkas ini sudah memakai nama baru, jadi pemasangan baru
+ * tidak melewati sini sama sekali; fungsi ini hanya untuk perangkat yang
+ * tabelnya lebih tua.
+ */
+async function migrateKernelPlantDetailShellLossRename(): Promise<void> {
+  const existing = await query<{ name: string }>('PRAGMA table_info(kernel_plant_detail)')
+  const names = new Set(existing.map((column) => column.name))
+
+  // Memeriksa KEDUANYA, sama seperti pendahulunya: tabel yang entah bagaimana
+  // memegang dua-duanya tidak boleh di-rename lagi dan membentur kolom yang
+  // sudah ada.
+  if (!names.has('shell_loss_percent') || names.has('shell_bin_kernel_loss_percent')) {
+    return
+  }
+
+  await run(
+    'ALTER TABLE kernel_plant_detail RENAME COLUMN shell_loss_percent TO shell_bin_kernel_loss_percent',
   )
 }
 

@@ -46,7 +46,7 @@ import { todayLocalDateString } from '@/utils/localDate'
  * a kernel_plant_detail row counts as filled when at least one of its 9
  * reading columns (ripple_mill_1_amps, ripple_mill_2_amps,
  * claybath_hydro_sg, kernel_silo_1_temp_c, kernel_silo_2_temp_c,
- * kernel_moisture_percent, shell_loss_percent, downtime_minutes) OR
+ * kernel_moisture_percent, shell_bin_kernel_loss_percent, downtime_minutes) OR
  * `findings` is non-null/non-empty — i.e. EITHER downtime_minutes OR
  * findings (or any other reading column) satisfies isRowFilled(), matching
  * the pre-fix behavior's semantics. The server-side KernelPlantRecord::booted()
@@ -96,7 +96,7 @@ export interface KernelPlantDetailRow {
   kernel_silo_1_temp_c: number | null
   kernel_silo_2_temp_c: number | null
   kernel_moisture_percent: number | null
-  shell_loss_percent: number | null
+  shell_bin_kernel_loss_percent: number | null
   downtime_minutes: number | null
   findings: string | null
   created_at: string
@@ -140,7 +140,7 @@ export interface KernelPlantDetailFormRow {
   kernel_silo_1_temp_c: number | null
   kernel_silo_2_temp_c: number | null
   kernel_moisture_percent: number | null
-  shell_loss_percent: number | null
+  shell_bin_kernel_loss_percent: number | null
   downtime_minutes: number | null
   findings: string | null
 }
@@ -234,7 +234,7 @@ export function canonicalTimeSlots(): string[] {
  * Returns true when a kernel_plant_detail row has at least one of its 8
  * numeric reading columns (ripple_mill_1_amps, ripple_mill_2_amps,
  * claybath_hydro_sg, kernel_silo_1_temp_c, kernel_silo_2_temp_c,
- * kernel_moisture_percent, shell_loss_percent, downtime_minutes)
+ * kernel_moisture_percent, shell_bin_kernel_loss_percent, downtime_minutes)
  * non-null/non-empty OR `findings` is non-empty — EITHER downtime_minutes OR
  * findings satisfies this, not both required — see this file's header
  * comment for the "filled row" definition.
@@ -246,7 +246,7 @@ function isRowFilled(row: {
   kernel_silo_1_temp_c: number | null
   kernel_silo_2_temp_c: number | null
   kernel_moisture_percent: number | null
-  shell_loss_percent: number | null
+  shell_bin_kernel_loss_percent: number | null
   downtime_minutes: number | null
   findings: string | null
 }): boolean {
@@ -257,7 +257,7 @@ function isRowFilled(row: {
     row.kernel_silo_1_temp_c !== null ||
     row.kernel_silo_2_temp_c !== null ||
     row.kernel_moisture_percent !== null ||
-    row.shell_loss_percent !== null ||
+    row.shell_bin_kernel_loss_percent !== null ||
     row.downtime_minutes !== null ||
     (row.findings !== null && row.findings !== '')
   )
@@ -423,7 +423,7 @@ async function applyDetailRowChanges(
              kernel_silo_1_temp_c = ?,
              kernel_silo_2_temp_c = ?,
              kernel_moisture_percent = ?,
-             shell_loss_percent = ?,
+             shell_bin_kernel_loss_percent = ?,
              downtime_minutes = ?,
              findings = ?,
              updated_at = ?
@@ -436,7 +436,7 @@ async function applyDetailRowChanges(
           row.kernel_silo_1_temp_c,
           row.kernel_silo_2_temp_c,
           row.kernel_moisture_percent,
-          row.shell_loss_percent,
+          row.shell_bin_kernel_loss_percent,
           row.downtime_minutes,
           row.findings || null,
           timestamp,
@@ -450,7 +450,7 @@ async function applyDetailRowChanges(
 
     await run(
       `INSERT INTO kernel_plant_detail
-         (id, kernel_plant_record_id, time_slot, ripple_mill_1_amps, ripple_mill_2_amps, claybath_hydro_sg, kernel_silo_1_temp_c, kernel_silo_2_temp_c, kernel_moisture_percent, shell_loss_percent, downtime_minutes, findings, created_at, updated_at)
+         (id, kernel_plant_record_id, time_slot, ripple_mill_1_amps, ripple_mill_2_amps, claybath_hydro_sg, kernel_silo_1_temp_c, kernel_silo_2_temp_c, kernel_moisture_percent, shell_bin_kernel_loss_percent, downtime_minutes, findings, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         detailId,
@@ -462,7 +462,7 @@ async function applyDetailRowChanges(
         row.kernel_silo_1_temp_c,
         row.kernel_silo_2_temp_c,
         row.kernel_moisture_percent,
-        row.shell_loss_percent,
+        row.shell_bin_kernel_loss_percent,
         row.downtime_minutes,
         row.findings || null,
         timestamp,

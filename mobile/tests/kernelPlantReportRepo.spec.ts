@@ -232,7 +232,7 @@ function summaryPayload(overrides: Record<string, unknown> = {}): Record<string,
         },
       },
       {
-        column: 'shell_loss_percent',
+        column: 'shell_bin_kernel_loss_percent',
         label: 'Shell Bin Kernel Loss',
         unit: '%',
         min: 1.1,
@@ -713,7 +713,7 @@ describe('standar operasional', () => {
       'kernel_silo_1_temp_c',
       'kernel_silo_2_temp_c',
       'kernel_moisture_percent',
-      'shell_loss_percent',
+      'shell_bin_kernel_loss_percent',
     ])
   })
 
@@ -746,7 +746,7 @@ describe('standar operasional', () => {
 
     // Dan KOSONG — bukan undefined — pada ketiga metrik lain: layar
     // memeriksanya dengan .length > 0.
-    for (const column of ['claybath_hydro_sg', 'kernel_moisture_percent', 'shell_loss_percent']) {
+    for (const column of ['claybath_hydro_sg', 'kernel_moisture_percent', 'shell_bin_kernel_loss_percent']) {
       expect(byColumn.get(column)?.target.shares_standard_with).toEqual([])
     }
 

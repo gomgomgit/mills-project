@@ -340,6 +340,32 @@ it('skenario 8 — tidak ada satu pun kelas penanda di luar batas pada HTML ter-
     expect($html)->toContain('data-testid="no-flagging-note"');
     expect($html)->toContain('teks bebas');
     expect($html)->toContain('berlaku umum untuk seluruh mill');
+
+    // KETIGA ALASAN PENOLAKAN DIASERSI SATU PER SATU, dan itu baru sejak
+    // 2026-10-08. Sebelumnya hanya 'teks bebas' yang diperiksa di sini —
+    // sehingga alasan kedua dan ketiga bebas melenceng tanpa satu pun uji
+    // menyadarinya, dan alasan ketiga memang melenceng: ia menyatakan "satu
+    // parameter arah angkanya sendiri belum pasti" sampai 2026-10-08, padahal
+    // keraguan itu sudah diputuskan pada 2026-10-06 dan kolomnya di-rename
+    // (migrasi 2026_10_06_000001_rename_kernel_recovery_to_kernel_loss...).
+    // Kalimatnya menunjuk "catatan di bawah" yang justru menerangkan bahwa
+    // keraguannya selesai, dan bagian itu normalnya kosong sejak tanggal yang
+    // sama. Yang menemukannya bukan uji ini — melainkan kembaran mobile-nya,
+    // yang memang mengasersi ketiganya dan karenanya gagal ketika web dan
+    // mobile berselisih.
+    //
+    // Diasersi atas MUATAN tiap alasan, bukan satu kata: satu kata dapat
+    // tetap ada sementara klaim di sekitarnya berubah arti.
+    expect($html)->toContain('berhenti memperingatkan');          // pertama
+    expect($html)->toContain('satuannya ikut di dalam');           // kedua
+    expect($html)->toContain('warna membawa makna melampaui');     // ketiga
+    expect($html)->toContain('tidak pernah ditetapkan siapa pun'); // ketiga
+
+    // Dan rujukan menggantung yang dulu ada di alasan ketiga tidak kembali:
+    // "lihat catatan di bawah" menunjuk bagian standar-tanpa-pengukuran, yang
+    // normalnya kosong, jadi pembaca dikirim ke tempat yang tidak menjelaskan
+    // apa pun.
+    expect($html)->not->toContain('lihat catatan di bawah');
 });
 
 it('skenario 9 — bagian standar-tanpa-pengukuran terender KOSONG dengan keterangannya', function () {

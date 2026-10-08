@@ -792,7 +792,29 @@ test.describe('Laporan Depricarping Mobile (screen-153)', () => {
     // Ketiga alasan penolakan dinyatakan UTUH, tidak diringkas demi ruang.
     await expect(note).toContainText('berhenti memperingatkan')
     await expect(note).toContainText('satuannya ikut di dalam teks')
-    await expect(note).toContainText('terbalik')
+    // ALASAN KETIGA BERGANTI, DAN BUKAN KARENA PROSANYA DIPERINDAH
+    // (2026-10-08). Uji ini dulu menuntut kata 'terbalik', dari alasan versi
+    // web: "satu parameter arah angkanya sendiri belum pasti (lihat catatan
+    // di bawah), sehingga menguraikan batasnya akan menghasilkan peringatan
+    // yang TERBALIK". Parameter yang dimaksud adalah kernel loss in fibre —
+    // kolomnya bernama recovery sementara masternya menyebut loss, dua
+    // pembingkaian berlawanan arah atas kuantitas yang sama.
+    //
+    // Ketidakpastian itu SUDAH DIPUTUSKAN pada 2026-10-06: kolomnya di-rename
+    // mengikuti penamaan master (migrasi
+    // 2026_10_06_000001_rename_kernel_recovery_to_kernel_loss_on_depricarping_details).
+    // Jadi alasan ketiga versi web menyatakan sebuah keraguan yang tidak lagi
+    // ada, dalam kalimat berkala sekarang, sambil menunjuk "catatan di bawah"
+    // yang justru menerangkan bahwa keraguannya sudah selesai — dan bagian itu
+    // normalnya kosong sejak tanggal yang sama.
+    //
+    // Layar mobile memakai alasan ketiga yang benar dan masih berlaku, yang
+    // sudah berdiri di komentar kepala blade web sendiri: warna membawa makna
+    // melampaui statistik. Prosa web disetarakan ke bentuk ini pada commit
+    // yang sama dengan perubahan baris ini, jadi keduanya kini menyatakan hal
+    // yang sama. Yang diasersi adalah MUATAN klaimnya, bukan satu kata.
+    await expect(note).toContainText('warna membawa makna melampaui statistik')
+    await expect(note).toContainText('tidak pernah ditetapkan siapa pun')
     // Dan selisih yang benar antara cakupan dan penyebut kartu dijelaskan.
     await expect(note).toContainText('sembilan')
   })

@@ -503,10 +503,11 @@
                     &ldquo;semuanya aman&rdquo;, arah kegagalan terburuk untuk indikator mutu. <b>Kedua</b>, bentuk dua sisi menuntut
                     pengurai yang berbeda dari bentuk satu sisi, dan <b>satuannya ikut di dalam
                     teks</b> &mdash; mmH2O, %, &deg;C, RPM, m/s; pengurai yang benar untuk keenamnya
-                    hari ini adalah pengurai yang paling mungkin salah besok. <b>Ketiga</b>, satu
-                    parameter <b>arah angkanya sendiri belum pasti</b> (lihat catatan di bawah),
-                    sehingga menguraikan batasnya akan menghasilkan peringatan yang <b>terbalik</b>
-                    &mdash; lebih buruk daripada tidak ada peringatan. Bila penandaan diinginkan, cara
+                    hari ini adalah pengurai yang paling mungkin salah besok. <b>Ketiga</b>,
+                    <b>warna membawa makna melampaui statistik</b>: angka merah pada laporan
+                    periode terbaca sebagai <b>pelanggaran</b> &mdash; bahan audit &mdash; sehingga
+                    menurunkannya dari prosa berarti sistem menyatakan pelanggaran yang
+                    <b>tidak pernah ditetapkan siapa pun</b>. Bila penandaan diinginkan, cara
                     yang jujur adalah memecah master menjadi kolom <b>batas numerik</b> (minimum,
                     maksimum, arah pembanding, satuan) di samping teksnya &mdash; bukan menguraikan
                     teksnya saat render.

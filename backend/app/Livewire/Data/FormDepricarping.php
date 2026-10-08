@@ -65,7 +65,7 @@ class FormDepricarping extends Component
     use GuardsRecordIdShape;
     use ScopesToActorMill;
 
-    protected const FIELDS = ['production_line_id', 'presser_id', 'date', 'note'];
+    protected const FIELDS = ['production_line_id', 'depricarping_id', 'date', 'note'];
 
     public ?string $id = null;
 
@@ -76,7 +76,7 @@ class FormDepricarping extends Component
     /** @var array<string, mixed> */
     public array $form = [
         'production_line_id' => '',
-        'presser_id' => '',
+        'depricarping_id' => '',
         'date' => '',
         'note' => '',
     ];
@@ -148,7 +148,7 @@ class FormDepricarping extends Component
             return;
         }
 
-        $this->form['presser_id'] = $record['presser_id'] ?? '';
+        $this->form['depricarping_id'] = $record['depricarping_id'] ?? '';
         $this->form['date'] = $record['date'] ?? '';
         $this->form['note'] = $record['note'] ?? '';
 

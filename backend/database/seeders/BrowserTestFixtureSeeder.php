@@ -229,7 +229,7 @@ class BrowserTestFixtureSeeder extends Seeder
     protected const EDIT_RECORDS = [
         'boiler-room' => [BoilerRoomRecord::class, BoilerRoomDetail::class, 'boiler_room_id', 'BR-BROWSER-EDIT', ['steam_pressure_bar' => 12.5]],
         'clarification' => [ClarificationRecord::class, ClarificationDetail::class, 'clarification_id', 'CLR-BROWSER-EDIT', ['clarification_tank_temp_c' => 93]],
-        'depricarping' => [DepricarpingRecord::class, DepricarpingDetail::class, 'presser_id', 'DP-BROWSER-EDIT', ['polishing_drum_speed_rpm' => 1200]],
+        'depricarping' => [DepricarpingRecord::class, DepricarpingDetail::class, 'depricarping_id', 'DP-BROWSER-EDIT', ['polishing_drum_speed_rpm' => 1200]],
         'effluent-plant' => [EffluentPlantRecord::class, EffluentPlantDetail::class, 'effluent_plant_id', 'EP-BROWSER-EDIT', ['anaerobic_pond_1_ph' => 7.0]],
         'engine-room' => [EngineRoomRecord::class, EngineRoomDetail::class, 'engine_room_id', 'ER-BROWSER-EDIT', ['steam_turbine_inlet_pressure_bar' => 20.0]],
         'kernel-plant' => [KernelPlantRecord::class, KernelPlantDetail::class, 'kernel_plant_id', 'KP-BROWSER-EDIT', ['claybath_hydro_sg' => 1.12]],
@@ -667,7 +667,7 @@ class BrowserTestFixtureSeeder extends Seeder
         'cages-track' => [CagesTrackRecord::class, 'cages_track_number', 'CT'],
         'clarification' => [ClarificationRecord::class, 'clarification_id', 'CLR'],
         'cpo-dispatch' => [CpoDispatchRecord::class, 'cpo_dispatch_id', 'CD'],
-        'depricarping' => [DepricarpingRecord::class, 'presser_id', 'DP'],
+        'depricarping' => [DepricarpingRecord::class, 'depricarping_id', 'DP'],
         'effluent-plant' => [EffluentPlantRecord::class, 'effluent_plant_id', 'EP'],
         'engine-room' => [EngineRoomRecord::class, 'engine_room_id', 'ER'],
         'grading' => [GradingRecord::class, 'grading_number', 'GR'],

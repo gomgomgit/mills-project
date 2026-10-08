@@ -43,7 +43,7 @@ import { removeOpenPeriodForForms, seedOpenPeriodForForms } from './support/peri
  *           itu tidak pernah lebih besar daripada slot terisi periode;
  *       (c) ketujuh baris parameter selalu ada, termasuk yang tak terukur;
  *       (d) baris total rekap harian = jumlah slot seluruh baris hariannya;
- *       (e) jumlah slot per presser menjumlah ke slot terisi periode.
+ *       (e) jumlah slot per unit menjumlah ke slot terisi periode.
  *   - KETIADAAN PENANDAAN DI LUAR BATAS, disisir atas NAMA KELAS — bukan atas
  *     frasa, karena kalimat yang menyatakan ketiadaannya sendiri memuat frasa
  *     "di luar batas". Di sini godaannya lebih besar daripada pada Threshing:
@@ -206,7 +206,7 @@ test.describe('Laporan Depricarping (screen-152)', () => {
     expect(coverage!.y).toBeLessThan(metrics!.y)
 
     // Ketiga angka pembentuk penyebut ikut tercetak, bukan hanya persennya.
-    await expect(page.locator('[data-testid="coverage-denominator"]')).toContainText('presser')
+    await expect(page.locator('[data-testid="coverage-denominator"]')).toContainText('unit')
     await expect(page.locator('[data-testid="coverage-denominator"]')).toContainText('24 slot')
   })
 
@@ -423,31 +423,31 @@ test.describe('Laporan Depricarping (screen-152)', () => {
     await expect(page.locator('[data-testid="daily-table"]')).toBeVisible()
   })
 
-  // Scenario: rekap per presser
-  test('invarian (e) — slot per presser menjumlah ke slot terisi periode', async ({ page }) => {
+  // Scenario: rekap per unit Depricarping
+  test('invarian (e) — slot per unit menjumlah ke slot terisi periode', async ({ page }) => {
     await login(page, SUPERVISOR, PASSWORD)
     await openReportWithData(page)
 
-    const byPresser = page.locator('[data-testid="by-presser-table"]')
+    const byDepricarping = page.locator('[data-testid="by-depricarping-table"]')
 
-    if (await byPresser.count() === 0) {
+    if (await byDepricarping.count() === 0) {
       test.skip(true, 'periode terpilih tidak punya data pada line ini')
     }
 
-    const perPresser = await columnNumbers(
+    const perUnit = await columnNumbers(
       page,
-      '[data-testid="by-presser-row"] td:nth-child(3)',
+      '[data-testid="by-depricarping-row"] td:nth-child(3)',
     )
 
     const filledSlots = parseIdNumber(
       await page.locator('[data-testid="coverage-slots"]').innerText(),
     )
 
-    expect(perPresser.length).toBeGreaterThan(0)
+    expect(perUnit.length).toBeGreaterThan(0)
     // Pengelompokan per unit tidak boleh kehilangan maupun menghitung ganda
-    // satu slot pun — dan presser_id yang sama pada dua tanggal adalah SATU
+    // satu slot pun — dan depricarping_id yang sama pada dua tanggal adalah SATU
     // baris, bukan dua.
-    expect(perPresser.reduce((sum, value) => sum + value, 0)).toBe(filledSlots)
+    expect(perUnit.reduce((sum, value) => sum + value, 0)).toBe(filledSlots)
   })
 
   // Scenario: downtime sebagai ANGKA — tidak ada padanannya pada laporan

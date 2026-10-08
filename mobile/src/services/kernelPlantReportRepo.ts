@@ -110,7 +110,9 @@ import apiClient from '@/services/apiClient'
  *    kernel_plant_id adalah kolom teks yang DIKETIK di layar input, dan
  *    kernel_plant_name bernilai sama dengan kernel_plant_id (server
  *    menurunkannya dari id yang sama justru supaya bentuk payload tidak
- *    berubah bila kelak ada masternya). Menamainya presser_id, atau
+ *    berubah bila kelak ada masternya). Menamainya dengan nama mesin
+ *    stasiun lain — seperti presser_id, yang dipakai Depricarping sampai
+ *    2026-10-08 — atau
  *    memperlakukannya sebagai id yang dapat ditelusuri ke sebuah baris,
  *    keduanya salah.
  *

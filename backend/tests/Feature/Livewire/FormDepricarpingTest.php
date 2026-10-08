@@ -92,13 +92,13 @@ it('berhasil: creates a new record and redirects to Detail Depricarping', functi
     $component = Livewire::actingAs($this->supervisor)->test(FormDepricarping::class);
 
     $component->set('form.production_line_id', $this->depricarpingStation->production_line_id);
-    $component->set('form.presser_id', 'DP-LW-001');
+    $component->set('form.depricarping_id', 'DP-LW-001');
     $component->call('addDetailRow');
     $component->set('detailRows.0.time_slot', '07:00');
     $component->set('detailRows.0.fan_static_pressure_mmh2o', '45');
     $component->call('save');
 
-    expect(DepricarpingRecord::where('presser_id', 'DP-LW-001')->exists())->toBeTrue();
+    expect(DepricarpingRecord::where('depricarping_id', 'DP-LW-001')->exists())->toBeTrue();
 });
 
 it('default: mode create renders empty form with Production Line dropdown', function () {
@@ -114,14 +114,14 @@ it('date defaults to today but a manually-set value is preserved and saved', fun
     expect($component->get('form.date'))->not->toBeEmpty();
 
     $component->set('form.production_line_id', $this->depricarpingStation->production_line_id);
-    $component->set('form.presser_id', 'DP-LW-001');
+    $component->set('form.depricarping_id', 'DP-LW-001');
     $component->set('form.date', '2020-01-01');
     $component->call('addDetailRow');
     $component->set('detailRows.0.time_slot', '07:00');
     $component->set('detailRows.0.fan_static_pressure_mmh2o', '10');
     $component->call('save');
 
-    $record = DepricarpingRecord::where('presser_id', 'DP-LW-001')->first();
+    $record = DepricarpingRecord::where('depricarping_id', 'DP-LW-001')->first();
     expect($record->date->format('Y-m-d'))->toBe('2020-01-01');
 });
 
@@ -136,20 +136,20 @@ it('shows inline validation error when a required field is empty on save', funct
     $component = Livewire::actingAs($this->supervisor)->test(FormDepricarping::class);
 
     $component->set('form.production_line_id', $this->depricarpingStation->production_line_id);
-    $component->set('form.presser_id', '');
+    $component->set('form.depricarping_id', '');
     $component->call('addDetailRow');
     $component->set('detailRows.0.time_slot', '07:00');
     $component->set('detailRows.0.fan_static_pressure_mmh2o', '10');
     $component->call('save');
 
-    expect($component->get('errors_'))->toHaveKey('presser_id');
+    expect($component->get('errors_'))->toHaveKey('depricarping_id');
 });
 
 it('shows detail-specific error when there are zero valid detail rows on save', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormDepricarping::class);
 
     $component->set('form.production_line_id', $this->depricarpingStation->production_line_id);
-    $component->set('form.presser_id', 'DP-LW-002');
+    $component->set('form.depricarping_id', 'DP-LW-002');
     $component->call('save');
 
     expect($component->get('detailError'))->not->toBeNull();
@@ -160,26 +160,26 @@ it('accepts a row filled only via Downtime (Mins) or Findings as satisfying the 
     $component = Livewire::actingAs($this->supervisor)->test(FormDepricarping::class);
 
     $component->set('form.production_line_id', $this->depricarpingStation->production_line_id);
-    $component->set('form.presser_id', 'DP-LW-003');
+    $component->set('form.depricarping_id', 'DP-LW-003');
     $component->call('addDetailRow');
     $component->set('detailRows.0.time_slot', '07:00');
     $component->set('detailRows.0.findings', 'Fan belt loose');
     $component->call('save');
 
-    expect(DepricarpingRecord::where('presser_id', 'DP-LW-003')->exists())->toBeTrue();
+    expect(DepricarpingRecord::where('depricarping_id', 'DP-LW-003')->exists())->toBeTrue();
 });
 
 it('accepts a row filled only via Downtime (Mins) as satisfying the minimum-one-row rule', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormDepricarping::class);
 
     $component->set('form.production_line_id', $this->depricarpingStation->production_line_id);
-    $component->set('form.presser_id', 'DP-LW-005');
+    $component->set('form.depricarping_id', 'DP-LW-005');
     $component->call('addDetailRow');
     $component->set('detailRows.0.time_slot', '07:00');
     $component->set('detailRows.0.downtime_minutes', '15');
     $component->call('save');
 
-    expect(DepricarpingRecord::where('presser_id', 'DP-LW-005')->exists())->toBeTrue();
+    expect(DepricarpingRecord::where('depricarping_id', 'DP-LW-005')->exists())->toBeTrue();
 });
 
 it('shows an error when the selected Production Line has no active depricarping station', function () {
@@ -187,7 +187,7 @@ it('shows an error when the selected Production Line has no active depricarping 
     $component = Livewire::actingAs($this->supervisor)->test(FormDepricarping::class);
 
     $component->set('form.production_line_id', $otherProductionLine->id);
-    $component->set('form.presser_id', 'DP-LW-004');
+    $component->set('form.depricarping_id', 'DP-LW-004');
     $component->call('addDetailRow');
     $component->set('detailRows.0.time_slot', '07:00');
     $component->set('detailRows.0.fan_static_pressure_mmh2o', '10');
@@ -198,12 +198,12 @@ it('shows an error when the selected Production Line has no active depricarping 
 });
 
 it('edit mode: prefills the form from the existing record and shows Station read-only', function () {
-    $record = DepricarpingRecord::factory()->forStation($this->depricarpingStation)->create(['presser_id' => 'DP-EXISTING']);
+    $record = DepricarpingRecord::factory()->forStation($this->depricarpingStation)->create(['depricarping_id' => 'DP-EXISTING']);
 
     Livewire::actingAs($this->supervisor)
         ->test(FormDepricarping::class, ['id' => $record->id])
         ->assertSet('isEdit', true)
-        ->assertSet('form.presser_id', 'DP-EXISTING')
+        ->assertSet('form.depricarping_id', 'DP-EXISTING')
         ->assertSeeHtml('data-testid="station-readonly"')
         ->assertDontSeeHtml('data-testid="production-line-select"');
 });
@@ -221,15 +221,15 @@ it('edit mode: prefills existing detail rows with their ids (however many exist)
 });
 
 it('edit mode: saving updates the existing record', function () {
-    $record = DepricarpingRecord::factory()->forStation($this->depricarpingStation)->create(['presser_id' => 'DP-OLD']);
+    $record = DepricarpingRecord::factory()->forStation($this->depricarpingStation)->create(['depricarping_id' => 'DP-OLD']);
     DepricarpingDetail::factory()->forRecord($record)->timeSlot('07:00')->create();
 
     $component = Livewire::actingAs($this->supervisor)->test(FormDepricarping::class, ['id' => $record->id]);
-    $component->set('form.presser_id', 'DP-UPDATED');
+    $component->set('form.depricarping_id', 'DP-UPDATED');
     $component->set('detailRows.0.fan_static_pressure_mmh2o', '46');
     $component->call('save');
 
-    expect($record->fresh()->presser_id)->toBe('DP-UPDATED');
+    expect($record->fresh()->depricarping_id)->toBe('DP-UPDATED');
 });
 
 it('edit mode: removing a row via Hapus deletes it from the persisted record on save', function () {

@@ -350,7 +350,7 @@ describe('syncService — syncAllRecords()', () => {
         return [
           {
             id: 'local-dp-1',
-            presser_id: 'DP-001',
+            depricarping_id: 'DP-001',
             date: '2026-08-24',
             note: null,
             checked_by: null,
@@ -371,7 +371,7 @@ describe('syncService — syncAllRecords()', () => {
     expect(apiClient.post).toHaveBeenCalledWith(
       '/api/depricarping-records',
       expect.objectContaining({
-        presser_id: 'DP-001',
+        depricarping_id: 'DP-001',
         details: [{ time_slot: '07:00', fan_static_pressure_mmh2o: null, polishing_drum_speed_rpm: null, air_velocity_ms: null, fibre_moisture_percent: null, kernel_loss_in_fibre_percent: null, nut_silo_1_temp_c: null, nut_silo_2_temp_c: null, downtime_minutes: 5, findings: 'Macet sebentar' }],
       }),
     )

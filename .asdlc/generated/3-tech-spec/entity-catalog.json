@@ -1,5 +1,5 @@
 {
-  "ver": 20,
+  "ver": 21,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-02"
@@ -2892,10 +2892,10 @@
           "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
         },
         {
-          "name": "presser_id",
+          "name": "depricarping_id",
           "type": "string",
           "required": true,
-          "description": "Presser ID (Depricarper ID), input manual — nomor/ID identifikasi stasiun pada form."
+          "description": "Depricarping ID, input manual — nomor/ID identifikasi unit depericarper pada form. Bernama presser_id sampai 2026-10-08 (migrasi 2026_10_08_000002): nama itu menamai mesin stasiun PRESSING, sementara keenam standar master Depricarping adalah alat depericarper (fan, polishing drum, aspirator, fibre, kernel loss in fibre, nut silo). Dari 16 stasiun yang punya kolom identitas unit, Depricarping satu-satunya yang menamai mesin stasiun lain. Keputusan user: memakai nama stasiun, sejajar kernel_plant_id / engine_room_id."
         },
         {
           "name": "date",

@@ -26,7 +26,7 @@ use Livewire\Component;
  * Field set/order in the Blade view mirrors
  * mobile/src/views/DataPreviewDepricarpingView.vue's detail mode exactly
  * (per explicit product direction: web station screens should mirror their
- * mobile counterparts) — Presser ID, Tanggal, Inputted By, Checked By,
+ * mobile counterparts) — Depricarping ID, Tanggal, Inputted By, Checked By,
  * Acknowledged By, Note, grid Depricarping Detail (24 rows), Target
  * Operasional reference table.
  *

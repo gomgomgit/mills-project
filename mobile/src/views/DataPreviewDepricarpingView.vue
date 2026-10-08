@@ -15,7 +15,7 @@
  *  - LIST mode — route has NO `:id` param. Shows every local
  *    depricarping_record row for the current user, ANY status, with a
  *    client-side date filter (defaults to today) + search filter (on
- *    presser_id). Tapping a row navigates onward:
+ *    depricarping_id). Tapping a row navigates onward:
  *      - draft_ongoing/draft_paused rows -> `depricarping-form`.
  *      - saved/synced rows -> THIS screen's own route, WITH the row's id
  *        added as the `:id` param, transitioning into DETAIL mode.
@@ -56,7 +56,7 @@
  * `nowLocalDateTimeString()`), so this filter compares against
  * `item.date.slice(0, 10)`.
  *
- * Search filter: case-insensitive substring match against `presser_id`.
+ * Search filter: case-insensitive substring match against `depricarping_id`.
  */
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -141,7 +141,7 @@ async function loadList(): Promise<void> {
 }
 
 function recordLabel(item: DepricarpingRecord): string {
-  return item.presser_id?.trim() ? item.presser_id : 'Presser ID belum diisi'
+  return item.depricarping_id?.trim() ? item.depricarping_id : 'Depricarping ID belum diisi'
 }
 
 const LIST_STATUS_BADGE_MAP: Record<DepricarpingRecord['status'], { status: BadgeStatus; label: string }> = {
@@ -168,8 +168,8 @@ const filteredRecords = computed(() => {
     }
 
     if (keyword) {
-      const presserIdMatch = (item.presser_id ?? '').toLowerCase().includes(keyword)
-      if (!presserIdMatch) {
+      const depricarpingIdMatch = (item.depricarping_id ?? '').toLowerCase().includes(keyword)
+      if (!depricarpingIdMatch) {
         return false
       }
     }
@@ -287,7 +287,7 @@ const screenTitle = computed(() => {
     return 'Data Preview'
   }
 
-  return detailRecord.value?.presser_id ? `Depricarping ${detailRecord.value.presser_id}` : 'Detail Depricarping'
+  return detailRecord.value?.depricarping_id ? `Depricarping ${detailRecord.value.depricarping_id}` : 'Detail Depricarping'
 })
 
 function onBack(): void {
@@ -431,7 +431,7 @@ function goToMonitorDepricarping(): void {
         v-model:search="searchFilter"
         date-test-id="date-filter-input"
         search-test-id="search-filter-input"
-        search-placeholder="Presser ID"
+        search-placeholder="Depricarping ID"
         :filtered-count="filteredRecords.length"
         :total-count="allRecords.length"
         :show-count="!listLoading && !listError"
@@ -485,7 +485,7 @@ function goToMonitorDepricarping(): void {
 
       <div v-else-if="detailRecord" class="preview-body">
         <SyncFailureHint :record="detailRecord" />
-        <FormField :model-value="detailRecord.presser_id" label="Presser ID" disabled />
+        <FormField :model-value="detailRecord.depricarping_id" label="Depricarping ID" disabled />
         <FormField :model-value="toDateInputValue(detailRecord.date)" label="Tanggal" type="date" disabled />
         <FormField :model-value="inputtedByDisplay" label="Inputted By" disabled />
         <RecordVerificationStatus

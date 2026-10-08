@@ -427,15 +427,24 @@ const CREATE_PRESSING_DETAIL = `
 // next day) created all at once when the draft is first created
 // (createDraft() in depricarpingRecordRepo.ts) — no tambah-baris/hapus-baris
 // UI exists for this grid at all. `date` auto-fills once at draft creation,
-// not manually editable. The header ID field is literally `presser_id`
-// (labeled "Presser ID" on the form) per entity-catalog — NOT a typo, both
-// Pressing's and Depricarping's header ID field share this name/label in
-// the source log sheet.
+// not manually editable.
+//
+// Kolom identitas headernya `depricarping_id` sejak 2026-10-08 (migrasi
+// backend 2026_10_08_000002). Sebelumnya `presser_id`, dan komentar di
+// tempat ini menyatakan itu "NOT a typo, both Pressing's and Depricarping's
+// header ID field share this name/label in the source log sheet". KLAIM ITU
+// TIDAK DIDUKUNG APA PUN DI REPO: entity-catalog justru menulis "Presser ID
+// (DEPERICARPER ID)", dan PRD tidak menyebut kolom identitas ini sama
+// sekali — klausa "sesuai log sheet kertas asli" di PRD berlaku untuk tabel
+// referensi target, bukan untuk kolom header. Log sheet kertasnya tidak ada
+// di repo, jadi komentar lama menyatakan sebagai fakta sesuatu yang tidak
+// dapat diperiksa dari sini, lalu memakainya untuk membela nama yang
+// menamai mesin stasiun LAIN.
 const CREATE_DEPRICARPING_RECORD = `
   CREATE TABLE IF NOT EXISTS depricarping_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
-    presser_id TEXT,
+    depricarping_id TEXT,
     date TEXT,
     note TEXT,
     checked_by TEXT,
@@ -1297,6 +1306,7 @@ export async function initLocalSchema(): Promise<void> {
   await migrateRecordTablesForSyncError()
   await migrateDepricarpingDetailKernelLossRename()
   await migrateKernelPlantDetailShellLossRename()
+  await migrateDepricarpingRecordPresserIdRename()
   await normalizeLegacyUtcDates()
   await dedupeStationRows()
 }
@@ -1382,6 +1392,36 @@ async function migrateKernelPlantDetailShellLossRename(): Promise<void> {
   await run(
     'ALTER TABLE kernel_plant_detail RENAME COLUMN shell_loss_percent TO shell_bin_kernel_loss_percent',
   )
+}
+
+/**
+ * depricarping_record.presser_id -> depricarping_id (2026-10-08)
+ *
+ * Mengikuti rename backend (migrasi 2026_10_08_000002). Dari 16 stasiun yang
+ * punya kolom identitas unit, Depricarping sendirian menamai mesin stasiun
+ * LAIN — presser_id adalah kolom identitas Pressing — sementara keenam
+ * standar masternya adalah alat depericarper (fan, polishing drum,
+ * aspirator, fibre, kernel loss in fibre, nut silo).
+ *
+ * RENAME, BUKAN KOLOM BARU. Nilainya tetap ID unit yang diketik operator,
+ * jadi draft yang sudah ada di perangkat tetap sah. Menambahkan kolom baru
+ * dan membiarkan yang lama berdiri akan membuat setiap draft itu ditolak
+ * dengan "Depricarping ID wajib diisi." padahal operatornya sudah
+ * mengisinya — dan tidak ada layar yang bisa dipakai memperbaikinya.
+ */
+async function migrateDepricarpingRecordPresserIdRename(): Promise<void> {
+  const existing = await query<{ name: string }>('PRAGMA table_info(depricarping_record)')
+  const names = new Set(existing.map((column) => column.name))
+
+  // Memeriksa KEDUANYA: tabel yang entah bagaimana memegang dua-duanya tidak
+  // boleh di-rename lagi dan membentur kolom yang sudah ada — kegagalannya
+  // akan menjatuhkan initLocalSchema() seluruhnya, yaitu aplikasi tidak bisa
+  // dibuka sama sekali.
+  if (!names.has('presser_id') || names.has('depricarping_id')) {
+    return
+  }
+
+  await run('ALTER TABLE depricarping_record RENAME COLUMN presser_id TO depricarping_id')
 }
 
 async function addMissingColumns(

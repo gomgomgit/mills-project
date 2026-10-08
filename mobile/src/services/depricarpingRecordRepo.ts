@@ -11,7 +11,7 @@ import { todayLocalDateString } from '@/utils/localDate'
  * defined in localSchema.ts) — mirrors pressingRecordRepo.ts's/
  * threshingRecordRepo.ts's repo style (plain async functions over
  * localDb.ts's `query`/`run` primitives) exactly, adapted for
- * Depricarping's own header field (`presser_id` — labeled "Presser ID",
+ * Depricarping's own header field (`depricarping_id` — labeled "Depricarping ID",
  * same literal field name as Pressing per entity-catalog, not a typo) and
  * 8 reading columns (7 numeric + 1 free-text) plus a separate integer
  * `downtime_minutes` column.
@@ -72,7 +72,7 @@ export type DepricarpingRecordStatus = DepricarpingDraftStatus | 'saved' | 'sync
 export interface DepricarpingRecord {
   id: string
   station_id: string | null
-  presser_id: string | null
+  depricarping_id: string | null
   date: string | null
   note: string | null
   checked_by: string | null
@@ -118,7 +118,7 @@ export interface DepricarpingDraftWithDetails {
  * itself).
  */
 export interface DepricarpingHeaderFormData {
-  presser_id: string
+  depricarping_id: string
   date: string
   note: string
   checked_by: string
@@ -172,14 +172,14 @@ export class DepricarpingDetailRequiredError extends Error {
 export interface DepricarpingDraftListItem {
   id: string
   status: DepricarpingDraftStatus
-  presser_id: string | null
+  depricarping_id: string | null
   updated_at: string
 }
 
 interface DraftListRow {
   id: string
   status: DepricarpingDraftStatus
-  presser_id: string | null
+  depricarping_id: string | null
   updated_at: string
 }
 
@@ -302,7 +302,7 @@ export async function createDraft(userId: string): Promise<string> {
  */
 export async function getDrafts(userId: string): Promise<DepricarpingDraftListItem[]> {
   const rows = await query<DraftListRow>(
-    `SELECT id, status, presser_id, updated_at
+    `SELECT id, status, depricarping_id, updated_at
      FROM depricarping_record
      WHERE created_by = ? AND status IN ('draft_ongoing', 'draft_paused')
      ORDER BY updated_at DESC`,
@@ -312,7 +312,7 @@ export async function getDrafts(userId: string): Promise<DepricarpingDraftListIt
   return rows.map((row) => ({
     id: row.id,
     status: row.status,
-    presser_id: row.presser_id,
+    depricarping_id: row.depricarping_id,
     updated_at: row.updated_at,
   }))
 }
@@ -489,7 +489,7 @@ async function applyDetailRowChanges(
  * client-side pre-check in FormDepricarpingView.vue) so the rule holds even
  * if a caller bypasses the UI. No DB write happens at all in that case.
  * Mirrors pressingRecordRepo.ts's saveDraft() "at least one valid row" gate
- * exactly. Required-header-field validation (presser_id) is the caller's
+ * exactly. Required-header-field validation (depricarping_id) is the caller's
  * job — this function assumes the header has already been validated.
  *
  * checked_by/acknowledged_by role-stripping: mirrors
@@ -527,7 +527,7 @@ export async function saveDraft(
 
   await run(
     `UPDATE depricarping_record
-     SET presser_id = ?,
+     SET depricarping_id = ?,
          date = ?,
          note = ?,
          checked_by = ?,
@@ -536,7 +536,7 @@ export async function saveDraft(
          updated_at = ?
      WHERE id = ?`,
     [
-      headerData.presser_id || null,
+      headerData.depricarping_id || null,
       headerData.date || null,
       headerData.note || null,
       checkedBy,
@@ -579,7 +579,7 @@ export async function pauseDraftWithFormData(
 
   await run(
     `UPDATE depricarping_record
-     SET presser_id = ?,
+     SET depricarping_id = ?,
          date = ?,
          note = ?,
          checked_by = ?,
@@ -588,7 +588,7 @@ export async function pauseDraftWithFormData(
          updated_at = ?
      WHERE id = ?`,
     [
-      headerData.presser_id || null,
+      headerData.depricarping_id || null,
       headerData.date || null,
       headerData.note || null,
       checkedBy,

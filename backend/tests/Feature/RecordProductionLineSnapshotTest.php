@@ -189,7 +189,7 @@ function recordProductionLineCases(): array
             'service' => DepricarpingRecordService::class,
             'model' => DepricarpingRecord::class,
             'payload' => fn (Station $station) => array_merge([
-                'presser_id' => 'DP-'.Str::random(6),
+                'depricarping_id' => 'DP-'.Str::random(6),
                 'date' => '2026-08-24',
                 'note' => null,
             ], $timeSlotDetail('fan_static_pressure_mmh2o', 45)),

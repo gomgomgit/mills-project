@@ -265,8 +265,8 @@ function makeSummary(overrides: Record<string, unknown> = {}): Record<string, un
       filled_slots: 10,
       expected_slots: 480,
       coverage_percent: 2.1,
-      presser_count: 2,
-      slots_per_presser_per_day: 24,
+      depricarping_count: 2,
+      slots_per_depricarping_per_day: 24,
       days_in_period: 30,
       days_counted: 10,
       period_running: true,
@@ -287,16 +287,16 @@ function makeSummary(overrides: Record<string, unknown> = {}): Record<string, un
     ],
     targets_master_empty: false,
     all_targets_measured: false,
-    by_presser: [
+    by_depricarping: [
       {
-        presser_id: 'PR-1',
+        depricarping_id: 'PR-1',
         day_count: 2,
         filled_slot_count: 7,
         downtime_minutes: 30,
         averages: averages({ fan_static_pressure_mmh2o: 30 }),
       },
       {
-        presser_id: 'PR-2',
+        depricarping_id: 'PR-2',
         day_count: 1,
         filled_slot_count: 3,
         // null, BUKAN 0.
@@ -346,8 +346,8 @@ function emptySummary(): Record<string, unknown> {
       filled_slots: 0,
       expected_slots: 480,
       coverage_percent: 0,
-      presser_count: 2,
-      slots_per_presser_per_day: 24,
+      depricarping_count: 2,
+      slots_per_depricarping_per_day: 24,
       days_in_period: 30,
       days_counted: 10,
       period_running: true,
@@ -359,7 +359,7 @@ function emptySummary(): Record<string, unknown> {
       max: null,
       filled_slot_count: 0,
     })),
-    by_presser: [],
+    by_depricarping: [],
     daily: [],
     daily_total: { filled_slot_count: 0, averages: averages() },
     findings: [],
@@ -530,7 +530,7 @@ function recapBody(page: Page) {
 
 /**
  * Halaman TIDAK PERNAH menggulir mendatar. Yang lebar adalah isi kartu (tabel
- * rekap per presser dan rekap harian) — dan masing-masing menggulir di dalam
+ * rekap per unit Depricarping dan rekap harian) — dan masing-masing menggulir di dalam
  * kartunya sendiri, itulah yang dibuktikan expectCardScrollsInsideItself().
  */
 async function expectNoHorizontalPageScroll(page: Page): Promise<void> {
@@ -626,7 +626,7 @@ test.describe('Laporan Depricarping Mobile (screen-153)', () => {
     for (const testId of [
       'coverage', 'coverage-slots', 'coverage-denominator', 'coverage-days',
       'metrics', 'no-flagging-note', 'targets-without-metric', 'findings',
-      'by-presser', 'downtime', 'completeness', 'daily-recap',
+      'by-depricarping', 'downtime', 'completeness', 'daily-recap',
     ]) {
       await expect(page.getByTestId(testId), testId).toBeVisible()
     }
@@ -658,7 +658,7 @@ test.describe('Laporan Depricarping Mobile (screen-153)', () => {
     expect(coverage!.y).toBeLessThan(metricsBox!.y)
 
     // Ketiga angka pembentuk penyebut ikut tercetak, bukan hanya persennya.
-    await expect(page.getByTestId('coverage-denominator')).toContainText('2 presser')
+    await expect(page.getByTestId('coverage-denominator')).toContainText('2 unit')
     await expect(page.getByTestId('coverage-denominator')).toContainText('24 slot')
     await expect(page.getByTestId('coverage-slots')).toContainText('10 dari 480 slot')
   })
@@ -883,8 +883,8 @@ test.describe('Laporan Depricarping Mobile (screen-153)', () => {
           filled_slots: 0,
           expected_slots: 0,
           coverage_percent: null,
-          presser_count: 0,
-          slots_per_presser_per_day: 24,
+          depricarping_count: 0,
+          slots_per_depricarping_per_day: 24,
           days_in_period: 30,
           days_counted: 0,
           // true juga di server untuk periode yang BELUM MULAI — inilah
@@ -901,15 +901,15 @@ test.describe('Laporan Depricarping Mobile (screen-153)', () => {
     await expect(page.getByTestId('coverage-running-note')).toHaveCount(0)
   })
 
-  test('rekap per presser dan rekap harian menggulir DI DALAM kartunya', async ({ page }) => {
+  test('rekap per unit Depricarping dan rekap harian menggulir DI DALAM kartunya', async ({ page }) => {
     await stubApi(page)
     await openReport(page)
     await pickPeriod(page, 'per-1')
 
-    await expect(page.getByTestId('by-presser-table')).toBeVisible()
+    await expect(page.getByTestId('by-depricarping-table')).toBeVisible()
 
     // Lima kolom rata-rata plus nama unit jelas lebih lebar daripada 390px.
-    await expectCardScrollsInsideItself(page, '[data-testid="by-presser"] .detail-table-wrap')
+    await expectCardScrollsInsideItself(page, '[data-testid="by-depricarping"] .detail-table-wrap')
 
     await recapToggle(page).click()
     await expect(recapBody(page)).toBeVisible()
@@ -1017,7 +1017,7 @@ test.describe('Laporan Depricarping Mobile (screen-153)', () => {
     await expect(page.getByTestId('coverage')).toBeVisible()
     await expect(page.getByTestId('metrics')).toContainText('tidak tersedia')
     // Tabel kosong akan terbaca sebagai hasil pengukuran bernilai nol.
-    await expect(page.getByTestId('by-presser')).toHaveCount(0)
+    await expect(page.getByTestId('by-depricarping')).toHaveCount(0)
     await expect(page.getByTestId('downtime')).toHaveCount(0)
     await expect(page.getByTestId('findings')).toHaveCount(0)
     await expect(page.getByTestId('daily-recap')).toHaveCount(0)

@@ -12,7 +12,7 @@
  * pauseDraftWithFormData() upsert/delete depricarping_detail rows via
  * applyDetailRowChanges(), mirroring pressingRecordRepo.ts's
  * applyDetailRowChanges() exactly — plus Depricarping's own header field
- * (`presser_id`) and 8 reading columns (7 numeric + 1 free-text `findings`,
+ * (`depricarping_id`) and 8 reading columns (7 numeric + 1 free-text `findings`,
  * plus the numeric `downtime_minutes` — a structural difference from
  * Threshing/Pressing's single free-text "Downtime Reason" column, where a
  * row counts as filled when EITHER downtime_minutes OR findings is set).
@@ -51,7 +51,7 @@ function makeRecord(overrides: Partial<DepricarpingRecord> = {}): DepricarpingRe
   return {
     id: 'draft-1',
     station_id: 'station-1',
-    presser_id: null,
+    depricarping_id: null,
     date: null,
     note: null,
     checked_by: null,
@@ -86,7 +86,7 @@ function makeDetailRow(overrides: Partial<DepricarpingDetailRow> = {}): Depricar
 
 function makeHeaderData(overrides: Partial<DepricarpingHeaderFormData> = {}): DepricarpingHeaderFormData {
   return {
-    presser_id: 'DP-01',
+    depricarping_id: 'DP-01',
     date: '2026-08-24T07:00:00',
     note: '',
     checked_by: '',
@@ -160,8 +160,8 @@ describe('depricarpingRecordRepo', () => {
   describe('getDrafts()', () => {
     it('returns the draft/pause list, most-recently-updated first', async () => {
       const rows = [
-        { id: 'draft-newest', status: 'draft_paused' as const, presser_id: 'DP-002', updated_at: '2026-08-24T10:00:00.000Z' },
-        { id: 'draft-oldest', status: 'draft_ongoing' as const, presser_id: 'DP-001', updated_at: '2026-08-24T08:00:00.000Z' },
+        { id: 'draft-newest', status: 'draft_paused' as const, depricarping_id: 'DP-002', updated_at: '2026-08-24T10:00:00.000Z' },
+        { id: 'draft-oldest', status: 'draft_ongoing' as const, depricarping_id: 'DP-001', updated_at: '2026-08-24T08:00:00.000Z' },
       ]
       vi.mocked(query).mockResolvedValueOnce(rows)
 
@@ -323,7 +323,7 @@ describe('depricarpingRecordRepo', () => {
 
     it('updates the header with status=saved, INSERTs a new (id-less) detail row, and returns the freshly saved draft', async () => {
       vi.mocked(run).mockResolvedValue({ changes: 1 })
-      const saved = makeRecord({ id: 'draft-4', presser_id: 'DP-01', status: 'saved' })
+      const saved = makeRecord({ id: 'draft-4', depricarping_id: 'DP-01', status: 'saved' })
       const savedDetails = [makeDetailRow({ id: 'detail-new-1', depricarping_record_id: 'draft-4' })]
       vi.mocked(query).mockResolvedValueOnce([saved]).mockResolvedValueOnce(savedDetails)
 
@@ -478,7 +478,7 @@ describe('depricarpingRecordRepo', () => {
       await saveDraft('draft-1', headerData, details, [], 'operator')
 
       const [, headerParams] = vi.mocked(run).mock.calls[0]
-      // checked_by is the 4th positional SET param (index 3): presser_id,
+      // checked_by is the 4th positional SET param (index 3): depricarping_id,
       // date, note, checked_by, acknowledged_by, updated_at, [WHERE id].
       expect(headerParams[3]).toBeNull()
     })
@@ -548,7 +548,7 @@ describe('depricarpingRecordRepo', () => {
         .mockResolvedValueOnce([makeRecord({ status: 'draft_paused' })])
         .mockResolvedValueOnce([])
 
-      const headerData = makeHeaderData({ presser_id: '' })
+      const headerData = makeHeaderData({ depricarping_id: '' })
 
       const result = await pauseDraftWithFormData('draft-1', headerData, [], [], 'operator')
 

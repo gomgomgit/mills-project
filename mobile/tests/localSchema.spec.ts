@@ -703,3 +703,75 @@ describe('localSchema — initLocalSchema() kernel_plant_detail shell loss renam
     expect(calls.some((sql) => sql.includes('RENAME COLUMN shell_loss_percent'))).toBe(false)
   })
 })
+
+/**
+ * initLocalSchema() — rename depricarping_record.presser_id ->
+ * depricarping_id (2026-10-08).
+ *
+ * Mengikuti rename backend (migrasi 2026_10_08_000002). Depricarping adalah
+ * satu-satunya dari 16 stasiun yang kolom identitas unitnya menamai mesin
+ * stasiun LAIN.
+ *
+ * RENAME, BUKAN KOLOM BARU, dan di sini akibatnya lebih kasar daripada pada
+ * Shell Loss: depricarping_id wajib diisi di server, jadi kolom baru yang
+ * dibiarkan kosong akan membuat SETIAP draft yang sudah ada di perangkat
+ * ditolak dengan "Depricarping ID wajib diisi." — padahal operatornya sudah
+ * mengisinya, dan tidak ada layar yang bisa dipakai memperbaikinya.
+ */
+describe('localSchema — initLocalSchema() depricarping_record presser_id rename', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(run).mockResolvedValue({ changes: 1 })
+  })
+
+  it('me-rename kolom lama pada tabel yang mendahului rename ini', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('depricarping_record')) {
+        return [{ name: 'id' }, { name: 'station_id' }, { name: 'presser_id' }, { name: 'date' }] as never
+      }
+
+      return [{ name: 'id' }] as never
+    })
+
+    await initLocalSchema()
+
+    const calls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(calls).toContain(
+      'ALTER TABLE depricarping_record RENAME COLUMN presser_id TO depricarping_id',
+    )
+    expect(calls.some((sql) => sql.includes('ADD COLUMN depricarping_id'))).toBe(false)
+  })
+
+  it('tidak me-rename apa pun pada tabel yang sudah memakai nama baru', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('depricarping_record')) {
+        return [{ name: 'id' }, { name: 'depricarping_id' }, { name: 'date' }] as never
+      }
+
+      return [{ name: 'id' }] as never
+    })
+
+    await initLocalSchema()
+
+    const calls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(calls.some((sql) => sql.includes('RENAME COLUMN presser_id'))).toBe(false)
+  })
+
+  it('TIDAK menyentuh pressing_record — presser_id adalah nama yang benar di sana', async () => {
+    // Pemindai yang hanya mencari "presser_id" tanpa melihat tabelnya akan
+    // me-rename milik Pressing juga, dan di stasiun itu namanya memang benar:
+    // Pressing mencatat presser.
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('pressing_record') || sql.includes('depricarping_record')) {
+        return [{ name: 'id' }, { name: 'presser_id' }, { name: 'date' }] as never
+      }
+
+      return [{ name: 'id' }] as never
+    })
+
+    await initLocalSchema()
+
+    const calls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(calls.some((sql) => sql.includes('ALTER TABLE pressing_record RENAME'))).toBe(false)
+  })
+})

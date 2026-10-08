@@ -78,7 +78,7 @@ class DepricarpingRecordService
 
     public const EXPORT_ROW_LIMIT = 50000;
 
-    protected const FORM_FIELDS = ['presser_id', 'date', 'note'];
+    protected const FORM_FIELDS = ['depricarping_id', 'date', 'note'];
 
     /**
      * The NINE reading columns of depricarping_details, in the order the
@@ -249,6 +249,29 @@ class DepricarpingRecordService
             $attributes[$field] = $data[$field] ?? null;
         }
 
+        // KUNCI LAMA DITERIMA SEBAGAI ALIAS, dan hanya di sini.
+        //
+        // Kolomnya di-rename presser_id -> depricarping_id pada 2026-10-08
+        // (migrasi 2026_10_08_000002). Tabel server kosong saat itu, tetapi
+        // DRAFT HIDUP DI SQLITE PERANGKAT, bukan di server — tabel kosong
+        // tidak membuktikan tidak ada perangkat yang masih memegang draft
+        // dengan kunci lama.
+        //
+        // TANPA alias ini akibatnya BUKAN kegagalan diam seperti pada
+        // Shell Loss, melainkan penolakan: depricarping_id wajib diisi
+        // (validateForm()), jadi draft perangkat lama akan dijawab
+        // "Depricarping ID wajib diisi." padahal operatornya sudah
+        // mengisinya. Operator tidak punya cara memperbaikinya dari
+        // layar mana pun — nilainya ADA, hanya namanya yang berbeda.
+        //
+        // Berlaku untuk satu rilis; dapat dibuang setelah seluruh perangkat
+        // lapangan menjalankan versi yang memuat
+        // migrateDepricarpingRecordPresserIdRename() di
+        // mobile/src/services/localSchema.ts.
+        if (($attributes['depricarping_id'] ?? null) === null && isset($data['presser_id'])) {
+            $attributes['depricarping_id'] = $data['presser_id'];
+        }
+
         return $attributes;
     }
 
@@ -278,11 +301,11 @@ class DepricarpingRecordService
     protected function validateForm(array $attributes): void
     {
         Validator::make($attributes, [
-            'presser_id' => ['required', 'string'],
+            'depricarping_id' => ['required', 'string'],
             'date' => ['required', 'date'],
             'note' => ['nullable', 'string'],
         ], [
-            'presser_id.required' => 'Presser ID wajib diisi.',
+            'depricarping_id.required' => 'Depricarping ID wajib diisi.',
             'date.required' => 'Tanggal wajib diisi.',
         ])->validate();
     }
@@ -519,7 +542,7 @@ class DepricarpingRecordService
                 // file can be pivoted and filtered directly in a spreadsheet.
                 $handle->row([
                     'Production Line',
-                    'Presser ID',
+                    'Depricarping ID',
                     'Date',
                     'Note',
                     'Checked By',
@@ -542,7 +565,7 @@ class DepricarpingRecordService
                         /** @var DepricarpingRecord $record */
                         $context = [
                             $record->productionLine?->name,
-                            $record->presser_id,
+                            $record->depricarping_id,
                             optional($record->date)->toDateString(),
                             $record->note,
                             $record->checkedBy?->name,
@@ -680,7 +703,7 @@ class DepricarpingRecordService
     {
         return [
             'id' => $record->id,
-            'presser_id' => $record->presser_id,
+            'depricarping_id' => $record->depricarping_id,
             'date' => optional($record->date)->toDateString(),
             'filled_slot_count' => (int) $record->filled_slot_count,
             'production_line_name' => $record->productionLine?->name,
@@ -750,7 +773,7 @@ class DepricarpingRecordService
             'id' => $record->id,
             'station_id' => $record->station_id,
             'station_name' => $record->station?->name,
-            'presser_id' => $record->presser_id,
+            'depricarping_id' => $record->depricarping_id,
             'date' => optional($record->date)->toDateString(),
             'note' => $record->note,
             'created_by_name' => $record->createdBy?->name,

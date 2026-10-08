@@ -85,7 +85,7 @@ function makeRecord(overrides: Partial<DepricarpingRecord> = {}): DepricarpingRe
   return {
     id: 'rec-1',
     station_id: 'station-1',
-    presser_id: 'DP-001',
+    depricarping_id: 'DP-001',
     date: `${todayLocalDateString()}T07:00:00`,
     note: null,
     checked_by: null,

@@ -40,7 +40,7 @@ class DepricarpingRecordFactory extends Factory
             // gets the CONSISTENT line, while a caller that sets both
             // explicitly is honoured as-is.
             'production_line_id' => fn (array $attributes) => Station::find($attributes['station_id'])?->production_line_id,
-            'presser_id' => 'DP-'.$this->faker->unique()->numerify('####'),
+            'depricarping_id' => 'DP-'.$this->faker->unique()->numerify('####'),
             'date' => $date->format('Y-m-d'),
             'note' => $this->faker->optional()->sentence(),
             'checked_by' => null,

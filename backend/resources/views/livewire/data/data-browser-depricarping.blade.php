@@ -73,7 +73,7 @@
             <thead class="dp-table__head">
                 <tr>
                     <th>Production Line</th>
-                    <th>Presser ID</th>
+                    <th>Depricarping ID</th>
                     <th>Tanggal</th>
                     <th>Jumlah Baris Terisi</th>
                     <th>Status</th>
@@ -99,7 +99,7 @@
                              stasiunnya sudah dipindah, keduanya berbeda — dan yang
                              benar adalah line tempat data itu benar-benar dihasilkan. --}}
                         <td>{{ $record['production_line_name'] ?? '-' }}</td>
-                        <td>{{ $record['presser_id'] }}</td>
+                        <td>{{ $record['depricarping_id'] }}</td>
                         <td>{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d/m/Y') : '-' }}</td>
                         <td>{{ $record['filled_slot_count'] }} / 24</td>
                         <td>

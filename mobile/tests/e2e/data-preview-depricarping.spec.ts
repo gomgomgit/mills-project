@@ -11,17 +11,17 @@ import { login, getAuthUserId } from './helpers'
 async function seedDepricarpingRecord(
   page: Page,
   userId: string,
-  overrides: { id: string; status?: 'draft_ongoing' | 'draft_paused' | 'saved' | 'synced'; presserId?: string | null; date?: string },
+  overrides: { id: string; status?: 'draft_ongoing' | 'draft_paused' | 'saved' | 'synced'; depricarpingId?: string | null; date?: string },
 ): Promise<void> {
   await page.evaluate(
-    async ({ userId, id, status, presserId, date }) => {
+    async ({ userId, id, status, depricarpingId, date }) => {
       const db = (window as unknown as { __mslTestDb: { run: (sql: string, params?: unknown[]) => Promise<unknown> } })
         .__mslTestDb
       const now = new Date().toISOString()
       await db.run(
-        `INSERT OR REPLACE INTO depricarping_record (id, status, presser_id, date, created_by, created_at, updated_at)
+        `INSERT OR REPLACE INTO depricarping_record (id, status, depricarping_id, date, created_by, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [id, status ?? 'saved', presserId ?? null, date ?? now, userId, now, now],
+        [id, status ?? 'saved', depricarpingId ?? null, date ?? now, userId, now, now],
       )
 
       const hours = [7, 9, 14]
@@ -34,7 +34,7 @@ async function seedDepricarpingRecord(
         )
       }
     },
-    { userId, id: overrides.id, status: overrides.status, presserId: overrides.presserId, date: overrides.date },
+    { userId, id: overrides.id, status: overrides.status, depricarpingId: overrides.depricarpingId, date: overrides.date },
   )
 }
 
@@ -56,7 +56,7 @@ test.describe('Data Preview Depricarping (screen-047)', () => {
     await seedDepricarpingRecord(page, userId, {
       id: 'e2e-depricarping-preview-1',
       status: 'saved',
-      presserId: 'DP-PREVIEW-1',
+      depricarpingId: 'DP-PREVIEW-1',
       date: `${today}T07:00:00`,
     })
 
@@ -88,7 +88,7 @@ test.describe('Data Preview Depricarping (screen-047)', () => {
     await seedDepricarpingRecord(page, userId, {
       id: 'e2e-depricarping-preview-back',
       status: 'saved',
-      presserId: 'DP-BACK',
+      depricarpingId: 'DP-BACK',
       date: `${today}T07:00:00`,
     })
 

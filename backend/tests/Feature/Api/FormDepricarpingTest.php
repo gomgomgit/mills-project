@@ -38,7 +38,7 @@ beforeEach(function () {
 function depricarpingApiPayload(array $overrides = []): array
 {
     return array_merge([
-        'presser_id' => 'DP-API-001',
+        'depricarping_id' => 'DP-API-001',
         'date' => '2026-08-24',
         'details' => [['time_slot' => '07:00', 'fan_static_pressure_mmh2o' => 45]],
     ], $overrides);
@@ -51,18 +51,18 @@ it('berhasil: creates a new record with status=saved, resolved station_id, and o
 
     $response->assertCreated();
     $response->assertJsonFragment(['station_id' => $this->depricarpingStation->id, 'status' => 'saved']);
-    expect(DepricarpingRecord::where('presser_id', 'DP-API-001')->exists())->toBeTrue();
+    expect(DepricarpingRecord::where('depricarping_id', 'DP-API-001')->exists())->toBeTrue();
     expect($response->json('details'))->toHaveCount(1);
 });
 
 it('returns 422 VALIDATION_ERROR when a required field is empty', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/depricarping-records', depricarpingApiPayload([
         'production_line_id' => $this->depricarpingStation->production_line_id,
-        'presser_id' => '',
+        'depricarping_id' => '',
     ]));
 
     $response->assertStatus(422);
-    $response->assertJsonValidationErrors('presser_id');
+    $response->assertJsonValidationErrors('depricarping_id');
 });
 
 it('returns 422 VALIDATION_ERROR when details is empty', function () {
@@ -143,7 +143,7 @@ it('sets checked_by when checked=true and requester role=supervisor', function (
     ]));
 
     $response->assertCreated();
-    expect(DepricarpingRecord::where('presser_id', 'DP-API-001')->first()->checked_by)->toBe($this->supervisor->id);
+    expect(DepricarpingRecord::where('depricarping_id', 'DP-API-001')->first()->checked_by)->toBe($this->supervisor->id);
 });
 
 it('sets acknowledged_by when acknowledged=true and requester role=mill_management', function () {
@@ -153,7 +153,7 @@ it('sets acknowledged_by when acknowledged=true and requester role=mill_manageme
     ]));
 
     $response->assertCreated();
-    expect(DepricarpingRecord::where('presser_id', 'DP-API-001')->first()->acknowledged_by)->toBe($this->millManagement->id);
+    expect(DepricarpingRecord::where('depricarping_id', 'DP-API-001')->first()->acknowledged_by)->toBe($this->millManagement->id);
 });
 
 it('allows the Operator role to create (mobile sync)', function () {
@@ -165,12 +165,12 @@ it('allows the Operator role to create (mobile sync)', function () {
 });
 
 it('berhasil: updates an existing record and upserts its detail rows (insert new, update existing, delete removed)', function () {
-    $record = DepricarpingRecord::factory()->forStation($this->depricarpingStation)->create(['presser_id' => 'DP-OLD']);
+    $record = DepricarpingRecord::factory()->forStation($this->depricarpingStation)->create(['depricarping_id' => 'DP-OLD']);
     $keptDetail = DepricarpingDetail::factory()->forRecord($record)->timeSlot('07:00')->filled()->create();
     $removedDetail = DepricarpingDetail::factory()->forRecord($record)->timeSlot('12:00')->filled()->create();
 
     $payload = depricarpingApiPayload([
-        'presser_id' => 'DP-NEW',
+        'depricarping_id' => 'DP-NEW',
         'details' => [
             ['id' => $keptDetail->id, 'time_slot' => '07:00', 'fan_static_pressure_mmh2o' => 48.8],
             ['time_slot' => '15:00', 'fan_static_pressure_mmh2o' => 46],
@@ -181,8 +181,8 @@ it('berhasil: updates an existing record and upserts its detail rows (insert new
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/depricarping-records/{$record->id}", $payload);
 
     $response->assertOk();
-    $response->assertJsonFragment(['presser_id' => 'DP-NEW']);
-    expect($record->fresh()->presser_id)->toBe('DP-NEW');
+    $response->assertJsonFragment(['depricarping_id' => 'DP-NEW']);
+    expect($record->fresh()->depricarping_id)->toBe('DP-NEW');
     expect(DepricarpingDetail::where('depricarping_record_id', $record->id)->count())->toBe(2);
     expect(DepricarpingDetail::find($removedDetail->id))->toBeNull();
 });
@@ -247,11 +247,11 @@ it('menolak 403 FORBIDDEN saat POST memakai production_line_id mill lain, tanpa 
 it('menolak 403 FORBIDDEN saat PATCH record milik mill lain, dan tidak mengubah satu kolom pun', function () {
     $otherMill = BusinessUnit::factory()->create();
     $otherStation = Station::factory()->forBusinessUnit($otherMill)->depricarping()->create();
-    $record = DepricarpingRecord::factory()->forStation($otherStation)->create(['presser_id' => 'SCOPE-MILIK-MILL-B']);
+    $record = DepricarpingRecord::factory()->forStation($otherStation)->create(['depricarping_id' => 'SCOPE-MILIK-MILL-B']);
     $before = $record->fresh()->getAttributes();
 
     $response = $this->actingAs($this->supervisor, 'web')->patchJson("/api/depricarping-records/{$record->id}", depricarpingApiPayload([
-        'presser_id' => 'SCOPE-HIJACKED',
+        'depricarping_id' => 'SCOPE-HIJACKED',
     ]));
 
     $response->assertStatus(403);
@@ -274,7 +274,7 @@ it('menolak 403 FORBIDDEN saat PATCH record milik mill lain, dan tidak mengubah 
 function depricarpingPeriodLockPayload($test, string $date, string $id): array
 {
     return depricarpingApiPayload([
-        'presser_id' => $id,
+        'depricarping_id' => $id,
         'date' => $date,
     ]);
 }
@@ -297,7 +297,7 @@ it('kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lama
     replacePrerequisiteWithClosedAndOpenPeriods($this->businessUnit->id, 'depricarping');
     // Record lama dibuat lewat factory (melewati service), tanggalnya di Juli yang tertutup.
     $record = DepricarpingRecord::factory()->forStation($this->depricarpingStation)->create([
-        'presser_id' => 'DP-LOCK-OLD',
+        'depricarping_id' => 'DP-LOCK-OLD',
         'date' => PERIOD_LOCK_CLOSED_DATE,
     ]);
     $before = $record->fresh()->getAttributes();
@@ -324,5 +324,5 @@ it('kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal ak
         ))->assertCreated();
     }
 
-    expect(DepricarpingRecord::whereIn('presser_id', ['DP-LOCK-START', 'DP-LOCK-END'])->count())->toBe(2);
+    expect(DepricarpingRecord::whereIn('depricarping_id', ['DP-LOCK-START', 'DP-LOCK-END'])->count())->toBe(2);
 });

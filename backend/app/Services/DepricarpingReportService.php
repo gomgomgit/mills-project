@@ -44,7 +44,7 @@ use Throwable;
  *
  * STRUCTURALLY THIS FOLLOWS THE PRESSING REPORT, and deliberately so:
  * depricarping_records and depricarping_details have the same SKELETON as
- * their Pressing counterparts — a daily record per unit (presser_id, a
+ * their Pressing counterparts — a daily record per unit (depricarping_id, a
  * STRING on the header rather than a foreign key), one row per time slot,
  * nullable measurement columns, and the same 24 canonical slots. So
  * resolveBusinessUnit / businessUnitOptions / productionLineOptions /
@@ -406,7 +406,7 @@ class DepricarpingReportService
         'Mill',
         'Production Line',
         'Tanggal',
-        'Presser',
+        'Unit Depricarping',
         'Status',
         'Catatan',
         'Slot Waktu',
@@ -657,7 +657,7 @@ class DepricarpingReportService
      * business_logic steps 6-24 — every figure on the screen for one
      * period: the period header, recording coverage, the five metrics with
      * their OWN denominators and their operational standards, the targets
-     * that have no measurement at all, the per-presser recap, the daily
+     * that have no measurement at all, the per-unit recap, the daily
      * recap, the downtime-reason recap, and the period totals.
      *
      * Membership is decided by depricarping_records.date — the date the
@@ -692,21 +692,21 @@ class DepricarpingReportService
         $filledRows = $rows->filter(fn ($row) => $row->filled)->values();
 
         $dates = $this->datesOf($records);
-        $pressers = $this->pressersOf($records);
+        $depricarpingUnits = $this->depricarpingUnitsOf($records);
 
         $daysInPeriod = $this->daysInPeriod($period);
         $filledSlots = $filledRows->count();
         // THRESHER COUNT IS WHAT ACTUALLY RAN, not what is registered. A
         // denominator built from registered stations would punish a mill
-        // for owning a presser it deliberately did not operate.
-        $presserCount = $pressers->count();
+        // for owning a unit it deliberately did not operate.
+        $depricarpingCount = $depricarpingUnits->count();
         // Expected slots per unit per day comes from the canonical grid the
         // input screens themselves use — one definition, one answer.
-        $slotsPerPresserPerDay = count(DepricarpingRecordService::canonicalTimeSlots());
+        $slotsPerDepricarpingPerDay = count(DepricarpingRecordService::canonicalTimeSlots());
         // PENYEBUT BERHENTI DI HARI INI untuk periode yang masih berjalan —
         // hari yang belum terjadi tidak mungkin tercatat.
         $daysCounted = ReportPeriodDays::counted($period);
-        $expectedSlots = $presserCount * $daysCounted * $slotsPerPresserPerDay;
+        $expectedSlots = $depricarpingCount * $daysCounted * $slotsPerDepricarpingPerDay;
 
         $targets = $this->targetsByParameter();
         $targetsWithoutMetric = $this->targetsWithoutMetric($targets);
@@ -741,8 +741,8 @@ class DepricarpingReportService
                 'coverage_percent' => $expectedSlots === 0
                     ? null
                     : round(100 * $filledSlots / $expectedSlots, 1),
-                'presser_count' => $presserCount,
-                'slots_per_presser_per_day' => $slotsPerPresserPerDay,
+                'depricarping_count' => $depricarpingCount,
+                'slots_per_depricarping_per_day' => $slotsPerDepricarpingPerDay,
                 'days_in_period' => $daysInPeriod,
                 'days_counted' => $daysCounted,
                 'period_running' => ReportPeriodDays::isRunning($period),
@@ -756,7 +756,7 @@ class DepricarpingReportService
             // nobody built — and on this screen that section carries the
             // finding most in need of a human reader.
             'all_targets_measured' => $targetsWithoutMetric === [],
-            'by_presser' => $this->byPresserOf($pressers),
+            'by_depricarping' => $this->byDepricarpingOf($depricarpingUnits),
             'daily' => $this->dailyOf($dates),
             'daily_total' => [
                 // Recomputed over EVERY filled row, never an average of the
@@ -1073,9 +1073,9 @@ class DepricarpingReportService
      * Every Depricarping record inside the period, flattened to plain objects
      * with their time-slot detail rows attached, ascending by time_slot.
      *
-     * ONE DATE CAN HAVE SEVERAL RECORDS — one per presser, because
-     * presser_id is a STRING column on the HEADER, not a foreign key. The
-     * per-date aggregation merges them; the per-presser aggregation splits
+     * ONE DATE CAN HAVE SEVERAL RECORDS — one per depricarping unit, because
+     * depricarping_id is a STRING column on the HEADER, not a foreign key. The
+     * per-date aggregation merges them; the per-unit aggregation splits
      * them apart again.
      *
      * @return Collection<int, object>
@@ -1087,11 +1087,11 @@ class DepricarpingReportService
             // it stands, never cast to an integer hour.
             ->with(['depricarpingDetails' => fn ($query) => $query->orderBy('time_slot')])
             ->orderBy('depricarping_records.date')
-            ->orderBy('depricarping_records.presser_id')
+            ->orderBy('depricarping_records.depricarping_id')
             ->get()
             ->map(fn (DepricarpingRecord $record) => (object) [
                 'date' => $this->dateStringOf($record->date),
-                'presser_id' => (string) ($record->presser_id ?? ''),
+                'depricarping_id' => (string) ($record->depricarping_id ?? ''),
                 'status' => $this->recordStatusValue($record),
                 'note' => $record->note,
                 'checked' => $record->checked_by !== null,
@@ -1136,7 +1136,7 @@ class DepricarpingReportService
 
         return (object) [
             'date' => $this->dateStringOf($record->date),
-            'presser_id' => (string) ($record->presser_id ?? ''),
+            'depricarping_id' => (string) ($record->depricarping_id ?? ''),
             'time_slot' => (string) $detail->time_slot,
             'filled' => $this->recordService()->isRowFilled($attributes),
             'values' => $values,
@@ -1239,7 +1239,7 @@ class DepricarpingReportService
     }
 
     /**
-     * Each metric averaged over one bucket (a date or a presser) — again,
+     * Each metric averaged over one bucket (a date or a depricarping unit) — again,
      * each with ITS OWN denominator inside that bucket.
      *
      * null when the bucket has no value at all for that metric.
@@ -1264,7 +1264,7 @@ class DepricarpingReportService
 
     /**
      * One aggregate per DATE that has at least one record, ascending,
-     * merging every presser that ran on that date.
+     * merging every depricarping unit that ran on that date.
      *
      * A date whose rows are all empty for a given metric yields null in
      * that column but STILL COUNTS as a date with records — dropping it
@@ -1298,32 +1298,32 @@ class DepricarpingReportService
     }
 
     /**
-     * One aggregate per THRESHER (presser_id) over every record in the
+     * One aggregate per THRESHER (depricarping_id) over every record in the
      * period.
      *
-     * presser_id is the UNIT'S NAME, not a row key: the same id on two
-     * dates is one presser with two days of records, and day_count says
+     * depricarping_id is the UNIT'S NAME, not a row key: the same id on two
+     * dates is one unit with two days of records, and day_count says
      * two.
      *
-     * A presser that has a record but not one filled slot STILL APPEARS,
+     * A unit that has a record but not one filled slot STILL APPEARS,
      * with filled_slot_count 0 and null averages. Dropping it would hide
      * exactly the unit that was never written down — the one worth seeing.
      *
      * @param  Collection<int, object>  $records
      * @return Collection<int, object>
      */
-    protected function pressersOf(Collection $records): Collection
+    protected function depricarpingUnitsOf(Collection $records): Collection
     {
         return $records
-            ->groupBy('presser_id')
+            ->groupBy('depricarping_id')
             ->sortKeys()
-            ->map(function (Collection $group, string $presserId) {
+            ->map(function (Collection $group, string $depricarpingId) {
                 $filled = $group->flatMap(fn ($record) => $record->rows)
                     ->filter(fn ($row) => $row->filled)
                     ->values();
 
                 return (object) [
-                    'presser_id' => $presserId,
+                    'depricarping_id' => $depricarpingId,
                     'day_count' => $group->pluck('date')->unique()->count(),
                     'filled_slot_count' => $filled->count(),
                     'downtime_minutes' => $this->downtimeMinutesOf($filled),
@@ -1353,16 +1353,16 @@ class DepricarpingReportService
     }
 
     /**
-     * The per-presser recap table.
+     * The per-unit recap table.
      *
-     * @param  Collection<int, object>  $pressers
-     * @return list<array{presser_id: string, day_count: int, filled_slot_count: int, averages: array<string, float|null>}>
+     * @param  Collection<int, object>  $depricarpingUnits
+     * @return list<array{depricarping_id: string, day_count: int, filled_slot_count: int, averages: array<string, float|null>}>
      */
-    protected function byPresserOf(Collection $pressers): array
+    protected function byDepricarpingOf(Collection $depricarpingUnits): array
     {
-        return $pressers
+        return $depricarpingUnits
             ->map(fn ($row) => [
-                'presser_id' => $row->presser_id,
+                'depricarping_id' => $row->depricarping_id,
                 'day_count' => $row->day_count,
                 'filled_slot_count' => $row->filled_slot_count,
                 'downtime_minutes' => $row->downtime_minutes,
@@ -1428,7 +1428,7 @@ class DepricarpingReportService
     }
 
     /**
-     * Total recorded downtime minutes for one bucket (a date or a presser),
+     * Total recorded downtime minutes for one bucket (a date or a depricarping unit),
      * following the same rule as downtimeOf(): null when no slot in the
      * bucket recorded anything, never 0.
      *
@@ -1486,7 +1486,7 @@ class DepricarpingReportService
      * pulled in chunks so a long period never materialises as one
      * collection.
      *
-     * Ordered by date, then presser, then time_slot — compared as the TIME
+     * Ordered by date, then depricarping id, then time_slot — compared as the TIME
      * value it is, never as an integer hour.
      *
      * A slot whose measurement columns are all empty STILL YIELDS A ROW,
@@ -1500,14 +1500,14 @@ class DepricarpingReportService
         $query = (clone $recordQuery)
             ->with(['depricarpingDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot')])
             ->orderBy('depricarping_records.date')
-            ->orderBy('depricarping_records.presser_id')
+            ->orderBy('depricarping_records.depricarping_id')
             ->orderBy('depricarping_records.id');
 
         foreach ($query->lazy(200) as $record) {
             /** @var DepricarpingRecord $record */
             $context = array_merge($exportContext, [
                 optional($record->date)->toDateString(),
-                $record->presser_id,
+                $record->depricarping_id,
                 // Label Indonesia, bukan enum mentah.
                 ExportValue::status($this->recordStatusValue($record)),
                 $record->note,

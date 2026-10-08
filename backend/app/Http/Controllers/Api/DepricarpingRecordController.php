@@ -56,7 +56,7 @@ class DepricarpingRecordController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->only([
-            'production_line_id', 'presser_id', 'date', 'note',
+            'production_line_id', 'depricarping_id', 'date', 'note',
             'checked', 'acknowledged', 'details',
         ]);
 
@@ -74,7 +74,7 @@ class DepricarpingRecordController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $data = $request->only([
-            'presser_id', 'date', 'note', 'checked', 'acknowledged', 'details',
+            'depricarping_id', 'date', 'note', 'checked', 'acknowledged', 'details',
         ]);
 
         $record = $this->service->update($id, $data, $request->user());

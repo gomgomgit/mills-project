@@ -18,8 +18,8 @@
  * structural sibling, adapted for Depricarping's own header field and 8
  * reading columns:
  *
- *  - "Identitas Depricarping" section: `presser_id` (required, freely
- *    editable — labeled "Presser ID" per entity-catalog, the same field
+ *  - "Identitas Depricarping" section: `depricarping_id` (required, freely
+ *    editable — labeled "Depricarping ID" per entity-catalog, the same field
  *    name/label as Pressing's header ID, not a typo), `date` (auto-set once,
  *    in memory, ONLY for a brand-new draft —
  *    depricarpingRecordRepo.ts's createDraft() already auto-fills it at
@@ -75,7 +75,7 @@
  *    Target Range, Critical Limit, Operational Consequence / Justification)
  *    — one more than Threshing/Pressing's 3-column shape.
  *
- *  - 'Simpan': validates presser_id (required) — inline error — AND at
+ *  - 'Simpan': validates depricarping_id (required) — inline error — AND at
  *    least one valid Depricarping Detail row (a selected Time-Slot AND at
  *    least one reading column filled), a dedicated error message shown on
  *    the grid (not mixed into per-field header errors), re-enforced at the
@@ -129,17 +129,17 @@ const recordId = String(route.params.id ?? '')
 
 // business_logic step 9 — required header fields. Note/Checked By/
 // Acknowledged By are deliberately NOT required.
-const REQUIRED_FIELDS: (keyof DepricarpingHeaderFormData)[] = ['presser_id']
+const REQUIRED_FIELDS: (keyof DepricarpingHeaderFormData)[] = ['depricarping_id']
 
 const REQUIRED_FIELD_LABELS: Record<string, string> = {
-  presser_id: 'Presser ID',
+  depricarping_id: 'Depricarping ID',
 }
 
 // business_logic — fields compared for the Back dirty-check. `date` is
 // excluded (fully automatic/disabled, never freely user-editable — same
 // reasoning as FormPressingView.vue excluding date).
 const DIRTY_CHECK_FIELDS: (keyof DepricarpingHeaderFormData)[] = [
-  'presser_id',
+  'depricarping_id',
   'note',
   'checked_by',
   'acknowledged_by',
@@ -147,7 +147,7 @@ const DIRTY_CHECK_FIELDS: (keyof DepricarpingHeaderFormData)[] = [
 
 function emptyFormData(): DepricarpingHeaderFormData {
   return {
-    presser_id: '',
+    depricarping_id: '',
     date: '',
     note: '',
     checked_by: '',
@@ -258,7 +258,7 @@ const dateDisplay = computed(() => formatDateID(form.date))
 // draft (no stored value yet); a resumed draft's stored value is kept
 // untouched.
 function populateForm(record: DepricarpingRecord): void {
-  form.presser_id = record.presser_id ?? ''
+  form.depricarping_id = record.depricarping_id ?? ''
   form.date = record.date && record.date.trim() !== '' ? record.date : nowLocalDateTimeString()
   form.note = record.note ?? ''
   form.checked_by = record.checked_by ?? ''
@@ -736,10 +736,10 @@ function goToMonitorDepricarping(): void {
         <h2 class="form-section-title">Identitas Depricarping</h2>
 
         <FormField
-          v-model="form.presser_id"
-          label="Presser ID"
+          v-model="form.depricarping_id"
+          label="Depricarping ID"
           required
-          :error="errors.presser_id"
+          :error="errors.depricarping_id"
           :disabled="actionInProgress"
         />
         <FormField :model-value="dateDisplay" label="Tanggal" disabled />

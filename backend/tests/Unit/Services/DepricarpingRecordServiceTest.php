@@ -11,7 +11,7 @@
  * design) — create()/update() now upsert whatever rows are given (1..24,
  * unique + strictly ascending canonical time_slot order), exactly like
  * PressingRecordService's pressing_detail upsert pattern, adapted for
- * Depricarping's own header field (presser_id) and 8 reading columns (7
+ * Depricarping's own header field (depricarping_id) and 8 reading columns (7
  * numeric + downtime_minutes + findings — a row is filled when EITHER
  * downtime_minutes OR findings, or any other reading column, is set).
  */
@@ -32,6 +32,7 @@ use App\Services\DepricarpingRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -42,7 +43,7 @@ uses(TestCase::class, RefreshDatabase::class);
 function depricarpingFormPayload(array $overrides = []): array
 {
     return array_merge([
-        'presser_id' => 'DP-'.Str::random(6),
+        'depricarping_id' => 'DP-'.Str::random(6),
         'date' => '2026-08-24',
         'note' => null,
         'details' => [['time_slot' => '07:00', 'fan_static_pressure_mmh2o' => 45]],
@@ -114,7 +115,7 @@ it('returns a paginated, filtered list with the shared pagination meta shape', f
 
     expect($result['meta'])->toBe(['page' => 1, 'per_page' => 2, 'total' => 3, 'total_pages' => 2]);
     expect($result['data'])->toHaveCount(2);
-    expect(array_keys($result['data'][0]))->toBe(['id', 'presser_id', 'date', 'filled_slot_count', 'production_line_name', 'status']);
+    expect(array_keys($result['data'][0]))->toBe(['id', 'depricarping_id', 'date', 'filled_slot_count', 'production_line_name', 'status']);
 });
 
 it('computes filled_slot_count as the number of detail rows with at least one non-null reading column', function () {
@@ -165,7 +166,7 @@ it('throws ExportFailedException when the filtered dataset exceeds the export ro
                 'id' => (string) Str::uuid(),
                 'station_id' => $this->station->id,
                 'production_line_id' => $this->station->production_line_id,
-                'presser_id' => 'DP-BULK-'.($inserted + $i),
+                'depricarping_id' => 'DP-BULK-'.($inserted + $i),
                 'date' => $now->toDateString(),
                 'note' => null,
                 'checked_by' => null,
@@ -205,7 +206,7 @@ it('returns a StreamedResponse with the correct content-type for csv and excel f
     }
     $body = exportBodyAsCsv($raw);
 
-    expect($body)->toContain('Presser ID');
+    expect($body)->toContain('Depricarping ID');
     expect(substr_count($body, "\n"))->toBeGreaterThanOrEqual(2);
 })->with([
     'csv' => ['csv', 'text/csv'],
@@ -294,7 +295,7 @@ it('creates a record with multiple detail rows when given several valid, ascendi
 
 it('throws ValidationException when a required field is empty', function () {
     expect(fn () => $this->service->create(
-        depricarpingFormPayload(['production_line_id' => $this->depricarpingStation->production_line_id, 'presser_id' => '']),
+        depricarpingFormPayload(['production_line_id' => $this->depricarpingStation->production_line_id, 'depricarping_id' => '']),
         $this->creator
     ))->toThrow(ValidationException::class);
 });
@@ -466,7 +467,7 @@ it('updates record and upserts details: inserts new row, updates existing row, d
     $result = $this->service->update(
         $record->id,
         depricarpingFormPayload([
-            'presser_id' => 'DP-EDITED',
+            'depricarping_id' => 'DP-EDITED',
             'details' => [
                 ['id' => $keptDetail->id, 'time_slot' => '07:00', 'fan_static_pressure_mmh2o' => 47.2],
                 ['time_slot' => '15:00', 'fan_static_pressure_mmh2o' => 46],
@@ -475,7 +476,7 @@ it('updates record and upserts details: inserts new row, updates existing row, d
         $this->creator
     );
 
-    expect($result['presser_id'])->toBe('DP-EDITED');
+    expect($result['depricarping_id'])->toBe('DP-EDITED');
     expect($result['details'])->toHaveCount(2);
     expect(DepricarpingDetail::where('depricarping_record_id', $record->id)->count())->toBe(2);
     expect(DepricarpingDetail::find($keptDetail->id)->fan_static_pressure_mmh2o)->toBe(47.2);
@@ -491,7 +492,7 @@ it('updates record without accepting a production_line_id change', function () {
         $record->id,
         depricarpingFormPayload([
             'production_line_id' => $otherProductionLine->id,
-            'presser_id' => 'DP-EDITED',
+            'depricarping_id' => 'DP-EDITED',
             'details' => [
                 ['id' => $existingDetail->id, 'time_slot' => $existingDetail->time_slot, 'fan_static_pressure_mmh2o' => $existingDetail->fan_static_pressure_mmh2o],
             ],
@@ -500,7 +501,7 @@ it('updates record without accepting a production_line_id change', function () {
     );
 
     expect($result['station_id'])->toBe($this->depricarpingStation->id);
-    expect($result['presser_id'])->toBe('DP-EDITED');
+    expect($result['depricarping_id'])->toBe('DP-EDITED');
 });
 
 it('throws ModelNotFoundException when updating a non-existent id', function () {
@@ -547,10 +548,10 @@ it('menolak create() ke production line mill lain, tanpa menulis satu baris pun'
 it('menolak update() record milik mill lain, dan tidak mengubah satu kolom pun', function () {
     $otherMill = BusinessUnit::factory()->create();
     $otherStation = Station::factory()->forBusinessUnit($otherMill)->depricarping()->create();
-    $record = DepricarpingRecord::factory()->forStation($otherStation)->create(['presser_id' => 'SCOPE-MILIK-MILL-B']);
+    $record = DepricarpingRecord::factory()->forStation($otherStation)->create(['depricarping_id' => 'SCOPE-MILIK-MILL-B']);
     $before = $record->fresh()->getAttributes();
 
-    expect(fn () => $this->service->update($record->id, depricarpingFormPayload(['presser_id' => 'SCOPE-HIJACKED']), $this->creator))
+    expect(fn () => $this->service->update($record->id, depricarpingFormPayload(['depricarping_id' => 'SCOPE-HIJACKED']), $this->creator))
         ->toThrow(CrossMillWriteDeniedException::class);
 
     expect($record->fresh()->getAttributes())->toBe($before);
@@ -569,8 +570,8 @@ it('mengizinkan Admin menulis ke line mill mana pun (dibuktikan dengan dua mill 
     // Admin di dev punya kolom ini terisi) dan harus diabaikan.
     $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
 
-    $inOwnMill = $this->service->create(depricarpingFormPayload(['production_line_id' => $this->depricarpingStation->production_line_id, 'presser_id' => 'SCOPE-MILL-A']), $admin);
-    $inOtherMill = $this->service->create(depricarpingFormPayload(['production_line_id' => $stationB->production_line_id, 'presser_id' => 'SCOPE-MILL-B']), $admin);
+    $inOwnMill = $this->service->create(depricarpingFormPayload(['production_line_id' => $this->depricarpingStation->production_line_id, 'depricarping_id' => 'SCOPE-MILL-A']), $admin);
+    $inOtherMill = $this->service->create(depricarpingFormPayload(['production_line_id' => $stationB->production_line_id, 'depricarping_id' => 'SCOPE-MILL-B']), $admin);
 
     expect(DepricarpingRecord::find($inOwnMill['id'])->station_id)->toBe($this->depricarpingStation->id);
     expect(DepricarpingRecord::find($inOtherMill['id'])->station_id)->toBe($stationB->id);
@@ -591,11 +592,85 @@ it('gagal tertutup dengan pesan actionable ketika akun aktor belum terhubung ke 
 });
 
 it('tetap mengizinkan create() dan update() pada line mill sendiri', function () {
-    $created = $this->service->create(depricarpingFormPayload(['production_line_id' => $this->depricarpingStation->production_line_id, 'presser_id' => 'SCOPE-OWN-1']), $this->creator);
+    $created = $this->service->create(depricarpingFormPayload(['production_line_id' => $this->depricarpingStation->production_line_id, 'depricarping_id' => 'SCOPE-OWN-1']), $this->creator);
 
     expect(DepricarpingRecord::find($created['id'])->station_id)->toBe($this->depricarpingStation->id);
 
-    $this->service->update($created['id'], depricarpingFormPayload(['presser_id' => 'SCOPE-OWN-2']), $this->creator);
+    $this->service->update($created['id'], depricarpingFormPayload(['depricarping_id' => 'SCOPE-OWN-2']), $this->creator);
 
-    expect(DepricarpingRecord::find($created['id'])->presser_id)->toBe('SCOPE-OWN-2');
+    expect(DepricarpingRecord::find($created['id'])->depricarping_id)->toBe('SCOPE-OWN-2');
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// RENAME presser_id -> depricarping_id (2026-10-08)
+//
+// Dari 16 stasiun yang punya kolom identitas unit, Depricarping sendirian
+// menamai mesin stasiun LAIN: presser_id adalah kolom identitas Pressing,
+// sementara keenam standar masternya adalah alat depericarper (fan,
+// polishing drum, aspirator, fibre, kernel loss in fibre, nut silo).
+// ───────────────────────────────────────────────────────────────────────────
+
+it('menyimpan Depricarping ID dari kunci baru', function () {
+    $created = $this->service->create(depricarpingFormPayload([
+        'production_line_id' => $this->depricarpingStation->production_line_id,
+        'depricarping_id' => 'DP-BARU-1',
+    ]), $this->creator);
+
+    expect(DepricarpingRecord::find($created['id'])->depricarping_id)->toBe('DP-BARU-1');
+});
+
+it('ALIAS: draft perangkat lama yang mengirim presser_id TETAP TERSIMPAN, bukan ditolak', function () {
+    // Akibat tanpa alias di sini BERBEDA dari kasus Shell Loss, dan lebih
+    // kasar: depricarping_id wajib diisi, jadi draft perangkat lama bukan
+    // kehilangan satu angka diam-diam — ia DITOLAK dengan "Depricarping ID
+    // wajib diisi." padahal operatornya sudah mengisinya, dan tidak ada
+    // layar yang bisa dipakai memperbaikinya.
+    $payload = depricarpingFormPayload([
+        'production_line_id' => $this->depricarpingStation->production_line_id,
+    ]);
+    unset($payload['depricarping_id']);
+    $payload['presser_id'] = 'DP-PERANGKAT-LAMA';
+
+    $created = $this->service->create($payload, $this->creator);
+
+    expect(DepricarpingRecord::find($created['id'])->depricarping_id)->toBe('DP-PERANGKAT-LAMA');
+});
+
+it('ALIAS tidak menimpa: bila kedua kunci dikirim, yang baru menang', function () {
+    $created = $this->service->create(depricarpingFormPayload([
+        'production_line_id' => $this->depricarpingStation->production_line_id,
+        'depricarping_id' => 'DP-BARU',
+        'presser_id' => 'DP-LAMA',
+    ]), $this->creator);
+
+    expect(DepricarpingRecord::find($created['id'])->depricarping_id)->toBe('DP-BARU');
+});
+
+it('ALIAS tidak menyembunyikan validasi: kedua kunci kosong tetap ditolak', function () {
+    // Alias yang terlalu longgar akan membuat kolom wajib ini berhenti
+    // wajib — mis. bila ia memakai array_key_exists alih-alih memeriksa
+    // nilainya, string kosong pada kunci lama akan lolos.
+    $payload = depricarpingFormPayload([
+        'production_line_id' => $this->depricarpingStation->production_line_id,
+    ]);
+    unset($payload['depricarping_id']);
+    $payload['presser_id'] = '';
+
+    expect(fn () => $this->service->create($payload, $this->creator))
+        ->toThrow(ValidationException::class);
+});
+
+it('kolom lama sudah tidak ada lagi di tabel', function () {
+    // Penjaga migrasi: rename yang tidak jalan akan membuat asersi di atas
+    // tetap hijau lewat kolom lama yang masih berdiri.
+    expect(Schema::hasColumn('depricarping_records', 'depricarping_id'))->toBeTrue();
+    expect(Schema::hasColumn('depricarping_records', 'presser_id'))->toBeFalse();
+});
+
+it('kolom identitas Pressing TIDAK ikut berubah', function () {
+    // Rename ini hanya menyentuh Depricarping. presser_id milik Pressing
+    // adalah nama yang BENAR di sana — stasiun itu memang mencatat presser —
+    // dan rename yang terlalu lebar akan membawanya ikut.
+    expect(Schema::hasColumn('pressing_records', 'presser_id'))->toBeTrue();
+    expect(Schema::hasColumn('pressing_records', 'depricarping_id'))->toBeFalse();
 });

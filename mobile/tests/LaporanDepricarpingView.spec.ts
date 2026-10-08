@@ -185,8 +185,8 @@ function summaryFixture(overrides: Record<string, unknown> = {}): Record<string,
       filled_slots: 10,
       expected_slots: 480,
       coverage_percent: 2.1,
-      presser_count: 2,
-      slots_per_presser_per_day: 24,
+      depricarping_count: 2,
+      slots_per_depricarping_per_day: 24,
       days_in_period: 30,
       days_counted: 10,
       period_running: true,
@@ -304,19 +304,19 @@ function summaryFixture(overrides: Record<string, unknown> = {}): Record<string,
     targets_without_metric: [],
     all_targets_measured: true,
     targets_master_empty: false,
-    by_presser: [
+    by_depricarping: [
       {
-        presser_id: 'PR-1',
+        depricarping_id: 'PR-1',
         day_count: 2,
         filled_slot_count: 7,
         downtime_minutes: 30,
         averages: { fan_static_pressure_mmh2o: 30, polishing_drum_speed_rpm: null, air_velocity_ms: null },
       },
       {
-        presser_id: 'PR-2',
+        depricarping_id: 'PR-2',
         day_count: 1,
         filled_slot_count: 3,
-        // null, BUKAN 0: presser yang tidak dicatat bukan presser yang tidak
+        // null, BUKAN 0: unit yang tidak dicatat bukan unit yang tidak
         // pernah berhenti.
         downtime_minutes: null,
         averages: { fan_static_pressure_mmh2o: 28.5, polishing_drum_speed_rpm: 22, air_velocity_ms: null },
@@ -373,8 +373,8 @@ function emptySummaryFixture(): Record<string, unknown> {
       filled_slots: 0,
       expected_slots: 480,
       coverage_percent: 0,
-      presser_count: 2,
-      slots_per_presser_per_day: 24,
+      depricarping_count: 2,
+      slots_per_depricarping_per_day: 24,
       days_in_period: 30,
       days_counted: 10,
       period_running: true,
@@ -382,7 +382,7 @@ function emptySummaryFixture(): Record<string, unknown> {
     metrics: [
       metric({ min: null, avg: null, max: null, filled_slot_count: 0 }),
     ],
-    by_presser: [],
+    by_depricarping: [],
     daily: [],
     daily_total: { filled_slot_count: 0, downtime_minutes: null, averages: {} },
     downtime: {
@@ -494,7 +494,7 @@ describe('jalur sukses', () => {
     for (const testid of [
       'coverage', 'coverage-slots', 'coverage-denominator', 'coverage-days',
       'metrics', 'no-flagging-note', 'targets-without-metric',
-      'by-presser', 'downtime', 'completeness', 'daily-recap',
+      'by-depricarping', 'downtime', 'completeness', 'daily-recap',
     ]) {
       expect(exists(wrapper, testid), testid).toBe(true)
     }
@@ -585,7 +585,7 @@ describe('cakupan pencatatan', () => {
 
     const denominator = text(wrapper, 'coverage-denominator')
 
-    expect(denominator).toContain('2 presser')
+    expect(denominator).toContain('2 unit')
     expect(denominator).toContain('10 hari')
     expect(denominator).toContain('24 slot')
     expect(text(wrapper, 'coverage-slots')).toContain('10 dari 480 slot')
@@ -607,8 +607,8 @@ describe('cakupan pencatatan', () => {
           filled_slots: 0,
           expected_slots: 0,
           coverage_percent: null,
-          presser_count: 0,
-          slots_per_presser_per_day: 24,
+          depricarping_count: 0,
+          slots_per_depricarping_per_day: 24,
           days_in_period: 30,
           days_counted: 0,
           // true di server juga untuk periode yang BELUM MULAI — inilah
@@ -940,15 +940,15 @@ describe('standar yang belum diukur sistem', () => {
 })
 
 /* ================================================================== */
-/* Rekap per presser, downtime, kelengkapan                           */
+/* Rekap per unit Depricarping, downtime, kelengkapan                           */
 /* ================================================================== */
 
 describe('rekap dan kelengkapan', () => {
-  it('rekap per presser menampilkan jumlah hari dan slotnya sendiri', async () => {
+  it('rekap per unit Depricarping menampilkan jumlah hari dan slotnya sendiri', async () => {
     const wrapper = await mountView()
     await selectPeriod(wrapper, 'per-1')
 
-    const rows = wrapper.findAll('[data-testid="by-presser-row"]')
+    const rows = wrapper.findAll('[data-testid="by-depricarping-row"]')
 
     expect(rows).toHaveLength(2)
     expect(rows[0].text()).toContain('PR-1')
@@ -1256,7 +1256,7 @@ describe('keadaan tanpa angka', () => {
     expect(text(wrapper, 'metrics')).toContain('tidak tersedia')
     // Rekap tidak digambar — tabel kosong terbaca sebagai hasil pengukuran
     // bernilai nol.
-    expect(exists(wrapper, 'by-presser')).toBe(false)
+    expect(exists(wrapper, 'by-depricarping')).toBe(false)
     expect(exists(wrapper, 'downtime')).toBe(false)
     expect(exists(wrapper, 'daily-recap')).toBe(false)
   })

@@ -41,7 +41,7 @@ const LAPORAN_DEPRICARPING_FIGURE_TESTIDS = [
     'metrics',
     'metrics-table',
     'no-flagging-note',
-    'by-presser',
+    'by-depricarping',
     // DUA bagian, bukan satu: downtime (angka) dan findings (teks) sengaja
     // terpisah — satu menjawab "berapa lama", satu "apa yang terlihat".
     'downtime',
@@ -53,13 +53,13 @@ const LAPORAN_DEPRICARPING_FIGURE_TESTIDS = [
 function laporanDepricarpingComponentRecord(
     Station $station,
     string $date,
-    string $presserId = 'PR-1',
+    string $depricarpingId = 'PR-1',
     array $attributes = [],
 ): DepricarpingRecord {
     return DepricarpingRecord::factory()
         ->forStation($station)
         ->onDate($date)
-        ->create(array_merge(['presser_id' => $presserId, 'note' => 'Catatan harian'], $attributes));
+        ->create(array_merge(['depricarping_id' => $depricarpingId, 'note' => 'Catatan harian'], $attributes));
 }
 
 function laporanDepricarpingComponentSlot(DepricarpingRecord $record, string $timeSlot, array $values = []): DepricarpingDetail
@@ -232,9 +232,9 @@ it('skenario 4 — cakupan mencetak ketiga angka pembentuk penyebutnya', functio
         ->html();
 
     expect($html)->toContain('data-testid="coverage-denominator"');
-    // 2 presser x 10 hari x 24 slot = 480.
+    // 2 unit Depricarping x 10 hari x 24 slot = 480.
     expect($html)->toContain('480');
-    expect($html)->toContain('presser &times; 10 hari &times; 24 slot');
+    expect($html)->toContain('unit &times; 10 hari &times; 24 slot');
 });
 
 // =====================================================================

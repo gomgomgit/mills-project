@@ -9,7 +9,7 @@
  * add-row/remove-row grid (the user explicitly rejected the original fixed
  * 24-row design), so this now exercises "Tambah Baris" + the Time-Slot
  * <select> exactly like FormPressingTest.php's Pressing Detail grid,
- * adapted for Depricarping's own header field (presser_id) and 8 reading
+ * adapted for Depricarping's own header field (depricarping_id) and 8 reading
  * columns (7 numeric + downtime_minutes + findings) and 4-column Target
  * Operasional table.
  *
@@ -21,7 +21,7 @@
  * (depricarpingtest-supervisor01 / Passw0rd!), a Production Line named
  * "PL Mill A" with an active Depricarping station, a second Production
  * Line "PL Tanpa Depricarping" with no active Depricarping station, and a
- * pre-seeded Depricarping record with Presser ID "DP-BROWSER-EDIT" under
+ * pre-seeded Depricarping record with Depricarping ID "DP-BROWSER-EDIT" under
  * "PL Mill A".
  */
 
@@ -72,14 +72,14 @@ test.describe('Form Depricarping (Web)', () => {
 
     await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     const uniqueSuffix = Date.now();
-    await page.locator('[data-testid="presser-id-input"]').fill(`DP-BROWSER-${uniqueSuffix}`);
+    await page.locator('[data-testid="depricarping-id-input"]').fill(`DP-BROWSER-${uniqueSuffix}`);
     await page.locator('[data-testid="add-row-button"]').click();
     await page.locator('[data-testid="time-slot-select-0"]').selectOption('07:00');
     await page.locator('[data-testid="fan-static-pressure-0"]').fill('45');
     await page.locator('[data-testid="save-button"]').click();
 
     await page.waitForURL((url) => url.pathname.startsWith('/data/depricarping/') && !url.pathname.endsWith('/create'));
-    await expect(page.locator('[data-testid="detail-presser-id"]')).toContainText(`DP-BROWSER-${uniqueSuffix}`);
+    await expect(page.locator('[data-testid="detail-depricarping-id"]')).toContainText(`DP-BROWSER-${uniqueSuffix}`);
   });
 
   // Scenario: "Field Wajib Belum Lengkap"
@@ -90,7 +90,7 @@ test.describe('Form Depricarping (Web)', () => {
     await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="save-button"]').click();
 
-    await expect(page.locator('.pf-field__error')).toContainText('Presser ID');
+    await expect(page.locator('.pf-field__error')).toContainText('Depricarping ID');
   });
 
   // Scenario: "Belum Ada Baris Terisi"
@@ -99,7 +99,7 @@ test.describe('Form Depricarping (Web)', () => {
     await page.goto(CREATE_PATH);
 
     await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
-    await page.locator('[data-testid="presser-id-input"]').fill('DP-NO-DETAIL');
+    await page.locator('[data-testid="depricarping-id-input"]').fill('DP-NO-DETAIL');
     await page.locator('[data-testid="save-button"]').click();
 
     await expect(page.locator('[data-testid="detail-error"]')).toBeVisible();
@@ -111,7 +111,7 @@ test.describe('Form Depricarping (Web)', () => {
     await page.goto(CREATE_PATH);
 
     await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
-    await page.locator('[data-testid="presser-id-input"]').fill('DP-FINDINGS-ONLY');
+    await page.locator('[data-testid="depricarping-id-input"]').fill('DP-FINDINGS-ONLY');
     await page.locator('[data-testid="add-row-button"]').click();
     await page.locator('[data-testid="time-slot-select-0"]').selectOption('07:00');
     await page.locator('[data-testid="findings-0"]').fill('Fan belt loose');
@@ -126,7 +126,7 @@ test.describe('Form Depricarping (Web)', () => {
     await page.goto(CREATE_PATH);
 
     await page.locator('[data-testid="production-line-select"]').selectOption({ label: 'PL Tanpa Depricarping' });
-    await page.locator('[data-testid="presser-id-input"]').fill('DP-NO-STATION');
+    await page.locator('[data-testid="depricarping-id-input"]').fill('DP-NO-STATION');
     await page.locator('[data-testid="add-row-button"]').click();
     await page.locator('[data-testid="time-slot-select-0"]').selectOption('07:00');
     await page.locator('[data-testid="fan-static-pressure-0"]').fill('10');
@@ -172,7 +172,7 @@ test.describe('Form Depricarping (Web)', () => {
     await page.locator('.dp-table__row', { hasText: 'DP-BROWSER-EDIT' }).click();
     await page.locator('[data-testid="edit-button"]').click();
 
-    await page.locator('[data-testid="presser-id-input"]').fill('DP-BROWSER-EDIT-DONE');
+    await page.locator('[data-testid="depricarping-id-input"]').fill('DP-BROWSER-EDIT-DONE');
     await page.locator('[data-testid="save-button"]').click();
 
     await page.waitForURL((url) => !url.pathname.endsWith('/edit'));

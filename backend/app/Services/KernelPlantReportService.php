@@ -60,7 +60,9 @@ use Throwable;
  * ------------------------------------------------------------------
  * 1. THE STATION UNIT IS THE KERNEL PLANT ITSELF, NOT A PRESSER
  * ------------------------------------------------------------------
- * Pressing and Depricarping both record a `presser_id` on the header.
+ * Pressing records a `presser_id` on the header (Depricarping did too until
+ * 2026-10-08; it is `depricarping_id` now — see migration
+ * 2026_10_08_000002, which is exactly the point this section makes).
  * kernel_plant_records carries `kernel_plant_id` instead — the SAME kind of
  * column (a plain `string`, required, free text; see
  * 2026_08_23_000011_create_kernel_plant_records_table and
@@ -1365,7 +1367,8 @@ class KernelPlantReportService
      * schema rather than a shortcut: kernel_plant_records.kernel_plant_id is
      * a plain `string` column, required and free text
      * (KernelPlantRecordService::validateForm()), exactly like
-     * pressing/depricarping `presser_id`. There is no `kernel_plants` master
+     * pressing's `presser_id` and depricarping's `depricarping_id`. There is
+     * no `kernel_plants` master
      * table in this schema — only kernel_plant_records, kernel_plant_details
      * and kernel_plant_operational_targets — so resolving a name through a
      * lookup would mean inventing a table, and returning null or '' would

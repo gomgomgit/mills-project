@@ -39,13 +39,13 @@ function laporanDepricarpingUrl(string $path, array $query = []): string
 function laporanDepricarpingRecord(
     Station $station,
     string $date,
-    string $presserId = 'PR-1',
+    string $depricarpingId = 'PR-1',
     array $attributes = [],
 ): DepricarpingRecord {
     return DepricarpingRecord::factory()
         ->forStation($station)
         ->onDate($date)
-        ->create(array_merge(['presser_id' => $presserId, 'note' => 'Catatan harian'], $attributes));
+        ->create(array_merge(['depricarping_id' => $depricarpingId, 'note' => 'Catatan harian'], $attributes));
 }
 
 function laporanDepricarpingSlot(DepricarpingRecord $record, string $timeSlot, array $values = []): DepricarpingDetail
@@ -435,9 +435,9 @@ it('skenario 15 — cakupan menerbitkan ketiga angka pembentuk penyebutnya', fun
     ]));
 
     $summary->assertOk();
-    expect($summary->json('coverage.presser_count'))->toBe(2);
+    expect($summary->json('coverage.depricarping_count'))->toBe(2);
     expect($summary->json('coverage.days_counted'))->toBe(10);
-    expect($summary->json('coverage.slots_per_presser_per_day'))->toBe(24);
+    expect($summary->json('coverage.slots_per_depricarping_per_day'))->toBe(24);
     expect($summary->json('coverage.expected_slots'))->toBe(480);
     expect($summary->json('coverage.coverage_percent'))->toEqual(0.4);
 });

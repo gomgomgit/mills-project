@@ -58,8 +58,8 @@ function summaryPayload(overrides: Record<string, unknown> = {}): Record<string,
       // 96/480 = 20, dan server mengirim 88. Repo yang menghitung sendiri
       // akan menjawab 20 dan test ini gagal.
       coverage_percent: 88,
-      presser_count: 2,
-      slots_per_presser_per_day: 24,
+      depricarping_count: 2,
+      slots_per_depricarping_per_day: 24,
       days_in_period: 30,
       days_counted: 10,
       period_running: true,
@@ -206,9 +206,9 @@ function summaryPayload(overrides: Record<string, unknown> = {}): Record<string,
     ],
     all_targets_measured: false,
     targets_master_empty: false,
-    by_presser: [
+    by_depricarping: [
       {
-        presser_id: 'PR-1',
+        depricarping_id: 'PR-1',
         day_count: 2,
         filled_slot_count: 7,
         downtime_minutes: 30,
@@ -442,7 +442,7 @@ describe('nol perhitungan di klien', () => {
     expect(summary.metrics[1].min).toBeNull()
     expect(summary.metrics[1].avg).toBeNull()
     expect(summary.metrics[1].max).toBeNull()
-    expect(summary.by_presser[0].averages.polishing_drum_speed_rpm).toBeNull()
+    expect(summary.by_depricarping[0].averages.polishing_drum_speed_rpm).toBeNull()
   })
 
   it('coverage_percent null diteruskan null, bukan diganti 0', async () => {
@@ -452,8 +452,8 @@ describe('nol perhitungan di klien', () => {
           filled_slots: 0,
           expected_slots: 0,
           coverage_percent: null,
-          presser_count: 0,
-          slots_per_presser_per_day: 24,
+          depricarping_count: 0,
+          slots_per_depricarping_per_day: 24,
           days_in_period: 30,
           days_counted: 0,
           period_running: true,
@@ -603,7 +603,7 @@ describe('standar operasional', () => {
     // Dan daftar kuncinya dikunci: kunci yang hilang atau bertambah terlihat
     // sebagai kegagalan, bukan sebagai bagian layar yang diam-diam kosong.
     expect(Object.keys(summary).sort()).toEqual([
-      'all_targets_measured', 'business_unit', 'by_presser', 'coverage',
+      'all_targets_measured', 'business_unit', 'by_depricarping', 'coverage',
       'daily', 'daily_total', 'downtime', 'findings', 'has_data', 'metrics',
       'period', 'production_line', 'targets_master_empty',
       'targets_without_metric', 'total',
@@ -682,7 +682,7 @@ describe('alasan downtime', () => {
 
     const summary = await fetchSummary('per-1', { productionLineId: 'pl-1' })
 
-    expect(summary.by_presser[0].downtime_minutes).toBe(30)
+    expect(summary.by_depricarping[0].downtime_minutes).toBe(30)
     expect(summary.daily[0].downtime_minutes).toBe(10)
     // null, BUKAN 0 — hari yang tidak satu pun slotnya mencatat downtime
     // bukan hari tanpa downtime.

@@ -133,11 +133,11 @@ async function loadAll() {
 onMounted(loadAll)
 
 /**
- * Presser ID fallback text for a draft whose `presser_id` has not been
+ * Depricarping ID fallback text for a draft whose `depricarping_id` has not been
  * filled in yet.
  */
 function draftLabel(draft: DepricarpingDraftListItem): string {
-  return draft.presser_id?.trim() ? draft.presser_id : 'Presser ID belum diisi'
+  return draft.depricarping_id?.trim() ? draft.depricarping_id : 'Depricarping ID belum diisi'
 }
 
 // business_logic step 5 — 'New Data'. Enabled regardless of whether the

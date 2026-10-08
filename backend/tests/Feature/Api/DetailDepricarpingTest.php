@@ -43,7 +43,7 @@ it('berhasil: returns the full record with resolved names and 24-row details gri
     $response->assertOk();
     $response->assertJsonFragment([
         'id' => $record->id,
-        'presser_id' => $record->presser_id,
+        'depricarping_id' => $record->depricarping_id,
         'station_name' => $this->station->name,
     ]);
     $response->assertJsonFragment(['time_slot' => '09:00']);

@@ -143,7 +143,7 @@ class DepricarpingReportController extends Controller
      * mill), authorise the period (404 / 403), then every figure for that
      * period on that line — recording coverage FIRST, then the five metrics
      * each with its own denominator and its own operational standard, the
-     * targets that have no measurement at all, the per-presser recap, the
+     * targets that have no measurement at all, the per-unit recap, the
      * daily recap, the literal downtime-reason recap, and the period
      * totals.
      *
@@ -175,7 +175,7 @@ class DepricarpingReportController extends Controller
      * export() — GET /api/depricarping-reports/export?period_id=...&production_line_id=...&format=csv
      *
      * business_logic step 25: ONE ROW PER TIME SLOT, with the period / mill
-     * / production line / date / presser / status / note context columns
+     * / production line / date / depricarping id / status / note context columns
      * repeated verbatim on every row so the file can be pivoted straight in
      * a spreadsheet. A slot whose measurement columns are all empty stays a
      * row with EMPTY cells — never dropped, never written as 0.

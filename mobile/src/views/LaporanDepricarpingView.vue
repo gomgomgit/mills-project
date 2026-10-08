@@ -729,7 +729,7 @@ const coverage = computed(() => summary.value?.coverage ?? null)
 const metrics = computed(() => summary.value?.metrics ?? [])
 const targetsWithoutMetric = computed(() => summary.value?.targets_without_metric ?? [])
 const targetsMasterEmpty = computed(() => summary.value?.targets_master_empty ?? false)
-const byPresser = computed(() => summary.value?.by_presser ?? [])
+const byDepricarping = computed(() => summary.value?.by_depricarping ?? [])
 const daily = computed(() => summary.value?.daily ?? [])
 const dailyTotal = computed(() => summary.value?.daily_total ?? null)
 const allTargetsMeasured = computed(() => summary.value?.all_targets_measured ?? false)
@@ -854,7 +854,7 @@ function formatDate(value: string | null | undefined): string {
 }
 
 /**
- * Penamaan presser yang kosong. presser_id adalah kolom NOT NULL, jadi
+ * Penamaan unit Depricarping yang kosong. depricarping_id adalah kolom NOT NULL, jadi
  * bentuk ini praktis tidak muncul — tetapi barisnya tetap diberi label alih-
  * alih dirender kosong, karena sel tanpa label membuat seluruh baris terbaca
  * sebagai cacat tampilan. Label ini keputusan view, bukan sesuatu yang repo
@@ -1129,12 +1129,12 @@ function onBack(): void {
             <div class="metric-card">
               <span class="metric-label">Pembentuk Penyebut</span>
               <span class="metric-value" data-testid="coverage-denominator">
-                {{ formatCount(coverage?.presser_count) }} presser ×
+                {{ formatCount(coverage?.depricarping_count) }} unit ×
                 {{ formatCount(coverage?.days_counted) }} hari ×
-                {{ formatCount(coverage?.slots_per_presser_per_day) }} slot
+                {{ formatCount(coverage?.slots_per_depricarping_per_day) }} slot
               </span>
               <span class="metric-note">
-                Jumlah presser adalah yang BENAR-BENAR beroperasi pada periode ini, bukan jumlah
+                Jumlah unit adalah yang BENAR-BENAR beroperasi pada periode ini, bukan jumlah
                 stasiun terdaftar; 24 slot kanonis diambil dari grid layar input itu sendiri.
               </span>
             </div>
@@ -1411,18 +1411,18 @@ function onBack(): void {
         </section>
 
         <template v-if="showRecaps">
-          <!-- ===== Rekap per presser ===== -->
-          <section class="detail-section" data-testid="by-presser">
-            <h2 class="section-title">Rekap per Presser</h2>
+          <!-- ===== Rekap per unit Depricarping ===== -->
+          <section class="detail-section" data-testid="by-depricarping">
+            <h2 class="section-title">Rekap per Unit Depricarping</h2>
             <p class="section-note">
-              presser_id adalah NAMA UNIT, bukan kunci baris — id yang sama pada dua tanggal adalah
-              satu presser dengan dua hari pencatatan.
+              depricarping_id adalah NAMA UNIT, bukan kunci baris — id yang sama pada dua tanggal adalah
+              satu unit Depricarping dengan dua hari pencatatan.
             </p>
             <div class="detail-table-wrap">
-              <table class="detail-table" data-testid="by-presser-table">
+              <table class="detail-table" data-testid="by-depricarping-table">
                 <thead>
                   <tr>
-                    <th scope="col">Presser</th>
+                    <th scope="col">Unit</th>
                     <th scope="col" class="num">Hari</th>
                     <th scope="col" class="num">Slot</th>
                     <th scope="col" class="num">Downtime (mnt)</th>
@@ -1433,17 +1433,17 @@ function onBack(): void {
                 </thead>
                 <tbody>
                   <tr
-                    v-for="row in byPresser"
-                    :key="row.presser_id"
-                    data-testid="by-presser-row"
+                    v-for="row in byDepricarping"
+                    :key="row.depricarping_id"
+                    data-testid="by-depricarping-row"
                   >
-                    <td>{{ formatGroupLabel(row.presser_id) }}</td>
+                    <td>{{ formatGroupLabel(row.depricarping_id) }}</td>
                     <td class="num">{{ formatCount(row.day_count) }}</td>
                     <td class="num">{{ formatCount(row.filled_slot_count) }}</td>
-                    <!-- null, BUKAN 0: presser yang tidak satu pun slotnya
-                         mencatat downtime bukan presser yang tidak pernah
+                    <!-- null, BUKAN 0: unit yang tidak satu pun slotnya
+                         mencatat downtime bukan unit yang tidak pernah
                          berhenti. -->
-                    <td class="num" data-testid="by-presser-downtime">
+                    <td class="num" data-testid="by-depricarping-downtime">
                       {{ row.downtime_minutes === null ? 'belum dicatat' : formatCount(row.downtime_minutes) }}
                     </td>
                     <td v-for="metric in metrics" :key="metric.column" class="num">
@@ -1599,7 +1599,7 @@ function onBack(): void {
               <div class="queue-figure">
                 <span class="queue-label">Jumlah record</span>
                 <span class="queue-value" data-testid="record-count">{{ formatCount(totals?.record_count) }}</span>
-                <span class="queue-note">satu record = satu hari kerja satu presser</span>
+                <span class="queue-note">satu record = satu hari kerja satu unit Depricarping</span>
               </div>
               <div class="queue-figure">
                 <span class="queue-label">Hari bercatatan</span>

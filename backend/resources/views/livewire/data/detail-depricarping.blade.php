@@ -29,8 +29,8 @@
             <h4 class="dp-detail-section__title">Identitas Depricarping</h4>
             <div class="dp-detail-grid">
                 <div class="dp-detail-field">
-                    <span class="dp-detail-field__label">Presser ID</span>
-                    <span class="dp-detail-field__value" data-testid="detail-presser-id">{{ $record['presser_id'] }}</span>
+                    <span class="dp-detail-field__label">Depricarping ID</span>
+                    <span class="dp-detail-field__value" data-testid="detail-depricarping-id">{{ $record['depricarping_id'] }}</span>
                 </div>
                 <div class="dp-detail-field">
                     <span class="dp-detail-field__label">Tanggal</span>

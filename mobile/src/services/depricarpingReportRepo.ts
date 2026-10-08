@@ -44,7 +44,7 @@ import apiClient from '@/services/apiClient'
  * EMPAT HAL YANG MEMBEDAKAN LAPORAN INI DARI KEDELAPAN SEBELUMNYA
  * ────────────────────────────────────────────────────────────────────────
  * Yang diringkas adalah KONDISI OPERASI: satu record adalah satu hari kerja
- * satu presser, satu baris adalah satu slot waktu dengan TUJUH kolom ukur —
+ * satu unit Depricarping, satu baris adalah satu slot waktu dengan TUJUH kolom ukur —
  * dua lebih banyak daripada Threshing dan Pressing.
  *
  * 1. SETIAP ENTRI `metrics` MENGANGKUT EMPAT KOLOM TARGET, dan nama kolomnya
@@ -217,8 +217,8 @@ export interface DepricarpingReportPeriodHeader {
  * kaki: periode yang terisi seperlima pun menghasilkan rata-rata yang terlihat
  * rapi.
  *
- * Ketiga angka pembentuk penyebut ikut dikirim (presser_count,
- * days_counted, slots_per_presser_per_day) supaya layar dapat menampilkan
+ * Ketiga angka pembentuk penyebut ikut dikirim (depricarping_count,
+ * days_counted, slots_per_depricarping_per_day) supaya layar dapat menampilkan
  * dari mana expected_slots berasal, alih-alih sebuah persen tanpa asal.
  */
 export interface DepricarpingReportCoverage {
@@ -229,10 +229,10 @@ export interface DepricarpingReportCoverage {
    * mengklaim ada yang diukur dan hasilnya nol.
    */
   coverage_percent: number | null
-  /** Presser yang BENAR-BENAR beroperasi, bukan jumlah stasiun terdaftar. */
-  presser_count: number
+  /** Unit Depricarping yang BENAR-BENAR beroperasi, bukan jumlah stasiun terdaftar. */
+  depricarping_count: number
   /** 24, dari grid slot kanonis layar input itu sendiri. */
-  slots_per_presser_per_day: number
+  slots_per_depricarping_per_day: number
   days_in_period: number
   /** Berhenti di hari ini untuk periode yang masih berjalan. */
   days_counted: number
@@ -336,14 +336,14 @@ export interface DepricarpingReportTargetWithoutMetric {
   reason: string
 }
 
-export interface DepricarpingReportPresserRow {
+export interface DepricarpingReportUnitRow {
   /** Penamaan unit, bukan kunci baris: id yang sama pada dua tanggal = satu unit. */
-  presser_id: string
+  depricarping_id: string
   day_count: number
   filled_slot_count: number
   /**
-   * Total menit berhenti presser ini. null — BUKAN 0 — ketika tidak satu pun
-   * slotnya mencatat downtime: presser yang tidak dicatat bukan presser yang
+   * Total menit berhenti unit ini. null — BUKAN 0 — ketika tidak satu pun
+   * slotnya mencatat downtime: unit yang tidak dicatat bukan unit yang
    * tidak pernah berhenti.
    */
   downtime_minutes: number | null
@@ -445,7 +445,7 @@ export interface DepricarpingReportSummary {
    * targets_master_empty lebih dulu.
    */
   all_targets_measured: boolean
-  by_presser: DepricarpingReportPresserRow[]
+  by_depricarping: DepricarpingReportUnitRow[]
   daily: DepricarpingReportDailyRow[]
   daily_total: DepricarpingReportDailyTotal
   /** Objek, bukan daftar — lihat DepricarpingReportDowntime. */
@@ -485,8 +485,8 @@ const EMPTY_COVERAGE: DepricarpingReportCoverage = {
   filled_slots: 0,
   expected_slots: 0,
   coverage_percent: null,
-  presser_count: 0,
-  slots_per_presser_per_day: 0,
+  depricarping_count: 0,
+  slots_per_depricarping_per_day: 0,
   days_in_period: 0,
   days_counted: 0,
   period_running: false,
@@ -625,7 +625,7 @@ export async function fetchPeriods(
  * Setiap blok diteruskan APA ADANYA, tanpa satu operasi aritmetika pun: tidak
  * ada penurunan coverage_percent dari filled_slots/expected_slots, tidak ada
  * perata-rataan ulang min/avg/max, tidak ada penurunan daily_total dari
- * `daily`, tidak ada pengurutan ulang metrics / by_presser / daily /
+ * `daily`, tidak ada pengurutan ulang metrics / by_depricarping / daily /
  * findings, dan TIDAK ADA perbandingan satu nilai pun terhadap
  * `target`. Nilai bawaan di atas hanya berlaku bila BLOK-nya tidak ada sama
  * sekali pada respons.
@@ -650,7 +650,7 @@ export async function fetchSummary(
     targets_without_metric: (body.targets_without_metric ?? []) as DepricarpingReportTargetWithoutMetric[],
     targets_master_empty: (body.targets_master_empty ?? false) as boolean,
     all_targets_measured: (body.all_targets_measured ?? false) as boolean,
-    by_presser: (body.by_presser ?? []) as DepricarpingReportPresserRow[],
+    by_depricarping: (body.by_depricarping ?? []) as DepricarpingReportUnitRow[],
     daily: (body.daily ?? []) as DepricarpingReportDailyRow[],
     daily_total: (body.daily_total ?? { ...EMPTY_DAILY_TOTAL }) as DepricarpingReportDailyTotal,
     downtime: (body.downtime ?? { ...EMPTY_DOWNTIME }) as DepricarpingReportDowntime,
@@ -664,7 +664,7 @@ export async function fetchSummary(
  * — respons streaming text/csv, BUKAN JSON, jadi responseType-nya blob.
  *
  * Isinya (SATU BARIS PER SLOT WAKTU, dengan konteks Periode/Mill/Production
- * Line, tanggal, presser, status, dan catatan diulang verbatim di setiap
+ * Line, tanggal, unit, status, dan catatan diulang verbatim di setiap
  * baris) dibentuk SERVER dan sama persis dengan ekspor laporan versi web,
  * karena endpoint-nya memang sama. Slot yang seluruh kolom ukurnya kosong
  * TETAP satu baris, dengan sel kosong.

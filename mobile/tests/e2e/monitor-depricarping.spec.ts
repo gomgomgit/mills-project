@@ -22,22 +22,22 @@ async function seedDepricarpingDraft(
   overrides: {
     id: string
     status?: 'draft_ongoing' | 'draft_paused'
-    presserId?: string | null
+    depricarpingId?: string | null
     updatedAt?: string
   },
 ): Promise<void> {
   await page.evaluate(
-    async ({ userId, id, status, presserId, updatedAt }) => {
+    async ({ userId, id, status, depricarpingId, updatedAt }) => {
       const db = (window as unknown as { __mslTestDb: { run: (sql: string, params?: unknown[]) => Promise<unknown> } })
         .__mslTestDb
       const now = updatedAt ?? new Date().toISOString()
       await db.run(
-        `INSERT OR REPLACE INTO depricarping_record (id, status, presser_id, created_by, created_at, updated_at)
+        `INSERT OR REPLACE INTO depricarping_record (id, status, depricarping_id, created_by, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [id, status ?? 'draft_ongoing', presserId ?? null, userId, now, now],
+        [id, status ?? 'draft_ongoing', depricarpingId ?? null, userId, now, now],
       )
     },
-    { userId, id: overrides.id, status: overrides.status, presserId: overrides.presserId, updatedAt: overrides.updatedAt },
+    { userId, id: overrides.id, status: overrides.status, depricarpingId: overrides.depricarpingId, updatedAt: overrides.updatedAt },
   )
 }
 
@@ -99,7 +99,7 @@ test.describe('Monitor Depricarping (screen-039)', () => {
 
   test('Monitor Depricarping — success (New Data creates a fresh draft with zero detail rows)', async ({ page }) => {
     const userId = await getAuthUserId(page)
-    await seedDepricarpingDraft(page, userId, { id: 'e2e-depricarping-existing', presserId: 'DP-EXISTING' })
+    await seedDepricarpingDraft(page, userId, { id: 'e2e-depricarping-existing', depricarpingId: 'DP-EXISTING' })
 
     await page.goto('/stations/depricarping/monitor')
     await expect(page.getByTestId('draft-item-e2e-depricarping-existing')).toBeVisible()
@@ -118,7 +118,7 @@ test.describe('Monitor Depricarping (screen-039)', () => {
     await seedDepricarpingDraft(page, userId, {
       id: 'e2e-depricarping-lanjutkan',
       status: 'draft_paused',
-      presserId: 'DP-LANJUTKAN',
+      depricarpingId: 'DP-LANJUTKAN',
     })
 
     await page.goto('/stations/depricarping/monitor')

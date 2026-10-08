@@ -31,7 +31,7 @@ test.describe('Form Depricarping (screen-043)', () => {
   })
 
   test('Input Data Depricarping — success as Station Operator', async ({ page }) => {
-    await page.locator('#field-presser-id').fill('DP-E2E-001')
+    await page.locator('#field-depricarping-id').fill('DP-E2E-001')
     await page.getByTestId('add-detail-row-button').click()
     await selectSearchableOption(page, 'time-slot-select-0', '07:00')
     await page.locator('#fan-static-pressure-0').fill('45')
@@ -40,15 +40,15 @@ test.describe('Form Depricarping (screen-043)', () => {
     await page.waitForURL('**/stations/depricarping/monitor')
   })
 
-  test('Input Data Depricarping — Presser ID Belum Lengkap', async ({ page }) => {
+  test('Input Data Depricarping — Depricarping ID Belum Lengkap', async ({ page }) => {
     await page.getByTestId('save-button').click()
 
-    await expect(page.getByText('Presser ID wajib diisi.')).toBeVisible()
+    await expect(page.getByText('Depricarping ID wajib diisi.')).toBeVisible()
     await expect(page).toHaveURL(/\/stations\/depricarping\/form\//)
   })
 
   test('Input Data Depricarping — Belum Ada Baris Terisi', async ({ page }) => {
-    await page.locator('#field-presser-id').fill('DP-E2E-002')
+    await page.locator('#field-depricarping-id').fill('DP-E2E-002')
     await page.getByTestId('save-button').click()
 
     await expect(page.getByTestId('detail-rows-error')).toBeVisible()
@@ -58,7 +58,7 @@ test.describe('Form Depricarping (screen-043)', () => {
   test('Input Data Depricarping — baris terisi hanya via Downtime (Mins) atau Findings dianggap valid', async ({
     page,
   }) => {
-    await page.locator('#field-presser-id').fill('DP-E2E-003')
+    await page.locator('#field-depricarping-id').fill('DP-E2E-003')
     await page.getByTestId('add-detail-row-button').click()
     await selectSearchableOption(page, 'time-slot-select-0', '07:00')
     await page.locator('#findings-0').fill('Fan belt loose')
@@ -103,7 +103,7 @@ test.describe('Form Depricarping (screen-043)', () => {
   })
 
   test('Input Data Depricarping — Back Dengan Perubahan Belum Tersimpan', async ({ page }) => {
-    await page.locator('#field-presser-id').fill('DP-E2E-DIRTY')
+    await page.locator('#field-depricarping-id').fill('DP-E2E-DIRTY')
     await page.getByTestId('back-button').click()
 
     await expect(page.getByText('Ada perubahan yang belum disimpan.')).toBeVisible()

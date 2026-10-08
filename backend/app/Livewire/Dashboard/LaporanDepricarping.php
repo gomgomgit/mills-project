@@ -24,7 +24,7 @@ use Livewire\Component;
  * WHAT THE SCREEN MUST NEVER LET THE READER MISREAD — the reason several
  * things on this page look redundant:
  *   - RECORDING COVERAGE IS RENDERED ABOVE EVERY OTHER FIGURE, together with
- *     the three numbers that build its denominator (pressers that actually
+ *     the three numbers that build its denominator (depricarping units that actually
  *     ran, days counted, 24 canonical slots per day). A period filled to a
  *     fifth still produces tidy-looking averages, and the reader has to see
  *     that before trusting them.

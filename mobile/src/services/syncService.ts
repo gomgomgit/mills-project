@@ -116,7 +116,13 @@ interface StationPushConfig {
   endpoint: string
   /** Local column holding the human-facing id, also used as the result label. */
   idColumn: string
-  /** Payload key for that id — usually the same, but e.g. pressing sends `presser_id`. */
+  /**
+   * Payload key for that id — usually the same, but e.g. pressing sends
+   * `presser_id`. Depricarping JUGA mengirimnya sampai 2026-10-08; kini
+   * `depricarping_id` (migrasi backend 2026_10_08_000002), karena presser_id
+   * menamai mesin stasiun Pressing sementara seluruh pengukuran
+   * Depricarping milik depericarper.
+   */
   idPayloadKey: string
   detailTable: string
   detailFk: string
@@ -243,7 +249,7 @@ interface LocalPressingDetailRow {
 
 interface LocalDepricarpingRow {
   id: string
-  presser_id: string | null
+  depricarping_id: string | null
   date: string | null
   note: string | null
   checked_by: string | null
@@ -327,8 +333,8 @@ const STATION_PUSH_CONFIGS: StationPushConfig[] = [
     key: 'depricarping',
     table: 'depricarping_record',
     endpoint: '/api/depricarping-records',
-    idColumn: 'presser_id',
-    idPayloadKey: 'presser_id',
+    idColumn: 'depricarping_id',
+    idPayloadKey: 'depricarping_id',
     detailTable: 'depricarping_detail',
     detailFk: 'depricarping_record_id',
     detailColumns: ['time_slot', 'fan_static_pressure_mmh2o', 'polishing_drum_speed_rpm', 'air_velocity_ms', 'fibre_moisture_percent', 'kernel_loss_in_fibre_percent', 'nut_silo_1_temp_c', 'nut_silo_2_temp_c', 'downtime_minutes', 'findings'],

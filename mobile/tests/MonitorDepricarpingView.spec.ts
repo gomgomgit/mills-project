@@ -75,7 +75,7 @@ vi.mock('@/services/depricarpingRecordRepo', () => ({
 function makeDraft(overrides: Partial<DepricarpingDraftListItem> & { id: string }): DepricarpingDraftListItem {
   return {
     status: 'draft_ongoing',
-    presser_id: 'DP-001',
+    depricarping_id: 'DP-001',
     updated_at: '2026-08-24T08:00:00.000Z',
     ...overrides,
   }
@@ -94,8 +94,8 @@ beforeEach(() => {
 describe('MonitorDepricarpingView', () => {
   it('loads and renders a populated draft/pause list', async () => {
     getDraftsMock.mockResolvedValue([
-      makeDraft({ id: 'draft-1', presser_id: 'DP-001' }),
-      makeDraft({ id: 'draft-2', presser_id: 'DP-002' }),
+      makeDraft({ id: 'draft-1', depricarping_id: 'DP-001' }),
+      makeDraft({ id: 'draft-2', depricarping_id: 'DP-002' }),
     ])
 
     const wrapper = mount(MonitorDepricarpingView)

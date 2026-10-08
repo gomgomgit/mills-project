@@ -43,10 +43,10 @@
                 @endif
 
                 <div class="pf-field">
-                    <label class="pf-field__label" for="presser_id">Presser ID <span class="pf-required">*</span></label>
-                    <input id="presser_id" type="text" wire:model="form.presser_id" class="pf-input" data-testid="presser-id-input">
-                    @if (isset($errors_['presser_id']))
-                        <span class="pf-field__error">{{ $errors_['presser_id'] }}</span>
+                    <label class="pf-field__label" for="depricarping_id">Depricarping ID <span class="pf-required">*</span></label>
+                    <input id="depricarping_id" type="text" wire:model="form.depricarping_id" class="pf-input" data-testid="depricarping-id-input">
+                    @if (isset($errors_['depricarping_id']))
+                        <span class="pf-field__error">{{ $errors_['depricarping_id'] }}</span>
                     @endif
                 </div>
 

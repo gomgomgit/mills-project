@@ -2,7 +2,7 @@
     Laporan Depricarping (web) — screen-152--laporan-depricarping-web.
 
     APA YANG DILAPORKAN HALAMAN INI: KONDISI OPERASI, bukan output. Satu
-    record = satu hari kerja satu presser; satu baris = satu slot waktu
+    record = satu hari kerja satu unit Depricarping; satu baris = satu slot waktu
     dengan TUJUH kolom ukur. Yang dicari pembaca bukan total melainkan
     KESTABILAN terhadap rentang targetnya, sehingga intinya adalah
     min/rata-rata/maks per parameter.
@@ -10,7 +10,7 @@
     ENAM HAL YANG MENENTUKAN TATA LETAKNYA:
 
     1. CAKUPAN PENCATATAN DIRENDER PALING ATAS, lengkap dengan ketiga angka
-       pembentuk penyebutnya (presser yang benar-benar beroperasi, hari yang
+       pembentuk penyebutnya (unit Depricarping yang benar-benar beroperasi, hari yang
        dihitung, 24 slot kanonis per hari). Periode yang terisi seperlima pun
        menghasilkan rata-rata yang terlihat rapi, dan pembaca harus melihat
        itu SEBELUM mempercayainya.
@@ -145,7 +145,7 @@
     $metrics = $summary['metrics'] ?? [];
     $targetsWithoutMetric = $summary['targets_without_metric'] ?? [];
     $targetsMasterEmpty = (bool) ($summary['targets_master_empty'] ?? false);
-    $byPresser = $summary['by_presser'] ?? [];
+    $byDepricarping = $summary['by_depricarping'] ?? [];
     $daily = $summary['daily'] ?? [];
     $dailyTotal = $summary['daily_total'] ?? null;
     $downtime = $summary['downtime'] ?? null;
@@ -332,10 +332,10 @@
                         <span class="md-kpi__label">Pembentuk Penyebut</span>
                     </div>
                     <p class="md-kpi__value">
-                        {{ $cacah($coverage['presser_count']) }}
-                        <span>presser &times; {{ $cacah($coverage['days_counted']) }} hari &times; {{ $cacah($coverage['slots_per_presser_per_day']) }} slot</span>
+                        {{ $cacah($coverage['depricarping_count']) }}
+                        <span>unit &times; {{ $cacah($coverage['days_counted']) }} hari &times; {{ $cacah($coverage['slots_per_depricarping_per_day']) }} slot</span>
                     </p>
-                    <p class="md-kpi__foot">jumlah presser adalah yang BENAR-BENAR beroperasi pada periode ini, bukan jumlah stasiun terdaftar; 24 slot kanonis diambil dari grid layar input itu sendiri</p>
+                    <p class="md-kpi__foot">jumlah unit adalah yang BENAR-BENAR beroperasi pada periode ini, bukan jumlah stasiun terdaftar; 24 slot kanonis diambil dari grid layar input itu sendiri</p>
                 </article>
                 <article class="md-kpi" data-testid="coverage-days">
                     <div class="md-kpi__top">
@@ -369,7 +369,7 @@
         @if (! $hasData)
             {{-- Empty state (e): periode + line valid tetapi tanpa satu slot
                  terisi. Cakupan di atas sudah menampilkannya; tabel parameter,
-                 rekap per presser, rekap harian dan daftar downtime TIDAK
+                 rekap per unit Depricarping, rekap harian dan daftar downtime TIDAK
                  digambar — tabel kosong akan terbaca sebagai hasil pengukuran
                  bernilai nol. --}}
             <div class="md-empty" data-testid="empty-state">
@@ -381,7 +381,7 @@
                     Tidak ada satu pun slot Depricarping yang terisi pada rentang periode ini di
                     {{ $selectedProductionLine['name'] ?? 'production line ini' }}, sehingga seluruh
                     min, rata-rata dan maks ditampilkan sebagai tidak tersedia &mdash; bukan sebagai nol
-                    &mdash; dan tabel parameter, rekap per presser, rekap harian serta daftar alasan
+                    &mdash; dan tabel parameter, rekap per unit Depricarping, rekap harian serta daftar alasan
                     downtime tidak digambar.
                 </p>
             </div>
@@ -613,17 +613,17 @@
                 </section>
             @endif
 
-            {{-- ============ 6. Rekap per presser ============ --}}
-            <section class="md-card" data-testid="by-presser">
+            {{-- ============ 6. Rekap per unit Depricarping ============ --}}
+            <section class="md-card" data-testid="by-depricarping">
                 <header class="md-card__head">
-                    <h3>Rekap per Presser</h3>
-                    <span class="md-card__hint">presser_id adalah NAMA UNIT, bukan kunci baris &middot; id yang sama pada dua tanggal adalah satu presser dengan dua hari pencatatan</span>
+                    <h3>Rekap per Unit Depricarping</h3>
+                    <span class="md-card__hint">depricarping_id adalah NAMA UNIT, bukan kunci baris &middot; id yang sama pada dua tanggal adalah satu unit Depricarping dengan dua hari pencatatan</span>
                 </header>
                 <div class="md-recap">
-                    <table class="md-table" data-testid="by-presser-table">
+                    <table class="md-table" data-testid="by-depricarping-table">
                         <thead>
                             <tr>
-                                <th scope="col">Presser</th>
+                                <th scope="col">Unit</th>
                                 <th scope="col">Hari</th>
                                 <th scope="col">Slot terisi</th>
                                 <th scope="col">Downtime (menit)</th>
@@ -633,16 +633,16 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach ($byPresser as $row)
-                                <tr data-testid="by-presser-row">
-                                    <td>{{ $row['presser_id'] === '' ? 'Belum diisi' : $row['presser_id'] }}</td>
+                            @foreach ($byDepricarping as $row)
+                                <tr data-testid="by-depricarping-row">
+                                    <td>{{ $row['depricarping_id'] === '' ? 'Belum diisi' : $row['depricarping_id'] }}</td>
                                     <td>{{ $cacah($row['day_count']) }}</td>
                                     <td>{{ $cacah($row['filled_slot_count']) }}</td>
-                                    {{-- null, BUKAN 0: presser yang tidak satu pun
-                                         slotnya mencatat downtime bukan presser yang
+                                    {{-- null, BUKAN 0: unit yang tidak satu pun
+                                         slotnya mencatat downtime bukan unit yang
                                          tidak pernah berhenti. --}}
                                     <td @class(['is-muted' => $row['downtime_minutes'] === null])
-                                        data-testid="by-presser-downtime">
+                                        data-testid="by-depricarping-downtime">
                                         {{ $row['downtime_minutes'] === null ? 'belum dicatat' : $cacah($row['downtime_minutes']) }}
                                     </td>
                                     @foreach ($metrics as $metric)
@@ -792,7 +792,7 @@
                         </div>
                         <p class="md-kpi__value">{{ $cacah($total['record_count']) }} <span>record</span></p>
                         <p class="md-kpi__meta">pada <b data-testid="days-with-records">{{ $cacah($total['days_with_records']) }}</b> hari</p>
-                        <p class="md-kpi__foot">satu record = satu hari kerja satu presser</p>
+                        <p class="md-kpi__foot">satu record = satu hari kerja satu unit Depricarping</p>
                     </article>
                     <article class="md-kpi" data-testid="draft-record-count">
                         <div class="md-kpi__top">

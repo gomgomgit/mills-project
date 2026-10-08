@@ -7,7 +7,7 @@
  * coverage exactly — the Depricarping Detail grid is no longer a fixed
  * 24-row grid, it now uses the exact same dynamic add-row/remove-row
  * pattern as Pressing Detail / Threshing Detail / Cages Tipped Time,
- * adapted for Depricarping's own header field (presser_id) and 8 reading
+ * adapted for Depricarping's own header field (depricarping_id) and 8 reading
  * columns (7 numeric + downtime_minutes + findings — where a row is
  * "filled" when EITHER downtime_minutes OR findings, or any other reading
  * column, is set).
@@ -19,7 +19,7 @@
  *     at-or-before the highest already-picked slot
  *   - "Hapus baris" queues an existing (has-id) row for deletion rather
  *     than deleting immediately; frees its slot for other rows
- *   - required-field validation (Presser ID)
+ *   - required-field validation (Depricarping ID)
  *   - "at least one valid row" validation (Time-Slot + reading filled)
  *   - Simpan success (status=saved), navigates to Monitor Depricarping
  *   - Pause skips validation entirely
@@ -109,7 +109,7 @@ function makeRecord(overrides: Partial<DepricarpingRecord> = {}): DepricarpingRe
   return {
     id: 'draft-1',
     station_id: 'station-1',
-    presser_id: null,
+    depricarping_id: null,
     date: '2026-08-24T07:00:00',
     note: null,
     checked_by: null,
@@ -306,7 +306,7 @@ describe('FormDepricarpingView', () => {
     expect(wrapper.find('[data-testid="add-detail-row-button"]').attributes('disabled')).toBeDefined()
   })
 
-  it('shows inline error and does not save when Presser ID is empty on Simpan', async () => {
+  it('shows inline error and does not save when Depricarping ID is empty on Simpan', async () => {
     const wrapper = mount(FormDepricarpingView)
     await flushPromises()
 
@@ -314,14 +314,14 @@ describe('FormDepricarpingView', () => {
     await flushPromises()
 
     expect(saveDraftMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Presser ID wajib diisi')
+    expect(wrapper.text()).toContain('Depricarping ID wajib diisi')
   })
 
   it('shows a grid-specific error and does not save when there are zero valid detail rows', async () => {
     const wrapper = mount(FormDepricarpingView)
     await flushPromises()
 
-    await wrapper.find('#field-presser-id').setValue('DP-01')
+    await wrapper.find('#field-depricarping-id').setValue('DP-01')
     await wrapper.find('[data-testid="save-button"]').trigger('click')
     await flushPromises()
 
@@ -333,7 +333,7 @@ describe('FormDepricarpingView', () => {
     const wrapper = mount(FormDepricarpingView)
     await flushPromises()
 
-    await wrapper.find('#field-presser-id').setValue('DP-01')
+    await wrapper.find('#field-depricarping-id').setValue('DP-01')
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
     await chooseSearchableOption(wrapper, 'time-slot-select-0', '07:00')
     await wrapper.find('[data-testid="save-button"]').trigger('click')
@@ -343,13 +343,13 @@ describe('FormDepricarpingView', () => {
     expect(wrapper.find('[data-testid="detail-rows-error"]').exists()).toBe(true)
   })
 
-  it('saves successfully and navigates to Monitor Depricarping when Presser ID and a valid detail row exist', async () => {
+  it('saves successfully and navigates to Monitor Depricarping when Depricarping ID and a valid detail row exist', async () => {
     saveDraftMock.mockResolvedValue({ record: makeRecord({ status: 'saved' }), details: [makeDetailRow()] })
 
     const wrapper = mount(FormDepricarpingView)
     await flushPromises()
 
-    await wrapper.find('#field-presser-id').setValue('DP-01')
+    await wrapper.find('#field-depricarping-id').setValue('DP-01')
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
     await chooseSearchableOption(wrapper, 'time-slot-select-0', '07:00')
     await wrapper.find('#fan-static-pressure-0').setValue('45')
@@ -359,7 +359,7 @@ describe('FormDepricarpingView', () => {
     expect(saveDraftMock).toHaveBeenCalledTimes(1)
     const [recordId, headerData, details, idsToDelete] = saveDraftMock.mock.calls[0]
     expect(recordId).toBe('draft-1')
-    expect(headerData.presser_id).toBe('DP-01')
+    expect(headerData.depricarping_id).toBe('DP-01')
     expect(details).toHaveLength(1)
     expect(details[0].time_slot).toBe('07:00')
     expect(idsToDelete).toEqual([])
@@ -372,7 +372,7 @@ describe('FormDepricarpingView', () => {
     const wrapper = mount(FormDepricarpingView)
     await flushPromises()
 
-    await wrapper.find('#field-presser-id').setValue('DP-02')
+    await wrapper.find('#field-depricarping-id').setValue('DP-02')
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
     await chooseSearchableOption(wrapper, 'time-slot-select-0', '07:00')
     await wrapper.find('#findings-0').setValue('Fan belt loose')
@@ -389,7 +389,7 @@ describe('FormDepricarpingView', () => {
     const wrapper = mount(FormDepricarpingView)
     await flushPromises()
 
-    await wrapper.find('#field-presser-id').setValue('DP-03')
+    await wrapper.find('#field-depricarping-id').setValue('DP-03')
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
     await chooseSearchableOption(wrapper, 'time-slot-select-0', '07:00')
     await wrapper.find('#downtime-minutes-0').setValue('15')
@@ -406,7 +406,7 @@ describe('FormDepricarpingView', () => {
     const wrapper = mount(FormDepricarpingView)
     await flushPromises()
 
-    await wrapper.find('#field-presser-id').setValue('DP-01')
+    await wrapper.find('#field-depricarping-id').setValue('DP-01')
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
     await chooseSearchableOption(wrapper, 'time-slot-select-0', '07:00')
     await wrapper.find('#fan-static-pressure-0').setValue('1')
@@ -454,7 +454,7 @@ describe('FormDepricarpingView', () => {
     const wrapper = mount(FormDepricarpingView)
     await flushPromises()
 
-    await wrapper.find('#field-presser-id').setValue('DP-99')
+    await wrapper.find('#field-depricarping-id').setValue('DP-99')
     await wrapper.find('[data-testid="back-button"]').trigger('click')
     await flushPromises()
 

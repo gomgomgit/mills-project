@@ -11,7 +11,7 @@
  * rationale.
  *
  * Test data assumption: authenticated session (depricarpingtest-browse01 /
- * Passw0rd!), and a seeded DepricarpingRecord with Presser ID
+ * Passw0rd!), and a seeded DepricarpingRecord with Depricarping ID
  * "DP-BROWSER-DETAIL" reachable from the Data Browser Depricarping list.
  */
 
@@ -28,7 +28,7 @@ test.describe('Detail Depricarping (Web)', () => {
     await page.goto('/data/depricarping');
     await page.locator('.dp-table__row', { hasText: 'DP-BROWSER-DETAIL' }).click();
 
-    await expect(page.locator('[data-testid="detail-presser-id"]')).toContainText('DP-BROWSER-DETAIL');
+    await expect(page.locator('[data-testid="detail-depricarping-id"]')).toContainText('DP-BROWSER-DETAIL');
     await expect(page.locator('[data-testid="depricarping-detail-grid"] tbody tr')).toHaveCount(24);
     await expect(page.locator('[data-testid="operational-target-table"] tbody tr')).toHaveCount(6);
     await expect(page.locator('[data-testid="operational-target-table"] thead th')).toHaveCount(4);

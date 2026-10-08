@@ -94,14 +94,14 @@ class DepricarpingReportTinyExportService extends DepricarpingReportService
 function depricarpingReportRecord(
     Station $station,
     string $date,
-    string $presserId = 'PR-1',
+    string $depricarpingId = 'PR-1',
     array $attributes = [],
 ): DepricarpingRecord {
     return DepricarpingRecord::factory()
         ->forStation($station)
         ->onDate($date)
         ->create(array_merge([
-            'presser_id' => $presserId,
+            'depricarping_id' => $depricarpingId,
             'note' => 'Catatan harian',
         ], $attributes));
 }
@@ -442,7 +442,7 @@ it('case 15 — baris slot yang keenam kolomnya null tidak dihitung terisi', fun
     expect($summary['has_data'])->toBeFalse();
     // Record-nya tetap ada, dan tetap ikut penyebut cakupan.
     expect($summary['total']['record_count'])->toBe(1);
-    expect($summary['coverage']['presser_count'])->toBe(1);
+    expect($summary['coverage']['depricarping_count'])->toBe(1);
 });
 
 it('case 16 — baris slot yang HANYA berisi findings dihitung terisi', function () {
@@ -592,14 +592,14 @@ it('case 22 — expected_slots adalah presser x hari dihitung x 24 slot kanonis'
 
     $coverage = $this->service->buildSummary($this->periodA, null, $this->lineA)['coverage'];
 
-    expect($coverage['presser_count'])->toBe(2);
-    expect($coverage['slots_per_presser_per_day'])->toBe(24);
+    expect($coverage['depricarping_count'])->toBe(2);
+    expect($coverage['slots_per_depricarping_per_day'])->toBe(24);
     expect($coverage['days_counted'])->toBe(10);
     expect($coverage['expected_slots'])->toBe(480);
     expect($coverage['filled_slots'])->toBe(2);
 });
 
-it('case 23 — presser_count memakai presser yang muncul, bukan jumlah stasiun terdaftar', function () {
+it('case 23 — depricarping_count memakai presser yang muncul, bukan jumlah stasiun terdaftar', function () {
     // Empat stasiun depricarping terdaftar pada line ini; hanya dua presser
     // yang benar-benar beroperasi di periode itu.
     Station::factory()->count(3)->forBusinessUnit($this->businessUnitA)->depricarping()->create([
@@ -615,7 +615,7 @@ it('case 23 — presser_count memakai presser yang muncul, bukan jumlah stasiun 
 
     // Penyebut yang dibangun dari stasiun terdaftar akan menghukum mill yang
     // memang sengaja tidak mengoperasikan sebuah presser.
-    expect($this->service->buildSummary($this->periodA, null, $this->lineA)['coverage']['presser_count'])
+    expect($this->service->buildSummary($this->periodA, null, $this->lineA)['coverage']['depricarping_count'])
         ->toBe(2);
 });
 
@@ -663,7 +663,7 @@ it('case 25 — coverage_percent null ketika expected_slots nol, bukan 0.0', fun
     expect($coverage['coverage_percent'])->toBeNull();
 });
 
-it('case 26 — slots_per_presser_per_day diambil dari canonicalTimeSlots layar input', function () {
+it('case 26 — slots_per_depricarping_per_day diambil dari canonicalTimeSlots layar input', function () {
     $record = depricarpingReportRecord($this->stationA, '2026-09-02', 'PR-1');
     depricarpingReportSlot($record, '07:00', ['fan_static_pressure_mmh2o' => 30.0]);
 
@@ -673,7 +673,7 @@ it('case 26 — slots_per_presser_per_day diambil dari canonicalTimeSlots layar 
 
     // Satu definisi, satu jawaban: bukan konstanta terpisah yang bisa
     // menyimpang dari grid layar input.
-    expect($coverage['slots_per_presser_per_day'])
+    expect($coverage['slots_per_depricarping_per_day'])
         ->toBe(count(App\Services\DepricarpingRecordService::canonicalTimeSlots()));
 });
 
@@ -839,7 +839,7 @@ it('case 31 — payload tidak memuat satu pun kunci penilaian terhadap standar',
 // GROUP F — RECAPS
 // =====================================================================
 
-it('case 32 — by_presser mengelompokkan presser_id sebagai unit, bukan kunci baris', function () {
+it('case 32 — by_depricarping mengelompokkan depricarping_id sebagai unit, bukan kunci baris', function () {
     foreach (['2026-09-02', '2026-09-03'] as $date) {
         $record = depricarpingReportRecord($this->stationA, $date, 'PR-1');
         depricarpingReportSlot($record, '07:00', ['fan_static_pressure_mmh2o' => 30.0]);
@@ -847,12 +847,12 @@ it('case 32 — by_presser mengelompokkan presser_id sebagai unit, bukan kunci b
 
     $this->actingAs($this->supervisorA);
 
-    $byPresser = $this->service->buildSummary($this->periodA, null, $this->lineA)['by_presser'];
+    $byDepricarping = $this->service->buildSummary($this->periodA, null, $this->lineA)['by_depricarping'];
 
-    expect($byPresser)->toHaveCount(1);
-    expect($byPresser[0]['presser_id'])->toBe('PR-1');
-    expect($byPresser[0]['day_count'])->toBe(2);
-    expect($byPresser[0]['filled_slot_count'])->toBe(2);
+    expect($byDepricarping)->toHaveCount(1);
+    expect($byDepricarping[0]['depricarping_id'])->toBe('PR-1');
+    expect($byDepricarping[0]['day_count'])->toBe(2);
+    expect($byDepricarping[0]['filled_slot_count'])->toBe(2);
 });
 
 it('case 33 — daily_total dihitung ulang atas seluruh slot, bukan merata-ratakan rata-rata harian', function () {
@@ -1512,7 +1512,7 @@ it('case 62 — filled_slots DAPAT melebihi penyebut metrik mana pun, dan itu be
     expect(collect($summary['metrics'])->max('filled_slot_count'))->toBe(3);
 });
 
-it('case 63 — by_presser dan daily membawa total downtime, null bila tidak ada yang mencatat', function () {
+it('case 63 — by_depricarping dan daily membawa total downtime, null bila tidak ada yang mencatat', function () {
     $recordOne = depricarpingReportRecord($this->stationA, '2026-09-02', 'DP-01');
     depricarpingReportSlot($recordOne, '07:00', ['downtime_minutes' => 10]);
     depricarpingReportSlot($recordOne, '08:00', ['downtime_minutes' => 20]);
@@ -1524,12 +1524,12 @@ it('case 63 — by_presser dan daily membawa total downtime, null bila tidak ada
 
     $summary = $this->service->buildSummary($this->periodA, null, $this->lineA);
 
-    $byPresser = collect($summary['by_presser'])->keyBy('presser_id');
+    $byDepricarping = collect($summary['by_depricarping'])->keyBy('depricarping_id');
 
-    expect($byPresser['DP-01']['downtime_minutes'])->toBe(30);
-    // null, BUKAN 0: presser yang tidak satu pun slotnya mencatat downtime
+    expect($byDepricarping['DP-01']['downtime_minutes'])->toBe(30);
+    // null, BUKAN 0: unit yang tidak satu pun slotnya mencatat downtime
     // bukan presser yang tidak pernah berhenti.
-    expect($byPresser['DP-02']['downtime_minutes'])->toBeNull();
+    expect($byDepricarping['DP-02']['downtime_minutes'])->toBeNull();
 
     $daily = collect($summary['daily'])->keyBy('date');
 

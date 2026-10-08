@@ -25,6 +25,32 @@ from openpyxl.utils import get_column_letter
 CASES = json.load(open(sys.argv[1], encoding='utf-8'))
 OUT = sys.argv[2]
 
+# MODE RINGKAS (argumen ketiga 'ringkas') — memangkas empat kasus yang
+# menguji KOMPONEN BERSAMA sebanyak 18 kali menjadi 3 kali.
+#
+# Keempatnya menguji perilaku dua komponen yang dipakai ke-18 layar Data
+# Preview: ListFilterBar (MB-PRV-02/04/08) dan RecordVerificationStatus
+# (MB-PRV-07). Kodenya SATU, jadi perilakunya tidak dapat berbeda per
+# stasiun — menjalankannya 18 kali tidak menjawab pertanyaan baru.
+#
+# BUKAN setiap pola 18× layak dipangkas. Ke-18 stasiun punya service,
+# komponen Livewire, Form, dan Data Preview-nya SENDIRI-SENDIRI (18 berkas
+# masing-masing), jadi bug di satu stasiun tidak mengatakan apa pun tentang
+# yang lain. Yang dipangkas hanya yang terbukti berbagi kode. Breadcrumb,
+# misalnya, TIDAK dipangkas: ia ditulis ulang di setiap view, bukan komponen.
+#
+# Tiga stasiun yang dipilih sama dengan MB-SYNC: satu 24-slot, satu
+# per-transaksi, satu berkolom status — supaya bentuk daftar yang berbeda
+# tetap terlewati.
+RINGKAS = len(sys.argv) > 3 and sys.argv[3] == 'ringkas'
+
+SHARED_COMPONENT_CASES = {
+    'MB-PRV-02': 'ListFilterBar',
+    'MB-PRV-04': 'ListFilterBar',
+    'MB-PRV-07': 'RecordVerificationStatus',
+    'MB-PRV-08': 'ListFilterBar',
+}
+
 # ── palet ────────────────────────────────────────────────────────────────
 INK   = '1F2933'
 HEAD  = '12343B'
@@ -190,6 +216,8 @@ SYNC3 = ['Depricarping (24 slot)','Weighbridge (per-transaksi)','Effluent Plant 
 NO_SLOT = {'Weighbridge','Grading','Kernel Dispatch','CPO Dispatch'}
 
 def variants(cid):
+    if RINGKAS and cid in SHARED_COMPONENT_CASES:
+        return SYNC3
     p = re.sub(r'-\d+$', '', cid)
     if p in ('MB-MON','MB-FORM','MB-PRV','WB-BRW','WB-DTL','WB-FRM'): return STATIONS18
     if p in ('LP-W','LP-M'): return REPORT11
@@ -204,21 +232,26 @@ def applies(cid, station):
         return 'Tidak berlaku — hanya 4 stasiun per-transaksi'
     return ''
 
+TOTAL_JALAN = sum(len(variants(c['id'])) for c in CASES)
+JALAN_TXT = f'{TOTAL_JALAN:,}'.replace(',', '.')
+
 wb = Workbook()
 
 # ═════════════════════ 1. PANDUAN ═══════════════════════════════════════
 ws = wb.active; ws.title = 'Panduan'
 ws.sheet_view.showGridLines = False
-sheet_title(ws, 'Mill Smart Log — Test Case Blackbox',
-  'Pengujian fungsional Web dan Mobile. 174 kasus unik, ±1.513 jalan, 154 layar tercakup. '
-  'Seluruh kasus dapat dijalankan tanpa melihat kode.', 4)
+sheet_title(ws, 'Mill Smart Log — Test Case Blackbox'
+               + (' (RINGKAS)' if RINGKAS else ''),
+  (f'Pengujian fungsional Web dan Mobile. {len(CASES)} kasus unik, ± {JALAN_TXT} jalan, 154 layar tercakup.'
+   + (' VERSI RINGKAS — empat kasus komponen bersama dipangkas dari 18× ke 3×; lihat kotak merah di bawah.' if RINGKAS else
+      ' Seluruh kasus dapat dijalankan tanpa melihat kode.')), 4)
 for i, w in enumerate([26, 62, 30, 30], start=1):
     ws.column_dimensions[get_column_letter(i)].width = w
 
 r = 4
 blocks = [
  ('Isi berkas ini', [
-   ('Kasus Uji', 'Satu baris per JALAN — 1.509 baris. Kasus yang berlaku di 18 stasiun sudah dijabarkan '
+   ('Kasus Uji', f'Satu baris per JALAN — {JALAN_TXT} baris. Kasus yang berlaku di 18 stasiun sudah dijabarkan '
                  'menjadi 18 baris, dan nama stasiunnya ada DI DALAM langkahnya. Kolom berlatar kuning diisi penguji.'),
    ('Rekap', 'Hitungan otomatis Lulus/Gagal/Tidak diuji per bagian. Terisi sendiri dari Kasus Uji.'),
    ('Lingkungan & Akun', 'Yang harus disiapkan sebelum menguji, 6 akun uji, dan matriks peran.'),
@@ -258,6 +291,33 @@ for head, rows in blocks:
         r += 1
     r += 1
 
+if RINGKAS:
+    # Kotak ini WAJIB ada di versi ringkas. Pembaca yang tidak tahu bahwa
+    # cakupannya dipersempit akan melaporkan "semua lulus" untuk rencana
+    # yang memang lebih kecil — dan itu pernyataan yang menyesatkan.
+    put(ws, r, 1, 'VERSI RINGKAS — BACA SEBELUM MEMAKAI', F_RED, TOPL, FILL_HI)
+    put(ws, r, 2,
+        'Empat kasus dipangkas dari 18x menjadi 3x, menghemat 60 jalan '
+        '(1.509 menjadi 1.449):\n'
+        '  - MB-PRV-02, MB-PRV-04, MB-PRV-08 menguji ListFilterBar\n'
+        '  - MB-PRV-07 menguji RecordVerificationStatus\n'
+        'Keduanya KOMPONEN BERSAMA yang dipakai ke-18 layar Data Preview: satu '
+        'berkas kode, jadi perilakunya tidak dapat berbeda per stasiun. Dijalankan '
+        'pada tiga stasiun berbeda bentuk (Depricarping 24-slot, Weighbridge '
+        'per-transaksi, Effluent Plant berkolom status).\n\n'
+        'RISIKONYA, dinyatakan terbuka: kalau kelak salah satu layar Data Preview '
+        'berhenti memakai komponen itu dan menulis filternya sendiri, pemangkasan '
+        'ini tidak akan menangkapnya. Versi PENUH tetap ada di berkas tanpa '
+        'akhiran "-Ringkas" — pakai itu untuk putaran rilis.\n\n'
+        'TIDAK dipangkas meski juga 18x: breadcrumb (MB-MON-06) ditulis ulang di '
+        'setiap view, bukan komponen bersama; dan ke-18 stasiun punya service, '
+        'Form, serta Data Preview-nya sendiri-sendiri — bug di satu stasiun tidak '
+        'mengatakan apa pun tentang yang lain.',
+        F_BODY, TOPL, FILL_HI)
+    ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=4)
+    ws.row_dimensions[r].height = 190
+    r += 2
+
 put(ws, r, 1, 'Kasus yang prasyaratnya tidak tersedia BUKAN kasus yang lulus. Menandainya Lulus '
               'membuat laporan pengujian menyatakan sesuatu yang tidak pernah diperiksa — dan itu '
               'lebih berbahaya daripada kolom yang dibiarkan kosong.', F_RED, TOPL, FILL_HI)
@@ -267,7 +327,8 @@ ws.row_dimensions[r].height = 44
 # ═════════════════════ 2. KASUS UJI (satu baris per jalan) ═════════════
 ws = wb.create_sheet('Kasus Uji')
 ws.sheet_view.showGridLines = False
-sheet_title(ws, 'Kasus Uji — setiap jalan dijabarkan satu baris',
+sheet_title(ws, 'Kasus Uji — setiap jalan dijabarkan satu baris'
+               + (' (RINGKAS)' if RINGKAS else ''),
   'Kasus yang berlaku di 18 stasiun dijabarkan menjadi 18 baris, masing-masing '
   'menyebut stasiunnya DI DALAM langkahnya — tidak ada lagi "18×" yang harus '
   'diterjemahkan sendiri. Kolom berlatar kuning diisi penguji.', 17)

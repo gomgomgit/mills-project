@@ -2921,6 +2921,42 @@ belum membaca dokumen ini — dan keenamnya benar.
 
 ---
 
+## 11.5 Versi ringkas (opsional)
+
+Ada berkas Excel kedua, `Mill-Smart-Log-Test-Case-Blackbox-Ringkas.xlsx`, yang memangkas
+**60 jalan** (1.509 → 1.449). Yang dipangkas hanya empat kasus, dari 18× menjadi 3×:
+
+| Kasus | Yang sebenarnya diuji |
+|---|---|
+| `MB-PRV-02`, `MB-PRV-04`, `MB-PRV-08` | komponen **`ListFilterBar`** |
+| `MB-PRV-07` | komponen **`RecordVerificationStatus`** |
+
+Keduanya **komponen bersama** yang dipakai ke-18 layar Data Preview — satu berkas kode,
+jadi perilakunya tidak dapat berbeda per stasiun. Dijalankan pada tiga stasiun berbeda
+bentuk: Depricarping (24 slot), Weighbridge (per-transaksi), Effluent Plant (berkolom
+status).
+
+**Risikonya, dinyatakan terbuka:** kalau kelak satu layar Data Preview berhenti memakai
+komponen itu dan menulis filternya sendiri, pemangkasan ini tidak akan menangkapnya.
+Pakai versi **penuh** untuk putaran rilis.
+
+**Yang TIDAK dipangkas meski juga 18×,** dan sebabnya diperiksa bukan diduga: breadcrumb
+(`MB-MON-06`) ditulis ulang di setiap view, bukan komponen bersama. Dan ke-18 stasiun punya
+`*RecordService`, komponen Livewire Form, Form mobile, serta Data Preview-nya
+**sendiri-sendiri** — 18 berkas masing-masing — jadi bug di satu stasiun tidak mengatakan
+apa pun tentang yang lain. Itu sebabnya 88% pengulangan di dokumen ini beralasan, dan hanya
+4% yang layak dibuang.
+
+Membangun keduanya:
+
+```
+python3 parse-cases.py cases.json
+python3 build-xlsx.py cases.json Mill-Smart-Log-Test-Case-Blackbox.xlsx
+python3 build-xlsx.py cases.json Mill-Smart-Log-Test-Case-Blackbox-Ringkas.xlsx ringkas
+```
+
+---
+
 ## 12. Lembar hasil
 
 Di berkas Excel pendamping, lembar ini **sudah terjabarkan**: sheet `Kasus Uji` memuat

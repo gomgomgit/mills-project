@@ -595,7 +595,7 @@ Login → Home → Station List → [pilih stasiun] → Monitor
 
 Kolom **"Kolom wajib"** adalah kolom identitas unit yang harus diisi sebelum Simpan.
 Kolom **"Jml kolom bacaan"** adalah banyaknya kolom pengukuran per baris slot waktu —
-dipakai pada kasus `MB-FORM-05` (minimal satu terisi).
+dipakai pada `MB-FORM-05` (minimal satu terisi).
 
 | No | Stasiun | Kolom wajib | Jml kolom bacaan | Keanehan yang perlu diperhatikan |
 |---:|---|---|---:|---|
@@ -790,7 +790,7 @@ dipakai pada kasus `MB-FORM-05` (minimal satu terisi).
 - **Langkah:**
   1. Pastikan periode stasiun ini **Terbuka** dan satu Production Line sudah terpilih.
   2. `[M-FORM]` untuk <Stasiun>.
-  3. Isi kolom identitas unit (lihat kolom "Kolom wajib" pada matriks 4.2).
+  3. Isi kolom identitas unit (lihat kolom "Kolom wajib" pada matriks 18 stasiun).
   4. Tambahkan satu baris slot waktu, pilih **07:00**.
   5. Isi **satu** kolom bacaan pada baris itu dengan angka yang masuk akal.
   6. Tekan **Simpan**.
@@ -2908,8 +2908,13 @@ belum membaca dokumen ini — dan keenamnya benar.
 
 ## 12. Lembar hasil
 
-Salin tabel ini per bagian. Untuk kasus yang dijalankan 18× atau 11×, buat satu baris
-per stasiun.
+Di berkas Excel pendamping, lembar ini **sudah terjabarkan**: sheet `Kasus Uji` memuat
+satu baris per jalan (**1.509 baris**), nama stasiunnya sudah disubstitusikan ke dalam
+langkahnya, dan kolom pengisian menempel langsung pada barisnya. Tidak ada lagi kolom
+"Jml Jalan" yang harus diterjemahkan sendiri.
+
+Tabel di bawah hanya untuk yang menguji dari kertas. Untuk kasus yang dijalankan 18× atau
+11×, buat **satu baris per stasiun**.
 
 | ID Kasus | Stasiun / Varian | Peran | Tanggal | Penguji | Hasil | Catatan / No. Bug |
 |---|---|---|---|---|---|---|

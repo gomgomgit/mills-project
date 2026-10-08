@@ -3,8 +3,14 @@ Membangun workbook Excel dari keluaran parse-cases.py.
 
     python3 build-xlsx.py cases.json Mill-Smart-Log-Test-Case-Blackbox.xlsx
 
-Butuh openpyxl. Tujuh sheet: Panduan, Kasus Uji, Lembar Hasil, Rekap,
-Lingkungan & Akun, Matriks Stasiun, Sudah Diketahui.
+Butuh openpyxl. Enam sheet: Panduan, Kasus Uji, Rekap, Lingkungan & Akun,
+Matriks Stasiun, Sudah Diketahui.
+
+Sheet Kasus Uji memuat SATU BARIS PER JALAN (1.509 baris), bukan per kasus
+unik: kasus yang berlaku di 18 stasiun dijabarkan menjadi 18 baris dan nama
+stasiunnya disubstitusikan ke dalam langkahnya. Sheet 'Lembar Hasil' yang
+dulu terpisah dibuang karena isinya jadi duplikat — kolom pengisiannya kini
+menempel langsung pada barisnya.
 
 Daftar stasiun, daftar tingkat Kelola, dan tabel K-1..K-7 ditulis di berkas
 ini — bukan diurai dari markdown — karena bentuknya tabel, bukan kasus uji.
@@ -55,26 +61,26 @@ MIDC = Alignment(vertical='center', horizontal='center', wrap_text=True)
 # di markdown kodenya dipertahankan supaya sumbernya tetap enak dibaca.
 PRELUDE = {
  '[W-LOGIN]':     'Login di web (buka /login, isi username dan password akun pada kolom Peran, tekan Login)',
- '[W-BROWSE]':    'Login di web, lalu sidebar > Data > nama stasiun (/data/<stasiun>)',
- '[W-DETAIL]':    'Login di web, buka /data/<stasiun>, lalu klik salah satu baris tabel',
- '[W-FORM-NEW]':  'Login di web, buka /data/<stasiun>, lalu tekan Tambah (/data/<stasiun>/create)',
- '[W-FORM-EDIT]': 'Login di web, buka satu record, lalu tekan Edit (/data/<stasiun>/<id>/edit)',
- '[W-REPORT]':    'Login di web, sidebar > Laporan Stasiun (/reports), tekan tile stasiunnya, lalu pilih Periode dan Production Line',
+ '[W-BROWSE]':    'Login di web, lalu sidebar > Data > <Stasiun> (/data/<stasiun>)',
+ '[W-DETAIL]':    'Login di web, buka /data/<stasiun> (<Stasiun>), lalu klik salah satu baris tabel',
+ '[W-FORM-NEW]':  'Login di web, buka /data/<stasiun> (<Stasiun>), lalu tekan Tambah (/data/<stasiun>/create)',
+ '[W-FORM-EDIT]': 'Login di web, buka satu record <Stasiun>, lalu tekan Edit (/data/<stasiun>/<id>/edit)',
+ '[W-REPORT]':    'Login di web, sidebar > Laporan Stasiun (/reports), tekan tile <Stasiun> (/reports/<stasiun>), lalu pilih Periode dan Production Line',
  '[W-DASH]':      'Login di web, lalu sidebar > Dashboard (/dashboard)',
  '[W-PPA]':       'Login di web, lalu sidebar > Production Process Activity (/production-process-activity)',
  '[W-MGMT]':      'Login di web, lalu sidebar > Laporan Manajemen (/reports/management)',
  '[W-PERIOD]':    'Login di web, lalu sidebar > Kelola Periode Pelaporan (/master-data/periods)',
  '[W-TREE]':      'Login di web, lalu sidebar > Struktur Mills (/master-data/tree-view)',
- '[W-KELOLA]':    'Login di web, lalu sidebar > Kelola <tingkat> (/master-data/<tingkat>)',
+ '[W-KELOLA]':    'Login di web, lalu sidebar > Kelola <Tingkat> (/master-data/<tingkat>)',
  '[W-USERS]':     'Login di web, lalu sidebar > Kelola User & Role (/users)',
  '[W-MILLSET]':   'Login di web, lalu sidebar > Mills Setting (/mill-settings)',
  '[W-PWD]':       'Login di web, lalu sidebar > Ganti Password (/settings/password)',
  '[M-LOGIN]':     'Login di mobile (buka aplikasi, isi username dan password, tekan Login), mendarat di /home',
  '[M-LIST]':      'Login di mobile, tekan Station List (/stations); pilih Production Line bila diminta',
- '[M-MON]':       'Login di mobile, Station List, lalu tekan tile stasiunnya (/stations/<stasiun>/monitor)',
- '[M-FORM]':      'Login di mobile, buka Monitor stasiunnya, lalu tekan New Data (/stations/<stasiun>/form/<id>)',
- '[M-PREVIEW]':   'Login di mobile, buka Monitor stasiunnya, lalu tekan Load Data (/stations/<stasiun>/preview)',
- '[M-REPORT]':    'Login di mobile, Dashboard & Reporting > Reporting, tekan tile stasiunnya, lalu pilih Periode dan Production Line',
+ '[M-MON]':       'Login di mobile, Station List, lalu tekan tile <Stasiun> (/stations/<stasiun>/monitor)',
+ '[M-FORM]':      'Login di mobile, buka Monitor <Stasiun>, lalu tekan New Data (/stations/<stasiun>/form/<id>)',
+ '[M-PREVIEW]':   'Login di mobile, buka Monitor <Stasiun>, lalu tekan Load Data (/stations/<stasiun>/preview)',
+ '[M-REPORT]':    'Login di mobile, Dashboard & Reporting > Reporting, tekan tile <Stasiun> (/reports/<stasiun>), lalu pilih Periode dan Production Line',
  '[M-PWD]':       'Login di mobile, menu (ikon tiga garis) > Ganti Password (/settings/password)',
 }
 
@@ -128,6 +134,58 @@ REPORT11 = ['Weighbridge','Grading','Cages Track','Sterilizer','Threshing','Pres
 KELOLA8 = ['Corporate','Company','Business Unit','Production Line','Station',
   'Machinery Group','Machinery','User & Role']
 
+STATION_SLUG = {
+ 'Weighbridge': 'weighbridge', 'Grading': 'grading', 'Cages Track': 'cages-track',
+ 'Sterilizer': 'sterilizer', 'Threshing': 'threshing', 'Pressing': 'pressing',
+ 'Clarification': 'clarification', 'Kernel Plant': 'kernel-plant',
+ 'Boiler Room': 'boiler-room', 'Effluent Plant': 'effluent-plant',
+ 'Depricarping': 'depricarping', 'Engine Room': 'engine-room',
+ 'Process Water': 'process-water', 'Storage Tank': 'storage-tank',
+ 'Solid Waste Disposal': 'solid-waste-disposal', 'Kernel Dispatch': 'kernel-dispatch',
+ 'CPO Dispatch': 'cpo-dispatch', 'Process Quality Control': 'process-quality-control',
+}
+
+KELOLA_SLUG = {
+ 'Corporate': 'corporates', 'Company': 'companies', 'Business Unit': 'business-units',
+ 'Production Line': 'production-lines', 'Station': 'stations',
+ 'Machinery Group': 'machinery-groups', 'Machinery': 'machinery',
+ 'User & Role': 'users',
+}
+
+
+def fill(text, variant):
+    """Mengganti penanda <Stasiun>/<stasiun>/<Tingkat> dengan varian nyata.
+
+    Tanpa ini setiap baris masih menyuruh penguji mengganti sendiri —
+    dan penguji yang salah mengganti menguji stasiun yang salah.
+    """
+    if variant == '\u2014':
+        return text
+    # 'Depricarping (24 slot)' -> nama dasar 'Depricarping' untuk slug-nya
+    base = variant.split(' (')[0].strip()
+    if base in STATION_SLUG:
+        text = text.replace('<Stasiun>', variant).replace('<stasiun>', STATION_SLUG[base])
+    elif base in KELOLA_SLUG:
+        text = (text.replace('<Tingkat>', variant).replace('<tingkat>', KELOLA_SLUG[base])
+                    .replace('<Stasiun>', variant))
+    else:
+        return text
+
+    # Sesudah substitusi, nama stasiunnya sering muncul DUA KALI dalam satu
+    # langkah: sekali dari teks jalan masuk ("sidebar > Data > Sterilizer
+    # (/data/sterilizer)") dan sekali dari kalimat kasusnya sendiri ("untuk
+    # <Stasiun>"). Yang kedua diluluhkan — ia sudah tidak menambah apa pun,
+    # dan langkah yang mengulang namanya terbaca seperti salin-tempel.
+    out = []
+    for line in text.split('\n'):
+        if line.count(variant) > 1:
+            head, sep, tail = line.partition(variant)
+            tail = tail.replace(' untuk ' + variant, '', 1)
+            line = head + sep + tail
+        out.append(line)
+    return '\n'.join(out)
+
+
 SYNC3 = ['Depricarping (24 slot)','Weighbridge (per-transaksi)','Effluent Plant (kolom status)']
 NO_SLOT = {'Weighbridge','Grading','Kernel Dispatch','CPO Dispatch'}
 
@@ -160,9 +218,9 @@ for i, w in enumerate([26, 62, 30, 30], start=1):
 r = 4
 blocks = [
  ('Isi berkas ini', [
-   ('Kasus Uji', 'Ke-174 kasus lengkap: peran, prasyarat, langkah, dan Hasil Diharapkan. Dibaca, tidak diisi.'),
-   ('Lembar Hasil', 'Tempat mengisi. Satu baris per JALAN — kasus yang dijalankan 18× punya 18 baris, satu per stasiun.'),
-   ('Rekap', 'Hitungan otomatis Lulus/Gagal/Tidak diuji per bagian. Terisi sendiri dari Lembar Hasil.'),
+   ('Kasus Uji', 'Satu baris per JALAN — 1.509 baris. Kasus yang berlaku di 18 stasiun sudah dijabarkan '
+                 'menjadi 18 baris, dan nama stasiunnya ada DI DALAM langkahnya. Kolom berlatar kuning diisi penguji.'),
+   ('Rekap', 'Hitungan otomatis Lulus/Gagal/Tidak diuji per bagian. Terisi sendiri dari Kasus Uji.'),
    ('Lingkungan & Akun', 'Yang harus disiapkan sebelum menguji, 6 akun uji, dan matriks peran.'),
    ('Matriks Stasiun', '18 stasiun beserta keanehan masing-masing yang perlu diperhatikan.'),
    ('Sudah Diketahui', 'Dua daftar yang WAJIB dibaca sebelum melapor: catatan yang sudah diketahui tim, '
@@ -206,59 +264,17 @@ put(ws, r, 1, 'Kasus yang prasyaratnya tidak tersedia BUKAN kasus yang lulus. Me
 ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=4)
 ws.row_dimensions[r].height = 44
 
-# ═════════════════════ 2. KASUS UJI ═════════════════════════════════════
+# ═════════════════════ 2. KASUS UJI (satu baris per jalan) ═════════════
 ws = wb.create_sheet('Kasus Uji')
 ws.sheet_view.showGridLines = False
-sheet_title(ws, 'Kasus Uji — 174 kasus',
-  'Dibaca, tidak diisi. Pengisian ada di sheet Lembar Hasil. '
-  'Kolom "Jml Jalan" = berapa kali kasus ini dijalankan.', 12)
-COLS = ['No','Bagian','ID','Judul','Peran','Prasyarat','Langkah','Hasil Diharapkan',
-        'Prioritas','Jalankan di','Jml Jalan','Catatan QA']
-W    = [5, 18, 12, 34, 15, 26, 56, 58, 9, 18, 8, 34]
-header_row(ws, 4, COLS, W)
-ws.freeze_panes = 'D5'
-
-r = 5
-for i, c in enumerate(CASES, start=1):
-    n = len(variants(c['id']))
-    band = FILL_BAND if i % 2 == 0 else None
-    put(ws, r, 1, i, F_BODY, TOPC, band)
-    put(ws, r, 2, clean(c['section']), F_BODY, TOPL, band)
-    put(ws, r, 3, c['id'], F_MONO, TOPL, band)
-    put(ws, r, 4, clean(c['title']), F_BOLD, TOPL, band)
-    put(ws, r, 5, clean(c['peran']), F_BODY, TOPL, band)
-    put(ws, r, 6, clean(c['prasyarat']) or '—', F_BODY, TOPL, band)
-    put(ws, r, 7, clean(c['langkah']), F_BODY, TOPL, band)
-    put(ws, r, 8, clean(c['hasil']), F_BODY, TOPL, band)
-    put(ws, r, 9, c['prioritas'], F_RED if c['prioritas'] == 'Tinggi' else F_BODY, TOPC,
-        FILL_HI if c['prioritas'] == 'Tinggi' else band)
-    put(ws, r, 10, clean(c['jalankan']) or '—', F_BODY, TOPL, band)
-    put(ws, r, 11, f'{n}×' if n > 1 else '1×', F_BODY, TOPC, band)
-    put(ws, r, 12, clean(c['catatan']) or '', F_BODY, TOPL, band)
-    # Langkah dan Hasil kini daftar bernomor berbaris banyak: tingginya
-    # dihitung dari jumlah baris nyata PLUS pembungkusan tiap baris, bukan
-    # dari total panjang teks. Tanpa ini baris terpotong dan dokumennya
-    # tidak terbaca justru di kolom yang paling penting.
-    def wrapped(text, per_line):
-        return sum(max(1, -(-len(ln) // per_line)) for ln in text.split('\n'))
-
-    tall = max(wrapped(clean(c['langkah']), 44),
-               wrapped(clean(c['hasil']), 50),
-               wrapped(clean(c['catatan'] or ''), 38),
-               1)
-    ws.row_dimensions[r].height = max(16, 13.2 * tall + 4)
-    r += 1
-ws.auto_filter.ref = f'A4:L{r-1}'
-
-# ═════════════════════ 3. LEMBAR HASIL ══════════════════════════════════
-ws = wb.create_sheet('Lembar Hasil')
-ws.sheet_view.showGridLines = False
-sheet_title(ws, 'Lembar Hasil — satu baris per jalan',
-  'Kolom berlatar kuning diisi penguji. Kolom Hasil punya daftar pilihan. '
-  'Hasil Diharapkan diulang di sini supaya penguji tidak perlu berpindah sheet.', 12)
-COLS = ['No','ID','Judul','Stasiun / Varian','Peran','Hasil Diharapkan','Prioritas',
+sheet_title(ws, 'Kasus Uji — setiap jalan dijabarkan satu baris',
+  'Kasus yang berlaku di 18 stasiun dijabarkan menjadi 18 baris, masing-masing '
+  'menyebut stasiunnya DI DALAM langkahnya — tidak ada lagi "18×" yang harus '
+  'diterjemahkan sendiri. Kolom berlatar kuning diisi penguji.', 17)
+COLS = ['No','ID Jalan','ID Kasus','Stasiun / Varian','Bagian','Judul','Peran',
+        'Prasyarat','Langkah','Hasil Diharapkan','Prioritas','Catatan QA',
         'Tanggal','Penguji','Hasil','No. Bug','Catatan / apa yang terlihat']
-W    = [5, 12, 32, 22, 14, 62, 9, 11, 13, 13, 11, 34]
+W    = [5, 26, 12, 22, 17, 32, 14, 24, 54, 54, 9, 30, 11, 13, 13, 11, 32]
 header_row(ws, 4, COLS, W)
 ws.freeze_panes = 'E5'
 
@@ -268,6 +284,15 @@ dv.error = 'Pilih salah satu: Lulus, Gagal, Tidak diuji, Terhalang.'
 dv.errorTitle = 'Nilai tidak dikenal'
 ws.add_data_validation(dv)
 
+
+def wrapped(text, per_line):
+    """Tinggi baris dihitung dari jumlah baris NYATA plus pembungkusannya.
+
+    Dari total panjang teks saja, kolom Langkah justru yang terpotong.
+    """
+    return sum(max(1, -(-len(ln) // per_line)) for ln in text.split('\n'))
+
+
 r, n = 5, 0
 DV_ROWS = []
 for c in CASES:
@@ -275,37 +300,55 @@ for c in CASES:
         n += 1
         na = applies(c['id'], v)
         band = FILL_BAND if n % 2 == 0 else None
+        langkah = fill(clean(c['langkah']), v)
+        hasil = fill(clean(c['hasil']), v)
+        prasyarat = fill(clean(c['prasyarat']) or '—', v)
+        catatan = fill(clean(c['catatan']) or '', v)
+        id_jalan = c['id'] if v == '—' else f"{c['id']} / {v}"
+
         put(ws, r, 1, n, F_BODY, TOPC, band)
-        put(ws, r, 2, c['id'], F_MONO, TOPL, band)
-        put(ws, r, 3, clean(c['title']), F_BODY, TOPL, band)
+        put(ws, r, 2, id_jalan, F_MONO, TOPL, band)
+        put(ws, r, 3, c['id'], F_MONO, TOPL, band)
         put(ws, r, 4, v, F_BOLD if v != '—' else F_BODY, TOPL, band)
-        put(ws, r, 5, clean(c['peran']), F_BODY, TOPL, band)
-        put(ws, r, 6, na or clean(c['hasil']), F_RED if na else F_BODY, TOPL,
-            FILL_SOFT if na else band)
-        put(ws, r, 7, c['prioritas'], F_RED if c['prioritas'] == 'Tinggi' else F_BODY, TOPC,
-            FILL_HI if c['prioritas'] == 'Tinggi' else band)
-        for col in (8, 9, 10, 11, 12):
+        put(ws, r, 5, clean(c['section']), F_BODY, TOPL, band)
+        put(ws, r, 6, clean(c['title']), F_BOLD, TOPL, band)
+        put(ws, r, 7, clean(c['peran']), F_BODY, TOPL, band)
+        put(ws, r, 8, prasyarat, F_BODY, TOPL, band)
+        if na:
+            # Baris yang tidak berlaku: langkahnya DIGANTI alasannya, bukan
+            # dibiarkan seolah dapat dijalankan.
+            put(ws, r, 9, na, F_RED, TOPL, FILL_SOFT)
+            put(ws, r, 10, na, F_RED, TOPL, FILL_SOFT)
+        else:
+            put(ws, r, 9, langkah, F_BODY, TOPL, band)
+            put(ws, r, 10, hasil, F_BODY, TOPL, band)
+        put(ws, r, 11, c['prioritas'], F_RED if c['prioritas'] == 'Tinggi' else F_BODY,
+            TOPC, FILL_HI if c['prioritas'] == 'Tinggi' else band)
+        put(ws, r, 12, catatan, F_BODY, TOPL, band)
+        for col in (13, 14, 15, 16, 17):
             put(ws, r, col, None, F_BODY, TOPL, FILL_SOFT if na else FILL_IN)
         if not na:
             DV_ROWS.append(r)
-        txt = na or clean(c['hasil'])
-        tall = sum(max(1, -(-len(ln) // 56)) for ln in txt.split('\n'))
+
+        tall = max(wrapped(na or langkah, 44), wrapped(na or hasil, 44),
+                   wrapped(catatan, 26), 1)
         ws.row_dimensions[r].height = max(16, 13.2 * tall + 4)
         r += 1
-# satu rentang per blok baris bersambung — bukan satu per sel
-spans, start, prev = [], None, None
+
+# Satu rentang validasi per blok baris bersambung — bukan satu per sel.
+spans, start_row, prev = [], None, None
 for row in DV_ROWS:
-    if start is None:
-        start = prev = row; continue
+    if start_row is None:
+        start_row = prev = row; continue
     if row == prev + 1:
         prev = row; continue
-    spans.append((start, prev)); start = prev = row
-if start is not None:
-    spans.append((start, prev))
+    spans.append((start_row, prev)); start_row = prev = row
+if start_row is not None:
+    spans.append((start_row, prev))
 for a, b in spans:
-    dv.add(f'J{a}:J{b}' if a != b else f'J{a}')
+    dv.add(f'O{a}:O{b}' if a != b else f'O{a}')
 
-ws.auto_filter.ref = f'A4:L{r-1}'
+ws.auto_filter.ref = f'A4:Q{r-1}'
 LAST = r - 1
 TOTAL_RUNS = n
 
@@ -313,7 +356,7 @@ TOTAL_RUNS = n
 ws = wb.create_sheet('Rekap')
 ws.sheet_view.showGridLines = False
 sheet_title(ws, 'Rekap — terisi otomatis',
-  'Angka di sini dihitung dari sheet Lembar Hasil. Tidak perlu diisi tangan.', 9)
+  'Angka di sini dihitung dari sheet Kasus Uji. Tidak perlu diisi tangan.', 9)
 COLS = ['Bagian','Awalan ID','Kasus unik','Jml jalan','Lulus','Gagal','Tidak diuji',
         'Terhalang','Belum diisi']
 header_row(ws, 4, COLS, [34, 14, 13, 12, 11, 11, 13, 12, 13])
@@ -332,8 +375,8 @@ for name, pfx in GROUPS:
     put(ws, r, 2, pfx, F_MONO, TOPC)
     put(ws, r, 3, uniq, F_BODY, TOPC)
     put(ws, r, 4, runs, F_BODY, TOPC)
-    base = f"'Lembar Hasil'!$B$5:$B${LAST}"
-    hasil = f"'Lembar Hasil'!$J$5:$J${LAST}"
+    base = f"'Kasus Uji'!$C$5:$C${LAST}"
+    hasil = f"'Kasus Uji'!$O$5:$O${LAST}"
     for col, crit in ((5, 'Lulus'), (6, 'Gagal'), (7, 'Tidak diuji'), (8, 'Terhalang')):
         put(ws, r, col, f'=COUNTIFS({base},"{pfx}*",{hasil},"{crit}")', F_BODY, TOPC)
     put(ws, r, 9, f'=D{r}-E{r}-F{r}-G{r}-H{r}', F_BODY, TOPC)
@@ -349,13 +392,13 @@ for col in (5, 6, 7, 8, 9):
 r += 2
 put(ws, r, 1, 'Kasus Prioritas Tinggi yang belum diisi', F_BOLD, TOPL, FILL_HI)
 ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=3)
-put(ws, r, 4, f'=COUNTIFS(\'Lembar Hasil\'!$G$5:$G${LAST},"Tinggi",'
-              f'\'Lembar Hasil\'!$J$5:$J${LAST},"")', F_RED, TOPC, FILL_HI)
+put(ws, r, 4, f'=COUNTIFS(\'Kasus Uji\'!$K$5:$K${LAST},"Tinggi",'
+              f'\'Kasus Uji\'!$O$5:$O${LAST},"")', F_RED, TOPC, FILL_HI)
 r += 1
 put(ws, r, 1, 'Baris Gagal yang belum punya No. Bug', F_BOLD, TOPL, FILL_HI)
 ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=3)
-put(ws, r, 4, f'=COUNTIFS(\'Lembar Hasil\'!$J$5:$J${LAST},"Gagal",'
-              f'\'Lembar Hasil\'!$K$5:$K${LAST},"")', F_RED, TOPC, FILL_HI)
+put(ws, r, 4, f'=COUNTIFS(\'Kasus Uji\'!$O$5:$O${LAST},"Gagal",'
+              f'\'Kasus Uji\'!$P$5:$P${LAST},"")', F_RED, TOPC, FILL_HI)
 
 
 # ═════════════════════ 5. LINGKUNGAN & AKUN ═════════════════════════════
@@ -523,7 +566,7 @@ for i, row in enumerate(ST):
 r += 1
 put(ws, r, 1, 'Weighbridge, Grading, Kernel Dispatch, dan CPO Dispatch tidak memakai 24 slot waktu. '
               'Untuk keempat stasiun ini LEWATI MB-FORM-03 dan MB-FORM-04 (aturan urutan slot) dan '
-              'ganti dengan MB-FORM-11. Di sheet Lembar Hasil baris-baris itu sudah ditandai '
+              'ganti dengan MB-FORM-11. Di sheet Kasus Uji baris-baris itu sudah ditandai '
               '"Tidak berlaku".', F_RED, TOPL, FILL_HI)
 ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
 ws.row_dimensions[r].height = 44

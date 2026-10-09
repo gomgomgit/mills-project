@@ -378,16 +378,16 @@ blocks = [
    ('Tingkat 3 — SISA (1.244 jalan)', 'Pengulangan penuh. Untuk putaran rilis, atau ketika satu '
                   'stasiun berubah — saring Tingkat 3 pada stasiun itu saja.'),
    ('YANG HILANG, dinyatakan terbuka', 'Tingkat 1+2 TIDAK membuktikan ke-18 stasiun berperilaku benar '
-                  'pada setiap cabang. Ke-18 stasiun punya service, Form, dan Data Preview-nya '
-                  'sendiri-sendiri, jadi bug di satu stasiun tidak mengatakan apa pun tentang yang '
-                  'lain. Tiga defek yang ditemukan pada 2026-10-08 semuanya hanya ada di SATU stasiun. '
-                  'Melewatkan Tingkat 3 adalah keputusan risiko, bukan penghematan gratis.'),
-   ('Lebih dulu dari memangkas', 'Pangkas waktu PENYIAPAN, bukan cakupan. backend/database/seeders/'
-                  'BrowserTestFixtureSeeder.php sudah membuat satu mill, satu Production Line dengan '
-                  'stasiun aktif untuk SETIAP jenis, "PL Tanpa <Station>" per keluarga (prasyarat '
-                  'MB-FORM-15 dan WB-FRM-07), serta akun keempat peran. Jalankan '
-                  'e2e-web/scripts/prepare-db.sh lalu uji di basis data itu — banyak langkah '
-                  '"Siapkan…" langsung gugur, dan cakupannya tidak berkurang sedikit pun.'),
+                  'pada setiap cabang. Setiap stasiun punya layar dan aturannya sendiri, jadi hasil '
+                  'baik di satu stasiun tidak menjamin stasiun lain — dan temuan yang pernah ada '
+                  'memang hanya muncul di satu stasiun, bukan di semuanya. Melewatkan Tingkat 3 '
+                  'adalah keputusan risiko, bukan penghematan gratis.'),
+   ('Lebih dulu dari memangkas', 'Pangkas waktu PENYIAPAN, bukan cakupan. Minta tim pengembang '
+                  'menyiapkan satu basis data uji berisi data contoh: dua mill, Production Line '
+                  'dengan stasiun aktif untuk setiap jenis, satu Production Line yang sengaja TIDAK '
+                  'punya stasiun tertentu (prasyarat MB-FORM-15 dan WB-FRM-07), dan satu akun per '
+                  'peran. Menguji di basis data itu membuat banyak langkah "Siapkan…" gugur, dan '
+                  'cakupannya tidak berkurang sedikit pun.'),
  ]),
  ('Aturan pengisian kolom Hasil', [
    ('Lulus', 'Yang terlihat SAMA dengan Hasil Diharapkan, seluruhnya.'),
@@ -430,16 +430,15 @@ if ALUR:
         'stasiun. Berkas ini TIDAK membuktikan ke-18 stasiun berperilaku benar pada '
         'setiap cabang. Ke-18 stasiun punya service, Form, dan Data Preview-nya '
         'sendiri-sendiri, jadi bug di satu stasiun tidak mengatakan apa pun tentang '
-        'yang lain; ketiga defek yang ditemukan pada 2026-10-08 semuanya hanya ada '
-        'di SATU stasiun.\n\n'
+        'yang lain — dan temuan yang pernah ada memang hanya muncul di satu stasiun, '
+        'bukan di semuanya.\n\n'
         'Pakai berkas tanpa akhiran untuk putaran rilis, atau saring Tingkat 3 di '
         'sana pada stasiun yang baru berubah. Kedua berkas dibangun dari skrip yang '
         'sama, jadi yang ini tidak dapat tertinggal usang.\n\n'
-        'LEBIH DULU DARI MEMANGKAS: jalankan e2e-web/scripts/prepare-db.sh. '
-        'BrowserTestFixtureSeeder sudah menyiapkan mill, Production Line dengan '
-        'stasiun aktif setiap jenis, "PL Tanpa <Station>" per keluarga, dan akun '
-        'keempat peran — banyak langkah "Siapkan..." langsung gugur tanpa mengurangi '
-        'cakupan sedikit pun.',
+        'LEBIH DULU DARI MEMANGKAS: minta tim pengembang menyiapkan satu basis data '
+        'uji berisi data contoh (dua mill, stasiun aktif setiap jenis, satu akun per '
+        'peran). Menguji di sana membuat banyak langkah "Siapkan..." gugur tanpa '
+        'mengurangi cakupan sedikit pun.',
         F_BODY, TOPL, FILL_HI)
     ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=4)
     ws.row_dimensions[r].height = 215
@@ -453,10 +452,11 @@ if RINGKAS:
     put(ws, r, 2,
         'Empat kasus dipangkas dari 18x menjadi 3x, menghemat 60 jalan '
         '(1.509 menjadi 1.449):\n'
-        '  - MB-PRV-02, MB-PRV-04, MB-PRV-08 menguji ListFilterBar\n'
-        '  - MB-PRV-07 menguji RecordVerificationStatus\n'
-        'Keduanya KOMPONEN BERSAMA yang dipakai ke-18 layar Data Preview: satu '
-        'berkas kode, jadi perilakunya tidak dapat berbeda per stasiun. Dijalankan '
+        '  - MB-PRV-02, MB-PRV-04, MB-PRV-08 menguji panel filter\n'
+        '  - MB-PRV-07 menguji panel verifikasi\n'
+        'Ketiganya memeriksa panel filter dan panel verifikasi yang SAMA di ke-18 '
+        'layar Data Preview — satu tampilan yang dipakai bersama, jadi perilakunya '
+        'tidak dapat berbeda per stasiun. Dijalankan '
         'pada tiga stasiun berbeda bentuk (Depricarping 24-slot, Weighbridge '
         'per-transaksi, Effluent Plant berkolom status).\n\n'
         'RISIKONYA, dinyatakan terbuka: kalau kelak salah satu layar Data Preview '
@@ -870,9 +870,9 @@ ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
 ws.row_dimensions[r].height = 32
 
 # ═════════════════════ 7. SUDAH DIKETAHUI ═══════════════════════════════
-ws = wb.create_sheet('Sudah Diketahui')
+ws = wb.create_sheet('Catatan & Batasan')
 ws.sheet_view.showGridLines = False
-sheet_title(ws, 'Baca ini sebelum melapor',
+sheet_title(ws, 'Catatan & Batasan — baca sebelum melapor',
   'Dua daftar. Yang pertama sudah diketahui tim dan bukan temuan baru. Yang kedua TERLIHAT '
   'seperti bug tetapi perilakunya benar — keenamnya akan dilaporkan oleh QA yang belum '
   'membaca halaman ini.', 3)
@@ -880,54 +880,49 @@ for i, w in enumerate([10, 58, 62], start=1):
     ws.column_dimensions[get_column_letter(i)].width = w
 
 r = 4
-put(ws, r, 1, 'Catatan yang sudah diketahui tim pengembang', F_H2,
+put(ws, r, 1, 'Batasan yang sudah diketahui', F_H2,
     Alignment(vertical='center'), border=False)
 ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=3); r += 1
-put(ws, r, 1, 'Kalau QA menemukannya, cukup rujuk nomornya alih-alih membuat laporan bug baru.',
+put(ws, r, 1, 'Hal-hal di bawah sudah diketahui dan bukan temuan baru. Kalau penguji '
+              'menemukannya, cukup rujuk nomornya alih-alih membuat laporan bug baru.',
     F_SUB, TOPL, border=False)
 ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=3); r += 1
 put(ws, r, 1, 'No', F_HEAD, MIDC, FILL_HEAD)
 put(ws, r, 2, 'Hal', F_HEAD, MIDC, FILL_HEAD)
-put(ws, r, 3, 'Mengapa begitu', F_HEAD, MIDC, FILL_HEAD); r += 1
+put(ws, r, 3, 'Keterangan', F_HEAD, MIDC, FILL_HEAD); r += 1
+
 KNOWN = [
- ('K-1','Satuan suhu ditulis C, bukan °C pada laporan Kernel Plant (web & mobile)',
-  'Disengaja: nilainya datang dari data master apa adanya, dan mengubahnya di tampilan akan '
-  'membuat web dan mobile berselisih.'),
- ('K-2','SELESAI 2026-10-08 — penamaan Shell Bin Kernel Loss pada Kernel Plant sudah seragam',
-  'Kolom yang dulu bernama shell_loss_percent kini "Shell Bin Kernel Loss" di Form, Detail, '
-  'Data Preview, Laporan, dan header ekspor CSV — mengikuti nama standar di master. Nama lamanya '
-  'menyebut zat yang salah: kehilangan SHELL, padahal yang diukur KERNEL yang terbuang ke shell '
-  'bin. Angkanya tidak pernah salah dan tidak berubah, hanya namanya. Yang diperiksa QA: label '
-  'barunya konsisten di kelima tempat itu, dan header CSV berbunyi "Shell Bin Kernel Loss (%)".'),
- ('K-3','SELESAI 2026-10-08 — jumlah kolom bacaan pada laporan Depricarping sudah benar',
-  'Dulu berbunyi "minimal satu dari ENAM kolom bacaan diisi"; kolom bacaan Depricarping ada '
-  'SEMBILAN, dan layar yang sama menyebut "sembilan" di tempat lain. Salah di WEB DAN MOBILE '
-  '(catatan ini dulu menyebut mobile saja), dan bukan kosmetik: angka itu dipakai pembaca untuk '
-  'menafsirkan penyebut cakupan. Asal-usulnya salin-tempel dari Threshing dan Pressing, yang '
-  'memang enam kolom. Kini dijaga uji yang menurunkan angkanya dari READING_FIELDS.'),
- ('K-4','Laporan Depricarping (Mobile): tiga angka pada blok downtime tampil tanpa gaya',
-  'Kosmetik, sudah tercatat.'),
- ('K-5','DIPERBAIKI 2026-10-08 — catatan ini dulu salah',
-  'Ia berbunyi "Dashboard hanya meringkas 3 stasiun, bukan 18 — disengaja". Blok tiga-stasiun '
-  'itu SUDAH DIBUANG pada 2026-09-17 atas permintaan user. Keadaan sebenarnya: halaman '
-  '/dashboard adalah TAMPILAN DEMO dengan angka hard-coded — tanpa filter tanggal, tanpa '
-  'pemilih mill, tidak membaca data stasiun sama sekali. Ia menyatakan dirinya demo (judul '
-  '"CPO Mill Demo" + chip "Data dummy"). Ringkasan tiga stasiun kini hanya ada di balik API '
-  '/api/dashboard/summary, bukan di layar. DS-01..DS-03 ditulis ulang mengikuti keadaan ini.'),
- ('K-6','Satu kasus uji otomatis kadang gagal acak (DashboardServiceTest)',
-  'Tidak memengaruhi perilaku aplikasi; sedang diselidiki.'),
- ('K-7','Cakupan baris kode belum diukur',
-  'Tidak ada hubungannya dengan hasil pengujian manual.'),
+ ('B-1', 'Laporan periode belum tersedia untuk 7 stasiun',
+  'Engine Room, Process Water, Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, '
+  'Process Quality Control, dan Effluent Plant belum punya layar laporan periode. '
+  'Tile-nya tetap TAMPIL di layar Laporan Stasiun dalam keadaan kelabu dan tidak dapat '
+  'ditekan — supaya pembaca tahu stasiun itu ada. Input data untuk ketujuh stasiun '
+  'tersebut SUDAH tersedia, baik di web maupun mobile.'),
+ ('B-2', 'Layar "Data Saya" belum tersedia',
+  'Daftar record yang dibuat pengguna itu sendiri belum ada. Akibatnya akses web untuk '
+  'peran Station Operator terbatas pada dua layar: Beranda Operator dan Ganti Password. '
+  'Operator tetap dapat menginput lewat aplikasi mobile seperti biasa.'),
+ ('B-3', 'Dashboard adalah tampilan contoh, bukan laporan mill',
+  'Halaman Dashboard menampilkan contoh laporan harian dengan angka tetap — tanpa filter '
+  'tanggal dan tanpa pemilih mill, dan tidak membaca data stasiun. Ia MENYATAKAN dirinya '
+  'contoh lewat judul "CPO Mill Demo" dan penanda "Data dummy". Kasus DS-01 justru '
+  'memeriksa bahwa penanda itu ada; penanda yang hilang adalah temuan prioritas tinggi. '
+  'Angka operasional yang sebenarnya ada di Laporan Periode per stasiun.'),
+ ('B-4', 'Satuan suhu ditulis "C", bukan "°C"',
+  'Pada laporan Kernel Plant, web maupun mobile. Disengaja: satuannya mengikuti data '
+  'master apa adanya, dan mengubahnya di tampilan akan membuat web dan mobile berselisih.'),
+ ('B-5', 'Laporan Depricarping (Mobile): tiga angka pada blok downtime tampil tanpa gaya',
+  'Angkanya benar; hanya tampilannya yang belum rapi. Kosmetik, sudah tercatat.'),
 ]
 for i, row in enumerate(KNOWN):
     band = FILL_BAND if i % 2 else None
     put(ws, r, 1, row[0], F_MONO, TOPC, band)
     put(ws, r, 2, row[1], F_BOLD, TOPL, band)
     put(ws, r, 3, row[2], F_BODY, TOPL, band)
-    ws.row_dimensions[r].height = max(16, 13.5 * (max(len(row[1]) // 60, len(row[2]) // 66) + 1))
+    ws.row_dimensions[r].height = max(16, 13.2 * (max(len(row[1]) // 56,
+                                                      len(row[2]) // 64) + 1) + 4)
     r += 1
 r += 2
-
 put(ws, r, 1, 'Hal yang TERLIHAT seperti bug tetapi BUKAN', F_H2,
     Alignment(vertical='center'), border=False)
 ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=3); r += 1
@@ -941,8 +936,8 @@ NOTBUG = [
  ('MB-FORM-04','Slot waktu 01:00 dianggap SESUDAH 23:00',
   'BENAR. Shift dimulai 07:00, jadi urutannya 07:00 → 23:00 → 00:00 → 06:00.'),
  ('DS-02','Dashboard menampilkan angka yang sama untuk semua peran dan semua mill',
-  'BENAR. Halaman itu demo dengan angka hard-coded, dan menyatakannya lewat chip "Data dummy". '
-  'Jangan jalankan uji isolasi mill di sana — ia tidak membaca mill sama sekali.'),
+  'BENAR. Halaman itu tampilan contoh dengan angka tetap, dan menyatakannya lewat penanda '
+  '"Data dummy". Jangan jalankan uji isolasi mill di sana — ia tidak membaca mill sama sekali.'),
  ('DS-10','Satu stasiun menunjukkan "belum ada input hari ini" DAN "input terakhir 3 menit lalu"',
   'BENAR. Dua jendela waktu yang berbeda: "hari ini" dibatasi tanggal, "input terakhir" tidak. '
   'Keterangan di halaman menjelaskannya.'),

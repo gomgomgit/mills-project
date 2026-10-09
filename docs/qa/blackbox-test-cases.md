@@ -2117,7 +2117,7 @@ laporannya belum ada harus **kelabu dan tidak dapat ditekan** — diuji oleh `DS
   - Milling **tidak pernah** melebihi Available Milling Hours pada baris mana pun.
   - Jam pada grafik **sama** dengan angka Milling di tabel — dua tempat, satu angka.
 - **Prioritas:** Sedang
-- **Catatan QA:** angkanya dummy, tetapi **hubungan antar angkanya tetap harus benar**. Ketiga panel ini dulu ditulis tangan di tiga tempat dan pernah berselisih; sejak 2026-09-30 ketiganya diturunkan dari satu sumber. Yang diuji di sini adalah bahwa ketiganya tidak berselisih lagi.
+- **Catatan QA:** angkanya contoh, tetapi **hubungan antar angkanya tetap harus benar**. Panel tabel dan grafik menyajikan jam yang sama, jadi keduanya tidak boleh berselisih — dan Total Downtime serta Available Milling Hours harus cocok dengan hitungan manual dari kolomnya sendiri.
 
 ### DS-04 — Laporan Stasiun (Web): tile laporan yang ada aktif, sisanya kelabu
 - **Peran:** `SPV-A`
@@ -2320,9 +2320,9 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
   - **Ditolak** dengan **pesan validasi** yang menunjuk kolom induk.
   - **TIDAK ADA** galat teknis: bukan stack trace, bukan "SQLSTATE", bukan "Server Error", bukan halaman 500.
   - Pesannya berbahasa Indonesia dan menyebut kolom induknya.
-  - Pernah ada bug di sini yang memunculkan galat teknis — perhatikan **bentuk** pesannya, bukan hanya bahwa ia ditolak.
+  - Perhatikan **bentuk** pesannya, bukan hanya bahwa ia ditolak: pesan validasi di sebelah kolom induk berarti lulus, galat teknis berarti gagal.
 - **Prioritas:** Tinggi
-- **Catatan QA:** pernah ada bug di sini yang memunculkan galat teknis, bukan pesan validasi. Perhatikan bentuk pesannya.
+- **Catatan QA:** yang diperiksa bukan hanya **bahwa** ia ditolak, tetapi **bentuk** penolakannya. Pesan validasi di sebelah kolom induk berarti lulus; galat teknis berarti gagal, meskipun datanya sama-sama tidak tersimpan.
 
 ### MD-KEL-05 — Nama kembar diperiksa dalam lingkup induknya
 - **Peran:** `ADM`
@@ -2891,6 +2891,14 @@ harus **kelabu** (diuji `DS-04` dan `DS-07`), bukan hilang.
 | Migrasi data lama | Tidak ada data lama di lingkup MVP. |
 
 ### 11.3 Catatan yang sudah diketahui tim pengembang
+
+> **Tabel ini adalah catatan INTERNAL dan sengaja berbeda dari berkas Excel.** Di sini
+> riwayatnya disimpan — termasuk entri yang sudah selesai, nama kolom, dan tanggal
+> keputusan — karena itu berguna bagi tim pengembang. Berkas Excel yang diserahkan ke klien
+> memuat sheet **"Catatan & Batasan"** yang hanya menyatakan **batasan yang masih berlaku**,
+> tanpa nama berkas, nama kolom basis data, riwayat perbaikan, atau rujukan ke uji otomatis.
+> Perbedaan itu disengaja; jangan "diselaraskan".
+
 
 Hal-hal di bawah **sudah diketahui** dan **bukan temuan baru**. Kalau QA menemukannya,
 cukup rujuk nomor ini alih-alih membuat laporan bug baru.

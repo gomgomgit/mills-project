@@ -56,6 +56,19 @@ RINGKAS = MODE == 'ringkas'
 ALUR = MODE == 'alur'
 TIER_MAX = 2 if ALUR else 3
 
+# Nama stasiun APA ADANYA untuk pemangkasan komponen bersama — bukan
+# SYNC3 yang berlabel "(24 slot)" dan kawan-kawan.
+#
+# Memakai SYNC3 di sini membuat barisnya ber-ID "MB-PRV-02 / Depricarping
+# (24 slot)", yang TIDAK ADA di berkas penuh. Penguji yang melaporkan bug
+# dengan id itu lalu ditelusuri di berkas penuh tidak akan menemukannya, dan
+# ketiga berkas berhenti bersarang rapi. Dengan nama apa adanya:
+# Alur ⊂ Ringkas ⊂ Penuh, dan satu id berarti satu hal di ketiganya.
+#
+# MB-SYNC tetap memakai SYNC3 di SEMUA mode — di sana anotasi bentuknya
+# memang bagian dari kasusnya, dan labelnya sama di ketiga berkas.
+SHARED3 = ['Depricarping', 'Weighbridge', 'Effluent Plant']
+
 SHARED_COMPONENT_CASES = {
     'MB-PRV-02': 'ListFilterBar',
     'MB-PRV-04': 'ListFilterBar',
@@ -229,7 +242,7 @@ NO_SLOT = {'Weighbridge','Grading','Kernel Dispatch','CPO Dispatch'}
 
 def variants(cid):
     if RINGKAS and cid in SHARED_COMPONENT_CASES:
-        return SYNC3
+        return SHARED3
     p = re.sub(r'-\d+$', '', cid)
     if p in ('MB-MON','MB-FORM','MB-PRV','WB-BRW','WB-DTL','WB-FRM'): return STATIONS18
     if p in ('LP-W','LP-M'): return REPORT11

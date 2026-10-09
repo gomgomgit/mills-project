@@ -16,6 +16,7 @@ Daftar stasiun, daftar tingkat Kelola, dan tabel K-1..K-7 ditulis di berkas
 ini — bukan diurai dari markdown — karena bentuknya tabel, bukan kasus uji.
 Kalau markdown-nya berubah di bagian itu, ubah juga di sini.
 """
+import collections
 import json, re, sys
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -232,6 +233,67 @@ def applies(cid, station):
         return 'Tidak berlaku — hanya 4 stasiun per-transaksi'
     return ''
 
+# ── TINGKAT PENGUJIAN ─────────────────────────────────────────────────
+# Satu daftar rata berisi 1.509 jalan mencampur dua tujuan yang berbeda:
+# "apakah setiap alur bekerja" dan "apakah ke-18 implementasi stasiun
+# bekerja". Yang pertama butuh 170 jalan; yang kedua butuh sisanya.
+#
+# Kolom Tingkat memisahkannya TANPA MEMBUANG APA PUN — penguji menyaring,
+# bukan memakai berkas lain yang lebih kecil. Cakupan penuh tetap ada di
+# berkas yang sama, jadi tidak ada versi yang bisa tertinggal usang.
+#
+#   1  ALUR   — setiap kasus SEKALI, pada stasiun wakil. Membuktikan setiap
+#               alur sistem bekerja dan setiap kasus memang dapat dijalankan.
+#   2  KABEL  — lima kasus pada 17 stasiun sisanya (plus satu untuk 10
+#               laporan sisanya). Kelimanya yang GAGAL kalau satu stasiun
+#               salah dikabel: jalur tulis, jalur baca, dan penurunan
+#               hitungannya.
+#   3  SISA   — pengulangan penuh. Untuk putaran rilis, atau ketika satu
+#               stasiun berubah.
+#
+# Tingkat 1+2 = 265 jalan, 18% dari penuh, dan sudah melewati setiap alur
+# sekali plus pengabelan setiap stasiun.
+
+# Stasiun wakil Tingkat 1: Depricarping dipilih karena PALING KAYA — 9 kolom
+# bacaan, kolom downtime angka, kolom temuan teks, dan punya master target.
+# Stasiun yang lebih sederhana tidak akan melewati cabang-cabang itu.
+TIER1_STATION = 'Depricarping'
+TIER1_REPORT = 'Kernel Plant'   # dua pasang kolom berbagi satu standar
+TIER1_KELOLA = 'Business Unit'  # punya induk DAN kolom logo
+
+TIER2_WIRING = ['MB-FORM-01', 'MB-PRV-06', 'WB-FRM-01', 'WB-BRW-03', 'WB-DTL-03']
+TIER2_WIRING_REPORT = ['LP-W-01']
+
+
+def tier1_variant(cid, vars_):
+    """Varian yang dipakai Tingkat 1 untuk satu kasus.
+
+    Memilih stasiun wakil bila kasusnya BERLAKU di sana; kalau tidak
+    (mis. MB-FORM-11 yang hanya untuk stasiun per-transaksi), jatuh ke
+    varian pertama yang berlaku. Memaksa stasiun wakil tanpa pemeriksaan
+    itu akan menaruh baris "tidak berlaku" sebagai satu-satunya jalan
+    Tingkat 1 kasus itu — yaitu kasus yang tidak pernah diuji.
+    """
+    prefer = (TIER1_REPORT if cid.startswith('LP-')
+              else TIER1_KELOLA if cid.startswith('MD-KEL')
+              else TIER1_STATION)
+    for v in vars_:
+        if v.split(' (')[0].strip() == prefer and not applies(cid, v):
+            return v
+    for v in vars_:
+        if not applies(cid, v):
+            return v
+    return vars_[0]
+
+
+def tier_of(cid, v, t1v):
+    if v == t1v:
+        return 1
+    if cid in TIER2_WIRING or cid in TIER2_WIRING_REPORT:
+        return 2
+    return 3
+
+
 TOTAL_JALAN = sum(len(variants(c['id'])) for c in CASES)
 JALAN_TXT = f'{TOTAL_JALAN:,}'.replace(',', '.')
 
@@ -265,6 +327,36 @@ blocks = [
                  'yang berbeda per stasiun ada di sheet Matriks Stasiun.'),
    ('Akibatnya', 'Kolom "Jml Jalan" di sheet Kasus Uji menyebut berapa kali satu kasus dijalankan. '
                  '18× berarti sekali per stasiun, 11× sekali per stasiun yang sudah punya laporan.'),
+ ]),
+ ('Tingkat pengujian — baca ini kalau waktunya terbatas', [
+   ('Masalahnya', 'Daftar penuh 1.509 jalan mencampur dua pertanyaan berbeda: "apakah setiap alur '
+                  'bekerja" dan "apakah ke-18 implementasi stasiun bekerja". Yang pertama butuh 170 '
+                  'jalan; yang kedua butuh sisanya. Kolom Tingkat memisahkannya tanpa membuang apa pun.'),
+   ('Tingkat 1 — ALUR (170 jalan)', 'Setiap kasus SEKALI, pada stasiun wakil. Menyelesaikan tingkat ini '
+                  'berarti setiap alur sistem sudah pernah dijalankan dan setiap kasus terbukti dapat '
+                  'dieksekusi. Stasiun wakilnya Depricarping (9 kolom bacaan, downtime, temuan, punya '
+                  'master target — paling banyak melewati cabang), Kernel Plant untuk laporan, '
+                  'Business Unit untuk Kelola.'),
+   ('Tingkat 2 — KABEL (95 jalan)', 'Lima kasus pada 17 stasiun sisanya: MB-FORM-01, MB-PRV-06, '
+                  'WB-FRM-01, WB-BRW-03, WB-DTL-03 (plus LP-W-01 untuk 10 laporan sisanya). Kelimanya '
+                  'yang gagal kalau satu stasiun salah dikabel — jalur tulis, jalur baca, dan '
+                  'penurunan hitungannya.'),
+   ('Tingkat 1+2 = 265 jalan', 'Ini cakupan yang masuk akal untuk satu putaran manual: 18% dari '
+                  'daftar penuh, sudah melewati setiap alur sekali plus pengabelan setiap stasiun. '
+                  'Saring kolom Tingkat ke 1 dan 2.'),
+   ('Tingkat 3 — SISA (1.244 jalan)', 'Pengulangan penuh. Untuk putaran rilis, atau ketika satu '
+                  'stasiun berubah — saring Tingkat 3 pada stasiun itu saja.'),
+   ('YANG HILANG, dinyatakan terbuka', 'Tingkat 1+2 TIDAK membuktikan ke-18 stasiun berperilaku benar '
+                  'pada setiap cabang. Ke-18 stasiun punya service, Form, dan Data Preview-nya '
+                  'sendiri-sendiri, jadi bug di satu stasiun tidak mengatakan apa pun tentang yang '
+                  'lain. Tiga defek yang ditemukan pada 2026-10-08 semuanya hanya ada di SATU stasiun. '
+                  'Melewatkan Tingkat 3 adalah keputusan risiko, bukan penghematan gratis.'),
+   ('Lebih dulu dari memangkas', 'Pangkas waktu PENYIAPAN, bukan cakupan. backend/database/seeders/'
+                  'BrowserTestFixtureSeeder.php sudah membuat satu mill, satu Production Line dengan '
+                  'stasiun aktif untuk SETIAP jenis, "PL Tanpa <Station>" per keluarga (prasyarat '
+                  'MB-FORM-15 dan WB-FRM-07), serta akun keempat peran. Jalankan '
+                  'e2e-web/scripts/prepare-db.sh lalu uji di basis data itu — banyak langkah '
+                  '"Siapkan…" langsung gugur, dan cakupannya tidak berkurang sedikit pun.'),
  ]),
  ('Aturan pengisian kolom Hasil', [
    ('Lulus', 'Yang terlihat SAMA dengan Hasil Diharapkan, seluruhnya.'),
@@ -332,12 +424,14 @@ sheet_title(ws, 'Kasus Uji — setiap jalan dijabarkan satu baris'
   'Kasus yang berlaku di 18 stasiun dijabarkan menjadi 18 baris, masing-masing '
   'menyebut stasiunnya DI DALAM langkahnya — tidak ada lagi "18×" yang harus '
   'diterjemahkan sendiri. Kolom berlatar kuning diisi penguji.', 17)
-COLS = ['No','ID Jalan','ID Kasus','Stasiun / Varian','Bagian','Judul','Peran',
+COLS = ['No','Tingkat','ID Jalan','ID Kasus','Stasiun / Varian','Bagian','Judul','Peran',
         'Prasyarat','Langkah','Hasil Diharapkan','Prioritas','Catatan QA',
         'Tanggal','Penguji','Hasil','No. Bug','Catatan / apa yang terlihat']
-W    = [5, 26, 12, 22, 17, 32, 14, 24, 54, 54, 9, 30, 11, 13, 13, 11, 32]
+W    = [5, 8, 26, 12, 22, 17, 32, 14, 24, 54, 54, 9, 30, 11, 13, 13, 11, 32]
 header_row(ws, 4, COLS, W)
-ws.freeze_panes = 'E5'
+ws.freeze_panes = 'F5'
+
+COL = {name: i for i, name in enumerate(COLS, start=1)}
 
 dv = DataValidation(type='list', formula1='"Lulus,Gagal,Tidak diuji,Terhalang"',
                     allow_blank=True, showDropDown=False)
@@ -354,40 +448,51 @@ def wrapped(text, per_line):
     return sum(max(1, -(-len(ln) // per_line)) for ln in text.split('\n'))
 
 
+FILL_T1 = PatternFill('solid', fgColor='E6F4EA')   # hijau muda — Tingkat 1
+FILL_T2 = PatternFill('solid', fgColor='FFF4E5')   # jingga muda — Tingkat 2
+
 r, n = 5, 0
 DV_ROWS = []
+TIER_COUNT = collections.Counter()
 for c in CASES:
-    for v in variants(c['id']):
+    vars_ = variants(c['id'])
+    t1v = tier1_variant(c['id'], vars_)
+    for v in vars_:
         n += 1
         na = applies(c['id'], v)
-        band = FILL_BAND if n % 2 == 0 else None
+        tier = tier_of(c['id'], v, t1v)
+        TIER_COUNT[tier] += 1
+        band = FILL_T1 if tier == 1 else FILL_T2 if tier == 2 else (
+            FILL_BAND if n % 2 == 0 else None)
         langkah = fill(clean(c['langkah']), v)
         hasil = fill(clean(c['hasil']), v)
         prasyarat = fill(clean(c['prasyarat']) or '—', v)
         catatan = fill(clean(c['catatan']) or '', v)
         id_jalan = c['id'] if v == '—' else f"{c['id']} / {v}"
 
-        put(ws, r, 1, n, F_BODY, TOPC, band)
-        put(ws, r, 2, id_jalan, F_MONO, TOPL, band)
-        put(ws, r, 3, c['id'], F_MONO, TOPL, band)
-        put(ws, r, 4, v, F_BOLD if v != '—' else F_BODY, TOPL, band)
-        put(ws, r, 5, clean(c['section']), F_BODY, TOPL, band)
-        put(ws, r, 6, clean(c['title']), F_BOLD, TOPL, band)
-        put(ws, r, 7, clean(c['peran']), F_BODY, TOPL, band)
-        put(ws, r, 8, prasyarat, F_BODY, TOPL, band)
+        put(ws, r, COL['No'], n, F_BODY, TOPC, band)
+        put(ws, r, COL['Tingkat'], tier, F_BOLD if tier < 3 else F_BODY, TOPC, band)
+        put(ws, r, COL['ID Jalan'], id_jalan, F_MONO, TOPL, band)
+        put(ws, r, COL['ID Kasus'], c['id'], F_MONO, TOPL, band)
+        put(ws, r, COL['Stasiun / Varian'], v, F_BOLD if v != '—' else F_BODY, TOPL, band)
+        put(ws, r, COL['Bagian'], clean(c['section']), F_BODY, TOPL, band)
+        put(ws, r, COL['Judul'], clean(c['title']), F_BOLD, TOPL, band)
+        put(ws, r, COL['Peran'], clean(c['peran']), F_BODY, TOPL, band)
+        put(ws, r, COL['Prasyarat'], prasyarat, F_BODY, TOPL, band)
         if na:
             # Baris yang tidak berlaku: langkahnya DIGANTI alasannya, bukan
             # dibiarkan seolah dapat dijalankan.
-            put(ws, r, 9, na, F_RED, TOPL, FILL_SOFT)
-            put(ws, r, 10, na, F_RED, TOPL, FILL_SOFT)
+            put(ws, r, COL['Langkah'], na, F_RED, TOPL, FILL_SOFT)
+            put(ws, r, COL['Hasil Diharapkan'], na, F_RED, TOPL, FILL_SOFT)
         else:
-            put(ws, r, 9, langkah, F_BODY, TOPL, band)
-            put(ws, r, 10, hasil, F_BODY, TOPL, band)
-        put(ws, r, 11, c['prioritas'], F_RED if c['prioritas'] == 'Tinggi' else F_BODY,
-            TOPC, FILL_HI if c['prioritas'] == 'Tinggi' else band)
-        put(ws, r, 12, catatan, F_BODY, TOPL, band)
-        for col in (13, 14, 15, 16, 17):
-            put(ws, r, col, None, F_BODY, TOPL, FILL_SOFT if na else FILL_IN)
+            put(ws, r, COL['Langkah'], langkah, F_BODY, TOPL, band)
+            put(ws, r, COL['Hasil Diharapkan'], hasil, F_BODY, TOPL, band)
+        put(ws, r, COL['Prioritas'], c['prioritas'],
+            F_RED if c['prioritas'] == 'Tinggi' else F_BODY, TOPC,
+            FILL_HI if c['prioritas'] == 'Tinggi' else band)
+        put(ws, r, COL['Catatan QA'], catatan, F_BODY, TOPL, band)
+        for name in ('Tanggal', 'Penguji', 'Hasil', 'No. Bug', 'Catatan / apa yang terlihat'):
+            put(ws, r, COL[name], None, F_BODY, TOPL, FILL_SOFT if na else FILL_IN)
         if not na:
             DV_ROWS.append(r)
 
@@ -397,6 +502,7 @@ for c in CASES:
         r += 1
 
 # Satu rentang validasi per blok baris bersambung — bukan satu per sel.
+HASIL_COL = get_column_letter(COL['Hasil'])
 spans, start_row, prev = [], None, None
 for row in DV_ROWS:
     if start_row is None:
@@ -407,11 +513,21 @@ for row in DV_ROWS:
 if start_row is not None:
     spans.append((start_row, prev))
 for a, b in spans:
-    dv.add(f'O{a}:O{b}' if a != b else f'O{a}')
+    dv.add(f'{HASIL_COL}{a}:{HASIL_COL}{b}' if a != b else f'{HASIL_COL}{a}')
 
-ws.auto_filter.ref = f'A4:Q{r-1}'
+LASTCOL = get_column_letter(len(COLS))
+ws.auto_filter.ref = f'A4:{LASTCOL}{r-1}'
 LAST = r - 1
 TOTAL_RUNS = n
+
+# Huruf kolom untuk formula Rekap, DITURUNKAN dari COL. Dipaku sebagai huruf,
+# formulanya akan diam-diam menunjuk kolom lain begitu satu kolom disisipkan —
+# dan itu sudah terjadi sekali ketika 'Tingkat' ditambahkan.
+C_ID = get_column_letter(COL['ID Kasus'])
+C_HASIL = get_column_letter(COL['Hasil'])
+C_PRIO = get_column_letter(COL['Prioritas'])
+C_BUG = get_column_letter(COL['No. Bug'])
+C_TIER = get_column_letter(COL['Tingkat'])
 
 # ═════════════════════ 4. REKAP ═════════════════════════════════════════
 ws = wb.create_sheet('Rekap')
@@ -436,8 +552,8 @@ for name, pfx in GROUPS:
     put(ws, r, 2, pfx, F_MONO, TOPC)
     put(ws, r, 3, uniq, F_BODY, TOPC)
     put(ws, r, 4, runs, F_BODY, TOPC)
-    base = f"'Kasus Uji'!$C$5:$C${LAST}"
-    hasil = f"'Kasus Uji'!$O$5:$O${LAST}"
+    base = f"'Kasus Uji'!${C_ID}$5:${C_ID}${LAST}"
+    hasil = f"'Kasus Uji'!${C_HASIL}$5:${C_HASIL}${LAST}"
     for col, crit in ((5, 'Lulus'), (6, 'Gagal'), (7, 'Tidak diuji'), (8, 'Terhalang')):
         put(ws, r, col, f'=COUNTIFS({base},"{pfx}*",{hasil},"{crit}")', F_BODY, TOPC)
     put(ws, r, 9, f'=D{r}-E{r}-F{r}-G{r}-H{r}', F_BODY, TOPC)
@@ -453,14 +569,62 @@ for col in (5, 6, 7, 8, 9):
 r += 2
 put(ws, r, 1, 'Kasus Prioritas Tinggi yang belum diisi', F_BOLD, TOPL, FILL_HI)
 ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=3)
-put(ws, r, 4, f'=COUNTIFS(\'Kasus Uji\'!$K$5:$K${LAST},"Tinggi",'
-              f'\'Kasus Uji\'!$O$5:$O${LAST},"")', F_RED, TOPC, FILL_HI)
+put(ws, r, 4, f'=COUNTIFS(\'Kasus Uji\'!${C_PRIO}$5:${C_PRIO}${LAST},"Tinggi",'
+              f'\'Kasus Uji\'!${C_HASIL}$5:${C_HASIL}${LAST},"")', F_RED, TOPC, FILL_HI)
 r += 1
 put(ws, r, 1, 'Baris Gagal yang belum punya No. Bug', F_BOLD, TOPL, FILL_HI)
 ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=3)
-put(ws, r, 4, f'=COUNTIFS(\'Kasus Uji\'!$O$5:$O${LAST},"Gagal",'
-              f'\'Kasus Uji\'!$P$5:$P${LAST},"")', F_RED, TOPC, FILL_HI)
+put(ws, r, 4, f'=COUNTIFS(\'Kasus Uji\'!${C_HASIL}$5:${C_HASIL}${LAST},"Gagal",'
+              f'\'Kasus Uji\'!${C_BUG}$5:${C_BUG}${LAST},"")', F_RED, TOPC, FILL_HI)
 
+
+
+# ── Rekap per TINGKAT ─────────────────────────────────────────────────
+# Ini tabel yang dipakai untuk memutuskan "sudah cukup atau belum", jadi ia
+# diletakkan di bawah rekap per bagian, bukan di sheet lain.
+r += 2
+put(ws, r, 1, 'Kemajuan per Tingkat', F_H2, Alignment(vertical='center'), border=False)
+ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=9)
+r += 1
+for i, lab in enumerate(['Tingkat', 'Apa isinya', 'Jalan', 'Lulus', 'Gagal',
+                         'Tidak diuji', 'Terhalang', 'Belum diisi', ''], start=1):
+    put(ws, r, i, lab, F_HEAD, MIDC, FILL_HEAD)
+r += 1
+
+TIER_DESC = [
+    (1, 'ALUR — setiap kasus sekali, pada stasiun wakil. Membuktikan setiap alur bekerja.'),
+    (2, 'KABEL — 5 kasus pada 17 stasiun sisanya. Menangkap stasiun yang salah dikabel.'),
+    (3, 'SISA — pengulangan penuh. Untuk putaran rilis atau saat satu stasiun berubah.'),
+]
+tier_first = r
+for t, desc in TIER_DESC:
+    tr = f"'Kasus Uji'!${C_TIER}$5:${C_TIER}${LAST}"
+    hs = f"'Kasus Uji'!${C_HASIL}$5:${C_HASIL}${LAST}"
+    fill_t = FILL_T1 if t == 1 else FILL_T2 if t == 2 else FILL_SOFT
+    put(ws, r, 1, t, F_BOLD, TOPC, fill_t)
+    put(ws, r, 2, desc, F_BODY, TOPL, fill_t)
+    put(ws, r, 3, TIER_COUNT[t], F_BOLD, TOPC, fill_t)
+    for col, crit in ((4, 'Lulus'), (5, 'Gagal'), (6, 'Tidak diuji'), (7, 'Terhalang')):
+        put(ws, r, col, f'=COUNTIFS({tr},{t},{hs},"{crit}")', F_BODY, TOPC, fill_t)
+    put(ws, r, 8, f'=C{r}-D{r}-E{r}-F{r}-G{r}', F_BODY, TOPC, fill_t)
+    put(ws, r, 9, '', F_BODY, TOPC, fill_t)
+    r += 1
+
+put(ws, r, 1, 'Tingkat 1+2', F_BOLD, TOPC, FILL_SOFT)
+put(ws, r, 2, 'Cakupan yang masuk akal untuk pengujian manual satu putaran.',
+    F_BOLD, TOPL, FILL_SOFT)
+put(ws, r, 3, TIER_COUNT[1] + TIER_COUNT[2], F_BOLD, TOPC, FILL_SOFT)
+for col in (4, 5, 6, 7, 8):
+    L = get_column_letter(col)
+    put(ws, r, col, f'=SUM({L}{tier_first}:{L}{tier_first + 1})', F_BOLD, TOPC, FILL_SOFT)
+put(ws, r, 9, '', F_BODY, TOPC, FILL_SOFT)
+r += 2
+put(ws, r, 1, 'Tingkat 1 melewati ke-170 kasus unik tepat SEKALI — jadi menyelesaikannya '
+              'berarti setiap alur sistem sudah pernah dijalankan. Yang belum terbukti '
+              'sesudahnya adalah 17 stasiun lain, dan itulah Tingkat 2.',
+    F_BODY, TOPL, FILL_HI)
+ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=9)
+ws.row_dimensions[r].height = 34
 
 # ═════════════════════ 5. LINGKUNGAN & AKUN ═════════════════════════════
 ws = wb.create_sheet('Lingkungan & Akun')

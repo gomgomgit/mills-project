@@ -2921,6 +2921,55 @@ belum membaca dokumen ini — dan keenamnya benar.
 
 ---
 
+## 11.4b Tingkat pengujian — kalau waktunya terbatas
+
+1.509 jalan terlalu banyak untuk satu putaran manual, dan sebabnya bukan pengulangannya
+salah: **satu daftar rata mencampur dua pertanyaan berbeda.** "Apakah setiap alur bekerja"
+butuh 170 jalan. "Apakah ke-18 implementasi stasiun bekerja" butuh sisanya. Kolom
+**Tingkat** di berkas Excel memisahkannya **tanpa membuang apa pun** — penguji menyaring,
+bukan memakai berkas lain yang lebih kecil dan bisa tertinggal usang.
+
+| Tingkat | Isinya | Jalan |
+|---|---|---:|
+| **1 — ALUR** | Setiap kasus **sekali**, pada stasiun wakil | **170** |
+| **2 — KABEL** | 5 kasus pada 17 stasiun sisanya (+1 untuk 10 laporan sisanya) | **95** |
+| **1+2** | **Cakupan yang masuk akal untuk satu putaran manual** | **265** (18%) |
+| 3 — SISA | Pengulangan penuh; untuk putaran rilis atau saat satu stasiun berubah | 1.244 |
+
+**Stasiun wakil Tingkat 1** dipilih karena paling banyak melewati cabang, bukan karena
+alfabet: **Depricarping** (9 kolom bacaan, kolom downtime angka, kolom temuan teks, punya
+master target), **Kernel Plant** untuk laporan (dua pasang kolom berbagi satu standar),
+**Business Unit** untuk Kelola (punya induk dan kolom logo). Untuk kasus yang tidak berlaku
+di sana — mis. `MB-FORM-11` yang khusus stasiun per-transaksi — Tingkat 1 jatuh ke stasiun
+pertama yang berlaku, supaya tidak ada kasus yang hanya punya baris "tidak berlaku".
+
+**Tingkat 2 adalah lima kasus yang gagal kalau satu stasiun salah dikabel:** `MB-FORM-01`
+(jalur tulis mobile), `MB-PRV-06` (jalur baca mobile), `WB-FRM-01` (jalur tulis web),
+`WB-BRW-03` (penurunan hitungan), `WB-DTL-03` (jalur baca web), plus `LP-W-01` untuk
+laporannya.
+
+**Yang hilang, dinyatakan terbuka.** Tingkat 1+2 **tidak** membuktikan ke-18 stasiun
+berperilaku benar pada setiap cabang. Ke-18 stasiun punya `*RecordService`, Form, dan Data
+Preview-nya sendiri-sendiri, jadi bug di satu stasiun tidak mengatakan apa pun tentang yang
+lain — dan ketiga defek yang ditemukan 2026-10-08 semuanya hanya ada di **satu** stasiun.
+Melewatkan Tingkat 3 adalah **keputusan risiko**, bukan penghematan gratis.
+
+### Yang dilakukan LEBIH DULU daripada memangkas
+
+Pangkas waktu **penyiapan**, bukan cakupan. Yang mendominasi waktu QA bukan 1.509 penekanan
+tombol, melainkan langkah *"Siapkan periode yang kolomnya terisi tidak sama banyak…"*.
+
+`backend/database/seeders/BrowserTestFixtureSeeder.php` **sudah** membuat: satu mill, satu
+Production Line dengan stasiun aktif untuk **setiap** jenis, satu `PL Tanpa <Station>` per
+keluarga stasiun (itu persis prasyarat `MB-FORM-15` dan `WB-FRM-07`), dan akun untuk keempat
+peran. Jalankan `e2e-web/scripts/prepare-db.sh`, lalu uji di basis data itu — banyak langkah
+"Siapkan…" langsung gugur, dan **cakupannya tidak berkurang sedikit pun.**
+
+> Catatan: skrip itu **destruktif** dan hanya mau menyentuh basis data berakhiran `_e2e`.
+> Jangan pernah mengarahkannya ke basis data dev.
+
+---
+
 ## 11.5 Versi ringkas (opsional)
 
 Ada berkas Excel kedua, `Mill-Smart-Log-Test-Case-Blackbox-Ringkas.xlsx`, yang memangkas

@@ -43,7 +43,18 @@ OUT = sys.argv[2]
 # Tiga stasiun yang dipilih sama dengan MB-SYNC: satu 24-slot, satu
 # per-transaksi, satu berkolom status — supaya bentuk daftar yang berbeda
 # tetap terlewati.
-RINGKAS = len(sys.argv) > 3 and sys.argv[3] == 'ringkas'
+MODE = sys.argv[3] if len(sys.argv) > 3 else ''
+RINGKAS = MODE == 'ringkas'
+
+# MODE ALUR — hanya Tingkat 1 dan 2 (265 jalan). Berkas terpisah untuk satu
+# putaran manual, DIBANGUN DARI SKRIP YANG SAMA supaya ia tidak dapat
+# tertinggal usang dari yang penuh: satu sumber, tiga keluaran.
+#
+# Tingkat 3 bukan dibuang dari dokumen — ia tetap ada di berkas penuh. Yang
+# dilakukan di sini hanya TIDAK MENCETAKNYA, supaya penguji tidak perlu
+# menyaring sendiri.
+ALUR = MODE == 'alur'
+TIER_MAX = 2 if ALUR else 3
 
 SHARED_COMPONENT_CASES = {
     'MB-PRV-02': 'ListFilterBar',
@@ -294,7 +305,14 @@ def tier_of(cid, v, t1v):
     return 3
 
 
-TOTAL_JALAN = sum(len(variants(c['id'])) for c in CASES)
+def runs_in_scope(cid):
+    """Jumlah jalan kasus ini YANG DICETAK pada mode sekarang."""
+    vars_ = variants(cid)
+    t1v = tier1_variant(cid, vars_)
+    return sum(1 for v in vars_ if tier_of(cid, v, t1v) <= TIER_MAX)
+
+
+TOTAL_JALAN = sum(runs_in_scope(c['id']) for c in CASES)
 JALAN_TXT = f'{TOTAL_JALAN:,}'.replace(',', '.')
 
 wb = Workbook()
@@ -303,7 +321,7 @@ wb = Workbook()
 ws = wb.active; ws.title = 'Panduan'
 ws.sheet_view.showGridLines = False
 sheet_title(ws, 'Mill Smart Log — Test Case Blackbox'
-               + (' (RINGKAS)' if RINGKAS else ''),
+               + (' (RINGKAS)' if RINGKAS else ' (ALUR — Tingkat 1+2)' if ALUR else ''),
   (f'Pengujian fungsional Web dan Mobile. {len(CASES)} kasus unik, ± {JALAN_TXT} jalan, 154 layar tercakup.'
    + (' VERSI RINGKAS — empat kasus komponen bersama dipangkas dari 18× ke 3×; lihat kotak merah di bawah.' if RINGKAS else
       ' Seluruh kasus dapat dijalankan tanpa melihat kode.')), 4)
@@ -383,6 +401,37 @@ for head, rows in blocks:
         r += 1
     r += 1
 
+if ALUR:
+    # Berkas ini sengaja TIDAK memuat Tingkat 3. Tanpa kotak ini, penguji
+    # yang menyelesaikannya akan melaporkan "semua lulus" untuk cakupan
+    # yang memang lebih sempit — dan itu pernyataan yang menyesatkan.
+    put(ws, r, 1, 'BERKAS ALUR — 265 JALAN, BUKAN CAKUPAN PENUH', F_RED, TOPL, FILL_HI)
+    put(ws, r, 2,
+        'Isinya Tingkat 1 dan 2 saja:\n'
+        '  - Tingkat 1 (170 jalan) setiap kasus SEKALI, pada stasiun wakil. '
+        'Menyelesaikannya berarti setiap alur sistem sudah pernah dijalankan.\n'
+        '  - Tingkat 2 (95 jalan) lima kasus pada 17 stasiun sisanya: MB-FORM-01, '
+        'MB-PRV-06, WB-FRM-01, WB-BRW-03, WB-DTL-03, plus LP-W-01. Kelimanya yang '
+        'gagal kalau satu stasiun salah dikabel.\n\n'
+        'YANG TIDAK ADA DI SINI: Tingkat 3 — 1.244 jalan pengulangan penuh per '
+        'stasiun. Berkas ini TIDAK membuktikan ke-18 stasiun berperilaku benar pada '
+        'setiap cabang. Ke-18 stasiun punya service, Form, dan Data Preview-nya '
+        'sendiri-sendiri, jadi bug di satu stasiun tidak mengatakan apa pun tentang '
+        'yang lain; ketiga defek yang ditemukan pada 2026-10-08 semuanya hanya ada '
+        'di SATU stasiun.\n\n'
+        'Pakai berkas tanpa akhiran untuk putaran rilis, atau saring Tingkat 3 di '
+        'sana pada stasiun yang baru berubah. Kedua berkas dibangun dari skrip yang '
+        'sama, jadi yang ini tidak dapat tertinggal usang.\n\n'
+        'LEBIH DULU DARI MEMANGKAS: jalankan e2e-web/scripts/prepare-db.sh. '
+        'BrowserTestFixtureSeeder sudah menyiapkan mill, Production Line dengan '
+        'stasiun aktif setiap jenis, "PL Tanpa <Station>" per keluarga, dan akun '
+        'keempat peran — banyak langkah "Siapkan..." langsung gugur tanpa mengurangi '
+        'cakupan sedikit pun.',
+        F_BODY, TOPL, FILL_HI)
+    ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=4)
+    ws.row_dimensions[r].height = 215
+    r += 2
+
 if RINGKAS:
     # Kotak ini WAJIB ada di versi ringkas. Pembaca yang tidak tahu bahwa
     # cakupannya dipersempit akan melaporkan "semua lulus" untuk rencana
@@ -420,7 +469,7 @@ ws.row_dimensions[r].height = 44
 ws = wb.create_sheet('Kasus Uji')
 ws.sheet_view.showGridLines = False
 sheet_title(ws, 'Kasus Uji — setiap jalan dijabarkan satu baris'
-               + (' (RINGKAS)' if RINGKAS else ''),
+               + (' (RINGKAS)' if RINGKAS else ' (ALUR — Tingkat 1+2)' if ALUR else ''),
   'Kasus yang berlaku di 18 stasiun dijabarkan menjadi 18 baris, masing-masing '
   'menyebut stasiunnya DI DALAM langkahnya — tidak ada lagi "18×" yang harus '
   'diterjemahkan sendiri. Kolom berlatar kuning diisi penguji.', 17)
@@ -458,9 +507,14 @@ for c in CASES:
     vars_ = variants(c['id'])
     t1v = tier1_variant(c['id'], vars_)
     for v in vars_:
-        n += 1
         na = applies(c['id'], v)
         tier = tier_of(c['id'], v, t1v)
+        if tier > TIER_MAX:
+            continue
+        # Nomor urut bertambah SESUDAH penyaringan, supaya kolom No pada mode
+        # alur berjalan 1..265 tanpa melompat. Menaikkannya lebih dulu membuat
+        # berkas itu terlihat seperti daftar yang barisnya hilang.
+        n += 1
         TIER_COUNT[tier] += 1
         band = FILL_T1 if tier == 1 else FILL_T2 if tier == 2 else (
             FILL_BAND if n % 2 == 0 else None)
@@ -547,7 +601,7 @@ GROUPS = [
 r = 5
 for name, pfx in GROUPS:
     uniq = sum(1 for c in CASES if c['id'].startswith(pfx))
-    runs = sum(len(variants(c['id'])) for c in CASES if c['id'].startswith(pfx))
+    runs = sum(runs_in_scope(c['id']) for c in CASES if c['id'].startswith(pfx))
     put(ws, r, 1, name, F_BOLD, TOPL)
     put(ws, r, 2, pfx, F_MONO, TOPC)
     put(ws, r, 3, uniq, F_BODY, TOPC)

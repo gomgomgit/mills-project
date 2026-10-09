@@ -2996,13 +2996,26 @@ Pakai versi **penuh** untuk putaran rilis.
 apa pun tentang yang lain. Itu sebabnya 88% pengulangan di dokumen ini beralasan, dan hanya
 4% yang layak dibuang.
 
-Membangun keduanya:
+### Tiga keluaran Excel, satu sumber
+
+| Berkas | Jalan | Dipakai untuk |
+|---|---:|---|
+| `…-Blackbox-Alur.xlsx` | **265** | **Satu putaran manual.** Tingkat 1+2 saja. |
+| `…-Blackbox-Ringkas.xlsx` | 1.449 | Penuh, dikurangi 60 jalan komponen bersama. |
+| `…-Blackbox.xlsx` | 1.509 | Putaran rilis. Cakupan penuh. |
+
+Ketiganya dibangun dari **skrip yang sama**, jadi tidak ada yang bisa tertinggal usang:
 
 ```
 python3 parse-cases.py cases.json
 python3 build-xlsx.py cases.json Mill-Smart-Log-Test-Case-Blackbox.xlsx
 python3 build-xlsx.py cases.json Mill-Smart-Log-Test-Case-Blackbox-Ringkas.xlsx ringkas
+python3 build-xlsx.py cases.json Mill-Smart-Log-Test-Case-Blackbox-Alur.xlsx    alur
 ```
+
+Berkas **Alur** memuat kotak merah di sheet Panduan yang menyatakan apa yang **tidak** ada
+di dalamnya — 1.244 jalan Tingkat 3 — supaya penguji yang menyelesaikannya tidak melaporkan
+"semua lulus" untuk cakupan yang memang lebih sempit.
 
 ---
 

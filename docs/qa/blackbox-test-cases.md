@@ -791,6 +791,12 @@ dipakai pada `MB-FORM-05` (minimal satu terisi).
 ### 4.5 Form Mobile (jalankan 18×, satu per stasiun)
 
 ### MB-FORM-01 — Simpan berhasil dengan satu baris terisi
+- **Prasyarat tambahan untuk Grading:** daftar **WB Card No** pada Form Grading dibaca dari
+  record Weighbridge yang ada **di perangkat itu**. Pada perangkat yang baru (atau sesudah data
+  aplikasi dibersihkan) daftarnya kosong dan layar berbunyi "Tidak ada data weighbridge lokal",
+  sehingga Grading tidak dapat disimpan. Buat **satu record Weighbridge lebih dulu di perangkat
+  yang sama**, baru jalankan kasus ini untuk Grading. Itu bukan bug — satu muatan Grading memang
+  menunjuk kartu timbang tertentu.
 - **Peran:** `OPR-A`
 - **Prasyarat:** periode stasiun itu **Terbuka**; Production Line terpilih
 - **Langkah:**
@@ -981,18 +987,25 @@ dipakai pada `MB-FORM-05` (minimal satu terisi).
 
 ### MB-FORM-13 — Supervisor mengisi Checked, Mill Management mengisi Acknowledged
 - **Peran:** `SPV-A`, lalu `MGR-A`
+- **Catatan jalan:** di aplikasi mobile, daftar Data Preview dibaca dari basis data **di
+  perangkat itu dan milik pengguna yang sedang masuk**. Record yang dibuat `OPR-A` **tidak
+  terlihat** oleh `SPV-A` meski di perangkat yang sama, dan belum ada alur sinkronisasi yang
+  menarik record pengguna lain ke perangkat. Jadi "buka record `OPR-A` sebagai `SPV-A`" **tidak
+  dapat dijalankan di mobile** — itu batas alur yang ada, bukan bug. Verifikasi atas record orang
+  lain diuji di **web** (`WB-FRM-08`). Yang diuji di sini adalah aturan perannya di mobile, pada
+  record yang dibuat peran itu sendiri.
 - **Langkah:**
-  1. Buat satu record sebagai `OPR-A`, simpan.
-  2. `[M-FORM]` sebagai `SPV-A`, buka record itu. Isi **Checked By**, tekan Simpan.
-  3. Periksa kolom **Acknowledged By** sebagai `SPV-A`.
-  4. Logout. Buka record yang sama sebagai `MGR-A`. Isi **Acknowledged By**, tekan Simpan.
-  5. Periksa kolom **Checked By** sebagai `MGR-A`.
+  1. `[M-FORM]` sebagai `SPV-A`. Isi satu record. Periksa kolom **Checked By** dan
+     **Acknowledged By** sebelum menyimpan, lalu Simpan.
+  2. Logout. `[M-FORM]` sebagai `MGR-A`. Ulangi langkah 1 dan periksa kedua kolom yang sama.
 - **Hasil diharapkan:**
   - `SPV-A` **dapat** mengisi Checked By.
   - `SPV-A` **tidak dapat** mengisi Acknowledged By.
   - `MGR-A` **dapat** mengisi Acknowledged By.
   - `MGR-A` **tidak dapat** mengisi Checked By.
-  - Nama yang terisi adalah nama pengguna yang mengisinya, bukan diketik bebas.
+  - Nama yang terisi adalah nama pengguna yang mengisinya, bukan diketik bebas — kendalinya kotak
+    centang, bukan kolom teks.
+  - Kendali yang tidak boleh dipakai sebaiknya **tidak ditampilkan** sama sekali untuk peran itu.
 - **Prioritas:** Tinggi
 
 ### MB-FORM-14 — Tabel Target Operasional hanya referensi, tidak tersimpan
@@ -1786,6 +1799,12 @@ laporannya belum ada harus **kelabu dan tidak dapat ditekan** — diuji oleh `DS
   - Pemilih periode kini hanya memuat periode Mill B; pemilih line hanya line Mill B.
   - Angka baru hanya muncul setelah keduanya dipilih lagi.
 - **Prioritas:** Tinggi
+- **Catatan QA:** periksa **keduanya terpisah**. Yang paling berbahaya adalah angka atau nama
+  Production Line mill lama yang tertinggal — itu bug prioritas tinggi. Bila yang terjadi hanya
+  pemilih **periode** yang langsung mendarat pada satu-satunya periode mill baru (sementara line
+  tetap kosong dan angkanya tetap belum muncul), catat itu apa adanya sebagai selisih dari hasil
+  yang diharapkan: tidak ada data yang bocor, tetapi pembaca mendapat periode yang tidak pernah
+  ia pilih. Sebutkan nama periode yang terpilih sendiri itu dalam laporan Anda.
 
 ### LP-W-10 — Rekap harian dapat ditutup tanpa mengubah angka
 - **Peran:** `SPV-A`

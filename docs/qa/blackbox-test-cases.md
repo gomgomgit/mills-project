@@ -255,16 +255,17 @@ banyak tempat — laporkan sebagai satu temuan, bukan sepuluh.
 - **Peran:** `NOMILL`
 - **Prasyarat:** akun Supervisor yang kolom mill-nya kosong
 - **Langkah:**
-  1. `[W-LOGIN]` sebagai `NOMILL` (akun Supervisor yang kolom mill-nya kosong).
-  2. `[W-BROWSE]` untuk satu stasiun. Baca isi layar.
-  3. `[W-REPORT]` untuk satu stasiun. Baca isi layar.
-  4. `[W-DASH]`. Baca isi layar.
+  1. Buka `/login`. Isi username dan password `NOMILL` (akun Supervisor yang kolom mill-nya kosong), tekan **Login**.
+  2. Baca pesan yang muncul **kata per kata**.
+  3. Bila ternyata berhasil masuk, lanjutkan: `[W-BROWSE]` satu stasiun, `[W-REPORT]` satu stasiun, lalu `[W-DASH]`. Baca isi ketiga layar.
 - **Hasil diharapkan:**
-  - Ketiga layar menampilkan pesan yang menyebut **mill** — misalnya "Akun Anda belum terhubung ke mill" — atau kalimat sepadan yang menyebut mill.
-  - BUKAN tabel kosong. BUKAN angka nol. BUKAN daftar seluruh mill.
-  - Pesannya mengarahkan tindakan (mis. menghubungi Admin), bukan sekadar menyatakan tidak ada data.
+  - Akun itu **ditolak**, bukan dibiarkan masuk lalu melihat layar kosong. Boleh ditolak di Login (tidak pernah sampai ke layar mana pun), boleh juga masuk lalu setiap layar menampilkan pesannya — keduanya sama-sama benar, selama penolakannya **disebutkan sebabnya**.
+  - Pesannya menyebut **mill** — misalnya "Akun Anda belum terhubung ke mill" — atau kalimat sepadan yang menyebut mill.
+  - Pesannya mengarahkan tindakan (mis. menghubungi Admin), bukan sekadar menyatakan ada yang tidak sesuai.
+  - Pesannya **tidak** menyebut pilihan yang tidak pernah dibuat pengguna. Layar Login hanya meminta username dan password; pesan yang menyebut sesuatu "yang dipilih" mengirim pengguna mencari pilihan yang tidak ada.
+  - BUKAN tabel kosong. BUKAN angka nol. BUKAN daftar seluruh mill. BUKAN pesan periksa koneksi.
 - **Prioritas:** Tinggi
-- **Catatan QA:** tabel kosong di sini adalah **bug**, bukan hasil yang benar. Tabel kosong terbaca "mill ini tidak punya data", padahal yang benar "akun Anda belum diatur".
+- **Catatan QA:** tabel kosong di sini adalah **bug**, bukan hasil yang benar. Tabel kosong terbaca "mill ini tidak punya data", padahal yang benar "akun Anda belum diatur". Hal yang sama berlaku untuk pesan yang benar menolak tetapi salah menyebut sebabnya.
 
 ### LS-05 — Hanya Admin melihat pemilih Mill
 - **Peran:** `SPV-A`, `MGR-A`, `ADM`
@@ -2297,18 +2298,36 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
   - Isi kolom lain tidak hilang.
 - **Prioritas:** Tinggi
 
-### MD-KEL-03 — Nama kembar ditolak, tidak peduli huruf besar-kecil
+### MD-KEL-03 — Entri kembar ditolak, tidak peduli huruf besar-kecil
 - **Peran:** `ADM`
-- **Prasyarat:** sudah ada entri bernama mis. `PT Contoh`
+- **Kolom yang diperiksa berbeda per tingkat** — pakai kolom yang berlaku di tingkat yang
+  sedang diuji, jangan menguji kolom yang memang tidak dibatasi:
+
+  | Tingkat | Kolom yang tidak boleh kembar | Lingkupnya |
+  |---|---|---|
+  | Corporate | **Nama** | seluruh sistem |
+  | Company | **Nama** | di dalam Corporate induknya (lihat `MD-KEL-05`) |
+  | Business Unit | **Kode** | seluruh sistem |
+  | Production Line | **Kode** | seluruh sistem |
+  | Station | **Kode** | seluruh sistem |
+  | Machinery Group | **Kode** | seluruh sistem |
+  | Machinery | **Kode Equipment** | seluruh sistem |
+  | User & Role | **Username** | seluruh sistem |
+
+  Di lima tingkat yang dibatasi lewat Kode, **nama kembar memang diperbolehkan** — dua mill
+  boleh bernama sama selama kodenya berbeda. Itu bukan bug; jangan laporkan.
+- **Prasyarat:** sudah ada satu entri dengan nilai acuan, mis. kode `CONTOH-1`
 - **Langkah:**
-  1. `[W-KELOLA]` untuk <Tingkat> sebagai `ADM`. Buat satu entri bernama `PT Contoh`.
-  2. Tekan **Tambah** lagi, isi nama `pt contoh` (huruf kecil), Simpan.
-  3. Tekan **Tambah** lagi, isi nama `PT CONTOH` (huruf besar), Simpan.
-  4. Tekan **Tambah** lagi, isi `  PT Contoh  ` (dengan spasi di depan dan belakang), Simpan.
+  1. `[W-KELOLA]` untuk <Tingkat> sebagai `ADM`. Buat satu entri dengan nilai acuan pada kolom
+     dari tabel di atas (mis. kode `CONTOH-1`).
+  2. Tekan **Tambah** lagi, isi kolom itu dengan nilai yang sama berhuruf kecil (`contoh-1`), Simpan.
+  3. Tekan **Tambah** lagi, isi berhuruf besar (`CONTOH-1`), Simpan.
+  4. Tekan **Tambah** lagi, isi dengan spasi di depan dan belakang (`  CONTOH-1  `), Simpan.
 - **Hasil diharapkan:**
-  - Langkah 2, 3, dan 4 **semuanya ditolak**.
-  - Pesannya menyebut bahwa namanya sudah dipakai.
-  - Hanya satu entri yang ada di daftar.
+  - Langkah 3 dan 4 **ditolak**, dengan pesan yang menyebut kolom itu sudah dipakai.
+  - Langkah 2 (beda huruf besar-kecil) **juga ditolak** — kembar yang hanya berbeda kapital akan
+    terbaca sebagai dua hal berbeda oleh sistem tetapi satu hal yang sama oleh manusia.
+  - Hanya satu entri dengan nilai itu yang ada di daftar.
 - **Prioritas:** Tinggi
 
 ### MD-KEL-04 — Induk wajib dipilih
@@ -2330,6 +2349,11 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
 
 ### MD-KEL-05 — Nama kembar diperiksa dalam lingkup induknya
 - **Peran:** `ADM`
+- **Berlaku untuk:** **hanya Company.** Itu satu-satunya tingkat yang namanya dibatasi per
+  induk ("Nama company sudah digunakan pada Corporate ini"). Corporate dibatasi secara global,
+  dan lima tingkat lainnya tidak membatasi nama sama sekali — hanya kodenya, dan kode dibatasi
+  secara global, bukan per induk. Pada tingkat selain Company tandai "Tidak diuji" dengan sebab
+  itu, jangan "Gagal".
 - **Prasyarat:** dua Corporate berbeda
 - **Langkah:**
   1. Sebagai `ADM`, pastikan ada **dua** Corporate berbeda: Corporate A dan Corporate B.
@@ -2398,6 +2422,11 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
 
 ### MD-KEL-10 — Pencarian dan paginasi bekerja bersama
 - **Peran:** `ADM`
+- **Berlaku untuk:** **hanya Kelola Mesin.** Dari delapan tingkat Kelola, hanya layar itu yang
+  punya kolom pencarian teks bebas; tujuh lainnya (Corporate, Company, Business Unit, Production
+  Line, Station, Machinery Group, User & Role) menyaring lewat pemilih induk, bukan pencarian.
+  Pada tujuh layar itu kasus ini **tidak berlaku** — tandai "Tidak diuji" dengan sebab itu, jangan
+  "Gagal". Pencarian mill diuji terpisah di `MD-STR-04`.
 - **Prasyarat:** data lebih dari satu halaman
 - **Langkah:**
   1. `[W-KELOLA]` untuk <Tingkat> sebagai `ADM`. Pastikan datanya lebih dari satu halaman.
@@ -2414,6 +2443,7 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
 
 ### MD-KEL-11 — Pencarian tidak peduli huruf besar-kecil, dan karakter khusus diperlakukan sebagai huruf biasa
 - **Peran:** `ADM`
+- **Berlaku untuk:** **hanya Kelola Mesin**, dengan sebab yang sama seperti `MD-KEL-10`.
 - **Prasyarat:** entri bernama mis. `Mill 100% Murni` dan `Mill BU_A`
 - **Langkah:**
   1. `[W-KELOLA]` untuk <Tingkat> sebagai `ADM`. Buat dua entri: `Mill 100% Murni` dan `Mill BU_A`. Bila memungkinkan, buat juga `Mill BUxA`.
@@ -2763,6 +2793,10 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
   - Mill lain **tidak terlihat** dan **tidak dapat dipilih** — tidak ada pemilih mill untuk peran ini.
   - Nama mill kedua tidak tercetak di layar mana pun.
 - **Prioritas:** Tinggi
+- **Catatan QA:** layar ini **tidak** menyebut nama mill yang sedang diatur untuk peran Mill
+  Management — isinya berbunyi "untuk mill Anda". Itu **bukan** bagian dari hasil yang diuji di
+  atas, jadi jangan dilaporkan sebagai bug; catat saja bila menurut Anda perlu ditegaskan.
+  Untuk Admin, mill yang sedang diatur selalu terlihat karena ada pemilihnya (`AD-08`).
 
 ### AD-08 — Pengaturan Mill: Admin dapat semua mill
 - **Peran:** `ADM`
@@ -2789,20 +2823,28 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
 - **Prioritas:** Tinggi
 
 ### AD-10 — Perubahan Pengaturan Mill tersimpan dan berlaku
-- **Peran:** `MGR-A`
+- **Peran:** `MGR-A` (web) + `OPR-A` (mobile)
+- **Catatan jalan:** seluruh pengaturan di layar ini dipakai **aplikasi mobile**, bukan layar web
+  mana pun — Nama Aplikasi dan Logo pada Home mobile, Gambar Halaman Utama, saklar kirim-langsung
+  pada penyimpanan Operator, dan Icon Station pada daftar stasiun mobile. Jadi langkah 1–3
+  dijalankan di web, dan langkah 4–5 **harus** dijalankan di aplikasi mobile.
 - **Langkah:**
-  1. `[W-MILLSET]` sebagai `MGR-A`. Catat nilai awal salah satu pengaturan.
+  1. `[W-MILLSET]` sebagai `MGR-A`. Catat nilai awal **Nama Aplikasi**.
   2. Ubah nilai itu, tekan **Simpan**.
   3. Muat ulang halaman (F5). Baca nilainya.
-  4. Buka layar yang **memakai** pengaturan itu (mis. Form Cages Track untuk pengaturan Jumlah Cages).
-  5. Periksa apakah nilai baru benar-benar berpengaruh di sana.
-  6. Kembalikan nilainya ke semula.
+  4. `[M-LOGIN]` sebagai `OPR-A` pada mill yang sama, lalu sinkronkan bila diminta.
+  5. Baca nama aplikasi yang tampil di layar Home mobile.
+  6. Kembalikan nilainya ke semula lewat `[W-MILLSET]`.
 - **Hasil diharapkan:**
   - Simpan **berhasil** dengan pesan konfirmasi.
   - Nilai baru **bertahan** sesudah muat ulang.
-  - Nilai baru **berlaku** di layar yang memakainya.
-  - Nilai yang tersimpan tapi tidak berpengaruh ke layar mana pun adalah separuh fitur — itu yang diperiksa di langkah 4–5.
+  - Nilai baru **berlaku** di aplikasi mobile — nama baru itu yang tampil di Home.
+  - Nilai yang tersimpan tapi tidak berpengaruh ke layar mana pun adalah separuh fitur — itu yang
+    diperiksa di langkah 4–5.
 - **Prioritas:** Sedang
+- **Catatan QA:** pengaturan **Jumlah Cages** sudah **tidak ada lagi** di layar ini (dihapus
+  2026-08-20; jumlah cages kini diturunkan dari data mesin stasiun). Kalau Anda mencarinya karena
+  pernah membacanya di versi dokumen lama, ketiadaannya **bukan** bug.
 
 ---
 

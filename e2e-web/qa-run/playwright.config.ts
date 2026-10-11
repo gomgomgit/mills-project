@@ -18,6 +18,12 @@ export default defineConfig({
   // membuat data (MD-KEL-04). Dua worker akan saling menimpa sesi dan baris.
   workers: 1,
   retries: 0,
+  // 30 detik bawaan terlalu pendek untuk pelaksana ini: satu kasus QA
+  // menjalankan SELURUH langkah yang tertulis — berganti peran berkali-kali,
+  // membuat lalu menghapus data, menelusuri paginasi. Batas waktu yang kena di
+  // tengah langkah terbaca seperti cacat aplikasi, padahal hanya kehabisan
+  // waktu.
+  timeout: 180_000,
   reporter: [['list']],
   use: {
     baseURL: APP_ORIGIN,

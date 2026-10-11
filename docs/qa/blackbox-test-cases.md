@@ -181,7 +181,7 @@ Ini acuan untuk seluruh kasus `LS-01`. "—" berarti tidak boleh.
 | Laporan periode stasiun (Web) | — | ✓ | ✓ | ✓ |
 | Laporan periode stasiun (Mobile) | ✓ | ✓ | ✓ | ✓ |
 | Dashboard (Web) | — | ✓ | ✓ | ✓ |
-| Laporan Manajemen | — | — | ✓ | ✓ |
+| Laporan Manajemen | — | — | ✓ | — **(Admin pun tidak)** |
 | Master data (Corporate…Mesin) | — | — | — | ✓ |
 | Periode Pelaporan: tambah/ubah/hapus | — | — | — | ✓ |
 | **Tutup / Buka Periode** | — | — | — | ✓ **(hanya Admin)** |
@@ -2123,12 +2123,15 @@ laporannya belum ada harus **kelabu dan tidak dapat ditekan** — diuji oleh `DS
 - **Peran:** `SPV-A`
 - **Langkah:**
   1. `[W-LOGIN]` sebagai `SPV-A`, lalu sidebar → **Laporan Stasiun** (`/reports`).
-  2. Hitung jumlah tile stasiun di layar.
-  3. Hitung berapa tile yang **dapat ditekan** dan berapa yang **kelabu**.
-  4. Coba tekan satu tile kelabu.
-  5. Cari legenda yang menjelaskan arti tile kelabu.
+  2. **Sebelum memilih apa pun**, baca layarnya: catat apakah grid tile stasiun sudah terlihat.
+  3. Pada **Langkah 1 — Mill & Production Line**, pilih salah satu **Production Line**. (Mill sudah mengikuti akun `SPV-A`; bila Anda masuk sebagai `ADM`, pilih mill lebih dulu.)
+  4. Hitung jumlah tile stasiun di layar.
+  5. Hitung berapa tile yang **dapat ditekan** dan berapa yang **kelabu**.
+  6. Coba tekan satu tile kelabu.
+  7. Cari legenda yang menjelaskan arti tile kelabu.
 - **Hasil diharapkan:**
-  - Seluruh **18 tile** tampil — tidak ada yang disembunyikan.
+  - **Sebelum** Production Line dipilih, grid tile **belum muncul** — layar menampilkan "Production Line belum dipilih". Ini pola yang sama dengan `LS-08`: tile membawa konteks mill + line ke layar laporannya, jadi tile ditahan sampai keduanya pasti.
+  - Sesudah dipilih, seluruh **18 tile** tampil — tidak ada yang disembunyikan.
   - **11** tile aktif dan dapat ditekan; **7** kelabu dan tidak dapat ditekan.
   - Tujuh yang kelabu: Effluent Plant, Engine Room, Process Water, Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control.
   - Menekan tile kelabu **tidak** berpindah layar dan tidak memunculkan galat.
@@ -2139,7 +2142,7 @@ laporannya belum ada harus **kelabu dan tidak dapat ditekan** — diuji oleh `DS
 ### DS-05 — Tile aktif mendarat di laporan stasiun yang benar
 - **Peran:** `SPV-A`
 - **Langkah:**
-  1. Sidebar → **Laporan Stasiun** sebagai `SPV-A`.
+  1. Sidebar → **Laporan Stasiun** sebagai `SPV-A`, lalu pilih satu **Production Line** agar grid tile muncul (lihat `DS-04`).
   2. Tekan tile **Pressing**. Catat judul layar dan alamatnya.
   3. Periksa apakah mill dan Production Line ikut terbawa (sudah terpilih atau tinggal dipilih).
   4. Tekan Back, lalu ulangi untuk **Kernel Plant** dan **Storage Tank**.
@@ -2149,7 +2152,7 @@ laporannya belum ada harus **kelabu dan tidak dapat ditekan** — diuji oleh `DS
   - Konteks mill terbawa; Production Line tetap wajib dipilih (lihat `LS-08`).
 - **Prioritas:** Tinggi
 
-### DS-06 — Laporan Manajemen hanya untuk Mill Management dan Admin
+### DS-06 — Laporan Manajemen hanya untuk Mill Management
 - **Peran:** `SPV-A`, `MGR-A`, `ADM`
 - **Langkah:**
   1. `[W-LOGIN]` sebagai `SPV-A`. Cari menu **Laporan Manajemen** di sidebar.
@@ -2159,7 +2162,8 @@ laporannya belum ada harus **kelabu dan tidak dapat ditekan** — diuji oleh `DS
 - **Hasil diharapkan:**
   - `SPV-A`: menu **tidak ada** di sidebar, dan alamat langsung menjawab **403**.
   - `MGR-A`: menu **ada** dan layarnya terbuka.
-  - `ADM`: menu **ada** dan layarnya terbuka.
+  - `ADM`: menu **tidak ada**, dan alamat langsung menjawab **403**. Layar ini satu-satunya layar laporan yang lebih sempit dari Dashboard: Admin boleh membuka Dashboard tetapi **tidak** Laporan Manajemen, karena isinya ditujukan bagi pengelola satu mill, bukan pengelola sistem.
+  - Sidebar dan alamat langsung selalu **sejalan** — tidak ada peran yang melihat menunya lalu ditolak saat menekannya, dan sebaliknya.
 - **Prioritas:** Tinggi
 
 ### DS-07 — Dashboard & Reporting (Mobile) → Pilih Stasiun

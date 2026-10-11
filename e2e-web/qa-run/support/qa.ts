@@ -147,3 +147,149 @@ export const TESTID_MILL_TEKS = ['mill-current', 'mill-name', 'mill-static']
 export const TESTID_EKSPOR_CSV = ['export-csv', 'export-button', 'export-csv-button']
 export const TESTID_EKSPOR_XLS = ['export-excel', 'export-excel-button']
 export const TESTID_CATATAN_TANPA_TANDA = ['no-flagging-note', 'no-sum-note', 'no-threshold-note']
+
+/**
+ * isEnabled / inputValue / innerText pada locator yang TIDAK ADA tetap
+ * MENUNGGU sampai batas waktu test — `.catch()` menangkapnya terlambat, ketika
+ * anggaran waktu kasusnya sudah habis, dan kegagalannya terbaca "halaman
+ * tertutup" alih-alih "elemennya tidak ada". Ketiga pembungkus ini memeriksa
+ * keberadaannya lebih dulu.
+ */
+export async function adaLoc(loc: { count(): Promise<number> }): Promise<boolean> {
+  return (await loc.count()) > 0
+}
+
+export async function bisaDiisi(loc: any, bila_tidak_ada: boolean | null = null): Promise<boolean | null> {
+  if (!(await adaLoc(loc))) return bila_tidak_ada
+  return loc.isEnabled({ timeout: 3000 }).catch(() => false)
+}
+
+export async function nilaiAman(loc: any, bawaan = ''): Promise<string> {
+  if (!(await adaLoc(loc))) return bawaan
+  return loc.inputValue({ timeout: 3000 }).catch(() => bawaan)
+}
+
+export async function teksAman(loc: any, bawaan = ''): Promise<string> {
+  if (!(await adaLoc(loc))) return bawaan
+  return loc.innerText({ timeout: 3000 }).then((t: string) => t.replace(/\s+/g, ' ').trim()).catch(() => bawaan)
+}
+
+/**
+ * Mengisi sebuah Form stasiun web SECUKUPNYA untuk dapat disimpan, pada stasiun
+ * apa pun. Bentuk formnya berbeda jauh antar stasiun (Weighbridge memakai
+ * record-datetime dan dua berat, Grading memakai parameter muatan, 14 stasiun
+ * lain memakai grid 24 slot), jadi nilainya DITURUNKAN dari jenis dan nama
+ * kolomnya — bukan dari daftar kolom per stasiun yang harus dirawat 18 kali.
+ */
+export async function isiFormStasiun(page: Page, kode: string, tanggal: string): Promise<{
+  line: string; kolomTerisi: number; barisDitambah: number
+}> {
+  // Business Unit dulu bila Admin, lalu Production Line: daftar line baru terisi
+  // sesudah mill pasti, dan kolom lain sering baru muncul sesudah line pasti.
+  const bu = page.getByTestId('business-unit-select')
+  if (await bu.count() && await bu.isEnabled().catch(() => false)) {
+    const o = await bu.locator('option').evaluateAll((x) =>
+      x.map((e) => (e as HTMLOptionElement).value).filter((v) => v !== ''))
+    if (o.length) { await bu.selectOption(o[0]); await page.waitForTimeout(900) }
+  }
+  let line = ''
+  const sel = page.getByTestId('production-line-select')
+  if (await sel.count()) {
+    // Opsinya bisa terisi belakangan (Livewire), jadi ditunggu sebentar.
+    for (let c = 0; c < 6; c++) {
+      const opsi = await sel.locator('option').evaluateAll((o) =>
+        o.map((e) => ({ v: (e as HTMLOptionElement).value, t: (e.textContent ?? '').trim() })).filter((x) => x.v !== ''))
+      if (opsi.length) {
+        await sel.selectOption(opsi[0].v)
+        line = opsi[0].t
+        await page.waitForTimeout(900)
+        break
+      }
+      await page.waitForTimeout(600)
+    }
+  }
+
+  // Nilai per kolom diturunkan dari tipe dan nama testidnya.
+  const nilaiUntuk = (tipe: string, testid: string, idx: number): string => {
+    const t = testid.toLowerCase()
+    if (tipe === 'date') return tanggal
+    if (tipe === 'datetime-local') return `${tanggal}T08:00`
+    if (tipe === 'time') return '08:00'
+    if (/gross/.test(t)) return '12000'
+    if (/tare/.test(t)) return '4000'
+    if (/net|netto/.test(t)) return '8000'
+    if (/weight|berat/.test(t)) return '1200'
+    if (/quantity|qty|jumlah/.test(t)) return '6'
+    if (/percent|persen/.test(t)) return '4'
+    if (/temp/.test(t)) return '62'
+    if (/pressure|bar/.test(t)) return '3'
+    if (/rpm|speed/.test(t)) return '900'
+    if (/amps/.test(t)) return '30'
+    if (tipe === 'number') return '5'
+    if (/-id-input$/.test(t) || /number-input$/.test(t) || /card/.test(t)) return `QA${Date.now().toString().slice(-6)}${idx}`
+    if (/plate/.test(t)) return 'B 1234 QA'
+    if (/driver|name/.test(t)) return 'Penguji QA'
+    if (/estate|supplier|destination|division|block/.test(t)) return 'QA Uji'
+    if (/note|catatan|finding/.test(t)) return 'Diisi pelaksana uji QA.'
+    return 'QA'
+  }
+
+  // Satu baris grid, bila stasiun ini memakai grid slot waktu.
+  let barisDitambah = 0
+  const tambahBaris = page.getByTestId('add-row-button')
+  if (await tambahBaris.count()) {
+    await tambahBaris.click()
+    await page.waitForTimeout(900)
+    barisDitambah = 1
+    // Slot waktu / parameter pada baris baru.
+    const selBaris = page.locator('[data-testid^="time-slot-select-"], [data-testid^="detail-parameter-select-"], [data-testid^="detail-hour-select-"]')
+    const n = await selBaris.count()
+    if (n) {
+      const terakhir = selBaris.nth(n - 1)
+      const o = await terakhir.locator('option').evaluateAll((x) =>
+        x.map((e) => (e as HTMLSelectElement).value).filter((v) => v !== ''))
+      if (o.length) { await terakhir.selectOption(o[0]); await page.waitForTimeout(500) }
+    }
+  }
+
+  // Seluruh SELECT lain yang masih kosong (mis. "WB Card No" wajib di Grading,
+  // jenis muatan, parameter). Tanpa ini penyimpanan ditolak oleh kolom yang
+  // bahkan tidak pernah diisi pelaksana.
+  const semuaSelect = page.locator('select:visible')
+  const jmlSel = await semuaSelect.count()
+  for (let i = 0; i < jmlSel; i++) {
+    const sl = semuaSelect.nth(i)
+    if (!(await sl.isEnabled().catch(() => false))) continue
+    if ((await sl.inputValue().catch(() => '')) !== '') continue
+    const o = await sl.locator('option').evaluateAll((x) =>
+      x.map((e) => (e as HTMLSelectElement).value).filter((v) => v !== ''))
+    if (o.length) { await sl.selectOption(o[0]).catch(() => {}); await page.waitForTimeout(350) }
+  }
+
+  // Minimal satu kotak centang pada baris grid, bila stasiun ini memintanya
+  // (Cages Track menolak baris tanpa satu cage pun tercentang).
+  // Dicari di SELURUH grid baris, apa pun nama penandanya: Cages Track memakai
+  // cages-tipped-time-row-X dan detail-cage-X, bukan *-detail-row-X.
+  const centang = page.locator(
+    '[data-testid*="-row-"] input[type="checkbox"]:visible, [data-testid^="detail-cage-"]:visible, [data-testid*="grid"] input[type="checkbox"]:visible')
+  const jmlCentang = await centang.count()
+  for (let i = 0; i < Math.min(2, jmlCentang); i++) await centang.nth(i).check({ timeout: 2500 }).catch(() => {})
+
+  // Seluruh kolom teks/angka/tanggal yang terlihat dan masih bisa diisi.
+  const kolom = page.locator('input[data-testid]:visible, textarea[data-testid]:visible')
+  const jml = await kolom.count()
+  let kolomTerisi = 0
+  for (let i = 0; i < jml; i++) {
+    const k = kolom.nth(i)
+    const tipe = (await k.getAttribute('type')) ?? 'text'
+    if (['checkbox', 'radio', 'file', 'hidden'].includes(tipe)) continue
+    const testid = (await k.getAttribute('data-testid')) ?? ''
+    if (!(await k.isEnabled().catch(() => false))) continue
+    if (await k.evaluate((e) => (e as HTMLInputElement).readOnly).catch(() => true)) continue
+    const sudah = await k.inputValue().catch(() => '')
+    if (sudah !== '') continue
+    await k.fill(nilaiUntuk(tipe, testid, i)).catch(() => {})
+    kolomTerisi++
+  }
+  return { line, kolomTerisi, barisDitambah }
+}

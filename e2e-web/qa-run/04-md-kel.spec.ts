@@ -18,7 +18,11 @@ const BU = '/master-data/business-units'
 const VARIAN = 'Business Unit'
 const cap = Date.now().toString().slice(-6)
 
-test.describe.configure({ mode: 'serial' })
+// Urutannya tetap berurut (workers: 1, fullyParallel: false), tetapi BUKAN
+// mode 'serial': pada mode itu satu kegagalan membuat seluruh kasus sesudahnya
+// DILEWATI — dan kegagalan di sini sering kali temuan nyata, bukan tanda bahwa
+// pelaksananya rusak. Melewatkan 54 kasus karena satu temuan akan membuat
+// laporannya jauh lebih kosong daripada kenyataannya.
 
 test('MD-KEL-01 — tambah data berhasil dan langsung terlihat', async ({ page }) => {
   await login(page, ADM)

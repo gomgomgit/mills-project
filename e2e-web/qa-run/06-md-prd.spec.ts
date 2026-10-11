@@ -12,7 +12,11 @@ const hariIni = new Date('2026-10-11')
 const iso = (d: Date) => d.toISOString().slice(0, 10)
 const geser = (d: Date, n: number) => new Date(d.getTime() + n * 86400000)
 
-test.describe.configure({ mode: 'serial' })
+// Urutannya tetap berurut (workers: 1, fullyParallel: false), tetapi BUKAN
+// mode 'serial': pada mode itu satu kegagalan membuat seluruh kasus sesudahnya
+// DILEWATI — dan kegagalan di sini sering kali temuan nyata, bukan tanda bahwa
+// pelaksananya rusak. Melewatkan 54 kasus karena satu temuan akan membuat
+// laporannya jauh lebih kosong daripada kenyataannya.
 
 async function tambahPeriode(page: import('@playwright/test').Page, opsi: {
   mill?: RegExp | null, nama: string, mulai: string, selesai: string,

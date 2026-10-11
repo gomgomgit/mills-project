@@ -8,7 +8,11 @@ import { ADM, adaGalatTeknis, catat, teksHalaman } from './support/qa'
 const TREE = '/master-data/tree-view'
 const cap = Date.now().toString().slice(-6)
 
-test.describe.configure({ mode: 'serial' })
+// Urutannya tetap berurut (workers: 1, fullyParallel: false), tetapi BUKAN
+// mode 'serial': pada mode itu satu kegagalan membuat seluruh kasus sesudahnya
+// DILEWATI — dan kegagalan di sini sering kali temuan nyata, bukan tanda bahwa
+// pelaksananya rusak. Melewatkan 54 kasus karena satu temuan akan membuat
+// laporannya jauh lebih kosong daripada kenyataannya.
 
 test('MD-STR-01 — papan kartu per mill tampil dengan hierarki di atasnya', async ({ page }) => {
   await login(page, ADM)

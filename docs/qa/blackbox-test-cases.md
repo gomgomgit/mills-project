@@ -175,8 +175,8 @@ Ini acuan untuk seluruh kasus `LS-01`. "—" berarti tidak boleh.
 | Login Web | ✓ **terbatas** | ✓ | ✓ | ✓ |
 | Input data stasiun (Mobile) | ✓ | ✓ | ✓ | — |
 | Input data stasiun (Web) | — | ✓ | ✓ | ✓ |
-| Isi **Checked By** | — | ✓ | — | ✓ |
-| Isi **Acknowledged By** | — | — | ✓ | ✓ |
+| Isi **Checked By** | — | ✓ | — | — **(Admin pun tidak)** |
+| Isi **Acknowledged By** | — | — | ✓ | — **(Admin pun tidak)** |
 | Lihat Data Browser / Detail (Web) | — | ✓ | ✓ | ✓ |
 | Laporan periode stasiun (Web) | — | ✓ | ✓ | ✓ |
 | Laporan periode stasiun (Mobile) | ✓ | ✓ | ✓ | ✓ |
@@ -188,6 +188,11 @@ Ini acuan untuk seluruh kasus `LS-01`. "—" berarti tidak boleh.
 | Pengaturan Mill | — | — | ✓ (mill sendiri) | ✓ (semua mill) |
 | Kelola User & Role | — | — | — | ✓ |
 | Pemilih **Mill** pada laporan | — | — | — | ✓ **(hanya Admin)** |
+
+> **Verifikasi adalah pernyataan diri.** Checked By hanya dapat diisi **Supervisor**, dan
+> Acknowledged By hanya **Mill Management** — keduanya menandai bahwa *orang itu sendiri* yang
+> memeriksa. Admin **tidak** dapat mengisi keduanya, dan kendalinya memang tidak ditampilkan
+> untuk Admin. Itu bukan bug.
 
 **Akses web Operator dibatasi pada:** Beranda Operator dan Ganti Password — hanya dua layar.
 Seluruh alamat lain harus menjawab **halaman 403 (Akses Ditolak)** — bukan halaman kosong,
@@ -836,9 +841,16 @@ dipakai pada `MB-FORM-05` (minimal satu terisi).
 
 ### MB-FORM-04 — Urutan slot mengikuti 07:00 → 06:00, bukan 00:00 → 23:00
 - **Peran:** `OPR-A`
-- **Catatan:** lewati untuk 4 stasiun per-transaksi
+- **Berlaku untuk:** **11 stasiun bergrid 24 slot waktu** — Boiler Room, Clarification,
+  Depricarping, Effluent Plant, Engine Room, Kernel Plant, Pressing, Process Quality Control,
+  Process Water, Storage Tank, Threshing. **Tujuh stasiun lain menghitung hal yang berbeda** dan
+  memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
+  **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
+  Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak diuji" dengan sebab itu,
+  jangan "Gagal".
 - **Langkah:**
-  1. `[M-FORM]` untuk <Stasiun> (lewati untuk keempat stasiun per-transaksi).
+  1. `[M-FORM]` untuk <Stasiun> (lewati ketujuh stasiun di luar daftar itu).
   2. Tambah satu baris slot waktu. Buka pemilih slotnya.
   3. Catat **urutan lengkap** pilihan dari atas ke bawah.
   4. Bandingkan dengan urutan yang benar: 07:00, 08:00, …, 23:00, 00:00, 01:00, …, 06:00.
@@ -1251,7 +1263,14 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
 ### WB-BRW-03 — "Jumlah Baris Terisi" tampil sebagai pecahan dari 24
 - **Peran:** `SPV-A`
 - **Prasyarat:** satu record dengan **3** baris terisi
-- **Catatan:** lewati untuk 4 stasiun per-transaksi
+- **Berlaku untuk:** **11 stasiun bergrid 24 slot waktu** — Boiler Room, Clarification,
+  Depricarping, Effluent Plant, Engine Room, Kernel Plant, Pressing, Process Quality Control,
+  Process Water, Storage Tank, Threshing. **Tujuh stasiun lain menghitung hal yang berbeda** dan
+  memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
+  **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
+  Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak diuji" dengan sebab itu,
+  jangan "Gagal".
 - **Langkah:**
   1. Siapkan satu record dengan **tepat 3** baris slot waktu terisi.
   2. `[W-BROWSE]` untuk <Stasiun>, cari record itu.
@@ -1376,6 +1395,12 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
 ### WB-DTL-03 — Grid menampilkan persis baris tersimpan
 - **Peran:** `SPV-A`
 - **Prasyarat:** record dengan 3 baris terisi
+- **Berlaku untuk:** seluruh stasiun, tetapi **penyebut 24 hanya untuk 11 stasiun bergrid slot
+  waktu** (lihat daftarnya di `WB-BRW-03`). Pada tujuh stasiun lain, bandingkan jumlah baris grid
+  dengan jumlah yang tertulis di kolom hitungannya sendiri — "Jumlah Siklus", "Jumlah Cage/Lori
+  Tercatat", atau "Jumlah Kejadian" — bukan dengan 24. Sebuah record yang memang punya 24 baris
+  terisi **harus** menampilkan 24 baris; yang dilarang adalah menggambar 24 baris ketika yang
+  tersimpan lebih sedikit.
 - **Langkah:**
   1. Siapkan satu record dengan **tepat 3** baris terisi.
   2. `[W-DETAIL]` untuk record itu.
@@ -1453,32 +1478,57 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
   2. Kosongkan kolom identitas unit, isi yang lain dengan benar, tekan **Simpan**. Catat letak pesannya.
   3. Isi identitas, lalu kosongkan **Tanggal**, tekan Simpan.
   4. Isi Tanggal dengan teks yang bukan tanggal (mis. `abc`), tekan Simpan.
-  5. Isi Tanggal dengan tanggal **di luar** periode yang terbuka, tekan Simpan.
+  5. Isi Tanggal dengan tanggal **di luar** periode yang terbuka — pilih tanggal **di masa lalu**
+     (mis. dua bulan sebelum periode dimulai), tekan Simpan.
 - **Hasil diharapkan:**
   - Setiap langkah **ditolak**; record tidak tersimpan.
   - Setiap pesan galat muncul **di sebelah kolom yang bersangkutan**.
   - Tanggal di luar periode terbuka ditolak dengan pesan yang menyebut periode.
+  - **Jangan memakai tanggal masa depan** untuk langkah 5: tanggal masa depan ditolak lebih dulu
+    oleh aturan tersendiri ("tidak boleh melewati hari ini"), sehingga pesan periodenya tidak akan
+    pernah muncul dan kasus ini tampak gagal padahal menguji hal yang salah.
   - Isi kolom lain tidak hilang setiap kali penolakan terjadi.
 - **Prioritas:** Tinggi
 
 ### WB-FRM-04 — Aturan slot waktu sama seperti mobile
 - **Peran:** `SPV-A`
-- **Catatan:** lewati untuk 4 stasiun per-transaksi
+- **Berlaku untuk:** **11 stasiun bergrid 24 slot waktu** — Boiler Room, Clarification,
+  Depricarping, Effluent Plant, Engine Room, Kernel Plant, Pressing, Process Quality Control,
+  Process Water, Storage Tank, Threshing. **Tujuh stasiun lain menghitung hal yang berbeda** dan
+  memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
+  **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
+  Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak diuji" dengan sebab itu,
+  jangan "Gagal".
 - **Langkah:**
-  1. `[W-FORM-NEW]` untuk <Stasiun> (lewati untuk keempat stasiun per-transaksi).
+  1. `[W-FORM-NEW]` untuk <Stasiun> (lewati ketujuh stasiun di luar daftar itu).
   2. Jalankan seluruh langkah `MB-FORM-03` pada form web ini: coba slot menurun dan slot kembar.
   3. Jalankan seluruh langkah `MB-FORM-04`: baca urutan 24 pilihan slot.
 - **Hasil diharapkan:**
   - Aturan slotnya **sama persis** dengan mobile: harus menaik, tidak boleh kembar.
-  - Urutannya 07:00 → 23:00 → 00:00 → 06:00, tepat 24 pilihan.
+  - Urutannya 07:00 → 23:00 → 00:00 → 06:00, tepat 24 pilihan pada baris pertama.
+  - Aturannya ditegakkan dengan **mencegah**, bukan dengan pesan galat: pada baris kedua dan
+    seterusnya, daftar pilihan hanya memuat slot yang **lebih besar** dari slot baris sebelumnya —
+    slot yang sudah dipakai dan slot yang lebih awal **hilang dari daftar**. Jadi Anda **tidak akan
+    bisa** memilih slot kembar atau menurun, dan tidak akan ada pesan galat untuk dibaca. Itu yang
+    benar; mencegah lebih kuat daripada menolak saat Simpan.
+  - **Yang dilaporkan sebagai temuan** adalah kebalikannya: bila slot kembar atau menurun ternyata
+    **masih bisa dipilih**.
   - Bila web dan mobile berbeda di titik mana pun, catat perbedaannya — itu temuan.
 - **Prioritas:** Tinggi
 
 ### WB-FRM-05 — Melebihi 24 baris ditolak
 - **Peran:** `SPV-A`
-- **Catatan:** lewati untuk 4 stasiun per-transaksi
+- **Berlaku untuk:** **11 stasiun bergrid 24 slot waktu** — Boiler Room, Clarification,
+  Depricarping, Effluent Plant, Engine Room, Kernel Plant, Pressing, Process Quality Control,
+  Process Water, Storage Tank, Threshing. **Tujuh stasiun lain menghitung hal yang berbeda** dan
+  memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
+  **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
+  Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak diuji" dengan sebab itu,
+  jangan "Gagal".
 - **Langkah:**
-  1. `[W-FORM-NEW]` untuk <Stasiun> (lewati untuk keempat stasiun per-transaksi).
+  1. `[W-FORM-NEW]` untuk <Stasiun> (lewati ketujuh stasiun di luar daftar itu).
   2. Isi header dengan benar.
   3. Tambah baris terus-menerus sampai mencapai **24** baris.
   4. Coba tambah baris ke-**25**.
@@ -1524,8 +1574,11 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
 - **Hasil diharapkan:**
   - `SPV-A`: Checked By **bisa**, Acknowledged By **tidak**.
   - `MGR-A`: Acknowledged By **bisa**, Checked By **tidak**.
-  - `ADM`: **keduanya bisa**.
-  - Kolom yang tidak boleh diisi disertai keterangan siapa yang berhak (lihat `LS-14`).
+  - `ADM`: **keduanya tidak** — verifikasi adalah pernyataan diri, dan Admin bukan pihak yang
+    memeriksa maupun mengonfirmasi. Bagi Admin, bagian **Verifikasi** tidak ditampilkan sama
+    sekali. Itu bukan bug.
+  - Kendali yang tidak boleh dipakai sebaiknya **tidak ditampilkan**, bukan ditampilkan kelabu;
+    bila ditampilkan kelabu, harus ada keterangan siapa yang berhak (lihat `LS-14`).
 - **Prioritas:** Tinggi
 
 ### WB-FRM-09 — Batal tidak menyimpan apa pun

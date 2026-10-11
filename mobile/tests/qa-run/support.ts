@@ -124,10 +124,20 @@ export async function pilihLine(page: Page, ke = 0): Promise<string> {
  * nilainya diturunkan dari jenis dan penanda kolomnya — bukan dari daftar
  * per stasiun yang harus dirawat 18 kali.
  */
-export async function isiForm(page: Page, opsi: { isiBacaan?: boolean } = {}): Promise<{
+export async function isiForm(
+  page: Page,
+  // `bacaanMaks` membatasi berapa kolom bacaan pada BARIS GRID yang diisi.
+  // Tanpa itu MB-FORM-06 ("baris yang sebagian terisi tetap sah") mustahil
+  // dijalankan: pengisi mengisi seluruh kolom bacaan, jadi tidak ada kolom
+  // yang dibiarkan kosong dan premis kasusnya sendiri tidak pernah terbentuk.
+  // Kolom HEADER tidak dibatasi — kolom wajib di sana harus tetap terisi,
+  // kalau tidak penyimpanan ditolak oleh kolom yang bukan pokok kasusnya.
+  opsi: { isiBacaan?: boolean; bacaanMaks?: number } = {},
+): Promise<{
   identitas: string; kolomTerisi: number; slot: string; barisDitambah: number
 }> {
   const isiBacaan = opsi.isiBacaan ?? true
+  const bacaanMaks = opsi.bacaanMaks ?? Number.POSITIVE_INFINITY
   const cap = Date.now().toString().slice(-6)
 
   /** Nilai yang masuk akal untuk satu kolom, diturunkan dari tipe dan labelnya. */
@@ -136,6 +146,21 @@ export async function isiForm(page: Page, opsi: { isiBacaan?: boolean } = {}): P
     if (tipe === 'date') return new Date().toISOString().slice(0, 10)
     if (tipe === 'time') return `0${7 + (i % 3)}:00`.slice(-5)
     if (tipe === 'datetime-local') return `${new Date().toISOString().slice(0, 10)}T08:00`
+    // Pola IDENTITAS diperiksa LEBIH DULU daripada pola jumlah: label seperti
+    // "No. Cages Track" memuat kata "cages" dan akan terisi "6" bila aturan
+    // jumlah menang — nomor recordnya lalu menjadi angka, dan record itu tidak
+    // dapat dicari lagi di Data Preview.
+    // `\bnumber\b` ikut dihitung identitas. Tanpa itu label "Cages Track
+    // Number" lolos ke aturan jumlah (`/cages/`) dan terisi "6": nomor
+    // recordnya menjadi angka, dan record itu tidak dapat dicari lagi di Data
+    // Preview — MB-FORM-01 [Cages Track] lalu melaporkan "record tidak muncul"
+    // untuk record yang sebenarnya tersimpan. Diperiksa aman: dari seluruh
+    // label form mobile, hanya lima yang memuat No./Number dan kelimanya
+    // memang kolom identitas (WB Card Number/ID, No. Polisi, No. Kendaraan,
+    // No. Grading, Cages Track Number) — tidak ada kolom hitungan yang
+    // namanya berakhir "Number".
+    if (/\bno\.?\b|\bnumber\b|nomor|card|kartu|\bid\b|^id/.test(l)) return `QA${cap}${i}`
+    if (/kendaraan|plate|nopol/.test(l)) return `B 12${cap.slice(-2)} QA`
     if (/gross|masuk/.test(l)) return '12000'
     if (/tare|keluar/.test(l)) return '4000'
     if (/netto|net\b/.test(l)) return '8000'
@@ -143,10 +168,8 @@ export async function isiForm(page: Page, opsi: { isiBacaan?: boolean } = {}): P
     if (/qty|quantity|jumlah|cages|lori/.test(l)) return '6'
     if (/persen|percent|%/.test(l)) return '4'
     if (/temp|suhu/.test(l)) return '62'
-    if (/kendaraan|plate|nopol/.test(l)) return `B 12${cap.slice(-2)} QA`
     if (/sopir|driver|nama|petugas|operator/.test(l)) return 'Penguji QA'
     if (/estate|supplier|asal|tujuan|destination|divisi|blok/.test(l)) return 'QA Uji'
-    if (/card|kartu|no\.|nomor|id\b/.test(l)) return `QA${cap}${i}`
     if (tipe === 'number') return '5'
     return `QA${cap}${i}`
   }
@@ -161,24 +184,33 @@ export async function isiForm(page: Page, opsi: { isiBacaan?: boolean } = {}): P
   }
 
   /** Mengisi setiap kolom yang masih kosong di dalam satu lingkup. */
-  const isiSemua = async (lingkup: any): Promise<number> => {
+  let identitasTeks = ''
+  const isiSemua = async (lingkup: any, maks = Number.POSITIVE_INFINITY): Promise<number> => {
     const kolom = lingkup.locator('input:not([disabled]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([role="combobox"]), textarea:not([disabled])')
     const n = await kolom.count()
     let terisi = 0
     for (let i = 0; i < n; i++) {
+      if (terisi >= maks) break
       const k = kolom.nth(i)
       if (!(await k.isVisible().catch(() => false))) continue
       if (await k.evaluate((e: HTMLInputElement) => e.readOnly).catch(() => true)) continue
       if ((await k.inputValue().catch(() => '')) !== '') continue
       const tipe = (await k.getAttribute('type')) ?? 'text'
       const label = await labelDari(k)
-      await k.fill(nilaiUntuk(tipe, label, i)).catch(() => {})
+      const nilai = nilaiUntuk(tipe, label, i)
+      await k.fill(nilai).catch(() => {})
+      // Identitas record diambil dari kolom TEKS pertama yang diisi: kolom
+      // angka (mis. "Cages Out") bisa berada lebih dulu di urutan DOM, dan
+      // memakai nilainya ("6") sebagai identitas membuat pencarian record
+      // nanti mencocokkan apa saja yang memuat angka itu.
+      if (identitasTeks === '' && tipe === 'text' && /[A-Za-z]/.test(nilai)) identitasTeks = nilai
       terisi++
     }
     // Pilihan (select biasa) yang masih kosong.
     const sel = lingkup.locator('select:not([disabled])')
     const nS = await sel.count()
     for (let i = 0; i < nS; i++) {
+      if (terisi >= maks) break
       const sl = sel.nth(i)
       if ((await sl.inputValue().catch(() => '')) !== '') continue
       const o = await sl.locator('option').evaluateAll((x: any[]) =>
@@ -189,6 +221,7 @@ export async function isiForm(page: Page, opsi: { isiBacaan?: boolean } = {}): P
     const kombo = lingkup.locator('input[role="combobox"]')
     const nK = await kombo.count()
     for (let i = 0; i < nK; i++) {
+      if (terisi >= maks) break
       const kb = kombo.nth(i)
       const id = (await kb.getAttribute('id')) ?? ''
       if (/time-slot/.test(id)) continue
@@ -210,7 +243,9 @@ export async function isiForm(page: Page, opsi: { isiBacaan?: boolean } = {}): P
   // ditolak oleh kolom yang bahkan tidak pernah disentuh pelaksana.
   const header = page.locator('section').filter({ hasNot: page.locator('[data-testid$="-detail-row"]') })
   let kolomTerisi = await isiSemua(page.locator('form, main').first())
-  const identitas = await page.locator('input.form-field-input:not([disabled])').first().inputValue().catch(() => '')
+  const identitas = identitasTeks !== ''
+    ? identitasTeks
+    : await page.locator('input.form-field-input:not([disabled])').first().inputValue().catch(() => '')
   void header
 
   // Satu baris grid, bila stasiun ini memakainya. Nama tombolnya BERBEDA antar
@@ -272,7 +307,7 @@ export async function isiForm(page: Page, opsi: { isiBacaan?: boolean } = {}): P
           if (await induk.count()) lingkup = induk.first()
         }
       }
-      kolomTerisi += await isiSemua(lingkup)
+      kolomTerisi += await isiSemua(lingkup, bacaanMaks)
       // Minimal satu kotak centang pada baris, bila barisnya memintanya
       // (Cages Track menolak baris tanpa satu cage pun tercentang).
       const centang = lingkup.locator('input[type="checkbox"]:visible')
@@ -340,4 +375,52 @@ export async function bukaPreview(page: Page, kode: string): Promise<number> {
 /** Baris record pada Data Preview yang memuat teks tertentu. */
 export function barisRecord(page: Page, teks: string) {
   return page.locator('[data-testid^="record-item-"]').filter({ hasText: teks }).first()
+}
+
+/**
+ * Tanggal LOKAL hari ini dalam bentuk YYYY-MM-DD. toISOString() memberi
+ * tanggal UTC, dan di zona UTC+7 lewat tengah malam keduanya BERBEDA satu hari
+ * — filter tanggal aplikasi memakai tanggal lokal, jadi membandingkannya
+ * dengan tanggal UTC akan menyalahkan aplikasi yang benar.
+ */
+export function tanggalLokalHariIni(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Jumlah baris grid pada layar detail Data Preview, apa pun bentuk
+ * penanda barisnya. Tiga keluarga penamaan dipakai di 18 layar: penanda per
+ * baris (*-detail-row-N, tipped-time-row-N), wadah daftar tanpa penanda baris
+ * (sterilizer-detail-log, *-detail-rows-list), dan tabel biasa. Memaku satu
+ * bentuk membuat beberapa stasiun terbaca "0 baris" padahal barisnya ada.
+ */
+export async function barisDetailPreview(page: Page): Promise<{ jml: number; cara: string }> {
+  const perBaris = page.locator('[data-testid*="-detail-row-"], [data-testid^="detail-row-"], [data-testid^="tipped-time-row-"]')
+  const n1 = await perBaris.count()
+  if (n1) return { jml: n1, cara: 'penanda per baris' }
+
+  const wadah = page.locator('[data-testid*="detail-log"], [data-testid*="detail-rows-list"], [data-testid*="rows-list"]')
+  if (await wadah.count()) {
+    // HANYA elemen baris sungguhan. Pola '[class*="row"]' ikut mengenai span di
+    // DALAM satu baris (detail-row-parameter, detail-row-quantity), sehingga
+    // tiga baris Grading terbaca sembilan.
+    const n2 = await wadah.first().locator('tbody tr, li').count()
+    if (n2) return { jml: n2, cara: 'baris di dalam wadah daftar detailnya' }
+  }
+  const n3 = await page.locator('table tbody tr').count()
+  return { jml: n3, cara: 'baris tabel di layar' }
+}
+
+/**
+ * Apakah pemilih itu BELUM memilih apa pun. Tidak cukup memeriksa value-nya:
+ * opsi penampung ("Pilih Production Line") punya value yang TIDAK kosong di
+ * layar laboran mobile, sehingga pemeriksaan berbasis value selalu menyimpulkan
+ * "sudah terpilih" dan kasus LS-08/LP-M-04 melaporkan cacat yang tidak ada.
+ */
+export async function belumTerpilih(loc: any): Promise<boolean> {
+  if (!(await loc.count())) return true
+  const teks = await loc.evaluate((e: HTMLSelectElement) =>
+    (e.selectedOptions[0]?.textContent ?? '').trim()).catch(() => '')
+  return teks === '' || /^(Pilih|--|Semua)/i.test(teks)
 }

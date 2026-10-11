@@ -57,6 +57,15 @@ async function bukaDetailPertama(page: Page, kode: string): Promise<string> {
  * Draft, dan Draft MENOLAK penyimpanan data web ("Periode ... belum dibuka").
  * Dibuka di sini lewat layar Detail Periode sebagai Admin — memakai aksi yang
  * memang ada di sana, bukan menyuntik basis data.
+ *
+ * DUA jalan menuju Terbuka, dan keduanya harus dilalui: Draft punya tombol
+ * "Buka" (`station-open-button-`), sementara stasiun yang sudah DITUTUP punya
+ * "Buka Kembali" (`station-reopen-button-`) dengan dialog konfirmasi yang
+ * berbeda. Bagian 8.3 (`06-md-prd.spec.ts`) menutup satu stasiun pada periode
+ * yang sama untuk menyiapkan keadaan "sebagian terbuka" MD-PRD-02/04, dan
+ * stasiun pertama pada daftar itu adalah Weighbridge. Tanpa cabang
+ * buka-kembali, WB-FRM-01 [Weighbridge] gagal karena prasyaratnya dirusak
+ * kasus lain — bukan karena ada yang salah pada aplikasinya.
  */
 test('prasyarat — buka seluruh stasiun pada periode yang mencakup hari ini', async ({ page }) => {
   await login(page, ADM)
@@ -70,20 +79,28 @@ test('prasyarat — buka seluruh stasiun pada periode yang mencakup hari ini', a
   await page.waitForTimeout(1500)
 
   let dibuka = 0
-  for (let i = 0; i < 20; i++) {
-    const tombol = page.locator('[data-testid^="station-open-button-"]').first()
-    if (!(await tombol.count())) break
+  let dibukaKembali = 0
+  for (let i = 0; i < 40; i++) {
+    const draft = page.locator('[data-testid^="station-open-button-"]').first()
+    const tertutup = page.locator('[data-testid^="station-reopen-button-"]').first()
+    const adaDraft = (await draft.count()) > 0
+    const adaTertutup = (await tertutup.count()) > 0
+    if (!adaDraft && !adaTertutup) break
+    const tombol = adaDraft ? draft : tertutup
     await tombol.click()
     await page.waitForTimeout(700)
-    const ya = page.getByTestId('confirm-open-period')
+    const ya = adaDraft
+      ? page.getByTestId('confirm-open-period')
+      : page.getByTestId('confirm-reopen-button')
     if (!(await ya.count())) break
     await ya.click()
     await page.waitForTimeout(1300)
-    dibuka++
+    if (adaDraft) dibuka++
+    else dibukaKembali++
   }
   const terbuka = await page.locator('[data-testid^="station-status-badge-"]')
     .evaluateAll((els) => els.filter((e) => /terbuka/i.test(e.textContent ?? '')).length)
-  console.log(`[prasyarat] ${dibuka} stasiun dibuka; kini ${terbuka} stasiun berstatus Terbuka`)
+  console.log(`[prasyarat] ${dibuka} stasiun dibuka dari Draft, ${dibukaKembali} dibuka kembali dari Tertutup; kini ${terbuka} stasiun berstatus Terbuka`)
   expect(terbuka, 'minimal satu stasiun harus berstatus Terbuka agar WB-FRM-* dapat dijalankan').toBeGreaterThan(0)
 })
 

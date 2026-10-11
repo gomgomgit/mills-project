@@ -25,17 +25,42 @@ import sys
 import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
 
-HASIL_JSON, SUMBER, KELUARAN = sys.argv[1], sys.argv[2], sys.argv[3]
-TANGGAL = sys.argv[4] if len(sys.argv) > 4 else ''
+# Beberapa berkas hasil sekaligus: pelaksana web dan pelaksana mobile menulis
+# berkasnya masing-masing, dan satu putaran uji adalah gabungan keduanya.
+#
+#     python3 isi-hasil.py <sumber.xlsx> <keluaran.xlsx> <tanggal> <hasil...>
+#
+# Bentuk lama (hasil lebih dulu) masih diterima supaya perintah di README yang
+# sudah beredar tidak putus.
+def _pisah(argv: list[str]) -> tuple[list[str], str, str, str]:
+    if argv[0].endswith(('.json', '.jsonl')):
+        return [argv[0]], argv[1], argv[2], (argv[3] if len(argv) > 3 else '')
+    return list(argv[3:]), argv[0], argv[1], argv[2]
+
+
+HASIL_BERKAS, SUMBER, KELUARAN, TANGGAL = _pisah(sys.argv[1:])
 
 # Dicocokkan KETAT pada (id, varian). Tanpa pelapisan "berlaku untuk semua
 # varian": satu kasus dijalankan pada SATU stasiun atau SATU tingkat, dan
 # hasil di Depricarping bukan bukti untuk Sterilizer. Pelapisan seperti itu
 # menandai baris lulus memakai bukti yang bukan miliknya, dan kesalahannya
 # tidak akan terlihat oleh pembaca berkas ini.
+def _muat(path: str) -> list[dict]:
+    teks = open(path, encoding='utf-8').read().strip()
+    if not teks:
+        return []
+    if path.endswith('.jsonl'):
+        return [json.loads(baris) for baris in teks.splitlines() if baris.strip()]
+    return json.loads(teks)
+
+
 dijalankan = {}
-for h in json.load(open(HASIL_JSON, encoding='utf-8')):
-    dijalankan[(h['id'], h['varian'])] = h
+for berkas in HASIL_BERKAS:
+    for h in _muat(berkas):
+        # Entri terakhir menang: satu putaran bisa menjalankan kasus yang sama
+        # lebih dari sekali saat pelaksananya diperbaiki, dan yang berlaku
+        # adalah pengamatan terakhir.
+        dijalankan[(h['id'], h['varian'])] = h
 
 # Mengapa sebuah kasus tidak dapat dijalankan mesin. Dicocokkan ke ISI
 # kasusnya, bukan dikarang per id — supaya alasannya benar-benar berasal
@@ -87,11 +112,30 @@ F_NA = Font(name='Calibri', size=10, color='6B7280')
 FILL_OK = PatternFill('solid', fgColor='E6F4EA')
 FILL_NG = PatternFill('solid', fgColor='FDE8E8')
 
-hitung = {'Lulus': 0, 'Gagal': 0, 'Tidak diuji': 0}
+hitung = {'Lulus': 0, 'Gagal': 0, 'Tidak diuji': 0, 'Tidak berlaku': 0}
 for r in range(5, ws.max_row + 1):
     cid = ws.cell(row=r, column=COL['ID Kasus']).value
     varian = ws.cell(row=r, column=COL['Stasiun / Varian']).value
     h = dijalankan.get((cid, varian))
+
+    # Baris yang kolom Langkah-nya SUDAH berbunyi "Tidak berlaku" bukan
+    # pekerjaan yang tertinggal: kasusnya memang tidak punya apa pun untuk
+    # diuji pada varian itu (mis. "N / 24" pada stasiun yang gridnya bukan 24
+    # slot). Dicap tersendiri, bukan "Tidak diuji" — menyatukan keduanya
+    # membuat pembaca menghitungnya sebagai sisa pekerjaan.
+    langkah = str(ws.cell(row=r, column=COL['Langkah']).value or '')
+    if langkah.startswith('Tidak berlaku'):
+        nilai = 'Tidak berlaku'
+        catatan = langkah
+        if h:
+            catatan += f' — diperiksa pelaksana: {h["diamati"]}'
+        hitung[nilai] += 1
+        ws.cell(row=r, column=COL['Tanggal']).value = TANGGAL if h else ''
+        ws.cell(row=r, column=COL['Penguji']).value = 'Pelaksana QA otomatis' if h else ''
+        sel = ws.cell(row=r, column=COL['Hasil'])
+        sel.value, sel.font = nilai, F_NA
+        ws.cell(row=r, column=COL['Catatan / apa yang terlihat']).value = catatan
+        continue
 
     if h:
         nilai, catatan = h['hasil'], h['diamati']
@@ -125,21 +169,27 @@ for r in range(5, ws.max_row + 1):
 # di judul, dan dalam satu blok di sheet Panduan.
 total = sum(hitung.values())
 diuji = hitung['Lulus'] + hitung['Gagal']
+# Penyebut yang jujur: jalan "Tidak berlaku" dikeluarkan dari pembilang DAN
+# dari penyebut. Ia bukan pekerjaan yang belum selesai.
+dapat_diuji = total - hitung['Tidak berlaku']
 
 ws.cell(row=1, column=1).value = (
     'Mill Smart Log — HASIL PUTARAN UJI (Alur, Tingkat 1+2)')
 ws.cell(row=2, column=1).value = (
-    f'{diuji} dari {total} jalan sudah dijalankan dan hasilnya terisi '
-    f'({hitung["Lulus"]} Lulus, {hitung["Gagal"]} Gagal). '
-    f'{hitung["Tidak diuji"]} jalan sisanya masih menunggu penguji — '
-    'kolom Catatan tiap baris menyebut apa yang menghalanginya.')
+    f'{diuji} dari {dapat_diuji} jalan yang dapat dijalankan sudah dijalankan '
+    f'dan hasilnya terisi ({hitung["Lulus"]} Lulus, {hitung["Gagal"]} Gagal). '
+    f'{hitung["Tidak diuji"]} jalan masih menunggu penguji — kolom Catatan tiap '
+    f'baris menyebut apa yang menghalanginya. {hitung["Tidak berlaku"]} jalan '
+    f'bertanda "Tidak berlaku": kasusnya memang tidak punya apa pun untuk diuji '
+    f'pada varian itu. Total baris {total}.')
 
 pan = wb['Panduan']
 pan.cell(row=1, column=1).value = (
     'Mill Smart Log — HASIL PUTARAN UJI (Alur, Tingkat 1+2)')
 pan.cell(row=2, column=1).value = (
     f'Berkas ini adalah berkas Alur yang kolom hasilnya SUDAH TERISI untuk '
-    f'{diuji} dari {total} jalan. Daftar kasusnya sendiri tidak berubah.')
+    f'{diuji} dari {dapat_diuji} jalan yang dapat dijalankan. Daftar kasusnya '
+    'sendiri tidak berubah.')
 
 JUDUL = Font(name='Calibri', size=10, bold=True)
 ISI = Font(name='Calibri', size=10)
@@ -147,24 +197,32 @@ FILL_INFO = PatternFill('solid', fgColor='EAF2FB')
 r0 = pan.max_row + 2
 blok = [
     ('CAKUPAN PUTARAN INI',
-     f'{diuji} dari {total} jalan dijalankan: {hitung["Lulus"]} Lulus, '
-     f'{hitung["Gagal"]} Gagal. Sisanya {hitung["Tidak diuji"]} jalan '
-     'bertanda "Tidak diuji" — belum diperiksa, BUKAN gagal dan BUKAN lulus.'),
+     f'{diuji} dari {dapat_diuji} jalan yang dapat dijalankan sudah '
+     f'dijalankan: {hitung["Lulus"]} Lulus, {hitung["Gagal"]} Gagal. '
+     f'{hitung["Tidak diuji"]} jalan bertanda "Tidak diuji" — belum '
+     f'diperiksa, BUKAN gagal dan BUKAN lulus. {hitung["Tidak berlaku"]} '
+     'jalan bertanda "Tidak berlaku" dan tidak dihitung sebagai pekerjaan: '
+     'kasusnya tidak punya apa pun untuk diuji pada varian itu.'),
     ('APA YANG DIJALANKAN',
-     'Hanya kasus yang langkahnya dapat diikuti utuh tanpa penilaian mata: '
-     'navigasi, pembatasan peran, validasi form, dan hitungan elemen di layar. '
-     'Tiap baris yang terisi memuat apa yang DIAMATI di kolom Catatan, supaya '
-     'setiap "Lulus" dapat ditelusuri ulang, bukan dipercaya begitu saja.'),
+     'Langkah setiap kasus dijalankan apa adanya di peramban — layar web '
+     'Laravel/Livewire dan aplikasi mobile lewat server pengembangannya — '
+     'lalu APA YANG TERLIHAT dicatat di kolom Catatan. Setiap "Lulus" '
+     'membawa angka dan kalimat yang dibacanya, supaya dapat ditelusuri '
+     'ulang dan tidak perlu dipercaya begitu saja.'),
     ('APA YANG BELUM',
-     'Kasus yang menuntut mata atau perangkat manusia: warna dan keadaan '
-     'redup, keterangan yang muncul saat kursor diarahkan, tata letak pada '
-     'lebar ponsel, mematikan koneksi, mengubah jam perangkat, membuka berkas '
-     'unduhan, dan seluruh kasus aplikasi mobile. Juga kasus yang prasyarat '
-     'datanya belum ada di basis data uji. Alasannya ditulis per baris.'),
+     'Yang menuntut penilaian mata atau perangkat sungguhan: warna dan '
+     'keadaan redup, keterangan yang muncul saat kursor diarahkan, tata '
+     'letak pada lebar ponsel sebenarnya, membuka berkas unduhan di Excel, '
+     'dan perilaku aplikasi terpasang (notifikasi, izin penyimpanan). '
+     'Ditambah kasus yang prasyarat datanya belum ada di basis data uji — '
+     'mis. ekspor yang butuh lebih dari 50.000 baris. Alasannya ditulis '
+     'pada barisnya masing-masing, bukan sebagai satu kalimat umum.'),
     ('CARA MELANJUTKAN',
      'Saring kolom Hasil ke "Tidak diuji", lalu kerjakan dari Prioritas '
-     'Tinggi. Timpa nilainya saat kasusnya dijalankan. Baris yang sudah '
-     'terisi tidak perlu diulang kecuali ada yang berubah di layarnya.'),
+     'Tinggi. Timpa nilainya saat kasusnya dijalankan. Baris "Gagal" sudah '
+     'memuat apa yang terlihat; isi kolom No. Bug saat tiketnya dibuat. '
+     'Baris yang sudah terisi tidak perlu diulang kecuali ada yang berubah '
+     'di layarnya.'),
 ]
 for i, (kiri, kanan) in enumerate(blok):
     r = r0 + i

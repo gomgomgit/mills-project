@@ -230,12 +230,68 @@ test('MD-STR-04 — pencarian menyaring sebelum paginasi', async ({ page }) => {
   await page.goto(TREE, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1200)
 
+  // ── Langkah 1 — "Pastikan jumlah mill lebih dari satu halaman" ─────────
+  // Papan kartu memuat 20 mill per halaman dan basis data uji hanya punya
+  // segelintir, jadi tanpa langkah ini kasusnya tidak dapat dijalankan sama
+  // sekali. Mill uji dibuat LEWAT LAYAR INI (tombol "+ Mill"), sama seperti
+  // yang akan dilakukan Admin, lalu DIHAPUS lagi di akhir kasus — kasus lain
+  // berjalan berurutan pada basis data yang sama, dan 20 mill tambahan yang
+  // tertinggal akan mengubah isi pemilih mill di layar lain.
+  const dibuat: string[] = []
+  const jumlahMill = async () =>
+    Number((await page.getByTestId('count-business-unit').innerText().catch(() => '0'))
+      .replace(/\D/g, '') || 0)
+  const PER_HALAMAN = 20
+  let adaHalaman2 = (await page.getByTestId('mill-next-page').count()) > 0
+    && (await page.getByTestId('mill-next-page').isEnabled())
+  if (!adaHalaman2) {
+    const awal = await jumlahMill()
+    const perlu = Math.max(0, PER_HALAMAN + 1 - awal)
+    for (let i = 0; i < perlu; i++) {
+      const nama = `QA Mill Halaman ${cap}-${String(i + 1).padStart(2, '0')}`
+      await page.getByTestId('add-mill-button').click()
+      await page.waitForTimeout(800)
+      // Induk Company: pemilih <select> biasa pada layar ini.
+      const induk = page.locator('#sm-parent-select')
+      const opsi = await induk.locator('option').evaluateAll((o) =>
+        o.map((e) => (e as HTMLOptionElement).value).filter((v) => v !== ''))
+      if (opsi.length) await induk.selectOption(opsi[0])
+      await page.locator('#sm-field-code').fill(`QAH${cap}${String(i + 1).padStart(2, '0')}`)
+      await page.locator('#sm-field-name').fill(nama)
+      await page.getByTestId('save-button').click()
+      await page.waitForTimeout(1200)
+      dibuat.push(nama)
+    }
+    await page.goto(TREE, { waitUntil: 'domcontentloaded' })
+    await page.waitForTimeout(1300)
+    adaHalaman2 = (await page.getByTestId('mill-next-page').count()) > 0
+      && (await page.getByTestId('mill-next-page').isEnabled())
+  }
+
+  /** Menghapus mill uji lewat layar yang sama. Dipanggil juga saat gagal. */
+  const bersihkan = async () => {
+    for (const nama of dibuat) {
+      await page.goto(TREE, { waitUntil: 'domcontentloaded' })
+      await page.waitForTimeout(900)
+      await page.getByTestId('search-input').fill(nama)
+      await page.waitForTimeout(1200)
+      const kartu = page.getByTestId('mill-card').filter({ hasText: nama }).first()
+      if (!(await kartu.count())) continue
+      const hapus = kartu.locator('[data-testid^="delete-mill-"]').first()
+      if (!(await hapus.count())) continue
+      await hapus.click()
+      await page.waitForTimeout(700)
+      const ya = page.getByTestId('confirm-delete-button')
+      if (await ya.count()) { await ya.click(); await page.waitForTimeout(1200) }
+    }
+  }
+
   // Langkah 2 — buka halaman 2 kartu mill, catat satu nama di sana.
   const lanjut = page.getByTestId('mill-next-page')
-  const adaHalaman2 = (await lanjut.count()) > 0 && (await lanjut.isEnabled())
   if (!adaHalaman2) {
+    await bersihkan()
     catat('MD-STR-04', '—', 'Tidak diuji',
-      'Prasyarat tidak tersedia: jumlah mill tidak lebih dari satu halaman, jadi "pencarian menyaring seluruh data, bukan hanya halaman aktif" tidak dapat dibedakan di sini.')
+      `Prasyarat tidak dapat disiapkan: sesudah mencoba membuat mill uji, papan kartu masih tidak punya halaman 2 (${dibuat.length} mill uji dibuat).`)
     return
   }
   await lanjut.click()
@@ -251,8 +307,10 @@ test('MD-STR-04 — pencarian menyaring sebelum paginasi', async ({ page }) => {
   const ketemu = (await page.getByTestId('mill-card').filter({ hasText: namaHal2 }).count()) > 0
   const teks = await teksHalaman(page)
 
+  await bersihkan()
   catat('MD-STR-04', '—', ketemu ? 'Lulus' : 'Gagal',
-    `mill "${namaHal2}" diambil dari halaman 2 daftar kartu; sesudah kembali ke halaman 1 dan namanya dicari, mill itu ditemukan=${ketemu}. Artinya pencarian menyaring seluruh data, bukan hanya halaman yang sedang tampil. Galat teknis=${adaGalatTeknis(teks)}.`)
+    `${dibuat.length ? `${dibuat.length} mill uji dibuat lebih dulu lewat tombol "+ Mill" agar papan kartu punya lebih dari satu halaman, lalu dihapus kembali di akhir. ` : ''}`
+    + `mill "${namaHal2}" diambil dari halaman 2 daftar kartu; sesudah kembali ke halaman 1 dan namanya dicari, mill itu ditemukan=${ketemu}. Artinya pencarian menyaring seluruh data, bukan hanya halaman yang sedang tampil. Galat teknis=${adaGalatTeknis(teks)}.`)
   expect(ketemu).toBe(true)
 })
 

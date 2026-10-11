@@ -130,3 +130,25 @@ export async function tutupModal(page: Page): Promise<void> {
     await page.waitForTimeout(500)
   }
 }
+
+/**
+ * Label seluruh opsi pada satu combobox induk, apa adanya.
+ *
+ * Dipakai untuk MEMILIH dua induk yang berbeda dengan pasti. Membaca nama
+ * induk dari kolom tabelnya tidak aman: urutan kolom berbeda antar tingkat
+ * (di Kelola Corporate kolom kedua adalah KODE, bukan nama), jadi pola yang
+ * dibangun darinya tidak cocok dengan satu opsi pun — dan `pilihKombo` lalu
+ * jatuh ke opsi pertama untuk KEDUA pemanggilan, sehingga "dua induk berbeda"
+ * sebenarnya satu induk yang sama dan kasusnya gagal tanpa sebab yang nyata.
+ */
+export async function opsiKombo(page: Page, id: string): Promise<string[]> {
+  const inp = page.locator(`#${id}`)
+  if (!(await inp.count())) return []
+  await inp.click()
+  await page.waitForTimeout(500)
+  const teks = await page.locator(`li[id^="${id}-option-"]`).evaluateAll((els) =>
+    els.map((e) => (e.textContent ?? '').replace(/\s+/g, ' ').trim()))
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(300)
+  return teks.filter((t) => t !== '' && !/^(--|Semua\b|Pilih\b)/i.test(t))
+}

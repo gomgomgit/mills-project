@@ -144,13 +144,11 @@ test('MD-KEL-04 — induk wajib dipilih, ditolak dengan pesan validasi bukan gal
   expect(ok).toBe(true)
 })
 
-test('MD-KEL-05 — nama kembar diperiksa dalam lingkup induknya', async () => {
-  // Tidak berlaku di tingkat ini. Nama Business Unit tidak dibatasi sama sekali,
-  // dan kodenya dibatasi secara GLOBAL, bukan per induk — jadi "nama sama di
-  // induk berbeda" tidak punya aturan untuk diuji di sini.
-  catat('MD-KEL-05', VARIAN, 'Tidak diuji',
-    'Tidak berlaku di tingkat Business Unit: nama Business Unit tidak dibatasi keunikannya sama sekali, dan kodenya dibatasi secara global (bukan per induk). Aturan "nama kembar diperiksa dalam lingkup induknya" hanya ada di tingkat Company. Jalankan kasus ini di Kelola Company.')
-})
+// MD-KEL-05 TIDAK ada di berkas ini. Aturan "nama kembar dalam lingkup
+// induknya" hanya hidup di tingkat Company, jadi jalannya di berkas Alur
+// bervarian "Company" dan kasusnya dijalankan di `04b-md-kel-lain.spec.ts`.
+// Mencatatnya di sini dengan varian "Business Unit" akan menghasilkan baris
+// hasil yang tidak cocok dengan baris mana pun — hasilnya hilang tanpa jejak.
 
 test('MD-KEL-06 — ubah data berhasil dan terlihat di layar lain yang memakainya', async ({ page }) => {
   await login(page, ADM)
@@ -298,20 +296,11 @@ test('MD-KEL-09 — hapus meminta konfirmasi, dan Batal tidak menghapus', async 
   expect(ok).toBe(true)
 })
 
-test('MD-KEL-10 — pencarian dan paginasi bekerja bersama', async ({ page }) => {
-  await login(page, ADM)
-  await page.goto(BU, { waitUntil: 'domcontentloaded' })
-  await page.waitForTimeout(900)
-  const kotakCari = await page.locator('input[type="search"], #search').count()
-  const penyaring = await page.locator('#filterCompanyId').count()
-  catat('MD-KEL-10', VARIAN, 'Tidak diuji',
-    `Tidak berlaku di layar ini: Kelola Business Unit tidak punya kolom pencarian teks bebas (ditemukan ${kotakCari} kolom pencarian), hanya penyaring Company (${penyaring} pemilih). Dari delapan tingkat Kelola hanya Kelola Mesin yang punya kolom pencarian; jalankan kasus ini di sana. Pencarian mill diuji terpisah pada MD-STR-04.`)
-})
-
-test('MD-KEL-11 — pencarian tidak peduli huruf besar-kecil dan karakter khusus', async () => {
-  catat('MD-KEL-11', VARIAN, 'Tidak diuji',
-    'Tidak berlaku di layar ini dengan sebab yang sama seperti MD-KEL-10: Kelola Business Unit tidak punya kolom pencarian teks bebas. Jalankan kasus ini di Kelola Mesin.')
-})
+// MD-KEL-10 dan MD-KEL-11 juga tidak ada di berkas ini: keduanya menguji
+// kolom pencarian teks bebas, dan dari delapan tingkat Kelola hanya Kelola
+// Mesin yang punya — tujuh lainnya menyaring lewat pemilih induk. Jalannya
+// bervarian "Machinery" dan kasusnya ada di `04b-md-kel-lain.spec.ts`.
+// Pencarian mill diuji terpisah pada MD-STR-04.
 
 test('MD-KEL-12 — logo mill dapat diunggah dan terlihat', async ({ page }) => {
   await login(page, ADM)

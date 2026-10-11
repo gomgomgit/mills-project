@@ -240,6 +240,23 @@ def fill(text, variant):
 SYNC3 = ['Depricarping (24 slot)','Weighbridge (per-transaksi)','Effluent Plant (kolom status)']
 NO_SLOT = {'Weighbridge','Grading','Kernel Dispatch','CPO Dispatch'}
 
+# 11 stasiun yang gridnya BENAR-BENAR 24 slot waktu. Tujuh sisanya menghitung
+# satuan lain — siklus (Sterilizer), cage/lori (Cages Track), kejadian (Solid
+# Waste Disposal, Kernel Dispatch, CPO Dispatch), nomor kendaraan (Grading),
+# satu transaksi per record (Weighbridge) — jadi setiap kasus yang bersandar
+# pada penyebut 24 atau pada urutan 07:00→06:00 tidak punya apa pun untuk
+# diuji di sana.
+#
+# Daftar ini LEBIH SEMPIT daripada NO_SLOT: NO_SLOT hanya memuat empat stasiun
+# per-transaksi (yang punya kasus penggantinya sendiri, MB-FORM-11), sedangkan
+# Sterilizer, Cages Track, dan Solid Waste Disposal punya grid baris tetapi
+# bukan 24 slot. Memakai NO_SLOT untuk keduanya membuat tiga stasiun itu
+# dituntut mencetak "N / 24" yang memang tidak pernah ada di sana — dan
+# penguji melaporkannya sebagai cacat aplikasi.
+SLOT11 = {'Boiler Room','Clarification','Depricarping','Effluent Plant','Engine Room',
+  'Kernel Plant','Pressing','Process Quality Control','Process Water',
+  'Storage Tank','Threshing'}
+
 def variants(cid):
     if RINGKAS and cid in SHARED_COMPONENT_CASES:
         return SHARED3
@@ -250,11 +267,36 @@ def variants(cid):
     if p == 'MD-KEL': return KELOLA8
     return ['—']
 
+# Cakupan yang LEBIH SEMPIT daripada daftar variannya. Setiap aturan di sini
+# ada juga di bagian "Berlaku untuk" kasusnya di markdown — keduanya harus
+# berubah bersama, dan nilai di sini yang menentukan baris mana yang dicetak
+# sebagai tidak dapat dijalankan.
+#
+# Tanpa aturan ini jalan Tingkat 1 sebuah kasus bisa mendarat pada varian yang
+# kasusnya TIDAK berlaku (MD-KEL-05 di Business Unit, MD-KEL-10 di tingkat yang
+# tidak punya kolom pencarian) — artinya satu-satunya jalan kasus itu di berkas
+# Alur adalah jalan yang tidak mungkin dijalankan, dan kasusnya tidak pernah
+# benar-benar teruji. tier1_variant() memakai fungsi ini untuk menghindarinya.
 def applies(cid, station):
-    if cid in ('MB-FORM-03','MB-FORM-04') and station in NO_SLOT:
+    if cid == 'MB-FORM-03' and station in NO_SLOT:
         return 'Tidak berlaku — stasiun per-transaksi, pakai MB-FORM-11'
     if cid == 'MB-FORM-11' and station not in NO_SLOT:
         return 'Tidak berlaku — hanya 4 stasiun per-transaksi'
+    if cid in ('MB-FORM-04','WB-FRM-04','WB-FRM-05','WB-BRW-03') and station not in SLOT11:
+        return ('Tidak berlaku — grid stasiun ini bukan 24 slot waktu; '
+                'ia menghitung satuannya sendiri (siklus / cage-lori / '
+                'kejadian / nomor kendaraan / satu transaksi per record)')
+    # Nama hanya dibatasi PER INDUK di tingkat Company. Corporate dibatasi
+    # global, dan lima tingkat lainnya tidak membatasi nama sama sekali —
+    # hanya kodenya, dan kode pun global.
+    if cid == 'MD-KEL-05' and station != 'Company':
+        return ('Tidak berlaku — hanya tingkat Company yang membatasi nama per '
+                'induk; di tingkat ini yang dibatasi hanya kode, dan secara global')
+    # Dari delapan tingkat Kelola, hanya Kelola Mesin punya kolom pencarian
+    # teks bebas; tujuh lainnya menyaring lewat pemilih induk.
+    if cid in ('MD-KEL-10','MD-KEL-11') and station != 'Machinery':
+        return ('Tidak berlaku — tingkat ini tidak punya kolom pencarian teks '
+                'bebas, hanya pemilih induk; pencarian hanya ada di Kelola Mesin')
     return ''
 
 # ── TINGKAT PENGUJIAN ─────────────────────────────────────────────────
@@ -393,6 +435,9 @@ blocks = [
    ('Lulus', 'Yang terlihat SAMA dengan Hasil Diharapkan, seluruhnya.'),
    ('Gagal', 'Ada perbedaan. Tulis APA YANG TERLIHAT di kolom Catatan, bukan dugaan sebabnya.'),
    ('Tidak diuji', 'Prasyaratnya tidak dapat disiapkan. JANGAN ditandai Lulus.'),
+   ('Tidak berlaku', 'Kasusnya tidak punya apa pun untuk diuji pada varian itu — kolom Langkah '
+                     'baris itu sudah berbunyi demikian. BUKAN pekerjaan yang tertinggal, jadi '
+                     'tidak ikut dihitung sebagai sisa. Beda dari "Tidak diuji".'),
    ('Terhalang', 'Kasus lain yang gagal membuat kasus ini tidak bisa dijalankan. Sebut ID penghalangnya.'),
  ]),
  ('Sebelum menutup satu putaran', [
@@ -495,9 +540,13 @@ ws.freeze_panes = 'F5'
 
 COL = {name: i for i, name in enumerate(COLS, start=1)}
 
-dv = DataValidation(type='list', formula1='"Lulus,Gagal,Tidak diuji,Terhalang"',
+# "Tidak berlaku" dibedakan dari "Tidak diuji" dengan sengaja: yang pertama
+# berarti tidak ada apa pun untuk diuji di varian itu (kasusnya memang tidak
+# berlaku di sana), yang kedua berarti belum diperiksa. Menyatukan keduanya
+# membuat laporan terbaca seperti pekerjaan yang tertinggal padahal tidak ada.
+dv = DataValidation(type='list', formula1='"Lulus,Gagal,Tidak diuji,Tidak berlaku,Terhalang"',
                     allow_blank=True, showDropDown=False)
-dv.error = 'Pilih salah satu: Lulus, Gagal, Tidak diuji, Terhalang.'
+dv.error = 'Pilih salah satu: Lulus, Gagal, Tidak diuji, Tidak berlaku, Terhalang.'
 dv.errorTitle = 'Nilai tidak dikenal'
 ws.add_data_validation(dv)
 
@@ -534,7 +583,16 @@ for c in CASES:
         langkah = fill(clean(c['langkah']), v)
         hasil = fill(clean(c['hasil']), v)
         prasyarat = fill(clean(c['prasyarat']) or '—', v)
-        catatan = fill(clean(c['catatan']) or '', v)
+        # "Berlaku untuk" dan "Catatan jalan" ikut ke kolom Catatan QA, di
+        # ATAS catatan biasanya: keduanya menentukan APAKAH baris ini dapat
+        # dijalankan dan DI MANA, jadi penguji harus membacanya lebih dulu.
+        # Sebelum ini keduanya tidak tercetak sama sekali — label itu tidak
+        # dikenal parser, dan isinya hilang dari ketiga berkas.
+        catatan = fill('\n'.join(x for x in (
+            ('Berlaku untuk: ' + clean(c['berlaku'])) if c['berlaku'] else '',
+            ('Catatan jalan: ' + clean(c['catatan_jalan'])) if c['catatan_jalan'] else '',
+            clean(c['catatan']) or '',
+        ) if x), v)
         id_jalan = c['id'] if v == '—' else f"{c['id']} / {v}"
 
         put(ws, r, COL['No'], n, F_BODY, TOPC, band)

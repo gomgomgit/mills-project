@@ -151,12 +151,16 @@ test('LP-W-07 — periode sedang berjalan: penyebut berhenti di hari ini', async
   const hari = await teksAman(page.getByTestId('coverage-days'))
   const sebutBerjalan = /sedang berjalan|berjalan/i.test(catatanBerjalan)
   const angkaHari = Number((hari.match(/(\d+)/) ?? [])[1] ?? -1)
-  // 1–11 Oktober = 11 hari; seluruh panjang periode 31 hari.
-  const berhentiHariIni = angkaHari === 11
+  // Dihitung dari TANGGAL HARI INI, bukan dipaku: putaran uji bisa berjalan di
+  // hari yang berbeda, dan angka yang dipaku akan gagal keesokan harinya tanpa
+  // ada yang berubah di aplikasi.
+  const hariIniLokal = new Date()
+  const hariSejakMulai = hariIniLokal.getDate()      // periode mulai 1 Oktober
+  const berhentiHariIni = angkaHari === hariSejakMulai
   const bukanSeluruhPeriode = angkaHari !== 31
   const ok = sebutBerjalan && berhentiHariIni && bukanSeluruhPeriode
   catat('LP-W-07', V, ok ? 'Lulus' : 'Gagal',
-    `periode "${periode}" (01–31 Oktober 2026, hari ini 11 Oktober), line "${line}": keterangan menyebut periode sedang berjalan=${sebutBerjalan} ("${catatanBerjalan.slice(0, 110)}"); jumlah hari yang dihitung="${hari}" → ${angkaHari} hari. Dihitung sendiri dari tanggal mulai sampai hari ini = 11 hari (cocok=${berhentiHariIni}); bukan seluruh panjang periode yang 31 hari (=${bukanSeluruhPeriode}).`)
+    `periode "${periode}" (01–31 Oktober 2026), line "${line}": keterangan menyebut periode sedang berjalan=${sebutBerjalan} ("${catatanBerjalan.slice(0, 110)}"); jumlah hari yang dihitung="${hari}" → ${angkaHari} hari. Dihitung sendiri dari tanggal mulai sampai hari ini = ${hariSejakMulai} hari (cocok=${berhentiHariIni}); bukan seluruh panjang periode yang 31 hari (=${bukanSeluruhPeriode}).`)
   expect(ok).toBe(true)
 })
 

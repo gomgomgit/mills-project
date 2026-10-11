@@ -130,3 +130,59 @@ if ($acuan === null) {
     echo "Periode Mill B: dibuat '{$baru->name}' dengan {$acuan->stations->count()} jenis stasiun.\n";
 }
 echo "selesai (periode).\n";
+
+// ── Production Line TANPA stasiun aktif (WB-FRM-07, MB-FORM-15) ───────────
+// Kedua kasus itu menguji penolakan "line ini tidak punya stasiun <X> aktif".
+// Kedua line Business Unit A buatan seeder punya ke-18 stasiun, jadi tanpa
+// line ini keduanya mustahil dijalankan — bukan karena sistemnya, karena
+// keadaannya tidak ada. Line ini sengaja dibiarkan KOSONG: tidak satu pun
+// stasiun dibuat untuknya.
+//
+// Ditaruh di Business Unit A karena akun OPR-A dan SPV-A terikat mill itu —
+// line di mill lain tidak akan pernah muncul sebagai pilihan bagi mereka.
+// Tidak merusak LS-08: kasus itu hanya menuntut Business Unit B punya TEPAT
+// satu line, dan B tidak disentuh di sini.
+$millA2 = BusinessUnit::where('name', 'Business Unit A')->first();
+if ($millA2 === null) {
+    echo "LEWAT line tanpa stasiun: Business Unit A tidak ditemukan.\n";
+} elseif (ProductionLine::where('business_unit_id', $millA2->id)->where('name', 'QA Line Tanpa Stasiun')->exists()) {
+    echo "Line tanpa stasiun: sudah ada.\n";
+} else {
+    $line = ProductionLine::create([
+        'business_unit_id' => $millA2->id,
+        'name' => 'QA Line Tanpa Stasiun',
+        'code' => 'QA-LINE-KOSONG',
+        'description' => 'Dipakai WB-FRM-07 dan MB-FORM-15: line tanpa stasiun aktif.',
+        'created_by' => User::where('username', 'admin')->value('id'),
+    ]);
+    echo "Line tanpa stasiun: dibuat '{$line->name}' (0 stasiun).\n";
+}
+echo "selesai (line tanpa stasiun).\n";
+
+// ── Mill tanpa Production Line + Operator di dalamnya (MB-HOME-04) ────────
+// Kasus itu memeriksa bahwa Station List memberi ARAHAN, bukan layar kosong,
+// ketika mill si Operator belum punya satu line pun. Mill A dan B keduanya
+// punya line, jadi tanpa fixture ini kasusnya mustahil dijalankan.
+//
+// Mill ini sengaja TIDAK diberi line, dan akunnya TIDAK dipakai kasus lain —
+// kasus isolasi mill (LS-03/05/09) memakai SPV-A dan SPV-B, bukan akun ini.
+$company = \App\Models\Company::query()->orderBy('name')->first();
+if ($company === null) {
+    echo "LEWAT mill tanpa line: tidak ada Company sebagai induk.\n";
+} else {
+    $millKosong = BusinessUnit::where('code', 'QA-MILL-NOLINE')->first();
+    if ($millKosong === null) {
+        $millKosong = BusinessUnit::create([
+            'company_id' => $company->id,
+            'name' => 'QA Mill Tanpa Line',
+            'code' => 'QA-MILL-NOLINE',
+        ]);
+        echo "Mill tanpa line: dibuat '{$millKosong->name}'.\n";
+    } else {
+        echo "Mill tanpa line: sudah ada.\n";
+    }
+    $jmlLine = ProductionLine::where('business_unit_id', $millKosong->id)->count();
+    echo "  line pada mill itu: {$jmlLine} (harus 0)\n";
+    akun('operator-noline', 'operator', $millKosong->id);   // OPR-NOLINE
+}
+echo "selesai (mill tanpa line).\n";

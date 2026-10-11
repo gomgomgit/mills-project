@@ -26,9 +26,19 @@ export default defineConfig({
   timeout: 180_000,
   use: {
     baseURL: 'http://localhost:5174',
-    // Lebar acuan mobile menurut §1.1 dokumen QA.
-    viewport: { width: 390, height: 844 },
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [{
+    name: 'chromium',
+    use: {
+      ...devices['Desktop Chrome'],
+      // Lebar acuan mobile §1.1 dokumen QA. HARUS di dalam `use` project ini,
+      // SESUDAH sebaran devices[...]: setelan project menimpa setelan
+      // tingkat-atas, jadi viewport yang ditaruh di atas akan dikalahkan oleh
+      // 1280px milik Desktop Chrome — dan seluruh kasus tata letak mobile akan
+      // diuji pada lebar desktop tanpa ada yang terlihat salah.
+      viewport: { width: 390, height: 844 },
+      isMobile: false,
+    },
+  }],
 })

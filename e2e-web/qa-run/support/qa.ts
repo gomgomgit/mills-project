@@ -129,6 +129,35 @@ export async function pilihPeriode(page: Page, ke = 0): Promise<string> {
 }
 
 /**
+ * Memilih periode pertama yang BENAR-BENAR BERDATA pada layar laporan.
+ *
+ * `pilihPeriode(page, 0)` tidak cukup untuk kasus yang memeriksa isi laporan:
+ * `siapkan-laporan.php` sengaja membuat "QA Masa Depan" dan "QA Tanpa Record",
+ * dan salah satunya bisa berada di urutan pertama. Pada periode tanpa data
+ * laporannya menggambar empty state, dan seluruh bagian isi — tabel
+ * parameter, rekap harian, serta kotak keterangan "laporan ini tidak menilai
+ * satu angka pun" — TIDAK dirender sama sekali. Pelaksana lalu melaporkan
+ * "kotak keterangan tidak ada" sebagai cacat aplikasi, padahal yang salah
+ * adalah periode yang ia pilih sendiri.
+ *
+ * Mengembalikan nama periode yang terpakai, atau '' bila tidak ada satu pun
+ * periode berdata — dan itu memang keadaan "Tidak diuji", bukan "Gagal".
+ */
+export async function pilihPeriodeBerdata(page: Page): Promise<string> {
+  const sel = page.getByTestId('period-select')
+  if (!(await sel.count())) return ''
+  const opsi = await sel.locator('option').evaluateAll((o) =>
+    o.map((e) => ({ v: (e as HTMLOptionElement).value, t: (e.textContent ?? '').trim() }))
+      .filter((x) => x.v !== ''))
+  for (const p of opsi) {
+    await sel.selectOption(p.v)
+    await page.waitForTimeout(1100)
+    if (!(await page.getByTestId('empty-state').count())) return p.t
+  }
+  return ''
+}
+
+/**
  * Mencari elemen dengan salah satu dari beberapa data-testid. Nama testid
  * BERBEDA antar layar laporan (mill-current vs mill-name, export-csv vs
  * export-button), dan memaku satu nama membuat pelaksana melaporkan "tombol

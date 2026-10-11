@@ -9,7 +9,8 @@ import { test, expect, type Page } from '@playwright/test'
 import { login } from '../tests/support/auth'
 import {
   ADM, MGR, NOMILL, OPR, SPV, SPV_B,
-  ada403, adaGalatTeknis, catat, keluar, pilihLine, pilihPeriode, salahSatuTestid, teksHalaman,
+  ada403, adaGalatTeknis, catat, keluar, pilihLine, pilihPeriode, pilihPeriodeBerdata,
+  salahSatuTestid, teksHalaman,
   TESTID_CATATAN_TANPA_TANDA, TESTID_EKSPOR_CSV, TESTID_EKSPOR_XLS, TESTID_MILL_TEKS,
 } from './support/qa'
 
@@ -490,8 +491,15 @@ test('LS-16 — laporan tidak menandai satu nilai pun sebagai di luar batas', as
   for (const stasiun of ['kernel-plant', 'depricarping', 'pressing', 'threshing', 'grading']) {
     await page.goto(`/reports/${stasiun}`, { waitUntil: 'domcontentloaded' })
     await pilihLine(page, 0)
-    await pilihPeriode(page, 0)
+    // Periode yang BERDATA, bukan periode pertama: pada periode tanpa data
+    // seluruh isi laporan tidak dirender, termasuk kotak keterangan yang
+    // diperiksa kasus ini — dan ketiadaannya lalu terbaca sebagai cacat.
+    const periode = await pilihPeriodeBerdata(page)
     await page.waitForTimeout(900)
+    if (periode === '') {
+      rinci.push(`${stasiun}: tidak ada periode berdata untuk line pertama, jadi isi laporan tidak dirender — tidak dapat diperiksa di sini`)
+      continue
+    }
     // Diperiksa lewat NAMA KELAS, bukan frasa: kalimat penjelasnya sendiri
     // memuat "di luar batas", jadi asersi atas frasa akan selalu hijau.
     const penanda = await page.locator(
@@ -509,7 +517,7 @@ test('LS-16 — laporan tidak menandai satu nilai pun sebagai di luar batas', as
       : 0
     const ok = penanda === 0 && kotak > 0 && butir >= 3
     if (!ok) gagal++
-    rinci.push(`${stasiun}: elemen bertanda peringatan=${penanda} (harus 0); kotak keterangan ada=${kotak > 0}${k.ada ? ` (${k.nama})` : ''}; alasan yang disebut=${butir} (harus ≥3)`)
+    rinci.push(`${stasiun} (periode "${periode}"): elemen bertanda peringatan=${penanda} (harus 0); kotak keterangan ada=${kotak > 0}${k.ada ? ` (${k.nama})` : ''}; alasan yang disebut=${butir} (harus ≥3)`)
     if (stasiun === 'kernel-plant' && teksKotak) rinci.push(`isi kotak: "${teksKotak.slice(0, 150)}…"`)
   }
   catat('LS-16', '—', gagal ? 'Gagal' : 'Lulus', rinci.join(' | '))

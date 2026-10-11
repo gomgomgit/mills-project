@@ -60,35 +60,52 @@ test('MB-HOME-03 — pilihan Production Line diingat perangkat dan dibagi antar 
   await masuk(page, AKUN.OPR)
   await page.goto('/stations')
   await page.waitForTimeout(1200)
-  const sel = page.locator('select').first()
-  const adaPemilih = (await sel.count()) > 0
-  if (!adaPemilih) {
-    catat('MB-HOME-03', '—', 'Tidak diuji', 'Station List tidak punya pemilih Production Line untuk diuji.')
+
+  /**
+   * Nilai yang SEDANG tertulis pada pemilih line. Pemilihnya bukan <select>
+   * melainkan tombol `production-line-switcher` yang membuka daftar tombol
+   * `production-line-option-*`; nilai terpilihnya dicetak di
+   * `.production-line-switcher-value`. Mencari `select` membuat kasus ini
+   * melaporkan "pemilih tidak ada" untuk pemilih yang jelas ada.
+   */
+  const lineTertulis = async () =>
+    teksAman(page.locator('.production-line-switcher-value').first())
+
+  const opsiAda = await page.locator('[data-testid^="production-line-option-"]').count()
+  const pembukaAda = await page.getByTestId('production-line-switcher').count()
+  if (opsiAda === 0 && pembukaAda === 0) {
+    catat('MB-HOME-03', '—', 'Tidak diuji',
+      'Station List tidak memuat pemilih Production Line (tombol production-line-switcher maupun daftar pilihannya).')
     return
   }
+
   const line1 = await pilihLine(page, 0)
 
   // Langkah 3 — Monitor stasiun: line yang tertulis harus line itu.
   await page.goto(`/stations/${DP}/monitor`)
   await page.waitForTimeout(1300)
-  const diMonitor = (await teksHalaman(page)).includes(line1)
+  const teksMonitor1 = await teksHalaman(page)
+  const diMonitor = teksMonitor1.includes(line1)
+  // Dibedakan: layar menuliskan line yang SALAH, atau tidak menuliskan line
+  // sama sekali. Keduanya gagal, tetapi yang kedua adalah cacat yang berbeda
+  // — operator tidak punya cara tahu line mana yang sedang ia isi — dan
+  // laporan yang tidak memisahkannya menyuruh pengembang mencari hal yang salah.
+  const adaSebutanLine = /Production Line|\bLine\s*\d/i.test(teksMonitor1)
 
   // Langkah 4 — Back ke Station List: pemilih masih line itu.
   await page.goto('/stations')
   await page.waitForTimeout(1200)
-  const masihTerpilih = (await nilaiAman(page.locator('select').first())) !== ''
-  const namaMasih = await page.locator('select').first()
-    .evaluate((e) => (e as HTMLSelectElement).selectedOptions[0]?.textContent?.trim() ?? '').catch(() => '')
+  const namaMasih = await lineTertulis()
 
-  // Langkah 5–6 — aplikasi ditutup lalu dibuka lagi (konteks baru, localStorage
-  // perangkat tetap), login ulang, buka Station List.
+  // Langkah 5–6 — aplikasi ditutup lalu dibuka lagi: login ulang pada konteks
+  // yang sama, karena yang diuji adalah ingatan PERANGKAT (localStorage),
+  // bukan ingatan sesi peramban.
   await page.goto('/login')
   await page.waitForTimeout(600)
   await masuk(page, AKUN.OPR)
   await page.goto('/stations')
   await page.waitForTimeout(1300)
-  const namaSesudahBukaUlang = await page.locator('select').first()
-    .evaluate((e) => (e as HTMLSelectElement).selectedOptions[0]?.textContent?.trim() ?? '').catch(() => '')
+  const namaSesudahBukaUlang = await lineTertulis()
 
   // Langkah 7 — ganti ke line kedua, lalu buka Monitor stasiun yang sama.
   const line2 = await pilihLine(page, 1)
@@ -96,18 +113,51 @@ test('MB-HOME-03 — pilihan Production Line diingat perangkat dan dibagi antar 
   await page.waitForTimeout(1300)
   const monitorLine2 = (await teksHalaman(page)).includes(line2)
 
-  const ok = diMonitor && namaMasih === line1 && namaSesudahBukaUlang === line1 && line2 !== line1 && monitorLine2
+  const ok = diMonitor && namaMasih === line1 && namaSesudahBukaUlang === line1
+    && line2 !== line1 && monitorLine2
   catat('MB-HOME-03', '—', ok ? 'Lulus' : 'Gagal',
-    `"${line1}" dipilih di Station List: Monitor stasiun menuliskan line itu=${diMonitor}; kembali ke Station List pemilihnya masih "${namaMasih}"=${namaMasih === line1}; sesudah aplikasi dibuka ulang dan login ulang pemilihnya masih "${namaSesudahBukaUlang}"=${namaSesudahBukaUlang === line1} (pilihannya diingat perangkat); sesudah diganti ke "${line2}", Monitor stasiun yang sama kini menuliskan line itu=${monitorLine2}.`)
-  expect(ok).toBe(true)
+    `"${line1}" dipilih di Station List: Monitor stasiun menuliskan line itu=${diMonitor}`
+    + `${adaSebutanLine ? '' : ' — layar Monitor TIDAK menyebut Production Line sama sekali, bukan menyebut line yang salah'}`
+    + `; kembali ke Station List pemilihnya masih "${namaMasih}"=${namaMasih === line1}; sesudah aplikasi dibuka ulang dan login ulang pemilihnya masih "${namaSesudahBukaUlang}"=${namaSesudahBukaUlang === line1} (pilihannya diingat perangkat); sesudah diganti ke "${line2}", Monitor stasiun yang sama kini menuliskan line itu=${monitorLine2}.`)
+  expect(ok, `line1="${line1}" line2="${line2}"`).toBe(true)
 })
 
 test('MB-HOME-04 — mill tanpa Production Line memberi arahan, bukan layar kosong', async ({ page }) => {
-  // Prasyaratnya adalah akun Operator yang terikat mill TANPA Production Line.
-  // Akun semacam itu tidak ada di basis data uji, dan membuatnya pun tidak
-  // dapat dilakukan dari aplikasi mobile.
-  catat('MB-HOME-04', '—', 'Tidak diuji',
-    'Prasyarat tidak tersedia: butuh akun Operator yang terikat mill yang belum punya satu Production Line pun. Basis data uji tidak memuat akun seperti itu, dan membuatnya adalah pekerjaan Admin di web — bukan langkah yang dapat dijalankan dari aplikasi mobile. Siapkan akunnya lewat Kelola User & Role, lalu jalankan kasus ini.')
+  // Prasyaratnya akun Operator yang terikat mill TANPA Production Line.
+  // Dibuat `e2e-web/qa-run/siapkan-lingkungan.php` (mill "QA Mill Tanpa Line"
+  // + akun operator-noline) — langkah 1 kasusnya memang pekerjaan Admin di
+  // web, jadi ia disiapkan di luar aplikasi mobile, bukan dari dalamnya.
+  await keluar(page)
+  await page.goto('/login')
+  await page.waitForTimeout(800)
+  await page.locator('#username').fill('operator-noline')
+  await page.locator('#password').fill('Passw0rd!')
+  await page.getByRole('button', { name: 'Login' }).click()
+  await page.waitForTimeout(4000)
+  const masukBerhasil = !/\/login$/.test(new URL(page.url()).pathname)
+  if (!masukBerhasil) {
+    catat('MB-HOME-04', '—', 'Tidak diuji',
+      'Prasyarat tidak tersedia: akun "operator-noline" tidak dapat masuk. Jalankan siapkan-lingkungan.php lebih dulu.')
+    return
+  }
+
+  await page.goto('/stations')
+  await page.waitForTimeout(1800)
+  const teks = await teksHalaman(page)
+  const tile = await page.locator('[data-testid^="station-tile-"], [data-testid^="menu-card-"]').count()
+  const opsiLine = await page.locator('[data-testid^="production-line-option-"]').count()
+  // "Arahan yang menyebut Production Line" — bukan sekadar layar yang tidak
+  // kosong. Diperiksa sebagai kalimat yang benar-benar menyebut line.
+  const adaArahan = /Production Line/i.test(teks)
+    && /(hubungi|belum ada|belum punya|minta|Admin)/i.test(teks)
+  const layarKosong = teks.replace(/\s+/g, '').length < 60
+  const teknis = POLA_TEKNIS.test(teks)
+
+  const ok = adaArahan && !layarKosong && !teknis
+  await keluar(page)
+  catat('MB-HOME-04', '—', ok ? 'Lulus' : 'Gagal',
+    `masuk sebagai "operator-noline" (mill "QA Mill Tanpa Line", 0 Production Line): Station List memuat arahan yang menyebut Production Line=${adaArahan}; pilihan line yang ditawarkan=${opsiLine} (harus 0); tile stasiun=${tile}; layar kosong tanpa keterangan=${layarKosong} (harus false); galat teknis=${teknis} (harus false). Isi layar: "${teks.slice(0, 220)}"`)
+  expect(ok, teks.slice(0, 400)).toBe(true)
 })
 
 test('MB-MON-01 — Monitor menampilkan daftar draft dan dua penghitung hari ini', async ({ page }) => {
@@ -209,7 +259,20 @@ test('MB-MON-04 — tanggal otomatis memakai tanggal perangkat, termasuk dini ha
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
   })
   const isi = tanggal?.nilai ?? ''
-  const cocok = isi.includes(hariIni) || isi.includes(hariIni.split('/').reverse().join('-'))
+  // Dibandingkan per BAGIAN tanggal, bukan sebagai teks. Layar menuliskan
+  // "12 Oktober 2026" sementara tanggal perangkat dibentuk "12/10/2026", jadi
+  // perbandingan teks selalu berbunyi "tidak cocok" untuk tanggal yang sama —
+  // dan catatan hasilnya lalu menuduh aplikasi yang benar.
+  const [dd, mm, yyyy] = hariIni.split('/')
+  const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli',
+    'Agustus', 'September', 'Oktober', 'November', 'Desember']
+  const namaBulan = BULAN[Number(mm) - 1] ?? ''
+  const angka = isi.replace(/\D+/g, ' ').trim().split(/\s+/)
+  const cocok =
+    isi.includes(hariIni)
+    || isi.includes(`${yyyy}-${mm}-${dd}`)
+    || (isi.includes(namaBulan) && angka.includes(String(Number(dd))) && angka.includes(yyyy))
+    || (angka.includes(String(Number(dd))) && angka.includes(String(Number(mm))) && angka.includes(yyyy))
   catat('MB-MON-04', V, 'Tidak diuji',
     `Sebagian dapat dijalankan dan hasilnya: kolom Tanggal terisi otomatis "${isi}", cocok dengan tanggal perangkat (${hariIni})=${cocok}; kolom itu tidak dapat diubah manual=${tanggal?.mati ?? false}. Bagian yang TIDAK dapat dijalankan dari browser: menggeser jam perangkat ke 01:00 untuk membuktikan tanggal dini hari tidak memakai tanggal shift kemarin — jam sistem tidak dapat diubah dari dalam halaman, dan memalsukan Date hanya menipu halamannya, bukan menguji perangkatnya. Jalankan bagian itu di perangkat atau emulator.`)
 })
@@ -282,4 +345,46 @@ test('MB-MON-07 — Load Data membuka Data Preview stasiun itu', async ({ page }
   catat('MB-MON-07', V, ok ? 'Lulus' : 'Gagal',
     `Load Data mendarat di ${akhir} (Data Preview stasiun ini); judul layarnya "${judul}" dan breadcrumbnya "${breadcrumb}" menyebut stasiunnya; nama stasiun lain yang muncul di daftarnya=${stasiunLain.length ? stasiunLain.join(', ') : 'tidak ada'} — daftarnya tidak tercampur stasiun lain.`)
   expect(ok).toBe(true)
+})
+
+/**
+ * AU-05 tidak ada di pelaksana web: langkahnya menuntut aplikasi mobile.
+ *
+ * Sengaja TIDAK memakai penolong `masuk()` — penolong itu menunggu `**​/home`,
+ * jadi peran yang mendarat di tempat lain akan membuat kasusnya gagal dengan
+ * sebab yang salah ("batas waktu"), bukan mencatat ke mana ia mendarat. Yang
+ * diuji di sini justru itu: ke mana masing-masing peran mendarat.
+ */
+test('AU-05 — Login Mobile berhasil untuk keempat peran', async ({ page }) => {
+  const rinci: string[] = []
+  let gagal = 0
+  for (const [nama, akun] of [
+    ['OPR-A', AKUN.OPR], ['SPV-A', AKUN.SPV], ['MGR-A', AKUN.MGR], ['ADM', AKUN.ADM],
+  ] as [string, { username: string; password: string }][]) {
+    await keluar(page)
+    await page.goto('/login')
+    await page.waitForTimeout(900)
+    await page.locator('#username').fill(akun.username)
+    await page.locator('#password').fill(akun.password)
+    await page.getByRole('button', { name: 'Login' }).click()
+    await page.waitForTimeout(4000)
+    const alamat = new URL(page.url()).pathname
+    const teks = await teksHalaman(page)
+    const masukBerhasil = !/\/login$/.test(alamat)
+    // "Berhenti di layar kosong atau layar memuat yang tidak selesai" —
+    // keduanya diperiksa sebagai keadaan nyata, bukan disimpulkan dari alamat.
+    const kosong = teks.replace(/\s+/g, '').length < 40
+    const masihMemuat = /Memuat|Loading/i.test(teks) && teks.replace(/\s+/g, '').length < 120
+    const kartu = await page.locator('[data-testid^="menu-card-"]').count()
+    const teknis = POLA_TEKNIS.test(teks)
+    const ok = masukBerhasil && !kosong && !masihMemuat && !teknis
+    if (!ok) gagal++
+    rinci.push(`${nama}: masuk berhasil=${masukBerhasil}, mendarat di "${alamat}"`
+      + `, kartu menu di layar itu=${kartu}, layar kosong=${kosong}, masih memuat=${masihMemuat}`
+      + `, galat teknis=${teknis}`)
+  }
+  await keluar(page)
+  catat('AU-05', '—', gagal ? 'Gagal' : 'Lulus',
+    `${rinci.join(' | ')}. Keempat peran dapat masuk lewat aplikasi mobile, termasuk Admin — mobile bukan alur yang dirancang untuknya, tetapi ia tidak ditolak.`)
+  expect(gagal, rinci.join('\n')).toBe(0)
 })

@@ -853,7 +853,7 @@ dipakai pada `MB-FORM-05` (minimal satu terisi).
   memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
   **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
   Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
-  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak diuji" dengan sebab itu,
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak berlaku" dengan sebab itu,
   jangan "Gagal".
 - **Langkah:**
   1. `[M-FORM]` untuk <Stasiun> (lewati ketujuh stasiun di luar daftar itu).
@@ -1282,7 +1282,7 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
   memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
   **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
   Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
-  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak diuji" dengan sebab itu,
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak berlaku" dengan sebab itu,
   jangan "Gagal".
 - **Langkah:**
   1. Siapkan satu record dengan **tepat 3** baris slot waktu terisi.
@@ -1511,7 +1511,7 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
   memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
   **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
   Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
-  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak diuji" dengan sebab itu,
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak berlaku" dengan sebab itu,
   jangan "Gagal".
 - **Langkah:**
   1. `[W-FORM-NEW]` untuk <Stasiun> (lewati ketujuh stasiun di luar daftar itu).
@@ -1538,7 +1538,7 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
   memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
   **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
   Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
-  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak diuji" dengan sebab itu,
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak berlaku" dengan sebab itu,
   jangan "Gagal".
 - **Langkah:**
   1. `[W-FORM-NEW]` untuk <Stasiun> (lewati ketujuh stasiun di luar daftar itu).
@@ -2424,7 +2424,7 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
 - **Berlaku untuk:** **hanya Company.** Itu satu-satunya tingkat yang namanya dibatasi per
   induk ("Nama company sudah digunakan pada Corporate ini"). Corporate dibatasi secara global,
   dan lima tingkat lainnya tidak membatasi nama sama sekali — hanya kodenya, dan kode dibatasi
-  secara global, bukan per induk. Pada tingkat selain Company tandai "Tidak diuji" dengan sebab
+  secara global, bukan per induk. Pada tingkat selain Company tandai "Tidak berlaku" dengan sebab
   itu, jangan "Gagal".
 - **Prasyarat:** dua Corporate berbeda
 - **Langkah:**
@@ -2497,7 +2497,7 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
 - **Berlaku untuk:** **hanya Kelola Mesin.** Dari delapan tingkat Kelola, hanya layar itu yang
   punya kolom pencarian teks bebas; tujuh lainnya (Corporate, Company, Business Unit, Production
   Line, Station, Machinery Group, User & Role) menyaring lewat pemilih induk, bukan pencarian.
-  Pada tujuh layar itu kasus ini **tidak berlaku** — tandai "Tidak diuji" dengan sebab itu, jangan
+  Pada tujuh layar itu kasus ini **tidak berlaku** — tandai "Tidak berlaku" dengan sebab itu, jangan
   "Gagal". Pencarian mill diuji terpisah di `MD-STR-04`.
 - **Prasyarat:** data lebih dari satu halaman
 - **Langkah:**
@@ -2914,9 +2914,9 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
   - Nilai yang tersimpan tapi tidak berpengaruh ke layar mana pun adalah separuh fitur — itu yang
     diperiksa di langkah 4–5.
 - **Prioritas:** Sedang
-- **Catatan QA:** pengaturan **Jumlah Cages** sudah **tidak ada lagi** di layar ini (dihapus
-  2026-08-20; jumlah cages kini diturunkan dari data mesin stasiun). Kalau Anda mencarinya karena
-  pernah membacanya di versi dokumen lama, ketiadaannya **bukan** bug.
+- **Catatan QA:** pengaturan **Jumlah Cages** sudah **tidak ada lagi** di layar ini (jumlah cages
+  kini diturunkan dari data mesin stasiun). Kalau Anda mencarinya karena pernah membacanya di
+  versi dokumen lama, ketiadaannya **bukan** bug.
 
 ---
 
@@ -3167,6 +3167,11 @@ Tabel di bawah hanya untuk yang menguji dari kertas. Untuk kasus yang dijalankan
 - **Gagal** — ada perbedaan. Tulis **apa yang terlihat**, bukan dugaan sebabnya.
 - **Tidak diuji** — prasyaratnya tidak dapat disiapkan. **Jangan** ditandai Lulus.
   Contoh: `WB-BRW-09` butuh data melebihi 50.000 baris.
+- **Tidak berlaku** — kasusnya memang tidak punya apa pun untuk diuji pada varian itu, dan
+  kolom Langkah barisnya sudah berbunyi demikian. Contoh: `WB-BRW-03` di Weighbridge — layar
+  itu tidak memakai penyebut 24 karena gridnya bukan 24 slot waktu. Nilai ini **berbeda** dari
+  "Tidak diuji": yang ini bukan pekerjaan yang tertinggal, jadi ia tidak ikut dihitung sebagai
+  sisa.
 
 > Kasus yang prasyaratnya tidak tersedia **bukan** kasus yang lulus. Menandainya Lulus
 > membuat laporan pengujian menyatakan sesuatu yang tidak pernah diperiksa.

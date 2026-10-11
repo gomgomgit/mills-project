@@ -146,7 +146,10 @@ test('MB-FORM-05 — simpan ditolak bila tidak ada satu pun baris terisi', async
 test('MB-FORM-06 — baris yang sebagian terisi tetap sah', async ({ page }) => {
   await masuk(page, AKUN.OPR)
   await bukaFormBaru(page, DP)
-  const isi = await isiForm(page, { isiBacaan: true })
+  // TEPAT SATU kolom bacaan — itu premis kasusnya. Pengisi bawaannya mengisi
+  // seluruh kolom bacaan baris itu (8 di Depricarping), sehingga tidak ada
+  // kolom yang dibiarkan kosong dan yang teruji justru kebalikan kasusnya.
+  const isi = await isiForm(page, { isiBacaan: true, bacaanMaks: 1 })
   // HANYA kolom bacaan yang dihitung — kotak slot waktu juga sebuah input dan
   // ikut terhitung bila tidak disaring, sehingga "tepat satu kolom terisi"
   // tidak akan pernah benar.
@@ -300,9 +303,15 @@ test('MB-FORM-09 — Clear meminta konfirmasi, lalu menghapus permanen', async (
   page.once('dialog', async (d) => { dialogDibaca = d.message(); await d.dismiss() })
   await page.getByTestId('clear-button').click()
   await page.waitForTimeout(1200)
-  const dialogDalamHalaman = await teksAman(page.locator('[role="dialog"], .confirm-dialog').first())
-  // Bila konfirmasinya berupa dialog dalam halaman, tombol batalnya ditekan.
-  const batal = page.getByRole('button', { name: /^(Batal|Tidak|Cancel)$/i }).first()
+  // Konfirmasinya adalah ConfirmDialog dalam halaman (role="alertdialog",
+  // di-Teleport ke body di atas overlay ber-z-index 1200), BUKAN dialog
+  // peramban. Tombolnya harus dicari DI DALAM overlay itu: pola nama saja
+  // mengenai tombol lain pada form di belakangnya, dan klik ke tombol
+  // belakang itu ditahan overlay sampai batas waktu test — kegagalannya lalu
+  // terbaca seperti tombol yang tidak merespons.
+  const dialog = page.locator('[data-testid="confirm-dialog-overlay"]')
+  const dialogDalamHalaman = await teksAman(dialog.first())
+  const batal = dialog.getByRole('button', { name: /^(Batal|Tidak|Cancel)$/i }).first()
   if (await batal.count()) { await batal.click(); await page.waitForTimeout(1000) }
   const isiMasihUtuh = (await nilaiAman(page.locator('input.form-field-input:not([disabled])').first())) === isi.identitas
 
@@ -310,7 +319,7 @@ test('MB-FORM-09 — Clear meminta konfirmasi, lalu menghapus permanen', async (
   page.once('dialog', async (d) => { await d.accept() })
   await page.getByTestId('clear-button').click()
   await page.waitForTimeout(1200)
-  const ya = page.getByRole('button', { name: /^(Ya|Hapus|Ya, Hapus|Lanjutkan)/i }).first()
+  const ya = dialog.getByRole('button', { name: /^(Ya|Hapus|Ya, Hapus|Lanjutkan)/i }).first()
   if (await ya.count()) { await ya.click(); await page.waitForTimeout(2000) }
 
   await page.goto(`/stations/${DP}/monitor`)
@@ -505,24 +514,38 @@ test('MB-FORM-15 — simpan ditolak bila Production Line tidak punya stasiun akt
   const bisaBuka = (await tombol.count()) > 0 && (await tombol.isEnabled())
   let pesan = ''
   let ditolak = false
+  let keluarForm15: boolean | null = null
+  let tersimpan15: boolean | null = null
+  let statusRecord15 = ''
   if (bisaBuka) {
     await tombol.click()
     await page.waitForTimeout(1600)
-    await isiForm(page, { isiBacaan: true })
+    const isi = await isiForm(page, { isiBacaan: true })
     await page.getByTestId('save-button').click()
     await page.waitForTimeout(2600)
     const g = await galatForm(page)
     pesan = [g.grid, ...g.perKolom].join(' ')
     const teks = await teksHalaman(page)
     ditolak = /tidak memiliki station|belum memiliki station|tidak punya stasiun|station .* aktif/i.test(pesan + ' ' + teks)
+    // APA YANG TERJADI pada recordnya, bukan hanya ada-tidaknya pesan.
+    // "Ditolak — record tidak tersimpan" adalah dua hal, dan pembaca laporan
+    // perlu tahu yang mana yang gagal: tanpa ini temuannya hanya berbunyi
+    // "tidak ada pesan", padahal yang penting recordnya tersimpan atau tidak.
+    keluarForm15 = !/\/form\//.test(new URL(page.url()).pathname)
+    await bukaPreview(page, DP)
+    const brs = barisRecord(page, isi.identitas)
+    tersimpan15 = (await brs.count()) > 0
+    statusRecord15 = tersimpan15 ? await teksAman(brs) : ''
   } else {
     pesan = await teksHalaman(page)
     ditolak = /tidak memiliki station|belum memiliki station|tidak punya stasiun/i.test(pesan)
   }
   const teknis = POLA_TEKNIS.test(pesan)
-  const ok = ditolak && !teknis
+  // Recordnya pun tidak boleh tersimpan — itu separuh kedua hasil yang
+  // diharapkan, dan separuh yang paling berakibat.
+  const ok = ditolak && !teknis && tersimpan15 !== true
   catat('MB-FORM-15', V, ok ? 'Lulus' : 'Gagal',
-    `Production Line "${opsi[tanpa]}" (tanpa stasiun Depricarping aktif) dipilih: tombol New Data dapat ditekan=${bisaBuka}; penolakan yang menyebut stasiun tidak aktif muncul=${ditolak} ("${pesan.replace(/\s+/g, ' ').slice(0, 160)}"); galat teknis=${teknis} (harus false).`)
+    `Production Line "${opsi[tanpa]}" (tanpa stasiun Depricarping aktif) dipilih: tombol New Data dapat ditekan=${bisaBuka}; penolakan yang menyebut stasiun tidak aktif muncul=${ditolak} ("${pesan.replace(/\s+/g, ' ').slice(0, 160)}"); layar keluar dari Form sesudah Simpan=${keluarForm15}; record muncul di Data Preview=${tersimpan15}${statusRecord15 ? ` ("${statusRecord15.slice(0, 60)}")` : ''}; galat teknis=${teknis} (harus false). Bandingkan dengan WB-FRM-07: layar web MENOLAK keadaan yang sama dengan pesan yang menyebut stasiunnya.`)
   expect(ok).toBe(true)
 })
 

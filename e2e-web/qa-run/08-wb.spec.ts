@@ -2,8 +2,10 @@
  * Pelaksana bagian 5 dokumen QA — Web Data Stasiun (WB-BRW / WB-DTL / WB-FRM).
  *
  * Varian tingkat 1 = Depricarping (stasiun wakil: 9 kolom bacaan, downtime,
- * temuan, punya master target — paling banyak melewati cabang). Tiga kasus
- * pengabelan dijalankan di KE-18 stasiun: WB-BRW-03, WB-DTL-03, WB-FRM-01.
+ * temuan, punya master target — paling banyak melewati cabang). Dua kasus
+ * pengabelan dijalankan di KE-18 stasiun: WB-DTL-03 dan WB-FRM-01. Yang ketiga,
+ * WB-BRW-03, hanya di 11 stasiun bergrid 24 slot — tujuh sisanya tidak memakai
+ * penyebut 24, jadi kasusnya tidak punya baris di dokumen untuk ditempeli hasil.
  */
 import { test, expect, type Page } from '@playwright/test'
 import { login } from '../tests/support/auth'
@@ -406,15 +408,12 @@ async function barisGridDetail(page: Page, kode: string): Promise<{ jml: number;
   return { jml, cara: 'baris tabel di layar (tanpa tabel master target)' }
 }
 
-for (const { kode, label } of STASIUN) {
-  const bergrid24 = BERGRID_24.includes(kode)
-
+// WB-BRW-03 hanya berlaku di 11 stasiun bergrid 24 slot — dan karena itu hanya
+// 11 baris yang ada di berkas Alur untuk kasus ini. Perulangannya memakai
+// daftar yang sama (BERGRID_24) supaya jumlah tes yang dibuat tidak dapat
+// berselisih dengan jumlah baris dokumen tanpa ada yang tahu.
+for (const { kode, label } of STASIUN.filter((s) => BERGRID_24.includes(s.kode))) {
   test(`WB-BRW-03 [${label}] — "Jumlah Baris Terisi" tampil sebagai pecahan dari 24`, async ({ page }) => {
-    if (!bergrid24) {
-      catat('WB-BRW-03', label, 'Tidak diuji',
-        `Tidak berlaku di ${label}: Data Browser stasiun ini tidak memakai penyebut 24 karena gridnya bukan 24 slot waktu — ia menghitung satuannya sendiri (siklus, cage/lori, kejadian, atau satu transaksi per record). Kasus ini hanya berlaku di 11 stasiun bergrid slot waktu.`)
-      return
-    }
     await login(page, SPV)
     await page.goto(`/data/${kode}`, { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(1300)
@@ -442,7 +441,9 @@ for (const { kode, label } of STASIUN) {
       `kolom Jumlah Baris Terisi tertulis "${kolomPecahan}" — berbentuk pecahan dari 24, bukan angka tanpa penyebut=${berpenyebut}; angka pertamanya ${angkaDaftar}, dan Detail record itu memuat ${jml} baris grid (dihitung dari ${cara}) — cocok=${cocok}.`)
     expect(ok).toBe(true)
   })
+}
 
+for (const { kode, label } of STASIUN) {
   test(`WB-DTL-03 [${label}] — grid menampilkan persis baris tersimpan`, async ({ page }) => {
     await login(page, SPV)
     // Jumlah yang TERSIMPAN dibaca dulu dari kolom hitungan Data Browser, lalu

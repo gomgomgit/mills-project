@@ -269,8 +269,13 @@ def variants(cid):
 
 # Cakupan yang LEBIH SEMPIT daripada daftar variannya. Setiap aturan di sini
 # ada juga di bagian "Berlaku untuk" kasusnya di markdown — keduanya harus
-# berubah bersama, dan nilai di sini yang menentukan baris mana yang dicetak
-# sebagai tidak dapat dijalankan.
+# berubah bersama, dan nilai di sini yang menentukan baris mana TIDAK DICETAK
+# sama sekali.
+#
+# Teks yang dikembalikan tidak lagi sampai ke sel mana pun — yang dipakai hanya
+# "kosong atau tidak". Teksnya tetap ditulis karena ia menyebut SEBAB baris itu
+# dibuang, dan sebab itulah yang perlu dibaca siapa pun yang mengubah aturannya;
+# sebab yang sama juga terbaca pembaca dokumen di bagian "Berlaku untuk".
 #
 # Tanpa aturan ini jalan Tingkat 1 sebuah kasus bisa mendarat pada varian yang
 # kasusnya TIDAK berlaku (MD-KEL-05 di Business Unit, MD-KEL-10 di tingkat yang
@@ -364,11 +369,41 @@ def runs_in_scope(cid):
     """Jumlah jalan kasus ini YANG DICETAK pada mode sekarang."""
     vars_ = variants(cid)
     t1v = tier1_variant(cid, vars_)
-    return sum(1 for v in vars_ if tier_of(cid, v, t1v) <= TIER_MAX)
+    return sum(1 for v in vars_
+               if tier_of(cid, v, t1v) <= TIER_MAX and not applies(cid, v))
 
 
 TOTAL_JALAN = sum(runs_in_scope(c['id']) for c in CASES)
 JALAN_TXT = f'{TOTAL_JALAN:,}'.replace(',', '.')
+
+
+def angka(n):
+    """1509 -> '1.509'."""
+    return f'{n:,}'.replace(',', '.')
+
+
+# Jumlah jalan per Tingkat untuk DAFTAR PENUH — dipakai sheet Panduan, yang
+# bicara tentang seluruh daftar dan bukan tentang mode berkas ini saja.
+#
+# Dihitung, tidak ditulis tangan. Kelima angkanya bergeser bersama setiap kali
+# applies() atau daftar varian berubah, dan yang ditulis tangan memang sudah
+# pernah tertinggal: berkas RINGKAS mengaku "1.509 jalan" padahal isinya 1.449.
+JALAN_PER_TINGKAT = collections.Counter()
+for _c in CASES:
+    _vars = variants(_c['id'])
+    _t1v = tier1_variant(_c['id'], _vars)
+    _dicetak = [v for v in _vars if not applies(_c['id'], v)]
+    # Kasus yang kehilangan SELURUH variannya akan hilang dari dokumen tanpa
+    # jejak. Itu bukan pemangkasan, itu kasus yang tidak pernah diuji.
+    if not _dicetak:
+        raise SystemExit(f'{_c["id"]}: applies() menolak SEMUA variannya — '
+                         f'kasus ini akan hilang dari dokumen')
+    for v in _dicetak:
+        JALAN_PER_TINGKAT[tier_of(_c['id'], v, _t1v)] += 1
+
+N_T1, N_T2, N_T3 = (JALAN_PER_TINGKAT[i] for i in (1, 2, 3))
+N_ALUR = N_T1 + N_T2
+N_PENUH = N_ALUR + N_T3
 
 wb = Workbook()
 
@@ -402,22 +437,22 @@ blocks = [
                  '18× berarti sekali per stasiun, 11× sekali per stasiun yang sudah punya laporan.'),
  ]),
  ('Tingkat pengujian — baca ini kalau waktunya terbatas', [
-   ('Masalahnya', 'Daftar penuh 1.509 jalan mencampur dua pertanyaan berbeda: "apakah setiap alur '
-                  'bekerja" dan "apakah ke-18 implementasi stasiun bekerja". Yang pertama butuh 170 '
+   ('Masalahnya', f'Daftar penuh {angka(N_PENUH)} jalan mencampur dua pertanyaan berbeda: "apakah setiap alur '
+                  f'bekerja" dan "apakah ke-18 implementasi stasiun bekerja". Yang pertama butuh {angka(N_T1)} '
                   'jalan; yang kedua butuh sisanya. Kolom Tingkat memisahkannya tanpa membuang apa pun.'),
-   ('Tingkat 1 — ALUR (170 jalan)', 'Setiap kasus SEKALI, pada stasiun wakil. Menyelesaikan tingkat ini '
+   (f'Tingkat 1 — ALUR ({angka(N_T1)} jalan)', 'Setiap kasus SEKALI, pada stasiun wakil. Menyelesaikan tingkat ini '
                   'berarti setiap alur sistem sudah pernah dijalankan dan setiap kasus terbukti dapat '
                   'dieksekusi. Stasiun wakilnya Depricarping (9 kolom bacaan, downtime, temuan, punya '
                   'master target — paling banyak melewati cabang), Kernel Plant untuk laporan, '
                   'Business Unit untuk Kelola.'),
-   ('Tingkat 2 — KABEL (95 jalan)', 'Lima kasus pada 17 stasiun sisanya: MB-FORM-01, MB-PRV-06, '
+   (f'Tingkat 2 — KABEL ({angka(N_T2)} jalan)', 'Lima kasus pada 17 stasiun sisanya: MB-FORM-01, MB-PRV-06, '
                   'WB-FRM-01, WB-BRW-03, WB-DTL-03 (plus LP-W-01 untuk 10 laporan sisanya). Kelimanya '
                   'yang gagal kalau satu stasiun salah dikabel — jalur tulis, jalur baca, dan '
                   'penurunan hitungannya.'),
-   ('Tingkat 1+2 = 265 jalan', 'Ini cakupan yang masuk akal untuk satu putaran manual: 18% dari '
-                  'daftar penuh, sudah melewati setiap alur sekali plus pengabelan setiap stasiun. '
-                  'Saring kolom Tingkat ke 1 dan 2.'),
-   ('Tingkat 3 — SISA (1.244 jalan)', 'Pengulangan penuh. Untuk putaran rilis, atau ketika satu '
+   (f'Tingkat 1+2 = {angka(N_ALUR)} jalan', 'Ini cakupan yang masuk akal untuk satu putaran manual: '
+                  f'{round(100 * N_ALUR / N_PENUH)}% dari daftar penuh, sudah melewati setiap alur sekali '
+                  'plus pengabelan setiap stasiun. Saring kolom Tingkat ke 1 dan 2.'),
+   (f'Tingkat 3 — SISA ({angka(N_T3)} jalan)', 'Pengulangan penuh. Untuk putaran rilis, atau ketika satu '
                   'stasiun berubah — saring Tingkat 3 pada stasiun itu saja.'),
    ('YANG HILANG, dinyatakan terbuka', 'Tingkat 1+2 TIDAK membuktikan ke-18 stasiun berperilaku benar '
                   'pada setiap cabang. Setiap stasiun punya layar dan aturannya sendiri, jadi hasil '
@@ -435,9 +470,6 @@ blocks = [
    ('Lulus', 'Yang terlihat SAMA dengan Hasil Diharapkan, seluruhnya.'),
    ('Gagal', 'Ada perbedaan. Tulis APA YANG TERLIHAT di kolom Catatan, bukan dugaan sebabnya.'),
    ('Tidak diuji', 'Prasyaratnya tidak dapat disiapkan. JANGAN ditandai Lulus.'),
-   ('Tidak berlaku', 'Kasusnya tidak punya apa pun untuk diuji pada varian itu — kolom Langkah '
-                     'baris itu sudah berbunyi demikian. BUKAN pekerjaan yang tertinggal, jadi '
-                     'tidak ikut dihitung sebagai sisa. Beda dari "Tidak diuji".'),
    ('Terhalang', 'Kasus lain yang gagal membuat kasus ini tidak bisa dijalankan. Sebut ID penghalangnya.'),
  ]),
  ('Sebelum menutup satu putaran', [
@@ -463,15 +495,15 @@ if ALUR:
     # Berkas ini sengaja TIDAK memuat Tingkat 3. Tanpa kotak ini, penguji
     # yang menyelesaikannya akan melaporkan "semua lulus" untuk cakupan
     # yang memang lebih sempit — dan itu pernyataan yang menyesatkan.
-    put(ws, r, 1, 'BERKAS ALUR — 265 JALAN, BUKAN CAKUPAN PENUH', F_RED, TOPL, FILL_HI)
+    put(ws, r, 1, f'BERKAS ALUR — {angka(N_ALUR)} JALAN, BUKAN CAKUPAN PENUH', F_RED, TOPL, FILL_HI)
     put(ws, r, 2,
         'Isinya Tingkat 1 dan 2 saja:\n'
-        '  - Tingkat 1 (170 jalan) setiap kasus SEKALI, pada stasiun wakil. '
+        f'  - Tingkat 1 ({angka(N_T1)} jalan) setiap kasus SEKALI, pada stasiun wakil. '
         'Menyelesaikannya berarti setiap alur sistem sudah pernah dijalankan.\n'
-        '  - Tingkat 2 (95 jalan) lima kasus pada 17 stasiun sisanya: MB-FORM-01, '
+        f'  - Tingkat 2 ({angka(N_T2)} jalan) lima kasus pada 17 stasiun sisanya: MB-FORM-01, '
         'MB-PRV-06, WB-FRM-01, WB-BRW-03, WB-DTL-03, plus LP-W-01. Kelimanya yang '
         'gagal kalau satu stasiun salah dikabel.\n\n'
-        'YANG TIDAK ADA DI SINI: Tingkat 3 — 1.244 jalan pengulangan penuh per '
+        f'YANG TIDAK ADA DI SINI: Tingkat 3 — {angka(N_T3)} jalan pengulangan penuh per '
         'stasiun. Berkas ini TIDAK membuktikan ke-18 stasiun berperilaku benar pada '
         'setiap cabang. Ke-18 stasiun punya service, Form, dan Data Preview-nya '
         'sendiri-sendiri, jadi bug di satu stasiun tidak mengatakan apa pun tentang '
@@ -540,13 +572,14 @@ ws.freeze_panes = 'F5'
 
 COL = {name: i for i, name in enumerate(COLS, start=1)}
 
-# "Tidak berlaku" dibedakan dari "Tidak diuji" dengan sengaja: yang pertama
-# berarti tidak ada apa pun untuk diuji di varian itu (kasusnya memang tidak
-# berlaku di sana), yang kedua berarti belum diperiksa. Menyatukan keduanya
-# membuat laporan terbaca seperti pekerjaan yang tertinggal padahal tidak ada.
-dv = DataValidation(type='list', formula1='"Lulus,Gagal,Tidak diuji,Tidak berlaku,Terhalang"',
+# Tidak ada nilai "Tidak berlaku". Varian yang kasusnya tidak berlaku di sana
+# TIDAK DICETAK sebagai baris sama sekali (lihat penyaringan applies() di
+# bawah), jadi tidak ada baris yang pernah perlu nilai itu — dan menyediakannya
+# hanya mengundang penguji memakainya untuk baris yang sebenarnya belum
+# diperiksa, yaitu "Tidak diuji".
+dv = DataValidation(type='list', formula1='"Lulus,Gagal,Tidak diuji,Terhalang"',
                     allow_blank=True, showDropDown=False)
-dv.error = 'Pilih salah satu: Lulus, Gagal, Tidak diuji, Tidak berlaku, Terhalang.'
+dv.error = 'Pilih salah satu: Lulus, Gagal, Tidak diuji, Terhalang.'
 dv.errorTitle = 'Nilai tidak dikenal'
 ws.add_data_validation(dv)
 
@@ -569,7 +602,13 @@ for c in CASES:
     vars_ = variants(c['id'])
     t1v = tier1_variant(c['id'], vars_)
     for v in vars_:
-        na = applies(c['id'], v)
+        # Varian yang kasusnya tidak berlaku di sana TIDAK DICETAK. Dulu ia
+        # dicetak dengan kolom Langkah diganti sebabnya — satu baris yang
+        # tidak pernah bisa dikerjakan, tetapi tetap bernomor, tetap terhitung
+        # di Rekap, dan tetap menuntut nilai Hasil-nya sendiri. Sebabnya tetap
+        # dapat dibaca di bagian "Berlaku untuk" kasusnya (kolom Catatan QA).
+        if applies(c['id'], v):
+            continue
         tier = tier_of(c['id'], v, t1v)
         if tier > TIER_MAX:
             continue
@@ -604,24 +643,17 @@ for c in CASES:
         put(ws, r, COL['Judul'], clean(c['title']), F_BOLD, TOPL, band)
         put(ws, r, COL['Peran'], clean(c['peran']), F_BODY, TOPL, band)
         put(ws, r, COL['Prasyarat'], prasyarat, F_BODY, TOPL, band)
-        if na:
-            # Baris yang tidak berlaku: langkahnya DIGANTI alasannya, bukan
-            # dibiarkan seolah dapat dijalankan.
-            put(ws, r, COL['Langkah'], na, F_RED, TOPL, FILL_SOFT)
-            put(ws, r, COL['Hasil Diharapkan'], na, F_RED, TOPL, FILL_SOFT)
-        else:
-            put(ws, r, COL['Langkah'], langkah, F_BODY, TOPL, band)
-            put(ws, r, COL['Hasil Diharapkan'], hasil, F_BODY, TOPL, band)
+        put(ws, r, COL['Langkah'], langkah, F_BODY, TOPL, band)
+        put(ws, r, COL['Hasil Diharapkan'], hasil, F_BODY, TOPL, band)
         put(ws, r, COL['Prioritas'], c['prioritas'],
             F_RED if c['prioritas'] == 'Tinggi' else F_BODY, TOPC,
             FILL_HI if c['prioritas'] == 'Tinggi' else band)
         put(ws, r, COL['Catatan QA'], catatan, F_BODY, TOPL, band)
         for name in ('Tanggal', 'Penguji', 'Hasil', 'No. Bug', 'Catatan / apa yang terlihat'):
-            put(ws, r, COL[name], None, F_BODY, TOPL, FILL_SOFT if na else FILL_IN)
-        if not na:
-            DV_ROWS.append(r)
+            put(ws, r, COL[name], None, F_BODY, TOPL, FILL_IN)
+        DV_ROWS.append(r)
 
-        tall = max(wrapped(na or langkah, 44), wrapped(na or hasil, 44),
+        tall = max(wrapped(langkah, 44), wrapped(hasil, 44),
                    wrapped(catatan, 26), 1)
         ws.row_dimensions[r].height = max(16, 13.2 * tall + 4)
         r += 1
@@ -915,9 +947,9 @@ for i, row in enumerate(ST):
     r += 1
 r += 1
 put(ws, r, 1, 'Weighbridge, Grading, Kernel Dispatch, dan CPO Dispatch tidak memakai 24 slot waktu. '
-              'Untuk keempat stasiun ini LEWATI MB-FORM-03 dan MB-FORM-04 (aturan urutan slot) dan '
-              'ganti dengan MB-FORM-11. Di sheet Kasus Uji baris-baris itu sudah ditandai '
-              '"Tidak berlaku".', F_RED, TOPL, FILL_HI)
+              'Untuk keempat stasiun ini MB-FORM-03 dan MB-FORM-04 (aturan urutan slot) digantikan '
+              'MB-FORM-11. Di sheet Kasus Uji baris-baris itu memang tidak ada — yang terdaftar '
+              'hanya jalan yang dapat dikerjakan.', F_RED, TOPL, FILL_HI)
 ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=7)
 ws.row_dimensions[r].height = 44
 r += 1

@@ -9,6 +9,10 @@ adanya dan mencatat apa yang terlihat.
 
 ATURAN YANG DIPEGANG BERKAS INI
 -------------------------------
+Setiap baris berkas Alur adalah jalan yang DAPAT dikerjakan — varian yang
+kasusnya tidak berlaku di sana tidak dicetak sebagai baris oleh build-xlsx.py.
+Jadi tidak ada kategori "tidak berlaku" di sini, dan penyebutnya seluruh baris.
+
 Baris yang TIDAK ada di hasil.json ditandai "Tidak diuji", bukan dibiarkan
 kosong dan bukan diisi Lulus. Dokumen QA-nya sendiri menyatakan: kasus yang
 prasyaratnya tidak tersedia bukan kasus yang lulus. Mengisi Lulus untuk
@@ -112,30 +116,11 @@ F_NA = Font(name='Calibri', size=10, color='6B7280')
 FILL_OK = PatternFill('solid', fgColor='E6F4EA')
 FILL_NG = PatternFill('solid', fgColor='FDE8E8')
 
-hitung = {'Lulus': 0, 'Gagal': 0, 'Tidak diuji': 0, 'Tidak berlaku': 0}
+hitung = {'Lulus': 0, 'Gagal': 0, 'Tidak diuji': 0}
 for r in range(5, ws.max_row + 1):
     cid = ws.cell(row=r, column=COL['ID Kasus']).value
     varian = ws.cell(row=r, column=COL['Stasiun / Varian']).value
     h = dijalankan.get((cid, varian))
-
-    # Baris yang kolom Langkah-nya SUDAH berbunyi "Tidak berlaku" bukan
-    # pekerjaan yang tertinggal: kasusnya memang tidak punya apa pun untuk
-    # diuji pada varian itu (mis. "N / 24" pada stasiun yang gridnya bukan 24
-    # slot). Dicap tersendiri, bukan "Tidak diuji" — menyatukan keduanya
-    # membuat pembaca menghitungnya sebagai sisa pekerjaan.
-    langkah = str(ws.cell(row=r, column=COL['Langkah']).value or '')
-    if langkah.startswith('Tidak berlaku'):
-        nilai = 'Tidak berlaku'
-        catatan = langkah
-        if h:
-            catatan += f' — diperiksa pelaksana: {h["diamati"]}'
-        hitung[nilai] += 1
-        ws.cell(row=r, column=COL['Tanggal']).value = TANGGAL if h else ''
-        ws.cell(row=r, column=COL['Penguji']).value = 'Pelaksana QA otomatis' if h else ''
-        sel = ws.cell(row=r, column=COL['Hasil'])
-        sel.value, sel.font = nilai, F_NA
-        ws.cell(row=r, column=COL['Catatan / apa yang terlihat']).value = catatan
-        continue
 
     if h:
         nilai, catatan = h['hasil'], h['diamati']
@@ -169,27 +154,24 @@ for r in range(5, ws.max_row + 1):
 # di judul, dan dalam satu blok di sheet Panduan.
 total = sum(hitung.values())
 diuji = hitung['Lulus'] + hitung['Gagal']
-# Penyebut yang jujur: jalan "Tidak berlaku" dikeluarkan dari pembilang DAN
-# dari penyebut. Ia bukan pekerjaan yang belum selesai.
-dapat_diuji = total - hitung['Tidak berlaku']
+# Penyebutnya seluruh baris. Berkas Alur hanya memuat jalan yang dapat
+# dikerjakan — varian yang kasusnya tidak berlaku di sana tidak dicetak
+# sebagai baris sama sekali, jadi tidak ada yang perlu dikecualikan di sini.
 
 ws.cell(row=1, column=1).value = (
     'Mill Smart Log — HASIL PUTARAN UJI (Alur, Tingkat 1+2)')
 ws.cell(row=2, column=1).value = (
-    f'{diuji} dari {dapat_diuji} jalan yang dapat dijalankan sudah dijalankan '
-    f'dan hasilnya terisi ({hitung["Lulus"]} Lulus, {hitung["Gagal"]} Gagal). '
+    f'{diuji} dari {total} jalan sudah dijalankan dan hasilnya terisi '
+    f'({hitung["Lulus"]} Lulus, {hitung["Gagal"]} Gagal). '
     f'{hitung["Tidak diuji"]} jalan masih menunggu penguji — kolom Catatan tiap '
-    f'baris menyebut apa yang menghalanginya. {hitung["Tidak berlaku"]} jalan '
-    f'bertanda "Tidak berlaku": kasusnya memang tidak punya apa pun untuk diuji '
-    f'pada varian itu. Total baris {total}.')
+    f'baris menyebut apa yang menghalanginya.')
 
 pan = wb['Panduan']
 pan.cell(row=1, column=1).value = (
     'Mill Smart Log — HASIL PUTARAN UJI (Alur, Tingkat 1+2)')
 pan.cell(row=2, column=1).value = (
     f'Berkas ini adalah berkas Alur yang kolom hasilnya SUDAH TERISI untuk '
-    f'{diuji} dari {dapat_diuji} jalan yang dapat dijalankan. Daftar kasusnya '
-    'sendiri tidak berubah.')
+    f'{diuji} dari {total} jalan. Daftar kasusnya sendiri tidak berubah.')
 
 JUDUL = Font(name='Calibri', size=10, bold=True)
 ISI = Font(name='Calibri', size=10)
@@ -197,12 +179,9 @@ FILL_INFO = PatternFill('solid', fgColor='EAF2FB')
 r0 = pan.max_row + 2
 blok = [
     ('CAKUPAN PUTARAN INI',
-     f'{diuji} dari {dapat_diuji} jalan yang dapat dijalankan sudah '
-     f'dijalankan: {hitung["Lulus"]} Lulus, {hitung["Gagal"]} Gagal. '
-     f'{hitung["Tidak diuji"]} jalan bertanda "Tidak diuji" — belum '
-     f'diperiksa, BUKAN gagal dan BUKAN lulus. {hitung["Tidak berlaku"]} '
-     'jalan bertanda "Tidak berlaku" dan tidak dihitung sebagai pekerjaan: '
-     'kasusnya tidak punya apa pun untuk diuji pada varian itu.'),
+     f'{diuji} dari {total} jalan sudah dijalankan: {hitung["Lulus"]} Lulus, '
+     f'{hitung["Gagal"]} Gagal. {hitung["Tidak diuji"]} jalan bertanda '
+     '"Tidak diuji" — belum diperiksa, BUKAN gagal dan BUKAN lulus.'),
     ('APA YANG DIJALANKAN',
      'Langkah setiap kasus dijalankan apa adanya di peramban — layar web '
      'Laravel/Livewire dan aplikasi mobile lewat server pengembangannya — '

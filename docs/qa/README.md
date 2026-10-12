@@ -8,15 +8,15 @@ rujukan ke uji otomatis. Ada pemindai yang memeriksanya; lihat "Memeriksa kebers
 
 | Berkas | Jalan | Dipakai untuk |
 |---|---:|---|
-| `Mill-Smart-Log-Test-Case-Blackbox-Alur.xlsx` | 265 | **Satu putaran manual.** Tingkat 1+2. |
-| `Mill-Smart-Log-Test-Case-Blackbox-Ringkas.xlsx` | 1.449 | Regresi bila waktu terbatas. |
-| `Mill-Smart-Log-Test-Case-Blackbox.xlsx` | 1.509 | Putaran rilis. Cakupan penuh. |
+| `Mill-Smart-Log-Test-Case-Blackbox-Alur.xlsx` | 258 | **Satu putaran manual.** Tingkat 1+2. |
+| `Mill-Smart-Log-Test-Case-Blackbox-Ringkas.xlsx` | 1.382 | Regresi bila waktu terbatas. |
+| `Mill-Smart-Log-Test-Case-Blackbox.xlsx` | 1.442 | Putaran rilis. Cakupan penuh. |
 
 Ditambah satu berkas hasil, bila sebuah putaran uji sudah dijalankan:
 
 | Berkas | Isi |
 |---|---|
-| `Mill-Smart-Log-Hasil-Uji-Alur.xlsx` | Berkas Alur dengan kolom hasil TERISI. 18 dari 265 jalan diuji pada 2026-10-11, semuanya Lulus; 247 sisanya bertanda `Tidak diuji` beserta alasan spesifik per baris. |
+| `Mill-Smart-Log-Hasil-Uji-Alur.xlsx` | Berkas Alur dengan kolom hasil TERISI. Putaran 2026-10-12: 254 dari 258 jalan dijalankan, 254 Lulus, 0 Gagal; 4 sisanya bertanda `Tidak diuji` beserta alasan spesifik per baris (jam perangkat, data >50.000 baris, dua layar Detail tanpa grid). |
 
 Ketiganya bersarang: **Alur ⊂ Ringkas ⊂ Penuh**. Baris yang sama punya id, langkah, dan
 hasil diharapkan yang identik di ketiganya, jadi satu id laporan bug berarti satu hal di
@@ -55,7 +55,7 @@ Catatan & Batasan. Kalau markdown berubah di bagian itu, ubah juga di sana.
 
 **Hal keempat yang ditulis di `build-xlsx.py`: cakupan per varian, di `applies()`.** Bagian
 `**Berlaku untuk:**` pada sebuah kasus di markdown adalah penjelasan untuk pembaca; yang
-menentukan baris mana dicetak sebagai "Tidak berlaku" adalah `applies()`. Keduanya harus
+menentukan baris mana **tidak dicetak sama sekali** adalah `applies()`. Keduanya harus
 berubah bersama. Kalau hanya markdown yang diubah, jalan Tingkat 1 sebuah kasus bisa mendarat
 pada varian yang kasusnya tidak berlaku di sana — dan karena setiap kasus `MD-KEL-*` hanya
 punya SATU jalan di berkas Alur, kasus itu lalu tidak pernah benar-benar teruji. Itu persis
@@ -133,10 +133,13 @@ Tiga aturan yang dipegang `isi-hasil.py`, semuanya ada sebabnya:
    satu kasus dijalankan pada satu stasiun atau satu tingkat, dan hasil di Depricarping bukan
    bukti untuk Sterilizer. Pelapisan seperti itu pernah hampir menandai baris Business Unit
    memakai bukti dari Company.
-3. **`Tidak berlaku` bukan `Tidak diuji`.** Baris yang kolom Langkah-nya sudah berbunyi
-   "Tidak berlaku" (dari `applies()`) diberi nilai itu dan **dikeluarkan dari penyebut**.
-   Menyatukannya dengan `Tidak diuji` membuat laporan terbaca seperti pekerjaan yang
-   tertinggal, padahal tidak ada apa pun untuk diuji di varian itu.
+3. **Penyebutnya seluruh baris — tidak ada yang dikecualikan.** Setiap baris berkas Alur
+   adalah jalan yang dapat dikerjakan: varian yang kasusnya tidak berlaku di sana disaring
+   `applies()` dan tidak dicetak. Dulu baris itu tetap dicetak dengan kolom Langkah diganti
+   sebabnya, lalu diberi nilai `Tidak berlaku` dan dikeluarkan dari penyebut — satu kategori
+   nilai dan satu penyebut berkoreksi untuk baris yang lebih baik tidak ada. Konsekuensinya:
+   **pelaksana tidak boleh mencatat hasil untuk varian yang tidak berlaku**; hasil tanpa
+   baris akan dilaporkan `periksa-cakupan.py` sebagai HASIL NYASAR.
 
 Yang **tidak boleh** masuk ke pelaksana: kasus yang menuntut penilaian mata (warna, keadaan
 redup), hover, lebar 390px, mematikan koneksi, mengubah jam perangkat, atau membuka berkas

@@ -853,8 +853,8 @@ dipakai pada `MB-FORM-05` (minimal satu terisi).
   memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
   **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
   Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
-  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak berlaku" dengan sebab itu,
-  jangan "Gagal".
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku**, dan barisnya memang **tidak ada** di
+  berkas Excel: yang terdaftar hanya jalan yang dapat dikerjakan. Tidak ada yang perlu ditandai.
 - **Langkah:**
   1. `[M-FORM]` untuk <Stasiun> (lewati ketujuh stasiun di luar daftar itu).
   2. Tambah satu baris slot waktu. Buka pemilih slotnya.
@@ -1282,8 +1282,8 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
   memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
   **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
   Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
-  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak berlaku" dengan sebab itu,
-  jangan "Gagal".
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku**, dan barisnya memang **tidak ada** di
+  berkas Excel: yang terdaftar hanya jalan yang dapat dikerjakan. Tidak ada yang perlu ditandai.
 - **Langkah:**
   1. Siapkan satu record dengan **tepat 3** baris slot waktu terisi.
   2. `[W-BROWSE]` untuk <Stasiun>, cari record itu.
@@ -1511,8 +1511,8 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
   memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
   **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
   Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
-  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak berlaku" dengan sebab itu,
-  jangan "Gagal".
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku**, dan barisnya memang **tidak ada** di
+  berkas Excel: yang terdaftar hanya jalan yang dapat dikerjakan. Tidak ada yang perlu ditandai.
 - **Langkah:**
   1. `[W-FORM-NEW]` untuk <Stasiun> (lewati ketujuh stasiun di luar daftar itu).
   2. Jalankan seluruh langkah `MB-FORM-03` pada form web ini: coba slot menurun dan slot kembar.
@@ -1538,8 +1538,8 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
   memang tidak memakai penyebut 24: Sterilizer menghitung **siklus**, Cages Track menghitung
   **cage/lori**, Solid Waste Disposal / Kernel Dispatch / CPO Dispatch menghitung **kejadian**,
   Grading menampilkan **nomor kendaraan**, dan Weighbridge satu record berarti satu transaksi.
-  Pada ketujuh stasiun itu kasus ini **tidak berlaku** — tandai "Tidak berlaku" dengan sebab itu,
-  jangan "Gagal".
+  Pada ketujuh stasiun itu kasus ini **tidak berlaku**, dan barisnya memang **tidak ada** di
+  berkas Excel: yang terdaftar hanya jalan yang dapat dikerjakan. Tidak ada yang perlu ditandai.
 - **Langkah:**
   1. `[W-FORM-NEW]` untuk <Stasiun> (lewati ketujuh stasiun di luar daftar itu).
   2. Isi header dengan benar.
@@ -2424,8 +2424,8 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
 - **Berlaku untuk:** **hanya Company.** Itu satu-satunya tingkat yang namanya dibatasi per
   induk ("Nama company sudah digunakan pada Corporate ini"). Corporate dibatasi secara global,
   dan lima tingkat lainnya tidak membatasi nama sama sekali — hanya kodenya, dan kode dibatasi
-  secara global, bukan per induk. Pada tingkat selain Company tandai "Tidak berlaku" dengan sebab
-  itu, jangan "Gagal".
+  secara global, bukan per induk. Tingkat selain Company **tidak ada** barisnya di berkas Excel:
+  yang terdaftar hanya jalan yang dapat dikerjakan.
 - **Prasyarat:** dua Corporate berbeda
 - **Langkah:**
   1. Sebagai `ADM`, pastikan ada **dua** Corporate berbeda: Corporate A dan Corporate B.
@@ -2497,8 +2497,9 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
 - **Berlaku untuk:** **hanya Kelola Mesin.** Dari delapan tingkat Kelola, hanya layar itu yang
   punya kolom pencarian teks bebas; tujuh lainnya (Corporate, Company, Business Unit, Production
   Line, Station, Machinery Group, User & Role) menyaring lewat pemilih induk, bukan pencarian.
-  Pada tujuh layar itu kasus ini **tidak berlaku** — tandai "Tidak berlaku" dengan sebab itu, jangan
-  "Gagal". Pencarian mill diuji terpisah di `MD-STR-04`.
+  Pada tujuh layar itu kasus ini **tidak berlaku**, dan barisnya memang **tidak ada** di berkas
+  Excel: yang terdaftar hanya jalan yang dapat dikerjakan. Pencarian mill diuji terpisah di
+  `MD-STR-04`.
 - **Prasyarat:** data lebih dari satu halaman
 - **Langkah:**
   1. `[W-KELOLA]` untuk <Tingkat> sebagai `ADM`. Pastikan datanya lebih dari satu halaman.
@@ -3058,16 +3059,16 @@ bukan memakai berkas lain yang lebih kecil dan bisa tertinggal usang.
 | Tingkat | Isinya | Jalan |
 |---|---|---:|
 | **1 — ALUR** | Setiap kasus **sekali**, pada stasiun wakil | **170** |
-| **2 — KABEL** | 5 kasus pada 17 stasiun sisanya (+1 untuk 10 laporan sisanya) | **95** |
-| **1+2** | **Cakupan yang masuk akal untuk satu putaran manual** | **265** (18%) |
-| 3 — SISA | Pengulangan penuh; untuk putaran rilis atau saat satu stasiun berubah | 1.244 |
+| **2 — KABEL** | 5 kasus pada 17 stasiun sisanya (+1 untuk 10 laporan sisanya) | **88** |
+| **1+2** | **Cakupan yang masuk akal untuk satu putaran manual** | **258** (18%) |
+| 3 — SISA | Pengulangan penuh; untuk putaran rilis atau saat satu stasiun berubah | 1.184 |
 
 **Stasiun wakil Tingkat 1** dipilih karena paling banyak melewati cabang, bukan karena
 alfabet: **Depricarping** (9 kolom bacaan, kolom downtime angka, kolom temuan teks, punya
 master target), **Kernel Plant** untuk laporan (dua pasang kolom berbagi satu standar),
 **Business Unit** untuk Kelola (punya induk dan kolom logo). Untuk kasus yang tidak berlaku
 di sana — mis. `MB-FORM-11` yang khusus stasiun per-transaksi — Tingkat 1 jatuh ke stasiun
-pertama yang berlaku, supaya tidak ada kasus yang hanya punya baris "tidak berlaku".
+pertama yang berlaku, supaya setiap kasus benar-benar punya satu jalan yang dapat dikerjakan.
 
 **Tingkat 2 adalah lima kasus yang gagal kalau satu stasiun salah dikabel:** `MB-FORM-01`
 (jalur tulis mobile), `MB-PRV-06` (jalur baca mobile), `WB-FRM-01` (jalur tulis web),
@@ -3167,11 +3168,11 @@ Tabel di bawah hanya untuk yang menguji dari kertas. Untuk kasus yang dijalankan
 - **Gagal** — ada perbedaan. Tulis **apa yang terlihat**, bukan dugaan sebabnya.
 - **Tidak diuji** — prasyaratnya tidak dapat disiapkan. **Jangan** ditandai Lulus.
   Contoh: `WB-BRW-09` butuh data melebihi 50.000 baris.
-- **Tidak berlaku** — kasusnya memang tidak punya apa pun untuk diuji pada varian itu, dan
-  kolom Langkah barisnya sudah berbunyi demikian. Contoh: `WB-BRW-03` di Weighbridge — layar
-  itu tidak memakai penyebut 24 karena gridnya bukan 24 slot waktu. Nilai ini **berbeda** dari
-  "Tidak diuji": yang ini bukan pekerjaan yang tertinggal, jadi ia tidak ikut dihitung sebagai
-  sisa.
+
+Tidak ada nilai "tidak berlaku". Varian yang kasusnya memang tidak punya apa pun untuk diuji —
+mis. `WB-BRW-03` di Weighbridge, yang gridnya bukan 24 slot waktu — **tidak terdaftar sebagai
+baris sama sekali**. Setiap baris di berkas Excel adalah jalan yang dapat dikerjakan, jadi
+seluruhnya ikut dihitung sebagai pekerjaan dan penyebutnya tidak perlu dikoreksi.
 
 > Kasus yang prasyaratnya tidak tersedia **bukan** kasus yang lulus. Menandainya Lulus
 > membuat laporan pengujian menyatakan sesuatu yang tidak pernah diperiksa.

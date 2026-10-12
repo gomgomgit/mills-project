@@ -57,6 +57,7 @@ import {
   type BoilerRoomDraftListItem,
   type BoilerRoomTodaySummary,
 } from '@/services/boilerRoomRecordRepo'
+import ProductionLineLabel from '@/components/ProductionLineLabel.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import LoadingState from '@/components/loading/LoadingState.vue'
 import BusyLabel from '@/components/loading/BusyLabel.vue'
@@ -280,6 +281,7 @@ function goToStationList() {
         <span class="breadcrumb-current" aria-current="page">Boiler Room</span>
       </nav>
       <h1 class="screen-title">Monitor Boiler Room</h1>
+      <ProductionLineLabel />
     </div>
 
     <section class="today-summary-section" aria-label="Hari Ini">

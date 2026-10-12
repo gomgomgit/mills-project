@@ -10,6 +10,13 @@ use Illuminate\Auth\Access\AuthorizationException;
  * business_unit_id (screen-001--login-web, usecase-001--login-web,
  * business_logic step 5 → 403 BUSINESS_AREA_MISMATCH).
  *
+ * Also thrown for a SECOND cause on the same branch of login(): a non-Admin
+ * account with no business_unit_id at all. The status code is the same, but
+ * the sentence must not be — the default message below speaks of an area
+ * "yang dipilih", and that caller chose nothing. It therefore passes its own
+ * message, and every caller must surface $e->getMessage() rather than
+ * hard-coding one (QA LS-04).
+ *
  * Interpretation note: the entity catalog has no many-to-many "business
  * units a user can access" table — User has a single business_unit_id FK —
  * so "akses user" is treated as an exact match against that field.

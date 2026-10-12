@@ -102,9 +102,15 @@ class LoginForm extends Component
             $this->errorMessage = 'Akun tidak aktif, hubungi Admin.';
 
             return;
-        } catch (BusinessAreaMismatchException) {
+        } catch (BusinessAreaMismatchException $e) {
+            // Pesannya diambil dari exception-nya, bukan ditulis ulang di sini.
+            // Ada DUA sebab yang melempar exception ini — business area yang
+            // dikirim tidak cocok, dan akun non-Admin yang belum punya mill —
+            // dan keduanya butuh kalimat yang berbeda. Menuliskannya di sini
+            // membuat kedua sebab itu selalu terbaca sebagai yang pertama,
+            // termasuk bagi pengguna yang tidak pernah memilih apa pun.
             $this->password = '';
-            $this->errorMessage = 'Business area yang dipilih tidak sesuai dengan akses Anda.';
+            $this->errorMessage = $e->getMessage();
 
             return;
         } catch (ValidationException $e) {

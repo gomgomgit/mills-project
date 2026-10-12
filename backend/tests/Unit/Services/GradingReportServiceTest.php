@@ -356,8 +356,21 @@ it('case 12 — kelompok bunch dan kg berdiri sendiri, dengan penyebut masing-ma
     expect($bunchByName['Masak']['share_percent'])->toBe(70.0);
     expect($summary['kg']['rows'][0]['share_percent'])->toBe(100.0);
 
-    // NOT ONE KEY equals 140 — bunches are never added to kilograms.
-    expect(json_encode($summary))->not->toContain('140');
+    // NOT ONE NUMBER equals 140 — bunches are never added to kilograms.
+    //
+    // Dicocokkan ke NILAI, bukan ke substring JSON-nya. `toContain('140')`
+    // atas json_encode() juga cocok dengan "140" yang muncul di tengah uuid
+    // atau cap waktu mana pun, jadi ia gagal acak sekitar sekali per
+    // beberapa putaran penuh — kegagalan yang tidak mengatakan apa pun
+    // tentang perilaku yang dijaganya. (Ditemukan saat putaran penuh
+    // 2026-10-12; bukan bagian dari 13 temuan QA, hanya terbentur di sana.)
+    $angka = [];
+    array_walk_recursive($summary, function ($nilai) use (&$angka) {
+        if (is_int($nilai) || is_float($nilai)) {
+            $angka[] = (float) $nilai;
+        }
+    });
+    expect($angka)->not->toContain(140.0);
 });
 
 it('case 13 — share_percent null ketika total kelompoknya 0', function () {

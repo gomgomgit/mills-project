@@ -6,6 +6,13 @@ import router from './router'
 import { initLocalSchema, seedGradingParametersIfNeeded } from '@/services/localSchema'
 import { query, run } from '@/services/localDb'
 import { setUnauthorizedHandler } from '@/services/apiClient'
+import { vStackedTable } from '@/directives/stackedTable'
+
+// Tabel rekap laporan sebagai kartu bertumpuk di lebar ponsel (QA LP-M-02 /
+// LP-M-03). Global, bukan di <style scoped> tiap view: aturannya sama untuk
+// ke-25 tabel di 11 layar laporan, dan style scoped akan selalu menang atas
+// selektor global karena kekhususan atribut [data-v-hash].
+import '@/assets/stacked-table.css'
 
 // Registers the <jeep-sqlite> custom element — @capacitor-community/sqlite's
 // web-platform companion. Without this, SQLiteConnection.open() has no
@@ -71,6 +78,7 @@ async function bootstrap(): Promise<void> {
   const app = createApp(App)
   app.use(createPinia())
   app.use(router)
+  app.directive('stacked-table', vStackedTable)
 
   // Audit 2026-10-05: 401 dari request bersesi (akun dinonaktifkan / token
   // dicabut) -> sesi lokal sudah dibersihkan interceptor apiClient; di sini

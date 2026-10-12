@@ -92,14 +92,23 @@ class ChangePasswordForm extends Component
                 $this->new_password_confirmation,
             );
         } catch (OldPasswordIncorrectException) {
+            // DI SEBELAH KOLOMNYA, bukan sebagai toast umum di atas form
+            // (QA AU-08). Penolakan ini menunjuk satu kolom tertentu, dan
+            // toast di atas form membuat pengguna harus menebak kolom mana
+            // yang salah dari tiga kolom yang semuanya terisi — lebih buruk
+            // lagi, toast itu menghilang sendiri setelah 3 detik.
             $this->old_password = '';
-            $this->errorMessage = 'Password lama salah.';
+            $this->addError('old_password', 'Password lama salah.');
 
             return;
         } catch (PasswordConfirmationMismatchException) {
+            // Sama: ini milik kolom konfirmasi. Aturan 'same' di rules()
+            // sudah menaruh galat jalur normal di kolom itu; cabang server
+            // ini (pertahanan berlapis) harus mendarat di tempat yang sama,
+            // bukan di tempat lain.
             $this->new_password = '';
             $this->new_password_confirmation = '';
-            $this->errorMessage = 'Konfirmasi password tidak cocok dengan password baru.';
+            $this->addError('new_password_confirmation', 'Konfirmasi password tidak cocok dengan password baru.');
 
             return;
         } catch (ValidationException $e) {

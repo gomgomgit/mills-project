@@ -115,13 +115,37 @@ it('shows a business-area-mismatch error for a non-Admin account with no busines
         ->role(UserRole::Supervisor)
         ->create(['business_unit_id' => null]);
 
+    // The sentence is asserted whole, and deliberately NOT the default
+    // "business area yang dipilih" one: this account chose nothing, and the
+    // login screen has no business area picker to choose with (QA LS-04).
     Livewire::test(LoginForm::class)
         ->set('username', $user->username)
         ->set('password', 'Passw0rd!')
         ->call('login')
         ->assertNoRedirect()
-        ->assertSet('errorMessage', 'Business area yang dipilih tidak sesuai dengan akses Anda.')
+        ->assertSet('errorMessage', 'Akun ini belum terikat pada mill mana pun, sehingga tidak ada data yang dapat dibuka. Hubungi Admin untuk menetapkan mill akun Anda.')
         ->assertSet('password', '');
+});
+
+// The OTHER cause of the same exception keeps the original sentence: there a
+// business_unit_id really was submitted, so "yang dipilih" is accurate.
+// Asserted here so the two can never silently collapse into one message again.
+it('keeps the "yang dipilih" wording when a business unit really was submitted', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+
+    $user = User::factory()
+        ->password('Passw0rd!')
+        ->forBusinessUnit($this->businessUnit)
+        ->create();
+
+    expect(fn () => app(\App\Services\AuthService::class)->login(
+        $user->username,
+        'Passw0rd!',
+        (string) $otherBusinessUnit->id,
+    ))->toThrow(
+        \App\Exceptions\BusinessAreaMismatchException::class,
+        'Business area yang dipilih tidak sesuai dengan akses Anda.',
+    );
 });
 
 // Scenario: "Login Web — Format Password Tidak Valid"

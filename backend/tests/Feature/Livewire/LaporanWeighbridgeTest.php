@@ -447,9 +447,15 @@ it('skenario 4 — Admin berganti mill: production_line_id direset, daftar line 
     // hook of its own.
     $component->set('businessUnitId', (string) $this->businessUnitB->id)
         ->assertSet('productionLineId', '')
-        // updatedBusinessUnitId() drops the period too: a period belongs to
-        // exactly one mill.
-        ->assertSet('periodId', (string) Period::query()->where('business_unit_id', $this->businessUnitB->id)->value('id'))
+        // PERIODE IKUT KOSONG, dan tetap kosong — temuan QA LP-W-09.
+        //
+        // Test ini dulu mengasersi kebalikannya: bahwa periodId berisi
+        // periode terbaru MILL BARU. Itu memang yang terjadi, dan itu
+        // cacatnya — pemilih periode tampak berisi sementara layar belum
+        // menampilkan satu angka pun, sehingga pembaca menyangka ia sedang
+        // melihat periode yang ia pilih. Pengisian otomatis sekarang hanya
+        // berlaku untuk kedatangan baru, tidak sesudah mill diganti.
+        ->assertSet('periodId', '')
         ->assertViewHas('needsProductionLineSelection', true)
         ->assertViewHas('summary', null)
         ->assertViewHas('productionLineOptions', fn ($options) => array_column($options, 'id') === [$this->lineB])

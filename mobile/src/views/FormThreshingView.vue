@@ -92,6 +92,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useFloatingClockStore } from '@/stores/floatingClock'
 import { useAiAssistantStore } from '@/stores/aiAssistant'
+import { galatStasiunTidakAktif } from '@/services/activeStation'
 import threshingRecordRepo, {
   ThreshingDetailRequiredError,
   type ThreshingDetailFormRow,
@@ -447,6 +448,24 @@ async function onSimpan(): Promise<void> {
   const detailValid = validateDetailRows()
 
   if (!headerValid || !detailValid) {
+    return
+  }
+
+  // PENJAGA STASIUN AKTIF (temuan QA MB-FORM-15). Layar web menolak keadaan
+  // ini dengan pesan yang tepat; mobile dulu MENERIMA dan menyimpannya —
+  // record masuk dengan station_id null, berstatus "Tersimpan", pada Production
+  // Line yang tidak punya stasiun jenis ini. Tidak ada satu kalimat pun yang
+  // muncul, jadi operator tidak punya cara tahu datanya tidak akan punya
+  // tempat berlabuh.
+  //
+  // Hanya menolak keadaan yang DIKETAHUI "tidak aktif" — lihat
+  // activeStationStatus(): perangkat yang cache stasiunnya masih kosong tetap
+  // boleh menyimpan, karena mencatat offline adalah inti aplikasi ini.
+  const galatStasiun = await galatStasiunTidakAktif(route.name, authStore.currentUser?.id)
+
+  if (galatStasiun !== null) {
+    actionErrorMessage.value = galatStasiun
+
     return
   }
 

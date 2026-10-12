@@ -1,0 +1,148 @@
+/**
+ * Tabel rekap laporan sebagai KARTU BERTUMPUK di lebar ponsel.
+ *
+ * TEMUAN QA LP-M-02 dan LP-M-03. Laporan mobile menyalin bentuk tabel versi
+ * web: sampai 11 kolom, `white-space: nowrap`, di dalam pembungkus
+ * `overflow-x: auto`. Pada lebar 390px hasilnya tabel selebar 1411px yang
+ * harus digulir mendatar di dalam kotaknya sendiri — dan menggulir mendatar
+ * di dalam halaman yang juga digulir tegak adalah gerakan yang paling mudah
+ * gagal di layar sentuh. Dokumen QA menuntut bentuk lain: satu kartu per
+ * baris, setiap kolom web punya padanan BERLABEL di dalam kartu, dan tidak
+ * ada kolom yang dibuang demi ruang.
+ *
+ * MENGAPA GLOBAL, BUKAN DI STYLE SCOPED TIAP VIEW. Aturannya sama persis
+ * untuk ke-25 tabel di 11 layar laporan. Disalin 25 kali ia akan menyimpang —
+ * dan satu tabel yang tertinggal pada bentuk lama adalah tabel yang tidak
+ * akan diperiksa siapa pun lagi. Blok `.detail-table` yang dulu ada di tiap
+ * view sudah dibuang supaya tidak ada pertarungan kekhususan selektor:
+ * style scoped mengompilasi `.detail-table td[data-v-hash]`, yang selalu
+ * menang atas selektor global.
+ *
+ * LABEL DIAMBIL DARI <th>, OLEH DIREKTIF, BUKAN DITULIS ULANG. Lihat
+ * src/directives/stackedTable.ts: ia menyalin teks header ke `data-label`
+ * tiap sel sesudah render. Menuliskannya tangan pada ratusan `<td>` berarti
+ * dua sumber kebenaran untuk nama kolom yang sama.
+ */
+
+.detail-table-wrap {
+  width: 100%;
+}
+
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.detail-table th,
+.detail-table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-table th.num,
+.detail-table td.num {
+  text-align: right;
+}
+
+/*
+ * Bentuk kartu. Dipasang pada lebar perangkat saja: tablet dan jendela lebar
+ * tetap mendapat tabel sungguhan, yang di sana memang lebih mudah dibaca
+ * (dan pembacanya dapat membandingkan baris secara mendatar).
+ */
+@media (max-width: 640px) {
+  .detail-table-wrap {
+    /* Tidak ada lagi yang perlu digulir mendatar — dan membiarkan
+       `overflow-x: auto` di sini akan menyembunyikan isi yang melebar
+       alih-alih memaksanya terlihat. */
+    overflow-x: visible;
+  }
+
+  .detail-table,
+  .detail-table thead,
+  .detail-table tbody,
+  .detail-table tfoot,
+  .detail-table tr,
+  .detail-table th,
+  .detail-table td {
+    display: block;
+  }
+
+  /* Header tabel tidak dibuang isinya — ia berpindah menjadi label di dalam
+     tiap sel (lihat direktif). Disembunyikan dengan cara yang aman bagi
+     pembaca layar: isinya memang sudah terbaca lewat label tiap sel. */
+  .detail-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .detail-table tbody tr,
+  .detail-table tfoot tr {
+    margin: 0 0 8px;
+    padding: 4px 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #ffffff;
+  }
+
+  .detail-table tbody tr:last-child,
+  .detail-table tfoot tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .detail-table tbody td,
+  .detail-table tfoot td,
+  .detail-table tfoot th {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    /* Nilai panjang (nama unit, alasan downtime, temuan) membungkus alih-alih
+       melebarkan kartu — inilah yang membuat halaman berhenti melebar. */
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: right;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .detail-table tbody td:last-child,
+  .detail-table tfoot td:last-child,
+  .detail-table tfoot th:last-child {
+    border-bottom: none;
+  }
+
+  /* Label kolom, diambil direktif dari <th> yang sejajar. */
+  .detail-table tbody td::before,
+  .detail-table tfoot td::before,
+  .detail-table tfoot th::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    max-width: 55%;
+    text-align: left;
+    font-weight: 500;
+    color: #6b7280;
+  }
+
+  /* Sel tanpa label (kolom pertama tfoot "Total", sel kosong) tidak perlu
+     baris label kosong yang menyisakan ruang. */
+  .detail-table tbody td:not([data-label])::before,
+  .detail-table tfoot td:not([data-label])::before,
+  .detail-table tfoot th:not([data-label])::before,
+  .detail-table tbody td[data-label='']::before,
+  .detail-table tfoot td[data-label='']::before {
+    content: none;
+  }
+
+  /* min-width peninggalan bentuk tabel justru memaksa kartu melebar. */
+  .detail-table td.wrap {
+    min-width: 0;
+  }
+}

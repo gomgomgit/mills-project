@@ -82,7 +82,17 @@ test.describe('Ganti Password Web', () => {
     await page.locator('#new_password_confirmation').fill('NewPass456!');
     await page.locator('button.settings-button[type="submit"]').click();
 
-    await expect(page.locator('.settings-toast--error')).toContainText('Password lama salah.');
+    // DI SEBELAH KOLOMNYA, bukan sebagai toast umum di atas form (QA AU-08).
+    // Dari tiga kolom password yang semuanya terisi, toast di atas form tidak
+    // menyebut kolom mana yang salah — dan ia menghilang sendiri sesudah 3
+    // detik. Test ini dulu mengasersi toast itu; sekarang ia mengasersi
+    // tempat yang benar, DAN bahwa toast umumnya tidak lagi dipakai untuk
+    // penolakan yang menunjuk satu kolom.
+    const galatKolom = page.locator('#old_password')
+      .locator('xpath=ancestor::div[contains(@class, "form-field")][1]')
+      .locator('.form-field__error');
+    await expect(galatKolom).toContainText('Password lama salah.');
+    await expect(page.locator('.settings-toast--error')).toHaveCount(0);
   });
 
   // Scenario: "Ganti Password Web — Password Baru Tidak Memenuhi Format"

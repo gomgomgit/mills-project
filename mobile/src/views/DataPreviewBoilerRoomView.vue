@@ -178,10 +178,27 @@ const filteredRecords = computed(() => {
   })
 })
 
-const hasActiveFilter = computed(() => dateFilter.value !== '' || searchFilter.value !== '')
+/**
+ * Filter dianggap aktif bila ia BERBEDA DARI BAWAANNYA, bukan bila ia
+ * terisi — temuan QA MB-PRV-08.
+ *
+ * Tanggal bawaan layar ini adalah HARI INI, diisi saat mount. Dengan
+ * perbandingan lama (`!== ''`), keadaan awal yang belum disentuh siapa pun
+ * sudah dihitung sebagai "ada filter aktif": tombol Reset Filter praktis
+ * selalu terlihat dan karena itu berhenti menandakan apa pun.
+ */
+const hasActiveFilter = computed(
+  () => dateFilter.value !== todayLocalDateString() || searchFilter.value !== '',
+)
 
+/**
+ * Reset MEMULIHKAN KEADAAN AWAL, bukan mengosongkan tanggal — temuan QA
+ * MB-PRV-08. Mengosongkannya justru MELEBARKAN daftar ke seluruh tanggal,
+ * yaitu kebalikan dari apa yang diharapkan dari sebuah tombol reset: layar
+ * sesudah Reset menampilkan lebih banyak data daripada saat dibuka.
+ */
 function onResetFilter(): void {
-  dateFilter.value = ''
+  dateFilter.value = todayLocalDateString()
   searchFilter.value = ''
 }
 

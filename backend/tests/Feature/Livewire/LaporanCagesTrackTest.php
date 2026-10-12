@@ -835,7 +835,12 @@ it('baca saja: the component exposes no create/update/delete action and changes 
         ->assertSeeHtml('data-testid="recap-table"');
 
     // The public surface is two pickers, a toggle and an export — nothing
-    // that reads like a write action.
+    // that reads like a write action. Hook siklus-hidup properti Livewire
+    // (updating*/updated*) ikut terdaftar sebagai metode publik dan memang
+    // harus ada: keduanya bagian dari pemilih itu sendiri, bukan aksi yang
+    // dapat dipanggil pengguna. Keduanya ditambahkan untuk QA LP-W-09 —
+    // mill yang berganti harus MENGOSONGKAN pilihan periode, bukan diam-diam
+    // menggantinya dengan periode terbaru mill baru.
     $publicMethods = collect((new ReflectionClass(LaporanCagesTrack::class))->getMethods(ReflectionMethod::IS_PUBLIC))
         ->filter(fn (ReflectionMethod $method) => $method->getDeclaringClass()->getName() === LaporanCagesTrack::class)
         ->map(fn (ReflectionMethod $method) => $method->getName())
@@ -843,7 +848,10 @@ it('baca saja: the component exposes no create/update/delete action and changes 
         ->values()
         ->all();
 
-    expect($publicMethods)->toBe(['export', 'mount', 'render', 'toggleRekapHarian']);
+    expect($publicMethods)->toBe([
+        'export', 'mount', 'render', 'toggleRekapHarian',
+        'updatedBusinessUnitId', 'updatedPeriodId', 'updatingBusinessUnitId',
+    ]);
 
     foreach (['create', 'store', 'update', 'save', 'delete', 'destroy', 'verify', 'acknowledge'] as $writeAction) {
         expect($publicMethods)->not->toContain($writeAction);

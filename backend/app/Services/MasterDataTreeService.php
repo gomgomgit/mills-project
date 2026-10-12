@@ -6,6 +6,7 @@ use App\Models\BusinessUnit;
 use App\Models\Company;
 use App\Models\Corporate;
 use App\Models\ProductionLine;
+use App\Support\Concerns\EscapesLikeWildcards;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -71,6 +72,8 @@ use Illuminate\Support\Facades\Storage;
  */
 class MasterDataTreeService
 {
+    use EscapesLikeWildcards;
+
     /**
      * counts() — four independent COUNTs, one per hierarchy table.
      *
@@ -352,25 +355,24 @@ class MasterDataTreeService
      * OR-matches `$term` against `lower(<table>.<column>)` for each given
      * column, inside whatever (already grouped) where-clause it is handed.
      *
-     * lower() + LIKE, NEVER ILIKE — ILIKE is PostgreSQL-only while this
-     * suite runs on SQLite, so an ILIKE here would be green in tests and
-     * broken in production (see App\Rules\UniqueCaseInsensitive, which
-     * made the same choice for the same reason). The term is bound as a
-     * parameter, never interpolated. The explicit ESCAPE clause is there
-     * for the same portability reason: PostgreSQL defaults LIKE's escape
-     * character to backslash while SQLite has none at all, so stating it
-     * is the only way both engines treat a keyword containing % or _
-     * identically.
+     * The pattern and the SQL expression both come from
+     * App\Support\Concerns\EscapesLikeWildcards, which carries the reasoning
+     * for lower()+LIKE over ILIKE, for escaping % and _, and for writing the
+     * ESCAPE clause out by hand. That trait used to be a private copy living
+     * here; Kelola Mesin's own search did NOT have it, and searching "BU_A"
+     * there matched "BUxA" (QA MD-KEL-11) — one definition, used by all three
+     * services, is what keeps that from drifting apart again. The term is
+     * bound as a parameter, never interpolated.
      *
      * @param  Builder<Model>  $query
      * @param  list<string>  $columns
      */
     private function matchColumns(Builder $query, string $table, array $columns, string $term): Builder
     {
-        $pattern = '%'.$this->escapeLike($term).'%';
+        $pattern = $this->likeContains($term);
 
         foreach ($columns as $index => $column) {
-            $expression = 'lower('.$table.'.'.$column.') like ? escape \'\\\'';
+            $expression = $this->likeExpression($table.'.'.$column);
 
             if ($index === 0) {
                 $query->whereRaw($expression, [$pattern]);
@@ -382,14 +384,5 @@ class MasterDataTreeService
         }
 
         return $query;
-    }
-
-    /**
-     * Escapes LIKE wildcards so a keyword containing % or _ searches for
-     * those characters literally instead of matching everything.
-     */
-    private function escapeLike(string $term): string
-    {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term);
     }
 }

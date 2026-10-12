@@ -242,9 +242,12 @@ test.describe('Data Preview CPO Dispatch (screen-084)', () => {
     await expect(page.getByTestId('record-item-e2e-cpo-solo')).toHaveCount(0)
     await expect(page.getByTestId('reset-filter-button')).toBeVisible()
 
+    // Reset MEMULIHKAN KEADAAN AWAL (QA MB-PRV-08): kata kunci kosong dan
+    // tanggal kembali ke HARI INI — bukan dikosongkan. Layar sesudah Reset
+    // karena itu sama dengan layar saat dibuka, bukan lebih lebar.
     await page.getByTestId('reset-filter-button').click()
 
-    await expect(page.getByTestId('date-filter')).toHaveValue('')
+    await expect(page.getByTestId('date-filter')).toHaveValue(today())
     await expect(page.getByTestId('search-filter')).toHaveValue('')
     await expect(page.getByTestId('record-item-e2e-cpo-solo')).toBeVisible()
     await expect(page.getByTestId('list-not-found')).toHaveCount(0)

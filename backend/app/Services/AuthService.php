@@ -121,7 +121,18 @@ class AuthService
                 // data-integrity problem (Kelola User & Role requires one
                 // for every non-Admin role), not a normal Admin case —
                 // reject it the same way an explicit mismatch is rejected.
-                throw new BusinessAreaMismatchException;
+                //
+                // With its OWN message, though. The default one speaks of a
+                // business area "yang dipilih", and on this branch the user
+                // chose nothing at all — the login screen has no business
+                // area picker. Telling someone their choice was wrong when
+                // they made no choice sends them looking for a control that
+                // does not exist, instead of to the Admin who can assign
+                // their mill.
+                throw new BusinessAreaMismatchException(
+                    'Akun ini belum terikat pada mill mana pun, sehingga tidak ada '
+                    .'data yang dapat dibuka. Hubungi Admin untuk menetapkan mill akun Anda.'
+                );
             }
             // else: Admin with none assigned — proceed with $businessUnitId
             // left null, no exception.

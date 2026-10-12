@@ -6,6 +6,7 @@ use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Rules\RealImage;
 use App\Rules\UniqueCaseInsensitive;
+use App\Support\Concerns\EscapesLikeWildcards;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
@@ -64,6 +65,8 @@ use Illuminate\Validation\ValidationException;
  */
 class MachineryService
 {
+    use EscapesLikeWildcards;
+
     /**
      * Disk/directory for `picture` uploads — mirrors CorporateService::
      * LOGO_DISK's reasoning exactly (FILESYSTEM_DISK=local, `local` disk
@@ -148,17 +151,18 @@ class MachineryService
             // "(group filter AND code match) OR name match", which would
             // return machines from other groups.
             //
-            // lower() on BOTH sides rather than ILIKE or a bare LIKE.
-            // Verified on both drivers: SQLite rejects ILIKE outright
-            // (syntax error, so every test would fail loudly), while a
-            // bare LIKE is case-insensitive on SQLite but case-SENSITIVE
-            // on PostgreSQL — it would pass the whole suite and then fail
-            // users in production, searching "press" and not finding
-            // "Screw Press". lower()+LIKE behaves identically on both.
-            $needle = '%'.mb_strtolower($search).'%';
-            $query->where(function ($q) use ($needle) {
-                $q->whereRaw('lower(equipment_code) LIKE ?', [$needle])
-                    ->orWhereRaw('lower(name) LIKE ?', [$needle]);
+            // lower() on BOTH sides rather than ILIKE or a bare LIKE, and
+            // LIKE wildcards in the keyword escaped — both reasons live in
+            // App\Support\Concerns\EscapesLikeWildcards. In short: ILIKE is
+            // PostgreSQL-only, a bare LIKE is case-sensitive there, and an
+            // unescaped `_` makes a search for "BU_A" also match "BUxA"
+            // (QA MD-KEL-11).
+            $needle = $this->likeContains($search);
+            $kode = $this->likeExpression('equipment_code');
+            $nama = $this->likeExpression('name');
+            $query->where(function ($q) use ($needle, $kode, $nama) {
+                $q->whereRaw($kode, [$needle])
+                    ->orWhereRaw($nama, [$needle]);
             });
         }
 

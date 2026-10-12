@@ -338,7 +338,12 @@ describe('StationListView — "Pilih Stasiun"', () => {
     // (lihat rememberProductionLineId di StationListView.vue), jadi
     // tanpa ini sebuah test mewarisi pilihan test sebelumnya.
     window.localStorage.clear()
-    fetchCurrentProductionLinesMock.mockResolvedValue([])
+    // DITOLAK, bukan resolve([]) — kelompok test ini menguji grid stasiun dan
+    // ingin fitur Production Line "tidak diketahui", yaitu keadaan offline.
+    // Sejak QA MB-HOME-04, resolve([]) berarti hal yang BERBEDA: server
+    // menjawab dan mill ini memang belum punya satu line pun, yang kini
+    // menampilkan arahan alih-alih grid.
+    fetchCurrentProductionLinesMock.mockRejectedValue(new Error('offline'))
     logoutMock.mockResolvedValue(undefined)
     useAuthStoreMock.mockReturnValue({
       currentUser: {
@@ -436,7 +441,12 @@ describe('StationListView — breadcrumb', () => {
     // (lihat rememberProductionLineId di StationListView.vue), jadi
     // tanpa ini sebuah test mewarisi pilihan test sebelumnya.
     window.localStorage.clear()
-    fetchCurrentProductionLinesMock.mockResolvedValue([])
+    // DITOLAK, bukan resolve([]) — kelompok test ini menguji grid stasiun dan
+    // ingin fitur Production Line "tidak diketahui", yaitu keadaan offline.
+    // Sejak QA MB-HOME-04, resolve([]) berarti hal yang BERBEDA: server
+    // menjawab dan mill ini memang belum punya satu line pun, yang kini
+    // menampilkan arahan alih-alih grid.
+    fetchCurrentProductionLinesMock.mockRejectedValue(new Error('offline'))
     logoutMock.mockResolvedValue(undefined)
     useAuthStoreMock.mockReturnValue({
       currentUser: {
@@ -500,7 +510,12 @@ describe('StationListView — menu navigasi (hamburger)', () => {
     // (lihat rememberProductionLineId di StationListView.vue), jadi
     // tanpa ini sebuah test mewarisi pilihan test sebelumnya.
     window.localStorage.clear()
-    fetchCurrentProductionLinesMock.mockResolvedValue([])
+    // DITOLAK, bukan resolve([]) — kelompok test ini menguji grid stasiun dan
+    // ingin fitur Production Line "tidak diketahui", yaitu keadaan offline.
+    // Sejak QA MB-HOME-04, resolve([]) berarti hal yang BERBEDA: server
+    // menjawab dan mill ini memang belum punya satu line pun, yang kini
+    // menampilkan arahan alih-alih grid.
+    fetchCurrentProductionLinesMock.mockRejectedValue(new Error('offline'))
     logoutMock.mockResolvedValue(undefined)
     useAuthStoreMock.mockReturnValue({
       currentUser: {
@@ -603,7 +618,12 @@ describe('StationListView — draft-status-by-type detection', () => {
     // (lihat rememberProductionLineId di StationListView.vue), jadi
     // tanpa ini sebuah test mewarisi pilihan test sebelumnya.
     window.localStorage.clear()
-    fetchCurrentProductionLinesMock.mockResolvedValue([])
+    // DITOLAK, bukan resolve([]) — kelompok test ini menguji grid stasiun dan
+    // ingin fitur Production Line "tidak diketahui", yaitu keadaan offline.
+    // Sejak QA MB-HOME-04, resolve([]) berarti hal yang BERBEDA: server
+    // menjawab dan mill ini memang belum punya satu line pun, yang kini
+    // menampilkan arahan alih-alih grid.
+    fetchCurrentProductionLinesMock.mockRejectedValue(new Error('offline'))
     logoutMock.mockResolvedValue(undefined)
     useAuthStoreMock.mockReturnValue({
       currentUser: {
@@ -1181,7 +1201,16 @@ describe('StationListView — Production Line picker step', () => {
     expect(wrapper.get('[data-testid="production-line-picker"]').exists()).toBe(true)
   })
 
-  it('falls back to the legacy business-unit-scoped grid when no Production Lines are known (offline/none yet)', async () => {
+  /*
+   * TEMUAN QA MB-HOME-04 — "daftar kosong" dan "pengambilan gagal" adalah
+   * dua keadaan yang berbeda, dan dulu keduanya diluluhkan oleh
+   * .catch(() => []). Mill yang benar-benar belum punya Production Line
+   * ikut jatuh ke cabang cadangan dan menampilkan 18 tile stasiun dari seed
+   * sintetis — tanpa line terpilih dan tanpa satu kalimat pun yang
+   * menjelaskannya. Operator lalu dapat menekan tile dan mulai mengisi untuk
+   * mill yang belum punya tempat menaruh datanya.
+   */
+  it('menampilkan arahan, BUKAN grid, ketika server menjawab bahwa mill belum punya Production Line', async () => {
     fetchCurrentProductionLinesMock.mockResolvedValue([])
     const stations = [makeStation({ id: 'station-1', name: 'Timbangan', type: 'weighbridge', isActive: true })]
     getActiveAndPlaceholderStationsMock.mockResolvedValue(stations)
@@ -1189,6 +1218,26 @@ describe('StationListView — Production Line picker step', () => {
     const wrapper = mount(StationListView)
     await flushPromises()
 
+    const arahan = wrapper.get('[data-testid="mill-without-production-line"]')
+    expect(arahan.text()).toContain('Production Line')
+    expect(arahan.text()).toContain('Admin')
+
+    // Tidak ada grid, tidak ada pemilih, dan tidak ada seed stasiun sintetis.
+    expect(wrapper.findComponent(StationGrid).exists()).toBe(false)
+    expect(wrapper.find('[data-testid="production-line-picker"]').exists()).toBe(false)
+    expect(seedDefaultStationsIfNeededMock).not.toHaveBeenCalled()
+    expect(getActiveAndPlaceholderStationsMock).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the legacy business-unit-scoped grid when the Production Line list cannot be fetched (offline)', async () => {
+    fetchCurrentProductionLinesMock.mockRejectedValue(new Error('offline'))
+    const stations = [makeStation({ id: 'station-1', name: 'Timbangan', type: 'weighbridge', isActive: true })]
+    getActiveAndPlaceholderStationsMock.mockResolvedValue(stations)
+
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="mill-without-production-line"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="production-line-picker"]').exists()).toBe(false)
     expect(getActiveAndPlaceholderStationsMock).toHaveBeenCalledWith('bu-1')
     expect(fetchAndCacheStationsForProductionLineMock).not.toHaveBeenCalled()

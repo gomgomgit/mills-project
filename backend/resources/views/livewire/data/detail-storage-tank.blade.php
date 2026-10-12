@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.storage-tank.edit', ['id' => $id]) }}" class="st-button st-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.storage-tank') }}" class="st-button st-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.storage-tank')" class="st-button st-button--secondary" />
         </div>
     </div>
 

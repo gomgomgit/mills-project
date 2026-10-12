@@ -631,3 +631,63 @@ it('lowercases both sides of the search comparison in the generated SQL', functi
     );
     expect($binding)->toBe('%press%', 'kata kunci harus di-lowercase sebelum jadi binding');
 });
+
+/*
+ * TEMUAN QA MD-KEL-11. `%` dan `_` adalah wildcard LIKE, dan tanpa di-escape
+ * keduanya membuat pencarian menjawab pertanyaan yang tidak diajukan:
+ * mengetik `100%` menemukan "Machine 0100" yang tidak memuat tanda persen
+ * sama sekali, dan `BU_A` ikut mengenai `BUxA` karena `_` cocok dengan satu
+ * karakter apa pun. Pengguna tidak punya cara menduga itu — yang ia ketik
+ * adalah nama yang ia lihat di layar.
+ */
+it('memperlakukan % dan _ pada kata kunci sebagai huruf biasa', function () {
+    $group = MachineryGroup::factory()->create();
+    Machinery::factory()->forFullMachineryGroup($group)
+        ->create(['equipment_code' => 'EQ-PERSEN', 'name' => 'Mill 100% Murni']);
+    Machinery::factory()->forFullMachineryGroup($group)
+        ->create(['equipment_code' => 'EQ-GARIS', 'name' => 'Mill BU_A']);
+    Machinery::factory()->forFullMachineryGroup($group)
+        ->create(['equipment_code' => 'EQ-POLOS', 'name' => 'Mill BUxA']);
+    Machinery::factory()->forFullMachineryGroup($group)
+        ->create(['equipment_code' => 'EQ-ANGKA', 'name' => 'Machine 0100 Biasa']);
+
+    // `_` tidak boleh menjadi "satu karakter apa pun".
+    $garis = $this->service->listMachinery(1, 20, null, false, 'BU_A');
+    expect(collect($garis['data'])->pluck('name')->all())->toBe(['Mill BU_A']);
+
+    // `%` tidak boleh menjadi "lalu apa saja".
+    $persen = $this->service->listMachinery(1, 20, null, false, '100%');
+    expect(collect($persen['data'])->pluck('name')->all())->toBe(['Mill 100% Murni']);
+
+    // Kata biasa tetap bekerja seperti sebelumnya — escaping tidak boleh
+    // mematikan pencarian "memuat".
+    expect($this->service->listMachinery(1, 20, null, false, 'mill')['meta']['total'])->toBe(3);
+});
+
+/*
+ * Sama seperti test bentuk SQL di atas, dan dengan sebab yang sama: klausa
+ * ESCAPE harus DITULIS. PostgreSQL menetapkan karakter escape LIKE ke
+ * backslash secara bawaan sementara SQLite tidak punya bawaan sama sekali,
+ * jadi menghapus klausa itu akan membuat kedua mesin berselisih — dan
+ * selisih yang hanya muncul di satu mesin adalah cacat yang lolos suite.
+ */
+it('menuliskan klausa ESCAPE pada setiap perbandingan LIKE', function () {
+    Machinery::factory()->forFullMachineryGroup()->create();
+
+    DB::enableQueryLog();
+    $this->service->listMachinery(1, 20, null, false, 'BU_A');
+    $log = DB::getQueryLog();
+    DB::disableQueryLog();
+
+    $select = collect($log)->pluck('query')
+        ->map(fn ($q) => strtolower($q))
+        ->first(fn ($q) => str_contains($q, ' like '));
+    expect($select)->not->toBeNull('query pencarian tidak ditemukan di query log');
+    expect(substr_count($select, ' like ?'))->toBe(substr_count($select, 'escape'));
+
+    // Wildcard pada kata kuncinya sudah di-escape sebelum menjadi binding.
+    $binding = collect($log)->pluck('bindings')->flatten()->first(
+        fn ($b) => is_string($b) && str_contains($b, 'bu')
+    );
+    expect($binding)->toBe('%bu\_a%');
+});

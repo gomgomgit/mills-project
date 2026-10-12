@@ -388,3 +388,101 @@ describe('HomeView — hero image dari Mills Setting', () => {
     expect(wrapper.get('.hero-image').attributes('src')).toBeTruthy()
   })
 })
+
+/*
+ * TEMUAN QA AD-10 dan MB-HOME-01.
+ *
+ * Nama Aplikasi, Logo, dan nama mill semuanya sudah ada di perangkat — yang
+ * hilang adalah pemakaiannya. Layar ini dulu hanya membaca home_page_image
+ * dari mill-setting, dan baris mereknya teks tetap "Mills Smart Log", jadi
+ * Admin dapat mengubah Nama Aplikasi, melihat pesan berhasil, lalu tidak ada
+ * apa pun yang berubah bagi Operator. Nama mill-nya sendiri tidak pernah
+ * tercetak, sehingga Operator tidak punya penanda mill mana yang ia isi.
+ */
+describe('HomeView — Nama Aplikasi, Logo, dan nama mill dipakai', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    logoutMock.mockResolvedValue(undefined)
+    mockAuthUser('Budi')
+  })
+
+  it('memakai Nama Aplikasi dari mill-setting sebagai baris merek', async () => {
+    getMillSettingMock.mockResolvedValue({
+      id: 'ms-1',
+      businessUnitId: 'bu-1',
+      appName: 'Mill Alpha Smart Log',
+      logo: null,
+      homePageImage: null,
+      jumlahCages: 10,
+    })
+
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="brand-name"]').text()).toBe('Mill Alpha Smart Log')
+  })
+
+  it('memakai teks bawaan bila Nama Aplikasi belum diatur atau hanya spasi', async () => {
+    for (const appName of [null, '', '   ']) {
+      getMillSettingMock.mockResolvedValue({
+        id: 'ms-1',
+        businessUnitId: 'bu-1',
+        appName,
+        logo: null,
+        homePageImage: null,
+        jumlahCages: 10,
+      })
+
+      const wrapper = mount(HomeView)
+      await flushPromises()
+
+      expect(wrapper.get('[data-testid="brand-name"]').text()).toBe('Mills Smart Log')
+    }
+  })
+
+  it('menampilkan logo mill bila ada, dan ikon bawaan bila tidak', async () => {
+    getMillSettingMock.mockResolvedValue({
+      id: 'ms-1',
+      businessUnitId: 'bu-1',
+      appName: 'Mill Alpha',
+      logo: 'https://cdn.example.com/logo-alpha.png',
+      homePageImage: null,
+      jumlahCages: 10,
+    })
+
+    const berlogo = mount(HomeView)
+    await flushPromises()
+    expect(berlogo.get('[data-testid="brand-logo"]').attributes('src'))
+      .toBe('https://cdn.example.com/logo-alpha.png')
+    expect(berlogo.find('.brand-icon').exists()).toBe(false)
+
+    getMillSettingMock.mockResolvedValue(null)
+    const tanpaLogo = mount(HomeView)
+    await flushPromises()
+    expect(tanpaLogo.find('[data-testid="brand-logo"]').exists()).toBe(false)
+    expect(tanpaLogo.find('.brand-icon').exists()).toBe(true)
+  })
+
+  it('mencetak nama mill yang sedang diisi', async () => {
+    getMillSettingMock.mockResolvedValue(null)
+
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="home-mill-name"]').text()).toBe('Business Unit A')
+  })
+
+  it('tidak mencetak baris mill kosong ketika akun tidak terikat mill', async () => {
+    useAuthStoreMock.mockReturnValue({
+      user: { id: 'user-1', username: 'operator01', name: 'Budi', role: 'operator', business_unit_id: null },
+      currentUser: { id: 'user-1', username: 'operator01', name: 'Budi', role: 'operator', business_unit_id: null },
+      businessUnit: null,
+      logout: logoutMock,
+    })
+
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="home-mill-name"]').exists()).toBe(false)
+  })
+})

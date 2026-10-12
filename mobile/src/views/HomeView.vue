@@ -68,6 +68,21 @@ const aiAssistantStore = useAiAssistantStore()
  */
 const heroImage = ref<string>(staticHeroImage)
 
+/**
+ * Nama Aplikasi dan Logo dari mill-setting — DIPAKAI, bukan hanya disimpan.
+ *
+ * Temuan QA AD-10: ketiga nilai ini sudah tersimpan di web, terkirim lewat
+ * sync, dan tersimpan di tabel mill_setting perangkat — lalu tidak dibaca
+ * layar mana pun. Hanya home_page_image yang terpakai, sementara baris merek
+ * di kepala halaman adalah teks tetap "Mills Smart Log". Pengaturan yang
+ * tersimpan tanpa berpengaruh ke layar mana pun adalah separuh fitur: Admin
+ * mengubahnya, menekan Simpan, melihat pesan berhasil, dan tidak ada yang
+ * berubah bagi Operator.
+ */
+const BRAND_DEFAULT = 'Mills Smart Log'
+const appName = ref<string>(BRAND_DEFAULT)
+const millLogo = ref<string | null>(null)
+
 onMounted(async () => {
   const businessUnitId = authStore.businessUnit?.id
 
@@ -80,6 +95,17 @@ onMounted(async () => {
   if (setting?.homePageImage) {
     heroImage.value = setting.homePageImage
   }
+
+  // Nama kosong/spasi diperlakukan sebagai "belum diatur", bukan sebagai
+  // kepala halaman tanpa nama.
+  const nama = setting?.appName?.trim()
+  if (nama) {
+    appName.value = nama
+  }
+
+  if (setting?.logo) {
+    millLogo.value = setting.logo
+  }
 })
 
 const welcomeText = computed(() => {
@@ -87,6 +113,16 @@ const welcomeText = computed(() => {
 
   return name ? `Selamat datang, ${name}` : 'Selamat datang'
 })
+
+/**
+ * Nama mill yang sedang diisi — temuan QA MB-HOME-01.
+ *
+ * Layar ini mencetak nama pengguna tetapi tidak pernah nama mill-nya, jadi
+ * Operator tidak punya satu penanda pun tentang mill mana yang ia isi. Pada
+ * aplikasi yang memisahkan data per mill, itu justru konteks yang paling
+ * perlu terlihat sebelum ia mulai menginput.
+ */
+const millName = computed(() => authStore.businessUnit?.name?.trim() ?? '')
 
 const isNavMenuOpen = ref(false)
 
@@ -193,7 +229,15 @@ const MENU_ICONS: Record<string, string> = {
   <main class="home-view">
     <header class="home-header">
       <div class="home-header-brand">
+        <img
+          v-if="millLogo"
+          :src="millLogo"
+          alt=""
+          class="brand-logo"
+          data-testid="brand-logo"
+        />
         <svg
+          v-else
           class="brand-icon"
           viewBox="0 0 24 24"
           width="28"
@@ -208,7 +252,7 @@ const MENU_ICONS: Record<string, string> = {
           <circle cx="12" cy="12" r="9" />
           <path d="M8 12l3 3 5-6" />
         </svg>
-        <span class="brand-name">Mills Smart Log</span>
+        <span class="brand-name" data-testid="brand-name">{{ appName }}</span>
       </div>
 
       <button
@@ -245,6 +289,14 @@ const MENU_ICONS: Record<string, string> = {
     <img :src="heroImage" alt="" class="hero-image" />
 
     <p class="welcome-text">{{ welcomeText }}</p>
+
+    <!--
+      Mill yang sedang diisi. Ditaruh langsung di bawah salam, bukan di kepala
+      halaman: kepala halaman membawa nama APLIKASI (yang boleh diatur per
+      mill dan karena itu belum tentu menyebut millnya), sementara yang perlu
+      dibaca Operator sebelum menginput adalah mill mana ini (QA MB-HOME-01).
+    -->
+    <p v-if="millName" class="mill-text" data-testid="home-mill-name">{{ millName }}</p>
 
     <section class="menu-grid" aria-label="Menu utama">
       <button
@@ -312,6 +364,21 @@ const MENU_ICONS: Record<string, string> = {
   font-size: 16px;
   font-weight: 700;
   color: #1f2937;
+  /* Nama Aplikasi diatur bebas per mill, jadi panjangnya tidak dapat
+     diandalkan: dipotong rapi alih-alih mendorong tombol menu keluar layar. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Logo mill, bila diunggah — ukurannya dipaku sama dengan .brand-icon supaya
+   kepala halaman tidak berubah tinggi saat logo ada atau tidak ada. */
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 6px;
 }
 
 .hamburger-button {
@@ -381,6 +448,13 @@ const MENU_ICONS: Record<string, string> = {
   font-size: 18px;
   font-weight: 600;
   color: #1f2937;
+}
+
+.mill-text {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4b5563;
 }
 
 .menu-grid {

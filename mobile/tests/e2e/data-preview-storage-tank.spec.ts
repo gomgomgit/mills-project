@@ -184,9 +184,15 @@ test.describe('Data Preview Storage Tank (screen-086)', () => {
     await expect(page.getByTestId('record-list-empty')).toContainText('Tidak ada data yang cocok dengan filter.')
     await expect(page.getByTestId('reset-filter-button')).toBeVisible()
 
-    // Reset clears both filters — the (yesterday-dated) record reappears.
+    // Reset MEMULIHKAN KEADAAN AWAL (QA MB-PRV-08): kata kunci kosong dan
+    // tanggal kembali ke HARI INI — bukan dikosongkan. Record uji bertanggal
+    // kemarin karena itu tetap tidak muncul, dan tombol Reset menghilang
+    // karena tidak ada lagi filter yang menyimpang dari bawaannya.
     await page.getByTestId('reset-filter-button').click()
-    await expect(page.getByTestId(`record-item-${id}`)).toBeVisible()
+    await expect(page.getByTestId('search-filter-input')).toHaveValue('')
+    await expect(page.getByTestId('date-filter-input')).toHaveValue(today())
+    await expect(page.getByTestId(`record-item-${id}`)).toBeHidden()
+    await expect(page.getByTestId('reset-filter-button')).toBeHidden()
   })
 
   test('Lihat Data Storage Tank Tersimpan — Record Tidak Ditemukan', async ({ page }) => {
@@ -202,9 +208,11 @@ test.describe('Data Preview Storage Tank (screen-086)', () => {
 
   test('Lihat Data Storage Tank Tersimpan — List Kosong', async ({ page }) => {
     await page.goto(PREVIEW_URL)
-    // Clear the default date filter so the empty state is the "no data at all" one.
-    await page.getByTestId('date-filter-input').fill('')
-
+    // Tanggal bawaan (hari ini) BUKAN filter yang dipilih pengguna sejak QA
+    // MB-PRV-08, jadi keadaan awal sudah merupakan "tanpa filter" dan empty
+    // state-nya yang benar adalah "belum ada data". Mengosongkan tanggal
+    // justru akan MENYIMPANG dari bawaan dan memunculkan pesan "tidak cocok
+    // dengan filter".
     await expect(page.getByTestId('record-list-empty')).toContainText(`Belum ada data ${LABEL_LOWER}.`)
     await expect(page.getByTestId('record-list')).toHaveCount(0)
   })

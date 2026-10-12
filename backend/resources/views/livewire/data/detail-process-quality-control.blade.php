@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.process-quality-control.edit', ['id' => $id]) }}" class="pqc-button pqc-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.process-quality-control') }}" class="pqc-button pqc-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.process-quality-control')" class="pqc-button pqc-button--secondary" />
         </div>
     </div>
 

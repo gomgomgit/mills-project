@@ -1108,9 +1108,16 @@ it('pemilih periode: exactly two options — hanya periode yang punya baris peri
         ->assertDontSee('Periode Sterilizer B')
         ->assertDontSee('Periode Boiler Room B');
 
-    // A bound role has no mill picker, so every <option> on the page belongs
-    // to the period selector.
-    expect(substr_count(laporanClarificationPeriodSelectHtml($component->html()), '<option value="'))->toBe(2);
+    // Only the real periods are counted — the placeholder <option value="">
+    // ("Pilih Periode", added for QA LP-W-09 so an unselected period cannot
+    // show up as selected) is subtracted out, and asserted separately below.
+    // Counting every <option> would make this read 3 and say nothing about
+    // which periods are on offer.
+    $selectHtml = laporanClarificationPeriodSelectHtml($component->html());
+    $semuaOption = substr_count($selectHtml, '<option value="');
+    $penampung = substr_count($selectHtml, '<option value="">');
+    expect($penampung)->toBe(1);
+    expect($semuaOption - $penampung)->toBe(2);
 
     $component->assertViewHas('periods', fn ($periods) => count($periods) === 2);
 

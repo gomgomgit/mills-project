@@ -298,7 +298,11 @@ test('MB-PRV-08 — Reset Filter memulihkan keadaan awal', async ({ page }) => {
   const ok = resetSebelum === 0 && resetSesudah > 0 && tanggalPulih === tanggalAwal &&
              cariPulih === '' && barisPulih === barisAwal
   catat('MB-PRV-08', V, ok ? 'Lulus' : 'Gagal',
-    `Keadaan awal tanpa disentuh: filter Tanggal "${tanggalAwal}" dengan ${barisAwal} baris, dan tombol Reset Filter SUDAH TERLIHAT=${resetSebelum > 0} — padahal belum ada filter yang diubah penguji; tanggal bawaan hari ini sendiri sudah dihitung sebagai filter aktif, sehingga tombolnya praktis selalu ada dan tidak lagi menandakan apa pun. Sesudah Tanggal diubah ke 01/01/2026 dan kata kunci diketik: ${barisDisaring} baris, tombol Reset Filter ada=${resetSesudah > 0}. Sesudah Reset ditekan: kolom Cari kosong=${cariPulih === ''} (benar); filter Tanggal menjadi "${tanggalPulih || '(kosong)'}" — bukan kembali ke hari ini "${tanggalAwal}"=${tanggalPulih === tanggalAwal}. Akibatnya daftar sesudah Reset menampilkan record SELURUH tanggal, bukan hari ini seperti keadaan awal; jumlah baris di sini sama (${barisPulih}) hanya karena perangkat ini memang baru punya satu record.`)
+    `Keadaan awal tanpa disentuh: filter Tanggal "${tanggalAwal}" dengan ${barisAwal} baris. `
+    + `Tombol Reset Filter terlihat pada keadaan awal itu=${resetSebelum > 0} (harus false — tanggal bawaan hari ini adalah BAWAAN, bukan filter yang dipilih penguji; tombol yang praktis selalu ada berhenti menandakan apa pun). `
+    + `Sesudah Tanggal diubah ke 01/01/2026 dan kata kunci diketik: ${barisDisaring} baris, tombol Reset Filter ada=${resetSesudah > 0} (harus true). `
+    + `Sesudah Reset ditekan: kolom Cari kosong=${cariPulih === ''}; filter Tanggal kembali ke hari ini "${tanggalAwal}"=${tanggalPulih === tanggalAwal} (terbaca "${tanggalPulih || '(kosong)'}"); jumlah baris kembali seperti keadaan awal=${barisPulih === barisAwal} (${barisPulih} vs ${barisAwal}). `
+    + `Mengosongkan tanggal alih-alih memulihkannya akan MELEBARKAN daftar ke seluruh tanggal — layar sesudah Reset menampilkan lebih banyak data daripada saat dibuka.`)
   expect(ok).toBe(true)
 })
 

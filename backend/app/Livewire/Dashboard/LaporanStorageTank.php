@@ -225,6 +225,43 @@ class LaporanStorageTank extends Component
         );
     }
 
+    /**
+     * Mill DIGANTI — bukan dipilih pertama kali — dan sesudahnya belum ada
+     * periode yang dipilih manusia.
+     *
+     * Dipakai keepSelectionValid() untuk TIDAK mengisi periode secara
+     * otomatis sesudah mill berganti. Tanpa penanda ini, pengosongan di
+     * updatedBusinessUnitId() tidak pernah terlihat: render yang sama
+     * langsung memilih periode terbaru mill baru, sehingga pemilih periode
+     * tampak berisi sementara layar belum menampilkan satu angka pun —
+     * pembaca lalu menyangka ia sedang melihat periode yang ia pilih
+     * (temuan QA LP-W-09).
+     *
+     * DITETAPKAN DI HOOK `updating`, BUKAN `updated`: nilai LAMA masih ada
+     * di sana, dan hanya perpindahan dari satu mill ke mill LAIN yang
+     * berarti "berganti". Admin yang baru datang lalu memilih mill
+     * pertamanya tidak sedang berganti apa pun — di situ pengisian periode
+     * otomatis memang perilaku yang dikehendaki, dan mematikannya akan
+     * membuat layar meminta dua pilihan untuk sesuatu yang dulu hanya satu.
+     */
+    public bool $millJustSwitched = false;
+
+    public function updatingBusinessUnitId(mixed $value): void
+    {
+        $this->millJustSwitched = $this->businessUnitId !== ''
+            && (string) $value !== $this->businessUnitId;
+    }
+
+    /**
+     * Periode dipilih manusia => penanda mill-berganti dicabut, sehingga
+     * perilaku normal (termasuk pemeriksaan keabsahan di bawah) berjalan
+     * seperti biasa.
+     */
+    public function updatedPeriodId(): void
+    {
+        $this->millJustSwitched = false;
+    }
+
     public function render()
     {
         $service = app(StorageTankReportService::class);
@@ -424,6 +461,13 @@ class LaporanStorageTank extends Component
         }
 
         if ($this->periodId === '') {
+            // Sesudah mill diganti: DIBIARKAN KOSONG. Pemilih menampilkan
+            // "Pilih Periode" dan layar menunggu pilihan — bukan menyuguhkan
+            // periode yang tidak pernah dipilih siapa pun (QA LP-W-09).
+            if ($this->millJustSwitched) {
+                return true;
+            }
+
             $this->periodId = (string) $periods[0]['id'];
 
             return true;

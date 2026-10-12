@@ -103,16 +103,79 @@ test('LP-M-02 — tabel menjadi kartu bertumpuk, isinya tidak berkurang', async 
   await page.waitForTimeout(1500)
   await pilihLine(page, 0)
   const m = await bukaLaporanMobile(page)
-  const jmlTabel = await page.locator('table').count()
-  const kolomTerlebar = await page.locator('table').evaluateAll((els) =>
-    Math.max(0, ...els.map((t) => t.querySelectorAll('thead th').length)))
-  // Kartu bertumpuk: tiap nilai membawa LABELnya sendiri.
-  const label = await page.locator('.card-label, .metric-label, dt, [class*="label"]').evaluateAll((els) =>
-    els.map((e) => (e.textContent ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean))
-  const labelDisingkat = label.filter((l) => /\.\.\.|…/.test(l))
-  const ok = (jmlTabel === 0 || kolomTerlebar <= 3) && label.length >= 5 && labelDisingkat.length === 0
+
+  /**
+   * DIUKUR DARI BENTUK YANG TERLIHAT, bukan dari jenis elemennya.
+   *
+   * Versi pertama pelaksana ini menuntut `document.querySelectorAll('table')`
+   * bernilai 0 — yaitu menuntut satu cara implementasi tertentu. Yang diminta
+   * dokumen adalah bentuknya: satu kartu per baris, setiap nilai membawa
+   * labelnya sendiri, tidak ada kolom yang dibuang. Sebuah <table> yang
+   * di-CSS menjadi kartu bertumpuk memenuhi itu sepenuhnya, dan menolaknya
+   * berarti melaporkan cacat atas tampilan yang justru sudah benar.
+   *
+   * Jadi yang diperiksa: sel-sel pada satu baris BERTUMPUK (kotaknya turun,
+   * bukan berderet), tiap sel punya label yang benar-benar dicetak, dan
+   * jumlah sel berlabel sama dengan jumlah kolom header — kolom yang dibuang
+   * akan terlihat sebagai selisih di sini.
+   */
+  // Bagian yang dapat dilipat DIBUKA lebih dulu — Rekap Harian tertutup
+  // secara bawaan, dan tabel yang tersembunyi (`v-show` => display:none)
+  // tidak punya bentuk untuk dinilai: seluruh selnya berkotak nol, yang akan
+  // terbaca "tidak bertumpuk" padahal ia tidak sedang ditampilkan sama
+  // sekali. Dibuka, ia ikut diperiksa seperti tabel lainnya.
+  const pelipat = page.getByTestId('collapsible-section-toggle')
+  for (let i = 0; i < (await pelipat.count()); i++) {
+    const badan = page.getByTestId('collapsible-section-body').nth(i)
+    if (!(await badan.isVisible().catch(() => false))) {
+      await pelipat.nth(i).click()
+      await page.waitForTimeout(400)
+    }
+  }
+
+  const bentuk = await page.locator('table').evaluateAll((tables) =>
+    tables.filter((t) => (t as HTMLElement).offsetParent !== null).map((t) => {
+      const kolomHeader = t.querySelectorAll('thead th').length
+      const baris = t.querySelector('tbody tr')
+      const sel = baris ? Array.from(baris.children) as HTMLElement[] : []
+      const kotak = sel.map((c) => c.getBoundingClientRect())
+      const barisY = new Set(kotak.map((r) => Math.round(r.top)))
+      const berlabel = sel.filter((c) => (c.getAttribute('data-label') ?? '').trim() !== '')
+      const labelTercetak = berlabel.filter((c) => {
+        const isi = window.getComputedStyle(c, '::before').content
+        return isi !== 'none' && isi !== 'normal' && isi !== '""'
+      })
+      return {
+        kolomHeader,
+        sel: sel.length,
+        barisTumpuk: barisY.size,
+        berlabel: berlabel.length,
+        labelTercetak: labelTercetak.length,
+        contohLabel: berlabel.slice(0, 3).map((c) => c.getAttribute('data-label') ?? ''),
+      }
+    }))
+
+  const berisi = bentuk.filter((b) => b.sel > 0)
+  // Bertumpuk = setiap sel menempati barisnya sendiri secara tegak.
+  const bertumpuk = berisi.filter((b) => b.barisTumpuk === b.sel)
+  // Tidak ada kolom yang dibuang: tiap sel berlabel, dan jumlahnya = kolom header.
+  const lengkap = berisi.filter((b) => b.berlabel === b.sel && b.sel === b.kolomHeader)
+  const labelHidup = berisi.filter((b) => b.labelTercetak === b.berlabel)
+  const labelDisingkat = berisi.flatMap((b) => b.contohLabel).filter((l) => /\.\.\.|…/.test(l))
+
+  const ok = berisi.length > 0
+    && bertumpuk.length === berisi.length
+    && lengkap.length === berisi.length
+    && labelHidup.length === berisi.length
+    && labelDisingkat.length === 0
+
   catat('LP-M-02', V, ok ? 'Lulus' : 'Gagal',
-    `periode "${m.periode}" / line "${m.line}": elemen <table> di layar mobile=${jmlTabel}, kolom terbanyak pada tabel yang masih ada=${kolomTerlebar} (tabel lebar sudah berubah bentuk menjadi kartu bertumpuk=${jmlTabel === 0 || kolomTerlebar <= 3}); ${label.length} label menyertai nilainya di dalam kartu, jadi tidak ada kolom yang dibuang demi ruang; label yang disingkat sampai tidak jelas=${labelDisingkat.length}. Contoh label: ${label.slice(0, 6).join(' | ')}.`)
+    `periode "${m.periode}" / line "${m.line}": ${bentuk.length} tabel rekap di layar, ${berisi.length} di antaranya berisi baris. `
+    + `Bertumpuk (tiap sel menempati barisnya sendiri)=${bertumpuk.length}/${berisi.length}; `
+    + `setiap nilai membawa label dan tidak ada kolom yang dibuang=${lengkap.length}/${berisi.length}; `
+    + `label benar-benar dicetak di layar=${labelHidup.length}/${berisi.length}; label yang disingkat sampai tidak jelas=${labelDisingkat.length}. `
+    + `Rinci per tabel: ${berisi.map((b) => `${b.sel} sel / ${b.kolomHeader} kolom header / ${b.barisTumpuk} baris tegak`).join(' | ')}. `
+    + `Contoh label: ${berisi.flatMap((b) => b.contohLabel).slice(0, 6).join(' | ')}.`)
   expect(ok).toBe(true)
 })
 
@@ -478,6 +541,8 @@ test('AD-10 — perubahan Pengaturan Mill tersimpan dan berlaku', async ({ page 
 
   const ok = web.sukses && web.bertahan && tampilDiHome
   catat('AD-10', '—', ok ? 'Lulus' : 'Gagal',
-    `Bagian web: Nama Aplikasi diubah dari "${web.semula}" menjadi "${web.baru}" — pesan konfirmasi=${web.sukses}, nilainya bertahan sesudah muat ulang=${web.bertahan}. Bagian mobile: nilai barunya SAMPAI ke perangkat=${sampaiKePerangkat} (isi basis data lokal: ${String(diPerangkat).slice(0, 120)}), tetapi layar Home mobile menampilkannya=${tampilDiHome} — baris mereknya berbunyi "${merek}". Jadi pengaturan itu tersimpan, terkirim, dan tersimpan di perangkat, lalu TIDAK DIPAKAI di layar mana pun: tidak satu berkas tampilan mobile pun membaca app_name. Nilai yang tersimpan tanpa berpengaruh ke layar mana pun adalah separuh fitur — itu yang diperiksa langkah 4–5.`)
+    `Bagian web: Nama Aplikasi diubah dari "${web.semula}" menjadi "${web.baru}" — pesan konfirmasi=${web.sukses}, nilainya bertahan sesudah muat ulang=${web.bertahan}. `
+    + `Bagian mobile: nilai barunya sampai ke perangkat=${sampaiKePerangkat} (isi basis data lokal: ${String(diPerangkat).slice(0, 120)}); layar Home mobile MEMAKAINYA=${tampilDiHome} — baris mereknya berbunyi "${merek}". `
+    + `Yang diperiksa langkah 4–5 justru itu: nilai yang tersimpan dan terkirim tetapi tidak dipakai layar mana pun adalah separuh fitur.`)
   expect(ok).toBe(true)
 })

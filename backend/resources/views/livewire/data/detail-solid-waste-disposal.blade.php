@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.solid-waste-disposal.edit', ['id' => $id]) }}" class="sw-button sw-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.solid-waste-disposal') }}" class="sw-button sw-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.solid-waste-disposal')" class="sw-button sw-button--secondary" />
         </div>
     </div>
 

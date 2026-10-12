@@ -188,6 +188,57 @@ class LaporanBoilerRoom extends Component
         );
     }
 
+    /**
+     * Mill DIGANTI — bukan dipilih pertama kali — dan sesudahnya belum ada
+     * periode yang dipilih manusia.
+     *
+     * Dipakai keepSelectionValid() untuk TIDAK mengisi periode secara
+     * otomatis sesudah mill berganti. Tanpa penanda ini, pengosongan di
+     * updatedBusinessUnitId() tidak pernah terlihat: render yang sama
+     * langsung memilih periode terbaru mill baru, sehingga pemilih periode
+     * tampak berisi sementara layar belum menampilkan satu angka pun —
+     * pembaca lalu menyangka ia sedang melihat periode yang ia pilih
+     * (temuan QA LP-W-09).
+     *
+     * DITETAPKAN DI HOOK `updating`, BUKAN `updated`: nilai LAMA masih ada
+     * di sana, dan hanya perpindahan dari satu mill ke mill LAIN yang
+     * berarti "berganti". Admin yang baru datang lalu memilih mill
+     * pertamanya tidak sedang berganti apa pun — di situ pengisian periode
+     * otomatis memang perilaku yang dikehendaki, dan mematikannya akan
+     * membuat layar meminta dua pilihan untuk sesuatu yang dulu hanya satu.
+     */
+    public bool $millJustSwitched = false;
+
+    public function updatingBusinessUnitId(mixed $value): void
+    {
+        $this->millJustSwitched = $this->businessUnitId !== ''
+            && (string) $value !== $this->businessUnitId;
+    }
+
+    /**
+     * Periode dipilih manusia => penanda mill-berganti dicabut, sehingga
+     * perilaku normal (termasuk pemeriksaan keabsahan di bawah) berjalan
+     * seperti biasa.
+     */
+    public function updatedPeriodId(): void
+    {
+        $this->millJustSwitched = false;
+    }
+
+    /**
+     * Mill berganti (hanya mungkin untuk Admin) => pilihan periode
+     * dikosongkan dan ditandai agar TIDAK diisi otomatis lagi.
+     *
+     * Dulu komponen ini sengaja tidak punya hook: periode mill lama tidak
+     * ada di daftar mill baru, jadi keepSelectionValid() menggantinya dengan
+     * periode terbaru mill baru. Penggantian itu tidak pernah terlihat
+     * pengguna — dan itulah cacatnya (QA LP-W-09).
+     */
+    public function updatedBusinessUnitId(): void
+    {
+        $this->periodId = '';
+    }
+
     public function render()
     {
         $service = app(BoilerRoomReportService::class);
@@ -382,7 +433,11 @@ class LaporanBoilerRoom extends Component
         $ids = array_column($periods, 'id');
 
         if (! in_array($this->periodId, $ids, true)) {
-            $this->periodId = (string) $periods[0]['id'];
+            // Sesudah mill diganti: DIKOSONGKAN, bukan diganti periode
+            // terbaru mill baru. Penggantian diam-diam itulah yang membuat
+            // pembaca mendapat periode yang tidak pernah ia pilih — dan di
+            // layar ini tidak ada apa pun yang menandainya (QA LP-W-09).
+            $this->periodId = $this->millJustSwitched ? '' : (string) $periods[0]['id'];
         }
     }
 }

@@ -25,7 +25,17 @@ vi.mock('@/services/localDb', () => ({
 }))
 
 import { query } from '@/services/localDb'
-import { readRememberedProductionLineId, resolveActiveStationId } from '@/services/activeStation'
+import {
+  activeStationStatus,
+  cacheStasiunSegar,
+  galatStasiunTidakAktif,
+  readRememberedProductionLineId,
+  readRememberedProductionLineName,
+  rememberProductionLineName,
+  resolveActiveStationId,
+  stationTypeFromFormRoute,
+  tandaiCacheStasiunSegar,
+} from '@/services/activeStation'
 
 const USER_ID = 'user-1'
 const LINE_ID = 'line-1'
@@ -122,5 +132,155 @@ describe('resolveActiveStationId()', () => {
     vi.mocked(query).mockResolvedValueOnce(undefined as never)
 
     await expect(resolveActiveStationId('pressing', USER_ID)).resolves.toBeNull()
+  })
+})
+
+/*
+ * TEMUAN QA MB-HOME-03 — nama line ikut diingat, bukan hanya id-nya, karena
+ * layar Monitor mencetak namanya dan harus bisa melakukannya offline
+ * sementara daftar Production Line tidak di-cache lokal.
+ */
+describe('ingatan NAMA Production Line', () => {
+  const KEY_NAMA = `msl_production_line_name_${USER_ID}`
+
+  it('menyimpan dan membaca kembali nama yang diingat', () => {
+    rememberProductionLineName(USER_ID, 'Line 02')
+
+    expect(window.localStorage.getItem(KEY_NAMA)).toBe('Line 02')
+    expect(readRememberedProductionLineName(USER_ID)).toBe('Line 02')
+  })
+
+  it('tidak menyimpan nama kosong atau hanya spasi', () => {
+    rememberProductionLineName(USER_ID, '   ')
+
+    expect(window.localStorage.getItem(KEY_NAMA)).toBeNull()
+    expect(readRememberedProductionLineName(USER_ID)).toBeNull()
+  })
+
+  it('mengembalikan null tanpa userId — pilihan satu akun tidak boleh terbawa ke akun lain', () => {
+    rememberProductionLineName(null, 'Line 02')
+
+    expect(readRememberedProductionLineName(null)).toBeNull()
+    expect(readRememberedProductionLineName(USER_ID)).toBeNull()
+  })
+})
+
+/*
+ * TEMUAN QA MB-FORM-15. Mobile dulu MENERIMA dan menyimpan record pada
+ * Production Line yang tidak punya stasiun jenis itu dalam keadaan aktif —
+ * station_id null, status "Tersimpan", tanpa satu pesan pun — sementara layar
+ * web menolak keadaan yang sama dengan pesan yang tepat.
+ *
+ * Yang dijaga di sini adalah GARIS PEMISAHNYA: menolak hanya ketika
+ * jawabannya DIKETAHUI "tidak ada", dan tetap mengizinkan ketika kita memang
+ * tidak tahu. Menolak pada keadaan "tidak tahu" akan mematahkan pencatatan
+ * offline di perangkat baru, yaitu inti aplikasi ini.
+ */
+describe('activeStationStatus()', () => {
+  it('"ada" ketika line punya stasiun jenis itu dalam keadaan aktif', async () => {
+    window.localStorage.setItem(KEY, LINE_ID)
+    vi.mocked(query).mockResolvedValueOnce([{ id: 'station-1' }])
+
+    await expect(activeStationStatus('depricarping', USER_ID)).resolves.toBe('ada')
+  })
+
+  it('"tidak-aktif" ketika line punya stasiun LAIN ter-cache tetapi tidak satu pun jenis itu yang aktif', async () => {
+    window.localStorage.setItem(KEY, LINE_ID)
+    vi.mocked(query)
+      .mockResolvedValueOnce([]) // tidak ada yang aktif untuk jenis ini
+      .mockResolvedValueOnce([{ id: 'station-lain' }]) // line ini memang punya baris
+
+    await expect(activeStationStatus('depricarping', USER_ID)).resolves.toBe('tidak-aktif')
+  })
+
+  it('"tidak-diketahui" ketika cache stasiun untuk line itu masih kosong (perangkat baru / offline)', async () => {
+    window.localStorage.setItem(KEY, LINE_ID)
+    vi.mocked(query).mockResolvedValueOnce([]).mockResolvedValueOnce([])
+
+    await expect(activeStationStatus('depricarping', USER_ID)).resolves.toBe('tidak-diketahui')
+  })
+
+  it('"tidak-diketahui" ketika belum ada line yang dipilih, tanpa menyentuh basis data', async () => {
+    await expect(activeStationStatus('depricarping', USER_ID)).resolves.toBe('tidak-diketahui')
+    expect(vi.mocked(query)).not.toHaveBeenCalled()
+  })
+
+  it('"tidak-diketahui" ketika query melempar — tidak pernah menghalangi karena galat lokal', async () => {
+    window.localStorage.setItem(KEY, LINE_ID)
+    vi.mocked(query).mockRejectedValueOnce(new Error('sqlite mati'))
+
+    await expect(activeStationStatus('depricarping', USER_ID)).resolves.toBe('tidak-diketahui')
+  })
+})
+
+describe('stationTypeFromFormRoute()', () => {
+  it('menurunkan jenis stasiun dari nama rute Form', () => {
+    expect(stationTypeFromFormRoute('depricarping-form')).toBe('depricarping')
+    expect(stationTypeFromFormRoute('process-quality-control-form')).toBe('process-quality-control')
+  })
+
+  it('mengembalikan null untuk rute yang bukan layar Form', () => {
+    expect(stationTypeFromFormRoute('depricarping-monitor')).toBeNull()
+    expect(stationTypeFromFormRoute('-form')).toBeNull()
+    expect(stationTypeFromFormRoute(undefined)).toBeNull()
+  })
+})
+
+describe('galatStasiunTidakAktif()', () => {
+  it('memulangkan pesan yang menyebut jenis stasiunnya, sama dengan kalimat layar web', async () => {
+    window.localStorage.setItem(KEY, LINE_ID)
+    vi.mocked(query)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'station-lain' }])
+
+    await expect(galatStasiunTidakAktif('process-quality-control-form', USER_ID)).resolves.toBe(
+      'Production Line yang dipilih belum memiliki station Process Quality Control yang aktif.',
+    )
+  })
+
+  it('memulangkan null ketika stasiunnya ada', async () => {
+    window.localStorage.setItem(KEY, LINE_ID)
+    vi.mocked(query).mockResolvedValueOnce([{ id: 'station-1' }])
+
+    await expect(galatStasiunTidakAktif('depricarping-form', USER_ID)).resolves.toBeNull()
+  })
+
+  it('memulangkan null ketika keadaannya tidak diketahui — menyimpan offline tetap boleh', async () => {
+    window.localStorage.setItem(KEY, LINE_ID)
+    vi.mocked(query).mockResolvedValueOnce([]).mockResolvedValueOnce([])
+
+    await expect(galatStasiunTidakAktif('depricarping-form', USER_ID)).resolves.toBeNull()
+  })
+})
+
+/*
+ * Garis pemisah antara "line ini memang tanpa stasiun" dan "stasiunnya belum
+ * disinkronkan" — dari jumlah baris saja keduanya nol, dan keduanya menuntut
+ * jawaban yang berlawanan. Penanda cache-segar itulah yang membedakannya
+ * (QA MB-FORM-15: line tanpa stasiun sama sekali, yang justru keadaan yang
+ * diuji, tidak punya satu baris pun untuk dijadikan petunjuk).
+ */
+describe('penanda cache stasiun segar', () => {
+  it('"tidak-aktif" ketika cache line itu sudah segar meski NOL baris stasiun', async () => {
+    window.localStorage.setItem(KEY, LINE_ID)
+    tandaiCacheStasiunSegar(LINE_ID)
+    vi.mocked(query).mockResolvedValueOnce([]) // tidak ada stasiun jenis ini
+
+    await expect(activeStationStatus('depricarping', USER_ID)).resolves.toBe('tidak-aktif')
+  })
+
+  it('"tidak-diketahui" ketika cache line itu belum pernah ditandai segar', async () => {
+    window.localStorage.setItem(KEY, LINE_ID)
+    vi.mocked(query).mockResolvedValueOnce([]).mockResolvedValueOnce([])
+
+    expect(cacheStasiunSegar(LINE_ID)).toBe(false)
+    await expect(activeStationStatus('depricarping', USER_ID)).resolves.toBe('tidak-diketahui')
+  })
+
+  it('penanda satu line tidak terbawa ke line lain', () => {
+    tandaiCacheStasiunSegar(LINE_ID)
+
+    expect(cacheStasiunSegar(LINE_ID)).toBe(true)
+    expect(cacheStasiunSegar('line-lain')).toBe(false)
   })
 })

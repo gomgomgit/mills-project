@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.depricarping.edit', ['id' => $id]) }}" class="dp-button dp-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.depricarping') }}" class="dp-button dp-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.depricarping')" class="dp-button dp-button--secondary" />
         </div>
     </div>
 

@@ -60,9 +60,13 @@ it('shows an old-password-incorrect error and leaves the password unchanged', fu
         ->set('old_password', 'WrongOldPass1!')
         ->set('new_password', 'NewPass456!')
         ->set('new_password_confirmation', 'NewPass456!')
+        // Galatnya menempel pada KOLOM old_password, bukan pada toast umum
+        // $errorMessage di atas form (QA AU-08): dari tiga kolom yang
+        // semuanya terisi, toast itu tidak menyebut kolom mana yang salah,
+        // dan ia menghilang sendiri sesudah 3 detik.
         ->call('save')
-        ->assertHasNoErrors()
-        ->assertSet('errorMessage', 'Password lama salah.')
+        ->assertHasErrors(['old_password'])
+        ->assertSet('errorMessage', null)
         ->assertSet('successMessage', null)
         ->assertSet('old_password', '');
 

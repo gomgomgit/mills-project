@@ -57,6 +57,7 @@ import {
   type StorageTankDraftListItem,
   type StorageTankTodaySummary,
 } from '@/services/storageTankRecordRepo'
+import ProductionLineLabel from '@/components/ProductionLineLabel.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import LoadingState from '@/components/loading/LoadingState.vue'
 import BusyLabel from '@/components/loading/BusyLabel.vue'
@@ -280,6 +281,7 @@ function goToStationList() {
         <span class="breadcrumb-current" aria-current="page">Storage Tank</span>
       </nav>
       <h1 class="screen-title">Monitor Storage Tank</h1>
+      <ProductionLineLabel />
     </div>
 
     <section class="today-summary-section" aria-label="Hari Ini">

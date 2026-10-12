@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.grading.edit', ['id' => $id]) }}" class="dg-button dg-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.grading') }}" class="dg-button dg-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.grading')" class="dg-button dg-button--secondary" />
         </div>
     </div>
 

@@ -1419,7 +1419,7 @@ function onBack(): void {
               satu unit Depricarping dengan dua hari pencatatan.
             </p>
             <div class="detail-table-wrap">
-              <table class="detail-table" data-testid="by-depricarping-table">
+              <table v-stacked-table class="detail-table" data-testid="by-depricarping-table">
                 <thead>
                   <tr>
                     <th scope="col">Unit</th>
@@ -1561,7 +1561,7 @@ function onBack(): void {
 
             <template v-else>
               <div class="detail-table-wrap">
-                <table class="detail-table" data-testid="findings-table">
+                <table v-stacked-table class="detail-table" data-testid="findings-table">
                   <thead>
                     <tr>
                       <th scope="col">Temuan (apa adanya)</th>
@@ -1636,7 +1636,7 @@ function onBack(): void {
             data-testid="daily-recap"
           >
             <div class="detail-table-wrap">
-              <table class="detail-table" data-testid="daily-table">
+              <table v-stacked-table class="detail-table" data-testid="daily-table">
                 <thead>
                   <tr>
                     <th scope="col">Tanggal</th>
@@ -1776,10 +1776,11 @@ function onBack(): void {
 .queue-note { font-size: 12px; color: #6b7280; }
 
 /* Tabel: guliran mendatar DI DALAM kartu, bukan pada halaman. */
-.detail-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.detail-table { border-collapse: collapse; width: 100%; font-size: 13px; }
-.detail-table th, .detail-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
-.detail-table th.num, .detail-table td.num { text-align: right; }
+/* Bentuk dasar + kartu bertumpuk pada lebar ponsel: src/assets/stacked-table.css
+   (global, dipakai bersama ke-25 tabel laporan mobile — QA LP-M-02/LP-M-03).
+   Aturan `.detail-table` yang dulu di sini DIBUANG dengan sengaja: style
+   scoped mengompilasi selektor dengan [data-v-hash] dan akan selalu menang
+   atas stylesheet bersama itu. */
 .detail-table tfoot th, .detail-table tfoot td { font-weight: 700; color: #1f2937; border-bottom: none; }
 
 .action-footer { display: flex; gap: 10px; margin-top: auto; }

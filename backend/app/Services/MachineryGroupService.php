@@ -7,6 +7,7 @@ use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\Station;
 use App\Rules\UniqueCaseInsensitive;
+use App\Support\Concerns\EscapesLikeWildcards;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Validator;
@@ -43,6 +44,8 @@ use Illuminate\Validation\ValidationException;
  */
 class MachineryGroupService
 {
+    use EscapesLikeWildcards;
+
     /**
      * listMachineryGroups() — business_logic step "list": paginate,
      * optional station_id filter, eager-load station + productionLine (for
@@ -70,7 +73,7 @@ class MachineryGroupService
         ?string $search = null,
     ): array {
         $hasSearch = $search !== null && $search !== '';
-        $needle = $hasSearch ? '%'.mb_strtolower($search).'%' : null;
+        $needle = $hasSearch ? $this->likeContains($search) : null;
 
         $query = MachineryGroup::query()
             ->with(['station', 'productionLine.businessUnit'])
@@ -81,19 +84,24 @@ class MachineryGroupService
             $query->where('station_id', $stationId);
         }
 
-        // lower()+LIKE rather than ILIKE or a bare LIKE — see the same note
-        // in MachineryService::listMachinery(). SQLite rejects ILIKE with a
-        // syntax error; a bare LIKE passes every test and then silently
-        // misses case on PostgreSQL.
+        // lower()+LIKE rather than ILIKE or a bare LIKE, dan wildcard pada
+        // kata kuncinya di-escape beserta klausa ESCAPE-nya — kedua sebabnya
+        // ada di App\Support\Concerns\EscapesLikeWildcards. Keempat kolom di
+        // bawah memakai ekspresi dari sana, jadi tidak ada satu pun yang bisa
+        // tertinggal memakai LIKE tanpa escape (temuan QA MD-KEL-11).
+        $kodeMesin = $this->likeExpression('equipment_code');
+        $namaMesin = $this->likeExpression('name');
         $machineryMatches = fn ($m) => $m->where(
-            fn ($q) => $q->whereRaw('lower(equipment_code) LIKE ?', [$needle])
-                ->orWhereRaw('lower(name) LIKE ?', [$needle])
+            fn ($q) => $q->whereRaw($kodeMesin, [$needle])
+                ->orWhereRaw($namaMesin, [$needle])
         );
 
         if ($hasSearch) {
-            $query->where(function ($q) use ($needle, $machineryMatches) {
-                $q->whereRaw('lower(group_code) LIKE ?', [$needle])
-                    ->orWhereRaw('lower(coalesce(description, \'\')) LIKE ?', [$needle])
+            $kodeGrup = $this->likeExpression('group_code');
+            $keterangan = $this->likeExpression("coalesce(description, '')");
+            $query->where(function ($q) use ($needle, $machineryMatches, $kodeGrup, $keterangan) {
+                $q->whereRaw($kodeGrup, [$needle])
+                    ->orWhereRaw($keterangan, [$needle])
                     ->orWhereHas('machinery', $machineryMatches);
             });
         }

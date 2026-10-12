@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.weighbridge.edit', ['id' => $id]) }}" class="dw-button dw-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.weighbridge') }}" class="dw-button dw-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.weighbridge')" class="dw-button dw-button--secondary" />
         </div>
     </div>
 

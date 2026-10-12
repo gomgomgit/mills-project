@@ -29,6 +29,7 @@ import {
   type CpoDispatchLastEvent,
   type CpoDispatchTodaySummary,
 } from '@/services/cpoDispatchRecordRepo'
+import ProductionLineLabel from '@/components/ProductionLineLabel.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import LoadingState from '@/components/loading/LoadingState.vue'
 import BusyLabel from '@/components/loading/BusyLabel.vue'
@@ -210,6 +211,7 @@ function goToStationList() {
         <span aria-current="page">CPO Dispatch</span>
       </nav>
       <h1 class="screen-title">Monitor CPO Dispatch</h1>
+      <ProductionLineLabel />
     </div>
 
     <section class="today-summary-section" aria-label="Hari Ini">

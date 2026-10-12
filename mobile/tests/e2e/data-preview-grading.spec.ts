@@ -327,9 +327,12 @@ test.describe('Data Preview Grading (screen-014)', () => {
     await expect(page.getByTestId('record-item-e2e-grading-solo')).toBeHidden()
     await expect(page.getByTestId('reset-filter-button')).toBeVisible()
 
+    // Reset MEMULIHKAN KEADAAN AWAL (QA MB-PRV-08): kata kunci kosong dan
+    // tanggal kembali ke HARI INI — bukan dikosongkan. Layar sesudah Reset
+    // karena itu sama dengan layar saat dibuka, bukan lebih lebar.
     await page.getByTestId('reset-filter-button').click()
 
-    await expect(page.getByTestId('date-filter-input')).toHaveValue('')
+    await expect(page.getByTestId('date-filter-input')).toHaveValue(todayLocalDateString())
     await expect(page.getByTestId('search-filter-input')).toHaveValue('')
     await expect(page.getByTestId('record-item-e2e-grading-solo')).toBeVisible()
     await expect(page.getByTestId('record-list-empty')).toBeHidden()

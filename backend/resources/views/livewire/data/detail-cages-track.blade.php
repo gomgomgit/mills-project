@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.cages-track.edit', ['id' => $id]) }}" class="ct-button ct-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.cages-track') }}" class="ct-button ct-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.cages-track')" class="ct-button ct-button--secondary" />
         </div>
     </div>
 

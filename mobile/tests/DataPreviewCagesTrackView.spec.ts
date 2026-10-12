@@ -187,6 +187,16 @@ function todayLocalDateString(): string {
   return `${yyyy}-${mm}-${dd}`
 }
 
+/**
+ * Tanggal lokal hari ini (YYYY-MM-DD) — bawaan filter tanggal layar ini, dan
+ * karena itu juga keadaan yang dipulihkan tombol Reset Filter (QA MB-PRV-08).
+ */
+function hariIniLokal(): string {
+  const d = new Date()
+
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function makeRecord(overrides: Partial<CagesTrackRecord> & { id: string }): CagesTrackRecord {
   return {
     station_id: 'station-1',
@@ -414,9 +424,14 @@ describe('DataPreviewCagesTrackView', () => {
     await resetButton.trigger('click')
     await flushPromises()
 
-    expect((wrapper.find('[data-testid="date-filter-input"]').element as HTMLInputElement).value).toBe('')
+    // Reset MEMULIHKAN KEADAAN AWAL (QA MB-PRV-08): tanggal kembali ke hari
+    // ini, kata kunci kosong. Dulu ia mengosongkan tanggal, yang justru
+    // MELEBARKAN daftar ke seluruh tanggal — layar sesudah Reset menampilkan
+    // lebih banyak data daripada saat dibuka.
+    expect((wrapper.find('[data-testid="date-filter-input"]').element as HTMLInputElement).value)
+      .toBe(hariIniLokal())
     expect((wrapper.find('[data-testid="search-filter-input"]').element as HTMLInputElement).value).toBe('')
-    expect(wrapper.find('[data-testid="record-item-rec-1"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="reset-filter-button"]').exists()).toBe(false)
   })
 
   /* Audit desain filter 2026-10-05 — ListFilterBar bersama: Reset Filter
@@ -429,7 +444,11 @@ describe('DataPreviewCagesTrackView', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="record-item-rec-1"]').exists()).toBe(true)
-    expect(wrapper.findAll('[data-testid="reset-filter-button"]')).toHaveLength(1)
+    // Keadaan awal yang belum disentuh: TIDAK ada filter aktif, jadi tidak ada
+    // tombol Reset (QA MB-PRV-08). Sebelumnya tanggal bawaan hari ini sendiri
+    // dihitung sebagai filter aktif, sehingga tombolnya praktis selalu terlihat
+    // dan berhenti menandakan apa pun.
+    expect(wrapper.findAll('[data-testid="reset-filter-button"]')).toHaveLength(0)
 
     await wrapper.find('[data-testid="search-filter-input"]').setValue('no-such')
     await flushPromises()
@@ -448,12 +467,16 @@ describe('DataPreviewCagesTrackView', () => {
     const wrapper = mount(DataPreviewCagesTrackView)
     await flushPromises()
 
-    // Default date filter (today) counts as an active filter — clear it
-    // explicitly to reach the "no filter at all" empty state.
+    // Keadaan awal SUDAH merupakan "tanpa filter" sejak QA MB-PRV-08: tanggal
+    // bawaan hari ini adalah bawaannya, bukan pilihan pengguna. Mengosongkan
+    // tanggal justru MENYIMPANG dari bawaan, jadi di situ tombol Reset memang
+    // harus muncul — diperiksa sekalian di bawah.
+    expect(wrapper.find('[data-testid="reset-filter-button"]').exists()).toBe(false)
+
     await wrapper.find('[data-testid="date-filter-input"]').setValue('')
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="reset-filter-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="reset-filter-button"]').exists()).toBe(true)
   })
 
   /* ---------------------------------------------------------------- *

@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.kernel-plant.edit', ['id' => $id]) }}" class="kp-button kp-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.kernel-plant') }}" class="kp-button kp-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.kernel-plant')" class="kp-button kp-button--secondary" />
         </div>
     </div>
 

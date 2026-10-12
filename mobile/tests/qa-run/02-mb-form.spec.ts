@@ -27,11 +27,18 @@ async function bukaFormBaru(page: Page, kode: string): Promise<string> {
 }
 
 /** Galat per-kolom dan galat grid yang sedang tampil pada Form. */
-async function galatForm(page: Page): Promise<{ perKolom: string[]; grid: string }> {
+async function galatForm(page: Page): Promise<{ perKolom: string[]; grid: string; banner: string }> {
   const perKolom = await page.locator('.form-field-error').evaluateAll((els) =>
     els.map((e) => (e.textContent ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean))
   const grid = await teksAman(page.getByTestId('detail-rows-error'))
-  return { perKolom, grid }
+  // Banner di kepala form (actionErrorMessage) — penolakan yang BUKAN milik
+  // satu kolom tertentu mendarat di sini, mis. "Production Line yang dipilih
+  // belum memiliki station X yang aktif". Tanpa membacanya, catatan hasil
+  // hanya berbunyi "penolakan muncul=true" tanpa menyebut kalimatnya, dan
+  // pembaca laporan tidak bisa menilai apakah pesannya memang menjelaskan
+  // sebabnya.
+  const banner = await teksAman(page.locator('.banner-error, .banner.banner-error').first())
+  return { perKolom, grid, banner }
 }
 
 test('MB-FORM-02 — simpan ditolak bila kolom wajib kosong', async ({ page }) => {
@@ -524,7 +531,7 @@ test('MB-FORM-15 — simpan ditolak bila Production Line tidak punya stasiun akt
     await page.getByTestId('save-button').click()
     await page.waitForTimeout(2600)
     const g = await galatForm(page)
-    pesan = [g.grid, ...g.perKolom].join(' ')
+    pesan = [g.banner, g.grid, ...g.perKolom].filter(Boolean).join(' ')
     const teks = await teksHalaman(page)
     ditolak = /tidak memiliki station|belum memiliki station|tidak punya stasiun|station .* aktif/i.test(pesan + ' ' + teks)
     // APA YANG TERJADI pada recordnya, bukan hanya ada-tidaknya pesan.

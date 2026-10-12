@@ -481,6 +481,11 @@ async function expectTouchTargets(page: Page, testIds: string[]): Promise<void> 
 /**
  * Kartu yang isinya lebih lebar daripada layar menggulir DI DALAM dirinya
  * sendiri: scrollWidth > clientWidth DAN overflow-x-nya auto/scroll.
+ *
+ * Masih dipakai GRAFIK (.chart-scroll): sebuah tren per hari memang lebih
+ * lebar daripada 390px, dan memadatkannya sampai muat akan membuat sumbunya
+ * tidak terbaca. TABEL REKAP tidak lagi memakai ini — lihat
+ * expectCardStacksInsideItself() di bawah.
  */
 async function expectCardScrollsInsideItself(page: Page, selector: string): Promise<void> {
   const result = await page.locator(selector).first().evaluate((element) => ({
@@ -491,6 +496,44 @@ async function expectCardScrollsInsideItself(page: Page, selector: string): Prom
 
   expect(['auto', 'scroll']).toContain(result.overflowX)
   expect(result.scrollWidth).toBeGreaterThan(result.clientWidth)
+}
+
+/**
+ * Tabel rekap BERTUMPUK di dalam kartunya, bukan menggulir mendatar —
+ * temuan QA LP-M-02 dan LP-M-03.
+ *
+ * Bentuk sebelumnya: tabel sampai 11 kolom dengan `white-space: nowrap` di
+ * dalam pembungkus `overflow-x: auto`, selebar 1411px pada layar 390px.
+ * Menggulir mendatar di dalam kotak yang juga digulir tegak adalah gerakan
+ * yang paling mudah gagal di layar sentuh, dan dokumen QA menuntut bentuk
+ * lain: satu kartu per baris, setiap nilai membawa LABEL kolomnya, dan tidak
+ * ada kolom yang dibuang demi ruang.
+ *
+ * Diukur dari BENTUK YANG TERLIHAT: tiap sel menempati barisnya sendiri
+ * (kotaknya turun, bukan berderet), tiap sel membawa data-label, dan tidak
+ * ada isi yang disembunyikan di balik gulir mendatar.
+ */
+async function expectCardStacksInsideItself(page: Page, selector: string): Promise<void> {
+  const result = await page.locator(selector).first().evaluate((element) => {
+    const row = element.querySelector('tbody tr')
+    const cells = row ? Array.from(row.children) : []
+    const tops = new Set(cells.map((cell) => Math.round(cell.getBoundingClientRect().top)))
+
+    return {
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+      cells: cells.length,
+      barisTegak: tops.size,
+      berlabel: cells.filter((cell) => (cell.getAttribute('data-label') ?? '') !== '').length,
+    }
+  })
+
+  expect(result.cells, 'tabel rekap tidak punya satu baris isi pun untuk dinilai').toBeGreaterThan(0)
+  // Tidak ada isi yang tersembunyi di balik gulir mendatar.
+  expect(result.scrollWidth).toBeLessThanOrEqual(result.clientWidth + 1)
+  // Setiap sel menempati barisnya sendiri, dan membawa label kolomnya.
+  expect(result.barisTegak).toBe(result.cells)
+  expect(result.berlabel).toBe(result.cells)
 }
 
 /* ================================================================== */
@@ -1110,7 +1153,7 @@ test.describe('Laporan Cages & Tracks Mobile (screen-136)', () => {
     // Halaman tetap satu kolom tanpa gulir mendatar; yang menggulir adalah
     // TABEL di dalam kartunya sendiri.
     await expectNoHorizontalPageScroll(page)
-    await expectCardScrollsInsideItself(page, '[data-testid="daily-recap"] .detail-table-wrap')
+    await expectCardStacksInsideItself(page, '[data-testid="daily-recap"] .detail-table-wrap')
 
     // Ditutup lagi, lalu dibuka lagi.
     await recapToggle(page).click()
@@ -1173,7 +1216,7 @@ test.describe('Laporan Cages & Tracks Mobile (screen-136)', () => {
     await expectCardScrollsInsideItself(page, '[data-testid="daily-trend"] .chart-scroll')
 
     await recapToggle(page).click()
-    await expectCardScrollsInsideItself(page, '[data-testid="daily-recap"] .detail-table-wrap')
+    await expectCardStacksInsideItself(page, '[data-testid="daily-recap"] .detail-table-wrap')
 
     // Meski ketiganya lebih lebar dari layar, HALAMAN tidak pernah
     // menggulir mendatar.

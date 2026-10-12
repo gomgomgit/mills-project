@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.engine-room.edit', ['id' => $id]) }}" class="er-button er-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.engine-room') }}" class="er-button er-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.engine-room')" class="er-button er-button--secondary" />
         </div>
     </div>
 

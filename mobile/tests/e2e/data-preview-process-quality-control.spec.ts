@@ -149,11 +149,16 @@ test.describe('Data Preview Process Quality Control (screen-090)', () => {
     await expect(page.getByTestId('record-item-e2e-pqc-today-a')).toBeVisible()
     await expect(page.getByTestId('record-item-e2e-pqc-today-b')).toHaveCount(0)
 
-    // No match -> message + Reset Filter, which brings every record back.
+    // No match -> message + Reset Filter, which restores the INITIAL state:
+    // kata kunci kosong dan tanggal kembali ke hari ini (QA MB-PRV-08).
+    // Record kemarin karena itu tetap tersembunyi, persis seperti saat layar
+    // baru dibuka — Reset yang MELEBARKAN daftar adalah kebalikan dari arti
+    // tombolnya.
     await page.getByTestId('search-filter-input').fill('tidak-ada')
     await expect(page.getByTestId('record-list-empty')).toContainText('Tidak ada data yang cocok dengan filter.')
     await page.getByTestId('reset-filter-button').click()
-    await expect(page.getByTestId('record-item-e2e-pqc-yesterday')).toBeVisible()
+    await expect(page.getByTestId('date-filter-input')).toHaveValue(today)
+    await expect(page.getByTestId('record-item-e2e-pqc-yesterday')).toHaveCount(0)
     await expect(page.getByTestId('record-item-e2e-pqc-today-a')).toBeVisible()
   })
 

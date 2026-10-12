@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.kernel-dispatch.edit', ['id' => $id]) }}" class="kd-button kd-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.kernel-dispatch') }}" class="kd-button kd-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.kernel-dispatch')" class="kd-button kd-button--secondary" />
         </div>
     </div>
 

@@ -49,6 +49,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useFloatingClockStore } from '@/stores/floatingClock'
 import { useAiAssistantStore } from '@/stores/aiAssistant'
+import { rememberProductionLineName, tandaiCacheStasiunSegar } from '@/services/activeStation'
 import { stationRepo, type StationSlot, type StationType } from '@/services/stationRepo'
 import { productionLineRepo, type ProductionLineOption } from '@/services/productionLineRepo'
 import { seedDefaultStationsIfNeeded } from '@/services/localSchema'
@@ -105,6 +106,14 @@ const syncErrorMessage = ref<string | null>(null)
 const productionLines = ref<ProductionLineOption[]>([])
 const selectedProductionLineId = ref<string | null>(null)
 const showProductionLinePicker = ref(false)
+
+/**
+ * Server menjawab, dan mill ini memang belum punya satu Production Line pun
+ * — BUKAN "daftar line gagal dimuat". Keduanya menuntut tindakan yang
+ * berbeda (hubungi Admin vs periksa koneksi), persis seperti yang sudah
+ * dibedakan layar laporan mobile; lihat loadProductionLinesAndStations().
+ */
+const millTanpaLine = ref(false)
 
 /**
  * Maps an active station's type to its monitor screen route name —
@@ -247,12 +256,44 @@ onMounted(async () => {
  *     itself is unreachable.
  */
 async function loadProductionLinesAndStations(businessUnitId: string): Promise<void> {
-  const lines = await productionLineRepo.fetchCurrentProductionLines().catch(() => [])
+  // DAFTAR KOSONG DAN PENGAMBILAN GAGAL ADALAH DUA KEADAAN BERBEDA, dan
+  // sebelumnya keduanya diluluhkan menjadi `[]` oleh .catch(() => []).
+  //
+  // Akibatnya mill yang BENAR-BENAR belum punya Production Line jatuh ke
+  // cabang cadangan di bawah: 18 tile stasiun tetap digambar dari seed
+  // sintetis, tanpa line yang terpilih dan tanpa satu kalimat pun yang
+  // menjelaskan keadaannya (temuan QA MB-HOME-04). Operator lalu dapat
+  // menekan tile dan mulai mengisi untuk mill yang belum punya tempat
+  // menaruh datanya.
+  //
+  // Cabang cadangan itu sendiri TETAP ADA untuk sebabnya yang asli —
+  // pengambilan gagal karena offline — karena di sana tile dari cache lokal
+  // memang satu-satunya cara operator dapat terus bekerja. Yang berubah
+  // hanya: keadaan "server menjawab, dan jawabannya nol line" tidak lagi
+  // ikut menumpang cabang itu.
+  let lines: ProductionLineOption[] = []
+  let fetchGagal = false
+
+  try {
+    lines = await productionLineRepo.fetchCurrentProductionLines()
+  } catch {
+    fetchGagal = true
+  }
 
   // Diisi di SEMUA cabang, bukan hanya `> 1` seperti sebelumnya: tombol
   // ganti Production Line di header membaca daftar ini, jadi daftar harus
   // ada walaupun pemilih awal tidak pernah tampil.
   productionLines.value = lines
+  millTanpaLine.value = lines.length === 0 && !fetchGagal
+
+  if (millTanpaLine.value) {
+    // Tidak ada seed, tidak ada grid, tidak ada stasiun — hanya arahannya.
+    selectedProductionLineId.value = null
+    showProductionLinePicker.value = false
+    stations.value = []
+
+    return
+  }
 
   if (lines.length > 1) {
     // Sudah pernah memilih di perangkat ini? Langsung ke daftar stasiun.
@@ -313,11 +354,29 @@ async function selectProductionLine(line: ProductionLineOption, businessUnitId: 
   selectedProductionLineId.value = line.id
   showProductionLinePicker.value = false
   rememberProductionLineId(line.id)
+  // NAMA-nya ikut diingat, bukan hanya id-nya: layar Monitor mencetak nama
+  // line yang sedang dipilih (QA MB-HOME-03) dan harus bisa melakukannya
+  // offline, sementara daftar line tidak di-cache lokal. `line` di sini
+  // berasal dari daftar yang BARU diambil server, jadi nama yang berubah di
+  // web ikut terbarui di sini.
+  rememberProductionLineName(authStore.currentUser?.id, line.name)
   loading.value = true
   error.value = null
 
   try {
-    await productionLineRepo.fetchAndCacheStationsForProductionLine(line.id, businessUnitId).catch(() => {})
+    // BERHASILNYA pengambilan ini dicatat, bukan hanya hasilnya. Penjaga
+    // stasiun aktif pada layar Form (QA MB-FORM-15) perlu membedakan "line
+    // ini memang tidak punya stasiun" dari "stasiunnya belum pernah
+    // disinkronkan" — dan dari jumlah baris saja keduanya terlihat sama:
+    // nol. Sesudah pengambilan ini berhasil, nol berarti nol.
+    try {
+      await productionLineRepo.fetchAndCacheStationsForProductionLine(line.id, businessUnitId)
+      tandaiCacheStasiunSegar(line.id)
+    } catch {
+      // Offline / server bermasalah: cache dibiarkan apa adanya dan TIDAK
+      // ditandai segar, sehingga penjaga di layar Form tetap mengizinkan
+      // penyimpanan. Mencatat offline adalah inti aplikasi ini.
+    }
     stations.value = await stationRepo.getActiveAndPlaceholderStationsForProductionLine(line.id)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Gagal memuat daftar stasiun lokal.'
@@ -642,6 +701,21 @@ function closeSyncDialog() {
 
     <LoadingState v-if="loading" variant="grid" :rows="6" test-id="station-list-loading">Memuat daftar stasiun…</LoadingState>
     <p v-else-if="error" class="status-text status-text--error" role="alert">{{ error }}</p>
+
+    <!--
+      Mill tanpa Production Line: ARAHAN, bukan 18 tile stasiun yang tidak
+      punya tempat menaruh datanya (QA MB-HOME-04). Dibedakan dari "daftar
+      line gagal dimuat", yang tetap jatuh ke cabang cadangan di bawah
+      karena di sana tile dari cache lokal memang satu-satunya cara operator
+      dapat terus bekerja tanpa koneksi.
+    -->
+    <div v-else-if="millTanpaLine" class="line-empty" data-testid="mill-without-production-line">
+      <p class="line-empty-title">Mill ini belum memiliki Production Line</p>
+      <p class="line-empty-text">
+        Daftar stasiun mengikuti Production Line, jadi belum ada stasiun yang dapat diisi di
+        sini. Silakan hubungi Admin untuk menambahkan Production Line pada mill Anda.
+      </p>
+    </div>
 
     <div v-else-if="showProductionLinePicker" class="production-line-picker" data-testid="production-line-picker">
       <p class="production-line-picker-title">Pilih Production Line</p>
@@ -994,6 +1068,34 @@ function closeSyncDialog() {
   margin: -6px 0 2px;
   font-size: 12px;
   color: #6b7280;
+}
+
+/* Arahan "mill belum punya Production Line" — gaya yang sama dengan pemilih
+   di atasnya, supaya ia terbaca sebagai keadaan layar ini dan bukan sebagai
+   galat. */
+.line-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.line-empty-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.line-empty-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4b5563;
 }
 
 .production-line-option {

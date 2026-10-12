@@ -29,6 +29,7 @@ import {
   type KernelDispatchLastEvent,
   type KernelDispatchTodaySummary,
 } from '@/services/kernelDispatchRecordRepo'
+import ProductionLineLabel from '@/components/ProductionLineLabel.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import LoadingState from '@/components/loading/LoadingState.vue'
 import BusyLabel from '@/components/loading/BusyLabel.vue'
@@ -210,6 +211,7 @@ function goToStationList() {
         <span aria-current="page">Kernel Dispatch</span>
       </nav>
       <h1 class="screen-title">Monitor Kernel Dispatch</h1>
+      <ProductionLineLabel />
     </div>
 
     <section class="today-summary-section" aria-label="Hari Ini">

@@ -1499,7 +1499,7 @@ function onBack(): void {
             untuk melihat seluruh kolom.
           </p>
           <div class="detail-table-wrap">
-            <table class="detail-table" data-testid="by-unit-table">
+            <table v-stacked-table class="detail-table" data-testid="by-unit-table">
               <thead>
                 <tr>
                   <th>Unit Clarification</th>
@@ -1550,7 +1550,7 @@ function onBack(): void {
               seluruh kolom.
             </p>
             <div class="detail-table-wrap">
-              <table class="detail-table">
+              <table v-stacked-table class="detail-table">
                 <thead>
                   <tr>
                     <th>Tanggal</th>
@@ -1714,10 +1714,11 @@ function onBack(): void {
 .legend-swatch--2 { background: #b45309; }
 
 /* Tabel: guliran mendatar DI DALAM kartu, bukan pada halaman. */
-.detail-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.detail-table { border-collapse: collapse; width: 100%; font-size: 13px; }
-.detail-table th, .detail-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
-.detail-table th.num, .detail-table td.num { text-align: right; }
+/* Bentuk dasar + kartu bertumpuk pada lebar ponsel: src/assets/stacked-table.css
+   (global, dipakai bersama ke-25 tabel laporan mobile — QA LP-M-02/LP-M-03).
+   Aturan `.detail-table` yang dulu di sini DIBUANG dengan sengaja: style
+   scoped mengompilasi selektor dengan [data-v-hash] dan akan selalu menang
+   atas stylesheet bersama itu. */
 
 .action-footer { display: flex; gap: 10px; margin-top: auto; }
 .action-button { min-height: 44px; min-width: 44px; padding: 0 16px; border-radius: 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; box-sizing: border-box; }

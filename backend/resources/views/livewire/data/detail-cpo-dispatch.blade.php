@@ -8,7 +8,7 @@
             @if ($record)
                 <a href="{{ route('data.cpo-dispatch.edit', ['id' => $id]) }}" class="cd-button cd-button--secondary" data-testid="edit-button">Edit</a>
             @endif
-            <a href="{{ route('data.cpo-dispatch') }}" class="cd-button cd-button--secondary" data-testid="back-button">Back</a>
+            <x-back-to-browser :url="route('data.cpo-dispatch')" class="cd-button cd-button--secondary" />
         </div>
     </div>
 

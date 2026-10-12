@@ -258,9 +258,12 @@ test.describe('Data Preview Sterilizer (screen-123)', () => {
     await expect(page.getByTestId('list-not-found')).toContainText('Tidak ditemukan data yang sesuai filter.')
     await expect(page.getByTestId('reset-filter-button')).toBeVisible()
 
+    // Reset MEMULIHKAN KEADAAN AWAL (QA MB-PRV-08): kata kunci kosong dan
+    // tanggal kembali ke HARI INI — bukan dikosongkan. Record uji bertanggal
+    // hari ini, jadi ia tetap terlihat; yang berubah adalah nilai tanggalnya.
     await page.getByTestId('reset-filter-button').click()
     await expect(page.getByTestId('record-item-e2e-ster-nomatch')).toBeVisible()
-    await expect(page.getByTestId('date-filter')).toHaveValue('')
+    await expect(page.getByTestId('date-filter')).toHaveValue(toLocalDateString(new Date()))
   })
 
   test('Lihat Data Sterilizer Tersimpan — List Kosong', async ({ page }) => {

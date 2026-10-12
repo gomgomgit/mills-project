@@ -188,6 +188,26 @@
                         @if ($periods === [] && $periodPlaceholderWhenEmpty)
                             <option value="">Belum ada periode</option>
                         @endif
+                        {{--
+                            "Pilih Periode" WAJIB ADA selama daftarnya tidak kosong,
+                            sejajar dengan "Pilih Mill" dan "Pilih Line" di atas.
+
+                            Tanpa option bernilai '' ini, periode yang BELUM dipilih
+                            membuat peramban menandai option pertama sebagai terpilih
+                            — pemilihnya menampilkan sebuah periode, sementara
+                            komponennya masih menganggap periodId = '' dan tidak
+                            menampilkan satu angka pun. Paling terlihat sesudah Admin
+                            berganti mill: updatedBusinessUnitId() mengosongkan
+                            pilihan, lalu layar menampilkan periode mill baru yang
+                            tidak pernah dipilih siapa pun (temuan QA LP-W-09).
+
+                            wire:model.live juga tidak menolong di sana: tidak ada
+                            event change yang terjadi, jadi pilihan semu itu tidak
+                            pernah sampai ke server.
+                        --}}
+                        @if ($periods !== [])
+                            <option value="">Pilih Periode</option>
+                        @endif
                         @foreach ($periods as $period)
                             <option value="{{ $period['id'] }}" @selected($period['id'] === $periodId)>{{ $period['name'] }} &middot; {{ $rentang($period['start_date'], $period['end_date']) }} &middot; {{ $statusLabel($period['status']) }}</option>
                         @endforeach

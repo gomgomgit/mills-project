@@ -63,6 +63,18 @@ vi.mock('@/services/sterilizerRecordRepo', () => ({
   },
 }))
 
+/**
+ * Tanggal lokal hari ini (YYYY-MM-DD) — bawaan filter tanggal layar ini, dan
+ * karena itu juga keadaan yang dipulihkan tombol Reset Filter (QA MB-PRV-08).
+ * Dihitung dari jam lokal, bukan toISOString(), yang memberi tanggal UTC dan
+ * berbeda satu hari di UTC+7 selewat tengah malam.
+ */
+function hariIniLokal(): string {
+  const d = new Date()
+
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function makeRecord(overrides: Partial<SterilizerRecord> & { id: string }): SterilizerRecord {
   return {
     station_id: 'station-1',
@@ -164,7 +176,14 @@ describe('DataPreviewSterilizerView', () => {
     await wrapper.get('[data-testid="reset-filter-button"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="record-item-rec-1"]').exists()).toBe(true)
+    // Reset MEMULIHKAN KEADAAN AWAL, bukan mengosongkan tanggal (QA MB-PRV-08):
+    // tanggal kembali ke hari ini dan kata kunci kosong. Record fixture
+    // bertanggal lampau karena itu TIDAK muncul kembali — dan itulah yang
+    // benar: layar sesudah Reset harus sama dengan layar saat dibuka, bukan
+    // lebih lebar.
+    expect((wrapper.get('[data-testid="date-filter"]').element as HTMLInputElement).value)
+      .toBe(hariIniLokal())
+    expect((wrapper.get('[data-testid="search-filter"]').element as HTMLInputElement).value).toBe('')
   })
 
   it('maps status to the correct badge label', async () => {
@@ -290,7 +309,12 @@ describe('DataPreviewSterilizerView', () => {
     expect((wrapper.get('[data-testid="date-filter"]').element as HTMLInputElement).value).toBe('')
     expect(wrapper.find('[data-testid="record-item-rec-old"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="filter-result-count"]').text()).toBe('2 data')
-    expect(wrapper.find('[data-testid="reset-filter-button"]').exists()).toBe(false)
+    // "Semua" ADALAH penyimpangan dari bawaan (hari ini), jadi tombol Reset
+    // Filter justru harus ada di sini — itu satu-satunya jalan kembali yang
+    // juga mengosongkan kata kunci. Sebelum QA MB-PRV-08 keadaan ini dihitung
+    // "tanpa filter", sementara keadaan awal yang belum disentuh justru
+    // dihitung "ada filter": tepat terbalik.
+    expect(wrapper.find('[data-testid="reset-filter-button"]').exists()).toBe(true)
 
     await wrapper.get('[data-testid="date-quick-today"]').trigger('click')
     expect(wrapper.find('[data-testid="record-item-rec-old"]').exists()).toBe(false)

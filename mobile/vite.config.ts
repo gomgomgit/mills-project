@@ -41,7 +41,14 @@ export default defineConfig({
     // backend) — Vitest's default include glob (**/*.spec.ts) picks them
     // up too and fails trying to run test.describe() outside Playwright's
     // runner. Excluded here; run them via `npm run test:e2e` instead.
-    exclude: ['**/node_modules/**', 'tests/e2e/**'],
+    //
+    // tests/qa-run/** is the same thing for a different purpose: pelaksana
+    // QA blackbox (lihat docs/qa/README.md), dijalankan dengan config
+    // Playwright-nya sendiri. Tanpa dikecualikan di sini, `vitest run`
+    // melaporkan 5 berkas gagal yang sebenarnya tidak pernah dimaksudkan
+    // untuk berjalan di sini — dan kegagalan palsu yang selalu ada adalah
+    // kegagalan yang berhenti dibaca orang.
+    exclude: ['**/node_modules/**', 'tests/e2e/**', 'tests/qa-run/**'],
     // Dialog modal (ConfirmDialog/SyncResultDialog) di-<Teleport> ke <body>;
     // setup ini men-stub Teleport agar isinya tetap ada di dalam wrapper
     // spec layar. Lihat tests/setup/teleportStub.ts.

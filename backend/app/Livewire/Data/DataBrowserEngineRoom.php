@@ -8,6 +8,7 @@ use App\Services\EngineRoomRecordService;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -37,10 +38,27 @@ class DataBrowserEngineRoom extends Component
     use HasFilterReset;
     use ScopesToActorMill;
 
+    /**
+     * FILTER HIDUP DI URL, bukan hanya di state Livewire.
+     *
+     * Layar Detail dibuka dengan navigasi halaman penuh, dan state Livewire
+     * tidak ikut menyeberang — jadi tanpa #[Url] tombol Back pada Detail
+     * mendarat di daftar yang filter dan halamannya sudah polos kembali
+     * (temuan QA WB-DTL-05). Dengan filter di URL, entri riwayat yang
+     * ditinggalkan sudah membawa keadaannya sendiri.
+     *
+     * TIDAK MEMBUKA KEBOCORAN LINTAS MILL: render() memaku ulang mill untuk
+     * peran terikat, dan service memanggil scopeFiltersToActorMill() yang
+     * membuang nilai kiriman klien — keduanya sudah memperhitungkan nilai
+     * yang datang dari query string yang di-bookmark.
+     */
+    #[Url]
     public string $date_from = '';
 
+    #[Url]
     public string $date_to = '';
 
+    #[Url]
     public string $business_unit_id = '';
 
     /**
@@ -52,8 +70,10 @@ class DataBrowserEngineRoom extends Component
      * angka gabungan seperti laporan periode — asal setiap baris menunjukkan
      * line-nya sendiri, yang dijamin kolom Production Line di tabel.
      */
+    #[Url]
     public string $production_line_id = '';
 
+    #[Url]
     public int $page = 1;
 
     public int $perPage = 20;

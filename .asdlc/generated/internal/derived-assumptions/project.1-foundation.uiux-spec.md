@@ -38,3 +38,8 @@
 - component_patterns['screen-context'] = nama Production Line dibaca dari ingatan perangkat (localStorage), bukan dari API ← agent derived; daftar Production Line tidak di-cache lokal, dan layar Monitor adalah layar yang paling sering dipakai tanpa koneksi
 - component_patterns['data-table'] (web) TIDAK diubah, hanya diberi rujukan silang ke pattern mobile yang baru ← agen memutuskan perbedaan itu disengaja, bukan ketidakkonsistenan yang perlu diseragamkan: keputusan horizontal-scroll web (v5) diambil untuk layar lebar, sementara aplikasi mobile hanya ada di ponsel
 - Ketiga pattern baru dicatat di sini dan TIDAK disalin ke spec 115 layar yang terdampak ← agent derived, mengikuti preseden revisi 2026-09-09 pada artefak yang sama ("murni presentational … tanpa perlu re-generate business/tech spec tiap screen")
+
+## v7 — 2026-10-12
+
+- component_patterns "screen-context": bagian tentang kepala halaman Home DICABUT dari pola ini ← akibat keputusan user memulihkan aturan header screen-005 v3. Pola ini tetap berlaku untuk nama mill di bawah salam dan Production Line di layar Monitor; yang hilang hanya klaim bahwa kepala halaman ikut membawa konteks mill. Ditulis sebagai pengecualian yang DISEBUT, bukan dengan menghapus kalimatnya: pola yang menyebut batasnya sendiri lebih sulit disalahterapkan daripada pola yang diam
+- rujukan AD-10 dicabut dari daftar temuan asal pola ini ← tinggal MB-HOME-01 dan MB-HOME-03; AD-10 tidak lagi menjadi sebab pola ini ada

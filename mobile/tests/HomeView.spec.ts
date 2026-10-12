@@ -390,28 +390,36 @@ describe('HomeView — hero image dari Mills Setting', () => {
 })
 
 /*
- * TEMUAN QA AD-10 dan MB-HOME-01.
+ * Nama mill (temuan QA MB-HOME-01) dan baris merek yang TETAP.
  *
- * Nama Aplikasi, Logo, dan nama mill semuanya sudah ada di perangkat — yang
- * hilang adalah pemakaiannya. Layar ini dulu hanya membaca home_page_image
- * dari mill-setting, dan baris mereknya teks tetap "Mills Smart Log", jadi
- * Admin dapat mengubah Nama Aplikasi, melihat pesan berhasil, lalu tidak ada
- * apa pun yang berubah bagi Operator. Nama mill-nya sendiri tidak pernah
- * tercetak, sehingga Operator tidak punya penanda mill mana yang ia isi.
+ * Dua hal yang sering dianggap satu padahal bukan:
+ *
+ *   - Nama mill memang harus tercetak. Operator tidak punya penanda lain
+ *     tentang mill mana yang sedang ia isi, dan data aplikasi ini terpisah
+ *     per mill. Itu temuan MB-HOME-01, dan tetap berlaku.
+ *
+ *   - Baris merek kepala halaman TIDAK mengikuti Mills Setting. Nama produk
+ *     di header terpisah dari app_name — business_rules screen-005 v3,
+ *     sempat dibalik pada 2026-10-12 mengikuti QA AD-10, lalu dipulihkan atas
+ *     keputusan user. Karena keputusan ini sudah dua kali berbalik arah, ia
+ *     dijaga uji: app_name dan logo yang TERISI tidak boleh mengubah header.
  */
-describe('HomeView — Nama Aplikasi, Logo, dan nama mill dipakai', () => {
+describe('HomeView — nama mill dicetak, baris merek tetap nama produk', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     logoutMock.mockResolvedValue(undefined)
     mockAuthUser('Budi')
   })
 
-  it('memakai Nama Aplikasi dari mill-setting sebagai baris merek', async () => {
+  // app_name dan logo DIISI di mill-setting, dan keduanya harus diabaikan
+  // kepala halaman. Nilai yang diisi di sini bukan hiasan: dengan keduanya
+  // null, uji ini akan tetap hijau walau kodenya kembali membaca mill-setting.
+  it('baris merek tetap nama produk meski Nama Aplikasi mill terisi', async () => {
     getMillSettingMock.mockResolvedValue({
       id: 'ms-1',
       businessUnitId: 'bu-1',
       appName: 'Mill Alpha Smart Log',
-      logo: null,
+      logo: 'https://cdn.example.com/logo-alpha.png',
       homePageImage: null,
       jumlahCages: 10,
     })
@@ -419,28 +427,10 @@ describe('HomeView — Nama Aplikasi, Logo, dan nama mill dipakai', () => {
     const wrapper = mount(HomeView)
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="brand-name"]').text()).toBe('Mill Alpha Smart Log')
+    expect(wrapper.get('[data-testid="brand-name"]').text()).toBe('Mills Smart Log')
   })
 
-  it('memakai teks bawaan bila Nama Aplikasi belum diatur atau hanya spasi', async () => {
-    for (const appName of [null, '', '   ']) {
-      getMillSettingMock.mockResolvedValue({
-        id: 'ms-1',
-        businessUnitId: 'bu-1',
-        appName,
-        logo: null,
-        homePageImage: null,
-        jumlahCages: 10,
-      })
-
-      const wrapper = mount(HomeView)
-      await flushPromises()
-
-      expect(wrapper.get('[data-testid="brand-name"]').text()).toBe('Mills Smart Log')
-    }
-  })
-
-  it('menampilkan logo mill bila ada, dan ikon bawaan bila tidak', async () => {
+  it('kepala halaman memakai ikon bawaan, bukan logo mill, meski logo terisi', async () => {
     getMillSettingMock.mockResolvedValue({
       id: 'ms-1',
       businessUnitId: 'bu-1',
@@ -450,17 +440,11 @@ describe('HomeView — Nama Aplikasi, Logo, dan nama mill dipakai', () => {
       jumlahCages: 10,
     })
 
-    const berlogo = mount(HomeView)
+    const wrapper = mount(HomeView)
     await flushPromises()
-    expect(berlogo.get('[data-testid="brand-logo"]').attributes('src'))
-      .toBe('https://cdn.example.com/logo-alpha.png')
-    expect(berlogo.find('.brand-icon').exists()).toBe(false)
 
-    getMillSettingMock.mockResolvedValue(null)
-    const tanpaLogo = mount(HomeView)
-    await flushPromises()
-    expect(tanpaLogo.find('[data-testid="brand-logo"]').exists()).toBe(false)
-    expect(tanpaLogo.find('.brand-icon').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="brand-logo"]').exists()).toBe(false)
+    expect(wrapper.find('.brand-icon').exists()).toBe(true)
   })
 
   it('mencetak nama mill yang sedang diisi', async () => {

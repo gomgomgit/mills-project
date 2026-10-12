@@ -1,7 +1,7 @@
 /**
  * Pelaksana bagian 6.3 dokumen QA — Laporan Periode Mobile (LP-M-01…12),
- * plus DS-12 (urutan tile web vs mobile) dan AD-10 (pengaturan mill berlaku
- * di aplikasi mobile). Varian tingkat 1 = Kernel Plant.
+ * plus DS-12 (urutan tile web vs mobile) dan AD-10 (pengaturan mill tersimpan
+ * dan sampai ke perangkat). Varian tingkat 1 = Kernel Plant.
  */
 import { test, expect, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
@@ -539,10 +539,15 @@ test('AD-10 — perubahan Pengaturan Mill tersimpan dan berlaku', async ({ page 
   })
   const sampaiKePerangkat = String(diPerangkat).includes(web.baru)
 
-  const ok = web.sukses && web.bertahan && tampilDiHome
+  // Yang menentukan Lulus: jalur simpan -> kirim -> simpan di perangkat bekerja
+  // utuh. BUKAN "tampil di Home" — nama produk pada baris merek memang terpisah
+  // dari Nama Aplikasi per mill (business_rules screen-005), jadi menuntutnya
+  // tampil berarti menuntut sesuatu yang spec-nya melarang.
+  const ok = web.sukses && web.bertahan && sampaiKePerangkat
   catat('AD-10', '—', ok ? 'Lulus' : 'Gagal',
     `Bagian web: Nama Aplikasi diubah dari "${web.semula}" menjadi "${web.baru}" — pesan konfirmasi=${web.sukses}, nilainya bertahan sesudah muat ulang=${web.bertahan}. `
-    + `Bagian mobile: nilai barunya sampai ke perangkat=${sampaiKePerangkat} (isi basis data lokal: ${String(diPerangkat).slice(0, 120)}); layar Home mobile MEMAKAINYA=${tampilDiHome} — baris mereknya berbunyi "${merek}". `
-    + `Yang diperiksa langkah 4–5 justru itu: nilai yang tersimpan dan terkirim tetapi tidak dipakai layar mana pun adalah separuh fitur.`)
+    + `Bagian mobile: nilai barunya sampai ke perangkat=${sampaiKePerangkat} (isi basis data lokal: ${String(diPerangkat).slice(0, 120)}). `
+    + `Baris merek Home berbunyi "${merek}" dan TIDAK mengikuti Nama Aplikasi (ikut berubah=${tampilDiHome}, dan false memang yang diharapkan): nama produk pada header terpisah dari Nama Aplikasi per mill. `
+    + `Terbuka: Nama Aplikasi dan Logo tersimpan serta tersinkron tetapi belum dibaca layar mana pun.`)
   expect(ok).toBe(true)
 })

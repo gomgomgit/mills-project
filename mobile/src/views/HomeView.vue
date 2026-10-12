@@ -69,19 +69,20 @@ const aiAssistantStore = useAiAssistantStore()
 const heroImage = ref<string>(staticHeroImage)
 
 /**
- * Nama Aplikasi dan Logo dari mill-setting — DIPAKAI, bukan hanya disimpan.
+ * Baris merek kepala halaman: NAMA PRODUK, tetap, bukan app_name mill.
  *
- * Temuan QA AD-10: ketiga nilai ini sudah tersimpan di web, terkirim lewat
- * sync, dan tersimpan di tabel mill_setting perangkat — lalu tidak dibaca
- * layar mana pun. Hanya home_page_image yang terpakai, sementara baris merek
- * di kepala halaman adalah teks tetap "Mills Smart Log". Pengaturan yang
- * tersimpan tanpa berpengaruh ke layar mana pun adalah separuh fitur: Admin
- * mengubahnya, menekan Simpan, melihat pesan berhasil, dan tidak ada yang
- * berubah bagi Operator.
+ * business_rules screen-005: nama produk pada header ini TERPISAH dari
+ * app_name di Mills Setting — app_name bukan untuk header Home. Aturan itu
+ * pernah dibalik pada 2026-10-12 mengikuti temuan QA AD-10, lalu DIPULIHKAN
+ * atas keputusan user pada tanggal yang sama; keputusannya ada di artefak
+ * screen-005 v5 beserta sebabnya.
+ *
+ * Konsekuensinya diketahui dan diterima: app_name dan logo pada mill_setting
+ * tidak dibaca layar mana pun. Kalau suatu saat keduanya perlu terbaca,
+ * ubah artefaknya lebih dulu — jangan menambahkannya kembali di sini saja,
+ * karena justru itu yang membuat kode dan spec berselisih diam-diam.
  */
-const BRAND_DEFAULT = 'Mills Smart Log'
-const appName = ref<string>(BRAND_DEFAULT)
-const millLogo = ref<string | null>(null)
+const BRAND_NAME = 'Mills Smart Log'
 
 onMounted(async () => {
   const businessUnitId = authStore.businessUnit?.id
@@ -92,19 +93,10 @@ onMounted(async () => {
 
   const setting = await getMillSetting(businessUnitId)
 
+  // Hanya home_page_image yang dibaca layar ini. app_name dan logo sengaja
+  // TIDAK dibaca — lihat BRAND_NAME di atas.
   if (setting?.homePageImage) {
     heroImage.value = setting.homePageImage
-  }
-
-  // Nama kosong/spasi diperlakukan sebagai "belum diatur", bukan sebagai
-  // kepala halaman tanpa nama.
-  const nama = setting?.appName?.trim()
-  if (nama) {
-    appName.value = nama
-  }
-
-  if (setting?.logo) {
-    millLogo.value = setting.logo
   }
 })
 
@@ -229,15 +221,7 @@ const MENU_ICONS: Record<string, string> = {
   <main class="home-view">
     <header class="home-header">
       <div class="home-header-brand">
-        <img
-          v-if="millLogo"
-          :src="millLogo"
-          alt=""
-          class="brand-logo"
-          data-testid="brand-logo"
-        />
         <svg
-          v-else
           class="brand-icon"
           viewBox="0 0 24 24"
           width="28"
@@ -252,7 +236,7 @@ const MENU_ICONS: Record<string, string> = {
           <circle cx="12" cy="12" r="9" />
           <path d="M8 12l3 3 5-6" />
         </svg>
-        <span class="brand-name" data-testid="brand-name">{{ appName }}</span>
+        <span class="brand-name" data-testid="brand-name">{{ BRAND_NAME }}</span>
       </div>
 
       <button
@@ -364,21 +348,11 @@ const MENU_ICONS: Record<string, string> = {
   font-size: 16px;
   font-weight: 700;
   color: #1f2937;
-  /* Nama Aplikasi diatur bebas per mill, jadi panjangnya tidak dapat
-     diandalkan: dipotong rapi alih-alih mendorong tombol menu keluar layar. */
+  /* Pemotongan rapi dipertahankan meski namanya kini tetap: ia menjaga tombol
+     menu tetap di layar pada lebar perangkat paling sempit. */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* Logo mill, bila diunggah — ukurannya dipaku sama dengan .brand-icon supaya
-   kepala halaman tidak berubah tinggi saat logo ada atau tidak ada. */
-.brand-logo {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  object-fit: contain;
-  border-radius: 6px;
 }
 
 .hamburger-button {

@@ -2901,23 +2901,30 @@ di dalam layar Kelola Mesin — tetapi tetap satu tingkat data yang diuji dengan
 
 ### AD-10 — Perubahan Pengaturan Mill tersimpan dan berlaku
 - **Peran:** `MGR-A` (web) + `OPR-A` (mobile)
-- **Catatan jalan:** seluruh pengaturan di layar ini dipakai **aplikasi mobile**, bukan layar web
-  mana pun — Nama Aplikasi dan Logo pada Home mobile, Gambar Halaman Utama, saklar kirim-langsung
-  pada penyimpanan Operator, dan Icon Station pada daftar stasiun mobile. Jadi langkah 1–3
-  dijalankan di web, dan langkah 4–5 **harus** dijalankan di aplikasi mobile.
+- **Catatan jalan:** pengaturan di layar ini dipakai **aplikasi mobile**, bukan layar web mana pun
+  — Gambar Halaman Utama pada Home mobile, saklar kirim-langsung pada penyimpanan Operator, dan
+  Icon Station pada daftar stasiun mobile. **Nama Aplikasi dan Logo adalah pengecualian: keduanya
+  belum dibaca satu layar pun.** Baris merek pada Home mobile memakai **nama produk** yang tetap,
+  dan itu keputusan yang disengaja — nama produk pada header terpisah dari Nama Aplikasi per mill.
+  Jadi langkah 1–3 dijalankan di web, dan langkah 4–5 **harus** dijalankan di aplikasi mobile
+  untuk memeriksa bahwa nilainya **sampai ke perangkat**, bukan bahwa ia tampil di Home.
 - **Langkah:**
   1. `[W-MILLSET]` sebagai `MGR-A`. Catat nilai awal **Nama Aplikasi**.
   2. Ubah nilai itu, tekan **Simpan**.
   3. Muat ulang halaman (F5). Baca nilainya.
   4. `[M-LOGIN]` sebagai `OPR-A` pada mill yang sama, lalu sinkronkan bila diminta.
-  5. Baca nama aplikasi yang tampil di layar Home mobile.
+  5. Periksa bahwa nilai baru itu sudah ada **di perangkat** (tersinkron), lalu baca baris merek
+     pada layar Home mobile.
   6. Kembalikan nilainya ke semula lewat `[W-MILLSET]`.
 - **Hasil diharapkan:**
   - Simpan **berhasil** dengan pesan konfirmasi.
   - Nilai baru **bertahan** sesudah muat ulang.
-  - Nilai baru **berlaku** di aplikasi mobile — nama baru itu yang tampil di Home.
-  - Nilai yang tersimpan tapi tidak berpengaruh ke layar mana pun adalah separuh fitur — itu yang
-    diperiksa di langkah 4–5.
+  - Nilai baru **sampai ke perangkat** sesudah sinkronisasi — itu yang diperiksa langkah 4–5:
+    jalur simpan → kirim → simpan di perangkat bekerja utuh.
+  - Baris merek pada Home mobile **tetap nama produk**, TIDAK berubah mengikuti Nama Aplikasi.
+    Itu **bukan** kegagalan: nama produk pada header memang terpisah dari Nama Aplikasi per mill.
+  - **Terbuka, dan bukan bagian dari kasus ini:** Nama Aplikasi dan Logo saat ini tersimpan dan
+    tersinkron tetapi belum dibaca layar mana pun. Keduanya menunggu layar yang memakainya.
 - **Prioritas:** Sedang
 - **Catatan QA:** pengaturan **Jumlah Cages** sudah **tidak ada lagi** di layar ini (jumlah cages
   kini diturunkan dari data mesin stasiun). Kalau Anda mencarinya karena pernah membacanya di

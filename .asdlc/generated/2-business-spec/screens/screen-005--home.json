@@ -3,7 +3,7 @@
     "title": "Mill Smart Log",
     "updated_at": "2026-10-12"
   },
-  "ver": 4,
+  "ver": 5,
   "id": "screen-005--home",
   "name": "Home",
   "module_id": "module-mobile-station-ops",
@@ -17,7 +17,7 @@
     "Tap logo/ikon Home dari layar lain"
   ],
   "information_displayed": [
-    "Nama Aplikasi pada header, diambil dari app_name milik Mills Setting business unit user (bawaan 'Mills Smart Log' bila belum diatur atau hanya spasi), beserta Logo mill bila sudah diunggah (bila belum: ikon bawaan), dengan ikon hamburger menu",
+    "Nama produk 'Mills Smart Log' pada header, dengan ikon bawaan dan ikon hamburger menu — teks tetap, TIDAK mengikuti app_name maupun Logo dari Mills Setting",
     "Hero image di bawah header — diambil dari home_page_image milik Mills Setting business unit user (via Admin/Mill Management di web); jika belum tersedia (belum pernah di-fetch, offline saat pertama login, atau business unit belum diset home_page_image-nya), tampilkan gambar statis bertema mill/plantation bawaan aplikasi sebagai fallback",
     "Teks sambutan personal (mis. 'Hello, [nama user]' + 'Apa tugas hari ini?')",
     "3 menu card (ikon + nama menu): Estimates & Baselines, Production Process Activity, Dashboard & Reporting",
@@ -60,7 +60,7 @@
   "business_rules": [
     "Home tidak menampilkan status draft/record dari stasiun manapun — status tersebut hanya terlihat di layar Monitor masing-masing stasiun (Weighbridge/Grading/Cages Track)",
     "Hanya menu 'Production Process Activity' yang fungsional saat ini; 'Estimates & Baselines' dan 'Dashboard & Reporting' tetap tampil sebagai placeholder non-fungsional sampai layar tujuannya dibangun",
-    "Branding pada header memakai Nama Aplikasi dan Logo dari Mills Setting mill user, dengan nama produk 'Mills Smart Log' + ikon bawaan sebagai fallback. MEMBALIK keputusan v3 (2026-10-05) yang berbunyi 'header memakai nama produk, nama produk header ini TERPISAH dari app_name di Mills Setting, bukan header Home'. Sebabnya: dengan aturan itu, app_name dan logo tidak dibaca SATU layar pun — Admin dapat mengubah Nama Aplikasi di web, melihat pesan berhasil, nilainya tersinkron dan tersimpan di perangkat, lalu tidak ada apa pun yang berubah bagi Operator. Pengaturan yang tidak berpengaruh ke layar mana pun tidak dapat dibedakan dari pengaturan yang rusak. Dokumen QA blackbox AD-10 menuntut sebaliknya ('Nilai baru berlaku di aplikasi mobile — nama baru itu yang tampil di Home'), dan keputusan ini mengikutinya (2026-10-12)",
+    "Branding pada header memakai nama produk 'Mills Smart Log' dengan ikon bawaan — bukan nama/logo perusahaan/klien sesungguhnya. Nama produk header ini TERPISAH dari app_name dan logo di Mills Setting; keduanya bukan untuk header Home. Aturan ini (keputusan v3, 2026-08-19) sempat DIBALIK pada 2026-10-12 mengikuti dokumen QA blackbox AD-10 yang menuntut 'nama baru itu yang tampil di Home', lalu DIPULIHKAN pada tanggal yang sama atas keputusan user. AD-10 sudah disesuaikan: yang diuji sekarang adalah nilainya sampai ke perangkat, bukan tampil di Home. Konsekuensi yang diketahui dan diterima: app_name dan logo tidak dibaca SATU layar pun — keduanya tersimpan, tersinkron ke perangkat, lalu tidak berpengaruh ke mana-mana, sehingga Admin dapat mengubah Nama Aplikasi, melihat pesan berhasil, dan tidak ada apa pun yang berubah bagi Operator. Keduanya menunggu layar yang memakainya (lihat screen-034 dan shared-decisions). Keputusan ini sudah dua kali berbalik arah, jadi arahnya sekarang dijaga uji unit HomeView: app_name dan logo yang TERISI tidak boleh mengubah kepala halaman",
     "Hero image mengikuti home_page_image milik business unit user saat ini, di-cache secara lokal setelah berhasil diambil sehingga tetap tampil saat offline; TIDAK di-fetch ulang setiap kali layar dibuka — hanya saat cache belum ada atau device online dan cache dianggap kedaluwarsa"
   ],
   "usecase_ids": [
@@ -70,10 +70,11 @@
     "User tap salah satu menu placeholder (Estimates & Baselines / Dashboard & Reporting) — harus ada feedback bahwa fitur belum tersedia, bukan diam saja",
     "Nama user tidak tersedia/kosong — teks sambutan tetap tampil dengan fallback generik tanpa nama",
     "home_page_image belum pernah berhasil di-fetch (login pertama offline, API gagal, atau business unit belum diisi home_page_image-nya di Mills Setting) — tampilkan gambar statis fallback bawaan aplikasi, bukan area kosong/rusak",
-    "app_name belum diatur, kosong, atau hanya spasi — header memakai nama produk bawaan 'Mills Smart Log', bukan header tanpa nama",
-    "Logo mill belum diunggah — header memakai ikon bawaan dengan ukuran yang sama, sehingga tinggi header tidak berubah saat logo ada atau tidak ada",
+    "app_name atau Logo diubah di Mills Setting — kepala halaman Home TIDAK berubah, dan itu bukan cacat: nama produk pada header terpisah dari keduanya",
     "Akun tidak terikat mill (hanya mungkin untuk Admin) — baris nama mill TIDAK dirender sama sekali, bukan dirender kosong atau sebagai tanda pisah"
   ],
   "test_priority": "medium",
-  "open_questions": []
+  "open_questions": [
+    "Nama produk yang dirender header adalah 'Mills Smart Log' (dengan s), sedangkan judul produk pada artefak lain adalah 'Mill Smart Log'. Selisih satu huruf ini sudah ada sebelum perubahan hari ini dan tidak disentuh saat pemulihan aturan v3 — yang mana yang benar perlu diputuskan, lalu disamakan di kedua tempat sekaligus"
+  ]
 }

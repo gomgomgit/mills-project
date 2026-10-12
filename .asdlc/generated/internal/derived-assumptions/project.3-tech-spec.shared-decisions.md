@@ -76,3 +76,9 @@ Sumber: artifact-sync round 3 2026-10-05 (commit 54f6a13, 658cedc, db73fbd, c321
 - Jenis stasiun pada penjaga itu diturunkan dari NAMA RUTE (`<slug>-form`), bukan konstanta per view ← agent derived, menghindari 18 salinan daftar literal
 - Pemilih periode mendapat option penampung "Pilih Periode" ← dokumen QA LP-W-09 hanya menuntut pilihan direset ke kosong; agen menemukan bahwa reset saja tidak terlihat tanpa option bernilai '' karena peramban menandai option pertama sebagai terpilih
 - Penanda ganti-mill ditetapkan di hook `updating`, bukan `updated` ← agent derived sesudah versi pertama (di `updated`) juga mematikan pengisian otomatis bagi Admin yang memilih mill PERTAMANYA, yang terlihat sebagai 31 uji laporan gagal
+
+## v13 — 2026-10-12
+
+- other_decisions[32] ditulis ulang ← judulnya sendiri berubah arah: dari "MILL-SETTING BENAR-BENAR DIPAKAI LAYAR MOBILE" menjadi "KONTEKS MILL/LINE DICETAK DI LAYAR MOBILE, TETAPI BARIS MEREK TETAP NAMA PRODUK". Akibat keputusan user memulihkan aturan header screen-005 v3
+- "AKIBAT YANG TERBUKA: app_name dan logo tidak dibaca satu layar pun" dinyatakan di dalam entri keputusan itu sendiri, bukan hanya di screen-034 ← agent derived; entri lintas-layar inilah yang akan dibaca orang berikutnya yang menambah pengaturan ke Mills Setting, jadi di sinilah pelanggaran aturannya harus terlihat
+- aturan umum "pengaturan baru harus disertai layar yang membacanya" DIPERTAHANKAN meski kini ada dua pengaturan yang melanggarnya ← agent derived; aturan itu tetap benar dan pelanggaran yang tercatat lebih berguna daripada aturan yang dilunakkan agar cocok dengan keadaan

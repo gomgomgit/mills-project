@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-05"
+    "updated_at": "2026-10-12"
   },
   "id": "screen-001--login-web",
   "name": "Login Web",
@@ -25,7 +25,8 @@
     "Form login: username/NIK, password",
     "Pesan 'Akun Anda telah dinonaktifkan, hubungi Admin.' bila sesi sebelumnya diakhiri karena akun dinonaktifkan (tidak ada pemilih Business Area — diturunkan dari akun)",
     "Link Lupa Password",
-    "Pesan error jika kredensial salah"
+    "Pesan error jika kredensial salah",
+    "Pesan 'Akun ini belum terikat pada mill mana pun, sehingga tidak ada data yang dapat dibuka. Hubungi Admin untuk menetapkan mill akun Anda.' bila akun non-Admin tidak punya mill — berbeda dari pesan ketidaksesuaian business area, karena sebabnya dan tindak lanjutnya berbeda"
   ],
   "available_actions": [
     {
@@ -50,7 +51,7 @@
   ],
   "business_rules": [
     "Password minimal 6 karakter, case-sensitive, kombinasi alfanumerik+simbol",
-    "Business Area tidak dipilih di form — diturunkan otomatis dari business_unit_id akun; Admin boleh tanpa Business Unit; akun non-Admin tanpa Business Unit ditolak (BUSINESS_AREA_MISMATCH)",
+    "Business Area tidak dipilih di form — diturunkan otomatis dari business_unit_id akun; Admin boleh tanpa Business Unit; akun non-Admin tanpa Business Unit ditolak (BUSINESS_AREA_MISMATCH) DENGAN PESAN YANG MENYEBUT SEBABNYA: pesannya menyebut mill dan mengarahkan pengguna menghubungi Admin, dan TIDAK berbicara tentang business area 'yang dipilih' — di layar ini tidak ada pemilih business area, jadi menyalahkan pilihan yang tidak pernah dibuat akan membuat pengguna mencari kendali yang tidak ada (QA LS-04, 2026-10-12)",
     "Redirect setelah login mengikuti role: Admin/Supervisor/Mill Management → /dashboard; Operator → /beranda (Beranda Operator)",
     "Operator boleh login web dengan akses TERBATAS (keputusan produk 2026-10-04): Beranda Operator (/beranda, pesan akses terbatas) dan Ganti Password saja; menu sidebar hanya menampilkan rute yang diizinkan guard peran (RouteAccess); rute lain menampilkan halaman 403 berbahasa Indonesia di dalam shell dengan tombol 'Kembali ke Beranda' dan Logout",
     "User yang sudah login dan membuka '/' atau '/login' langsung dialihkan ke beranda perannya (form login tidak ditampilkan lagi); tamu yang membuka '/' dialihkan ke /login",
@@ -66,7 +67,8 @@
     "Sesi login ganda (user sudah login di device/browser lain)",
     "Akun dinonaktifkan Admin saat sesi web masih berjalan — request berikutnya mengeluarkan user ke /login dengan pesan; request JSON dijawab 401",
     "User yang sudah login membuka /login atau '/' — dialihkan ke beranda peran",
-    "Operator membuka rute web di luar aksesnya (mis. /dashboard) — halaman 403 Indonesia dengan jalan keluar (Beranda/Logout)"
+    "Operator membuka rute web di luar aksesnya (mis. /dashboard) — halaman 403 Indonesia dengan jalan keluar (Beranda/Logout)",
+    "Akun non-Admin tanpa mill — ditolak di layar Login dengan pesan yang menyebut mill dan mengarahkan ke Admin; pembedaannya dari 'Business Area tidak sesuai' disengaja, karena yang pertama tidak melibatkan pilihan apa pun dari pengguna"
   ],
   "test_priority": "high",
   "open_questions": [

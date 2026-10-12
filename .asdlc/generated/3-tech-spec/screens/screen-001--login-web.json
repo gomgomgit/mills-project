@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-05"
+    "updated_at": "2026-10-12"
   },
   "id": "screen-001--login-web",
   "name": "Login Web",
@@ -78,7 +78,7 @@
               {
                 "http_code": 403,
                 "error_code": "BUSINESS_AREA_MISMATCH",
-                "condition": "business area yang dipilih tidak sesuai dengan akses user"
+                "condition": "DUA sebab, satu kode: (a) business_unit_id dikirim dan tidak sama dengan user.business_unit_id, atau (b) akun non-Admin tidak punya business_unit_id sama sekali. PESANNYA BERBEDA — (a) 'Business area yang dipilih tidak sesuai dengan akses Anda.', (b) 'Akun ini belum terikat pada mill mana pun, sehingga tidak ada data yang dapat dibuka. Hubungi Admin untuk menetapkan mill akun Anda.' Pemanggil WAJIB meneruskan $e->getMessage(), tidak menuliskan ulang kalimatnya (QA LS-04)."
               },
               {
                 "http_code": 422,
@@ -98,7 +98,7 @@
         "2. Validate format password via App\\Support\\PasswordPolicy (min 6 karakter, alfanumerik+simbol — aturan tunggal yang sama dengan Ganti Password & Kelola User) → if invalid: return 422 VALIDATION_ERROR",
         "3. Lookup user by username → if not found/password mismatch: return 401 INVALID_CREDENTIALS",
         "4. Check user.is_active → if false: return 403 ACCOUNT_INACTIVE",
-        "5. Resolusi business area: bila business_unit_id tidak dikirim → pakai user.business_unit_id (Admin tanpa BU → lanjut tanpa BU; non-Admin tanpa BU → 403 BUSINESS_AREA_MISMATCH); bila dikirim dan tidak sama dengan user.business_unit_id → 403 BUSINESS_AREA_MISMATCH",
+        "5. Resolusi business area: bila business_unit_id tidak dikirim → pakai user.business_unit_id (Admin tanpa BU → lanjut tanpa BU; non-Admin tanpa BU → 403 BUSINESS_AREA_MISMATCH dengan pesan yang menyebut MILL dan mengarahkan ke Admin — bukan pesan 'business area yang dipilih', karena pada cabang ini pengguna tidak memilih apa pun dan layar login tidak punya pemilihnya); bila dikirim dan tidak sama dengan user.business_unit_id → 403 BUSINESS_AREA_MISMATCH dengan pesan bawaan 'yang dipilih'",
         "6. Buat Laravel session untuk user, set session cookie",
         "7. Return 200 dengan user info + redirect_to sesuai role (AuthService::redirectFor(): admin/supervisor/mill_management → /dashboard, operator → /beranda)",
         "8. GET /login (LoginForm::mount) saat sudah login → redirect ke redirectFor(role); bila ada flash 'auth_error' (dari EnsureUserIsActive) tampilkan sebagai errorMessage",
@@ -122,7 +122,7 @@
           "handling": "Return 403 ACCOUNT_INACTIVE dengan pesan 'akun tidak aktif, hubungi Admin'"
         },
         {
-          "condition": "Business Area tidak sesuai dengan akses user",
+          "condition": "Business Area yang DIKIRIM tidak sesuai dengan akses user",
           "handling": "Return 403 BUSINESS_AREA_MISMATCH"
         },
         {
@@ -140,6 +140,10 @@
         {
           "condition": "Operator membuka rute web di luar aksesnya",
           "handling": "EnsureRole 403 → resources/views/errors/403.blade.php (Indonesia, di dalam shell, tombol 'Kembali ke Beranda' + Logout; varian tamu tanpa shell)"
+        },
+        {
+          "condition": "Akun non-Admin tanpa business_unit_id (masalah integritas data — Kelola User & Role mewajibkan mill untuk setiap peran non-Admin)",
+          "handling": "Return 403 BUSINESS_AREA_MISMATCH dengan pesannya SENDIRI: 'Akun ini belum terikat pada mill mana pun, sehingga tidak ada data yang dapat dibuka. Hubungi Admin untuk menetapkan mill akun Anda.' Pesan bawaan exception berbicara tentang business area 'yang dipilih', dan menyuruh pengguna memeriksa pilihan yang tidak pernah ia buat akan membuatnya mencari kendali yang tidak ada di layar — bukan menghubungi Admin yang dapat menetapkan mill-nya (QA LS-04)"
         }
       ],
       "business_rules_applied": [
@@ -192,6 +196,11 @@
           "description": "logs out a session whose account was deactivated",
           "given": "logged-in web session; user.is_active set to false; next request",
           "expect": "session invalidated; redirect /login with auth_error message (JSON request: 401)"
+        },
+        {
+          "description": "uses its own message — not the 'yang dipilih' one — for a non-Admin account with no business unit",
+          "given": "active non-Admin user whose business_unit_id is null, correct password, no business_unit_id supplied in the request",
+          "expect": "throw BusinessAreaMismatchException (http 403) whose getMessage() names the mill and directs the user to the Admin; the explicit-mismatch branch keeps the default 'Business area yang dipilih...' sentence"
         }
       ]
     }
@@ -385,6 +394,35 @@
         "route": "/login",
         "action": "dua browser: Admin menonaktifkan user B; user B memuat ulang halaman",
         "assert": "user B berada di /login dengan pesan akun dinonaktifkan"
+      }
+    },
+    {
+      "scenario_ref": "Login Web — Akun Tanpa Mill (pesannya menyebut sebabnya)",
+      "usecase_id": "usecase-001--login-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "supervisor-nomill",
+            "password": "Passw0rd!"
+          },
+          "expected_status": 403,
+          "expected_error_code": "BUSINESS_AREA_MISMATCH"
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "login dengan kredensial benar milik akun non-Admin yang business_unit_id-nya null",
+        "assert": "errorMessage = pesan yang menyebut mill dan mengarahkan ke Admin; TIDAK memuat kata 'dipilih'; password dikosongkan; tetap di layar login"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "akun Supervisor tanpa mill memasukkan kredensial yang benar lalu menekan Login",
+        "assert": "tetap di /login; pesan menyebut mill dan menyuruh menghubungi Admin, tidak menyebut pilihan yang tidak pernah dibuat pengguna, dan tidak menyuruh memeriksa koneksi"
       }
     }
   ]

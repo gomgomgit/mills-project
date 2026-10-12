@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-05"
+    "updated_at": "2026-10-12"
   },
   "id": "screen-002--login-mobile",
   "name": "Login Mobile",
@@ -69,7 +69,7 @@
               {
                 "http_code": 403,
                 "error_code": "BUSINESS_AREA_MISMATCH",
-                "condition": "business area tidak sesuai penugasan user"
+                "condition": "DUA sebab, satu kode: (a) business_unit_id dikirim dan tidak sesuai penugasan user, atau (b) akun non-Admin tidak punya business_unit_id sama sekali. Pesan `message` pada respons BERBEDA untuk keduanya — (b) menyebut mill dan mengarahkan ke Admin — dan aplikasi mobile menampilkan pesan dari respons apa adanya, jadi perbedaannya ikut terlihat di layar Login mobile (QA LS-04; lihat screen-001--login-web tech spec untuk kalimat lengkapnya)"
               },
               {
                 "http_code": 422,
@@ -130,6 +130,10 @@
         {
           "condition": "Akun dinonaktifkan saat aplikasi mobile masih login",
           "handling": "Token dicabut server-side (UserService::setStatus) dan token akun nonaktif ditolak 401 pada request berikutnya"
+        },
+        {
+          "condition": "Akun non-Admin tanpa business_unit_id",
+          "handling": "Return 403 BUSINESS_AREA_MISMATCH dengan pesan yang menyebut mill dan mengarahkan ke Admin — bukan pesan 'business area yang dipilih', karena layar Login mobile pun tidak punya pemilih business area. LoginForm mobile menampilkan `message` dari respons, jadi tidak ada penyesuaian klien yang dibutuhkan (QA LS-04)"
         }
       ],
       "business_rules_applied": [

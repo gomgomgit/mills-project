@@ -1,8 +1,8 @@
 {
-  "ver": 11,
+  "ver": 12,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-05"
+    "updated_at": "2026-10-12"
   },
   "id": "screen-006--station-list",
   "name": "Station List",
@@ -20,7 +20,9 @@
     "Indikator warna per tombol stasiun aktif: merah jika ada draft/record berstatus ongoing atau paused pada stasiun tersebut (milik user yang login), hitam/netral jika tidak ada draft sama sekali",
     "Ikon pada tile stasiun aktif: memakai station.icon (nama icon Lucide, dikelola Admin/Mill Management lewat Mills Setting) jika diisi, jika tidak diisi memakai ikon default sesuai tipe stasiun (Gauge=Weighbridge, Layers=Grading, Package=Cages Track, dan ikon default masing-masing untuk 15 stasiun aktif lainnya) seperti sekarang — warna/shadow/radius/layout tile tetap sama, hanya glyph ikonnya yang bisa berbeda",
     "Breadcrumb navigasi (mis. 'Home > Production Process Activity') yang dapat ditap untuk berpindah halaman",
-    "Nama sistem 'Mill Smart Log' pada header, dengan ikon hamburger menu (konsisten dengan Home)"
+    "Nama sistem 'Mill Smart Log' pada header, dengan ikon hamburger menu (konsisten dengan Home)",
+    "Pemilih Production Line — ditampilkan saat mill user punya lebih dari satu line dan belum ada yang dipilih di perangkat ini; pilihan terakhir diingat perangkat, sehingga kunjungan berikutnya langsung mendarat di grid stasiun. Mill dengan tepat satu line memilihnya otomatis tanpa pemilih. Line yang terpilih ikut dicetak di layar Monitor tiap stasiun (dicatat di sini karena pemilih ini sebelumnya hanya ada di kode: ditambahkan 2026-08-20 bersama entity Production Line, tanpa ikut masuk spec layar ini)",
+    "Arahan 'Mill ini belum memiliki Production Line' bila server menjawab bahwa mill user tidak punya satu line pun — menyebut Production Line dan menyuruh menghubungi Admin, menggantikan grid stasiun sepenuhnya"
   ],
   "available_actions": [
     {
@@ -52,7 +54,10 @@
     "18 stasiun MVP aktif secara fungsional (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant sejak 2026-08-23; Clarification, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Process Water, Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control sejak 2026-08-31; Sterilizer sejak 2026-09-01) — 0 placeholder tersisa, Sterilizer adalah stasiun terakhir yang dipromosikan",
     "Warna tombol stasiun aktif mencerminkan status draft: merah = ada draft/record berstatus ongoing atau paused pada stasiun itu (milik user yang login), hitam/netral = tidak ada draft sama sekali",
     "Ikon tile stasiun aktif memakai station.icon jika diisi (override, dikelola lewat Mills Setting); jika kosong, tetap memakai ikon default per tipe stasiun seperti sekarang — ini bukan foto/background image, murni penggantian glyph ikon",
-    "Breadcrumb harus dapat dinavigasi (tap salah satu segmennya berpindah ke halaman terkait), bukan sekadar label statis"
+    "Breadcrumb harus dapat dinavigasi (tap salah satu segmennya berpindah ke halaman terkait), bukan sekadar label statis",
+    "DAFTAR STASIUN MENGIKUTI PRODUCTION LINE (dicatat 2026-10-12, mekanismenya ada sejak 2026-08-20): grid stasiun digambar untuk satu line yang dipilih, bukan untuk mill secara keseluruhan. Pilihan line adalah KONTEKS YANG DIPILIH, bukan ikatan akun, dan diingat per pengguna di perangkat itu",
+    "MILL TANPA PRODUCTION LINE MEMBERI ARAHAN, BUKAN GRID (QA MB-HOME-04, 2026-10-12): bila server menjawab dan mill memang tidak punya satu line pun, layar menampilkan arahan yang menyebut Production Line dan mengarahkan ke Admin — tidak ada tile stasiun, tidak ada pemilih, dan tidak ada seed stasiun sintetis. Sebelumnya keadaan ini menampilkan 18 tile dari seed sintetis tanpa satu kalimat penjelasan, sehingga Operator dapat menekan tile dan mulai mengisi untuk mill yang belum punya tempat menaruh datanya",
+    "DAFTAR KOSONG BUKAN PENGAMBILAN GAGAL (QA MB-HOME-04, 2026-10-12): 'server menjawab nol line' dan 'daftar line tidak dapat diambil' adalah dua keadaan dengan tindak lanjut berbeda. Yang kedua TETAP menggambar tile dari cache lokal — itu satu-satunya cara Operator dapat terus bekerja tanpa koneksi, dan mematikannya akan menukar satu cacat dengan cacat yang lebih besar"
   ],
   "usecase_ids": [
     "usecase-006--station-list"
@@ -62,7 +67,10 @@
     "Belum ada draft sama sekali di semua stasiun aktif — semua tombol tampil warna hitam/netral",
     "station.icon berisi nama icon yang tidak valid/tidak dikenal — fallback ke ikon default sesuai tipe stasiun",
     "Sinkronisasi ditolak server karena sesi tidak berlaku lagi (akun dinonaktifkan Admin / token dicabut, 401) — aplikasi langsung kembali ke Login dengan pesan 'Sesi berakhir atau akun dinonaktifkan. Silakan login kembali.'; record lokal yang belum terkirim TETAP tersimpan (status Tersimpan) dan dapat disinkronkan setelah login ulang dengan akun yang sama; sinkronisasi berhenti pada penolakan sesi pertama — record lain dalam batch tidak dikirim dan tidak ada record yang ditandai 'Gagal sinkron' karena penolakan sesi",
-    "Tombol Sinkronisasi diketuk dua kali dengan cepat (atau diketuk lagi selama sinkronisasi masih berjalan) — hanya SATU putaran sinkronisasi yang berjalan, sehingga tidak ada record yang terkirim dua kali; selama berjalan tombol terkunci dan bertuliskan 'Menyinkronkan…' dengan penanda sibuk"
+    "Tombol Sinkronisasi diketuk dua kali dengan cepat (atau diketuk lagi selama sinkronisasi masih berjalan) — hanya SATU putaran sinkronisasi yang berjalan, sehingga tidak ada record yang terkirim dua kali; selama berjalan tombol terkunci dan bertuliskan 'Menyinkronkan…' dengan penanda sibuk",
+    "Mill user belum punya Production Line (server menjawab nol line) — arahan hubungi Admin, tanpa tile stasiun dan tanpa pemilih line",
+    "Daftar Production Line gagal diambil (offline / server bermasalah) — BUKAN diperlakukan sebagai 'mill tanpa line': layar tetap menggambar tile dari cache lokal supaya pencatatan offline bisa berjalan",
+    "Line yang diingat perangkat sudah tidak ada di daftar baru (dihapus, atau user dipindah mill) — pemilih muncul lagi seperti biasa, tanpa menebak line pengganti"
   ],
   "test_priority": "medium",
   "open_questions": [

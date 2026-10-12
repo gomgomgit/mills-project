@@ -38,3 +38,10 @@ Sumber: perbaikan lanjutan audit 2026-10-05 (belum di-commit), code is truth (sy
 
 Sumber: artifact-sync round 3 2026-10-05 (commit d5da9cf), code is truth (mobile/src/views/StationListView.vue, tests/StationListView.spec.ts).
 - edge_cases ← Sinkronisasi diketuk ganda → satu putaran, tombol Menyinkronkan… terkunci.
+
+## v12 — 2026-10-12
+
+- information_displayed/business_rules += pemilih Production Line dan aturan "daftar stasiun mengikuti line" ← BUKAN perilaku baru: mekanismenya ada di kode sejak 2026-08-20 dan tidak pernah masuk spec layar ini (v11 masih menggambarkan grid 18 stasiun per mill). Agen mencatatnya sekarang karena temuan QA MB-HOME-04 tidak dapat dijelaskan tanpanya
+- business_rules += "mill tanpa Production Line memberi arahan, bukan grid" ← dituntut dokumen QA MB-HOME-04 ("Muncul arahan yang menyebut Production Line … BUKAN layar kosong, BUKAN daftar nol tile tanpa keterangan")
+- business_rules += "daftar kosong bukan pengambilan gagal" ← agent derived; dokumen QA hanya menjelaskan keadaan mill-tanpa-line, dan agen mempertahankan cabang cadangan offline secara eksplisit agar perbaikannya tidak mematikan pencatatan tanpa koneksi
+- edge_cases += line yang diingat sudah tidak ada ← agent derived dari perilaku kode yang sudah ada (`remembered` hanya dipakai bila masih ada di daftar baru), dicatat supaya tidak hilang lagi seperti pemilihnya sendiri

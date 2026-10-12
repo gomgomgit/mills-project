@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Mill Smart Log",
+    "title": "Mills Smart Log",
     "updated_at": "2026-08-19"
   },
   "ver": 4,
@@ -59,7 +59,7 @@
         }
       ],
       "business_logic": [
-        "1. Render header (nama sistem 'Mill Smart Log' + ikon hamburger), hero image, teks sambutan personal, dan 3 menu card statis (Estimates & Baselines, Production Process Activity, Dashboard & Reporting)",
+        "1. Render header (nama sistem 'Mills Smart Log' + ikon hamburger), hero image, teks sambutan personal, dan 3 menu card statis (Estimates & Baselines, Production Process Activity, Dashboard & Reporting)",
         "2. Ambil nama user dari sesi login (Pinia auth store) untuk teks sambutan -> jika kosong/tidak tersedia: gunakan fallback generik tanpa nama",
         "3. On mount: baca mill-setting dari tabel SQLite lokal `mill_setting` via `millSettingRepo.getMillSetting(businessUnitId)` (sudah di-populate saat login oleh `fetchAndCacheMillSetting()` di `localSchema.ts`/`stores/auth.ts`) - render home_page_image dari hasil query tersebut, offline-first (tidak ada network call dari Home sendiri)",
         "4. Home TIDAK memanggil GET /api/mill-settings/current secara langsung - data selalu berasal dari refresh terakhir saat login; tidak ada background-fetch dari Home saat mount",
@@ -176,7 +176,7 @@
     "Nama user diambil dari Pinia auth store (sudah tersedia dari alur login), bukan query terpisah",
     "Hero image kini dua-sumber: tabel SQLite lokal mill_setting (offline-first, dibaca via millSettingRepo.getMillSetting(businessUnitId)) dengan fallback ke aset statis bundled mill/plantation bawaan aplikasi jika data/home_page_image tidak tersedia",
     "mill_setting di-populate saat login oleh fetchAndCacheMillSetting() (localSchema.ts/stores/auth.ts, shared infra dipakai juga oleh Form Cages Track) - Home HANYA membaca via millSettingRepo, tidak fetch API sendiri dan tidak melakukan caching sendiri (koreksi dari draft v3 yang menyebut cache localStorage tokenStorage-style - mekanisme final memakai tabel SQLite bersama, bukan localStorage)",
-    "app_name dan logo dari mill-setting TIDAK dipakai di layar ini - header Home tetap pakai nama produk statis 'Mill Smart Log' per business_rules; app_name/logo dicadangkan untuk konteks branding lain di luar scope revisi ini"
+    "app_name dan logo dari mill-setting TIDAK dipakai di layar ini - header Home tetap pakai nama produk statis 'Mills Smart Log' per business_rules; app_name/logo dicadangkan untuk konteks branding lain di luar scope revisi ini"
   ],
   "test_scenarios": [
     {

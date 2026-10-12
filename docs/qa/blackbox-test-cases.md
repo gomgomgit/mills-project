@@ -1,4 +1,4 @@
-# Mill Smart Log — Test Case Blackbox (Web & Mobile)
+# Mills Smart Log — Test Case Blackbox (Web & Mobile)
 
 **Versi dokumen:** 1.0 · **Tanggal:** 8 Oktober 2026
 **Cakupan:** 154 layar yang sudah terimplementasi (dari 157 yang dirancang), aplikasi Web dan Mobile.

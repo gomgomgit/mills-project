@@ -423,7 +423,7 @@ wb = Workbook()
 # ═════════════════════ 1. PANDUAN ═══════════════════════════════════════
 ws = wb.active; ws.title = 'Panduan'
 ws.sheet_view.showGridLines = False
-sheet_title(ws, 'Mill Smart Log — Test Case Blackbox'
+sheet_title(ws, 'Mills Smart Log — Test Case Blackbox'
                + (' (RINGKAS)' if RINGKAS else ' (ALUR — Tingkat 1+2)' if ALUR else ''),
   (f'Pengujian fungsional Web dan Mobile. {len(CASES)} kasus unik, ± {JALAN_TXT} jalan, 154 layar tercakup.'
    + (' VERSI RINGKAS — empat kasus komponen bersama dipangkas dari 18× ke 3×; lihat kotak merah di bawah.' if RINGKAS else

@@ -1,4 +1,4 @@
-# Dokumen QA — Mill Smart Log
+# Dokumen QA — Mills Smart Log
 
 ## Yang DISERAHKAN ke klien
 

@@ -159,7 +159,7 @@ diuji = hitung['Lulus'] + hitung['Gagal']
 # sebagai baris sama sekali, jadi tidak ada yang perlu dikecualikan di sini.
 
 ws.cell(row=1, column=1).value = (
-    'Mill Smart Log — HASIL PUTARAN UJI (Alur, Tingkat 1+2)')
+    'Mills Smart Log — HASIL PUTARAN UJI (Alur, Tingkat 1+2)')
 ws.cell(row=2, column=1).value = (
     f'{diuji} dari {total} jalan sudah dijalankan dan hasilnya terisi '
     f'({hitung["Lulus"]} Lulus, {hitung["Gagal"]} Gagal). '
@@ -168,7 +168,7 @@ ws.cell(row=2, column=1).value = (
 
 pan = wb['Panduan']
 pan.cell(row=1, column=1).value = (
-    'Mill Smart Log — HASIL PUTARAN UJI (Alur, Tingkat 1+2)')
+    'Mills Smart Log — HASIL PUTARAN UJI (Alur, Tingkat 1+2)')
 pan.cell(row=2, column=1).value = (
     f'Berkas ini adalah berkas Alur yang kolom hasilnya SUDAH TERISI untuk '
     f'{diuji} dari {total} jalan. Daftar kasusnya sendiri tidak berubah.')

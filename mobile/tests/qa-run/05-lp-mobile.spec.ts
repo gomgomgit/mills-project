@@ -514,6 +514,54 @@ test('DS-12 — urutan tile sama antara Web dan Mobile', async ({ page }) => {
   expect(ok).toBe(true)
 })
 
+/**
+ * Langkah 6 AD-10 — Nama Aplikasi dikembalikan ke nilai semula.
+ *
+ * Lewat layar WEB Mills Setting, karena aplikasi mobile tidak punya layar itu:
+ * alamatnya absolut ke backend yang sama yang dipakai aplikasi mobile
+ * (VITE_API_BASE_URL), jadi tidak ada port yang dipaku di sini dan putaran uji
+ * tidak dapat diam-diam menulis ke basis data lain.
+ *
+ * Mengembalikan kalimat untuk kolom Catatan — "berhasil" atau sebabnya gagal.
+ * Tidak pernah melempar: kebersihan data sesudah uji bukan yang diuji kasus ini.
+ */
+async function kembalikanNamaAplikasi(page: Page, semula: string): Promise<string> {
+  const asalWeb = (process.env.VITE_API_BASE_URL ?? 'http://localhost:8001').replace(/\/$/, '')
+  const konteks = await page.context().browser()?.newContext()
+  if (!konteks) return 'tidak dapat dijalankan: peramban tidak menyediakan konteks baru'
+  try {
+    const p2 = await konteks.newPage()
+    await p2.goto(`${asalWeb}/login`, { waitUntil: 'domcontentloaded' })
+    await p2.locator('#username').fill(AKUN.MGR.username)
+    await p2.locator('#password').fill(AKUN.MGR.password)
+    // 'button.login-button', bukan 'button[type=submit]': layar login punya
+    // TIGA tombol submit, dan yang pertama bukan tombol masuk.
+    await p2.locator('button.login-button').click()
+    // Ditunggu sampai alamatnya benar-benar berpindah dari /login. Tanpa ini,
+    // login yang gagal akan diteruskan dan layar Mills Setting dibuka tanpa
+    // sesi — kolomnya lalu "tidak ditemukan", dan sebab sebenarnya tersembunyi.
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'), { waitUntil: 'domcontentloaded' })
+    await p2.waitForTimeout(1200)
+    await p2.goto(`${asalWeb}/mill-settings`, { waitUntil: 'domcontentloaded' })
+    await p2.waitForTimeout(1500)
+    const kolom = p2.locator('#app_name')
+    if (!(await kolom.count())) return 'GAGAL: kolom Nama Aplikasi tidak ditemukan di layar web'
+    await kolom.fill(semula)
+    await p2.locator('button[type="submit"]:visible').last().click()
+    await p2.waitForTimeout(2200)
+    await p2.reload({ waitUntil: 'domcontentloaded' })
+    await p2.waitForTimeout(1500)
+    const sekarang = await p2.locator('#app_name').inputValue().catch(() => '')
+    return sekarang === semula
+      ? 'berhasil, diperiksa ulang sesudah muat ulang'
+      : `GAGAL: sesudah disimpan nilainya terbaca "${sekarang}"`
+  } catch (e) {
+    return `GAGAL: ${String(e).slice(0, 120)}`
+  } finally {
+    await konteks.close().catch(() => undefined)
+  }
+}
+
 test('AD-10 — perubahan Pengaturan Mill tersimpan dan berlaku', async ({ page }) => {
   // Langkah 1–3 dijalankan pelaksana web dan hasilnya diserahkan lewat
   // qa-run/ad10-web.json; langkah 4–5 dijalankan di sini.
@@ -539,15 +587,21 @@ test('AD-10 — perubahan Pengaturan Mill tersimpan dan berlaku', async ({ page 
   })
   const sampaiKePerangkat = String(diPerangkat).includes(web.baru)
 
+  // Langkah 6 — nilainya DIKEMBALIKAN ke semula lewat layar web Mills Setting,
+  // di konteks peramban tersendiri agar sesi Operator di atas tidak terganggu.
+  const pulih = await kembalikanNamaAplikasi(page, web.semula)
+
   // Yang menentukan Lulus: jalur simpan -> kirim -> simpan di perangkat bekerja
   // utuh. BUKAN "tampil di Home" — nama produk pada baris merek memang terpisah
   // dari Nama Aplikasi per mill (business_rules screen-005), jadi menuntutnya
-  // tampil berarti menuntut sesuatu yang spec-nya melarang.
+  // tampil berarti menuntut sesuatu yang spec-nya melarang. Gagalnya pemulihan
+  // juga tidak menggagalkan kasus ini — ia hanya dilaporkan.
   const ok = web.sukses && web.bertahan && sampaiKePerangkat
   catat('AD-10', '—', ok ? 'Lulus' : 'Gagal',
     `Bagian web: Nama Aplikasi diubah dari "${web.semula}" menjadi "${web.baru}" — pesan konfirmasi=${web.sukses}, nilainya bertahan sesudah muat ulang=${web.bertahan}. `
     + `Bagian mobile: nilai barunya sampai ke perangkat=${sampaiKePerangkat} (isi basis data lokal: ${String(diPerangkat).slice(0, 120)}). `
     + `Baris merek Home berbunyi "${merek}" dan TIDAK mengikuti Nama Aplikasi (ikut berubah=${tampilDiHome}, dan false memang yang diharapkan): nama produk pada header terpisah dari Nama Aplikasi per mill. `
+    + `Langkah 6 — nilai Nama Aplikasi dikembalikan ke "${web.semula}": ${pulih}. `
     + `Terbuka: Nama Aplikasi dan Logo tersimpan serta tersinkron tetapi belum dibaca layar mana pun.`)
   expect(ok).toBe(true)
 })

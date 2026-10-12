@@ -132,8 +132,8 @@ export const useAuthStore = defineStore('auth', {
       // returned zero lines — offline, or the business unit genuinely has
       // none yet), never unconditionally at login.
       if (businessUnit?.id) {
-        // Mills Setting feature (2026-08-19): mill-setting (app_name/logo/
-        // home_page_image/jumlah_cages) is genuinely server-authored data
+        // Mills Setting feature (2026-08-19): mill-setting (home_page_image /
+        // immediate_sync_enabled) is genuinely server-authored data
         // (edited via the web Mills Setting screen, screen-034), unlike the
         // fixed local station seed above — fetched here, best-effort, same
         // principle as seedDefaultStationsIfNeeded(): a failed/offline

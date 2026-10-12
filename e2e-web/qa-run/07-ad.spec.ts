@@ -393,28 +393,33 @@ test('AD-10 (bagian web) — Pengaturan Mill tersimpan dan bertahan', async ({ p
   // Jadi langkah 4–5 "berlaku di layar yang memakainya" dijalankan pelaksana
   // mobile, dan HASIL AD-10 dicatat di sana — supaya satu baris berisi satu
   // kesimpulan, bukan setengah bukti dari dua tempat.
+  // DIALIHKAN 2026-10-12: dulu kasus ini memakai kolom Nama Aplikasi, yang
+  // DICABUT dari layar ini (tidak ada layar yang membacanya). Yang diuji tetap
+  // sama — sebuah pengaturan yang disimpan di web sampai ke perangkat — kini
+  // lewat saklar kirim-langsung, satu-satunya pengaturan non-berkas yang
+  // tersisa dan yang memang menggerakkan perilaku mobile.
   await login(page, MGR)
   await page.goto(MILLSET, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(1500)
-  const kolom = page.locator('#app_name')
-  const ada = (await kolom.count()) > 0
-  const semula = ada ? await kolom.inputValue() : ''
-  const baru = `${semula} QA${cap}`
+  const saklar = page.getByTestId('immediate-sync-toggle')
+  const ada = (await saklar.count()) > 0
+  const semula = ada ? await saklar.isChecked() : false
+  const baru = !semula
   let sukses = false
   let bertahan = false
   if (ada) {
-    await kolom.fill(baru)
+    await saklar.setChecked(baru)
     await page.locator('button[type="submit"]:visible').last().click()
     await page.waitForTimeout(2200)
     sukses = /berhasil|tersimpan|diperbarui/i.test(await teksHalaman(page))
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(1500)
-    bertahan = (await page.locator('#app_name').inputValue().catch(() => '')) === baru
+    bertahan = (await page.getByTestId('immediate-sync-toggle').isChecked().catch(() => semula)) === baru
   }
   mkdirSync('qa-run', { recursive: true })
   writeFileSync('qa-run/ad10-web.json', JSON.stringify({ semula, baru, sukses, bertahan }, null, 1), 'utf8')
-  // Nilainya DIBIARKAN berubah: pelaksana mobile harus melihat nilai baru itu di
-  // Home, lalu ia yang mengembalikannya (langkah 6).
+  // Nilainya DIBIARKAN berubah: pelaksana mobile harus melihat nilai baru itu
+  // sampai ke perangkat, lalu ia yang mengembalikannya (langkah 6).
   expect(ada && sukses && bertahan,
-    `kolom Nama Aplikasi ada=${ada}; pesan konfirmasi=${sukses}; bertahan sesudah muat ulang=${bertahan}`).toBe(true)
+    `saklar kirim-langsung ada=${ada}; pesan konfirmasi=${sukses}; bertahan sesudah muat ulang=${bertahan}`).toBe(true)
 })

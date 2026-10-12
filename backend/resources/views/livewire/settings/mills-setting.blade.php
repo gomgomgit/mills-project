@@ -2,7 +2,7 @@
     <div class="ms-page__header">
         <div>
             <h2 class="ms-page__title">Mills Setting</h2>
-            <p class="ms-page__subtitle">Atur nama aplikasi, logo, gambar halaman utama, pengiriman data langsung, dan icon station untuk mill Anda.</p>
+            <p class="ms-page__subtitle">Atur gambar halaman utama, pengiriman data langsung, dan icon station untuk mill Anda.</p>
         </div>
     </div>
 
@@ -38,41 +38,12 @@
     @else
         <form wire:submit.prevent="save" class="ld-region" wire:loading.delay.short.class="ld-region--busy" wire:loading.delay.short.attr="aria-busy" wire:target="selectedBusinessUnitId">
             <div class="ms-form-section">
-                <h4 class="ms-form-section__title">Identitas Aplikasi</h4>
+                {{-- "Nama Aplikasi" dan "Logo" DICABUT dari layar ini
+                     (2026-10-12): tidak ada layar yang membacanya. Kepala
+                     halaman Home mobile memakai nama produk yang tetap,
+                     terpisah dari nama aplikasi per mill. --}}
+                <h4 class="ms-form-section__title">Tampilan Aplikasi Mobile</h4>
                 <div class="ms-form-grid">
-                    <div class="ms-form-field">
-                        <label for="app_name" class="ms-form-field__label">Nama Aplikasi</label>
-                        <input
-                            type="text"
-                            id="app_name"
-                            wire:model="app_name"
-                            class="ms-form-field__input @error('app_name') ms-form-field__input--error @enderror"
-                        >
-                        @error('app_name')
-                            <p class="ms-form-field__error">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div class="ms-form-field ms-form-field--span2">
-                        <label class="ms-form-field__label">Logo</label>
-                        <div class="ms-image-field">
-                            @if ($logo && ! $errors->has('logo') && in_array(strtolower($logo->getClientOriginalExtension()), $previewableExtensions, true))
-                                <img src="{{ $logo->temporaryUrl() }}" alt="Preview logo" class="ms-image-field__preview">
-                            @elseif ($existingLogoUrl)
-                                <img src="{{ $existingLogoUrl }}" alt="Logo saat ini" class="ms-image-field__preview">
-                            @else
-                                <span class="ms-image-field__placeholder" aria-hidden="true">&#128247;</span>
-                            @endif
-                            <div class="ms-image-field__control">
-                                <input type="file" wire:model="logo" accept="image/png,image/jpeg" class="ms-form-field__input">
-                                <p wire:loading.flex wire:target="logo" class="ms-form-field__hint ld-label"><span class="ld-spinner" aria-hidden="true"></span>Mengunggah&hellip;</p>
-                                @error('logo')
-                                    <p class="ms-form-field__error">{{ $message }}</p>
-                                @enderror
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="ms-form-field ms-form-field--span2">
                         <label class="ms-form-field__label">Gambar Halaman Utama (Home Mobile)</label>
                         <div class="ms-image-field">
@@ -110,7 +81,7 @@
             </div>
 
             <div class="ms-form-actions">
-                <button type="submit" class="ms-button ms-button--primary" wire:loading.attr="disabled" wire:target="save,logo,home_page_image"><x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label></button>
+                <button type="submit" class="ms-button ms-button--primary" wire:loading.attr="disabled" wire:target="save,home_page_image"><x-busy-label target="save" busy="Menyimpan…">Simpan</x-busy-label></button>
             </div>
         </form>
 

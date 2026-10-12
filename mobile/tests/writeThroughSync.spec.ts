@@ -51,7 +51,7 @@ function mockLocalReads({ immediateSync = true, hasRecord = true, productionLine
       // like real SQLite would. The previous version returned the full row
       // regardless of the SQL text, which hid a SELECT that omitted
       // immediate_sync_enabled (audit 2026-10-04 — write-through never ran).
-      const fullRow = { id: 'ms-1', business_unit_id: BUSINESS_UNIT_ID, app_name: null, logo: null, home_page_image: null, jumlah_cages: null, immediate_sync_enabled: immediateSync ? 1 : 0 }
+      const fullRow = { id: 'ms-1', business_unit_id: BUSINESS_UNIT_ID, home_page_image: null, jumlah_cages: null, immediate_sync_enabled: immediateSync ? 1 : 0 }
       return [pickSelectedColumns(sql, fullRow)] as never
     }
     if (sql.includes('FROM threshing_record')) {

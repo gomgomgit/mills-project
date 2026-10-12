@@ -48,14 +48,28 @@ it('berhasil: Admin selects a mill, edits the form, and saves successfully', fun
         ->assertSet('isAdmin', true)
         ->assertSet('selectedBusinessUnitId', '')
         ->set('selectedBusinessUnitId', $this->businessUnit->id)
-        ->assertSet('app_name', 'Mill Unit Alpha')
-        ->set('app_name', 'Mill Baru')
+        // app_name/logo dicabut 2026-10-12; saklar kirim-langsung adalah
+        // pengaturan non-berkas yang tersisa di layar ini.
+        ->assertSet('immediate_sync_enabled', false)
+        ->set('immediate_sync_enabled', true)
         ->call('save')
         ->assertHasNoErrors()
         ->assertSet('successMessage', 'Mills Setting berhasil disimpan.');
 
     $millSetting = MillSetting::where('business_unit_id', $this->businessUnit->id)->firstOrFail();
-    expect($millSetting->app_name)->toBe('Mill Baru');
+    expect($millSetting->immediate_sync_enabled)->toBeTrue();
+});
+
+it('layar ini tidak lagi punya kolom Nama Aplikasi maupun Logo', function () {
+    // Dicabut 2026-10-12. Dijaga uji supaya tidak kembali tanpa keputusan:
+    // pengaturan tanpa layar yang membacanya tidak dapat dibedakan dari
+    // pengaturan yang rusak (business rule screen-034).
+    Livewire::actingAs($this->admin)
+        ->test(MillsSetting::class)
+        ->set('selectedBusinessUnitId', $this->businessUnit->id)
+        ->assertDontSee('Nama Aplikasi')
+        ->assertDontSee('wire:model="app_name"', false)
+        ->assertDontSee('wire:model="logo"', false);
 });
 
 // Scenario: "Mills Setting — Mill Management langsung terarah ke mill sendiri"
@@ -64,7 +78,6 @@ it('Mill Management: is auto-scoped to their own business unit on mount, no pick
         ->test(MillsSetting::class)
         ->assertSet('isAdmin', false)
         ->assertSet('selectedBusinessUnitId', $this->businessUnit->id)
-        ->assertSet('app_name', 'Mill Unit Alpha')
         ->assertViewHas('businessUnitOptions', []);
 });
 
@@ -75,7 +88,11 @@ it('Mill belum punya setting: selecting a mill with no existing row shows defaul
     Livewire::actingAs($this->admin)
         ->test(MillsSetting::class)
         ->set('selectedBusinessUnitId', $this->businessUnit->id)
-        ->assertSet('app_name', 'Mill Unit Alpha');
+        ->assertSet('formErrorMessage', null)
+        ->assertSet('immediate_sync_enabled', false);
+
+    // Barisnya memang dibuat — itu yang dijanjikan getOrCreate().
+    expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->count())->toBe(1);
 });
 
 // Scenario: "Mills Setting — Mill Management akses mill lain ditolak"
@@ -86,7 +103,8 @@ it('Mill Management akses mill lain: forcing a different business_unit_id surfac
         ->test(MillsSetting::class)
         ->set('selectedBusinessUnitId', $otherBusinessUnit->id)
         ->assertSet('formErrorMessage', fn ($message) => $message !== null)
-        ->assertSet('app_name', '');
+        // resetForm() mengosongkan form; saklar kembali ke false.
+        ->assertSet('immediate_sync_enabled', false);
 });
 
 // Scenario: "Mills Setting — Pilih icon station"
@@ -159,10 +177,13 @@ it('leaves the toggle untouched when another field is saved without it', functio
         'immediate_sync_enabled' => true,
     ]);
 
+    // Kunci yang TIDAK dikirim tidak boleh berubah — dulu diuji dengan
+    // mengirim app_name; kini dengan muatan kosong, yang menguji hal yang sama
+    // (update tanpa menyebut immediate_sync_enabled tidak mematikannya).
     app(MillSettingService::class)->update(
         $this->admin,
         $this->businessUnit->id,
-        ['app_name' => 'Nama Baru'],
+        [],
     );
 
     expect($setting->fresh()->immediate_sync_enabled)->toBeTrue();

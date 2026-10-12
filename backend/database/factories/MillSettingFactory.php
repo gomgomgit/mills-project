@@ -17,9 +17,10 @@ class MillSettingFactory extends Factory
 
     public function definition(): array
     {
+        // app_name dicabut 2026-10-12; tidak ada kolom lain yang wajib
+        // diisi, jadi baris dapat dibuat hanya dengan relasinya.
         return [
             'business_unit_id' => BusinessUnit::factory(),
-            'app_name' => $this->faker->company(),
         ];
     }
 

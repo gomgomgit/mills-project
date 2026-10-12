@@ -69,18 +69,18 @@ const aiAssistantStore = useAiAssistantStore()
 const heroImage = ref<string>(staticHeroImage)
 
 /**
- * Baris merek kepala halaman: NAMA PRODUK, tetap, bukan app_name mill.
+ * Baris merek kepala halaman: NAMA PRODUK, tetap.
  *
- * business_rules screen-005: nama produk pada header ini TERPISAH dari
- * app_name di Mills Setting — app_name bukan untuk header Home. Aturan itu
- * pernah dibalik pada 2026-10-12 mengikuti temuan QA AD-10, lalu DIPULIHKAN
- * atas keputusan user pada tanggal yang sama; keputusannya ada di artefak
- * screen-005 v5 beserta sebabnya.
+ * business_rules screen-005: nama produk pada header ini TERPISAH dari nama
+ * aplikasi per mill. Aturan itu pernah dibalik pada 2026-10-12 mengikuti
+ * temuan QA AD-10, lalu DIPULIHKAN atas keputusan user pada tanggal yang
+ * sama; keputusannya ada di artefak screen-005 v5 beserta sebabnya.
  *
- * Konsekuensinya diketahui dan diterima: app_name dan logo pada mill_setting
- * tidak dibaca layar mana pun. Kalau suatu saat keduanya perlu terbaca,
- * ubah artefaknya lebih dulu — jangan menambahkannya kembali di sini saja,
- * karena justru itu yang membuat kode dan spec berselisih diam-diam.
+ * Lanjutannya: karena tidak ada layar yang membacanya, `app_name` dan `logo`
+ * akhirnya DICABUT dari Mills Setting pada tanggal yang sama — kolomnya tidak
+ * ada lagi di server maupun di tabel lokal. Jadi tidak ada apa pun yang bisa
+ * dibaca di sini walau seseorang mencoba; yang perlu diubah lebih dulu kalau
+ * header suatu saat harus mengikuti mill adalah artefaknya, lalu kolomnya.
  */
 const BRAND_NAME = 'Mills Smart Log'
 
@@ -93,8 +93,8 @@ onMounted(async () => {
 
   const setting = await getMillSetting(businessUnitId)
 
-  // Hanya home_page_image yang dibaca layar ini. app_name dan logo sengaja
-  // TIDAK dibaca — lihat BRAND_NAME di atas.
+  // Hanya home_page_image yang ada di mill-setting sekarang — lihat
+  // BRAND_NAME di atas untuk app_name/logo yang sudah dicabut.
   if (setting?.homePageImage) {
     heroImage.value = setting.homePageImage
   }

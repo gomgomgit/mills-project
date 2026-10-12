@@ -72,3 +72,9 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/
 - entities[user].fields += sessions_revoked_at (timestamp(6), nullable) ← migrasi 2026_10_05_000001.
 - entities[user].test_fixture += sessions_revoked_at: null ← kolom baru nullable.
 - ⚠ entities[user].constraints += aturan reset password mencabut token + sesi ← diturunkan dari UserService::update(), bukan constraint DB.
+
+## v22 — 2026-10-12
+
+- mill-setting: field app_name dan logo DIHAPUS dari fields dan test_fixture ← keputusan user mencabut keduanya dari Mills Setting; migrasi 2026_10_12_000001 menjatuhkan kolomnya
+- mill-setting: field immediate_sync_enabled DITAMBAHKAN ← agent derived, dan ini KOREKSI DRIFT, bukan fitur baru: kolomnya sudah ada di basis data dan dibaca aplikasi mobile sejak 2026-09-14, tetapi tidak pernah tercatat di katalog. Ditemukan saat menulis ulang entitas ini dan dicatat sekarang karena membiarkannya berarti katalog tetap salah tentang entitas yang baru saja diperiksa baris demi baris
+- test_fixture app_name diisi 'Mills Smart Log' pada versi lama — nilai itu ikut hilang; tidak ada penggantinya karena tidak ada field teks yang tersisa pada entitas ini

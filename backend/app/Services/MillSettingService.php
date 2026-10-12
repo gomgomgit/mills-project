@@ -47,14 +47,14 @@ use Illuminate\Validation\ValidationException;
 class MillSettingService
 {
     /**
-     * Disk for logo/home_page_image uploads — same convention as
+     * Disk for home_page_image uploads — same convention as
      * BusinessUnitService::LOGO_DISK / CorporateService::LOGO_DISK
      * ('local' disk has 'serve' => true, auto-registers /storage/{path},
-     * no `public` disk / storage:link needed).
+     * no `public` disk / storage:link needed). Namanya tetap LOGO_DISK
+     * karena dipakai bersama ketiga service itu; `mill-setting-logos`
+     * sendiri sudah tidak dipakai sejak app_name/logo dicabut (2026-10-12).
      */
     public const LOGO_DISK = 'local';
-
-    protected const LOGO_DIRECTORY = 'mill-setting-logos';
 
     protected const HOME_IMAGE_DIRECTORY = 'mill-setting-home-images';
 
@@ -99,8 +99,8 @@ class MillSettingService
     /**
      * getOrCreate() — business_logic step 3: validate business_unit_id
      * exists → 404 if not → SELECT mill-setting WHERE business_unit_id →
-     * if none, INSERT default (app_name = business_unit.name) and return
-     * the newly created row.
+     * if none, INSERT a bare default row (no field needs a seeded value
+     * since app_name was removed, 2026-10-12) and return it.
      *
      * @throws ModelNotFoundException
      * @throws AuthorizationException
@@ -117,9 +117,14 @@ class MillSettingService
     }
 
     /**
-     * update() — business_logic step 4: validate logo/home_page_image
+     * update() — business_logic step 4: validate home_page_image
      * format+size (if sent) → 422 if invalid → get-or-create the row
-     * (step 3) → store any uploaded files → UPDATE.
+     * (step 3) → store the uploaded file → UPDATE.
+     *
+     * `app_name`/`logo` were removed 2026-10-12 (no screen read them) — the
+     * `$logo` parameter is gone with them, so a caller that used to pass it
+     * positionally now fails to compile rather than silently uploading a
+     * file nothing stores.
      *
      * @throws ModelNotFoundException
      * @throws AuthorizationException
@@ -129,7 +134,6 @@ class MillSettingService
         User $user,
         string $businessUnitId,
         array $data,
-        ?UploadedFile $logo = null,
         ?UploadedFile $homePageImage = null,
     ): array {
         $businessUnit = BusinessUnit::findOrFail($businessUnitId);
@@ -137,25 +141,14 @@ class MillSettingService
         $this->checkAccess($user, $businessUnitId);
 
         $payload = [
-            'app_name' => array_key_exists('app_name', $data) ? trim((string) $data['app_name']) : null,
-            'logo' => $logo,
             'home_page_image' => $homePageImage,
             'immediate_sync_enabled' => $data['immediate_sync_enabled'] ?? null,
         ];
 
         Validator::make($payload, [
-            // Kunci absen = tidak diubah; kunci DIKIRIM tapi kosong = ditolak
-            // (business spec screen-034: nama aplikasi tidak pernah kosong).
-            'app_name' => [Rule::requiredIf(array_key_exists('app_name', $data)), 'nullable', 'string', 'max:255'],
-            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Logo')],
             'home_page_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Gambar halaman utama')],
             'immediate_sync_enabled' => ['nullable', 'boolean'],
         ], [
-            'app_name.required' => 'Nama aplikasi wajib diisi.',
-            'app_name.max' => 'Nama aplikasi maksimal 255 karakter.',
-            'logo.file' => 'Logo harus berupa file gambar.',
-            'logo.mimes' => 'Logo harus berformat JPG atau PNG.',
-            'logo.max' => 'Ukuran logo maksimal 2MB.',
             'home_page_image.file' => 'Gambar halaman utama harus berupa file gambar.',
             'home_page_image.mimes' => 'Gambar halaman utama harus berformat JPG atau PNG.',
             'home_page_image.max' => 'Ukuran gambar halaman utama maksimal 2MB.',
@@ -164,14 +157,6 @@ class MillSettingService
         $millSetting = $this->findOrCreateRow($businessUnit);
 
         $attributes = [];
-
-        if (array_key_exists('app_name', $data) && trim((string) $data['app_name']) !== '') {
-            $attributes['app_name'] = trim((string) $data['app_name']);
-        }
-
-        if ($logo !== null) {
-            $attributes['logo'] = $this->storeFile($logo, self::LOGO_DIRECTORY);
-        }
 
         if ($homePageImage !== null) {
             $attributes['home_page_image'] = $this->storeFile($homePageImage, self::HOME_IMAGE_DIRECTORY);
@@ -329,7 +314,6 @@ class MillSettingService
 
         return MillSetting::create([
             'business_unit_id' => $businessUnit->id,
-            'app_name' => $businessUnit->name,
         ]);
     }
 
@@ -346,26 +330,24 @@ class MillSettingService
     }
 
     /**
-     * Maps a MillSetting to the endpoints' shared row shape. `logo`/
-     * `home_page_image` are exposed as their fully-resolved
-     * Storage::url() (bare field name, no `_url` suffix — matches
-     * screen-005--home's already-implemented `GET /api/mill-settings/
-     * current` contract, whose response the mobile Home screen consumes
-     * directly as an `<img>` src) — a deliberate divergence from
-     * BusinessUnitService::toRow()'s `logo` (raw path) + `logo_url`
-     * (resolved) pair, made to stay consistent with the sibling screen
-     * that shares this same entity rather than with the unrelated
+     * Maps a MillSetting to the endpoints' shared row shape.
+     * `home_page_image` is exposed as its fully-resolved Storage::url()
+     * (bare field name, no `_url` suffix — matches screen-005--home's
+     * `GET /api/mill-settings/current` contract, whose response the mobile
+     * Home screen consumes directly as an `<img>` src) — a deliberate
+     * divergence from BusinessUnitService::toRow()'s `logo` (raw path) +
+     * `logo_url` (resolved) pair, made to stay consistent with the sibling
+     * screen that shares this same entity rather than with the unrelated
      * master-data convention.
+     *
+     * `app_name`/`logo` are gone from this shape (2026-10-12) — no client
+     * read either one.
      */
     protected function toRow(MillSetting $millSetting): array
     {
         return [
             'id' => $millSetting->id,
             'business_unit_id' => $millSetting->business_unit_id,
-            'app_name' => $millSetting->app_name,
-            'logo' => $millSetting->logo
-                ? Storage::disk(self::LOGO_DISK)->url($millSetting->logo)
-                : null,
             'home_page_image' => $millSetting->home_page_image
                 ? Storage::disk(self::LOGO_DISK)->url($millSetting->home_page_image)
                 : null,

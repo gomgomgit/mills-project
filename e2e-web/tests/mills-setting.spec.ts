@@ -48,26 +48,33 @@ test.describe('Mills Setting', () => {
     expect(problems).toEqual([])
   })
 
-  test('Nama aplikasi kosong ditolak dengan pesan Indonesia (audit #13)', async ({ page }) => {
+  // DIPERBARUI 2026-10-12. Kolom "Nama Aplikasi" dan "Logo" DICABUT dari layar
+  // ini — tidak ada layar yang membacanya (sama pola dengan #jumlah_cages yang
+  // dicabut 2026-08-20, lihat catatan di bawah). Jadi:
+  //   - asersi audit #13 (nama aplikasi kosong ditolak) DIBUANG: subjeknya
+  //     tidak ada lagi;
+  //   - asersi audit #6 (file teks bernama .png ditolak) DIPERTAHANKAN dan
+  //     dialihkan ke Gambar Halaman Utama, satu-satunya unggahan yang tersisa.
+  test('Gambar halaman utama berupa file teks bernama .png ditolak saat dipilih (audit #6)', async ({ page }) => {
     await login(page, 'stest-admin01');
     await gotoMillSettings(page);
     await pickMill(page, 'Mill Setting Uji');
-    await page.locator('#app_name').fill('');
-    await page.locator('button.ms-button--primary[type="submit"]').click();
-    await expect(page.getByText('Nama aplikasi wajib diisi.')).toBeVisible();
-    await expect(page.locator('.ms-alert--success')).toHaveCount(0);
-  });
-
-  test('Logo berupa file teks bernama .png ditolak saat dipilih (audit #6)', async ({ page }) => {
-    await login(page, 'stest-admin01');
-    await gotoMillSettings(page);
-    await pickMill(page, 'Mill Setting Uji');
-    await page.locator('input[type="file"][wire\\:model="logo"]').setInputFiles({
-      name: 'logo.png',
+    await page.locator('input[type="file"][wire\\:model="home_page_image"]').setInputFiles({
+      name: 'home.png',
       mimeType: 'image/png',
       buffer: Buffer.from('ini bukan gambar'),
     });
-    await expect(page.getByText('Logo harus berupa file gambar JPG atau PNG yang valid.')).toBeVisible();
+    await expect(page.getByText('Gambar halaman utama harus berupa file gambar JPG atau PNG yang valid.')).toBeVisible();
+  });
+
+  test('Kolom Nama Aplikasi dan Logo sudah tidak ada di layar ini', async ({ page }) => {
+    await login(page, 'stest-admin01');
+    await gotoMillSettings(page);
+    await pickMill(page, 'Mill Setting Uji');
+
+    await expect(page.locator('#app_name')).toHaveCount(0);
+    await expect(page.locator('input[type="file"][wire\\:model="logo"]')).toHaveCount(0);
+    await expect(page.getByText('Nama Aplikasi')).toHaveCount(0);
   });
 
   test('Icon station dikelompokkan dengan kolom Production Line (audit #10)', async ({ page }) => {
@@ -85,19 +92,28 @@ test.describe('Mills Setting', () => {
   // dihitung dari machinery station Cages Track), jadi asersinya dibuang;
   // (3) `button[type="submit"]` cocok juga ke tombol Logout dan Kirim chatbot,
   // sehingga tombol Simpan disebut lewat kelasnya.
-  test('Admin: pilih mill, ubah nama aplikasi, klik Simpan', async ({ page }) => {
+  test('Admin: pilih mill, ubah pengaturan, klik Simpan, nilainya bertahan', async ({ page }) => {
     await login(page, 'stest-admin01');
     await gotoMillSettings(page);
 
-    const appName = `Mill Baru ${Date.now()}`;
+    // Dulu lewat kolom Nama Aplikasi; kolomnya dicabut 2026-10-12, jadi
+    // simpan-lalu-bertahan diuji lewat saklar kirim-langsung — pengaturan
+    // non-berkas yang tersisa di layar ini.
     await pickMill(page, 'Mill Setting Uji');
-    await page.locator('#app_name').fill(appName);
+    const saklar = page.getByTestId('immediate-sync-toggle');
+    const semula = await saklar.isChecked();
+    await saklar.setChecked(!semula);
     await page.locator('button.ms-button--primary[type="submit"]').click();
 
     await expect(page.locator('.ms-alert--success')).toBeVisible();
     await page.reload();
     await pickMill(page, 'Mill Setting Uji');
-    await expect(page.locator('#app_name')).toHaveValue(appName);
+    await expect(page.getByTestId('immediate-sync-toggle')).toBeChecked({ checked: !semula });
+
+    // Dikembalikan agar putaran berikutnya tidak bergantung urutan.
+    await page.getByTestId('immediate-sync-toggle').setChecked(semula);
+    await page.locator('button.ms-button--primary[type="submit"]').click();
+    await expect(page.locator('.ms-alert--success')).toBeVisible();
   });
 
   test('Mill Management: navigasi ke Mills Setting langsung menampilkan mill sendiri, tanpa pemilih', async ({ page }) => {
@@ -105,7 +121,9 @@ test.describe('Mills Setting', () => {
     await gotoMillSettings(page);
 
     await expect(page.locator('#selectedBusinessUnitId')).toHaveCount(0);
-    await expect(page.locator('#app_name')).toBeVisible();
+    // #app_name dicabut 2026-10-12 — yang menandai form termuat kini saklar
+    // kirim-langsung.
+    await expect(page.getByTestId('immediate-sync-toggle')).toBeVisible();
   });
 
   test('Mill yang belum pernah diatur: form menampilkan nilai default tanpa error', async ({ page }) => {
@@ -114,10 +132,11 @@ test.describe('Mills Setting', () => {
 
     await pickMill(page, 'Mill Kosong');
 
-    // #jumlah_cages (dulu default '1') dihapus dari layar 2026-08-20 — yang
-    // tersisa untuk diasersi adalah form yang tampil tanpa galat.
+    // #jumlah_cages (dulu default '1') dihapus dari layar 2026-08-20, dan
+    // #app_name dicabut 2026-10-12 — yang tersisa untuk diasersi adalah form
+    // yang tampil tanpa galat.
     await expect(page.locator('.ms-alert--error')).toHaveCount(0);
-    await expect(page.locator('#app_name')).toBeVisible();
+    await expect(page.getByTestId('immediate-sync-toggle')).toBeVisible();
   });
 
   // DILEWATI SEJAK 2026-10-03: field #jumlah_cages beserta validasinya

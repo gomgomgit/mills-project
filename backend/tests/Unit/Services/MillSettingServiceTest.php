@@ -49,16 +49,23 @@ it('creates a default mill-setting row on first GET when none exists for the bus
 
     $result = $this->service->getOrCreate($this->admin, $this->businessUnit->id);
 
-    expect($result['app_name'])->toBe('Mill Unit Alpha');
+    // Tidak ada nilai yang disemai sejak app_name dicabut (2026-10-12); yang
+    // dijanjikan getOrCreate() hanya KEBERADAAN barisnya, dan bentuk barisnya.
+    expect($result['business_unit_id'])->toBe($this->businessUnit->id);
+    expect($result)->toHaveKeys(['id', 'business_unit_id', 'home_page_image', 'immediate_sync_enabled']);
+    expect($result)->not->toHaveKey('app_name');
+    expect($result)->not->toHaveKey('logo');
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->count())->toBe(1);
 });
 
 it('returns the existing mill-setting row as-is on GET when one already exists', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->create(['app_name' => 'Custom Name']);
+    $existing = MillSetting::factory()->forBusinessUnit($this->businessUnit)
+        ->create(['immediate_sync_enabled' => true]);
 
     $result = $this->service->getOrCreate($this->admin, $this->businessUnit->id);
 
-    expect($result['app_name'])->toBe('Custom Name');
+    expect($result['id'])->toBe($existing->id);
+    expect($result['immediate_sync_enabled'])->toBeTrue();
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->count())->toBe(1);
 });
 
@@ -79,37 +86,64 @@ it('allows an Admin user to access any business_unit_id', function () {
 
     $result = $this->service->getOrCreate($this->admin, $otherBusinessUnit->id);
 
-    expect($result['app_name'])->toBe('Mill Unit Lain');
+    expect($result['business_unit_id'])->toBe($otherBusinessUnit->id);
 });
 
 // --- update() -----------------------------------------------------------
 
-it('updates app_name on update()', function () {
-    $result = $this->service->update($this->admin, $this->businessUnit->id, ['app_name' => 'Mill Baru']);
+// Uji app_name dan logo DIHAPUS 2026-10-12 bersama kolomnya — keduanya tidak
+// dibaca layar mana pun (lihat migrasi
+// 2026_10_12_000001_remove_app_name_and_logo_from_mill_settings_table.php).
+// Yang DIPERTAHANKAN di bawah adalah apa yang dulu kebetulan diuji lewat
+// muatan app_name: auto-create sebelum update, dan otorisasi per mill.
+// Keduanya kini memakai immediate_sync_enabled sebagai muatannya.
 
-    expect($result['app_name'])->toBe('Mill Baru');
+it('updates immediate_sync_enabled on update()', function () {
+    $result = $this->service->update($this->admin, $this->businessUnit->id, ['immediate_sync_enabled' => true]);
+
+    expect($result['immediate_sync_enabled'])->toBeTrue();
 });
 
-it('stores an uploaded logo file and returns a resolved logo URL', function () {
+it('no longer accepts app_name or logo — neither reaches the stored row', function () {
+    // Dikirim seperti pemanggil lama; harus diabaikan, bukan menimbulkan galat
+    // 500 dan bukan tersimpan diam-diam.
+    $result = $this->service->update($this->admin, $this->businessUnit->id, [
+        'app_name' => 'Mill Baru',
+        'logo' => 'apa pun',
+    ]);
+
+    expect($result)->not->toHaveKey('app_name');
+    expect($result)->not->toHaveKey('logo');
+
+    $tersimpan = MillSetting::where('business_unit_id', $this->businessUnit->id)->firstOrFail();
+    expect($tersimpan->getAttributes())->not->toHaveKey('app_name');
+    expect($tersimpan->getAttributes())->not->toHaveKey('logo');
+});
+
+// Dua jaminan di bawah DULU hanya diuji lewat `logo`. Kolomnya dicabut, tetapi
+// jaminannya tidak: unggahan yang sah tersimpan, dan format yang tidak didukung
+// ditolak tanpa membuat baris apa pun. Keduanya kini diuji lewat
+// home_page_image — satu-satunya unggahan yang masih ada di layar ini.
+it('stores an uploaded home_page_image file and returns a resolved URL', function () {
     Storage::fake(MillSettingService::LOGO_DISK);
-    $logo = fakeRealImage('logo.jpg', 500);
+    $gambar = fakeRealImage('home.jpg', 500);
 
-    $result = $this->service->update($this->admin, $this->businessUnit->id, [], $logo);
+    $result = $this->service->update($this->admin, $this->businessUnit->id, [], $gambar);
 
-    expect($result['logo'])->not->toBeNull();
+    expect($result['home_page_image'])->not->toBeNull();
     $millSetting = MillSetting::where('business_unit_id', $this->businessUnit->id)->firstOrFail();
-    Storage::disk(MillSettingService::LOGO_DISK)->assertExists($millSetting->logo);
+    Storage::disk(MillSettingService::LOGO_DISK)->assertExists($millSetting->home_page_image);
 });
 
-it('throws a ValidationException when the uploaded logo has an unsupported format', function () {
+it('throws a ValidationException when the uploaded home_page_image has an unsupported format', function () {
     Storage::fake(MillSettingService::LOGO_DISK);
-    $logo = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
+    $berkas = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
 
     try {
-        $this->service->update($this->admin, $this->businessUnit->id, [], $logo);
+        $this->service->update($this->admin, $this->businessUnit->id, [], $berkas);
         $this->fail('Expected ValidationException was not thrown.');
     } catch (ValidationException $e) {
-        expect($e->errors())->toHaveKey('logo');
+        expect($e->errors())->toHaveKey('home_page_image');
     }
 
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->exists())->toBeFalse();
@@ -118,16 +152,16 @@ it('throws a ValidationException when the uploaded logo has an unsupported forma
 it('auto-creates the default row before applying an update when none exists yet', function () {
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->exists())->toBeFalse();
 
-    $result = $this->service->update($this->admin, $this->businessUnit->id, ['app_name' => 'Mill Baru']);
+    $result = $this->service->update($this->admin, $this->businessUnit->id, ['immediate_sync_enabled' => true]);
 
-    expect($result['app_name'])->toBe('Mill Baru');
+    expect($result['immediate_sync_enabled'])->toBeTrue();
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->count())->toBe(1);
 });
 
 it('throws an AuthorizationException when a Mill Management user updates a business_unit_id other than their own', function () {
     $otherBusinessUnit = BusinessUnit::factory()->create();
 
-    expect(fn () => $this->service->update($this->millManagement, $otherBusinessUnit->id, ['app_name' => 'Hack']))
+    expect(fn () => $this->service->update($this->millManagement, $otherBusinessUnit->id, ['immediate_sync_enabled' => true]))
         ->toThrow(AuthorizationException::class);
 });
 

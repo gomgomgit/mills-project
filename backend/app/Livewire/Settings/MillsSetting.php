@@ -50,8 +50,6 @@ class MillsSetting extends Component
 
     public string $selectedBusinessUnitId = '';
 
-    public string $app_name = '';
-
     /**
      * Write-through saving for the mobile app (2026-09-14). When on, a
      * successful save on a mobile device also pushes that record to the
@@ -67,11 +65,7 @@ class MillsSetting extends Component
      * "no new file chosen"; on save() a null value leaves the existing
      * stored file untouched.
      */
-    public $logo = null;
-
     public $home_page_image = null;
-
-    public ?string $existingLogoUrl = null;
 
     public ?string $existingHomePageImageUrl = null;
 
@@ -161,56 +155,42 @@ class MillsSetting extends Component
             return;
         }
 
-        $this->app_name = $millSetting['app_name'];
         $this->immediate_sync_enabled = (bool) ($millSetting['immediate_sync_enabled'] ?? false);
-        $this->existingLogoUrl = $millSetting['logo'];
         $this->existingHomePageImageUrl = $millSetting['home_page_image'];
-        $this->logo = null;
         $this->home_page_image = null;
     }
 
     protected function resetForm(): void
     {
-        $this->app_name = '';
         $this->immediate_sync_enabled = false;
-        $this->existingLogoUrl = null;
         $this->existingHomePageImageUrl = null;
-        $this->logo = null;
         $this->home_page_image = null;
         $this->stations = [];
         $this->stationIcons = [];
     }
 
     /**
-     * Aturan form — cermin MillSettingService::update(). app_name WAJIB
-     * (business spec screen-034: "nama aplikasi tidak pernah kosong");
-     * dulu nullable, sehingga mengosongkannya tetap berbuah "berhasil
-     * disimpan" padahal nilai lama diam-diam dipertahankan.
+     * Aturan form — cermin MillSettingService::update().
+     *
+     * app_name dan logo DICABUT 2026-10-12: tidak ada layar yang
+     * membacanya, dan aturan screen-034 menuntut setiap pengaturan di sini
+     * punya layar yang membacanya.
      */
     protected function rules(): array
     {
         return [
-            'app_name' => ['required', 'string', 'max:255'],
-            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Logo')],
             'home_page_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048', new RealImage('Gambar halaman utama')],
             'immediate_sync_enabled' => ['boolean'],
         ];
     }
 
     /**
-     * Seluruh pesan berbahasa Indonesia (dulu sebagian jatuh ke pesan
-     * bawaan Laravel: "The app name field must not be greater than 255
-     * characters.").
+     * Seluruh pesan berbahasa Indonesia (pesan bawaan Laravel berbahasa
+     * Inggris dan pernah lolos ke layar).
      */
     protected function messages(): array
     {
         return [
-            'app_name.required' => 'Nama aplikasi wajib diisi.',
-            'app_name.string' => 'Nama aplikasi harus berupa teks.',
-            'app_name.max' => 'Nama aplikasi maksimal 255 karakter.',
-            'logo.file' => 'Logo harus berupa file gambar.',
-            'logo.mimes' => 'Logo harus berformat JPG atau PNG.',
-            'logo.max' => 'Ukuran logo maksimal 2MB.',
             'home_page_image.file' => 'Gambar halaman utama harus berupa file gambar.',
             'home_page_image.mimes' => 'Gambar halaman utama harus berformat JPG atau PNG.',
             'home_page_image.max' => 'Ukuran gambar halaman utama maksimal 2MB.',
@@ -225,11 +205,6 @@ class MillsSetting extends Component
      * dari properti (lihat ValidatesUploadOnSelect): save() memvalidasi
      * ulang dan menolaknya lagi, jadi tidak ada yang bisa tersimpan.
      */
-    public function updatedLogo(): void
-    {
-        $this->validateUploadNow('logo');
-    }
-
     public function updatedHomePageImage(): void
     {
         $this->validateUploadNow('home_page_image');
@@ -254,11 +229,7 @@ class MillsSetting extends Component
             $service->update(
                 auth()->user(),
                 $this->selectedBusinessUnitId,
-                [
-                    'app_name' => $this->app_name,
-                    'immediate_sync_enabled' => $this->immediate_sync_enabled,
-                ],
-                $this->logo,
+                ['immediate_sync_enabled' => $this->immediate_sync_enabled],
                 $this->home_page_image,
             );
         } catch (ModelNotFoundException) {

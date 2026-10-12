@@ -158,14 +158,13 @@ class DemoOperationalDataSeeder extends Seeder
             });
         });
 
-        // Explicit Mill Setting branding for the first 2 Business Units — the
-        // rest get their MillSetting row lazily via getOrCreate() on first
-        // access (app_name defaults to the business unit's own name then).
+        // Baris Mill Setting dibuat lebih awal untuk 2 Business Unit pertama;
+        // sisanya mendapatkannya secara malas lewat getOrCreate() saat layar
+        // Mills Setting pertama kali dibuka. Tidak ada nilai yang perlu
+        // diisikan sejak app_name/logo dicabut (2026-10-12) — yang disemai di
+        // sini hanya KEBERADAAN barisnya.
         BusinessUnit::limit(2)->get()->each(function (BusinessUnit $businessUnit): void {
-            MillSetting::firstOrCreate(
-                ['business_unit_id' => $businessUnit->id],
-                ['app_name' => $businessUnit->name.' — Mill Smart Log'],
-            );
+            MillSetting::firstOrCreate(['business_unit_id' => $businessUnit->id]);
         });
     }
 }

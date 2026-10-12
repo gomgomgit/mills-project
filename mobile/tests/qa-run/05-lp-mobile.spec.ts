@@ -515,7 +515,7 @@ test('DS-12 — urutan tile sama antara Web dan Mobile', async ({ page }) => {
 })
 
 /**
- * Langkah 6 AD-10 — Nama Aplikasi dikembalikan ke nilai semula.
+ * Langkah 6 AD-10 — saklar kirim-langsung dikembalikan ke nilai semula.
  *
  * Lewat layar WEB Mills Setting, karena aplikasi mobile tidak punya layar itu:
  * alamatnya absolut ke backend yang sama yang dipakai aplikasi mobile
@@ -525,7 +525,7 @@ test('DS-12 — urutan tile sama antara Web dan Mobile', async ({ page }) => {
  * Mengembalikan kalimat untuk kolom Catatan — "berhasil" atau sebabnya gagal.
  * Tidak pernah melempar: kebersihan data sesudah uji bukan yang diuji kasus ini.
  */
-async function kembalikanNamaAplikasi(page: Page, semula: string): Promise<string> {
+async function kembalikanSaklarKirimLangsung(page: Page, semula: boolean): Promise<string> {
   const asalWeb = (process.env.VITE_API_BASE_URL ?? 'http://localhost:8001').replace(/\/$/, '')
   const konteks = await page.context().browser()?.newContext()
   if (!konteks) return 'tidak dapat dijalankan: peramban tidak menyediakan konteks baru'
@@ -544,17 +544,17 @@ async function kembalikanNamaAplikasi(page: Page, semula: string): Promise<strin
     await p2.waitForTimeout(1200)
     await p2.goto(`${asalWeb}/mill-settings`, { waitUntil: 'domcontentloaded' })
     await p2.waitForTimeout(1500)
-    const kolom = p2.locator('#app_name')
-    if (!(await kolom.count())) return 'GAGAL: kolom Nama Aplikasi tidak ditemukan di layar web'
-    await kolom.fill(semula)
+    const saklar = p2.getByTestId('immediate-sync-toggle')
+    if (!(await saklar.count())) return 'GAGAL: saklar kirim-langsung tidak ditemukan di layar web'
+    await saklar.setChecked(semula)
     await p2.locator('button[type="submit"]:visible').last().click()
     await p2.waitForTimeout(2200)
     await p2.reload({ waitUntil: 'domcontentloaded' })
     await p2.waitForTimeout(1500)
-    const sekarang = await p2.locator('#app_name').inputValue().catch(() => '')
+    const sekarang = await p2.getByTestId('immediate-sync-toggle').isChecked().catch(() => !semula)
     return sekarang === semula
       ? 'berhasil, diperiksa ulang sesudah muat ulang'
-      : `GAGAL: sesudah disimpan nilainya terbaca "${sekarang}"`
+      : `GAGAL: sesudah disimpan nilainya terbaca ${sekarang ? 'aktif' : 'nonaktif'}`
   } catch (e) {
     return `GAGAL: ${String(e).slice(0, 120)}`
   } finally {
@@ -565,43 +565,42 @@ async function kembalikanNamaAplikasi(page: Page, semula: string): Promise<strin
 test('AD-10 — perubahan Pengaturan Mill tersimpan dan berlaku', async ({ page }) => {
   // Langkah 1–3 dijalankan pelaksana web dan hasilnya diserahkan lewat
   // qa-run/ad10-web.json; langkah 4–5 dijalankan di sini.
-  let web: { semula: string; baru: string; sukses: boolean; bertahan: boolean } | null = null
+  let web: { semula: boolean; baru: boolean; sukses: boolean; bertahan: boolean } | null = null
   try { web = JSON.parse(readFileSync('../e2e-web/qa-run/ad10-web.json', 'utf8')) } catch { web = null }
   if (!web) {
     catat('AD-10', '—', 'Tidak diuji',
-      'Bagian web kasus ini belum dijalankan: qa-run/ad10-web.json tidak ada. Jalankan pelaksana web lebih dulu (AD-10 bagian web mengubah Nama Aplikasi dan membiarkan nilainya berubah untuk diperiksa di sini).')
+      'Bagian web kasus ini belum dijalankan: qa-run/ad10-web.json tidak ada. Jalankan pelaksana web lebih dulu (AD-10 bagian web mengubah saklar kirim-langsung dan membiarkan nilainya berubah untuk diperiksa di sini).')
     return
   }
 
   await masuk(page, AKUN.OPR)
   await page.waitForTimeout(2500)
-  const merek = await teksAman(page.locator('.brand-name').first())
-  const teks = await teksHalaman(page)
-  const tampilDiHome = teks.includes(web.baru)
 
-  // Nilainya benar-benar sampai ke perangkat?
+  // Nilainya benar-benar sampai ke perangkat? Dibaca dari basis data LOKAL,
+  // bukan dari layar: saklar ini tidak punya tampilan di aplikasi mobile —
+  // ia mengubah PERILAKU penyimpanan, bukan sesuatu yang tertulis.
   const diPerangkat = await page.evaluate(async () => {
     const db = (window as unknown as { __mslTestDb?: { query: (s: string) => Promise<unknown> } }).__mslTestDb
     if (!db) return '(jembatan uji tidak tersedia)'
-    try { return JSON.stringify(await db.query('SELECT app_name FROM mill_setting')) } catch (e) { return 'ERR ' + String(e) }
+    try { return JSON.stringify(await db.query('SELECT immediate_sync_enabled FROM mill_setting')) } catch (e) { return 'ERR ' + String(e) }
   })
-  const sampaiKePerangkat = String(diPerangkat).includes(web.baru)
+  // SQLite menyimpannya 0/1.
+  const sampaiKePerangkat = new RegExp(`"immediate_sync_enabled":\\s*${web.baru ? 1 : 0}\\b`).test(String(diPerangkat))
 
   // Langkah 6 — nilainya DIKEMBALIKAN ke semula lewat layar web Mills Setting,
   // di konteks peramban tersendiri agar sesi Operator di atas tidak terganggu.
-  const pulih = await kembalikanNamaAplikasi(page, web.semula)
+  const pulih = await kembalikanSaklarKirimLangsung(page, web.semula)
 
   // Yang menentukan Lulus: jalur simpan -> kirim -> simpan di perangkat bekerja
-  // utuh. BUKAN "tampil di Home" — nama produk pada baris merek memang terpisah
-  // dari Nama Aplikasi per mill (business_rules screen-005), jadi menuntutnya
-  // tampil berarti menuntut sesuatu yang spec-nya melarang. Gagalnya pemulihan
-  // juga tidak menggagalkan kasus ini — ia hanya dilaporkan.
+  // utuh. BUKAN sesuatu yang tertulis di layar mobile — saklar ini tidak
+  // ditampilkan di layar mana pun, ia mengubah perilaku penyimpanan. Gagalnya
+  // pemulihan juga tidak menggagalkan kasus ini — ia hanya dilaporkan.
   const ok = web.sukses && web.bertahan && sampaiKePerangkat
   catat('AD-10', '—', ok ? 'Lulus' : 'Gagal',
-    `Bagian web: Nama Aplikasi diubah dari "${web.semula}" menjadi "${web.baru}" — pesan konfirmasi=${web.sukses}, nilainya bertahan sesudah muat ulang=${web.bertahan}. `
+    `Bagian web: saklar "Kirim data langsung ke server saat disimpan" diubah dari ${web.semula ? 'aktif' : 'nonaktif'} menjadi ${web.baru ? 'aktif' : 'nonaktif'} — pesan konfirmasi=${web.sukses}, nilainya bertahan sesudah muat ulang=${web.bertahan}. `
     + `Bagian mobile: nilai barunya sampai ke perangkat=${sampaiKePerangkat} (isi basis data lokal: ${String(diPerangkat).slice(0, 120)}). `
-    + `Baris merek Home berbunyi "${merek}" dan TIDAK mengikuti Nama Aplikasi (ikut berubah=${tampilDiHome}, dan false memang yang diharapkan): nama produk pada header terpisah dari Nama Aplikasi per mill. `
-    + `Langkah 6 — nilai Nama Aplikasi dikembalikan ke "${web.semula}": ${pulih}. `
-    + `Terbuka: Nama Aplikasi dan Logo tersimpan serta tersinkron tetapi belum dibaca layar mana pun.`)
+    + `Saklar ini tidak ditampilkan di layar mobile mana pun — ia mengubah PERILAKU penyimpanan — jadi yang dibaca di sini basis data lokalnya, bukan tulisan di layar. `
+    + `Langkah 6 — saklar dikembalikan ke ${web.semula ? 'aktif' : 'nonaktif'}: ${pulih}. `
+    + `Catatan: Nama Aplikasi dan Logo DICABUT dari layar ini 2026-10-12 karena tidak ada layar yang membacanya; kasus ini karena itu memakai saklar kirim-langsung.`)
   expect(ok).toBe(true)
 })

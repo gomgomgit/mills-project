@@ -37,7 +37,8 @@ $bu = BusinessUnit::where('name', 'BU Mobile Sync E2E')->first()
 
 MillSetting::updateOrCreate(
     ['business_unit_id' => $bu->id],
-    ['app_name' => 'Mobile Sync E2E', 'immediate_sync_enabled' => true],
+    // app_name dicabut 2026-10-12; yang relevan bagi fixture ini saklarnya.
+    ['immediate_sync_enabled' => true],
 );
 
 $lines = [];

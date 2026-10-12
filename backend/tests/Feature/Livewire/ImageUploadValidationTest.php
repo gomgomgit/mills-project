@@ -84,19 +84,20 @@ it('Kelola Mesin: gambar mesin palsu ditolak saat dipilih', function () {
         ->assertHasErrors('picture');
 });
 
-it('Mills Setting: logo & gambar halaman utama palsu ditolak, tidak tersimpan', function () {
+// Kolom `logo` DICABUT dari layar ini 2026-10-12 bersama app_name (tidak ada
+// layar yang membacanya), jadi yang tersisa untuk diuji di sini adalah gambar
+// halaman utama — satu-satunya unggahan Mills Setting yang masih ada.
+it('Mills Setting: gambar halaman utama palsu ditolak, tidak tersimpan', function () {
     $bu = BusinessUnit::factory()->create();
 
     $component = Livewire::actingAs($this->admin)->test(MillsSetting::class)
         ->set('selectedBusinessUnitId', $bu->id)
-        ->set('logo', fakePngText())
-        ->assertHasErrors('logo')
         ->set('home_page_image', fakePngText())
         ->assertHasErrors('home_page_image');
 
-    $component->call('save')->assertHasErrors(['logo', 'home_page_image'])->assertSet('successMessage', null);
+    $component->call('save')->assertHasErrors('home_page_image')->assertSet('successMessage', null);
     $setting = MillSetting::where('business_unit_id', $bu->id)->first();
-    expect($setting?->logo)->toBeNull()->and($setting?->home_page_image)->toBeNull();
+    expect($setting?->home_page_image)->toBeNull();
 });
 
 // Catatan: jalur API memakai UploadedFile PHP biasa (tanpa ekstensi di path

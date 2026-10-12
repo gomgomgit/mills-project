@@ -30,8 +30,6 @@ function mockServer(immediate: boolean) {
       return {
         data: {
           business_unit_id: BU,
-          app_name: 'Mill A',
-          logo: null,
           home_page_image: null,
           jumlah_cages: 12,
           immediate_sync_enabled: immediate,
@@ -58,7 +56,8 @@ describe('mill setting cache round-trip (real SQLite)', () => {
 
     const setting = await getMillSetting(BU)
     expect(setting?.immediateSyncEnabled).toBe(true)
-    expect(setting?.appName).toBe('Mill A')
+    expect(setting).not.toHaveProperty('appName')
+    expect(setting).not.toHaveProperty('logo')
     expect(await isImmediateSyncEnabled()).toBe(true)
   })
 

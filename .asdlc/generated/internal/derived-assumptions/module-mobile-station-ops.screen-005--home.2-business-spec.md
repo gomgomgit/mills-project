@@ -24,3 +24,8 @@
 - information_displayed = nama mill TETAP dicetak di bawah salam ← dipertahankan dengan sengaja, bukan terlewat: temuan QA MB-HOME-01 hanya menuntut nama mill tercetak dan tidak menyebut app_name sama sekali, jadi ia berdiri sendiri dari pembalikan ini
 - edge_cases: dua butir app_name/logo (kosong→fallback, logo kosong→ikon) DICABUT karena keadaannya tidak mungkin lagi; diganti satu butir yang menyatakan bahwa mengubah app_name/logo TIDAK mengubah kepala halaman dan itu bukan cacat ← agent derived; user tidak menyebut edge case, tetapi tanpa butir ini penguji berikutnya akan melaporkannya sebagai temuan
 - open_questions += selisih 'Mills Smart Log' (yang dirender) vs 'Mill Smart Log' (judul produk di artefak lain) ← agent derived; selisih satu huruf ini sudah ada SEBELUM perubahan hari ini dan sengaja TIDAK disentuh agar pemulihan aturan v3 tetap murni pemulihan, bukan perubahan terselubung
+
+## v6 — 2026-10-12
+
+- business_rules[2] diperluas dengan lanjutan pencabutan ← bukan pembalikan ketiga: aturannya SAMA dengan v5 (header memakai nama produk). Yang ditambahkan adalah akibatnya, yaitu app_name/logo akhirnya dicabut dari Mills Setting karena layar ini satu-satunya pembacanya dan pembacaan itu dibatalkan
+- information_displayed[0] dan edge_cases[3] tidak lagi menyebut app_name/logo sebagai sesuatu yang "tidak diikuti" ← agent derived; menyebut nama kolom yang sudah tidak ada akan membuat pembaca berikutnya mencarinya di layar Mills Setting dan tidak menemukannya

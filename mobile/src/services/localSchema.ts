@@ -308,8 +308,6 @@ const CREATE_MILL_SETTING = `
   CREATE TABLE IF NOT EXISTS mill_setting (
     id TEXT PRIMARY KEY,
     business_unit_id TEXT NOT NULL UNIQUE,
-    app_name TEXT,
-    logo TEXT,
     home_page_image TEXT,
     jumlah_cages INTEGER,
     immediate_sync_enabled INTEGER NOT NULL DEFAULT 0,
@@ -1861,9 +1859,15 @@ export async function seedDefaultStationsIfNeeded(businessUnitId: string): Promi
 }
 
 /**
- * Fetches the current mill-setting (app_name/logo/home_page_image/
- * jumlah_cages) from `GET /api/mill-settings/current` and upserts it into
- * the local `mill_setting` table, keyed by `business_unit_id`.
+ * Fetches the current mill-setting (home_page_image / immediate_sync_enabled)
+ * from `GET /api/mill-settings/current` and upserts it into the local
+ * `mill_setting` table, keyed by `business_unit_id`.
+ *
+ * `app_name`/`logo` DICABUT 2026-10-12 — server tidak mengirimnya lagi dan
+ * tidak ada layar yang membacanya. Perangkat yang SUDAH terpasang tetap
+ * punya kedua kolom itu di tabel lokalnya (CREATE TABLE IF NOT EXISTS tidak
+ * pernah menghapus kolom); keduanya nullable dan tidak lagi ditulis maupun
+ * dibaca, jadi tidak perlu migrasi lokal.
  *
  * Unlike `seedDefaultStationsIfNeeded()`'s fixed local seed, this data is
  * genuinely Admin/Mill-Management-authored (edited via the web Mills
@@ -1887,8 +1891,6 @@ export async function fetchAndCacheMillSetting(businessUnitId: string): Promise<
   const response = await apiClient.get('/api/mill-settings/current')
   const data = response.data as {
     business_unit_id?: string
-    app_name?: string | null
-    logo?: string | null
     home_page_image?: string | null
     jumlah_cages?: number | null
     immediate_sync_enabled?: boolean
@@ -1897,11 +1899,9 @@ export async function fetchAndCacheMillSetting(businessUnitId: string): Promise<
   const now = new Date().toISOString()
 
   await run(
-    `INSERT INTO mill_setting (id, business_unit_id, app_name, logo, home_page_image, jumlah_cages, immediate_sync_enabled, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO mill_setting (id, business_unit_id, home_page_image, jumlah_cages, immediate_sync_enabled, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(business_unit_id) DO UPDATE SET
-       app_name = excluded.app_name,
-       logo = excluded.logo,
        home_page_image = excluded.home_page_image,
        jumlah_cages = excluded.jumlah_cages,
        immediate_sync_enabled = excluded.immediate_sync_enabled,
@@ -1909,8 +1909,6 @@ export async function fetchAndCacheMillSetting(businessUnitId: string): Promise<
     [
       `mill-setting-${businessUnitId}`,
       data.business_unit_id ?? businessUnitId,
-      data.app_name ?? null,
-      data.logo ?? null,
       data.home_page_image ?? null,
       data.jumlah_cages ?? null,
       data.immediate_sync_enabled ? 1 : 0,

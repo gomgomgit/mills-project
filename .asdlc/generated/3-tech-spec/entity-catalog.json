@@ -1,8 +1,8 @@
 {
-  "ver": 21,
+  "ver": 22,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-02"
+    "updated_at": "2026-10-12"
   },
   "entities": [
     {
@@ -2255,7 +2255,7 @@
     {
       "id": "mill-setting",
       "name": "Mill Setting",
-      "description": "Pengaturan branding & konfigurasi operasional per mill (Business Unit) — nama aplikasi, logo, gambar home page mobile. Satu Business Unit memiliki tepat satu Mill Setting (1:1). Dikelola lewat screen Mills Setting oleh Admin & Mill Management. (2026-08-20: jumlah_cages dihapus — jumlah kolom checklist Cages Tipped Time sekarang diturunkan dari COUNT(machinery) per station Cages Track, lihat cages-track-record.)",
+      "description": "Pengaturan per mill (Business Unit) yang dibaca aplikasi mobile — gambar home page mobile dan saklar kirim-langsung. Satu Business Unit memiliki tepat satu Mill Setting (1:1). Dikelola lewat screen Mills Setting oleh Admin & Mill Management. (2026-08-20: jumlah_cages dihapus — jumlah kolom checklist Cages Tipped Time sekarang diturunkan dari COUNT(machinery) per station Cages Track, lihat cages-track-record.) (2026-10-12: app_name dan logo DICABUT — tidak ada satu layar pun yang membacanya; baris merek Home mobile memakai nama produk yang tetap, terpisah dari nama aplikasi per mill, lihat business_rules screen-005. Sebuah pengaturan yang tidak berpengaruh ke layar atau perilaku mana pun tidak dapat dibedakan dari pengaturan yang rusak, jadi keduanya dicabut dan bukan dibiarkan. Migrasi: 2026_10_12_000001_remove_app_name_and_logo_from_mill_settings_table.) (2026-10-12: immediate_sync_enabled DITAMBAHKAN ke katalog — kolomnya sudah ada di basis data dan dibaca aplikasi mobile sejak 2026-09-14, tetapi belum pernah tercatat di sini.)",
       "fields": [
         {
           "name": "id",
@@ -2270,22 +2270,16 @@
           "description": "FK ke Business Unit — unik, satu Business Unit hanya punya satu Mill Setting."
         },
         {
-          "name": "app_name",
-          "type": "string",
-          "required": true,
-          "description": "Nama aplikasi yang ditampilkan ke user untuk mill ini (terpisah dari business-unit.name yang merupakan nama resmi bisnis)."
-        },
-        {
-          "name": "logo",
-          "type": "string",
-          "required": false,
-          "description": "Path/URL file logo mill, disimpan di Laravel Filesystem local disk."
-        },
-        {
           "name": "home_page_image",
           "type": "string",
           "required": false,
           "description": "Path/URL gambar yang ditampilkan di Home mobile (screen-005) untuk user dari mill ini."
+        },
+        {
+          "name": "immediate_sync_enabled",
+          "type": "boolean",
+          "required": true,
+          "description": "Saklar kirim-langsung (write-through): bila aktif, data yang disimpan di form mobile langsung dikirim ke server tanpa menunggu tombol Sinkronisasi. Selalu ada nilainya, bawaan nonaktif, sehingga klien tidak perlu menduga bawaannya."
         },
         {
           "name": "created_by",
@@ -2325,9 +2319,8 @@
       "test_fixture": {
         "id": "ms-001",
         "business_unit_id": "bu-001",
-        "app_name": "Mills Smart Log",
-        "logo": "storage/mill-settings/ms-001-logo.png",
         "home_page_image": "storage/mill-settings/ms-001-home.jpg",
+        "immediate_sync_enabled": false,
         "created_by": "usr-001",
         "updated_by": null,
         "created_at": "2024-01-01T00:00:00Z",

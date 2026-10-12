@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-12"
   },
-  "ver": 4,
+  "ver": 7,
   "id": "screen-005--home",
   "name": "Home",
   "module_id": "module-mobile-station-ops",
@@ -29,7 +29,7 @@
         {
           "method": "GET",
           "path": "/api/mill-settings/current",
-          "description": "Ambil mill-setting (app_name, logo, home_page_image, jumlah_cages) untuk business_unit user yang sedang login - dipanggil oleh fetchAndCacheMillSetting() saat login (shared infra), BUKAN dipanggil langsung oleh Home saat mount",
+          "description": "Ambil mill-setting (home_page_image, immediate_sync_enabled) untuk business_unit user yang sedang login - dipanggil oleh fetchAndCacheMillSetting() saat login (shared infra), BUKAN dipanggil langsung oleh Home saat mount. app_name/logo/jumlah_cages sudah tidak ada di muatan ini (app_name dan logo dicabut 2026-10-12)",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -176,7 +176,7 @@
     "Nama user diambil dari Pinia auth store (sudah tersedia dari alur login), bukan query terpisah",
     "Hero image kini dua-sumber: tabel SQLite lokal mill_setting (offline-first, dibaca via millSettingRepo.getMillSetting(businessUnitId)) dengan fallback ke aset statis bundled mill/plantation bawaan aplikasi jika data/home_page_image tidak tersedia",
     "mill_setting di-populate saat login oleh fetchAndCacheMillSetting() (localSchema.ts/stores/auth.ts, shared infra dipakai juga oleh Form Cages Track) - Home HANYA membaca via millSettingRepo, tidak fetch API sendiri dan tidak melakukan caching sendiri (koreksi dari draft v3 yang menyebut cache localStorage tokenStorage-style - mekanisme final memakai tabel SQLite bersama, bukan localStorage)",
-    "app_name dan logo dari mill-setting TIDAK dipakai di layar ini - header Home tetap pakai nama produk statis 'Mills Smart Log' per business_rules; app_name/logo dicadangkan untuk konteks branding lain di luar scope revisi ini"
+    "Header Home memakai nama produk statis 'Mills Smart Log' per business_rules, dan sejak 2026-10-12 memang tidak ada app_name/logo di mill-setting untuk dipakai: keduanya DICABUT karena tidak ada layar yang membacanya (lihat screen-034 dan shared-decisions). Catatan lama di sini menyebut keduanya 'dicadangkan untuk konteks branding lain' — itu tidak terjadi, dan pencabutannya justru keputusan yang diambil sebagai gantinya"
   ],
   "test_scenarios": [
     {

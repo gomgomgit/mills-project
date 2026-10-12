@@ -47,15 +47,33 @@ beforeEach(function () {
 it('berhasil: Admin loads then updates mill-setting for a chosen business unit, returns 200', function () {
     $getResponse = $this->actingAs($this->admin, 'web')->getJson("/api/mill-settings/{$this->businessUnit->id}");
     $getResponse->assertOk();
-    $getResponse->assertJsonFragment(['app_name' => 'Mill Unit Alpha']);
+    $getResponse->assertJsonFragment(['business_unit_id' => $this->businessUnit->id]);
+    // app_name/logo dicabut 2026-10-12 — keduanya tidak boleh ada lagi di respons.
+    $getResponse->assertJsonMissingPath('app_name');
+    $getResponse->assertJsonMissingPath('logo');
 
     $patchResponse = $this->actingAs($this->admin, 'web')->patchJson("/api/mill-settings/{$this->businessUnit->id}", [
-        'app_name' => 'Mill Baru',
+        'immediate_sync_enabled' => true,
     ]);
 
     $patchResponse->assertOk();
-    $patchResponse->assertJsonFragment(['app_name' => 'Mill Baru']);
-    expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->first()->app_name)->toBe('Mill Baru');
+    $patchResponse->assertJsonFragment(['immediate_sync_enabled' => true]);
+    expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->first()->immediate_sync_enabled)->toBeTrue();
+});
+
+it('PATCH mengabaikan app_name dan logo yang masih dikirim pemanggil lama', function () {
+    $response = $this->actingAs($this->admin, 'web')->patchJson("/api/mill-settings/{$this->businessUnit->id}", [
+        'app_name' => 'Mill Baru',
+        'logo' => 'apa pun',
+        'immediate_sync_enabled' => true,
+    ]);
+
+    // Diabaikan, BUKAN 422 dan bukan 500: pemanggil lama tetap berhasil,
+    // hanya kedua kunci itu yang tidak berpengaruh ke mana-mana.
+    $response->assertOk();
+    $response->assertJsonMissingPath('app_name');
+    $response->assertJsonMissingPath('logo');
+    $response->assertJsonFragment(['immediate_sync_enabled' => true]);
 });
 
 // Scenario: "Mills Setting — Mill Management langsung terarah ke mill sendiri"
@@ -73,7 +91,7 @@ it('Mill belum punya setting: GET auto-creates a default row for a business unit
     $response = $this->actingAs($this->admin, 'web')->getJson("/api/mill-settings/{$this->businessUnit->id}");
 
     $response->assertOk();
-    $response->assertJsonFragment(['app_name' => 'Mill Unit Alpha']);
+    $response->assertJsonFragment(['business_unit_id' => $this->businessUnit->id]);
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->count())->toBe(1);
 });
 
@@ -90,7 +108,7 @@ it('Mill Management akses mill lain: PATCH returns 403 for a business unit other
     $otherBusinessUnit = BusinessUnit::factory()->create();
 
     $response = $this->actingAs($this->millManagement, 'web')->patchJson("/api/mill-settings/{$otherBusinessUnit->id}", [
-        'app_name' => 'Hack',
+        'immediate_sync_enabled' => true,
     ]);
 
     $response->assertStatus(403);
@@ -107,33 +125,49 @@ it('returns 403 for Supervisor and Operator roles (route-level role gate)', func
     $response->assertStatus(403);
 })->with(['supervisor', 'operator']);
 
-// File uploads.
-it('stores an uploaded logo via multipart PATCH and returns a resolved logo URL', function () {
+// File uploads. Dulu diuji lewat `logo`; kolomnya dicabut 2026-10-12, jadi
+// jaminannya dipindahkan ke home_page_image — satu-satunya unggahan yang
+// masih ada pada endpoint ini.
+it('stores an uploaded home_page_image via multipart PATCH and returns a resolved URL', function () {
     Storage::fake(MillSettingService::LOGO_DISK);
-    $logo = fakeRealImage('logo.jpg', 500);
+    $gambar = fakeRealImage('home.jpg', 500);
 
     $response = $this->actingAs($this->admin, 'web')->post("/api/mill-settings/{$this->businessUnit->id}", [
         '_method' => 'PATCH',
-        'logo' => $logo,
+        'home_page_image' => $gambar,
     ]);
 
     $response->assertOk();
-    expect($response->json('logo'))->not->toBeNull();
+    expect($response->json('home_page_image'))->not->toBeNull();
     $stored = MillSetting::where('business_unit_id', $this->businessUnit->id)->firstOrFail();
-    Storage::disk(MillSettingService::LOGO_DISK)->assertExists($stored->logo);
+    Storage::disk(MillSettingService::LOGO_DISK)->assertExists($stored->home_page_image);
 });
 
-it('returns 422 when the uploaded logo has an unsupported format', function () {
+it('returns 422 when the uploaded home_page_image has an unsupported format', function () {
     Storage::fake(MillSettingService::LOGO_DISK);
     $badFile = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
 
     $response = $this->actingAs($this->admin, 'web')->post("/api/mill-settings/{$this->businessUnit->id}", [
         '_method' => 'PATCH',
-        'logo' => $badFile,
+        'home_page_image' => $badFile,
     ]);
 
     $response->assertStatus(422);
-    $response->assertJsonValidationErrors('logo');
+    $response->assertJsonValidationErrors('home_page_image');
+});
+
+it('mengabaikan unggahan logo yang masih dikirim pemanggil lama', function () {
+    Storage::fake(MillSettingService::LOGO_DISK);
+
+    $response = $this->actingAs($this->admin, 'web')->post("/api/mill-settings/{$this->businessUnit->id}", [
+        '_method' => 'PATCH',
+        'logo' => fakeRealImage('logo.jpg', 500),
+    ]);
+
+    // Berkas sah pun tidak lagi disimpan: tidak ada kolom yang menampungnya.
+    $response->assertOk();
+    $response->assertJsonMissingPath('logo');
+    Storage::disk(MillSettingService::LOGO_DISK)->assertDirectoryEmpty('mill-setting-logos');
 });
 
 // Scenario: "Mills Setting — Pilih icon station"
@@ -220,7 +254,8 @@ it('current: operator gets their own business unit mill-setting via Sanctum auth
     $response = $this->getJson('/api/mill-settings/current');
 
     $response->assertOk();
-    $response->assertJsonFragment(['business_unit_id' => $this->businessUnit->id, 'app_name' => 'Mill Unit Alpha']);
+    $response->assertJsonFragment(['business_unit_id' => $this->businessUnit->id]);
+    $response->assertJsonMissingPath('app_name');
 });
 
 it('current: auto-creates a default row if none exists yet, same as the admin path', function () {

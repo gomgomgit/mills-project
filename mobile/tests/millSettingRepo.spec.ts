@@ -42,8 +42,6 @@ describe('millSettingRepo — getMillSetting()', () => {
       {
         id: 'mill-setting-1',
         business_unit_id: BUSINESS_UNIT_ID,
-        app_name: 'Mill A',
-        logo: 'storage/logo.png',
         home_page_image: 'storage/home.png',
         jumlah_cages: 10,
         // SQLite INTEGER 0/1 — the repo coerces it to a real boolean.
@@ -56,13 +54,25 @@ describe('millSettingRepo — getMillSetting()', () => {
     const expected: MillSetting = {
       id: 'mill-setting-1',
       businessUnitId: BUSINESS_UNIT_ID,
-      appName: 'Mill A',
-      logo: 'storage/logo.png',
       homePageImage: 'storage/home.png',
       jumlahCages: 10,
       immediateSyncEnabled: true,
     }
+    // toEqual, bukan toMatchObject: appName/logo DICABUT 2026-10-12, dan uji
+    // ini yang menjaga keduanya tidak kembali diam-diam.
     expect(result).toEqual(expected)
+  })
+
+  it('tidak lagi menyebut app_name/logo di SELECT-nya', async () => {
+    // Kolomnya tidak ada lagi di tabel; menyebutnya akan membuat query gagal
+    // di perangkat yang tabelnya dibuat setelah 2026-10-12.
+    vi.mocked(query).mockResolvedValue([])
+
+    await getMillSetting(BUSINESS_UNIT_ID)
+
+    const sql = vi.mocked(query).mock.calls[0]?.[0] ?? ''
+    expect(sql).not.toContain('app_name')
+    expect(sql).not.toContain('logo')
   })
 
   it('returns null when no mill-setting has been synced yet for the business unit', async () => {
@@ -84,8 +94,6 @@ describe('millSettingRepo — getJumlahCages()', () => {
       {
         id: 'mill-setting-1',
         business_unit_id: BUSINESS_UNIT_ID,
-        app_name: 'Mill A',
-        logo: null,
         home_page_image: null,
         jumlah_cages: 8,
       },

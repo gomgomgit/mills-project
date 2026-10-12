@@ -11,13 +11,15 @@ import { query } from '@/services/localDb'
  * (indirectly, via station.icon — not this repo), and
  * screen-012--form-cages-track (jumlah_cages, to size the Cages Tipped Time
  * grid).
+ *
+ * `appName`/`logo` DICABUT 2026-10-12 bersama kolom server-nya: tidak ada
+ * layar yang membacanya. Kepala halaman Home memakai nama produk yang tetap,
+ * terpisah dari nama aplikasi per mill (business_rules screen-005 v5).
  */
 
 export interface MillSetting {
   id: string
   businessUnitId: string
-  appName: string | null
-  logo: string | null
   homePageImage: string | null
   jumlahCages: number | null
   /** Write-through saving: push each save to the server right away (2026-09-14). */
@@ -27,8 +29,6 @@ export interface MillSetting {
 interface MillSettingRow {
   id: string
   business_unit_id: string
-  app_name: string | null
-  logo: string | null
   home_page_image: string | null
   jumlah_cages: number | null
   immediate_sync_enabled: number | boolean | null
@@ -38,8 +38,6 @@ function toMillSetting(row: MillSettingRow): MillSetting {
   return {
     id: row.id,
     businessUnitId: row.business_unit_id,
-    appName: row.app_name,
-    logo: row.logo,
     homePageImage: row.home_page_image,
     jumlahCages: row.jumlah_cages,
     // SQLite stores this as INTEGER 0/1; a mocked row may use a real boolean.
@@ -57,7 +55,7 @@ export async function getMillSetting(businessUnitId: string): Promise<MillSettin
     // immediate_sync_enabled WAJIB ikut di-SELECT — sebelumnya terlewat,
     // sehingga toMillSetting() selalu membaca undefined → false dan
     // write-through tidak pernah aktif (audit 2026-10-04).
-    `SELECT id, business_unit_id, app_name, logo, home_page_image, jumlah_cages, immediate_sync_enabled
+    `SELECT id, business_unit_id, home_page_image, jumlah_cages, immediate_sync_enabled
      FROM mill_setting WHERE business_unit_id = ?`,
     [businessUnitId],
   )

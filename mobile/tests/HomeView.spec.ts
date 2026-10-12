@@ -331,8 +331,6 @@ describe('HomeView — hero image dari Mills Setting', () => {
     getMillSettingMock.mockResolvedValue({
       id: 'ms-1',
       businessUnitId: 'bu-1',
-      appName: 'Mill A App',
-      logo: null,
       homePageImage: 'https://cdn.example.com/mill-a-hero.jpg',
       jumlahCages: 10,
     })
@@ -359,8 +357,6 @@ describe('HomeView — hero image dari Mills Setting', () => {
     getMillSettingMock.mockResolvedValue({
       id: 'ms-1',
       businessUnitId: 'bu-1',
-      appName: 'Mill A App',
-      logo: null,
       homePageImage: null,
       jumlahCages: 10,
     })
@@ -398,11 +394,14 @@ describe('HomeView — hero image dari Mills Setting', () => {
  *     tentang mill mana yang sedang ia isi, dan data aplikasi ini terpisah
  *     per mill. Itu temuan MB-HOME-01, dan tetap berlaku.
  *
- *   - Baris merek kepala halaman TIDAK mengikuti Mills Setting. Nama produk
- *     di header terpisah dari app_name — business_rules screen-005 v3,
- *     sempat dibalik pada 2026-10-12 mengikuti QA AD-10, lalu dipulihkan atas
- *     keputusan user. Karena keputusan ini sudah dua kali berbalik arah, ia
- *     dijaga uji: app_name dan logo yang TERISI tidak boleh mengubah header.
+ *   - Baris merek kepala halaman memakai NAMA PRODUK yang tetap. Nama produk
+ *     di header terpisah dari nama aplikasi per mill — business_rules
+ *     screen-005 v3, sempat dibalik pada 2026-10-12 mengikuti QA AD-10, lalu
+ *     dipulihkan atas keputusan user. Lanjutannya pada tanggal yang sama:
+ *     `app_name`/`logo` DICABUT dari Mills Setting karena tidak ada layar yang
+ *     membacanya, jadi mill-setting tidak lagi punya keduanya untuk dibaca.
+ *     Karena keputusan ini sudah dua kali berbalik arah, arahnya tetap dijaga
+ *     uji: mill-setting yang terisi lengkap tidak boleh mengubah header.
  */
 describe('HomeView — nama mill dicetak, baris merek tetap nama produk', () => {
   beforeEach(() => {
@@ -411,18 +410,23 @@ describe('HomeView — nama mill dicetak, baris merek tetap nama produk', () => 
     mockAuthUser('Budi')
   })
 
-  // app_name dan logo DIISI di mill-setting, dan keduanya harus diabaikan
-  // kepala halaman. Nilai yang diisi di sini bukan hiasan: dengan keduanya
-  // null, uji ini akan tetap hijau walau kodenya kembali membaca mill-setting.
-  it('baris merek tetap nama produk meski Nama Aplikasi mill terisi', async () => {
-    getMillSettingMock.mockResolvedValue({
-      id: 'ms-1',
-      businessUnitId: 'bu-1',
-      appName: 'Mill Alpha Smart Log',
-      logo: 'https://cdn.example.com/logo-alpha.png',
-      homePageImage: null,
-      jumlahCages: 10,
-    })
+  // mill-setting dikirim TERISI LENGKAP, termasuk dua kunci yang sudah dicabut
+  // (seolah dari server versi lama), dan kepala halaman harus mengabaikan
+  // seluruhnya. Mengirim keduanya bukan hiasan: tanpa itu, uji ini tetap hijau
+  // walau kodenya kembali membaca mill-setting.
+  const MILL_SETTING_LENGKAP = {
+    id: 'ms-1',
+    businessUnitId: 'bu-1',
+    homePageImage: null,
+    jumlahCages: 10,
+    immediateSyncEnabled: false,
+    // Dicabut 2026-10-12 — sengaja disertakan untuk membuktikan diabaikan.
+    appName: 'Mill Alpha Smart Log',
+    logo: 'https://cdn.example.com/logo-alpha.png',
+  } as unknown as Awaited<ReturnType<typeof getMillSettingMock>>
+
+  it('baris merek tetap nama produk meski mill-setting mengirim nama aplikasi', async () => {
+    getMillSettingMock.mockResolvedValue(MILL_SETTING_LENGKAP)
 
     const wrapper = mount(HomeView)
     await flushPromises()
@@ -430,15 +434,8 @@ describe('HomeView — nama mill dicetak, baris merek tetap nama produk', () => 
     expect(wrapper.get('[data-testid="brand-name"]').text()).toBe('Mills Smart Log')
   })
 
-  it('kepala halaman memakai ikon bawaan, bukan logo mill, meski logo terisi', async () => {
-    getMillSettingMock.mockResolvedValue({
-      id: 'ms-1',
-      businessUnitId: 'bu-1',
-      appName: 'Mill Alpha',
-      logo: 'https://cdn.example.com/logo-alpha.png',
-      homePageImage: null,
-      jumlahCages: 10,
-    })
+  it('kepala halaman memakai ikon bawaan, bukan logo mill, meski logo dikirim', async () => {
+    getMillSettingMock.mockResolvedValue(MILL_SETTING_LENGKAP)
 
     const wrapper = mount(HomeView)
     await flushPromises()

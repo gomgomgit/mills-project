@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-05"
+    "updated_at": "2026-10-12"
   },
   "id": "screen-034--mills-setting",
   "name": "Mills Setting",
@@ -83,7 +83,7 @@
         {
           "method": "PATCH",
           "path": "/api/mill-settings/:business_unit_id",
-          "description": "Mengubah nama aplikasi, logo, gambar halaman utama, dan/atau immediate_sync_enabled mill",
+          "description": "Mengubah gambar halaman utama dan/atau immediate_sync_enabled mill",
           "auth_required": true,
           "request": {
             "path_params": [
@@ -115,7 +115,7 @@
               {
                 "http_code": 422,
                 "error_code": "VALIDATION_ERROR",
-                "condition": "app_name dikirim kosong / > 255 karakter, atau logo/home_page_image format/ukuran tidak didukung atau isi file bukan gambar JPG/PNG sungguhan"
+                "condition": "home_page_image format/ukuran tidak didukung atau isi file bukan gambar JPG/PNG sungguhan, atau immediate_sync_enabled bukan boolean"
               },
               {
                 "http_code": 404,
@@ -235,8 +235,8 @@
       "business_logic": [
         "1. Validate business_unit_id ada (SELECT Business Unit) → if not: return 404 NOT_FOUND",
         "2. Jika role=mill_management, validate business_unit_id == user.business_unit_id → if not: return 403 FORBIDDEN (Admin tidak dibatasi)",
-        "3. GET /:business_unit_id: SELECT mill-setting WHERE business_unit_id → jika tidak ada baris, INSERT default (app_name = business_unit.name; immediate_sync_enabled default false) lalu return baris yang baru dibuat",
-        "4. PATCH /:business_unit_id: validate app_name (required bila kuncinya dikirim, max 255) → validate logo/home_page_image (jika dikirim) mimes jpg/jpeg/png + max 2MB + RealImage (isi file) → validate immediate_sync_enabled boolean → if invalid: return 422 VALIDATION_ERROR (pesan Indonesia) → get-or-create baris (langkah 3) → simpan file ke Laravel Filesystem jika dikirim → UPDATE hanya field yang dikirim (+ updated_by)",
+        "3. GET /:business_unit_id: SELECT mill-setting WHERE business_unit_id → jika tidak ada baris, INSERT baris default (tidak ada field yang perlu disemai sejak app_name dicabut; immediate_sync_enabled default false) lalu return baris yang baru dibuat",
+        "4. PATCH /:business_unit_id: validate home_page_image (jika dikirim) mimes jpg/jpeg/png + max 2MB + RealImage (isi file) → validate immediate_sync_enabled boolean → if invalid: return 422 VALIDATION_ERROR (pesan Indonesia) → get-or-create baris (langkah 3) → simpan file ke Laravel Filesystem jika dikirim → UPDATE hanya field yang dikirim (+ updated_by). Kunci app_name/logo yang masih dikirim pemanggil lama DIABAIKAN — bukan 422 dan bukan 500 — karena kolomnya tidak ada lagi",
         "5. GET /:business_unit_id/stations: SELECT station WHERE business_unit_id dengan nama Production Line, urut nama Production Line lalu nama station",
         "6. PATCH /:business_unit_id/stations/:station_id: validate station_id ada DAN business_unit_id sama dengan station.business_unit_id → if not: return 404 NOT_FOUND → validate icon (jika dikirim dan tidak null) termasuk dalam daftar icon yang didukung → if invalid: return 422 VALIDATION_ERROR → UPDATE station.icon (null berarti reset ke default per tipe stasiun, tidak ada file yang disimpan)"
       ],
@@ -249,17 +249,17 @@
         {
           "entity_id": "mill-setting",
           "operation": "INSERT",
-          "description": "INSERT baris default (app_name = nama Business Unit) jika belum ada baris untuk business_unit_id ini"
+          "description": "INSERT baris default jika belum ada baris untuk business_unit_id ini — tidak ada nilai yang disemai, hanya keberadaan barisnya"
         },
         {
           "entity_id": "mill-setting",
           "operation": "UPDATE",
-          "description": "UPDATE app_name/logo/home_page_image/immediate_sync_enabled sesuai field yang dikirim"
+          "description": "UPDATE home_page_image/immediate_sync_enabled sesuai field yang dikirim"
         },
         {
           "entity_id": "business-unit",
           "operation": "SELECT",
-          "description": "Validasi business_unit_id ada, dan mengambil name untuk default app_name"
+          "description": "Validasi business_unit_id ada (dan 404 bila tidak)"
         },
         {
           "entity_id": "station",
@@ -282,12 +282,12 @@
           "handling": "Return 403 FORBIDDEN"
         },
         {
-          "condition": "app_name dikirim kosong",
-          "handling": "Return 422 VALIDATION_ERROR dengan errors.app_name 'Nama aplikasi wajib diisi.' (Livewire: tidak ada pesan sukses)"
+          "condition": "Upload home_page_image dengan format/ukuran tidak didukung, atau file teks/bukan gambar bernama .png/.jpg",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.home_page_image; di Livewire ditolak saat file dipilih (ValidatesUploadOnSelect) dan lagi saat Simpan, pratinjau disembunyikan selama ada error, file tidak pernah tersimpan"
         },
         {
-          "condition": "Upload logo/home_page_image dengan format/ukuran tidak didukung, atau file teks/bukan gambar bernama .png/.jpg",
-          "handling": "Return 422 VALIDATION_ERROR dengan errors.logo / errors.home_page_image; di Livewire ditolak saat file dipilih (ValidatesUploadOnSelect) dan lagi saat Simpan, pratinjau disembunyikan selama ada error, file tidak pernah tersimpan"
+          "condition": "Pemanggil lama masih mengirim app_name dan/atau logo (kolomnya dicabut 2026-10-12)",
+          "handling": "Kedua kunci DIABAIKAN: respons 200 seperti biasa, keduanya tidak muncul di respons, dan berkas logo yang sah pun tidak disimpan. Bukan 422 — memulangkan galat akan mematahkan pemanggil lama tanpa alasan, sedangkan menyimpannya tidak mungkin karena kolomnya tidak ada"
         },
         {
           "condition": "icon dikirim tapi tidak termasuk daftar icon yang didukung",
@@ -305,14 +305,14 @@
       "business_rules_applied": [
         "Setiap mill memiliki tepat satu Mills Setting, dibuat otomatis jika belum ada",
         "Mill Management hanya dapat mengatur mill miliknya sendiri; Admin dapat mengatur mill mana pun",
-        "Nama aplikasi tidak pernah kosong (wajib bila diubah); logo/gambar harus gambar JPG/PNG sungguhan maks 2MB",
+        "Gambar halaman utama harus gambar JPG/PNG sungguhan maks 2MB. Nama aplikasi dan logo DICABUT 2026-10-12 — tidak ada layar yang membacanya, dan aturan screen-034 menuntut setiap pengaturan di layar ini punya layar yang membacanya",
         "Icon station hanya dapat diatur untuk station yang sudah terdaftar pada mill terkait, dipilih dari daftar icon yang didukung; kosong berarti memakai default sesuai tipe stasiun"
       ],
       "unit_test_cases": [
         {
           "description": "creates a default mill-setting row on first GET when none exists for the business unit",
-          "given": "MillSettingRepository.findByBusinessUnitId(id) returns null; BusinessUnitRepository.findById(id) returns an existing Business Unit named 'Business Unit A'",
-          "expect": "a new mill-setting row is inserted with app_name='Business Unit A' and returned in the response"
+          "given": "MillSettingRepository.findByBusinessUnitId(id) returns null; BusinessUnitRepository.findById(id) returns an existing Business Unit",
+          "expect": "a new mill-setting row is inserted and returned; the response shape carries id/business_unit_id/home_page_image/immediate_sync_enabled and NEITHER app_name NOR logo"
         },
         {
           "description": "returns the existing mill-setting row as-is on GET when one already exists",
@@ -335,29 +335,29 @@
           "expect": "request proceeds without the ownership check applied to Mill Management"
         },
         {
-          "description": "updates app_name on PATCH",
-          "given": "valid PATCH body {app_name: 'Mill Baru'}",
-          "expect": "mill-setting row's app_name updated to 'Mill Baru', returned in response"
-        },
-        {
-          "description": "returns 422 VALIDATION_ERROR when app_name is sent empty",
-          "given": "PATCH body {app_name: ''}",
-          "expect": "throw ValidationException with errors.app_name; http 422; no update performed. Absent app_name key leaves the value unchanged"
+          "description": "updates immediate_sync_enabled on PATCH",
+          "given": "valid PATCH body {immediate_sync_enabled: true}",
+          "expect": "mill-setting row's immediate_sync_enabled updated to true, returned in response"
         },
         {
           "description": "updates immediate_sync_enabled only when sent",
-          "given": "PATCH body {immediate_sync_enabled: true} vs. a body with only a logo",
+          "given": "PATCH body {immediate_sync_enabled: true} vs. a body with only a home_page_image file",
           "expect": "flag updated to true in the first case; unchanged in the second"
         },
         {
-          "description": "stores uploaded logo file and updates logo path on PATCH",
-          "given": "PATCH multipart body includes a valid logo image file",
-          "expect": "file is stored via Laravel Filesystem, mill-setting.logo path updated, logo present in response"
+          "description": "ignores app_name and logo still sent by an older caller",
+          "given": "PATCH body {app_name: 'Mill Baru', logo: <a valid image file>, immediate_sync_enabled: true}",
+          "expect": "http 200, not 422 and not 500; neither key appears in the response; no file is stored; only immediate_sync_enabled changes. Both columns were dropped 2026-10-12"
         },
         {
-          "description": "returns 422 VALIDATION_ERROR when uploaded logo is not a real JPG/PNG image",
-          "given": "PATCH multipart body includes a logo with an unsupported mime type, or a text file named logo.png",
-          "expect": "throw ValidationException with errors.logo; http 422 VALIDATION_ERROR; nothing stored"
+          "description": "stores uploaded home_page_image file and updates its path on PATCH",
+          "given": "PATCH multipart body includes a valid image file as home_page_image",
+          "expect": "file is stored via Laravel Filesystem, mill-setting.home_page_image path updated, home_page_image present in response"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when uploaded home_page_image is not a real JPG/PNG image",
+          "given": "PATCH multipart body includes a home_page_image with an unsupported mime type, or a text file named home.png",
+          "expect": "throw ValidationException with errors.home_page_image; http 422 VALIDATION_ERROR; nothing stored"
         },
         {
           "description": "auto-creates the default row before applying an update when PATCH is called on a business unit with no existing mill-setting",
@@ -431,9 +431,9 @@
     }
   ],
   "implementation_notes": [
-    "logo dan home_page_image disimpan di Laravel Filesystem local disk, konsisten dengan pola logo Corporate/Company/Business Unit/picture Machinery",
+    "home_page_image disimpan di Laravel Filesystem local disk, konsisten dengan pola logo Corporate/Company/Business Unit/picture Machinery. Konstanta disknya tetap bernama LOGO_DISK karena dipakai bersama ketiga service itu, meski logo mill-setting sendiri sudah dicabut (2026-10-12)",
     "station.icon BUKAN file upload — murni field string berisi nama icon Lucide, divalidasi terhadap daftar tetap (allow-list) yang sama dengan yang dipakai default station-tile: gauge, layers, package, truck, scale, warehouse, factory, container, box, boxes (daftar awal, dapat diperluas). Tidak ada penyimpanan file/Laravel Filesystem untuk field ini",
-    "Response field logo/home_page_image TANPA suffix _url (bare field name), konsisten dengan konvensi yang sudah dipakai GET /api/mill-settings/current (screen-005) untuk entity mill-setting yang sama",
+    "Response field home_page_image TANPA suffix _url (bare field name), konsisten dengan konvensi yang sudah dipakai GET /api/mill-settings/current (screen-005) untuk entity mill-setting yang sama",
     "Baris mill-setting dibuat lazy (auto-create-on-first-access), bukan saat Business Unit dibuat, agar Business Unit lama otomatis kompatibel tanpa migrasi data manual",
     "403 FORBIDDEN untuk Mill Management yang mengakses business_unit_id lain diterapkan di seluruh endpoint secara konsisten",
     "Endpoint GET .../current (screen-005) tetap terpisah dari GET/PATCH .../:business_unit_id (screen-034) — screen-034 butuh varian ber-parameter karena Admin harus bisa memilih mill mana pun, bukan hanya mill sendiri",
@@ -467,7 +467,6 @@
           },
           "request_example": {
             "business_unit_id": "{{business_unit_id}}",
-            "app_name": "Mill Baru",
             "immediate_sync_enabled": true
           },
           "expected_status": 200,
@@ -476,12 +475,12 @@
       ],
       "component_test": {
         "component": "MillsSettingForm",
-        "action": "pilih mill dari searchable select (Admin), ubah nama aplikasi dan centang pengiriman langsung, klik Simpan",
+        "action": "pilih mill dari searchable select (Admin), centang pengiriman langsung, klik Simpan",
         "assert": "form submit berhasil, nilai baru tersimpan dan tampil kembali"
       },
       "browser_test": {
         "route": "/mill-settings",
-        "action": "sebagai Admin, pilih mill, ubah nama aplikasi dan pengiriman langsung, klik Simpan",
+        "action": "sebagai Admin, pilih mill, ubah saklar pengiriman langsung, klik Simpan",
         "assert": "toast konfirmasi muncul, nilai baru tampil saat halaman dimuat ulang"
       }
     },
@@ -533,7 +532,7 @@
       "component_test": {
         "component": "MillsSettingForm",
         "action": "buka Mills Setting untuk mill yang belum pernah diatur",
-        "assert": "form menampilkan nilai default: nama aplikasi = nama mill, pengiriman langsung nonaktif"
+        "assert": "form menampilkan nilai default: pengiriman langsung nonaktif, gambar halaman utama kosong (placeholder) — tidak ada nilai teks yang disemai sejak nama aplikasi dicabut"
       },
       "browser_test": {
         "route": "/mill-settings",
@@ -542,7 +541,7 @@
       }
     },
     {
-      "scenario_ref": "Mills Setting — Validasi nama aplikasi / gambar gagal",
+      "scenario_ref": "Mills Setting — Validasi gambar gagal",
       "usecase_id": "usecase-034--mills-setting",
       "api_test": [
         {
@@ -553,7 +552,7 @@
           },
           "request_example": {
             "business_unit_id": "{{business_unit_id}}",
-            "app_name": ""
+            "home_page_image": "<file teks bernama home.png>"
           },
           "expected_status": 422,
           "expected_error_code": "VALIDATION_ERROR"
@@ -561,13 +560,13 @@
       ],
       "component_test": {
         "component": "MillsSetting",
-        "action": "kosongkan nama aplikasi lalu Simpan; pilih file teks bernama logo.png",
-        "assert": "pesan 'Nama aplikasi wajib diisi.' tanpa pesan sukses; logo palsu ditolak saat dipilih tanpa pratinjau dan tidak tersimpan"
+        "action": "pilih file teks bernama home.png sebagai Gambar Halaman Utama, lalu Simpan",
+        "assert": "gambar palsu ditolak saat dipilih tanpa pratinjau, ditolak lagi saat Simpan, tidak pernah tersimpan, dan tidak ada pesan sukses"
       },
       "browser_test": {
         "route": "/mill-settings",
-        "action": "kosongkan nama aplikasi, klik Simpan",
-        "assert": "pesan validasi berbahasa Indonesia ditampilkan, nilai lama tidak berubah"
+        "action": "pilih file teks bernama home.png sebagai Gambar Halaman Utama",
+        "assert": "pesan validasi berbahasa Indonesia ditampilkan ('Gambar halaman utama harus berupa file gambar JPG atau PNG yang valid.'), nilai lama tidak berubah"
       }
     },
     {

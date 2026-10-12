@@ -12,6 +12,7 @@ use App\Models\MillSetting;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -19,31 +20,33 @@ beforeEach(function () {
     $this->bu = BusinessUnit::factory()->create(['name' => 'Mill Setting Audit']);
 });
 
-it('#13 nama aplikasi kosong ditolak (spec: tidak pernah kosong), tidak ada pesan "berhasil"', function () {
+// Ketiga uji "#13" DIHAPUS 2026-10-12 bersama kolom app_name: subjeknya
+// (nama aplikasi kosong ditolak, pesannya berbahasa Indonesia, API menolak
+// 422) tidak ada lagi karena kolomnya tidak ada lagi.
+//
+// Satu jaminan dari temuan #13 TIDAK ikut hilang — pesan validasi layar ini
+// harus berbahasa Indonesia, bukan pesan bawaan Laravel yang berbahasa
+// Inggris. Jaminan itu dipindahkan ke kolom unggahan yang masih ada.
+it('#13 pesan validasi layar ini berbahasa Indonesia, bukan bawaan Laravel', function () {
+    // File teks bernama .png: ditolak App\Rules\RealImage.
+    $palsu = UploadedFile::fake()->createWithContent('home.png', 'ini teks biasa, bukan gambar');
+
     Livewire::actingAs($this->admin)->test(MillsSetting::class)
         ->set('selectedBusinessUnitId', $this->bu->id)
-        ->set('app_name', '')
+        ->set('home_page_image', $palsu)
         ->call('save')
-        ->assertHasErrors('app_name')
-        ->assertSee('Nama aplikasi wajib diisi.')
-        ->assertSet('successMessage', null);
-
-    expect(MillSetting::where('business_unit_id', $this->bu->id)->value('app_name'))->not->toBe('');
-});
-
-it('#13 pesan validasi berbahasa Indonesia (bukan "The app name field must not be greater than 255 characters.")', function () {
-    Livewire::actingAs($this->admin)->test(MillsSetting::class)
-        ->set('selectedBusinessUnitId', $this->bu->id)
-        ->set('app_name', str_repeat('a', 256))
-        ->call('save')
-        ->assertSee('Nama aplikasi maksimal 255 karakter.')
+        ->assertHasErrors('home_page_image')
+        ->assertSet('successMessage', null)
+        ->assertDontSee('must be a file of type')
         ->assertDontSee('must not be greater than');
 });
 
-it('#13 API: app_name dikirim kosong ditolak 422, tidak dikirim = tidak berubah', function () {
+it('#13 lanjutan: app_name/logo yang masih dikirim pemanggil lama diabaikan, bukan 422', function () {
     $this->actingAs($this->admin)
-        ->patchJson("/api/mill-settings/{$this->bu->id}", ['app_name' => ''])
-        ->assertStatus(422)->assertJsonValidationErrors('app_name');
+        ->patchJson("/api/mill-settings/{$this->bu->id}", ['app_name' => '', 'logo' => 'apa pun'])
+        ->assertOk()
+        ->assertJsonMissingPath('app_name')
+        ->assertJsonMissingPath('logo');
 
     $this->actingAs($this->admin)
         ->patchJson("/api/mill-settings/{$this->bu->id}", ['immediate_sync_enabled' => true])

@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-05"
+    "updated_at": "2026-10-12"
   },
   "id": "screen-034--mills-setting",
   "name": "Mills Setting",
@@ -19,7 +19,8 @@
     "backend/routes/web.php",
     "backend/app/Rules/RealImage.php",
     "backend/app/Livewire/Concerns/ValidatesUploadOnSelect.php",
-    "backend/app/Http/Controllers/Api/MillSettingController.php"
+    "backend/app/Http/Controllers/Api/MillSettingController.php",
+    "backend/database/migrations/2026_10_12_000001_remove_app_name_and_logo_from_mill_settings_table.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/MillSettingServiceTest.php",
@@ -44,7 +45,7 @@
   ],
   "implementation_notes": [
     "First-time implementation of two new entity-catalog v7 pieces: `mill-setting` (new table, 1:1 with business_units, lazily auto-created via MillSettingService::getOrCreate() — no backfill migration needed, pre-existing Business Units get a default row on first access) and `station.icon` (new nullable string column, added via migration ONLY — no data existed to migrate since entity-catalog v6's short-lived `station.image` field was replaced by `icon` before any implementation ever touched it).",
-    "Response fields `logo`/`home_page_image` are exposed as their fully-resolved Storage::url() under the BARE key name (no `_url` suffix) — deliberately matches GET /api/mill-settings/current's already-written tech-spec contract (screen-005--home, consumed directly as an <img> src by mobile) rather than BusinessUnitService's `logo` (raw path) + `logo_url` (resolved) pair convention, since this screen shares the exact same `mill-setting` entity/response shape with that sibling screen.",
+    "Response field `home_page_image` is exposed as its fully-resolved Storage::url() under the BARE key name (no `_url` suffix) — deliberately matches GET /api/mill-settings/current's already-written tech-spec contract (screen-005--home, consumed directly as an <img> src by mobile) rather than BusinessUnitService's `logo` (raw path) + `logo_url` (resolved) pair convention, since this screen shares the exact same `mill-setting` entity/response shape with that sibling screen. (`logo` ikut aturan yang sama sampai ia dicabut 2026-10-12 — lihat catatan revisi terakhir.)",
     "This is the FIRST screen in this codebase with genuine per-resource (not just per-role) access control: MillSettingService::checkAccess() rejects a Mill Management user acting on any business_unit_id other than their own (user.business_unit_id), on every method including GET, before any MillSetting/Station row is queried — Admin is never restricted. Enforced identically from both the API controller and the Livewire component (both call the same service).",
     "station.icon is a picker over a fixed allow-list (MillSettingService::SUPPORTED_ICONS — gauge/layers/package/truck/scale/warehouse/factory/container/box/boxes), NOT a file upload — validated via Rule::in(), no Laravel Filesystem storage involved for this field. null resets a station to its type-default icon (Gauge/Layers/Package per uiux-spec component_patterns 'station-tile' — that fallback rendering logic itself belongs to screen-006--station-list's own Phase 4, not implemented here).",
     "New route group `/api/mill-settings/{businessUnitId}/...` added to routes/api.php with an explicit comment: GET /api/mill-settings/current (screen-005--home's read-only, self-scoped endpoint) MUST be registered BEFORE the parameterized {businessUnitId} route once screen-005's own Phase 4 adds it, or Laravel would match the literal 'current' segment against the route parameter instead.",
@@ -55,7 +56,8 @@
     "REVISI v2 (2026-10-03, perbaikan tampilan + uji): subtitle halaman di resources/views/livewire/settings/mills-setting.blade.php tidak lagi menyebut 'jumlah cages' (field itu sudah dihapus 2026-08-20) — kini 'Atur nama aplikasi, logo, gambar halaman utama, pengiriman data langsung, dan icon station untuk mill Anda.' e2e-web/tests/mills-setting.spec.ts dijalankan: 6 lulus, 1 dilewati (skenario 'Validasi jumlah cages' di-skip karena field-nya tidak ada lagi); test_results.browser diperbarui. Known issue 'browser test tidak dijalankan' dihapus.",
     "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
     "REVISI (2026-10-04, audit-fix — sinkronisasi artefak, kode adalah acuan): MillsSetting kini punya rules()/messages() sendiri (seluruhnya Indonesia): app_name WAJIB (dulu nullable → mengosongkan tetap 'berhasil disimpan'); MillSettingService::update() menolak app_name yang DIKIRIM kosong (Rule::requiredIf kunci ada; kunci absen = tidak diubah). Logo & home_page_image ditambah App\\Rules\\RealImage (isi file harus JPG/PNG sungguhan) di Livewire dan service, dan divalidasi saat dipilih lewat trait App\\Livewire\\Concerns\\ValidatesUploadOnSelect (pratinjau disembunyikan selama ada error). Pemilih Mill (Admin) dan pemilih icon per station memakai x-searchable-select (stationIcons.<id> → updatedStationIcons() → setStationIcon()). Daftar station menampilkan kolom Production Line (mapStations: production_line_name, urut nama line lalu nama station) dan label tipe dari StationService::typeLabels(). Mobile: millSettingRepo.getMillSetting() kini ikut SELECT immediate_sync_enabled — sebelumnya selalu terbaca false sehingga pengaturan 'Kirim data langsung' di layar ini tidak pernah berlaku di perangkat. Uji: MillsSettingAuditTest.php, ImageUploadValidationTest.php, MillSettingServiceTest.php/MillSettingTest.php (diperbarui), mobile/tests/millSettingRepo.sqljs.spec.ts, mobile/tests/writeThroughSync.spec.ts, e2e-web/tests/mills-setting.spec.ts (diperbarui).",
-    "REVISI (2026-10-05, artifact-sync round 3 — commit 658cedc, c321f32, kode adalah acuan): pemilih mill khusus Admin dipindah ke x-filter.bar bersama (label 'Pilih mill', field 'Mill', placeholder 'Pilih mill'; tanpa total/Reset; kelas ms-filter* dihapus). Loading (c321f32): form dan bagian daftar station memakai ld-region yang meredup saat selectedBusinessUnitId (dan stationIcons) berubah; Simpan memakai x-busy-label ('Menyimpan…') dan nonaktif selama save maupun unggahan logo/home_page_image (wire:target=\"save,logo,home_page_image\"); petunjuk 'Mengunggah…' ber-spinner di bawah kedua kolom gambar."
+    "REVISI (2026-10-05, artifact-sync round 3 — commit 658cedc, c321f32, kode adalah acuan): pemilih mill khusus Admin dipindah ke x-filter.bar bersama (label 'Pilih mill', field 'Mill', placeholder 'Pilih mill'; tanpa total/Reset; kelas ms-filter* dihapus). Loading (c321f32): form dan bagian daftar station memakai ld-region yang meredup saat selectedBusinessUnitId (dan stationIcons) berubah; Simpan memakai x-busy-label ('Menyimpan…') dan nonaktif selama save maupun unggahan logo/home_page_image (wire:target=\"save,logo,home_page_image\"); petunjuk 'Mengunggah…' ber-spinner di bawah kedua kolom gambar.",
+    "REVISI (2026-10-12, PENCABUTAN FITUR atas keputusan user — app_name + logo). Sebabnya: tidak ada satu layar pun yang membacanya. Keduanya tersimpan, terkirim lewat sync, dan tersimpan di basis data perangkat, lalu tidak berpengaruh ke mana-mana; business_rules screen-034 sendiri menuntut setiap pengaturan di layar ini punya layar atau perilaku yang membacanya, jadi aturan itu ditegakkan. Yang diubah: migrasi 2026_10_12_000001_remove_app_name_and_logo_from_mill_settings_table.php (DROP COLUMN kedua kolom; down() memulangkan kolomnya KOSONG dan app_name sebagai nullable — nilainya tidak dapat dipulihkan); MillSetting (fillable), MillSettingService (parameter $logo pada update() dihapus sehingga pemanggil lama gagal kompilasi alih-alih mengunggah berkas yang tidak tersimpan; payload/validator/attributes/toRow/findOrCreateRow; konstanta LOGO_DIRECTORY yang tak terpakai dihapus), MillSettingController (request->only + file('logo')), Livewire MillsSetting (properti, rules, messages, updatedLogo, save payload), blade (dua blok kolom, subtitle, judul bagian menjadi 'Tampilan Aplikasi Mobile', wire:target), MillSettingFactory, DemoOperationalDataSeeder, mobile millSettingRepo.ts + localSchema.ts (DDL, tipe respons, INSERT/ON CONFLICT) dan komentar HomeView.vue. PATCH API mengabaikan app_name/logo yang masih dikirim pemanggil lama — 200, bukan 422 dan bukan 500 — dan berkas logo yang sah pun tidak disimpan. Perangkat yang SUDAH terpasang tetap punya kedua kolom di tabel lokalnya (CREATE TABLE IF NOT EXISTS tidak menghapus kolom); keduanya nullable dan tidak lagi ditulis maupun dibaca, jadi tidak perlu migrasi lokal. Jaminan yang DULU hanya diuji lewat logo dipindahkan ke home_page_image, tidak dibuang: unggahan sah tersimpan, format tak didukung ditolak tanpa membuat baris, dan pesan validasi berbahasa Indonesia. Uji: MillSettingServiceTest, Api/MillSettingTest, Livewire/MillsSettingTest (+ penjaga 'layar ini tidak lagi punya kolom Nama Aplikasi maupun Logo'), MillsSettingAuditTest, ImageUploadValidationTest, mobile millSettingRepo/.sqljs/localSchema/writeThroughSync/HomeView.spec, e2e-web/tests/mills-setting.spec.ts, serta QA AD-10 yang dialihkan ke saklar kirim-langsung di kedua pelaksananya."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -82,8 +84,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-10-03T00:00:00Z",
-      "passed": 6,
+      "run_at": "2026-10-12T00:00:00Z",
+      "passed": 9,
       "failed": 0
     }
   }

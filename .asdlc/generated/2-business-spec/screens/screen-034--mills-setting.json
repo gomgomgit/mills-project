@@ -1,5 +1,5 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-12"
@@ -7,7 +7,7 @@
   "id": "screen-034--mills-setting",
   "name": "Mills Setting",
   "module_id": "module-mills-setting",
-  "description": "Layar bagi Admin dan Mill Management untuk mengatur profil aplikasi per mill (Business Unit) — nama aplikasi, logo, gambar halaman utama mobile, pengiriman data langsung ke server (write-through mobile), dan icon per stasiun. Gambar halaman utama memengaruhi tampilan Home mobile, icon stasiun memengaruhi Station List mobile, dan saklar kirim-langsung menentukan apakah data yang disimpan di form mobile langsung dikirim ke server. Nama aplikasi dan logo belum dibaca layar mana pun — lihat business rule tentang pemakaian pengaturan.",
+  "description": "Layar bagi Admin dan Mill Management untuk mengatur profil aplikasi per mill (Business Unit) — gambar halaman utama mobile, pengiriman data langsung ke server (write-through mobile), dan icon per stasiun. Gambar halaman utama memengaruhi tampilan Home mobile, icon stasiun memengaruhi Station List mobile, dan saklar kirim-langsung menentukan apakah data yang disimpan di form mobile langsung dikirim ke server. Setiap pengaturan di layar ini punya layar atau perilaku mobile yang membacanya; nama aplikasi dan logo yang dulu ada di sini sudah dicabut karena tidak memenuhi syarat itu.",
   "actors": [
     "actor-admin",
     "actor-mill-management"
@@ -17,8 +17,6 @@
   ],
   "information_displayed": [
     "Pemilih Mill/Business Unit yang sedang dikonfigurasi (searchable select) — khusus Admin (Mill Management otomatis terarah ke mill miliknya sendiri, tanpa pemilih)",
-    "Nama aplikasi (app_name) saat ini untuk mill terpilih",
-    "Logo mill saat ini (preview gambar, atau placeholder jika belum diatur)",
     "Gambar halaman utama mobile (home_page_image) saat ini (preview gambar, atau placeholder jika belum diatur)",
     "Pilihan 'Kirim data langsung ke server saat disimpan' (immediate_sync_enabled) beserta penjelasannya",
     "Daftar station milik mill terpilih — kolom Production Line, Nama Station, Tipe (label tipe stasiun), dan pemilih icon Lucide (searchable select; 'Default' = icon sesuai tipe), diurutkan per Production Line lalu nama"
@@ -29,22 +27,6 @@
       "description": "Memilih Business Unit/mill mana yang akan dikonfigurasi Mills Setting-nya",
       "actor_ids": [
         "actor-admin"
-      ]
-    },
-    {
-      "action": "Ubah Nama Aplikasi",
-      "description": "Mengubah nama aplikasi (app_name) yang ditampilkan ke user untuk mill ini",
-      "actor_ids": [
-        "actor-admin",
-        "actor-mill-management"
-      ]
-    },
-    {
-      "action": "Unggah/Ganti Logo",
-      "description": "Mengunggah atau mengganti gambar logo mill",
-      "actor_ids": [
-        "actor-admin",
-        "actor-mill-management"
       ]
     },
     {
@@ -82,26 +64,24 @@
   ],
   "business_rules": [
     "Setiap mill (Business Unit) memiliki tepat satu Mills Setting",
-    "Jika mill belum memiliki Mills Setting (mis. Business Unit yang dibuat sebelum fitur ini ada), sistem otomatis membuat baris default (app_name = nama Business Unit, gambar kosong, pengiriman langsung nonaktif) saat layar ini pertama kali dibuka untuk mill tersebut",
+    "Jika mill belum memiliki Mills Setting (mis. Business Unit yang dibuat sebelum fitur ini ada), sistem otomatis membuat baris default (gambar kosong, pengiriman langsung nonaktif) saat layar ini pertama kali dibuka untuk mill tersebut — tidak ada nilai teks yang disemai sejak nama aplikasi dicabut",
     "Mill Management hanya dapat mengatur mill (Business Unit) miliknya sendiri; Admin dapat mengatur mill mana pun",
-    "Nama aplikasi wajib diisi (maks 255 karakter) — mengosongkannya ditolak dengan pesan 'Nama aplikasi wajib diisi.', bukan diam-diam mempertahankan nilai lama",
     "Icon station hanya dapat diatur untuk station yang sudah terdaftar (dari Kelola Station) pada mill terkait; dipilih dari daftar icon Lucide yang tersedia, bukan unggah gambar",
     "Jika icon station tidak diatur (kosong), station-tile memakai icon default sesuai tipe stasiun (Gauge=Weighbridge, Layers=Grading, Package=Cages Track) — sama seperti perilaku saat ini",
-    "Logo dan gambar halaman utama bersifat opsional — jika kosong, aplikasi menampilkan tampilan default tanpa gambar. Bila diunggah, file harus BENAR-BENAR gambar JPG/PNG (dicek dari isi file, bukan ekstensi) dan maks 2MB; diperiksa saat file dipilih dan lagi saat Simpan, tanpa pratinjau untuk file yang ditolak",
+    "Gambar halaman utama bersifat opsional — jika kosong, Home mobile memakai gambar bawaan aplikasi. Bila diunggah, file harus BENAR-BENAR gambar JPG/PNG (dicek dari isi file, bukan ekstensi) dan maks 2MB; diperiksa saat file dipilih dan lagi saat Simpan, tanpa pratinjau untuk file yang ditolak",
     "Seluruh pesan validasi berbahasa Indonesia",
-    "SETIAP PENGATURAN DI LAYAR INI HARUS PUNYA LAYAR YANG MEMBACANYA, dan di mana ia dipakai dicatat di sini (QA AD-10, 2026-10-12): home_page_image → hero image Home mobile; immediate_sync_enabled → penyimpanan Form mobile (kirim langsung saat Simpan); icon station → glyph tile pada daftar stasiun mobile. DUA PENGATURAN BELUM PUNYA PEMBACA: app_name dan logo — keduanya tersimpan, tersinkron ke perangkat, lalu tidak berpengaruh ke mana-mana, sehingga Admin mengubahnya, melihat pesan berhasil, dan tidak ada yang berubah bagi Operator. Keduanya sempat dibaca kepala halaman Home mobile pada 2026-10-12, lalu pemakaian itu DIBATALKAN atas keputusan user: nama produk pada header Home terpisah dari app_name per mill (business_rules screen-005 v5). Keadaan ini dinyatakan terbuka, bukan disamarkan — sebuah pengaturan yang tidak berpengaruh ke layar mana pun tidak dapat dibedakan dari pengaturan yang rusak, jadi keduanya menunggu layar yang memakainya atau keputusan untuk mencabutnya dari layar ini. Menambah pengaturan BARU di layar ini tetap HARUS disertai layar yang membacanya"
+    "SETIAP PENGATURAN DI LAYAR INI HARUS PUNYA LAYAR ATAU PERILAKU YANG MEMBACANYA, dan di mana ia dipakai dicatat di sini: home_page_image → hero image Home mobile; immediate_sync_enabled → penyimpanan Form mobile (kirim langsung saat Simpan); icon station → glyph tile pada daftar stasiun mobile. Aturan ini DITEGAKKAN, bukan sekadar dinyatakan: app_name dan logo DICABUT dari layar ini pada 2026-10-12 justru karena melanggarnya — keduanya tersimpan, tersinkron ke perangkat, lalu tidak berpengaruh ke mana-mana, sehingga Admin mengubahnya, melihat pesan berhasil, dan tidak ada yang berubah bagi Operator. Sebuah pengaturan yang tidak berpengaruh ke layar atau perilaku mana pun tidak dapat dibedakan dari pengaturan yang rusak. Menambah pengaturan baru di layar ini karena itu HARUS disertai layar atau perilaku yang membacanya, atau pengaturan itu tidak ditambahkan"
   ],
   "usecase_ids": [
     "usecase-034--mills-setting"
   ],
   "edge_cases": [
     "Mill belum punya Mills Setting sama sekali — sistem otomatis membuat default saat pertama diakses",
-    "Upload gambar (logo atau gambar halaman utama) dengan format atau ukuran tidak didukung, atau file bukan gambar yang diberi nama .png/.jpg — ditolak saat dipilih, tidak pernah tersimpan",
-    "Nama aplikasi dikosongkan lalu Simpan — validasi gagal, tidak ada pesan 'berhasil disimpan'",
+    "Upload gambar halaman utama dengan format atau ukuran tidak didukung, atau file bukan gambar yang diberi nama .png/.jpg — ditolak saat dipilih, tidak pernah tersimpan",
     "Belum ada station terdaftar untuk mill tersebut — bagian pengaturan icon station kosong dengan pesan penjelasan",
     "Mill Management mencoba mengakses/mengubah mill lain selain miliknya — ditolak",
-    "Simpan ditekan selagi logo atau gambar halaman utama masih diunggah, atau diklik dua kali — tombol Simpan nonaktif sesaat selama unggahan berjalan (petunjuk 'Mengunggah…' dengan spinner di bawah kolom gambarnya) dan selama penyimpanan (label 'Menyimpan…'), sehingga pengaturan tidak tersimpan tanpa gambar yang sedang diunggah dan klik ganda tetap satu permintaan. Saat Admin mengganti mill di pemilih, form dan daftar station meredup sesaat sampai data mill baru termuat",
-    "app_name atau logo diubah lalu disimpan — nilainya bertahan dan menyusul ke perangkat Operator pada sinkronisasi berikutnya, tetapi TIDAK ada layar yang berubah karenanya; itu keadaan yang diketahui (lihat business rule tentang pemakaian pengaturan), bukan cacat penyimpanan"
+    "Simpan ditekan selagi gambar halaman utama masih diunggah, atau diklik dua kali — tombol Simpan nonaktif sesaat selama unggahan berjalan (petunjuk 'Mengunggah…' dengan spinner di bawah kolom gambarnya) dan selama penyimpanan (label 'Menyimpan…'), sehingga pengaturan tidak tersimpan tanpa gambar yang sedang diunggah dan klik ganda tetap satu permintaan. Saat Admin mengganti mill di pemilih, form dan daftar station meredup sesaat sampai data mill baru termuat",
+    "Pemanggil API lama masih mengirim app_name dan/atau logo — keduanya DIABAIKAN: permintaannya tetap berhasil (bukan galat), keduanya tidak muncul di respons, dan berkas logo yang sah pun tidak disimpan karena kolomnya tidak ada lagi"
   ],
   "test_priority": "high",
   "open_questions": []

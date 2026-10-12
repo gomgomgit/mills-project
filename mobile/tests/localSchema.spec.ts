@@ -515,8 +515,6 @@ describe('localSchema — fetchAndCacheMillSetting()', () => {
     vi.mocked(apiClient.get).mockResolvedValue({
       data: {
         business_unit_id: BUSINESS_UNIT_ID,
-        app_name: 'Mill A',
-        logo: 'storage/logo.png',
         home_page_image: 'storage/home.png',
         jumlah_cages: 10,
       },
@@ -527,8 +525,30 @@ describe('localSchema — fetchAndCacheMillSetting()', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/api/mill-settings/current')
     expect(run).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO mill_setting'),
-      expect.arrayContaining([expect.stringContaining(BUSINESS_UNIT_ID), BUSINESS_UNIT_ID, 'Mill A', 'storage/logo.png', 'storage/home.png', 10]),
+      expect.arrayContaining([expect.stringContaining(BUSINESS_UNIT_ID), BUSINESS_UNIT_ID, 'storage/home.png', 10]),
     )
+  })
+
+  it('tidak menulis app_name/logo — kolomnya dicabut 2026-10-12', async () => {
+    // Server lama yang masih MENGIRIM keduanya tidak boleh membuat perangkat
+    // mencoba menulis ke kolom yang tidak ada lagi.
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: {
+        business_unit_id: BUSINESS_UNIT_ID,
+        app_name: 'Mill A',
+        logo: 'storage/logo.png',
+        home_page_image: 'storage/home.png',
+        jumlah_cages: 10,
+      },
+    })
+
+    await fetchAndCacheMillSetting(BUSINESS_UNIT_ID)
+
+    const [sql, binds] = vi.mocked(run).mock.calls[0] as [string, unknown[]]
+    expect(sql).not.toContain('app_name')
+    expect(sql).not.toContain('logo')
+    expect(binds).not.toContain('Mill A')
+    expect(binds).not.toContain('storage/logo.png')
   })
 
   it('propagates a fetch failure to the caller (best-effort handling belongs to the caller, e.g. auth store login())', async () => {
@@ -557,8 +577,6 @@ describe('localSchema — fetchAndCacheMillSetting() station icon override sync'
         return {
           data: {
             business_unit_id: BUSINESS_UNIT_ID,
-            app_name: 'Mill A',
-            logo: null,
             home_page_image: null,
             jumlah_cages: 10,
           },

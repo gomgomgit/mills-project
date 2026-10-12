@@ -297,6 +297,19 @@ def applies(cid, station):
     if cid == 'MD-KEL-05' and station != 'Company':
         return ('Tidak berlaku — hanya tingkat Company yang membatasi nama per '
                 'induk; di tingkat ini yang dibatasi hanya kode, dan secara global')
+    # Satu record Weighbridge berarti satu transaksi: layar Detail-nya tidak
+    # punya <table> sama sekali, seluruh nilainya ada di kepala layar. Kasus
+    # ini menguji "grid menampilkan persis baris tersimpan", jadi di sana tidak
+    # ada apa pun untuk diuji.
+    #
+    # HANYA Weighbridge. Ke-17 stasiun lain punya tepat satu grid baris —
+    # termasuk Cages Track, yang gridnya bernama "Cages Tipped Time" dan
+    # karena itu pernah tidak terendus pelaksana dan salah dilaporkan sebagai
+    # stasiun tanpa grid.
+    if cid == 'WB-DTL-03' and station == 'Weighbridge':
+        return ('Tidak berlaku — satu record di stasiun ini berarti satu '
+                'transaksi; layar Detail-nya tidak punya grid baris sama '
+                'sekali, seluruh nilainya ada di kepala layar')
     # Dari delapan tingkat Kelola, hanya Kelola Mesin punya kolom pencarian
     # teks bebas; tujuh lainnya menyaring lewat pemilih induk.
     if cid in ('MD-KEL-10','MD-KEL-11') and station != 'Machinery':

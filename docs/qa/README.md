@@ -8,15 +8,15 @@ rujukan ke uji otomatis. Ada pemindai yang memeriksanya; lihat "Memeriksa kebers
 
 | Berkas | Jalan | Dipakai untuk |
 |---|---:|---|
-| `Mill-Smart-Log-Test-Case-Blackbox-Alur.xlsx` | 258 | **Satu putaran manual.** Tingkat 1+2. |
-| `Mill-Smart-Log-Test-Case-Blackbox-Ringkas.xlsx` | 1.382 | Regresi bila waktu terbatas. |
-| `Mill-Smart-Log-Test-Case-Blackbox.xlsx` | 1.442 | Putaran rilis. Cakupan penuh. |
+| `Mill-Smart-Log-Test-Case-Blackbox-Alur.xlsx` | 257 | **Satu putaran manual.** Tingkat 1+2. |
+| `Mill-Smart-Log-Test-Case-Blackbox-Ringkas.xlsx` | 1.381 | Regresi bila waktu terbatas. |
+| `Mill-Smart-Log-Test-Case-Blackbox.xlsx` | 1.441 | Putaran rilis. Cakupan penuh. |
 
 Ditambah satu berkas hasil, bila sebuah putaran uji sudah dijalankan:
 
 | Berkas | Isi |
 |---|---|
-| `Mill-Smart-Log-Hasil-Uji-Alur.xlsx` | Berkas Alur dengan kolom hasil TERISI. Putaran 2026-10-12: 254 dari 258 jalan dijalankan, 254 Lulus, 0 Gagal; 4 sisanya bertanda `Tidak diuji` beserta alasan spesifik per baris (jam perangkat, data >50.000 baris, dua layar Detail tanpa grid). |
+| `Mill-Smart-Log-Hasil-Uji-Alur.xlsx` | Berkas Alur dengan kolom hasil TERISI. Putaran 2026-10-12: 255 dari 257 jalan dijalankan, 255 Lulus, 0 Gagal; 2 sisanya bertanda `Tidak diuji` dan keduanya memang menuntut penguji manusia — mengubah jam perangkat (`MB-MON-04`) dan data melebihi 50.000 baris (`WB-BRW-09`). |
 
 Ketiganya bersarang: **Alur ⊂ Ringkas ⊂ Penuh**. Baris yang sama punya id, langkah, dan
 hasil diharapkan yang identik di ketiganya, jadi satu id laporan bug berarti satu hal di

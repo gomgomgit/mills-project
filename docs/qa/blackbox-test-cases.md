@@ -1408,12 +1408,16 @@ Tiga layar per stasiun: **Data Browser** (daftar + filter + ekspor), **Detail** 
 ### WB-DTL-03 — Grid menampilkan persis baris tersimpan
 - **Peran:** `SPV-A`
 - **Prasyarat:** record dengan 3 baris terisi
-- **Berlaku untuk:** seluruh stasiun, tetapi **penyebut 24 hanya untuk 11 stasiun bergrid slot
-  waktu** (lihat daftarnya di `WB-BRW-03`). Pada tujuh stasiun lain, bandingkan jumlah baris grid
-  dengan jumlah yang tertulis di kolom hitungannya sendiri — "Jumlah Siklus", "Jumlah Cage/Lori
-  Tercatat", atau "Jumlah Kejadian" — bukan dengan 24. Sebuah record yang memang punya 24 baris
-  terisi **harus** menampilkan 24 baris; yang dilarang adalah menggambar 24 baris ketika yang
-  tersimpan lebih sedikit.
+- **Berlaku untuk:** **17 stasiun — semua kecuali Weighbridge.** Satu record Weighbridge berarti
+  satu transaksi: layar Detail-nya tidak punya grid baris sama sekali, seluruh nilainya ada di
+  kepala layar, jadi tidak ada yang dapat dihitung. Barisnya memang **tidak ada** di berkas Excel.
+  Ke-16 stasiun lain punya grid, **termasuk Cages Track** — gridnya bernama "Cages Tipped Time",
+  satu baris per jam penumpahan.
+  **Penyebut 24 hanya untuk 11 stasiun bergrid slot waktu** (lihat daftarnya di `WB-BRW-03`). Pada
+  enam stasiun lain, bandingkan jumlah baris grid dengan jumlah yang tertulis di kolom hitungannya
+  sendiri — "Jumlah Siklus", "Jumlah Cage/Lori Tercatat", atau "Jumlah Kejadian" — bukan dengan 24.
+  Sebuah record yang memang punya 24 baris terisi **harus** menampilkan 24 baris; yang dilarang
+  adalah menggambar 24 baris ketika yang tersimpan lebih sedikit.
 - **Langkah:**
   1. Siapkan satu record dengan **tepat 3** baris terisi.
   2. `[W-DETAIL]` untuk record itu.
@@ -3059,8 +3063,8 @@ bukan memakai berkas lain yang lebih kecil dan bisa tertinggal usang.
 | Tingkat | Isinya | Jalan |
 |---|---|---:|
 | **1 — ALUR** | Setiap kasus **sekali**, pada stasiun wakil | **170** |
-| **2 — KABEL** | 5 kasus pada 17 stasiun sisanya (+1 untuk 10 laporan sisanya) | **88** |
-| **1+2** | **Cakupan yang masuk akal untuk satu putaran manual** | **258** (18%) |
+| **2 — KABEL** | 5 kasus pada 17 stasiun sisanya (+1 untuk 10 laporan sisanya) | **87** |
+| **1+2** | **Cakupan yang masuk akal untuk satu putaran manual** | **257** (18%) |
 | 3 — SISA | Pengulangan penuh; untuk putaran rilis atau saat satu stasiun berubah | 1.184 |
 
 **Stasiun wakil Tingkat 1** dipilih karena paling banyak melewati cabang, bukan karena

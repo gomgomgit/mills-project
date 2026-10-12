@@ -399,6 +399,23 @@ test('WB-DTL-05 — Back kembali ke Data Browser dengan filter yang masih sama',
 // tulis, dan penurunan hitungannya.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Grid baris pada layar Detail — ADA atau TIDAK.
+ *
+ * Namanya tidak seragam antar stasiun: sebagian "<kode>-detail-grid", sebagian
+ * "<kode>-detail-log", dan Cages Track memakai "cages-tipped-time-grid" dengan
+ * baris-baris tanpa penanda. Mencocokkan nama membuat grid yang namanya di luar
+ * dugaan dilaporkan sebagai "stasiun tanpa grid" — itu pernah terjadi pada
+ * Cages Track, dan laporannya salah tentang aplikasi yang sebenarnya benar.
+ *
+ * Yang ditanyakan karena itu strukturnya: <table> apa pun selain tabel master
+ * target. Dari ke-18 layar Detail, hanya Weighbridge yang tidak punya satu pun —
+ * satu record di sana berarti satu transaksi.
+ */
+const GRID_DETAIL =
+  '[data-testid*="detail-grid"], [data-testid*="detail-log"], [data-testid*="-row-"], ' +
+  'table:not([data-testid="operational-target-table"])'
+
 /** Jumlah baris grid pada layar Detail, tanpa bergantung nama testid per stasiun. */
 async function barisGridDetail(page: Page, kode: string): Promise<{ jml: number; cara: string }> {
   const berpola = page.locator(`[data-testid^="${kode}-detail-row-"], [data-testid^="detail-row-"]`)
@@ -443,7 +460,13 @@ for (const { kode, label } of STASIUN.filter((s) => BERGRID_24.includes(s.kode))
   })
 }
 
-for (const { kode, label } of STASIUN) {
+// WB-DTL-03 dibuat untuk 17 stasiun: Weighbridge tidak punya grid baris sama
+// sekali, jadi kasusnya tidak punya baris di dokumen untuk ditempeli hasil.
+// WB-FRM-01 di bawahnya tetap ke-18, karena itu penyaringnya di sini dan bukan
+// pada sumber perulangannya.
+const TANPA_GRID_DETAIL = ['weighbridge']
+
+for (const { kode, label } of STASIUN.filter((s) => !TANPA_GRID_DETAIL.includes(s.kode))) {
   test(`WB-DTL-03 [${label}] — grid menampilkan persis baris tersimpan`, async ({ page }) => {
     await login(page, SPV)
     // Jumlah yang TERSIMPAN dibaca dulu dari kolom hitungan Data Browser, lalu
@@ -470,10 +493,15 @@ for (const { kode, label } of STASIUN) {
     await page.waitForTimeout(1300)
     const alamat = new URL(page.url()).pathname
     const { jml, cara } = await barisGridDetail(page, kode)
-    const adaGrid = (await page.locator('[data-testid*="detail-grid"], [data-testid*="detail-log"], [data-testid*="-row-"]').count()) > 0
+    const adaGrid = (await page.locator(GRID_DETAIL).count()) > 0
     if (!adaGrid) {
-      catat('WB-DTL-03', label, 'Tidak diuji',
-        `Tidak berlaku di ${label}: layar Detail stasiun ini tidak punya grid baris sama sekali — satu record adalah satu transaksi dan seluruh nilainya ada di kepala layar. Yang diuji kasus ini (grid menampilkan persis baris tersimpan) tidak ada di sini.`)
+      // Tidak diharapkan terjadi lagi: satu-satunya layar Detail tanpa grid
+      // adalah Weighbridge, dan tesnya tidak lagi dibuat untuk stasiun itu.
+      // Dibiarkan sebagai penjaga — kalau ia berbunyi, entah ada layar Detail
+      // yang kehilangan gridnya, entah pengendus di atas yang terlalu sempit.
+      catat('WB-DTL-03', label, 'Gagal',
+        `Layar Detail ${label} tidak memuat satu tabel baris pun. Kasus ini menguji bahwa grid menampilkan persis baris tersimpan, jadi tidak ada yang dapat dibandingkan.`)
+      expect(adaGrid).toBe(true)
       return
     }
     const barisKosong = await page.locator(`[data-testid^="${kode}-detail-row-"], [data-testid^="detail-row-"]`)
@@ -484,7 +512,9 @@ for (const { kode, label } of STASIUN) {
       `kolom hitungan di Data Browser berbunyi "${kolomHitung}" (tersimpan ${tersimpan ?? 'tidak terbaca'}); Detail ${alamat} menggambar ${jml} baris (dihitung dari ${cara}) — sama dengan yang tersimpan=${cocok}; baris yang isinya kosong seluruhnya=${barisKosong} (harus 0, tidak digambar baris kosong sebagai pengisi).`)
     expect(ok).toBe(true)
   })
+}
 
+for (const { kode, label } of STASIUN) {
   test(`WB-FRM-01 [${label}] — simpan berhasil, status langsung Tersimpan`, async ({ page }) => {
     await login(page, SPV)
     await page.goto(`/data/${kode}/create`, { waitUntil: 'domcontentloaded' })

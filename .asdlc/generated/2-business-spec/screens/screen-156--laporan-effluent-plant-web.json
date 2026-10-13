@@ -1,0 +1,144 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-13"
+  },
+  "id": "screen-156--laporan-effluent-plant-web",
+  "name": "Laporan Effluent Plant (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Effluent Plant (IPAL/POME) di web — laporan kondisi, bukan laporan keluaran. Yang dicatat stasiun ini bukan 'berapa banyak diproduksi' melainkan 'seberapa terkendali pengolahan limbahnya': pH dan suhu di tiga kolam, laju POME masuk dan buangan keluar, nyala biogas, serta mutu buangan akhir. Karena itu laporan ini menjawab apakah pengolahan stabil sepanjang periode, bukan menjumlahkan hasil. Tiga hal membedakannya dari sebelas laporan yang sudah ada. PERTAMA, empat belas kolom ukur numerik — dua kali Kernel Plant — yang seluruhnya boleh kosong dan terisi saling bebas, sehingga setiap metrik menerbitkan penyebutnya sendiri. Tiga di antaranya bernilai laboratorium (BOD, COD, TSS buangan akhir) yang menurut sifatnya terisi jauh lebih jarang daripada bacaan per jam; penyebut per metrik lebih menentukan di sini daripada di laporan mana pun sebelumnya. KEDUA, tiga kolom status kategoris yang terendah/rata-rata/tertinggi-nya tidak punya arti — ketiganya diterbitkan sebagai sebaran jumlah slot per nilai. KETIGA, dua kolom teks bebas yang diterbitkan pada dua bagian terpisah karena menjawab pertanyaan berbeda. Yang TIDAK ada di sini: kolom downtime (stasiun ini tidak mencatatnya) dan tabel master target. Ketiadaan master target itulah yang membuat satu pernyataan wajib ada di layar — BOD, COD, TSS, dan pH buangan akhir adalah angka kepatuhan lingkungan yang batas regulasinya hidup DI LUAR sistem ini, dan laporan ini tidak dapat menyatakan patuh atau tidak.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Effluent Plant",
+    "Kembali dari layar lain dengan periode yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Effluent Plant, yaitu periode berjenis Effluent Plant maupun periode yang berlaku untuk semua jenis stasiun. Tiap opsi ditulis ringkas 'Nama · rentang · Status' (mis. 'Periode Oktober · 01–09 Okt 2026 · Terbuka'; bulan/tahun tidak diulang bila sama), tanpa nama jenis stasiun karena daftar ini memang hanya memuat periode yang mencakup stasiun ini; status periode terpilih juga tampil sebagai badge kecil (Draft / Terbuka / Tertutup) di label pemilih",
+    "Pemilih Mill — hanya bagi Admin, yang tidak terikat satu mill; Supervisor dan Mill Management melihat field 'Mill' berisi nama mill akunnya sebagai keterangan (bukan pemilih, bukan input terkunci) di bar filter yang sama",
+    "Nama mill yang berlaku, nama Production Line terpilih (di hero, sama seperti sebelas laporan lain), rentang tanggal, dan status periode",
+    "PERNYATAAN KEPATUHAN LINGKUNGAN, ditempatkan di dekat angka buangan akhir dan bukan sebagai catatan kaki: BOD, COD, TSS, dan pH buangan akhir adalah parameter yang batas regulasinya ditetapkan di luar aplikasi ini, dan laporan ini menampilkan angkanya tanpa menyatakan patuh atau tidak patuh",
+    "Kolam Anaerobik 1 — pH dan suhu (°C) sepanjang periode: terendah, rata-rata, tertinggi",
+    "Kolam Anaerobik 2 — pH dan suhu (°C) sepanjang periode: terendah, rata-rata, tertinggi",
+    "Cooling Pond — pH dan suhu (°C) sepanjang periode: terendah, rata-rata, tertinggi",
+    "Aliran — laju biogas (m³/jam), laju POME masuk (m³/jam), dan laju buangan keluar (m³/jam) sepanjang periode: terendah, rata-rata, tertinggi",
+    "Buangan Akhir — pH, BOD (mg/L, laboratorium), COD (mg/L, laboratorium), dan TSS (mg/L, laboratorium) sepanjang periode: terendah, rata-rata, tertinggi. Ketiga nilai laboratorium diberi penanda 'lab' agar penyebutnya yang jauh lebih kecil terbaca sebagai sifat pengukuran, bukan sebagai data yang hilang",
+    "Konsumsi bahan kimia (kg/L) sepanjang periode: terendah, rata-rata, tertinggi",
+    "Jumlah pembacaan yang menjadi dasar setiap angka di atas — masing-masing dari empat belas metrik punya jumlahnya sendiri",
+    "Sebaran status Biogas Flare — jumlah slot per nilai (Nyala / Mati / Gangguan), ditambah jumlah slot yang tidak mencatatnya. Jumlah slot bergangguan ditonjolkan tersendiri karena flare yang bergangguan berarti gas tidak terbakar sebagaimana mestinya",
+    "Sebaran status Pompa Dosing 1 — jumlah slot per nilai (Jalan / Berhenti), ditambah jumlah slot yang tidak mencatatnya",
+    "Sebaran status Sludge Dewatering — jumlah slot per nilai (Jalan / Berhenti), ditambah jumlah slot yang tidak mencatatnya",
+    "Rekap Catatan Perawatan — daftar isi kolom catatan perawatan yang tidak kosong sepanjang periode, beserta tanggal dan slot waktunya",
+    "Rekap Temuan — daftar isi kolom temuan yang tidak kosong sepanjang periode, beserta tanggal dan slot waktunya; terpisah dari Rekap Catatan Perawatan karena keduanya menjawab pertanyaan berbeda dan satu slot dapat mengisi kedua-duanya",
+    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan. Untuk periode yang masih berjalan slot yang diharapkan dihitung hanya sampai HARI INI, dengan keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)' dan rumus '× N hari (sampai hari ini)'. Bila tidak ada slot yang diharapkan (belum ada unit tercatat / periode belum mulai) persentasenya tampil '—' dengan teks 'belum ada slot yang diharapkan', bukan 0,0%",
+    "Tren harian laju POME masuk rata-rata per tanggal",
+    "Tren harian pH buangan akhir rata-rata per tanggal",
+    "Rekap per unit Effluent Plant: pH dan suhu rata-rata tiap kolam, laju POME masuk rata-rata, pH buangan akhir rata-rata, dan jumlah pembacaan",
+    "Rekap harian yang dapat dibuka dan ditutup",
+    "Keterangan bila periode tidak memuat data",
+    "Tombol Ekspor CSV dan Ekspor Excel (berkas .xlsx sungguhan) — hanya tampil setelah Production Line dipilih",
+    "Pemilih Production Line (wajib) — hanya line milik mill yang berlaku; sebelum line dipilih tidak ada angka yang ditampilkan",
+    "Petunjuk 'Geser mendatar untuk melihat seluruh tanggal' di bawah grafik tren harian bila periode memuat lebih dari 10 tanggal; tiap kolom grafik selebar labelnya sehingga label tanggal tidak bertumpuk",
+    "Bar filter laporan (satu baris di desktop, bertumpuk di ponsel) berurutan Mill · Production Line · Periode Pelaporan, dengan tombol Ekspor CSV / Ekspor Excel di sisi kanan dan satu catatan singkat di bawahnya tentang cakupan daftar periode; pemilih Mill (Admin) beropsi awal 'Pilih Mill', pemilih Production Line beropsi awal 'Pilih Line' dan labelnya memberi badge 'Aktif' setelah sebuah line dipilih"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill yang dilihat. Hanya bagi Admin yang tidak terikat satu mill.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan production line yang dilihat. Wajib dipilih sebelum angka dan tombol ekspor tampil; hanya line milik mill yang berlaku yang ditawarkan.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rekap per hari.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode (cakupan line terpilih) sebagai CSV atau Excel (.xlsx sungguhan), satu baris per slot. Kolom Periode, Mill, dan Production Line diulang di setiap baris, disusul kolom konteks record; ketiga kolom status ditulis memakai label yang SAMA dengan layar Detail (On/Off/Fault dan Run/Stop, lewat Display::OPTION_LABELS), slot waktu HH:MM, sel kosong tetap kosong. Kedua kolom teks bebas ikut apa adanya. Selama berkas disiapkan kedua tombol ekspor terkunci sesaat dan tombol yang diklik menampilkan 'Mengekspor…' (spinner), sehingga klik ganda tidak menghasilkan unduhan ganda",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor dan Mill Management terikat pada mill di akunnya dan tidak dapat melihat mill lain, bahkan bila mencoba memaksanya lewat permintaan. Admin tidak terikat sehingga ia memilih.",
+    "Operator tidak punya akses ke layar web ini. Jalur laporan bagi Operator ada di mobile (screen-157).",
+    "Production Line WAJIB dipilih lebih dulu. Selama belum dipilih layar tidak menampilkan SATU ANGKA PUN, dan tidak menampilkan angka seluruh mill sebagai penggantinya — mencampur beberapa line membuat angkanya tidak dapat ditindaklanjuti.",
+    "Mengganti mill MENGOSONGKAN pilihan periode, bukan menggantinya diam-diam dengan periode mill baru. Pemilih menampilkan 'Pilih Periode' dan layar menunggu pilihan.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Effluent Plant — periode berjenis Effluent Plant, atau periode yang tidak menyebut jenis stasiun.",
+    "Status periode tidak membatasi apa pun. Periode tertutup tetap dapat dilihat dan diekspor.",
+    "Rentang periode inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "SETIAP metrik dihitung dari pembacaan yang terisi untuk metrik ITU SENDIRI. Sebuah baris pengukuran dianggap tercatat bila minimal satu kolomnya terisi, sehingga satu baris dapat mengisi pH kolam tetapi mengosongkan seluruh nilai laboratorium. Memakai satu penyebut bersama untuk keempat belas metrik akan mengempiskan rata-rata metrik yang jarang diisi — dan di stasiun ini perbedaannya ekstrem.",
+    "BOD, COD, dan TSS buangan akhir adalah nilai LABORATORIUM. Menurut sifat pengukurannya ketiganya terisi jauh lebih jarang daripada bacaan per jam, dan penyebut yang kecil pada ketiganya adalah keadaan normal — bukan tanda data hilang. Layar menyebutkan ini di tempat angkanya, bukan hanya di dokumentasi.",
+    "Jumlah pembacaan yang mendasari setiap angka ditampilkan berdampingan dengan angkanya. Rata-rata dari tiga pembacaan dan rata-rata dari tiga ratus pembacaan tidak boleh terlihat sama meyakinkan.",
+    "LAPORAN INI TIDAK MENYATAKAN KEPATUHAN LINGKUNGAN. BOD, COD, TSS, dan pH buangan akhir punya batas regulasi yang ditetapkan di luar aplikasi ini, dan Effluent Plant tidak punya tabel master target. Menampilkan angka lingkungan tanpa batas hukumnya mengundang pembaca memasok batas itu dari ingatan, karena itu layar menyatakan terbuka bahwa penilaian kepatuhan bukan keluaran laporan ini.",
+    "Laporan ini juga tidak menandai nilai di luar batas untuk metrik mana pun. Menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas aman padahal bukan. Yang ditampilkan adalah terendah, rata-rata, tertinggi, dan tren — penilaiannya ada pada manusia.",
+    "Ketiga kolom status bersifat kategoris: terendah, rata-rata, dan tertinggi tidak punya arti untuknya. Ketiganya diterbitkan sebagai SEBARAN — jumlah slot per nilai.",
+    "Sebaran status disusun dengan MENGELOMPOKKAN NILAI YANG BENAR-BENAR ADA, lalu melengkapi nilai yang dikenal tetapi tidak muncul dengan jumlah nol. Himpunan nilainya memang tertutup di basis data (ketiga kolom punya CHECK constraint), sehingga nilai di luar daftar tidak dapat tersimpan; pengelompokan harfiah tetap dipakai supaya menambah nilai baru lewat migrasi kelak tidak diam-diam menghilangkan satu kelompok dari laporan, sementara pelengkapan nol memastikan nilai yang tidak pernah terjadi tetap terlihat sebagai nol dan bukan sebagai baris yang hilang.",
+    "Status punya keadaan 'tidak tercatat' yang berbeda dari nilai mana pun. Slot yang kolom statusnya kosong dilaporkan terpisah dan tidak pernah diperlakukan sebagai 'Mati' atau 'Berhenti'.",
+    "Catatan perawatan dan temuan adalah dua kolom teks bebas yang diterbitkan pada DUA BAGIAN TERPISAH. Menyatukannya akan menghitung dua kali slot yang mengisi keduanya, dan keduanya menjawab pertanyaan yang berbeda: apa yang dikerjakan, versus apa yang ditemukan. Keduanya tidak pernah dirata-rata maupun digrafikkan.",
+    "Stasiun ini tidak mencatat downtime sama sekali, sehingga laporan ini tidak punya blok downtime. Ketiadaannya disengaja, bukan terlewat.",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki. Periode yang hanya terisi sebagian harus terbaca demikian sebelum angkanya dipercaya.",
+    "Kelengkapan pencatatan untuk periode yang MASIH BERJALAN dihitung hanya sampai hari ini (zona waktu aplikasi, WIB): hari yang belum terjadi tidak mungkin tercatat, sehingga periode 01–09 yang dibaca pada tanggal 04 dengan keempat hari terisi penuh tampil 100%, bukan ~44%. Periode yang sudah selesai memakai seluruh harinya; periode yang belum mulai menghasilkan 0 slot yang diharapkan dan tampil '—'.",
+    "Ekspor Excel adalah berkas .xlsx sungguhan yang dapat dibuka Excel (bukan CSV yang diberi nama .xlsx). Isi kolom kedua format sama: konteks Periode/Mill/Production Line di tiap baris, judul kolom berbahasa Indonesia, dan label nilai status MENGIKUTI LAYAR DETAIL — On/Off/Fault dan Run/Stop lewat Display::OPTION_LABELS, bukan nilai enum mentah dan bukan terjemahan tersendiri. Satu nilai hanya boleh punya satu label di seluruh produk; ekspor Data Browser stasiun ini sudah memakai label itu, dan ekspor laporan tidak boleh berbeda darinya."
+  ],
+  "usecase_ids": [
+    "usecase-162--laporan-effluent-plant-web"
+  ],
+  "edge_cases": [
+    "Periode tidak memuat satu pun pembacaan — seluruh angka ditampilkan sebagai tidak tersedia dengan keterangan belum ada data, bukan sebagai nol.",
+    "Nilai laboratorium (BOD/COD/TSS) tidak pernah diisi sepanjang periode walau bacaan per jam lengkap — ketiganya ditampilkan tidak tersedia dengan jumlah pembacaan nol, sementara sebelas metrik lain tetap tampil normal. Ini keadaan yang WAJAR bagi periode pendek dan layar tidak memperlakukannya sebagai kegagalan pencatatan.",
+    "Sebuah metrik tidak pernah diisi sepanjang periode walau metrik lain terisi — metrik itu ditampilkan tidak tersedia dengan jumlah pembacaan nol.",
+    "Sebuah hari punya record tetapi seluruh barisnya kosong untuk metrik tertentu — hari itu tidak menyumbang pada rata-rata metrik itu, tetapi tetap terhitung sebagai hari ber-record.",
+    "Seluruh slot tidak mencatat status biogas flare sepanjang periode — sebarannya menampilkan ketiga nilai dengan jumlah nol dan seluruh slot masuk ke 'tidak tercatat', dibedakan dengan jelas dari flare yang benar-benar mati.",
+    "Sebuah nilai status yang dikenal tidak pernah muncul sepanjang periode — nilai itu tetap tampil pada sebaran dengan jumlah nol, bukan hilang dari daftar.",
+    "Satu slot mengisi catatan perawatan DAN temuan sekaligus — slot itu muncul pada kedua rekap, dan itu benar: keduanya bagian terpisah, bukan satu daftar yang dihitung dua kali.",
+    "Kedua kolom teks bebas kosong sepanjang periode — kedua rekap menampilkan keterangan tidak ada catatan, bukan tabel kosong tanpa penjelasan.",
+    "Mill punya lebih dari satu unit Effluent Plant — angka periode menggabungkan seluruh unit, dan rekap per unit menunjukkan sebarannya.",
+    "Kelengkapan pencatatan sangat rendah, misalnya hanya beberapa slot terisi sepanjang sebulan — laporan tetap menampilkan angkanya tetapi kelengkapannya menonjol, bukan tersembunyi.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Production Line belum dipilih — tidak ada satu angka pun yang ditampilkan, termasuk tidak menampilkan angka seluruh mill sebagai penggantinya; layar menampilkan arahan memilih line.",
+    "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Mill belum punya satu pun periode yang mencakup Effluent Plant — pemilih periode kosong dengan arahan menghubungi Admin.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca.",
+    "Periode masih berjalan — kelengkapan dihitung sampai hari ini dan layar menyebut 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)'.",
+    "Belum ada unit Effluent Plant tercatat atau periode belum mulai sehingga slot yang diharapkan 0 — kelengkapan tampil '—' dengan teks 'belum ada slot yang diharapkan', bukan '0 dari 0 slot · 0,0%'."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Effluent Plant tidak punya master target operasional, dan empat parameternya (BOD, COD, TSS, pH buangan akhir) adalah parameter kepatuhan lingkungan yang batasnya ditetapkan regulasi di luar aplikasi. Selama batas itu belum ada di dalam sistem, laporan ini sengaja tidak menandai penyimpangan maupun menyatakan kepatuhan. Bila kelak baku mutu dimasukkan sebagai master target, laporan ini perlu ditinjau ulang — dan peninjauan itu menyangkut tanggung jawab hukum, bukan sekadar tampilan.",
+    "Deskripsi screen-156 pada screen-index menyatakan ketiga kolom status adalah 'varchar tanpa batasan di basis data'. Pemeriksaan langsung ke PostgreSQL menunjukkan sebaliknya: ketiganya punya CHECK constraint (on/off/fault dan run/stop). Business rule di spec ini memakai keadaan yang terverifikasi itu, dan deskripsi screen-index sebaiknya diperbaiki agar keduanya tidak saling bertentangan.",
+    "Tabel sebaran status DI LAYAR laporan ini menulis Nyala/Mati/Gangguan dan Jalan/Berhenti, sementara layar Detail (screen-089), formulir, dan kedua berkas ekspor memakai On/Off/Fault dan Run/Stop lewat Display::OPTION_LABELS. Jadi nilai yang sama kini punya dua label di dalam satu produk, dan laporan inilah satu-satunya tempat yang memakai label Indonesia. Pilihannya dua: (a) samakan layar laporan ke On/Off/Fault agar satu nilai punya satu label di mana pun — konsisten dengan konvensi 'label ekspor ikut layar Detail', dan menuntut suntingan blade + beberapa asersi component test; atau (b) pertahankan Indonesia di layar laporan karena pembacanya manajemen, dan terima bahwa label layar berbeda dari label berkas. Implementasi saat ini adalah (b), karena itulah yang dinyatakan spec ini ketika ditulis. Keputusan ini soal keseragaman istilah, bukan soal kebenaran angka."
+  ]
+}

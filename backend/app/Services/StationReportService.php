@@ -117,6 +117,18 @@ class StationReportService
         // (30) and sterilizer (40), and the ordering of this map is
         // load-bearing — see the note below.
         StationTypeEnum::BoilerRoom->value => 'reports.boiler-room',
+        // screen-156--laporan-effluent-plant-web. BETWEEN boiler-room and
+        // depricarping, and NOT appended: station_types.sort_order puts
+        // effluent-plant at 100 — behind boiler-room (90), ahead of
+        // depricarping (110) — and the ordering of this map is load-bearing,
+        // see the note below. Verified against the station_types table, not
+        // inferred from the enum's declaration order. Note the key is
+        // 'effluent-plant' WITH A HYPHEN, which is what
+        // StationTypeEnum::EffluentPlant->value holds; a snake_case key would
+        // compile, look right, and never match a master row. Without this one
+        // line the report exists, every one of its own tests passes, and the
+        // tile stays greyed out.
+        StationTypeEnum::EffluentPlant->value => 'reports.effluent-plant',
         // screen-133--laporan-storage-tank-web. LAST, appended after
         // boiler-room: station_types.sort_order puts storage-tank (140)
         // behind cages-track (30), sterilizer (40), clarification (70) and

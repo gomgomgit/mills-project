@@ -70,7 +70,14 @@ class EffluentPlantRecordService
 
     protected const ENUM_FIELDS = ['biogas_flare_status', 'dosing_pump_1_status', 'sludge_dewatering_status'];
 
-    protected const READING_FIELDS = [
+    /**
+     * PUBLIC karena EffluentPlantReportService (screen-156) meminjamnya apa
+     * adanya — sama seperti BoilerRoomRecordService / KernelPlantRecordService
+     * membuka milik mereka untuk laporan periodenya. Menulis ulang kesembilan
+     * belas kolom ini di berkas lain adalah cara laporan dan formulir mulai
+     * berbeda pendapat tentang apa yang tercatat.
+     */
+    public const READING_FIELDS = [
         'anaerobic_pond_1_ph', 'anaerobic_pond_1_temp_c', 'anaerobic_pond_2_ph',
         'anaerobic_pond_2_temp_c', 'cooling_pond_ph', 'cooling_pond_temp_c',
         'biogas_flare_status', 'biogas_flow_rate_m3h', 'raw_pome_feed_rate_m3h',
@@ -317,7 +324,7 @@ class EffluentPlantRecordService
      * context columns to exclude, unlike Process Water's shift/
      * inspector_id) is non-null/non-empty.
      */
-    protected function isRowFilled(array $row): bool
+    public function isRowFilled(array $row): bool
     {
         foreach (self::READING_FIELDS as $field) {
             $value = $row[$field] ?? null;

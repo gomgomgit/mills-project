@@ -1,0 +1,483 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-13"
+  },
+  "id": "usecase-162--laporan-effluent-plant-web",
+  "name": "Lihat Laporan Periode Effluent Plant (Web)",
+  "description": "Pengguna web memilih Production Line lalu periode pelaporan, dan membaca kondisi Effluent Plant (IPAL/POME) sepanjang periode itu — pH dan suhu di tiga kolam, laju biogas, laju POME masuk dan buangan keluar, mutu buangan akhir (pH, BOD, COD, TSS laboratorium), konsumsi bahan kimia, status biogas flare, pompa dosing, dan sludge dewatering, catatan perawatan dan temuan, serta seberapa lengkap pencatatannya. Laporan ini menampilkan angka kepatuhan lingkungan tanpa menyatakan patuh atau tidak patuh, karena batas regulasinya hidup di luar sistem ini.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+    "Mill sudah punya minimal satu Production Line",
+    "Mill sudah punya minimal satu periode pelaporan yang mencakup stasiun Effluent Plant"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka layar Laporan Effluent Plant dari pemilih stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Sistem menetapkan mill dari akun pengguna; khusus Admin, sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih Production Line pada bar filter; selama line belum dipilih tidak ada satu angka pun yang ditampilkan dan tombol ekspor belum tampil"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Effluent Plant pada mill itu"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Sistem menghitung setiap metrik dari pembacaan yang terisi untuk metrik itu sendiri, beserta jumlah pembacaannya masing-masing"
+    },
+    {
+      "step": 7,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan nilai terendah, rata-rata, dan tertinggi keempat belas metrik ukur beserta jumlah pembacaannya, sebaran ketiga status, rekap catatan perawatan dan rekap temuan secara terpisah, kelengkapan pencatatan, tren harian laju POME masuk dan pH buangan akhir, rekap per unit Effluent Plant, rekap harian, serta pernyataan bahwa laporan ini tidak menilai kepatuhan lingkungan"
+    },
+    {
+      "step": 8,
+      "actor": "actor-supervisor",
+      "description": "Pengguna dapat mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV atau Excel"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Admin memilih mill lebih dulu",
+      "trigger": "Pada langkah 2, pengguna berperan Admin",
+      "steps": [
+        "Sistem menampilkan pemilih Mill",
+        "Angka tidak ditampilkan sampai mill dipilih",
+        "Sistem menampilkan arahan memilih mill terlebih dahulu"
+      ]
+    },
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 3, pengguna belum memilih Production Line",
+      "steps": [
+        "Tidak ada satu angka pun yang ditampilkan",
+        "Sistem tidak menampilkan angka seluruh mill sebagai penggantinya",
+        "Tombol Ekspor CSV dan Ekspor Excel belum tampil",
+        "Sistem menampilkan arahan memilih line terlebih dahulu"
+      ]
+    },
+    {
+      "name": "Admin mengganti mill",
+      "trigger": "Pada langkah 2, Admin mengganti mill sesudah sebuah periode sudah terpilih",
+      "steps": [
+        "Pilihan periode DIKOSONGKAN, bukan diganti diam-diam dengan periode mill baru",
+        "Pemilih periode menampilkan 'Pilih Periode'",
+        "Layar menunggu pilihan periode sebelum menampilkan angka"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode",
+      "trigger": "Pada langkah 4, mill tidak punya periode yang mencakup Effluent Plant",
+      "steps": [
+        "Pemilih periode kosong",
+        "Sistem menampilkan arahan menghubungi Admin",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 6, periode tidak memuat satu pun pembacaan",
+      "steps": [
+        "Seluruh metrik ditampilkan sebagai tidak tersedia, bukan nol",
+        "Sistem menyatakan belum ada data pada periode itu",
+        "Tidak ada grafik kosong yang menyesatkan"
+      ]
+    },
+    {
+      "name": "Sebuah metrik tidak pernah diisi",
+      "trigger": "Pada langkah 6, satu metrik kosong sepanjang periode walau metrik lain terisi",
+      "steps": [
+        "Metrik itu ditampilkan tidak tersedia dengan jumlah pembacaan nol",
+        "Metrik lain tetap tampil normal dengan jumlah pembacaannya sendiri"
+      ]
+    },
+    {
+      "name": "Nilai laboratorium tidak pernah diisi",
+      "trigger": "Pada langkah 6, BOD, COD, dan TSS buangan akhir kosong sepanjang periode walau bacaan per jam lengkap",
+      "steps": [
+        "Ketiganya ditampilkan tidak tersedia dengan jumlah pembacaan nol",
+        "Sebelas metrik lain tetap tampil normal",
+        "Sistem menyebutkan bahwa ketiganya adalah nilai laboratorium yang menurut sifatnya terisi jauh lebih jarang",
+        "Keadaan ini tidak diperlakukan sebagai kegagalan pencatatan"
+      ]
+    },
+    {
+      "name": "Status tidak tercatat",
+      "trigger": "Pada langkah 6, kolom status biogas flare, pompa dosing, atau sludge dewatering kosong pada sebagian atau seluruh slot",
+      "steps": [
+        "Slot yang kosong dilaporkan terpisah sebagai 'tidak tercatat'",
+        "Yang tidak tercatat tidak pernah diperlakukan sebagai 'Mati' maupun 'Berhenti'",
+        "Sebaran tetap menampilkan seluruh nilai yang dikenal"
+      ]
+    },
+    {
+      "name": "Nilai status yang dikenal tidak pernah muncul",
+      "trigger": "Pada langkah 6, sebuah nilai status yang dikenal tidak muncul sama sekali sepanjang periode",
+      "steps": [
+        "Nilai itu tetap tampil pada sebaran dengan jumlah nol",
+        "Baris nilai itu tidak hilang dari daftar"
+      ]
+    },
+    {
+      "name": "Satu slot mengisi catatan perawatan dan temuan sekaligus",
+      "trigger": "Pada langkah 7, sebuah slot mengisi kedua kolom teks bebas",
+      "steps": [
+        "Slot itu muncul pada Rekap Catatan Perawatan dan pada Rekap Temuan",
+        "Keduanya tetap dua bagian terpisah, bukan satu daftar yang menghitung slot itu dua kali"
+      ]
+    },
+    {
+      "name": "Kedua kolom teks bebas kosong",
+      "trigger": "Pada langkah 7, tidak ada satu pun catatan perawatan maupun temuan sepanjang periode",
+      "steps": [
+        "Kedua rekap menampilkan keterangan tidak ada catatan",
+        "Tidak ada tabel kosong tanpa penjelasan"
+      ]
+    },
+    {
+      "name": "Pencatatan sangat tidak lengkap",
+      "trigger": "Pada langkah 6, hanya sebagian kecil slot waktu terisi sepanjang periode",
+      "steps": [
+        "Angka tetap ditampilkan",
+        "Kelengkapan pencatatan ditampilkan menonjol",
+        "Pembaca dapat melihat bahwa angkanya bersandar pada sedikit pembacaan"
+      ]
+    },
+    {
+      "name": "Periode masih berjalan",
+      "trigger": "Pada langkah 7, tanggal akhir periode masih di masa depan",
+      "steps": [
+        "Slot yang diharapkan dihitung hanya sampai hari ini",
+        "Sistem menampilkan keterangan bahwa perhitungan sampai hari ini karena periode masih berjalan",
+        "Hari yang belum terjadi tidak menurunkan persentase kelengkapan"
+      ]
+    },
+    {
+      "name": "Tidak ada slot yang diharapkan",
+      "trigger": "Pada langkah 7, belum ada unit Effluent Plant tercatat atau periode belum mulai",
+      "steps": [
+        "Persentase kelengkapan tampil sebagai tanda hubung, bukan 0,0%",
+        "Sistem menyatakan belum ada slot yang diharapkan"
+      ]
+    },
+    {
+      "name": "Mill punya beberapa unit Effluent Plant",
+      "trigger": "Pada langkah 6, terdapat lebih dari satu unit Effluent Plant pada line itu",
+      "steps": [
+        "Angka periode menggabungkan seluruh unit",
+        "Rekap per unit menampilkan sebarannya",
+        "Unit tanpa pembacaan tetap muncul dengan jumlah pembacaan nol"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun pengguna terikat mill tetapi mill-nya kosong",
+      "steps": [
+        "Sistem menampilkan pesan menghubungi Admin",
+        "Sistem tidak menawarkan daftar seluruh mill",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Mencoba melihat mill lain",
+      "trigger": "Pada langkah 6, permintaan membawa mill selain mill pada akun",
+      "steps": [
+        "Server mengabaikan nilai itu dan memakai mill pada akun",
+        "Angka yang tampil tetap milik mill pengguna",
+        "Periode milik mill lain tidak dapat dibuka"
+      ]
+    },
+    {
+      "name": "Mencoba melihat line mill lain",
+      "trigger": "Pada langkah 3, permintaan membawa production line yang bukan milik mill yang berlaku",
+      "steps": [
+        "Permintaan ditolak",
+        "Tidak ada angka milik line lain yang terlihat"
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka layar web ini",
+      "trigger": "Pada langkah 1, pengguna berperan Operator",
+      "steps": [
+        "Akses ditolak",
+        "Tidak ada data yang terlihat"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 5, pengguna memilih periode berstatus tertutup",
+      "steps": [
+        "Laporan tetap tampil penuh",
+        "Status tertutup ditampilkan",
+        "Ekspor tetap dapat dijalankan"
+      ]
+    },
+    {
+      "name": "Rekap harian panjang",
+      "trigger": "Pada langkah 7, periode cukup panjang sehingga rekap hariannya puluhan baris",
+      "steps": [
+        "Rekap harian dapat ditutup",
+        "Angka utama dan tren tetap terbaca tanpa gulir panjang"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rekap periode yang dipilih untuk Production Line yang dipilih",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "business_rules": [
+    "Layar hanya membaca; tidak ada aksi tulis",
+    "Supervisor dan Mill Management terkunci pada mill akunnya; Admin memilih",
+    "Operator tidak punya akses ke layar web ini",
+    "Production Line WAJIB dipilih lebih dulu; sebelum itu tidak ada satu angka pun yang ditampilkan dan angka seluruh mill tidak boleh dipakai sebagai penggantinya",
+    "Mengganti mill mengosongkan pilihan periode, bukan menggantinya diam-diam",
+    "Daftar periode hanya yang mencakup Effluent Plant atau berlaku semua jenis stasiun",
+    "Status periode tidak membatasi pembacaan maupun ekspor",
+    "Rentang periode inklusif di kedua ujung",
+    "Setiap metrik punya penyebutnya sendiri — dihitung hanya dari pembacaan yang terisi untuk metrik itu",
+    "BOD, COD, dan TSS buangan akhir adalah nilai laboratorium yang menurut sifatnya terisi jauh lebih jarang; penyebut kecil pada ketiganya adalah keadaan normal, bukan tanda data hilang",
+    "Jumlah pembacaan yang mendasari setiap angka ditampilkan berdampingan dengan angkanya",
+    "Laporan ini tidak menyatakan kepatuhan lingkungan — BOD, COD, TSS, dan pH buangan akhir punya batas regulasi yang ditetapkan di luar aplikasi, dan Effluent Plant tidak punya master target operasional",
+    "Tidak ada penandaan nilai di luar batas untuk metrik mana pun",
+    "Ketiga kolom status bersifat kategoris dan diterbitkan sebagai sebaran jumlah slot per nilai; terendah, rata-rata, dan tertinggi tidak punya arti untuknya",
+    "Sebaran status mengelompokkan nilai yang benar-benar ada lalu melengkapi nilai yang dikenal tetapi tidak muncul dengan jumlah nol",
+    "Slot yang kolom statusnya kosong dilaporkan terpisah dan tidak pernah diperlakukan sebagai 'Mati' atau 'Berhenti'",
+    "Catatan perawatan dan temuan adalah dua kolom teks bebas yang diterbitkan pada dua bagian terpisah; keduanya tidak pernah dirata-rata maupun digrafikkan",
+    "Stasiun ini tidak mencatat downtime, sehingga laporan ini tidak punya blok downtime",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki",
+    "Kelengkapan pencatatan untuk periode yang masih berjalan dihitung hanya sampai hari ini",
+    "Ekspor Excel adalah berkas .xlsx sungguhan; isi kolom CSV dan Excel sama, dengan konteks periode/mill/line diulang di tiap baris, judul kolom berbahasa Indonesia, dan label nilai status mengikuti layar Detail (On/Off/Fault, Run/Stop) — satu nilai, satu label, di seluruh produk"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor atau Mill Management, akunnya terikat pada satu mill, mill itu punya minimal satu Production Line, dan punya minimal satu periode pelaporan yang mencakup stasiun Effluent Plant dengan pembacaan yang sudah terkumpul",
+      "when": "Pengguna membuka layar Laporan Effluent Plant dari pemilih stasiun, memilih Production Line pada bar filter, lalu memilih salah satu periode yang tersedia",
+      "then": "Sistem menetapkan mill langsung dari akun pengguna tanpa menampilkan pemilih Mill, lalu menampilkan nilai terendah, rata-rata, dan tertinggi keempat belas metrik ukur beserta jumlah pembacaannya masing-masing, sebaran ketiga status, rekap catatan perawatan dan rekap temuan pada dua bagian terpisah, kelengkapan pencatatan, tren harian laju POME masuk dan pH buangan akhir, rekap per unit Effluent Plant, dan rekap harian; rincian pembacaan per slot waktu dapat diunduh sebagai CSV maupun Excel dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — berhasil sebagai Admin",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Admin dan terdapat mill yang punya Production Line serta minimal satu periode pelaporan yang mencakup stasiun Effluent Plant dengan pembacaan yang sudah terkumpul",
+      "when": "Admin membuka layar Laporan Effluent Plant, memilih mill pada pemilih Mill, memilih Production Line, lalu memilih salah satu periode yang tersedia",
+      "then": "Sistem memuat daftar periode milik mill yang dipilih dan menampilkan rekap periode lengkap untuk line itu — terendah, rata-rata, dan tertinggi keempat belas metrik beserta jumlah pembacaannya, sebaran ketiga status, rekap catatan perawatan dan rekap temuan secara terpisah, kelengkapan pencatatan, dua tren harian, rekap per unit, dan rekap harian — dengan ekspor CSV dan Excel tersedia dan tanpa ada data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — Admin memilih mill lebih dulu",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Admin dan belum memilih mill apa pun",
+      "when": "Admin membuka layar Laporan Effluent Plant",
+      "then": "Sistem menampilkan pemilih Mill beserta arahan untuk memilih mill terlebih dahulu, dan tidak ada angka laporan yang ditampilkan sampai mill dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — Production Line belum dipilih",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, mill yang berlaku sudah ditetapkan, dan mill itu punya beberapa Production Line",
+      "when": "Pengguna membuka layar Laporan Effluent Plant tanpa memilih Production Line terlebih dahulu",
+      "then": "Tidak ada satu angka pun yang ditampilkan, sistem tidak menampilkan angka seluruh mill sebagai penggantinya, tombol Ekspor CSV dan Ekspor Excel belum tampil, dan layar menampilkan arahan untuk memilih line terlebih dahulu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — Admin mengganti mill mengosongkan pilihan periode",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Admin, sudah memilih sebuah mill, dan sudah memilih sebuah periode sehingga laporannya tampil",
+      "when": "Admin mengganti pilihan mill ke mill lain",
+      "then": "Pilihan periode dikosongkan dan pemilih periode kembali menampilkan 'Pilih Periode' — bukan diganti diam-diam dengan periode mill baru — dan layar menunggu pilihan periode sebelum menampilkan angka apa pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — mill belum punya periode",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang berlaku tidak punya satu pun periode pelaporan yang mencakup stasiun Effluent Plant",
+      "when": "Pengguna membuka layar Laporan Effluent Plant untuk mill tersebut dan membuka pemilih periode",
+      "then": "Pemilih periode tampil kosong, sistem menampilkan arahan untuk menghubungi Admin, dan tidak ada angka laporan yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — periode tanpa data",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, sudah memilih Production Line, dan mill punya periode pelaporan yang mencakup Effluent Plant namun periode itu belum memuat satu pun pembacaan",
+      "when": "Pengguna memilih periode yang tidak memuat pembacaan sama sekali",
+      "then": "Seluruh metrik ditampilkan sebagai tidak tersedia dan bukan nol, sistem menyatakan belum ada data pada periode itu, serta tidak ada grafik kosong yang menyesatkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — sebuah metrik tidak pernah diisi",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih memuat pembacaan di mana satu metrik kosong sepanjang periode sementara metrik lain terisi",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung setiap metrik",
+      "then": "Metrik yang tidak pernah diisi ditampilkan tidak tersedia dengan jumlah pembacaan nol, sedangkan metrik lain tetap tampil normal dengan jumlah pembacaannya sendiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — nilai laboratorium tidak pernah diisi sepanjang periode",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih punya bacaan per jam yang lengkap namun BOD, COD, dan TSS buangan akhir tidak pernah diisi sama sekali",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung seluruh metrik",
+      "then": "Ketiga nilai laboratorium ditampilkan tidak tersedia dengan jumlah pembacaan nol sementara sebelas metrik lain tetap tampil normal, dan sistem menyebutkan bahwa ketiganya adalah nilai laboratorium yang menurut sifatnya terisi jauh lebih jarang sehingga keadaan ini tidak diperlakukan sebagai kegagalan pencatatan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — status tidak tercatat",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih memuat slot yang kolom status biogas flare, pompa dosing, atau sludge dewatering-nya kosong pada sebagian atau seluruh slot",
+      "when": "Pengguna memilih periode tersebut dan sistem menyusun sebaran ketiga status",
+      "then": "Slot yang kosong dilaporkan terpisah sebagai 'tidak tercatat', tidak pernah diperlakukan sebagai 'Mati' maupun 'Berhenti', dan sebaran tetap menampilkan seluruh nilai yang dikenal beserta jumlahnya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — nilai status yang dikenal tidak pernah muncul",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih tidak memuat satu pun slot bernilai 'Gangguan' pada status biogas flare walau nilai itu dikenal sistem",
+      "when": "Pengguna memilih periode tersebut dan sistem menampilkan sebaran status biogas flare",
+      "then": "Nilai 'Gangguan' tetap tampil pada sebaran dengan jumlah nol dan barisnya tidak hilang dari daftar, sehingga pembaca dapat membedakan 'tidak pernah terjadi' dari 'tidak dilaporkan'"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — satu slot mengisi catatan perawatan dan temuan sekaligus",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih memuat sebuah slot yang mengisi kolom catatan perawatan dan kolom temuan sekaligus",
+      "when": "Pengguna memilih periode tersebut dan membaca Rekap Catatan Perawatan serta Rekap Temuan",
+      "then": "Slot itu muncul pada kedua rekap karena keduanya adalah dua bagian terpisah yang menjawab pertanyaan berbeda, dan tidak ada satu daftar gabungan yang menghitung slot itu dua kali"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — kedua kolom teks bebas kosong",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih tidak memuat satu pun catatan perawatan maupun temuan",
+      "when": "Pengguna memilih periode tersebut dan membaca kedua rekap teks bebas",
+      "then": "Rekap Catatan Perawatan dan Rekap Temuan masing-masing menampilkan keterangan bahwa tidak ada catatan, bukan tabel kosong tanpa penjelasan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — pencatatan sangat tidak lengkap",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih hanya terisi pada sebagian kecil slot waktu sepanjang periode",
+      "when": "Pengguna memilih periode tersebut",
+      "then": "Angka tetap ditampilkan, kelengkapan pencatatan ditampilkan secara menonjol sebagai bagian laporan dan bukan catatan kaki, dan pembaca dapat melihat bahwa angka itu bersandar pada sedikit pembacaan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — periode masih berjalan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih tanggal akhirnya masih di masa depan sementara hari-hari yang sudah lewat terisi penuh",
+      "when": "Pengguna memilih periode yang masih berjalan itu dan sistem menghitung kelengkapan pencatatan",
+      "then": "Slot yang diharapkan dihitung hanya sampai hari ini sehingga hari yang belum terjadi tidak menurunkan persentase kelengkapan, dan sistem menampilkan keterangan bahwa perhitungan dilakukan sampai hari ini karena periode masih berjalan beserta berapa hari periode yang sudah lewat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — tidak ada slot yang diharapkan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih belum mulai atau line itu belum punya satu pun unit Effluent Plant tercatat sehingga slot yang diharapkan nol",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung kelengkapan pencatatan",
+      "then": "Persentase kelengkapan tampil sebagai tanda hubung dengan keterangan belum ada slot yang diharapkan, bukan sebagai 0,0% yang terbaca seolah pencatatan gagal"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — mill punya beberapa unit Effluent Plant",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan line yang dipilih punya lebih dari satu unit Effluent Plant pada periode yang dipilih",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung rekap periode",
+      "then": "Angka periode menggabungkan seluruh unit, rekap per unit menampilkan sebaran antar unit, dan unit yang tidak punya pembacaan tetap muncul dengan jumlah pembacaan nol"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — akun belum terhubung ke mill",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor atau Mill Management namun akunnya terikat mill yang kosong",
+      "when": "Pengguna membuka layar Laporan Effluent Plant",
+      "then": "Sistem menampilkan pesan untuk menghubungi Admin, tidak menawarkan daftar seluruh mill, dan tidak ada angka laporan yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — mencoba melihat mill lain",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor atau Mill Management dan akunnya terikat pada satu mill tertentu",
+      "when": "Permintaan laporan dikirim dengan membawa mill selain mill pada akun pengguna",
+      "then": "Server mengabaikan nilai mill yang dikirim dan memakai mill pada akun, angka yang tampil tetap milik mill pengguna, dan periode milik mill lain tidak dapat dibuka"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — mencoba melihat line mill lain",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan terdapat production line yang bukan milik mill yang berlaku bagi pengguna itu",
+      "when": "Permintaan laporan dikirim dengan membawa production line milik mill lain",
+      "then": "Permintaan ditolak dan tidak ada satu pun angka milik line lain yang terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — Operator mencoba membuka layar web ini",
+      "given": "Pengguna sudah masuk dengan peran Station Operator",
+      "when": "Operator mencoba membuka layar Laporan Effluent Plant di web",
+      "then": "Akses ditolak dan tidak ada satu pun data laporan yang terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — periode tertutup",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan mill punya periode pelaporan berstatus tertutup yang mencakup stasiun Effluent Plant",
+      "when": "Pengguna memilih periode yang berstatus tertutup",
+      "then": "Laporan tetap tampil penuh, status tertutup ditampilkan sebagai keterangan, dan ekspor CSV maupun Excel tetap dapat dijalankan karena status periode tidak membatasi pembacaan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — rekap harian panjang",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih cukup panjang sehingga rekap hariannya mencapai puluhan baris",
+      "when": "Sistem menampilkan rekap periode beserta rekap hariannya",
+      "then": "Rekap harian dapat ditutup, dan angka utama serta tren tetap terbaca tanpa perlu menggulir panjang"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — layar hanya membaca",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode pelaporan yang mencakup Effluent Plant sudah memuat pembacaan",
+      "when": "Pengguna menelusuri seluruh isi layar Laporan Effluent Plant, termasuk sebaran status, kedua rekap teks bebas, rekap per unit, dan rekap harian",
+      "then": "Layar tidak menyediakan satu pun aksi tulis — tidak ada tombol simpan, ubah, atau hapus — dan setelah layar ditutup tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — daftar periode hanya yang mencakup Effluent Plant",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan mill punya campuran periode: sebagian mencakup Effluent Plant, sebagian berlaku untuk semua jenis stasiun, dan sebagian hanya mencakup stasiun lain",
+      "when": "Pengguna membuka layar Laporan Effluent Plant dan membuka pemilih periode",
+      "then": "Pemilih periode hanya memuat periode yang mencakup Effluent Plant atau yang berlaku untuk semua jenis stasiun, sedangkan periode yang hanya mencakup stasiun lain tidak muncul dan tidak dapat dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — rentang periode inklusif di kedua ujung",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih punya pembacaan tepat pada tanggal mulai dan tepat pada tanggal akhir periode",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung rekap periode",
+      "then": "Pembacaan pada tanggal mulai dan pada tanggal akhir ikut terhitung dalam seluruh metrik, jumlah pembacaan, sebaran status, kelengkapan, tren harian, rekap harian, dan hasil ekspor"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — setiap metrik punya penyebutnya sendiri",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih memuat baris pembacaan yang sebagian mengisi pH kolam tetapi mengosongkan seluruh nilai laboratorium, sehingga tiap metrik punya jumlah pembacaan terisi yang berbeda",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung nilai terendah, rata-rata, dan tertinggi keempat belas metrik",
+      "then": "Rata-rata tiap metrik dihitung hanya dari pembacaan yang terisi untuk metrik itu sendiri dengan penyebutnya masing-masing, sehingga metrik yang jarang diisi tidak ikut mengempis akibat memakai satu penyebut bersama dari seluruh baris pembacaan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — jumlah pembacaan ditampilkan berdampingan dengan angkanya",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih memuat pembacaan dengan kelengkapan yang berbeda jauh antar metrik",
+      "when": "Sistem menampilkan nilai terendah, rata-rata, dan tertinggi tiap metrik",
+      "then": "Setiap angka ditampilkan berdampingan dengan jumlah pembacaan yang mendasarinya, sehingga rata-rata dari tiga pembacaan tidak pernah terlihat sama meyakinkan dengan rata-rata dari tiga ratus pembacaan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — laporan tidak menyatakan kepatuhan lingkungan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih memuat nilai pH, BOD, COD, dan TSS buangan akhir yang terisi",
+      "when": "Pengguna membaca blok Buangan Akhir pada laporan beserta hasil ekspornya",
+      "then": "Laporan menampilkan angkanya apa adanya beserta pernyataan — ditempatkan di dekat angka itu, bukan sebagai catatan kaki — bahwa batas regulasi keempat parameter itu ditetapkan di luar aplikasi sehingga laporan ini tidak menyatakan patuh maupun tidak patuh, dan tidak ada kesimpulan kepatuhan dalam bentuk apa pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — tidak ada penandaan nilai di luar batas",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih memuat pembacaan dengan nilai yang secara ekstrem jauh lebih tinggi dan lebih rendah dari nilai lainnya",
+      "when": "Sistem menampilkan metrik, tren harian, rekap per unit, dan rekap harian",
+      "then": "Tidak ada satu pun nilai yang ditandai sebagai di luar batas — tanpa warna peringatan, ikon, maupun label pelanggaran — karena Effluent Plant tidak punya master target operasional; seluruh nilai ditampilkan netral apa adanya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — status kategoris diterbitkan sebagai sebaran, bukan rata-rata",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih memuat slot dengan status biogas flare, pompa dosing, dan sludge dewatering yang bervariasi",
+      "when": "Sistem menampilkan bagian status pada laporan periode",
+      "then": "Ketiga status diterbitkan sebagai sebaran jumlah slot per nilai dan tidak satu pun dari ketiganya ditampilkan sebagai nilai terendah, rata-rata, atau tertinggi, maupun muncul pada grafik tren"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — catatan perawatan dan temuan tidak pernah dirata-rata maupun digrafikkan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih memuat beberapa catatan perawatan serta temuan pada slot waktu yang berbeda",
+      "when": "Sistem menghitung dan menampilkan rekap periode",
+      "then": "Kedua kolom teks bebas itu tampil utuh sebagai daftar isi beserta tanggal dan slot waktunya, tidak pernah dirata-rata, tidak dijadikan nilai terendah atau tertinggi, dan tidak muncul pada grafik tren mana pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — laporan tidak memuat blok downtime",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode yang dipilih memuat pembacaan lengkap",
+      "when": "Pengguna menelusuri seluruh bagian laporan dari atas sampai bawah beserta hasil ekspornya",
+      "then": "Tidak ada satu pun bagian, ringkasan, maupun kolom downtime karena stasiun Effluent Plant tidak mencatat downtime sama sekali, dan ketiadaan itu tidak terbaca sebagai bagian yang gagal dimuat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Web) — ekspor Excel adalah .xlsx sungguhan dengan isi yang sama seperti CSV",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, sudah memilih Production Line dan periode, sehingga tombol Ekspor CSV dan Ekspor Excel tampil",
+      "when": "Pengguna mengunduh laporan dalam bentuk Excel lalu mengunduh laporan yang sama dalam bentuk CSV untuk dibandingkan",
+      "then": "Berkas Excel yang terunduh adalah berkas .xlsx sungguhan yang dapat dibuka langsung tanpa peringatan format, isi kolomnya sama dengan CSV — satu baris per slot waktu dengan kolom Periode, Mill, dan Production Line diulang di setiap baris, status berlabel Bahasa Indonesia, slot waktu HH:MM, dan sel kosong tetap kosong — dan selama berkas disiapkan kedua tombol ekspor terkunci sesaat sehingga klik ganda tidak menghasilkan unduhan ganda"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-156--laporan-effluent-plant-web"
+  ]
+}

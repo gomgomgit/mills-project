@@ -1,0 +1,94 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-13"
+  },
+  "id": "screen-156--laporan-effluent-plant-web",
+  "name": "Laporan Effluent Plant (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/EffluentPlantReportService.php",
+    "backend/app/Http/Controllers/Api/EffluentPlantReportController.php",
+    "backend/app/Livewire/Dashboard/LaporanEffluentPlant.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/app/Services/EffluentPlantRecordService.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/EffluentPlantReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanEffluentPlantTest.php",
+    "backend/tests/Feature/Livewire/LaporanEffluentPlantTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/resources/views/livewire/dashboard/laporan-effluent-plant.blade.php",
+    "backend/resources/views/dashboard/laporan-effluent-plant.blade.php",
+    "backend/resources/views/dashboard/partials/report-styles.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "e2e-web/tests/laporan-effluent-plant.spec.ts"
+  ],
+  "implementation_notes": [
+    "Laporan periode stasiun ke-12. Bentuknya mengikuti sebelas yang sudah ada: service + controller API + komponen Livewire memakai SERVICE YANG SAMA, sehingga halaman web dan API tidak mungkin berbeda angkanya. Guard line mengikuti GradingReportService (terbaru), bukan Kernel Plant: resolveProductionLine() melempar 422/403, sementara resolveProductionLineOrNull() melayani layar web di mana 'belum pilih line' adalah keadaan buka yang normal. Urutan guard: peran → mill → line → periode.",
+    "Operator ditolak 403 pada keempat endpoint API DAN pada rute web — berbeda dari Grading/Kernel Plant yang menerima Operator pada tiga rute data. Kembaran mobile screen-157 belum dibangun, jadi belum ada pemanggil Operator yang sah. Diuji di tiga lapisan: 4 kasus unit, skenario API, dan invarian (k) browser yang juga membuktikan pembeda itu disengaja (Operator DENGAN header stateful mendapat 403 di effluent-plant tetapi 200 di grading-reports dan boiler-room-reports).",
+    "PENYEBUT PER METRIK TERBUKTI TERISOLASI, dan inilah cacat utama yang dicari: unit case 31/32 memakai 100 baris yang hanya 2 di antaranya mengisi COD sehingga avg = 350.0 (bukan 7); case 36 memakai 240 baris non-lab lengkap melawan reading_count 0 pada ketiga metrik lab; case 29 membuktikan slot yang HANYA mengisi findings menaikkan filled_slots dan mengasersi reading_count < filled_slots untuk KEEMPAT BELAS metrik. Invarian (d) browser menangkap penyebut bersama tanpa memaku angka: kartu bernilai 'tidak tersedia' wajib mencetak penyebut 0.",
+    "status_distribution[*].recorded_slots = jumlah slot TERISI, sehingga sum(counts) + not_recorded === recorded_slots === coverage.filled_slots. Invarian ini diuji di tiga lapisan. Penyebut porsi memakai recorded_slots, TIDAK PERNAH expected_slots — yang kedua akan mencampur 'tidak tercatat' ke dalam porsi nilai.",
+    "metrics dikunci NAMA KOLOM (sesuai success_schema tech spec), berbeda dari Kernel Plant yang list-of-objects. Konsekuensinya label/satuan/desimal tinggal di blade (konvensi BoilerRoom) dan satu tabel label dipakai ulang oleh kartu metrik, rekap per unit, dan rekap harian — satu definisi, satu jawaban.",
+    "Markup kartu metrik ditulis SEKALI dan di-loop 14 kali, justru supaya tidak ada blok yang bisa kehilangan atau mewarisi penyebut milik blok lain.",
+    "Nol agregat SQL TERBUKTI lewat DB::listen (unit case 57): tidak ada avg(/min(/max(/sum(/group by; satu kueri record + satu eager-load detail; kemunculan strftime membuktikan whereDate dipakai. Total 7 kueri untuk satu summary penuh.",
+    "Isolasi line diuji keras (case 27/28 + skenario API 34c): stasiun DIPINDAH ke line lain, dan record lama tetap milik line asalnya. Join ke stations akan menjawab rata-rata dua line dan tertangkap di sini.",
+    "Ekspor: 27 kolom header, satu baris per slot waktu, konteks diulang, sel kosong tetap kosong. EXPORT_ROW_LIMIT dibuktikan atas BARIS SLOT lewat subclass EffluentPlantReportTinyExportService (limit 5, 6 baris slot dari 1 record). format=excel menghasilkan body yang mulai dengan 504b (xlsx sungguhan via SheetWriter); format=pdf → 422.",
+    "expected_slots === 0 → coverage_percent 0.0 (bukan null, sesuai spec), dan blade bercabang pada expected_slots === 0 untuk merender '—' + 'belum ada slot yang diharapkan'.",
+    "Rekap harian memakai <details> native, bukan state komponen seperti diredaksikan component_test skenario 23. Test Livewire membuktikan klaim 'menutupnya tidak mengubah satu angka pun' secara struktural: daily-table dan daily-row-total berada DI DALAM elemen yang ditutup, sedangkan kartu metrik, kedua tren, dan coverage-slots berada DI LUAR. Invarian (i) browser menguji toggle sungguhan.",
+    "Partial ber-<style> ditaruh di slot `styles` layout, bukan di tengah markup — menghindari jebakan wire:id menempel pada elemen <style> yang pernah mematikan SELURUH wire:model di screen-140.",
+    "Audit CSS dijalankan pada HTML HASIL COMPILE (bukan sumbernya): 122 kelas diperiksa, daftar tanpa definisi = kosong. Sweep penanda terlarang pada HTML ter-render (threshold, outlier, iqr, is-danger, text-red, severity, md-param--warn, md-status--warn, --low) semuanya 0. Dua kelas tata letak baru (.md-kpis--2, .md-row--3) ditambahkan ke report-styles.blade.php secara aditif.",
+    "SATU BARIS REPORT_ROUTES disisipkan ANTARA boiler-room (sort_order 90) dan depricarping (110), sesuai sort_order effluent-plant 100. Dua asersi tetangga di berkas test Depricarping (DepricarpingReportServiceTest.php, LaporanDepricarpingTest.php) ikut diperbarui dari 'boiler-room' ke 'effluent-plant' — komentar di test itu sendiri menyatakan asersinya MEMANG dimaksudkan gagal bila peta berubah supaya daftarnya diperbarui, jadi memperbaruinya adalah perilaku yang dirancang, bukan pelemahan asersi.",
+    "Dua baris visibilitas di EffluentPlantRecordService diubah dari protected ke public (READING_FIELDS dan isRowFilled) supaya laporan MEMINJAM definisi 19 kolom alih-alih menulis ulangnya. BoilerRoomRecordService, KernelPlantRecordService, ClarificationRecordService, dan StorageTankRecordService sudah public untuk alasan yang sama. Menulis ulang daftar kolom di berkas lain adalah cara laporan dan formulir mulai berbeda pendapat tentang apa yang tercatat.",
+    "Spec browser memakai konvensi laporan terbaru: tidak menanam data laporan, tidak memaku satu angka pun, memakai support/period-fixture.ts, dan mengasersi invarian (a)–(k) yang dihitung dari DOM. Satu cacat berkas test ditemukan dan diperbaiki: loop API pada invarian (k) memanggil page.request.get() tanpa header stateful, sehingga EnsureFrontendRequestsAreStateful tidak mengaktifkan session guard dan Sanctum menjawab 401 SEBELUM guard peran dievaluasi. Perbaikannya memakai statefulHeaders(page) dari support/periods.ts — seperti enam spec laporan lain — dan itu MEMPERKETAT asersinya menjadi 403, bukan melemahkannya.",
+    "Jebakan Pest yang sempat menjebak berkas test dan kini bersih: expect(...)->toContain($needle, $message) memperlakukan argumen kedua sebagai needle KEDUA, bukan pesan; dan ->not->toHaveKey($k, $msg) melemahkan asersi menjadi selalu hijau. Semua kemunculannya diganti ke assertStringContainsString / assertNotContains / assertArrayNotHasKey(..., $message) sehingga pesan tetap ada dan asersi tetap ketat.",
+    "Cacat mock ditemukan dan TIDAK diikuti: formula kelengkapan pada mock HTML menulis '12 slot' per hari. Implementasinya memakai 24 dari EffluentPlantRecordService::canonicalTimeSlots(), sesuai business_logic langkah 21.",
+    "Akun terikat mill tanpa business_unit_id → 422 VALIDATION_ERROR (gagal tertutup), sama dengan kesebelas laporan sebelumnya; diasersi bersama spy allBusinessUnits() = 0 panggilan, sehingga daftar seluruh mill terbukti tidak pernah dibaca sebagai cakupan pengganti.",
+    "Pint bersih pada seluruh berkas PHP baru. Dua berkas rute (api.php, web.php) gagal aturan ordered_imports Pint, tetapi itu PRE-EXISTING di HEAD (diverifikasi lewat git show HEAD:) — auto-fix akan mengacak puluhan import yang tidak berhubungan, jadi dibiarkan apa adanya.",
+    "mobile/ tidak disentuh sama sekali, dan phpunit.xml tidak diubah."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "AMBANG COVERAGE UNIT 80% TIDAK TERUKUR. php -m tidak memuat xdebug maupun pcov (PHP 8.5.4, hanya OPcache), sehingga `php artisan test --coverage --min=80` keluar dengan exit 0 tanpa mencetak tabel coverage dan tanpa menegakkan --min; XDEBUG_MODE=coverage tidak menolong karena ekstensinya tidak terpasang. Ini BUKAN kekhususan layar ini: kesebelas layar laporan sebelumnya juga tercatat coverage 0 dengan status complete, jadi angka coverage memang belum pernah terukur di proyek ini. Angka pengganti kualitatif untuk satu service: 63 test / 624 asersi yang mencakup 66 case id. Memasang pcov/xdebug adalah keputusan lingkungan, bukan keputusan layar ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "Tabel sebaran status DI LAYAR memakai label Indonesia (Nyala/Mati/Gangguan, Jalan/Berhenti) sementara layar Detail screen-089, formulir, dan kedua berkas ekspor memakai On/Off/Fault dan Run/Stop lewat Display::OPTION_LABELS. Satu nilai kini punya dua label di dalam satu produk, dan laporan inilah satu-satunya tempat berlabel Indonesia. Implementasi mengikuti apa yang dinyatakan business spec ketika ditulis; keseragaman istilah diangkat sebagai open_question pada business spec v2 agar diputuskan pemilik produk, bukan diubah diam-diam. Tidak ada angka yang terpengaruh.",
+      "severity": "minor"
+    },
+    {
+      "description": "Satu kegagalan flake teramati sekali pada suite backend penuh: DashboardServiceTest.php:78 melaporkan 3 record weighbridge alih-alih 2 (total 10.856,22 alih-alih 8.000). Diselidiki dan BUKAN regresi layar ini: berkas itu lulus 3/3 saat dijalankan sendiri, suite Unit penuh lulus 1.787/0, dan pengulangan suite backend penuh lulus 5.464/0. Tidak satu pun berkas yang disentuh perubahan ini menyinggung DashboardService. Dicatat di sini supaya kalau muncul lagi di masa depan sudah ada jejaknya — dugaan terkuat: kebocoran state antar test yang bergantung pada urutan, pre-existing.",
+      "severity": "info"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-13T05:21:40Z",
+      "passed": 63,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-13T05:21:48Z",
+      "passed": 36,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-13T05:21:58Z",
+      "passed": 38,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-13T06:05:00Z",
+      "passed": 17,
+      "failed": 0
+    }
+  }
+}

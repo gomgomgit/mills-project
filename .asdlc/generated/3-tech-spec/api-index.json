@@ -1,8 +1,8 @@
 {
-  "ver": 75,
+  "ver": 78,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-12"
+    "updated_at": "2026-10-13"
   },
   "endpoints": [
     {
@@ -2426,6 +2426,56 @@
         "actor-mill-management",
         "actor-admin",
         "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/effluent-plant-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Effluent Plant — ADMIN SAJA; 403 untuk setiap peran yang terikat satu mill, ditegakkan di dalam service bukan oleh middleware sehingga melebarkan daftar peran rute tidak melonggarkannya. Master kosong adalah jawaban sah: [] dengan 200, bukan 404.",
+      "screen_id": "screen-156--laporan-effluent-plant-web",
+      "usecase_id": "usecase-162--laporan-effluent-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/effluent-plant-reports/periods",
+      "description": "Daftar Periode Pelaporan yang punya baris period_stations berjenis 'effluent-plant' pada satu mill; status per baris period_stations, dan periode tertutup maupun draft ikut tercantum — laporan ini tidak menyaring status. business_unit_id WAJIB bagi Admin (422 bila absen) dan DIABAIKAN bagi peran terikat mill — diabaikan, bukan divalidasi, sehingga menyelidik id mill lain adalah no-op yang tetap 200. production_line_id sengaja bukan parameter: periode milik mill, bukan milik line. OPERATOR BELUM DITERIMA di sini, berbeda dari prefix Grading/Kernel Plant — kembaran mobile screen-157 belum dibangun, dan pelebarannya kelak wajib menyentuh daftar peran DAN cabang terikat-mill sekaligus, karena melebarkan yang pertama saja menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien dihormati (kebocoran lintas mill).",
+      "screen_id": "screen-156--laporan-effluent-plant-web",
+      "usecase_id": "usecase-162--laporan-effluent-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/effluent-plant-reports/summary",
+      "description": "Seluruh angka Laporan Effluent Plant untuk satu periode pada satu Production Line. EMPAT BELAS kolom ukur — dua kali Kernel Plant — masing-masing min/rata-rata/maks DENGAN PENYEBUTNYA SENDIRI; tiga di antaranya (final_discharge_bod/cod/tss_mgl_lab) ditandai is_lab karena nilai LABORATORIUM yang menurut sifatnya terisi jauh lebih jarang, sehingga penyebut kecil pada ketiganya adalah keadaan normal dan bukan data hilang. TIGA kolom status kategoris (biogas_flare_status on|off|fault, dosing_pump_1_status run|stop, sludge_dewatering_status run|stop) diterbitkan sebagai SEBARAN jumlah slot per nilai — nilai yang dikenal tetapi tidak muncul dilengkapi dengan jumlah 0, dan slot yang kolomnya NULL masuk not_recorded yang TERPISAH, tidak pernah dilipat ke 'off'/'stop'. DUA kolom teks bebas (remarks_maintenance_actions, findings) diterbitkan sebagai DUA DAFTAR TERPISAH; satu slot yang mengisi keduanya muncul di kedua daftar, dan itu benar — menyatukannya akan menghitungnya dua kali. Kelengkapan = slot terisi terhadap unit × days_counted × 24 slot kanonis (EffluentPlantRecordService::canonicalTimeSlots), dengan days_counted berhenti di HARI INI untuk periode berjalan dan 0 bila belum mulai; expected_slots 0 → coverage_percent 0.0 dan layar menampilkan '—'. Hanya DUA tren harian (raw_pome_feed_rate_m3h dan final_discharge_ph) — nilai laboratorium sengaja tidak digrafikkan harian. TANPA blok downtime sama sekali (effluent_plant_details tidak punya kolomnya) dan TANPA penandaan nilai di luar batas (tidak ada master target operasional). final_discharge_ph/bod/cod/tss adalah angka KEPATUHAN LINGKUNGAN yang batas regulasinya hidup di luar aplikasi: payload tidak membawa satu pun kunci yang menyatakan patuh atau tidak patuh. Seluruh agregasi di PHP, nol agregat SQL atas kolom nullable. period_id dan production_line_id KEDUANYA WAJIB (422 bila absen, dan nol kueri record berjalan — tidak pernah di-default ke 'semua line mill'); line maupun periode milik mill lain → 403.",
+      "screen_id": "screen-156--laporan-effluent-plant-web",
+      "usecase_id": "usecase-162--laporan-effluent-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/effluent-plant-reports/export",
+      "description": "Unduhan CSV/Excel Laporan Effluent Plant — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, unit effluent plant, status, catatan) diulang verbatim di setiap baris, memuat ke-19 kolom READING_FIELDS: 14 kolom ukur, ketiga kolom status, dan kedua kolom teks bebas apa adanya. Pemetaan label: kolom 'Status' konteks lewat ExportValue::status() (status RECORD — Tersimpan/Tersinkron), ketiga kolom status pengukuran lewat ExportValue::option() (Display::OPTION_LABELS — On/Off/Fault, Run/Stop) sehingga identik dengan layar Detail dan dengan ekspor Data Browser stasiun ini; kedua pemeta itu bernama mirip tetapi menjawab hal berbeda dan tidak boleh ditukar. Menghilangkan kedua kolom teks membuat berkasnya tak dapat menggantikan laporan, yang justru inti dari mengekspornya. Excel adalah .xlsx SUNGGUHAN lewat SheetWriter, bukan CSV bernama .xlsx. Batas 50.000 dihitung atas BARIS SLOT bukan record — satu record dapat menghasilkan 24 baris, jadi batasnya tercapai pada jumlah record 24 kali lebih kecil. Gate peran, resolusi mill, resolusi line, pemeriksaan format, dan pemeriksaan batas berjalan EAGER sebelum aliran dimulai, supaya 403/422 tidak sampai ke klien sebagai unduhan berhasil yang kosong. Bukan respons JSON.",
+      "screen_id": "screen-156--laporan-effluent-plant-web",
+      "usecase_id": "usecase-162--laporan-effluent-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
       ]
     }
   ]

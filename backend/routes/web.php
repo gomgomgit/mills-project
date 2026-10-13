@@ -7,6 +7,7 @@ use App\Livewire\Dashboard\LaporanCagesTrack;
 use App\Livewire\Dashboard\LaporanClarification;
 use App\Livewire\Dashboard\LaporanGrading;
 use App\Livewire\Dashboard\LaporanDepricarping;
+use App\Livewire\Dashboard\LaporanEffluentPlant;
 use App\Livewire\Dashboard\LaporanKernelPlant;
 use App\Livewire\Dashboard\LaporanPressing;
 use App\Livewire\Dashboard\LaporanThreshing;
@@ -1002,5 +1003,34 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/kernel-plant', LaporanKernelPlant::class)
     ->name('reports.kernel-plant');
+
+// screen-156--laporan-effluent-plant-web (Laporan Periode Effluent Plant).
+//
+// Supervisor / Mill Management / Admin only. OPERATOR IS REFUSED HERE *AND*
+// ON /api/effluent-plant-reports, which is the one thing that differs from
+// the Grading / Kernel Plant pair: the mobile twin of this screen
+// (screen-157) has not been built, so Operator has no legitimate caller yet
+// on either side. When screen-157 is built, the API widens — this web route
+// and LaporanEffluentPlant::canAccess() deliberately do NOT, which is why
+// canAccess() keeps its own role list instead of borrowing the service's.
+//
+// Route is /reports/effluent-plant, NOT /laporan/effluent-plant — the repo's
+// convention for report screens is the English /reports/* prefix
+// (/reports/management, /reports/stations, /reports/sterilizer,
+// /reports/boiler-room, /reports/kernel-plant), and no route in this file
+// uses /laporan. It is also distinct from the DATA screens for the same
+// station, which live under /data/effluent-plant (browser),
+// /data/effluent-plant/create (input form, screen-115),
+// /data/effluent-plant/{id} and /data/effluent-plant/{id}/edit — this report
+// reads what those screens write and never writes anything itself.
+//
+// Reachable from the UI ONLY through the Effluent Plant tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES
+// now maps the 'effluent-plant' code to this route name. Without that one
+// line the report exists, every test here passes, and the screen stays
+// unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/effluent-plant', LaporanEffluentPlant::class)
+    ->name('reports.effluent-plant');
 
 // === ASDLC_ROUTES_END ===

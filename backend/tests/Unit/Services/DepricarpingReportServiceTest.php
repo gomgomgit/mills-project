@@ -1588,14 +1588,20 @@ it('case 66 — REPORT_ROUTES memetakan depricarping, dan posisinya mengikuti so
     $codes = array_keys(StationReportService::REPORT_ROUTES);
     $at = array_search(StationTypeEnum::Depricarping->value, $codes, true);
 
-    // TETANGGANYA boiler-room lalu storage-tank — BUKAN pressing lalu
+    // TETANGGANYA effluent-plant lalu storage-tank — BUKAN pressing lalu
     // clarification seperti yang disarankan alur proses. sort_order
-    // depricarping adalah 110 (di belakang clarification 70 dan boiler-room
+    // depricarping adalah 110 (di belakang effluent-plant 100 dan boiler-room
     // 90, di depan storage-tank 140), dan urutan deklarasi enum juga
     // menyesatkan karena di sana Depricarping tepat setelah Pressing.
     //
+    // DIPERBARUI 2026-10-13 (screen-156--laporan-effluent-plant-web): tetangga
+    // kiri berubah dari boiler-room (90) ke effluent-plant (100) karena laporan
+    // Effluent Plant menyisipkan entrinya di antara keduanya, sesuai sort_order.
+    // Inilah yang dimaksud catatan di bawah — asersinya gagal, lalu daftarnya
+    // diperbarui, bukan dibiarkan selalu hijau.
+    //
     // Asersi berurutan ini MEMANG dimaksudkan gagal bila peta berubah, supaya
     // daftarnya diperbarui alih-alih diam-diam menjadi selalu hijau.
-    expect($codes[$at - 1])->toBe(StationTypeEnum::BoilerRoom->value);
+    expect($codes[$at - 1])->toBe(StationTypeEnum::EffluentPlant->value);
     expect($codes[$at + 1])->toBe(StationTypeEnum::StorageTank->value);
 });

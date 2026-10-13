@@ -297,6 +297,34 @@
            dengan --4 di atas, bukan ditulis inline di blade laporan. */
         .md-kpis--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
+        /* ================================================================
+           TAMBAHAN 2026-10-13 — screen-156--laporan-effluent-plant-web.
+
+           MURNI ADITIF: dua aturan tata letak baru, sejajar dengan
+           `.md-kpis--3`/`.md-kpis--4` dan `.md-row--2`/`.md-row--2-1` yang
+           sudah ada. Tidak satu pun selector lama disentuh, jadi kesebelas
+           laporan periode sebelumnya dan Daily Mill Report dijamin tidak
+           berubah tampilannya.
+
+           `.md-kpis--2` — blok metrik yang berisi TEPAT DUA kartu (pH +
+           suhu untuk Kolam Anaerobik 1, Kolam Anaerobik 2, dan Cooling
+           Pond; satu kartu untuk Bahan Kimia). Tanpa aturan ini kedua
+           kartu mewarisi grid enam kolom `.md-kpis` dan menyempit jadi
+           seperenam lebar kartunya.
+
+           `.md-row--3` — tiga kartu berdampingan (baris blok kolam, dan
+           baris ketiga sebaran status kategoris). `.md-row` sendiri hanya
+           menetapkan display:grid + gap; tanpa modifier, ketiga kartunya
+           bertumpuk satu kolom.
+
+           Keduanya dipakai layar itu dan karena itu WAJIB punya definisi —
+           kelas tanpa definisi diperiksa pada hasil compile, bukan pada
+           sumbernya. Perilaku responsifnya ada di blok @media di bawah,
+           satu tempat dengan `.md-kpis--4`/`.md-kpis--3`.
+           ================================================================ */
+        .md-kpis--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .md-row--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
         .md-chip--status { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); text-transform: uppercase; letter-spacing: .05em; font-size: 11px; }
         .md-chip--closed { background: rgba(15,23,42,.28); border-color: rgba(255,255,255,.2); }
         .md-chip--draft { background: #fef3c7; color: #92400e; border-color: transparent; }
@@ -569,6 +597,9 @@
         @media (max-width: 1100px) {
             .md-kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .md-kpis--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            /* screen-156: tiga kartu berdampingan jadi dua, kartu ketiga
+               turun ke baris berikutnya dengan lebar penuh baris itu. */
+            .md-row--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 767px) {
             /* screen-131: label KPI Boiler Room lebih panjang ("31 kali
@@ -590,6 +621,10 @@
             .md-btn { flex: 1 1 auto; justify-content: center; }
             .md-kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .md-kpis--3 { grid-template-columns: minmax(0, 1fr); }
+            /* screen-156: di ponsel, pasangan pH/suhu dan ketiga kartu
+               sebaran status bertumpuk satu kolom. */
+            .md-kpis--2 { grid-template-columns: minmax(0, 1fr); }
+            .md-row--3 { grid-template-columns: minmax(0, 1fr); }
             .md-units { grid-template-columns: minmax(0, 1fr); }
             .md-dist__row { grid-template-columns: 58px minmax(0, 1fr); grid-template-areas: 'day track' 'nums nums'; row-gap: 4px; }
             .md-dist__day { grid-area: day; }

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\GradingParameterController;
 use App\Http\Controllers\Api\GradingRecordController;
 use App\Http\Controllers\Api\GradingReportController;
 use App\Http\Controllers\Api\DepricarpingReportController;
+use App\Http\Controllers\Api\EffluentPlantReportController;
 use App\Http\Controllers\Api\KernelPlantReportController;
 use App\Http\Controllers\Api\PressingReportController;
 use App\Http\Controllers\Api\ThreshingReportController;
@@ -1477,6 +1478,37 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/kernel-plant-reports/periods', [KernelPlantReportController::class, 'periods']);
     Route::get('/kernel-plant-reports/summary', [KernelPlantReportController::class, 'summary']);
     Route::get('/kernel-plant-reports/export', [KernelPlantReportController::class, 'export']);
+});
+
+// === LAPORAN PERIODE EFFLUENT PLANT (screen-156 web) ===
+// Same four-endpoint shape as the eleven station report prefixes above, with
+// ONE deliberate difference: THE ROLE LIST HAS NO `operator`.
+//
+// Grading and Kernel Plant admitted Operator from their first commit because
+// their mobile twins were built in the same series. The Effluent Plant mobile
+// twin (screen-157) has NOT been built, so there is no legitimate Operator
+// caller today, and admitting a role before its caller exists is access
+// nobody can review. This follows the Weighbridge precedent (screen-143
+// shipped first; Operator was added when screen-144 was built), and it is
+// asserted by tests — four unit cases plus a browser scenario expect 403 for
+// Operator.
+//
+// WHEN screen-157 IS BUILT, the widening must touch BOTH this role list AND
+// the mill-bound branch of EffluentPlantReportService::resolveBusinessUnit().
+// Widening only the first drops Operator into the Admin branch, where a
+// client-supplied business_unit_id IS honoured — a cross-mill leak.
+//
+// /business-units/options refuses anyone but Admin with 403 regardless, raised
+// inside EffluentPlantReportService rather than by this middleware.
+//
+// The production-line OPTION LIST is NOT duplicated here: GET
+// /api/production-lines/options-for-report (built for screen-135) is reused
+// verbatim.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])->group(function () {
+    Route::get('/effluent-plant-reports/business-units/options', [EffluentPlantReportController::class, 'businessUnitOptions']);
+    Route::get('/effluent-plant-reports/periods', [EffluentPlantReportController::class, 'periods']);
+    Route::get('/effluent-plant-reports/summary', [EffluentPlantReportController::class, 'summary']);
+    Route::get('/effluent-plant-reports/export', [EffluentPlantReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

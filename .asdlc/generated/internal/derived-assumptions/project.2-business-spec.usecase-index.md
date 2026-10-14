@@ -23,3 +23,8 @@
 
 ## v21 — 2026-10-05
 - usecases[usecase-148--lihat-data-saya].name = "Lihat Data Saya (Web, Operator & Supervisor)" ← mengikuti keputusan USER (Supervisor ikut)
+
+## v29 — 2026-10-14
+
+- 12 usecase baru (`usecase-164` s.d. `usecase-175`) ditambahkan mendampingi 12 layar laporan baru, satu usecase per layar, penomoran lanjut dari 163. Nama dan `screen_ids`-nya mekanis — turunan dari nama layarnya, tidak ada keputusan di dalamnya.
+- Diverifikasi setelah penulisan: nol id duplikat pada kedua index, dan tidak ada `screen_ids` yang menunjuk layar yang tidak ada di `screen-index`.

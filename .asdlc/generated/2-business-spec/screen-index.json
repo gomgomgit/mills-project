@@ -1,8 +1,8 @@
 {
-  "ver": 15,
+  "ver": 16,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-12"
+    "updated_at": "2026-10-14"
   },
   "screens": [
     {
@@ -946,6 +946,78 @@
       "name": "Laporan Effluent Plant (Mobile)",
       "module_id": "module-dashboard",
       "description": "Versi mobile dari Laporan Effluent Plant (screen-156), read-only, tata letak layar sempit — pola yang sama dengan screen-147/149/151/153/155 terhadap pasangan web-nya. Dicapai dari Reporting (screen-141). Empat belas kolom ukur menjadi empat belas kartu bertumpuk, dan itu dua kali lebih banyak daripada laporan mobile mana pun sebelumnya; tiga sebaran status dan dua rekap teks bebas menyusul di bawahnya. Keempat endpoint /api/effluent-plant-reports/* dipakai ulang apa adanya dari screen-156 sehingga ponsel tidak mungkin berselisih dengan web tentang satu angka pun."
+    },
+    {
+      "id": "screen-158--laporan-engine-room-web",
+      "name": "Laporan Engine Room (Web)",
+      "module_id": "module-dashboard",
+      "description": "Laporan periode stasiun Engine Room (pembangkit & kelistrikan pabrik) di web. Pola sama dengan sembilan laporan bergrid 24 slot waktu yang sudah ada — pilih Production Line (WAJIB) lalu periode, kelengkapan pencatatan paling atas, metrik terendah/rata-rata/tertinggi dengan penyebut masing-masing, rekap per unit dan per hari, ekspor CSV + Excel. INI LAPORAN TERBESAR SEJAUH INI: DUA PULUH TIGA kolom ukur numerik, melampaui Effluent Plant yang empat belas. Enam di antaranya turbin uap (tekanan masuk, suhu masuk, tekanan buang, rpm, dua suhu bearing alternator), empat kelistrikan tersinkron (beban total pabrik kW, frekuensi sistem Hz, power factor, tegangan busbar), tiga penunjang (tegangan UPS/battery charger, level tangki bahan bakar, ekspor energi harian kWh), dua tekanan kompresor, dan DELAPAN kolom yang membentuk DUA PASANGAN GENSET IDENTIK — diesel_gen_1 dan diesel_gen_2 masing-masing membawa beban kW, ampere, suhu jacket water, dan tekanan lube oil. Pasangan identik itu pola yang sama dengan ripple mill dan kernel silo di Kernel Plant: angkanya TIDAK boleh dirata-ratakan menjadi satu, karena rata-rata gabungan menyembunyikan ketidakseimbangan beban yang justru menjadi alasan parameter itu diukur. DUA kolom status kategoris (diesel_gen_1_status dan diesel_gen_2_status) bernilai TIGA — run, standby, off — jadi sebarannya punya tiga baris ditambah 'tidak tercatat', dan 'standby' bukan 'off': genset siaga berbeda dari genset mati. DUA kolom teks bebas (action_taken_maintenance_remark, findings) diterbitkan pada dua bagian terpisah seperti di Effluent Plant. TIGA JEBAKAN SKEMA yang harus dinyatakan di spec, bukan ditemukan belakangan: (1) daily_energy_export_kwh adalah angka KUMULATIF HARIAN yang disimpan per slot waktu, sehingga merata-ratakannya antar dua puluh empat slot tidak bermakna — ia menuntut perlakuan berbeda dari dua puluh dua metrik lain; (2) penamaan pasangan kompresor TIDAK konsisten (air_compressor_1_pressure_bar melawan compressor_2_pressure_bar), jadi label layar tidak boleh diturunkan dari nama kolom secara mekanis; (3) fuel_tank_level adalah satu-satunya kolom numerik tanpa satuan di namanya — persen atau liter belum jelas dan itu pertanyaan terbuka. Tidak ada tabel master target untuk stasiun ini, jadi TIDAK ADA penandaan nilai di luar batas, sama seperti Effluent Plant dan Boiler Room."
+    },
+    {
+      "id": "screen-159--laporan-engine-room-mobile",
+      "name": "Laporan Engine Room (Mobile)",
+      "module_id": "module-dashboard",
+      "description": "Versi mobile dari Laporan Engine Room (screen-158), read-only, tata letak layar sempit — pola yang sama dengan screen-157 terhadap screen-156. Dicapai dari Reporting (screen-141). Keempat endpoint /api/engine-room-reports/* dipakai ulang apa adanya sehingga ponsel tidak mungkin berselisih dengan web tentang satu angka pun. DUA PULUH TIGA kartu metrik bertumpuk, hampir dua kali Effluent Plant yang empat belas dan lebih dari tiga kali Kernel Plant yang tujuh — jadi pengelompokan berjudul (Turbin Uap, Genset 1, Genset 2, Kelistrikan Tersinkron, Kompresor, Penunjang) bukan hiasan melainkan satu-satunya cara gulir sepanjang itu tetap terbaca. Kedua kartu pasangan genset membawa keterangan bahwa angkanya sengaja dipisah dan tidak pernah dirata-ratakan. Dua sebaran status bernilai tiga (run/standby/off) dan dua rekap teks bebas terpisah menyusul di bawahnya. Ekspor hanya CSV — .xlsx tidak tersedia di WebView ponsel."
+    },
+    {
+      "id": "screen-160--laporan-process-water-web",
+      "name": "Laporan Process Water (Web)",
+      "module_id": "module-dashboard",
+      "description": "Laporan periode stasiun Process Water (pengolahan air umpan boiler) di web, bergrid 24 slot waktu dengan pola yang sama seperti sembilan laporan kondisi lain. SEMBILAN kolom ukur numerik: dua laju aliran (air baku m³/jam, air terklarifikasi m³/jam), dua mutu softener (pH masuk, kesadahan keluar ppm), dua dosing bahan kimia (alum kg/jam, polimer g/jam), dan tiga kondisi air umpan boiler (suhu tangki °C, pH, TDS ppm). DUA HAL MEMBEDAKANNYA dari laporan kondisi sebelumnya. PERTAMA, kedua kolom dosing memakai SATUAN MASSA YANG BERBEDA — alum kilogram per jam, polimer gram per jam — sehingga keduanya tidak boleh dijumlahkan maupun dibandingkan langsung, dan label satuan wajib ikut di setiap angka. KEDUA, stasiun ini punya kolom `shift` dan `inspector_id` yang tidak ada di satu pun stasiun 24 slot sebelumnya, sehingga rekap per shift menjadi mungkin — tetapi keduanya kolom STRING BEBAS, bukan enum, jadi pengelompokannya harfiah dan dua ejaan untuk shift yang sama akan muncul sebagai dua baris. `action_taken_status` juga string bebas, bukan enum: ia TIDAK dapat diterbitkan sebagai sebaran kategoris seperti kolom status Effluent Plant, dan memaksanya menjadi sebaran akan melahirkan baris sebanyak variasi ejaannya. Dua kolom teks bebas (action_taken_status, findings) diterbitkan sebagai daftar, bukan dirata-rata. Tidak ada master target, jadi tidak ada penandaan nilai di luar batas — meski pH dan TDS air umpan boiler punya batas operasional yang hidup di luar aplikasi ini, persis seperti parameter kepatuhan lingkungan di Effluent Plant."
+    },
+    {
+      "id": "screen-161--laporan-process-water-mobile",
+      "name": "Laporan Process Water (Mobile)",
+      "module_id": "module-dashboard",
+      "description": "Versi mobile dari Laporan Process Water (screen-160), read-only, tata letak layar sempit — pola yang sama dengan screen-157 terhadap screen-156. Dicapai dari Reporting (screen-141). Keempat endpoint /api/process-water-reports/* dipakai ulang apa adanya. Sembilan kartu metrik bertumpuk — jumlah paling sedikit di antara laporan kondisi bergrid 24 slot, sehingga pengelompokan berjudul cukup tiga blok (Aliran, Softener & Dosing, Air Umpan Boiler). Satuan WAJIB ikut tercetak di setiap kartu, karena alum kg/jam dan polimer g/jam berdampingan dan keduanya 'dosing'. Rekap per shift dan daftar kedua kolom teks bebas menyusul. Ekspor hanya CSV."
+    },
+    {
+      "id": "screen-162--laporan-solid-waste-disposal-web",
+      "name": "Laporan Solid Waste Disposal (Web)",
+      "module_id": "module-dashboard",
+      "description": "Laporan periode stasiun Solid Waste Disposal (pembuangan & pemanfaatan limbah padat) di web. BUKAN laporan kondisi bergrid slot waktu — ia PER-TRANSAKSI, kelompok yang polanya diwakili Weighbridge (screen-143), bukan Effluent Plant. Satu baris detail adalah satu muatan keluar: tiket timbang, nomor kendaraan, nama pengemudi, jenis limbah padat, stasiun asal, berat bruto/tara/netto (MT), lokasi pembuangan atau pemanfaatan, tujuan penggunaan akhir, nomor gate pass, nomor segel keamanan, id operator, dan dua kolom teks. Isi rekapnya: jumlah muatan, total dan rata-rata netto, rekap per JENIS LIMBAH, per STASIUN ASAL, per LOKASI PEMBUANGAN, dan per TUJUAN PENGGUNAAN AKHIR — empat sumbu pengelompokan, lebih banyak daripada Weighbridge yang dua (estate/supplier dan destination). Yang membuat laporan ini berbeda dari laporan keluaran biasa: kolom `purpose_end_use` membedakan limbah yang DIBUANG dari limbah yang DIMANFAATKAN kembali, dan itu perbedaan yang menentukan secara lingkungan maupun komersial — menjumlahkan keduanya menjadi satu angka 'limbah keluar' menghapus justru informasi yang paling dicari. Nomor gate pass dan nomor segel adalah kolom jejak kepatuhan: kehadirannya diterbitkan sebagai penghitung kelengkapan (berapa muatan tanpa gate pass, berapa tanpa segel), bukan dirata-rata."
+    },
+    {
+      "id": "screen-163--laporan-solid-waste-disposal-mobile",
+      "name": "Laporan Solid Waste Disposal (Mobile)",
+      "module_id": "module-dashboard",
+      "description": "Versi mobile dari Laporan Solid Waste Disposal (screen-162), read-only, tata letak layar sempit. Dicapai dari Reporting (screen-141). Keempat endpoint /api/solid-waste-disposal-reports/* dipakai ulang apa adanya. Karena ini laporan per-transaksi, bentuk mobile-nya mengikuti pola Laporan Weighbridge Mobile (screen-144) dan bukan pola laporan kondisi: kartu KPI jumlah muatan dan netto di atas, lalu keempat rekap pengelompokan sebagai tabel bertumpuk yang menggulir di dalam kartunya sendiri. Penghitung kelengkapan jejak kepatuhan (gate pass, segel) tetap ikut, karena di ponsel-lah petugas lapangan paling mungkin memeriksanya. Ekspor hanya CSV."
+    },
+    {
+      "id": "screen-164--laporan-kernel-dispatch-web",
+      "name": "Laporan Kernel Dispatch (Web)",
+      "module_id": "module-dashboard",
+      "description": "Laporan periode stasiun Kernel Dispatch (pengiriman kernel keluar) di web, berbentuk PER-TRANSAKSI seperti Weighbridge. Satu baris detail adalah satu pengiriman: tiket timbang, nomor waybill, transporter/kontraktor, nomor kendaraan, pengemudi, silo asal, pembeli tujuan, berat bruto/tara/netto (MT), EMPAT PARAMETER MUTU KERNEL (kadar air %, kotoran/impurities %, FFA %, kernel pecah %), dua nomor segel (atas dan bawah), id operator timbang, status gate, dan temuan. DUA HAL MENENTUKAN BENTUK LAPORANNYA. PERTAMA, keempat parameter mutu itu adalah ANGKA YANG MASUK KONTRAK PENJUALAN — batasnya ditetapkan spesifikasi pembeli, yang hidup DI LUAR aplikasi ini. Jadi berlaku aturan yang sama seperti parameter kepatuhan lingkungan di Effluent Plant: angkanya diterbitkan apa adanya dengan penyebutnya masing-masing, dan laporan ini TIDAK menyatakan memenuhi spesifikasi atau tidak. KEDUA, `remarks_gate_status` adalah enum DUA NILAI (released, not_released) — satu-satunya kolom kategoris di stasiun ini — sehingga ia diterbitkan sebagai sebaran jumlah pengiriman per nilai ditambah 'tidak tercatat', dan jumlah not_released ditonjolkan karena pengiriman yang belum dilepas gate berarti barang masih di dalam pabrik. Rekap dikelompokkan per PEMBELI TUJUAN, per SILO ASAL, dan per TRANSPORTER. Dua nomor segel diterbitkan sebagai penghitung kelengkapan, bukan dirata-rata."
+    },
+    {
+      "id": "screen-165--laporan-kernel-dispatch-mobile",
+      "name": "Laporan Kernel Dispatch (Mobile)",
+      "module_id": "module-dashboard",
+      "description": "Versi mobile dari Laporan Kernel Dispatch (screen-164), read-only, tata letak layar sempit. Dicapai dari Reporting (screen-141). Keempat endpoint /api/kernel-dispatch-reports/* dipakai ulang apa adanya. Mengikuti pola per-transaksi Laporan Weighbridge Mobile (screen-144): KPI jumlah pengiriman dan netto di atas, lalu keempat parameter mutu sebagai kartu bertumpuk dengan penyebutnya masing-masing, sebaran status gate, dan tiga rekap pengelompokan sebagai tabel yang menggulir di dalam kartunya. Pernyataan bahwa laporan ini tidak menilai pemenuhan spesifikasi pembeli dirender DI DEKAT keempat angka mutu, bukan sebagai catatan kaki — di ponsel catatan kaki berarti belasan layar jauhnya dari angka yang dirujuknya. Ekspor hanya CSV."
+    },
+    {
+      "id": "screen-166--laporan-cpo-dispatch-web",
+      "name": "Laporan CPO Dispatch (Web)",
+      "module_id": "module-dashboard",
+      "description": "Laporan periode stasiun CPO Dispatch (pengiriman CPO keluar) di web, berbentuk PER-TRANSAKSI seperti Weighbridge. Satu baris detail adalah satu tanker: jam masuk dan jam keluar, nomor waybill, nomor polisi tanker, perusahaan pengangkut, pengemudi, tangki penyimpanan asal, dua nomor segel, berat bruto/tara/netto (MT), EMPAT PARAMETER MUTU CPO (FFA %, kadar air %, kotoran %, DOBI), pembeli tujuan, dan operator timbang. TIGA HAL MEMBEDAKANNYA dari Kernel Dispatch yang sebentuk. PERTAMA, ia punya `time_in` dan `time_out`, sehingga TURNAROUND TANKER dapat dihitung dari selisihnya — satu-satunya laporan pengiriman yang bisa, dan metrik yang sama pernah diturunkan dari arrival_datetime ke dispatch_datetime di Weighbridge. KEDUA, DOBI (Deterioration of Bleachability Index) adalah indeks tanpa satuan, bukan persentase — menampilkannya dengan tanda persen adalah kesalahan yang akan terlihat benar. KETIGA, keempat parameter mutu itu angka yang masuk kontrak penjualan dengan batas yang ditetapkan spesifikasi pembeli DI LUAR aplikasi ini, jadi laporan ini menerbitkan angkanya tanpa menyatakan memenuhi spesifikasi atau tidak — aturan yang sama seperti Effluent Plant dan Kernel Dispatch. Rekap dikelompokkan per PEMBELI TUJUAN, per TANGKI ASAL, dan per PERUSAHAAN PENGANGKUT. Stasiun ini tidak punya kolom kategoris sama sekali, jadi tidak ada sebaran status."
+    },
+    {
+      "id": "screen-167--laporan-cpo-dispatch-mobile",
+      "name": "Laporan CPO Dispatch (Mobile)",
+      "module_id": "module-dashboard",
+      "description": "Versi mobile dari Laporan CPO Dispatch (screen-166), read-only, tata letak layar sempit. Dicapai dari Reporting (screen-141). Keempat endpoint /api/cpo-dispatch-reports/* dipakai ulang apa adanya. Mengikuti pola per-transaksi Laporan Weighbridge Mobile (screen-144): KPI jumlah tanker, netto, dan turnaround rata-rata di atas, lalu keempat parameter mutu sebagai kartu bertumpuk dengan penyebutnya masing-masing, dan tiga rekap pengelompokan sebagai tabel yang menggulir di dalam kartunya. DOBI dirender tanpa tanda persen. Pernyataan bahwa laporan ini tidak menilai pemenuhan spesifikasi pembeli dirender di dekat keempat angka mutu. Ekspor hanya CSV."
+    },
+    {
+      "id": "screen-168--laporan-process-quality-control-web",
+      "name": "Laporan Process Quality Control (Web)",
+      "module_id": "module-dashboard",
+      "description": "Laporan periode stasiun Process Quality Control di web, bergrid 24 slot waktu. DUA BELAS kolom ukur numerik, dan laporan ini menjawab pertanyaan yang tidak dijawab laporan stasiun mana pun sebelumnya: BERAPA BANYAK MINYAK YANG HILANG, dan APAKAH MUTU CPO YANG DIJUAL MASIH DI DALAM SPESIFIKASI. Tiga kolom pertama adalah kerugian minyak — oil loss di sludge (%), di fibre (%), dan di cake decanter (%) — dan ketiganya angka yang paling dicari manajemen karena setiap persen adalah uang yang keluar dari pabrik. Empat kolom berikutnya kondisi proses: suhu masuk dan backpressure purifier, suhu drier dan tekanan vakum stasiun pengeringan vakum. Satu kolom laju umpan decanter (MT/jam). Empat kolom terakhir MUTU AKHIR di penyimpanan: FFA (%), kadar air (%), kotoran (%), dan DOBI — indeks tanpa satuan, bukan persentase. SAMA SEPERTI EFFLUENT PLANT DAN KEDUA LAPORAN DISPATCH, keempat parameter mutu akhir itu punya batas yang hidup DI LUAR aplikasi ini — spesifikasi pembeli dan standar mutu CPO — sehingga laporan ini menerbitkan angkanya tanpa menyatakan memenuhi spesifikasi atau tidak, dan pernyataan itu ditempatkan di dekat angkanya. Stasiun ini juga punya kolom `shift` dan `qc_inspector_id` (keduanya string bebas, jadi pengelompokannya harfiah), serta dua kolom teks bebas (qc_engineering_corrective_actions, findings) yang diterbitkan pada dua bagian terpisah — yang pertama menjawab 'apa yang dikerjakan', yang kedua 'apa yang ditemukan'. Tidak ada master target, jadi tidak ada penandaan nilai di luar batas."
+    },
+    {
+      "id": "screen-169--laporan-process-quality-control-mobile",
+      "name": "Laporan Process Quality Control (Mobile)",
+      "module_id": "module-dashboard",
+      "description": "Versi mobile dari Laporan Process Quality Control (screen-168), read-only, tata letak layar sempit — pola yang sama dengan screen-157 terhadap screen-156. Dicapai dari Reporting (screen-141). Keempat endpoint /api/process-quality-control-reports/* dipakai ulang apa adanya. Dua belas kartu metrik bertumpuk dalam empat blok berjudul (Kerugian Minyak, Purifier, Pengeringan Vakum & Decanter, Mutu Akhir), dengan blok Kerugian Minyak diletakkan PALING ATAS setelah kelengkapan pencatatan — di layar sempit urutan menentukan apa yang terbaca, dan ketiga angka oil loss itulah alasan utama laporan ini dibuka. Pernyataan bahwa laporan ini tidak menilai pemenuhan spesifikasi mutu dirender DI DALAM blok Mutu Akhir, di dekat keempat angkanya. DOBI dirender tanpa tanda persen. Dua rekap teks bebas terpisah dan rekap per shift menyusul. Ekspor hanya CSV."
     }
   ]
 }

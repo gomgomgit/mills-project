@@ -1,0 +1,2008 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-13"
+  },
+  "id": "screen-157--laporan-effluent-plant-mobile",
+  "name": "Laporan Effluent Plant (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "report-effluent-plant (path '/reports/effluent-plant' pada router mobile Vue; meta.public false)",
+  "auth_requirement": "authenticated — token Sanctum. Aktor: actor-station-operator dan actor-supervisor, keduanya terikat mill akunnya.",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Hanya mill pada business_unit_id akunnya. business_unit_id TIDAK PERNAH dikirim ke server — server menyelesaikannya dari akun. Operator adalah aktor utama layar ini, dan BERBEDA dari Kernel Plant/Grading: keempat rute API screen-156 MENOLAKNYA 403 sampai layar ini dibangun. Pelebaran akses itu bagian dari layar ini."
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Sama dengan Operator — terikat mill akunnya, business_unit_id tidak dikirim. Supervisor sudah diterima rute API sejak screen-156, jadi pelebaran hanya menyangkut Operator."
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "Bukan aktor mobile pada laporan ini; ia memakai layar web screen-156. Rute API menerimanya, tetapi layar mobile ini tidak dicapai dari alur mana pun miliknya."
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": false,
+      "conditions": "Admin memakai layar web, yang satu-satunya punya pemilih mill. Layar mobile ini tidak punya pemilih mill sama sekali, jadi ia tak dapat melayani peran yang tidak terikat satu mill."
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "usecase_name": "Lihat Laporan Periode Effluent Plant (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "Daftar Production Line mill akun untuk pemilih line. DIPAKAI ULANG VERBATIM dari screen-135 — tidak diduplikasi di bawah prefix effluent-plant-reports",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — klien mengarahkan ke Login TANPA pesan jaringan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar yang diterima endpoint bersama itu"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/effluent-plant-reports/periods",
+          "description": "Daftar Periode Pelaporan yang punya baris period_stations berjenis 'effluent-plant' pada mill akun. DIPAKAI ULANG apa adanya dari screen-156",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "TIDAK PERNAH DIKIRIM oleh layar ini. Kedua perannya terikat mill, jadi server menyelesaikan mill dari akun dan nilai kiriman klien akan dibuang. Ketiadaan jalur kode untuk mengirimnya adalah penjagaan yang lebih kuat daripada penjaga di sisi klien"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string (draft|open|closed) — status BARIS period_stations effluent-plant",
+                  "station_type": "string — selalu 'effluent-plant'",
+                  "station_type_label": "string"
+                }
+              ],
+              "_note": "Respons ini TIDAK memuat business_unit_name — nama mill dibaca dari summary.business_unit.name saja. Koreksi ini sudah ditemukan saat screen-155 diimplementasikan; jangan diwarisi salah lagi"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran belum diterima — inilah yang terjadi bagi Operator SEBELUM pelebaran akses layar ini diterapkan"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Akun terikat mill yang users.business_unit_id-nya NULL — gagal tertutup, daftar seluruh mill tidak pernah dibaca"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/effluent-plant-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode pada satu Production Line. DIPAKAI ULANG apa adanya dari screen-156 — bentuk payload tidak berubah satu medan pun, dan itulah satu-satunya jaminan ponsel tidak berselisih dengan web",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Absen → 422"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB. Klien TIDAK memanggil endpoint ini sama sekali sebelum sebuah line berlaku — penjagaannya ada di fungsi pemuatan, bukan hanya di template"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_reuse": "Bentuknya IDENTIK dengan screen-156: period, business_unit, production_line, has_data, coverage{filled_slots, expected_slots, coverage_percent, effluent_plant_unit_count, slots_per_unit_per_day=24, days_in_period, days_counted, period_running}, metrics{<kolom>:{min,avg,max,reading_count,is_lab}}, status_distribution{<kolom>:{known_values,counts,not_recorded,recorded_slots}}, maintenance_remarks[{date,time_slot,text}], findings[{date,time_slot,text}], daily_trend{raw_pome_feed_rate_m3h[], final_discharge_ph[]}, by_unit[], daily[], daily_total, total",
+              "_note_mobile": "TIGA hal yang membuat tipe respons layar ini BERBEDA dari Kernel Plant mobile, dan menyalin tipe itu mentah akan membuat tipe berbohong: (1) TIDAK ADA objek target sama sekali — tidak ada equipment_parameter, target_benchmark, corrective_action_plan, maupun shares_standard_with, karena Effluent Plant tidak punya tabel master target; (2) TIDAK ADA blok downtime — tidak ada total_minutes maupun recorded_slot_count, karena effluent_plant_details tidak punya kolomnya; (3) ADA status_distribution dan DUA daftar teks bebas serta penanda is_lab per metrik — tiga bentuk yang tidak ada di satu pun laporan mobile sebelumnya. effluent_plant_id bertipe string, bukan uuid dan bukan kunci asing — tidak ada tabel master effluent_plants"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran belum diterima; ATAU production_line_id milik mill lain; ATAU period_id milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen; akun terikat mill tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — angka laporan harus mencerminkan keadaan saat dibaca",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/effluent-plant-reports/export",
+          "description": "Ekspor rincian periode pada satu line, satu baris per slot waktu. Layar ini meminta format=csv SAJA",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "Layar ini SELALU mengirim csv. .xlsx tidak ditawarkan bukan karena endpoint tidak mendukungnya — ia mendukung — melainkan karena menyimpan dan membuka berkas itu di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_content_type": "text/csv — satu baris per slot waktu, konteks diulang verbatim, 19 kolom READING_FIELDS; disimpan lewat helper penyimpan berkas klien"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Sama seperti /summary — diperiksa eager sebelum streaming dimulai"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "Lebih dari 50.000 baris slot waktu"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. PERUBAHAN BACKEND YANG MENYERTAI LAYAR INI, dan ia BUKAN efek samping melainkan prasyarat fungsional: keempat rute /api/effluent-plant-reports/* harus menerima Operator. screen-156 sengaja menolaknya 403 karena layar ini belum ada. Tanpa pelebaran itu, layar ini menerima 403 di keempat rute dan tampak rusak tanpa sebab yang terbaca pengguna.",
+        "2. PELEBARAN ITU MENYENTUH DUA TEMPAT SEKALIGUS, dan ini bahaya utamanya: (a) daftar peran middleware rute + guardAccess() menerima operator; DAN (b) cabang TERIKAT-MILL pada resolveBusinessUnit() harus memuat Operator. Melebarkan (a) saja akan menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI — seorang Operator lalu dapat membaca laporan mill mana pun. Itu kebocoran lintas mill, bukan cacat tampilan. Presedennya persis sama dengan pelebaran screen-144 terhadap screen-143.",
+        "3. YANG TIDAK TERBUKA TETAP TIDAK TERBUKA: /business-units/options tetap 403 bagi Operator, Supervisor, dan Mill Management (Admin saja, ditegakkan di dalam service bukan middleware), dan rute WEB /reports/effluent-plant tetap tanpa Operator. Pelebaran akses API tidak boleh melebarkan layar web.",
+        "4. Layar dibuka dari tile Effluent Plant pada screen-141. Rute 'report-effluent-plant' ber-meta.public false; tanpa token, guard router mengarahkan ke Login.",
+        "5. Muat daftar Production Line lewat /api/production-lines/options-for-report. → bila mill tidak punya satu line pun: arahan menghubungi Admin, TANPA tombol coba lagi. → bila permintaannya GAGAL: pesan yang BERBEDA beserta tombol coba lagi sendiri — dua keadaan yang tidak boleh terbaca sama.",
+        "6. Selesaikan line: query rute → ingatan perangkat (kunci sama dengan Station List) → satu-satunya line → tidak ada. → bila penyimpanan tidak dapat dibaca (mode privat): diperlakukan sebagai 'tidak ada ingatan', BUKAN galat. → bila line yang diingat sudah tidak ada di daftar: pemilih muncul lagi dan TIDAK menebak line lain.",
+        "7. Muat daftar periode lewat /api/effluent-plant-reports/periods TANPA business_unit_id. → bila kosong: arahan menghubungi Admin, pemilih tetap ada dalam keadaan kosong. Nama mill TIDAK dibaca dari respons ini — ia hanya ada pada summary.business_unit.name.",
+        "8. PENJAGA: bila belum ada line berlaku, JANGAN panggil /summary sama sekali — tampilkan pemilih dan NOL angka. Penjaga ini ada di dalam FUNGSI pemuatan, sehingga jalur coba-lagi, ganti-periode, dan pemulihan ingatan semuanya terlindung. Penjaga yang hanya ada di template dilewati oleh ketiganya.",
+        "9. Muat /summary dengan period_id dan production_line_id. Tandai permintaannya; → bila respons yang datang bukan milik permintaan terakhir, BUANG — jangan render. Diselesaikan dengan penanda permintaan terakhir, bukan dengan membatalkan yang lama.",
+        "10. Render cakupan pencatatan PALING ATAS, termasuk ketiga angka pembentuk penyebutnya (unit, hari terhitung, 24 slot kanonis). → bila days_counted nol: keterangan 'belum mulai', DIPERIKSA SEBELUM period_running karena server menandai periode yang belum mulai sebagai masih berjalan juga. → bila period_running: keterangan penyebut berhenti di hari ini.",
+        "11. coverage_percent dirender tanda pisah HANYA ketika penyebutnya tidak terbentuk (expected_slots nol). Periode yang PUNYA record tetapi tanpa satu slot terisi menghasilkan 0,0% dan itu benar — penyebutnya ada.",
+        "12. Render keterangan bahwa slot terisi dihitung atas SEMBILAN BELAS kolom, termasuk kedua kolom teks, sehingga coverage.filled_slots dapat MELEBIHI reading_count setiap kartu metrik. Yang dilampaui adalah penyebut kartu, bukan penyebut cakupan.",
+        "13. Render ENAM blok berjudul yang memuat EMPAT BELAS kartu metrik dari metrics{}, selalu keempat belasnya. Tiap kartu: min/rata-rata/maks berdampingan, lalu reading_count miliknya sendiri. → bila kolomnya tak pernah terisi: 'tidak tersedia' dan penyebut 0, kartunya TETAP ada. Pengelompokan enam blok murni penanda tempat — tidak ada total per blok.",
+        "14. Pada kartu yang metrics[kolom].is_lab bernilai true (BOD, COD, TSS buangan akhir), render penanda 'lab' DAN keterangan sifat pengukurannya DI KARTU ITU. Penanda diturunkan dari respons, bukan dipaku pada daftar nama kolom di template — supaya kolom laboratorium keempat kelak ditandai benar tanpa menyunting template.",
+        "15. Render pernyataan kepatuhan lingkungan DI DALAM blok Buangan Akhir, tepat di dekat keempat angkanya. Bukan di catatan kaki halaman — di ponsel itu berarti puluhan layar jauhnya dari angka yang dirujuknya.",
+        "16. Render TIGA kartu sebaran status dari status_distribution{}: untuk tiap kolom, iterasi known_values (sehingga nilai berjumlah 0 tetap tercetak), lalu baris not_recorded TERPISAH. Porsi memakai recorded_slots sebagai penyebut, BUKAN expected_slots. Daftar nilainya diturunkan dari known_values pada respons, tidak dipaku di template.",
+        "17. Pada sebaran biogas_flare_status, tonjolkan jumlah nilai 'fault' tersendiri. Ini MENGHITUNG sebuah nilai yang memang tercatat — bukan penandaan di luar batas, yang menilai angka ukur terhadap ambang.",
+        "18. Render maintenance_remarks dan findings sebagai DUA bagian TERPISAH, masing-masing daftar kejadian {date, time_slot, text}. → bila salah satunya kosong: keterangan pada bagian ITU, bukan tabel kosong. Satu slot yang hadir di kedua daftar dirender di keduanya, dengan keterangan bahwa itu bukan penghitungan ganda.",
+        "19. Render dua tren harian dari daily_trend (raw_pome_feed_rate_m3h dan final_discharge_ph), rekap per unit dari by_unit, dan rekap per hari dari daily — masing-masing dalam kartu yang menggulir mendatar DI DALAM dirinya. Halaman tidak pernah menggulir mendatar pada 390px, dan rekap di stasiun ini membawa empat belas kolom rata-rata — terlebar di laporan mobile mana pun.",
+        "20. Render pernyataan ketiadaan blok downtime dan pernyataan ketiadaan penandaan di luar batas, KEDUANYA UTUH tanpa diringkas demi ruang. Ketiadaan yang tidak dijelaskan terbaca sebagai fitur yang belum selesai, dan di stasiun ini empat dari empat belas metrik adalah parameter kepatuhan lingkungan — jadi keterangan yang terpotong di sini berisiko lebih besar daripada di laporan mana pun sebelumnya.",
+        "21. NOL ARITMETIKA DI KLIEN. Repo tidak menghitung, tidak merata-ratakan, dan tidak menormalkan apa pun — termasuk tidak memetakan satuan 'C' menjadi '°C'. Itu satu-satunya cara menjamin ponsel tidak pernah berselisih dengan web, dan ia memindahkan seluruh perbedaan SQLite-versus-PostgreSQL ke satu tempat yang sudah diuji.",
+        "22. Ekspor: minta /export?format=csv, simpan lewat helper penyimpan berkas klien. Tidak ada pilihan .xlsx di layar ini.",
+        "23. Pada 401 dari rute mana pun: arahkan ke Login TANPA pesan jaringan — 'periksa koneksi Anda' pada sesi yang berakhir membuat pembaca memeriksa sinyal alih-alih masuk kembali."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "effluent-plant-record",
+          "operation": "SELECT",
+          "description": "Dibaca di server oleh EffluentPlantReportService; klien tidak menyentuh basis data. Tidak ada penyimpanan lokal SQLite untuk laporan — layar ini online-only, berbeda dari layar input yang offline-first."
+        },
+        {
+          "entity_id": "effluent-plant-detail",
+          "operation": "SELECT",
+          "description": "Sama — di server. Sembilan belas READING_FIELDS: 14 kolom ukur, 3 kolom status, 2 kolom teks."
+        },
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Sama — di server."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Sama — di server; penyaring daftar periode pada jenis stasiun 'effluent-plant' dan sumber nilai status."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Sama — di server, lewat endpoint opsi yang dipakai ulang dari screen-135."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Operator membuka layar sebelum pelebaran akses diterapkan",
+          "handling": "Keempat rute menjawab 403 dan layar tampak rusak tanpa sebab yang terbaca. Karena itu pelebaran akses dikerjakan BERSAMA layar ini, bukan menyusul"
+        },
+        {
+          "condition": "Operator mengirim business_unit_id mill lain sesudah pelebaran",
+          "handling": "Nilai itu DIBUANG oleh cabang terikat-mill dan jawabannya tetap data mill akun dengan 200 — bukan 403 dan bukan data mill lain. Inilah asersi yang menangkap pelebaran yang hanya setengah dikerjakan"
+        },
+        {
+          "condition": "Production Line belum berlaku",
+          "handling": "/summary TIDAK dipanggil sama sekali; pemilih ditampilkan dan NOL angka dirender. Penjaga ada di fungsi pemuatan sehingga jalur coba-lagi dan ganti-periode ikut terlindung"
+        },
+        {
+          "condition": "Mill tanpa Production Line",
+          "handling": "Arahan menghubungi Admin TANPA tombol coba lagi"
+        },
+        {
+          "condition": "Permintaan daftar Production Line gagal",
+          "handling": "Pesan BERBEDA dari 'mill belum punya line', dengan tombol coba lagi sendiri"
+        },
+        {
+          "condition": "Line dari query rute",
+          "handling": "Dipakai dan disimpan ke ingatan perangkat dengan kunci yang sama seperti Station List"
+        },
+        {
+          "condition": "Line yang diingat sudah tidak ada",
+          "handling": "Pemilih muncul lagi; TIDAK menebak line lain"
+        },
+        {
+          "condition": "Penyimpanan perangkat tidak dapat dibaca",
+          "handling": "Diperlakukan sebagai 'tidak ada ingatan', bukan galat; tidak ada pesan galat dirender"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup Effluent Plant",
+          "handling": "data kosong dengan 200; arahan menghubungi Admin, pemilih tetap ada dalam keadaan kosong"
+        },
+        {
+          "condition": "Periode punya record tetapi tanpa satu slot terisi",
+          "handling": "has_data false; keterangan periode kosong; cakupan TETAP dirender; coverage_percent 0,0% BUKAN '—' karena penyebutnya terbentuk"
+        },
+        {
+          "condition": "Periode tanpa satu pun record",
+          "handling": "expected_slots 0 → coverage_percent dirender '—' dengan keterangan belum ada slot yang diharapkan"
+        },
+        {
+          "condition": "Satu dari 14 kolom ukur kosong sepanjang periode",
+          "handling": "Kartunya TETAP dirender dengan 'tidak tersedia' dan reading_count 0"
+        },
+        {
+          "condition": "Ketiga kolom laboratorium kosong sepanjang periode",
+          "handling": "Ketiga kartunya 'tidak tersedia' dengan reading_count 0, penanda is_lab dan keterangannya TETAP dirender; sebelas kartu lain normal"
+        },
+        {
+          "condition": "Satu slot hanya mengisi kolom teks",
+          "handling": "Terhitung pada coverage.filled_slots tanpa menambah reading_count kartu mana pun, sehingga filled_slots melebihi setiap reading_count — dan keterangannya dirender"
+        },
+        {
+          "condition": "Seluruh slot tidak mencatat sebuah kolom status",
+          "handling": "counts mencetak seluruh known_values dengan 0 dan not_recorded memuat seluruh slot terisi"
+        },
+        {
+          "condition": "Sebuah nilai status dikenal tidak pernah muncul",
+          "handling": "Barisnya tetap dirender dengan jumlah 0 karena iterasinya atas known_values, bukan atas kunci counts yang ada"
+        },
+        {
+          "condition": "Satu slot mengisi kedua kolom teks",
+          "handling": "Dirender pada KEDUA daftar, dengan keterangan bahwa itu bukan penghitungan ganda"
+        },
+        {
+          "condition": "Kedua kolom teks kosong sepanjang periode",
+          "handling": "Keterangan pada MASING-MASING bagian, bukan tabel kosong tanpa penjelasan"
+        },
+        {
+          "condition": "Teks catatan sangat panjang",
+          "handling": "Dibungkus utuh tanpa pemotongan; kartunya tidak membuat halaman menggulir mendatar"
+        },
+        {
+          "condition": "Line punya beberapa unit Effluent Plant",
+          "handling": "by_unit memuat satu baris per unit; unit tanpa pembacaan tetap muncul dengan reading_rows 0"
+        },
+        {
+          "condition": "Periode masih berjalan",
+          "handling": "days_counted berhenti di hari ini; keterangannya dirender"
+        },
+        {
+          "condition": "Periode belum mulai",
+          "handling": "days_counted 0 → keterangan 'belum mulai' DIPERIKSA LEBIH DULU dan menang atas keterangan 'periode berjalan'"
+        },
+        {
+          "condition": "Periode tertutup",
+          "handling": "Laporan tampil penuh dengan badge status; aksi Ekspor tetap aktif"
+        },
+        {
+          "condition": "Jaringan gagal saat memuat ringkasan",
+          "handling": "Pesan dan tombol coba lagi; periode dan line yang sudah dipilih tidak hilang"
+        },
+        {
+          "condition": "Dua permintaan /summary saling mendahului",
+          "handling": "Hanya respons permintaan terakhir dirender; yang terlambat dibuang lewat penanda permintaan"
+        },
+        {
+          "condition": "401 dari rute mana pun",
+          "handling": "Arahkan ke Login TANPA pesan jaringan"
+        },
+        {
+          "condition": "Periode memuat banyak tanggal dan beberapa unit",
+          "handling": "Kedua tren dan kedua rekap menggulir DI DALAM kartunya; halaman tidak pernah menggulir mendatar pada 390px"
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca; tidak ada aksi tulis",
+        "Keempat endpoint dipakai ulang apa adanya dari screen-156 — tidak ada endpoint baru, tidak ada perubahan payload",
+        "Pelebaran akses Operator menyentuh daftar peran penjaga DAN cabang terikat-mill sekaligus; melebarkan yang pertama saja adalah kebocoran lintas mill",
+        "Endpoint daftar mill tetap tertutup bagi Operator, dan layar ini tidak punya jalur kode untuk memanggilnya",
+        "Rute web /reports/effluent-plant tetap tertutup bagi Operator",
+        "Production Line WAJIB berlaku sebelum /summary dipanggil, dan penjaganya ada di fungsi pemuatan bukan template",
+        "Urutan penyelesaian line: query rute → ingatan perangkat → satu-satunya line → tidak ada; kegagalan penyimpanan = 'tidak ada ingatan'",
+        "Tidak ada pemilih mill; business_unit_id tidak pernah dikirim",
+        "Keempat belas kartu metrik selalu dirender, termasuk yang tidak pernah terisi",
+        "Setiap kartu mencetak reading_count-nya sendiri",
+        "coverage.filled_slots dihitung atas 19 kolom sehingga dapat melebihi setiap reading_count — dan itu dinyatakan",
+        "Penanda is_lab dan keterangannya dirender di kartunya masing-masing, diturunkan dari respons bukan dipaku di template",
+        "Keempat belas kartu dikelompokkan menjadi enam blok berjudul; tidak ada total per blok",
+        "coverage_percent '—' hanya ketika penyebutnya tidak terbentuk",
+        "Cakupan dirender di atas seluruh angka lain dan tetap dirender meski periode kosong",
+        "days_counted nol diperiksa SEBELUM period_running",
+        "Ketiga kolom status diterbitkan sebagai sebaran; tidak ada min/avg/maks dan tidak muncul pada grafik tren",
+        "Sebaran mengiterasi known_values sehingga nilai berjumlah 0 tetap tercetak; not_recorded terpisah dan tidak pernah dilipat ke 'Mati'/'Berhenti'",
+        "Porsi sebaran memakai recorded_slots sebagai penyebut, bukan expected_slots",
+        "Kedua kolom teks dirender pada dua bagian terpisah sebagai daftar kejadian dengan tanggal dan slot waktu",
+        "Satu slot yang mengisi kedua kolom teks muncul pada kedua rekap, dan itu bukan penghitungan ganda",
+        "Kedua kolom teks tidak pernah dirata-rata maupun digrafikkan",
+        "Tidak ada blok downtime, dan ketiadaannya dinyatakan di layar",
+        "Tidak ada kolom target maupun rencana tindakan koreksi; tidak ada medan selalu-kosong yang dikarang",
+        "Tidak ada penandaan di luar batas, dan keterangannya dirender utuh",
+        "Pernyataan kepatuhan lingkungan dirender di dalam blok Buangan Akhir",
+        "Tidak ada aritmetika di klien, termasuk tidak menormalkan satuan",
+        "Record draft ikut terhitung, dan jumlahnya dinyatakan terpisah",
+        "Ekspor hanya CSV",
+        "Halaman tidak pernah menggulir mendatar pada 390px",
+        "401 mengarahkan ke Login tanpa pesan jaringan"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "fetchProductionLines mengembalikan daftar line apa adanya dari respons server",
+          "given": "GET /api/production-lines/options-for-report menjawab 200 dengan tiga line",
+          "expect": "repo mengembalikan ketiga line dengan id dan nama persis seperti respons, tanpa penyaringan, pengurutan ulang, maupun penambahan medan"
+        },
+        {
+          "description": "resolusi line: query rute menang atas ingatan perangkat",
+          "given": "query rute memuat production_line_id=9 dan ingatan perangkat memuat line 7, keduanya masih ada pada mill",
+          "expect": "line berlaku adalah 9, dan ingatan perangkat diperbarui menjadi 9"
+        },
+        {
+          "description": "resolusi line: ingatan perangkat dipakai bila query rute kosong",
+          "given": "tidak ada production_line_id pada query rute, ingatan perangkat memuat line 7 yang masih ada pada mill",
+          "expect": "line berlaku adalah 7 tanpa pemilih ditampilkan"
+        },
+        {
+          "description": "resolusi line: satu-satunya line berlaku otomatis",
+          "given": "tidak ada query rute, tidak ada ingatan perangkat, dan mill hanya punya satu line",
+          "expect": "line tunggal itu berlaku dan pemilih tidak ditampilkan"
+        },
+        {
+          "description": "resolusi line: beberapa line tanpa query dan tanpa ingatan menghasilkan 'tidak ada'",
+          "given": "tidak ada query rute, tidak ada ingatan perangkat, dan mill punya tiga line",
+          "expect": "line berlaku null, pemilih ditampilkan, dan tidak ada line yang ditebak"
+        },
+        {
+          "description": "resolusi line: line yang diingat sudah tidak ada pada mill",
+          "given": "ingatan perangkat memuat line 99 sementara daftar line mill hanya memuat 7 dan 8",
+          "expect": "line berlaku null dan pemilih ditampilkan; sistem TIDAK memilih 7 maupun 8 sebagai penggantinya"
+        },
+        {
+          "description": "resolusi line: penyimpanan perangkat tidak dapat dibaca diperlakukan sebagai 'tidak ada ingatan'",
+          "given": "pembacaan penyimpanan perangkat melempar galat (mode privat)",
+          "expect": "resolusi berlanjut ke cabang berikutnya tanpa melempar, line berlaku null bila mill punya beberapa line, dan tidak ada state galat yang diset"
+        },
+        {
+          "description": "kunci penyimpanan line sama dengan yang dipakai Station List",
+          "given": "line 7 dipilih pengguna",
+          "expect": "penulisan terjadi pada kunci penyimpanan yang identik dengan konstanta kunci Station List, bukan kunci khusus laporan"
+        },
+        {
+          "description": "kegagalan menulis penyimpanan perangkat tidak menjatuhkan alur",
+          "given": "penulisan penyimpanan perangkat melempar galat saat line 7 dipilih",
+          "expect": "line 7 tetap berlaku di memori, ringkasan tetap dimuat, dan tidak ada pesan galat ditampilkan"
+        },
+        {
+          "description": "loadSummary tidak memanggil /summary bila belum ada line berlaku",
+          "given": "line berlaku null dan periode 42 terpilih",
+          "expect": "GET /api/effluent-plant-reports/summary tidak dipanggil sama sekali dan state angka tetap kosong"
+        },
+        {
+          "description": "loadSummary tidak memanggil /summary bila belum ada periode terpilih",
+          "given": "line 7 berlaku dan periode null",
+          "expect": "GET /api/effluent-plant-reports/summary tidak dipanggil sama sekali"
+        },
+        {
+          "description": "jalur coba-lagi tetap melewati penjaga line di dalam fungsi pemuatan",
+          "given": "line berlaku null dan pengguna menekan coba lagi",
+          "expect": "GET /summary tidak dipanggil — penjaga berada di fungsi pemuatan, bukan hanya di template"
+        },
+        {
+          "description": "jalur ganti-periode tetap melewati penjaga line di dalam fungsi pemuatan",
+          "given": "line berlaku null dan pengguna mengganti periode",
+          "expect": "GET /summary tidak dipanggil dan tidak ada angka dirender"
+        },
+        {
+          "description": "jalur pemulihan ingatan perangkat memanggil /summary tepat sekali",
+          "given": "ingatan perangkat memuat line 7 yang masih ada dan periode 42 sudah terpilih",
+          "expect": "GET /summary dipanggil tepat sekali dengan period_id=42 dan production_line_id=7"
+        },
+        {
+          "description": "/summary dipanggil tanpa business_unit_id",
+          "given": "pengguna berperan Station Operator dengan line 7 dan periode 42",
+          "expect": "query permintaan hanya memuat period_id dan production_line_id; tidak ada kunci business_unit_id pada permintaan"
+        },
+        {
+          "description": "/periods dipanggil tanpa business_unit_id",
+          "given": "layar dimuat sebagai Station Operator maupun Supervisor",
+          "expect": "GET /api/effluent-plant-reports/periods dipanggil tanpa satu pun parameter business_unit_id"
+        },
+        {
+          "description": "nama mill dibaca dari summary.business_unit.name, bukan dari respons /periods",
+          "given": "respons /summary memuat business_unit.name 'Mill Sungai Rambutan' dan respons /periods tidak memuat business_unit_name",
+          "expect": "state nama mill berisi 'Mill Sungai Rambutan' dan tidak ada pembacaan medan business_unit_name dari entri periode"
+        },
+        {
+          "description": "respons /periods tanpa business_unit_name tidak menjatuhkan pemetaan periode",
+          "given": "setiap entri /periods hanya memuat id, name, start_date, end_date, status, station_type, station_type_label",
+          "expect": "daftar periode termuat utuh tanpa melempar dan tanpa medan undefined yang ikut dirender"
+        },
+        {
+          "description": "endpoint daftar mill tidak pernah dipanggil dari layar ini",
+          "given": "seluruh alur layar dijalankan dari pemuatan awal sampai ekspor",
+          "expect": "GET /api/effluent-plant-reports/business-units/options tidak pernah muncul pada catatan permintaan klien — tidak ada jalur kode yang memanggilnya"
+        },
+        {
+          "description": "dua permintaan ringkasan saling mendahului: hanya respons permintaan terakhir dipakai",
+          "given": "permintaan periode 42 lalu periode 43 dijalankan berurutan cepat, dan respons 42 datang setelah respons 43",
+          "expect": "state angka berisi data periode 43; respons 42 dibuang dan tidak menimpa apa pun"
+        },
+        {
+          "description": "permintaan yang didahului tidak dibatalkan, hanya responsnya dibuang",
+          "given": "dua permintaan ringkasan berjalan bersamaan",
+          "expect": "tidak ada pembatalan permintaan; penanda permintaan terakhir bertambah dan respons yang penandanya bukan yang terakhir diabaikan"
+        },
+        {
+          "description": "state memuat tidak tersangkut setelah respons yang didahului dibuang",
+          "given": "respons permintaan lama datang terakhir dan dibuang",
+          "expect": "state memuat tetap false karena hanya permintaan terakhir yang mengendalikan penanda memuat"
+        },
+        {
+          "description": "nol aritmetika: coverage_percent dipakai apa adanya dari server",
+          "given": "respons /summary memuat coverage.filled_slots 118, expected_slots 1440, coverage_percent 8.2",
+          "expect": "state memuat 8.2 apa adanya; klien TIDAK membagi 118 dengan 1440 dan tidak membulatkan ulang"
+        },
+        {
+          "description": "nol aritmetika: rata-rata metrik tidak dihitung dari terendah dan tertinggi",
+          "given": "respons memuat min 6.1, avg 7.4, max 8.9 untuk pH kolam anaerobik 1",
+          "expect": "state memuat avg 7.4 dari server; tidak ada perhitungan (min+max)/2 maupun turunan lain"
+        },
+        {
+          "description": "nol aritmetika: porsi sebaran status tidak dihitung ulang di klien",
+          "given": "respons sebaran biogas_flare_status memuat share per nilai beserta recorded_slots",
+          "expect": "state memakai share dari server apa adanya; klien tidak membagi count dengan recorded_slots"
+        },
+        {
+          "description": "nol aritmetika: satuan 'C' TIDAK dipetakan menjadi '°C'",
+          "given": "respons memuat unit 'C' pada kartu suhu",
+          "expect": "state menyimpan string 'C' persis seperti server; tidak ada peta satuan di repo yang mengubahnya"
+        },
+        {
+          "description": "nol aritmetika: expected_slots tidak dihitung dari unit × hari × 24 di klien",
+          "given": "respons memuat units 2, days_counted 30, expected_slots 1440",
+          "expect": "state memakai expected_slots 1440 dari server; tidak ada perkalian di klien meski ketiga angkanya tersedia"
+        },
+        {
+          "description": "nol aritmetika: kejadian teks bebas tidak dikelompokkan menurut teksnya",
+          "given": "respons maintenance_remarks memuat tiga kejadian dengan teks yang identik pada tiga slot berbeda",
+          "expect": "state memuat tiga entri {date, time_slot, text} terpisah; tidak ada pengelompokan atau penjumlahan menurut teks"
+        },
+        {
+          "description": "keempat belas kolom metrik selalu ada di state, termasuk yang kosong",
+          "given": "respons /summary memuat chemical_consumption dengan min/avg/max null dan readings 0",
+          "expect": "state tetap memuat entri kartu itu dengan nilai null dan readings 0; entri tidak disaring keluar"
+        },
+        {
+          "description": "sebaran status: nilai dikenal dengan jumlah 0 tidak disaring keluar",
+          "given": "respons sebaran biogas_flare_status memuat on 310, off 90, fault 0",
+          "expect": "state memuat ketiga baris termasuk fault dengan count 0"
+        },
+        {
+          "description": "sebaran status: baris not_recorded tetap terpisah dan tidak dilipat ke off/stop",
+          "given": "respons memuat not_recorded 50 pada sebaran dosing_pump_1_status",
+          "expect": "state memuat baris not_recorded sebagai entri sendiri; nilai stop tetap pada jumlahnya semula tanpa ditambah 50"
+        },
+        {
+          "description": "ketiga kolom status tidak masuk ke data tren",
+          "given": "respons memuat trend hanya untuk raw_pome_feed_rate_m3h dan final_discharge_ph",
+          "expect": "state tren memuat tepat dua seri; tidak ada seri untuk ketiga kolom status dan tidak ada min/avg/maks bagi ketiganya"
+        },
+        {
+          "description": "401 dari /periods mengarahkan ke Login tanpa pesan jaringan",
+          "given": "GET /api/effluent-plant-reports/periods menjawab 401",
+          "expect": "pengalihan ke rute Login dipicu dan state galat jaringan TIDAK diset"
+        },
+        {
+          "description": "401 dari /summary mengarahkan ke Login tanpa pesan jaringan",
+          "given": "GET /api/effluent-plant-reports/summary menjawab 401",
+          "expect": "pengalihan ke rute Login dipicu dan tidak ada pesan 'periksa koneksi Anda'"
+        },
+        {
+          "description": "401 dari daftar Production Line mengarahkan ke Login tanpa pesan jaringan",
+          "given": "GET /api/production-lines/options-for-report menjawab 401",
+          "expect": "pengalihan ke rute Login dipicu dan pesan 'daftar line gagal dimuat' TIDAK ditampilkan"
+        },
+        {
+          "description": "401 dari /export mengarahkan ke Login tanpa pesan jaringan",
+          "given": "GET /api/effluent-plant-reports/export menjawab 401",
+          "expect": "pengalihan ke rute Login dipicu dan tidak ada berkas yang disimpan"
+        },
+        {
+          "description": "kegagalan jaringan pada /summary tidak menghapus line dan periode terpilih",
+          "given": "line 7 dan periode 42 sudah berlaku lalu GET /summary gagal karena jaringan",
+          "expect": "state galat ringkasan diset dengan penanda dapat-coba-lagi, sementara line 7 dan periode 42 tetap pada state"
+        },
+        {
+          "description": "kegagalan daftar line memberi state yang BERBEDA dari mill tanpa line",
+          "given": "GET /api/production-lines/options-for-report gagal karena jaringan",
+          "expect": "state 'gagal memuat daftar line' dengan penanda dapat-coba-lagi true"
+        },
+        {
+          "description": "mill tanpa line memberi state tanpa tombol coba lagi",
+          "given": "GET /api/production-lines/options-for-report menjawab 200 dengan data kosong",
+          "expect": "state 'mill belum punya line' dengan penanda dapat-coba-lagi false, dan state ini tidak sama dengan state kegagalan jaringan"
+        },
+        {
+          "description": "404 dari /summary untuk periode yang tidak ditemukan",
+          "given": "period_id menunjuk periode yang tidak ada atau tidak mencakup Effluent Plant",
+          "expect": "repo melempar galat ber-kode yang memicu state 'periode tidak ditemukan', bukan pengalihan ke Login"
+        },
+        {
+          "description": "422 dari /summary bila production_line_id tidak terkirim",
+          "given": "permintaan dibentuk tanpa production_line_id dan server menjawab 422",
+          "expect": "repo meneruskan galat validasi; ini jalur pertahanan kedua karena penjaga klien seharusnya sudah mencegah permintaan itu terbentuk"
+        },
+        {
+          "description": "ekspor memanggil /export dengan format=csv",
+          "given": "line 7 dan periode 42 berlaku lalu pengguna menjalankan Ekspor",
+          "expect": "GET /api/effluent-plant-reports/export dipanggil dengan period_id=42, production_line_id=7, format=csv"
+        },
+        {
+          "description": "ekspor tidak pernah mengirim format=xlsx",
+          "given": "seluruh jalur ekspor pada layar ini dijalankan",
+          "expect": "tidak ada permintaan ekspor dengan format selain csv; tidak ada jalur kode yang menyusun format=xlsx"
+        },
+        {
+          "description": "hasil ekspor disimpan lewat helper penyimpan berkas klien",
+          "given": "GET /export menjawab 200 dengan muatan CSV",
+          "expect": "helper penyimpan berkas dipanggil sekali dengan muatan itu dan nama berkas yang memuat nama periode serta line"
+        },
+        {
+          "description": "ekspor tidak dipanggil bila belum ada line berlaku",
+          "given": "line berlaku null dan pengguna memicu Ekspor",
+          "expect": "GET /export tidak dipanggil sama sekali"
+        },
+        {
+          "description": "kunci peta pemilih stasiun adalah 'effluent-plant' bertanda hubung",
+          "given": "station.type dari server bernilai 'effluent-plant'",
+          "expect": "pencarian pada peta pemilih menemukan entri dan mengembalikan rute report-effluent-plant"
+        },
+        {
+          "description": "regresi: kunci bergaris-bawah tidak pernah cocok dengan station.type",
+          "given": "peta pemilih memuat kunci effluent_plant alih-alih 'effluent-plant'",
+          "expect": "pencarian untuk station.type 'effluent-plant' mengembalikan undefined — menegakkan bahwa kunci WAJIB dikutip dan bertanda hubung"
+        },
+        {
+          "description": "rute report-effluent-plant bukan rute publik",
+          "given": "definisi rute mobile untuk path /reports/effluent-plant",
+          "expect": "meta.public bernilai false sehingga guard router mengarahkan ke Login bila tidak ada token"
+        },
+        {
+          "description": "backend: guardAccess menerima peran operator pada ketiga endpoint laporan",
+          "given": "pengguna berperan operator memanggil /periods, /summary, dan /export",
+          "expect": "guardAccess() meloloskan ketiganya dan tidak melempar 403"
+        },
+        {
+          "description": "backend: middleware rute juga menerima operator, bukan hanya guardAccess",
+          "given": "definisi rute keempat endpoint diperiksa terhadap daftar peran middleware",
+          "expect": "operator ada pada daftar peran middleware setiap rute — melebarkan guardAccess saja akan tetap tertolak di middleware"
+        },
+        {
+          "description": "backend KRITIS: operator masuk cabang terikat-mill pada resolveBusinessUnit sehingga business_unit_id kiriman DIBUANG",
+          "given": "operator mill A memanggil /summary dengan business_unit_id mill B pada query",
+          "expect": "resolveBusinessUnit() mengabaikan nilai kiriman dan memakai mill akun; jawabannya 200 berisi data mill A — BUKAN 403 dan BUKAN data mill B. Pelebaran yang hanya menyentuh daftar peran akan menjatuhkan operator ke cabang Admin dan membocorkan mill B"
+        },
+        {
+          "description": "backend: supervisor juga tetap pada cabang terikat-mill",
+          "given": "supervisor mill A memanggil /summary dengan business_unit_id mill B",
+          "expect": "200 berisi data mill A; nilai kiriman dibuang sama seperti operator"
+        },
+        {
+          "description": "backend: admin tetap menghormati business_unit_id kiriman",
+          "given": "admin memanggil /summary dengan business_unit_id mill B",
+          "expect": "200 berisi data mill B — pelebaran operator tidak mengubah perilaku cabang Admin"
+        },
+        {
+          "description": "backend: /business-units/options tetap 403 bagi operator, supervisor, dan mill management",
+          "given": "masing-masing dari ketiga peran memanggil GET /api/effluent-plant-reports/business-units/options",
+          "expect": "ketiganya menerima 403 FORBIDDEN; hanya admin yang diloloskan"
+        },
+        {
+          "description": "backend: rute WEB /reports/effluent-plant tetap 403 bagi operator",
+          "given": "operator mengakses rute web /reports/effluent-plant",
+          "expect": "403 — pelebaran akses API tidak melebarkan layar web screen-156"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "effluent-plant-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "effluent-plant-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-156--laporan-effluent-plant-web",
+      "reason": "Sumber keempat endpoint, seluruh bentuk payload, dan seluruh aturan penghitungannya. BERBEDA dari pasangan Kernel Plant: layar ini juga MENGUBAH screen-156 — pelebaran akses Operator menyentuh service, rute API, tiga berkas test, dan artefak screen-156 (actor_permissions business spec + tech spec, business_logic langkah 2, actor_ids api-index)"
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "Pintu masuk satu-satunya. Tile Effluent Plant baru aktif setelah SATU BARIS ditambahkan pada REPORT_ROUTES di ReportingPilihStasiunView.vue, dengan kunci 'effluent-plant' BERTANDA HUBUNG dan WAJIB DIKUTIP pada literal objek"
+    },
+    {
+      "screen_id": "screen-002--login-mobile",
+      "reason": "Sumber token Sanctum; 401 dari rute mana pun mengarahkan kembali ke sini"
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Memakai ulang GET /api/production-lines/options-for-report yang dibangun untuk layar itu, verbatim"
+    },
+    {
+      "screen_id": "screen-086--form-effluent-plant",
+      "reason": "Sumber data: record, slot waktu, dan ke-19 kolom pembacaan yang dibaca laporan ini diinput di sana, termasuk kisi 24 slot kanonis"
+    },
+    {
+      "screen_id": "screen-155--laporan-kernel-plant-mobile",
+      "reason": "Model struktur klien yang diport baris demi baris (repo + view + entri rute + satu baris REPORT_ROUTES) — TETAPI tipe responsnya berbeda pada tiga tempat, dan unit_test_cases serta test_scenarios artefaknya kosong, yang merupakan kelalaian dan tidak boleh ditiru"
+    }
+  ],
+  "implementation_notes": [
+    "BERBEDA DARI screen-155: LAYAR INI MENUNTUT PERUBAHAN BACKEND. Kernel Plant mobile nol perubahan backend karena kedua layarnya direncanakan dalam satu seri; di sini screen-156 mendarat lebih dulu dan sengaja menutup Operator. Pelebarannya: tambahkan operator pada grup middleware di routes/api.php, pada guardAccess(), DAN pada cabang terikat-mill resolveBusinessUnit() di EffluentPlantReportService. Ketiganya satu perubahan; melakukan dua dari tiga adalah kebocoran lintas mill.",
+    "KONSEKUENSINYA PADA BERKAS TEST screen-156 YANG SEKARANG HIJAU: empat kasus Operator-403 di tests/Unit/Services/EffluentPlantReportServiceTest.php, skenario Operator di tests/Feature/Api/LaporanEffluentPlantTest.php, dan invarian (k) di e2e-web/tests/laporan-effluent-plant.spec.ts semuanya mengasersi 403. Ketiganya HARUS diperbarui menjadi 200 untuk ketiga rute data, sementara /business-units/options tetap 403 dan rute web tetap 403. Ini bukan melemahkan asersi — asersi 403 itu sejak awal mendokumentasikan penundaan yang kini berakhir, dan tech spec screen-156 menyebutnya eksplisit sebagai langkah yang dapat ditinjau.",
+    "ARTEFAK screen-156 IKUT DIPERBARUI: actor_permissions pada business spec dan tech spec, business_logic langkah 2, dan actor_ids ketiga endpoint data pada api-index. Membiarkannya menyatakan 'Operator ditolak' sesudah pelebaran membuat artefak berbohong tentang kode.",
+    "BERKAS MOBILE YANG DIBUAT, dan hanya ini: src/services/effluentPlantReportRepo.ts (repo klien + tipe respons), src/views/LaporanEffluentPlantView.vue (layar), satu entri rute pada src/router/index.ts, dan SATU BARIS pada REPORT_ROUTES di src/views/ReportingPilihStasiunView.vue. Model: kernelPlantReportRepo.ts + LaporanKernelPlantView.vue, diport baris demi baris.",
+    "KUNCI PETA PEMILIH ADALAH 'effluent-plant' DENGAN TANDA HUBUNG, dan karena itu ia WAJIB DIKUTIP pada literal objek — seperti 'cages-track', 'boiler-room', 'storage-tank', dan 'kernel-plant' di sekitarnya. Kunci bergaris-bawah ('effluent_plant') akan terkompilasi, terlihat benar, dan tidak pernah cocok dengan station.type mana pun.",
+    "SATU KONSEKUENSI DI BERKAS UJI LAIN, DAN IA DISENGAJA OLEH PERANCANG UJI ITU: mobile/tests/ReportingPilihStasiunView.spec.ts baris 569 memakai 'effluent-plant' sebagai contoh kanonis 'laporan belum dibangun', dengan komentar 'Effluent Plant dipilih karena ia belum dipakai sebagai contoh di tempat lain mana pun'. Membangun layar ini membuat tile-nya aktif, jumlah tile nonaktif turun dari 4 ke 3, dan ujinya gagal. Docblock berkas itu menyatakan terang-terangan bahwa contohnya sudah LIMA kali dipindahkan dan akan gagal lagi bila Effluent Plant pun dibuatkan laporan — 'dan itu benar, karena ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau'. PEMINDAHAN KEENAM adalah bagian dari mendaratkan layar ini. Jenis stasiun yang belum dipakai sebagai contoh di berkas itu dan belum punya laporan mobile: engine-room (120), solid-waste-disposal (150), kernel-dispatch (160), cpo-dispatch (170). Disarankan cpo-dispatch karena sort_order-nya paling tinggi di antara yang belum terpakai, sehingga pemindahan ketujuh tertunda paling lama. Docblock-nya ikut diperbarui, termasuk mencatat bahwa klaim 'pemindahan kelima ke Process Quality Control' tidak cocok dengan fixture yang sebenarnya dipakai ('process-water').",
+    "TIPE RESPONS BERBEDA DARI KERNEL PLANT PADA TIGA TEMPAT, dan menyalinnya mentah akan membuat tipe berbohong: (1) TIDAK ADA objek target sama sekali — hapus equipment_parameter, target_benchmark, corrective_action_plan, dan shares_standard_with, karena Effluent Plant tidak punya master target; seluruh logika keterangan standar-bersama dan penjaga null-nya ikut hilang. (2) TIDAK ADA blok downtime. (3) ADA status_distribution{}, maintenance_remarks[], findings[], dan penanda is_lab per metrik — tiga bentuk yang tidak ada di satu pun laporan mobile sebelumnya. effluent_plant_id bertipe string, bukan uuid dan bukan kunci asing.",
+    "PENANDA 'lab' DITURUNKAN DARI metrics[kolom].is_lab PADA RESPONS, bukan dari daftar nama kolom yang dipaku di template — supaya kolom laboratorium keempat kelak ditandai benar tanpa menyunting template. Pelajaran yang sama dengan shares_standard_with di Kernel Plant.",
+    "SEBARAN STATUS MENGITERASI known_values, BUKAN kunci counts yang ada. Mengiterasi counts akan menghilangkan baris bernilai 0 — dan baris yang hilang terbaca sebagai 'nilai ini tidak ada' padahal yang benar 'nilai ini tidak pernah terjadi'. Penyebut porsi adalah recorded_slots, bukan expected_slots.",
+    "EMPAT BELAS KARTU DALAM ENAM BLOK BERJUDUL. Markup kartunya ditulis SEKALI dan di-loop, supaya tidak ada blok yang bisa kehilangan atau mewarisi penyebut milik blok lain — pelajaran yang sudah terbukti pada blade screen-156.",
+    "PENJAGA PRODUCTION LINE ADA DI FUNGSI PEMUATAN RINGKASAN, bukan hanya di template. Jalur coba-lagi, ganti-periode, dan pemulihan dari ingatan perangkat semuanya memanggil fungsi itu.",
+    "NOL ARITMETIKA DI KLIEN, termasuk TIDAK memetakan satuan 'C' menjadi '°C'. Bila '°C' yang diinginkan, perubahan satu barisnya ada di tabel label service backend — satu tempat, dua layar.",
+    "DUA PERMINTAAN RINGKASAN YANG SALING MENDAHULUI diselesaikan dengan penanda permintaan terakhir, bukan dengan membatalkan yang lama.",
+    "EKSPOR HANYA CSV — bukan karena endpoint tidak mendukung .xlsx (ia mendukung), melainkan karena penanganan berkas native di WebView ponsel belum ada.",
+    "401 MENGARAHKAN KE LOGIN TANPA PESAN JARINGAN.",
+    "LAYAR INI DAPAT DIUJI DI BROWSER lewat Vite dev server; ia bukan 'mobile-only'. Spec Playwright-nya di mobile/tests/e2e/laporan-effluent-plant.spec.ts, sejajar sebelas spec laporan mobile lainnya, dan menuntut backend (php artisan serve) plus mobile dev server (npm run dev) berjalan. Untuk QA/tangkapan layar, VITE_API_BASE_URL WAJIB menunjuk :8001 — mobile/.env menunjuk :8000 yang adalah basis data DEV. Menunda uji browser dengan alasan 'ini mobile' adalah kesalahan yang pernah dibuat dan dikoreksi di proyek ini.",
+    "DISIPLIN KELAS CSS: tiap kelas yang dipakai markup WAJIB punya definisi, diperiksa pada hasil render bukan pada sumbernya. Dua defek lama yang SENGAJA TIDAK disalin: LaporanDepricarpingView.vue membungkus angka downtime dengan kelas .metric-values yang tidak terdefinisi di satu berkas pun di src/, dan keterangan cakupan Depricarping mobile menyebut jumlah kolom bacaan yang salah. Pakai .metric-row/.metric-row-item yang terdefinisi, seperti LaporanKernelPlantView.vue.",
+    "JANGAN MENIRU KELALAIAN screen-155: unit_test_cases dan test_scenarios pada tech spec-nya kosong, satu-satunya di antara tiga belas kembaran mobile. Layar ini menurunkan keduanya dengan lengkap."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — berhasil sebagai Station Operator",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "production_line_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount dengan daftar stasiun yang memuat station.type 'effluent-plant', lalu tekan tile Effluent Plant",
+        "assert": "tile Effluent Plant dirender dan penekanannya memicu navigasi ke rute bernama report-effluent-plant; menegakkan bahwa kunci peta pemilih adalah 'effluent-plant' bertanda hubung dan terkutip, karena kunci bergaris-bawah akan terkompilasi tetapi tidak pernah cocok"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "login sebagai Station Operator pada mill yang punya line dan periode Effluent Plant berisi pembacaan, buka Reporting, tekan tile Effluent Plant, tetapkan Production Line, pilih sebuah periode",
+        "assert": "blok CAKUPAN PENCATATAN tampil di atas seluruh angka lain; keenam judul blok (Kolam Anaerobik 1, Kolam Anaerobik 2, Cooling Pond, Aliran, Buangan Akhir, Bahan Kimia) tampil; empat belas kartu metrik tampil masing-masing dengan terendah/rata-rata/tertinggi berdampingan dan jumlah pembacaannya sendiri; penanda 'lab' tampil di dalam ketiga kartu BOD/COD/TSS; pernyataan kepatuhan lingkungan tampil di dalam blok Buangan Akhir; tiga kartu sebaran status, dua bagian rekap teks bebas yang berjudul terpisah, dua tren harian, serta rekap per unit dan rekap per hari semuanya tampil; tidak ada pemilih mill; tidak ada kontrol tulis"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — berhasil sebagai Supervisor",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "production_line_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dua kali dengan respons /summary yang identik, sekali dengan peran Supervisor dan sekali dengan peran Station Operator",
+        "assert": "kedua render menghasilkan susunan dan teks yang sama persis — empat belas kartu metrik, keenam judul blok, tiga sebaran status, dua bagian rekap teks bebas; tidak ada satu pun medan, kolom, atau aksi yang hanya muncul pada salah satu peran; tidak ada pemilih mill pada keduanya"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "login sebagai Supervisor pada mill yang punya line dan periode Effluent Plant berisi pembacaan, buka layar lewat tile Effluent Plant, tetapkan Production Line, pilih periode",
+        "assert": "seluruh bagian yang tampil bagi Operator tampil juga bagi Supervisor dengan angka yang sama; tidak ada pemilih mill; tidak ada kontrol tulis; setelah layar ditutup tidak ada data stasiun yang berubah"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — Production Line belum berlaku",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount tanpa production_line_id pada query rute, tanpa ingatan perangkat, dengan mill yang punya tiga line; lalu picu jalur coba-lagi dan jalur ganti-periode",
+        "assert": "pemilih Production Line dirender; tidak satu pun kartu metrik, sebaran status, atau blok cakupan membawa angka; GET /summary tidak terpanggil pada mount, pada coba-lagi, maupun pada ganti-periode — menegakkan penjaga berada di fungsi pemuatan ringkasan bukan hanya di template; tidak ada angka gabungan seluruh mill sebagai pengganti"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "login pada mill dengan tiga Production Line, buka layar tanpa parameter line dan dengan penyimpanan perangkat dikosongkan, lalu coba ganti periode dan tekan coba lagi",
+        "assert": "pemilih Production Line terlihat; tidak ada satu pun angka laporan di halaman; tidak ada permintaan ke /api/effluent-plant-reports/summary pada catatan jaringan sepanjang ketiga percobaan itu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — mill tanpa Production Line",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons daftar line 200 berisi data kosong",
+        "assert": "arahan menghubungi Admin dirender; TIDAK ada tombol coba lagi; tidak ada angka laporan; teksnya berbeda dari teks kegagalan memuat daftar line"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "login pada mill yang belum punya satu pun Production Line, buka layar Laporan Effluent Plant",
+        "assert": "arahan menghubungi Admin terlihat, tombol coba lagi tidak ada di halaman, dan tidak ada angka laporan yang dirender"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — daftar Production Line gagal dimuat",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 500,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan permintaan daftar line yang gagal karena jaringan",
+        "assert": "pesan kegagalan memuat daftar line dirender beserta tombol coba lagi sendiri; teks pesannya BERBEDA dari arahan 'mill belum punya line' sehingga kedua keadaan tidak terbaca sama; menekan coba lagi memanggil ulang GET /api/production-lines/options-for-report"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "buka layar dengan permintaan /api/production-lines/options-for-report dicegat menjadi gagal, baca pesannya, lalu lepas cegatan dan tekan coba lagi",
+        "assert": "pesan gangguan sementara terlihat beserta tombol coba lagi; pesannya bukan arahan menghubungi Admin; setelah coba lagi daftar line termuat dan pemilih line tampil normal"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — line diingat perangkat",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "production_line_id": "{{step1.data[1].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount tanpa query rute, dengan penyimpanan perangkat berisi line 7 pada kunci yang sama dengan Station List, dan daftar line mill memuat 7 dan 8",
+        "assert": "nama line 7 tampil sebagai line yang berlaku; pemilih tidak menuntut pemilihan ulang; pembacaan terjadi pada kunci penyimpanan yang identik dengan konstanta Station List; GET /summary dipanggil dengan production_line_id=7"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih Production Line pada Station List terlebih dahulu, lalu buka Laporan Effluent Plant tanpa parameter line",
+        "assert": "line yang sama dengan pilihan di Station List langsung berlaku dan namanya terlihat; pemilih tidak meminta pemilihan lagi; angka laporan langsung termuat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — line yang diingat sudah tidak ada",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan penyimpanan perangkat berisi line 99 sementara daftar line mill hanya memuat 7 dan 8",
+        "assert": "pemilih Production Line muncul kembali; tidak ada line yang berlaku; line 7 maupun 8 TIDAK dipilih sebagai pengganti; GET /summary tidak terpanggil"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "tanam id line yang sudah tidak ada pada penyimpanan perangkat, lalu buka layar Laporan Effluent Plant",
+        "assert": "pemilih Production Line terlihat dan tidak ada angka laporan; tidak ada nama line lain yang tampil sebagai line berlaku"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — penyimpanan perangkat gagal",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan pembacaan penyimpanan perangkat yang melempar galat, pada mill yang punya tiga line",
+        "assert": "pemilih Production Line dirender secara normal; tidak ada pesan galat apa pun di layar; komponen tidak melempar; keadaan itu diperlakukan sebagai 'tidak ada ingatan'"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "buka layar pada konteks peramban yang membuat penyimpanan perangkat tidak dapat dibaca, lalu amati halaman dan console",
+        "assert": "pemilih Production Line terlihat normal, tidak ada pesan galat di halaman, dan tidak ada galat yang belum tertangani di console"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — mill belum punya periode Effluent Plant",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons /periods 200 berisi data kosong dan satu line yang langsung berlaku, lalu buka pemilih periode",
+        "assert": "arahan menghubungi Admin dirender; pemilih periode tetap dirender dalam keadaan kosong tanpa opsi; tidak ada angka laporan; GET /summary tidak terpanggil"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "login pada mill tanpa satu pun periode yang mencakup Effluent Plant, buka layar, lalu buka pemilih periode",
+        "assert": "arahan menghubungi Admin terlihat, pemilih periode ada tetapi kosong, dan tidak ada angka laporan di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — periode punya record tetapi tanpa slot terisi",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons /summary yang memuat record pada periode itu, units 2 dan days_counted 30 sehingga expected_slots 1440, tetapi filled_slots 0 dan coverage_percent 0.0",
+        "assert": "keterangan periode kosong dirender; seluruh angka kartu tampil sebagai keterangan 'tidak tersedia' bukan 0; blok CAKUPAN PENCATATAN TETAP dirender; persen cakupan tampil 0,0% dan BUKAN '—', karena penyebutnya terbentuk"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode yang punya record Effluent Plant namun tidak satu slot pun mengisi salah satu dari sembilan belas kolomnya",
+        "assert": "blok cakupan terlihat dengan persen 0,0%; teks '—' tidak muncul pada persen cakupan; keterangan periode kosong terlihat; keempat belas kartu metrik tetap terlihat dengan keterangan tidak tersedia"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — periode tanpa satu pun record",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 43,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons /summary yang memuat units 0 sehingga expected_slots 0 dan coverage_percent null",
+        "assert": "persen cakupan dirender '—' karena penyebutnya tidak terbentuk; keterangan sebabnya dirender; tampilannya berbeda dari skenario 0,0% — menegakkan bahwa '—' dan 0,0% tidak pernah tertukar"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode yang tidak punya satu pun record Effluent Plant pada line yang berlaku",
+        "assert": "persen cakupan terlihat '—' dan teks 0,0% tidak muncul pada baris persen cakupan; keterangan bahwa tidak ada unit untuk dijadikan penyebut terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — satu kolom ukur kosong sepanjang periode",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons /summary di mana satu kolom ukur (konsumsi bahan kimia) membawa min/avg/max null dan readings 0, sementara tiga belas kolom lain terisi",
+        "assert": "jumlah kartu metrik yang dirender tetap empat belas; kartu konsumsi bahan kimia TETAP ada dengan keterangan 'tidak tersedia' dan penyebut 0 pembacaan; kartu itu tidak disaring keluar"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode di mana satu kolom ukur kosong sepanjang periode, lalu gulir melewati keenam blok metrik",
+        "assert": "empat belas kartu metrik terhitung di halaman; kartu kolom yang kosong terlihat dengan keterangan tidak tersedia dan penyebut 0 pembacaan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — ketiga nilai laboratorium kosong sepanjang periode",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons /summary di mana final_discharge_bod_mgl_lab, final_discharge_cod_mgl_lab, dan final_discharge_tss_mgl_lab semuanya null dengan readings 0, sementara sebelas kartu lain berpenyebut ratusan",
+        "assert": "ketiga kartu laboratorium tetap dirender dengan 'tidak tersedia' dan penyebut 0; penanda 'lab' beserta keterangan sifat pengukurannya tampil DI DALAM masing-masing ketiga kartu itu — bukan sebagai satu keterangan di atas halaman; sebelas kartu lain tetap menampilkan angkanya normal; tidak ada teks bernada kegagalan pencatatan"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode dengan bacaan per jam lengkap namun BOD, COD, dan TSS buangan akhir tidak pernah diisi, lalu gulir sampai blok Buangan Akhir",
+        "assert": "ketiga kartu lab terlihat dengan keterangan tidak tersedia dan penyebut 0; penanda 'lab' terlihat di dalam ketiga kartu itu; sebelas kartu lain tetap membawa angka"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — satu slot hanya mengisi teks bebas",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons /summary yang memuat filled_slots lebih besar daripada readings tertinggi di antara keempat belas kartu, karena beberapa slot hanya mengisi kolom teks",
+        "assert": "jumlah slot terisi pada blok cakupan dirender lebih besar daripada penyebut setiap kartu metrik tanpa dikoreksi di klien; keterangan bahwa slot terisi dihitung atas sembilan belas kolom termasuk kedua kolom teks dirender di layar"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode yang memuat slot hanya berisi catatan perawatan atau temuan tanpa kolom ukur, lalu bandingkan jumlah slot terisi pada cakupan dengan penyebut kartu metrik",
+        "assert": "angka slot terisi terlihat lebih besar daripada penyebut kartu mana pun, dan keterangan sebabnya (sembilan belas kolom termasuk kedua kolom teks) terlihat di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — seluruh slot tidak mencatat status flare",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan sebaran biogas_flare_status yang memuat on 0, off 0, fault 0, dan not_recorded sama dengan seluruh slot terisi",
+        "assert": "kartu sebaran Biogas Flare mencetak ketiga nilai Nyala/Mati/Gangguan dengan jumlah 0; baris 'tidak tercatat' dirender terpisah membawa seluruh slot terisi; baris not_recorded TIDAK dilipat ke baris Mati; keterangan bahwa slot kosong tidak diperlakukan sebagai Mati dirender"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode yang tidak memuat satu slot pun dengan status biogas flare tercatat, lalu gulir sampai kartu sebaran Biogas Flare",
+        "assert": "baris Nyala, Mati, dan Gangguan terlihat dengan jumlah 0; baris tidak tercatat terlihat sebagai baris tersendiri dengan jumlah seluruh slot terisi; keadaan ini terbaca berbeda dari flare yang benar-benar mati"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — nilai status dikenal tidak pernah muncul",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan sebaran biogas_flare_status yang memuat on 310, off 90, fault 0",
+        "assert": "baris Gangguan tetap dirender dengan jumlah 0 dan tidak hilang dari sebaran; jumlah slot bergangguan tetap ditonjolkan tersendiri walau nilainya 0; porsi tiap baris memakai jumlah slot tercatat sebagai penyebut, bukan slot yang diharapkan"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode yang tidak memuat satu slot pun bernilai Gangguan pada status biogas flare, lalu baca kartu sebaran Biogas Flare",
+        "assert": "baris Gangguan terlihat dengan jumlah 0; ketiga baris nilai dikenal terlihat lengkap sehingga 'tidak pernah terjadi' terbaca berbeda dari 'tidak dilaporkan'"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — satu slot mengisi catatan perawatan dan temuan",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons yang memuat satu kejadian pada maintenance_remarks dan satu kejadian pada findings dengan date dan time_slot yang sama namun teks berbeda",
+        "assert": "dua bagian berjudul terpisah dirender; tanggal dan slot waktu yang sama muncul pada KEDUA daftar dengan teksnya masing-masing; tidak ada satu daftar gabungan yang memuat slot itu dua kali; keterangan bahwa itu bukan penghitungan ganda dirender"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode yang memuat satu slot mengisi kolom catatan perawatan dan kolom temuan sekaligus, lalu baca Rekap Catatan Perawatan lalu Rekap Temuan",
+        "assert": "tanggal dan slot waktu itu terlihat pada kedua rekap; kedua rekap tetap di bawah judul yang terpisah; keterangan bukan penghitungan ganda terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — kedua kolom teks bebas kosong",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan maintenance_remarks dan findings keduanya berisi daftar kosong",
+        "assert": "kedua bagian tetap dirender dengan judulnya masing-masing yang terpisah; masing-masing menampilkan keterangan tidak ada catatan; tidak ada tabel kosong tanpa penjelasan dan tidak ada bagian yang hilang dari halaman"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode tanpa satu pun catatan perawatan maupun temuan, lalu gulir sampai kedua bagian rekap teks bebas",
+        "assert": "kedua judul bagian terlihat; keterangan tidak ada catatan terlihat pada masing-masing bagian; tidak ada tabel kosong tanpa penjelasan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — teks catatan sangat panjang",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan satu kejadian findings yang teksnya satu paragraf penuh",
+        "assert": "seluruh isi teks hadir utuh pada hasil render — tidak ada pemotongan maupun elipsis yang menghilangkan isi; gaya pembungkusan diterapkan sehingga teks membungkus alih-alih memaksa lebar"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "setel viewport 390px, pilih periode yang memuat catatan satu paragraf penuh, lalu baca rekap yang memuat teks itu",
+        "assert": "seluruh isi teks terbaca di halaman tanpa terpotong; lebar gulir dokumen tidak melebihi lebar viewport sehingga kartu itu tidak membuat halaman menggulir mendatar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — line punya beberapa unit Effluent Plant",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons yang memuat tiga unit per_unit, salah satunya filled_slots 0 dan seluruh rata-ratanya null",
+        "assert": "rekap per unit dirender satu baris per effluent_plant_id termasuk unit tanpa pembacaan dengan jumlah pembacaan 0; angka periode pada kartu metrik dipakai apa adanya dari server sebagai gabungan seluruh unit tanpa dihitung ulang dari baris per unit"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode pada line yang punya lebih dari satu unit Effluent Plant di mana salah satunya tanpa pembacaan, lalu buka rekap per unit",
+        "assert": "satu baris per unit terlihat; baris unit tanpa pembacaan terlihat dengan jumlah pembacaan 0; angka periode di atas tetap angka gabungan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — periode masih berjalan",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 44,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons yang memuat period_running true, days_counted 12 untuk periode 30 hari, dan expected_slots yang sudah dihitung server atas 12 hari",
+        "assert": "penyebut hari yang dirender adalah 12 apa adanya dari server; keterangan bahwa perhitungan dilakukan sampai hari ini karena periode masih berjalan dirender; klien tidak menghitung ulang hari maupun expected_slots"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode yang tanggal akhirnya masih di masa depan sementara hari-hari yang sudah lewat terisi penuh, lalu baca blok cakupan pencatatan",
+        "assert": "jumlah hari yang dihitung berhenti di hari ini; keterangan periode masih berjalan terlihat; persentase cakupan tinggi dan tidak diturunkan oleh hari yang belum terjadi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — periode belum mulai",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 45,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons yang memuat days_counted 0, expected_slots 0, coverage_percent null, DAN period_running true sekaligus",
+        "assert": "persen cakupan dirender '—'; keterangan 'belum mulai' yang dirender dan keterangan 'periode berjalan' TIDAK dirender — menegakkan cabang days_counted nol diperiksa sebelum period_running"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode yang tanggal mulainya masih di masa depan sementara server menandainya masih berjalan juga, lalu baca blok cakupan pencatatan",
+        "assert": "persen cakupan terlihat '—'; keterangan belum mulai terlihat; keterangan periode masih berjalan tidak ada di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — periode tertutup",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[2].id}}",
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan periode terpilih berstatus tertutup dan respons /summary berisi pembacaan lengkap",
+        "assert": "badge status tertutup dirender beserta rentang tanggalnya; seluruh bagian laporan dirender penuh; aksi Ekspor dirender dalam keadaan aktif — status periode tidak membatasi pembacaan"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode yang berstatus tertutup pada pemilih periode",
+        "assert": "badge status tertutup terlihat; keempat belas kartu metrik dan seluruh rekap terlihat; tombol Ekspor terlihat dan tidak dalam keadaan nonaktif"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — jaringan gagal saat memuat ringkasan",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 500,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan line 7 dan periode 42 sudah berlaku, lalu buat GET /summary gagal karena jaringan",
+        "assert": "pesan galat dan tombol coba lagi dirender; nama line 7 dan periode 42 tetap terlihat sebagai pilihan yang masih berlaku; menekan coba lagi memanggil /summary dengan period_id dan production_line_id yang sama tanpa pengguna memilih ulang"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "tetapkan Production Line dan pilih periode, cegat /api/effluent-plant-reports/summary menjadi gagal, lalu lepas cegatan dan tekan coba lagi",
+        "assert": "pesan galat dan tombol coba lagi terlihat; nama line dan periode terpilih masih terlihat; setelah coba lagi angka laporan termuat tanpa pemilihan ulang"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — dua permintaan ringkasan saling mendahului",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 43,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "ganti periode dari 42 ke 43 secara berurutan cepat, lalu selesaikan respons 43 lebih dulu dan respons 42 sesudahnya",
+        "assert": "angka yang dirender adalah milik periode 43; respons 42 yang datang terlambat dibuang dan tidak menimpa state; tidak ada pembatalan permintaan — penyelesaiannya memakai penanda permintaan terakhir; state memuat berakhir false"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "cegat /summary dengan tundaan sehingga respons periode pertama datang lebih lambat, lalu ganti periode dua kali dengan cepat",
+        "assert": "setelah kedua respons selesai, nama periode pada badge dan angka cakupan yang terlihat adalah milik periode yang sedang terpilih (yang terakhir), bukan milik periode sebelumnya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — sesi berakhir",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount lalu buat /summary menjawab 401",
+        "assert": "pengalihan ke rute Login dipicu; tidak ada pesan galat jaringan yang dirender — khususnya tidak ada teks berisi anjuran memeriksa koneksi"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "buka layar dengan token yang sudah tidak berlaku lalu muat ulang laporan",
+        "assert": "peramban berada pada layar Login; tidak ada pesan galat jaringan yang terlihat pada perjalanan itu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — Operator membuka layar sebelum pelebaran akses diterapkan",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/export"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7,
+            "format": "csv"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount sebagai Station Operator dengan keempat endpoint menjawab 403",
+        "assert": "tidak ada angka laporan yang dirender dan tidak ada pengalihan ke Login; menegakkan bahwa 403 bukan jalur yang ditangani layar ini — karena itu pelebaran akses backend adalah bagian dari layar ini, bukan pekerjaan yang boleh menyusul"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "jalankan perjalanan dengan keempat endpoint dicegat menjadi 403, login sebagai Station Operator, buka layar Laporan Effluent Plant",
+        "assert": "halaman tidak menampilkan satu pun angka laporan; perjalanan ini berfungsi sebagai penanda regresi — ia WAJIB gagal setelah pelebaran akses diterapkan, karena sesudahnya keempat endpoint harus menjawab 200 bagi Operator"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — layar hanya membaca",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons berisi pembacaan lengkap, lalu telusuri seluruh kontrol yang dirender termasuk ketiga sebaran status, kedua rekap teks bebas, rekap per unit, dan rekap harian",
+        "assert": "tidak ada elemen form input, tidak ada tombol simpan, ubah, maupun hapus; satu-satunya kontrol adalah pemilih line, pemilih periode, pembuka/penutup bagian, Ekspor, dan Back"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "tampilkan laporan untuk periode berisi pembacaan, telusuri seluruh isi layar dari atas sampai bawah, lalu tutup layar dan buka kembali Detail stasiun untuk memeriksa datanya",
+        "assert": "tidak ada tombol simpan, ubah, atau hapus di halaman laporan; tidak ada permintaan POST, PUT, PATCH, atau DELETE pada catatan jaringan; data stasiun tidak berubah setelah layar ditutup"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — angka ponsel identik dengan web",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan muatan respons /summary yang sama persis dengan yang dipakai pengujian layar web screen-156",
+        "assert": "setiap angka yang dirender sama dengan nilai yang bersangkutan di muatan respons; tidak ada panggilan ke endpoint selain keempat endpoint yang dipakai ulang; tidak ada transformasi numerik di jalur repo maupun komponen"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "buka periode dan Production Line yang sama pada layar web /reports/effluent-plant dan pada layar mobile ini, lalu bandingkan cakupan, keempat belas kartu metrik, ketiga sebaran, dan kedua rekap",
+        "assert": "setiap angka identik pada kedua layar; tidak ada endpoint baru yang muncul pada catatan jaringan mobile selain keempat endpoint yang dipakai ulang"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — tidak ada pemilih mill dan business_unit_id tidak pernah dikirim",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount sebagai Station Operator lalu sebagai Supervisor, dan periksa seluruh permintaan yang dibentuk",
+        "assert": "tidak ada pemilih mill dirender pada kedua peran; nama mill dirender hanya sebagai keterangan dan nilainya diambil dari summary.business_unit.name bukan dari respons /periods; tidak satu pun permintaan membawa kunci business_unit_id; endpoint /api/effluent-plant-reports/business-units/options tidak pernah terpanggil"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "buka layar sebagai Station Operator, muat daftar periode dan ringkasan, lalu periksa catatan jaringan dan halaman",
+        "assert": "tidak ada pemilih mill di halaman; nama mill terlihat sebagai keterangan saja; tidak ada URL permintaan yang memuat business_unit_id; tidak ada permintaan ke /api/effluent-plant-reports/business-units/options"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — pernyataan kepatuhan lingkungan berada di dekat angkanya",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan pH, BOD, COD, dan TSS buangan akhir yang terisi, lalu periksa induk DOM dari pernyataan kepatuhan lingkungan",
+        "assert": "pernyataan bahwa batas regulasi ditetapkan di luar aplikasi berada DI DALAM elemen blok Buangan Akhir, bukan di footer halaman maupun di luar blok itu; tidak ada label atau kesimpulan patuh/tidak patuh di mana pun pada hasil render"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "setel viewport 390px, pilih periode dengan keempat parameter buangan akhir terisi, gulir sampai blok Buangan Akhir",
+        "assert": "pernyataan kepatuhan lingkungan terlihat dalam satu layar bersama keempat angkanya; pernyataan itu berada di dalam blok Buangan Akhir dan bukan di catatan kaki halaman; tidak ada teks patuh maupun tidak patuh di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — tidak ada penandaan nilai di luar batas",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons yang memuat nilai ekstrem jauh di atas dan di bawah nilai lainnya pada beberapa kolom ukur",
+        "assert": "tidak ada kelas peringatan, ikon, maupun label pelanggaran pada satu pun kartu metrik, titik tren, baris rekap per unit, atau baris rekap harian; keterangan sebab tidak adanya penandaan dirender UTUH — tanpa elipsis dan tanpa kontrol 'baca selengkapnya'"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode yang memuat nilai ekstrem, telusuri keempat belas kartu metrik, kedua tren harian, rekap per unit, dan rekap harian pada lebar 390px",
+        "assert": "tidak ada nilai yang berwarna peringatan atau membawa ikon/label pelanggaran; keterangan sebabnya terbaca utuh di halaman tanpa terpotong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — tidak ada blok downtime",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons berisi pembacaan lengkap, lalu cari seluruh teks dan kartu bertema downtime pada hasil render",
+        "assert": "tidak ada bagian, kartu, maupun angka downtime di mana pun; keterangan bahwa stasiun ini tidak mencatat downtime dirender sehingga ketiadaannya tidak terbaca sebagai bagian yang gagal dimuat"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode berisi pembacaan lengkap, lalu gulir seluruh halaman dari atas sampai bawah",
+        "assert": "tidak ada judul, kartu, atau angka downtime di halaman; keterangan bahwa stasiun ini tidak mencatat downtime terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — tidak ada kolom target pada kartu mana pun",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan keempat belas kolom ukur terisi, lalu periksa isi setiap kartu metrik",
+        "assert": "tidak ada label target maupun rencana tindakan koreksi pada satu pun dari keempat belas kartu; tidak ada medan selalu-kosong yang dirender demi sebangun dengan Kernel Plant atau Depricarping mobile; keterangan bahwa stasiun ini tidak punya master target dirender"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "pilih periode dengan pembacaan pada keempat belas kolom ukur, lalu baca setiap kartu metrik",
+        "assert": "teks target dan rencana tindakan koreksi tidak ada di halaman; keterangan bahwa stasiun ini tidak punya master target terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — ekspor hanya CSV",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/export"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7,
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan line 7 dan periode 42 berlaku, lalu jalankan aksi Ekspor",
+        "assert": "GET /api/effluent-plant-reports/export dipanggil dengan format=csv, period_id=42, production_line_id=7; helper penyimpan berkas klien dipanggil dengan muatan responsnya; tidak ada pilihan .xlsx dirender dan tidak ada permintaan ekspor berformat lain yang mungkin dibentuk dari layar ini"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "tetapkan Production Line, pilih periode, lalu jalankan Ekspor dan amati berkas yang terunduh",
+        "assert": "berkas CSV terunduh dengan satu baris per slot waktu; tidak ada pilihan atau tombol .xlsx di halaman; URL permintaan ekspor memuat format=csv"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — halaman tidak pernah menggulir mendatar",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount pada lebar 390px dengan respons yang memuat tiga puluh tanggal dan tiga unit sehingga rekap harian dan rekap per unit keduanya membawa empat belas kolom rata-rata",
+        "assert": "kedua tabel rekap dan kedua grafik tren masing-masing berada di dalam pembungkus yang bergulir mendatar sendiri; tidak ada elemen di luar pembungkus itu yang lebarnya melebihi 390px"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "setel viewport 390px, pilih periode dengan banyak tanggal dan beberapa unit, buka kedua rekap dan kedua grafik tren, lalu gulir masing-masing kartu ke kanan sampai habis",
+        "assert": "lebar gulir dokumen tidak melebihi lebar viewport pada setiap langkah; keempat kartu itu masing-masing dapat digulir mendatar di dalam dirinya sendiri dan mencapai kolom terakhirnya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Effluent Plant (Mobile) — tidak ada aritmetika di klien",
+      "usecase_id": "usecase-163--laporan-effluent-plant-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "production_line_id": 7
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEffluentPlantView",
+        "action": "mount dengan respons yang sengaja memuat angka tidak konsisten secara aritmetika — coverage_percent yang bukan hasil filled_slots dibagi expected_slots, avg yang di luar rentang min–max, share sebaran yang bukan hasil count dibagi recorded_slots, dan unit 'C' pada kartu suhu",
+        "assert": "setiap angka yang dirender sama persis dengan nilai dari respons, termasuk yang tidak konsisten itu; satuan dirender 'C' bukan '°C'; tidak ada nilai yang dikoreksi, dihitung ulang, dirata-rata, maupun dinormalkan oleh klien"
+      },
+      "browser_test": {
+        "route": "/reports/effluent-plant",
+        "action": "cegat /api/effluent-plant-reports/summary dengan muatan yang angkanya sengaja tidak konsisten secara aritmetika, lalu buka laporan dan bandingkan setiap angka di halaman dengan muatan itu",
+        "assert": "setiap angka di halaman sama dengan muatan respons tanpa kecuali, termasuk angka yang tidak konsisten — membuktikan tidak ada kebenaran kedua di klien yang dapat menyimpang dari web"
+      }
+    }
+  ]
+}

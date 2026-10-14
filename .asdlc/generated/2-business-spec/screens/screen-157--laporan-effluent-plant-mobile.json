@@ -1,0 +1,165 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-13"
+  },
+  "id": "screen-157--laporan-effluent-plant-mobile",
+  "name": "Laporan Effluent Plant (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Versi mobile dari Laporan Effluent Plant (screen-156). Isi laporannya SAMA PERSIS — keempat endpoint /api/effluent-plant-reports/* dipakai ulang apa adanya, sehingga layar web, API, dan ponsel tidak mungkin berselisih tentang satu angka pun. Yang berubah hanyalah bentuknya pada layar sempit, dan di stasiun ini yang berubah itu lebih besar daripada laporan mobile mana pun sebelumnya.\n\nEMPAT BELAS KARTU, DUA KALI LEBIH BANYAK DARIPADA LAPORAN MOBILE MANA PUN. Kernel Plant mobile punya tujuh; di sini ada empat belas, dan masing-masing membawa min / rata-rata / maks berdampingan di dalam kartunya plus penyebutnya sendiri. Empat belas kartu bertumpuk pada lebar 390px adalah gulir yang panjang, dan konsekuensinya bukan soal estetika: pembaca yang menggulir lama berhenti membaca dengan teliti, lalu melewatkan justru angka yang paling menuntut kehati-hatian. Karena itu keempat belas kartu DIKELOMPOKKAN menjadi ENAM blok berjudul — Kolam Anaerobik 1, Kolam Anaerobik 2, Cooling Pond, Aliran, Buangan Akhir, Bahan Kimia — pengelompokan yang sama dengan versi web, supaya gulirnya punya penanda tempat alih-alih menjadi empat belas kartu seragam tanpa batas.\n\nTIGA KARTU BERPENANDA 'lab' DAN PENYEBUTNYA JAUH LEBIH KECIL, dan inilah risiko paling tajam yang khas layar sempit. BOD, COD, dan TSS buangan akhir adalah nilai laboratorium: penyebutnya belasan sementara sebelas kartu lain berpenyebut ratusan. Di layar web kedua besaran itu terlihat BERDAMPINGAN sehingga perbedaannya langsung terbaca; di ponsel pembaca melihat satu kartu pada satu waktu, jadi rata-rata dari sebelas pembacaan tampil dengan kewibawaan yang sama seperti rata-rata dari dua ratus lima puluh. Karena itu penanda 'lab' dan keterangan 'penyebut kecil adalah keadaan normal' harus ada DI KARTUNYA MASING-MASING — bukan sebagai satu keterangan di atas halaman yang sudah tergulir jauh ketika kartu itu akhirnya terlihat.\n\nTIGA SEBARAN STATUS, dan ini bentuk yang belum pernah ada di laporan mobile mana pun. Biogas Flare, Pompa Dosing 1, dan Sludge Dewatering bukan angka — ketiganya kategoris, diterbitkan sebagai jumlah slot per nilai. Tiap sebaran menjadi daftar pendek di dalam kartunya sendiri: nilai, jumlah slot, porsinya, lalu baris 'tidak tercatat' yang DIBEDAKAN dari nilai mana pun. Nilai yang dikenal tetapi tidak muncul sepanjang periode tetap dicetak dengan jumlah 0 — baris yang hilang terbaca sebagai 'nilai ini tidak ada', padahal yang benar adalah 'nilai ini tidak pernah terjadi'.\n\nDUA REKAP TEKS BEBAS, DAN BENTUKNYA BERBEDA DARI KERNEL PLANT MOBILE. Di sana temuan dikelompokkan harfiah menurut teksnya beserta jumlah slot yang mencatatnya; di sini keduanya adalah daftar KEJADIAN — satu entri per slot, membawa tanggal dan slot waktunya. Perbedaan itu bukan pilihan tata letak, melainkan mengikuti apa yang dikembalikan endpoint. Keduanya dirender pada DUA BAGIAN TERPISAH, dan satu slot yang mengisi kedua kolom muncul pada keduanya — itu benar, bukan penghitungan ganda.\n\nYANG TIDAK ADA DI SINI, DAN KETIADAANNYA DISENGAJA. TIDAK ADA kolom target maupun rencana tindakan koreksi — Effluent Plant tidak punya tabel master target, berbeda dari Kernel Plant dan Depricarping mobile yang keduanya membawa kolom target di tiap kartunya. Tidak ada medan yang dikarang sebagai keterangan selalu-kosong agar 'sebangun' dengan kedua laporan itu. TIDAK ADA blok downtime — stasiun ini tidak mencatatnya sama sekali, sementara Kernel Plant mobile punya bloknya. TIDAK ADA penandaan otomatis di luar batas, dan sebabnya dinyatakan di layar sama lengkapnya dengan versi web, tidak diringkas demi ruang: ketiadaan yang tidak dijelaskan terbaca sebagai fitur yang belum selesai.\n\nDAN SATU PERNYATAAN YANG TIDAK BOLEH DIPOTONG DEMI RUANG: pH, BOD, COD, dan TSS buangan akhir adalah angka kepatuhan lingkungan yang batas regulasinya ditetapkan DI LUAR aplikasi ini. Pernyataan bahwa laporan ini tidak menilai kepatuhan dirender DI DALAM blok Buangan Akhir, tepat di dekat angkanya — bukan di catatan kaki halaman yang di ponsel berarti puluhan layar jauhnya dari angka yang dirujuknya.\n\nCAKUPAN PENCATATAN TETAP PALING ATAS. Di layar sempit pembaca melihat lebih sedikit sekaligus, jadi apa yang dilihat lebih dulu menentukan lebih banyak — dan dengan empat belas kolom yang seluruhnya nullable, periode yang terisi seperlima tetap menghasilkan rata-rata yang terlihat rapi.\n\nLAYAR INILAH YANG MEMBUKA AKSES OPERATOR. screen-156 sengaja menolak Operator pada keempat endpoint karena layar ini belum ada; dengan layar ini dibangun, Operator menjadi pemanggil yang sah. Pelebaran itu pekerjaan backend yang menyertai layar ini, bukan efek sampingnya.\n\nREAD-ONLY, dicapai dari Reporting (screen-141).",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Reporting (screen-141) → tekan tile Effluent Plant",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Effluent Plant, beserta status Effluent Plant pada periode itu",
+    "Pemilih Production Line — wajib; satu line langsung berlaku tanpa pemilih, lebih dari satu menuntut pemilihan dan tidak ada angka sebelum itu",
+    "Nama mill akun yang sedang masuk — tanpa pemilih mill; kedua peran pada layar ini terikat satu mill",
+    "Badge status periode beserta rentang tanggalnya",
+    "Nama Production Line yang sedang berlaku, selalu terlihat",
+    "CAKUPAN PENCATATAN, paling atas: slot terisi, slot yang diharapkan, dan persennya — beserta jumlah unit Effluent Plant yang beroperasi, jumlah hari yang dihitung, dan 24 slot kanonis per unit per hari",
+    "Keterangan bahwa penyebut hari berhenti di hari ini bila periode masih berjalan; atau bahwa periode belum mulai sehingga persennya '—' bukan 0%",
+    "Keterangan bahwa satu slot dianggap terisi bila SALAH SATU dari sembilan belas kolomnya terisi — termasuk kolom teks — sehingga jumlah slot terisi dapat MELEBIHI penyebut setiap kartu metrik, dan itu benar",
+    "ENAM blok berjudul yang memuat keempat belas kartu metrik: Kolam Anaerobik 1 (pH, suhu °C) · Kolam Anaerobik 2 (pH, suhu °C) · Cooling Pond (pH, suhu °C) · Aliran (laju biogas, laju POME masuk, laju buangan keluar m³/jam) · Buangan Akhir (pH, BOD, COD, TSS mg/L) · Bahan Kimia (konsumsi kg/L)",
+    "Pada tiap kartu metrik: nilai terendah, rata-rata, dan tertinggi BERDAMPINGAN di dalam kartu itu — bukan tiga kartu terpisah, karena ketiganya satu pengukuran dilihat dari tiga sisi — lalu JUMLAH PEMBACAAN penyebutnya sendiri",
+    "Pada ketiga kartu nilai laboratorium (BOD, COD, TSS buangan akhir): penanda 'lab' DI KARTUNYA, beserta keterangan bahwa nilainya datang dari laboratorium sehingga terisi jauh lebih jarang dan penyebut yang kecil adalah keadaan normal — bukan data yang hilang",
+    "PERNYATAAN KEPATUHAN LINGKUNGAN, dirender DI DALAM blok Buangan Akhir tepat di dekat keempat angkanya: batas regulasi pH/BOD/COD/TSS ditetapkan di luar aplikasi ini, dan laporan ini menampilkan angkanya tanpa menyatakan patuh atau tidak patuh",
+    "Keterangan bahwa laporan ini tidak menandai satu nilai pun sebagai di luar batas, beserta sebabnya — dirender UTUH, tidak diringkas demi ruang layar",
+    "TIGA kartu sebaran status: Biogas Flare (Nyala/Mati/Gangguan), Pompa Dosing 1 (Jalan/Berhenti), Sludge Dewatering (Jalan/Berhenti) — masing-masing daftar pendek berisi nilai, jumlah slot, dan porsinya",
+    "Pada tiap sebaran: baris 'tidak tercatat' yang DIBEDAKAN dari nilai mana pun, beserta keterangan bahwa slot yang kolomnya kosong tidak pernah diperlakukan sebagai 'Mati' maupun 'Berhenti'",
+    "Pada tiap sebaran: nilai yang dikenal tetapi tidak muncul sepanjang periode tetap dicetak dengan jumlah 0",
+    "Pada sebaran Biogas Flare: jumlah slot bergangguan ditonjolkan tersendiri, karena flare yang bergangguan berarti gas tidak terbakar sebagaimana mestinya",
+    "Keterangan bahwa porsi sebaran memakai jumlah slot TERCATAT sebagai penyebut, bukan slot yang diharapkan",
+    "REKAP CATATAN PERAWATAN — satu entri per slot yang mengisinya, membawa tanggal, slot waktu, dan teksnya",
+    "REKAP TEMUAN — bentuk yang sama, pada bagian TERPISAH dari rekap catatan perawatan",
+    "Keterangan bahwa kedua rekap itu menjawab pertanyaan berbeda — apa yang dikerjakan, versus apa yang ditemukan — dan bahwa satu slot yang mengisi keduanya muncul pada kedua rekap tanpa itu berarti penghitungan ganda",
+    "Dua tren harian: laju POME masuk rata-rata per tanggal dan pH buangan akhir rata-rata per tanggal, masing-masing beserta jumlah pembacaannya",
+    "Rekap per unit Effluent Plant — satu baris per effluent_plant_id: jumlah hari tercatat, jumlah slot terisi, dan rata-rata tiap kolom ukur",
+    "Rekap per hari — satu baris per tanggal: jumlah slot terisi dan rata-rata tiap kolom ukur, beserta baris total periode",
+    "Jumlah record pada periode dan line itu, jumlah hari yang punya record, jumlah record draft, jumlah yang belum diperiksa, dan jumlah yang belum disahkan",
+    "Keterangan periode kosong bila tidak ada satu slot pun terisi — dengan cakupan pencatatan TETAP ditampilkan",
+    "Keterangan bahwa layar ini tidak memuat bagian downtime, karena stasiun ini tidak mencatatnya — supaya ketiadaannya tidak terbaca sebagai bagian yang gagal dimuat",
+    "Keterangan bahwa stasiun ini tidak punya master target, sehingga tidak ada kolom target maupun rencana tindakan koreksi pada kartu mana pun"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan line yang angkanya dilihat. Wajib — tidak ada angka sebelum satu line berlaku. Pilihan diingat perangkat dan dibagi dengan Station List.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka / Tutup Bagian",
+      "description": "Menyingkap atau menyembunyikan rekap per unit Effluent Plant, rekap harian, dan kedua rekap teks bebas. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh seluruh slot waktu periode dan line terpilih sebagai CSV, satu baris per slot. Hanya CSV — .xlsx tidak tersedia di WebView ponsel, walau endpoint-nya mendukungnya untuk web.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Reporting (screen-141).",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Keempat endpoint /api/effluent-plant-reports/* dipakai ulang APA ADANYA dari screen-156 — tidak ada endpoint baru dan tidak ada perubahan payload, dan karena itu tidak mungkin ada angka yang berselisih dengan versi web.",
+    "SATU-SATUNYA perubahan backend yang menyertai layar ini adalah PELEBARAN AKSES OPERATOR, dan ia menyentuh dua tempat sekaligus: daftar peran penjaga endpoint, DAN cabang terikat-mill pada resolusi mill. Melebarkan yang pertama saja akan menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien dihormati — seorang Operator lalu dapat membaca laporan mill mana pun, dan itu kebocoran lintas mill, bukan cacat tampilan.",
+    "Endpoint daftar mill tetap tertutup bagi Operator (Admin saja). Layar ini tidak pernah memanggilnya, karena ia tidak punya pemilih mill.",
+    "Rute WEB /reports/effluent-plant tetap tertutup bagi Operator. Pelebaran akses API tidak boleh melebarkan layar web.",
+    "Production Line WAJIB dipilih sebelum satu angka pun ditampilkan, dan penjagaannya ada di FUNGSI pemuatan ringkasan — bukan hanya di template — supaya jalur coba-lagi, ganti periode, dan pemulihan dari ingatan perangkat tidak melewatinya.",
+    "Pilihan Production Line diingat perangkat dengan kunci yang sama seperti Station List, dan urutan penyelesaiannya: query rute → ingatan perangkat → satu-satunya line → tidak ada. Kegagalan penyimpanan (mode privat) diperlakukan sebagai 'tidak ada ingatan', bukan sebagai galat.",
+    "Tidak ada pemilih mill. Kedua peran pada layar ini terikat satu mill, dan business_unit_id tidak pernah dikirim ke server untuk keduanya.",
+    "KEEMPAT BELAS kartu metrik selalu dirender, termasuk yang tidak pernah terisi — dengan angka 'tidak tersedia' dan penyebut 0 pembacaan. Kartu yang hilang terbaca sebagai 'tidak ada metrik ini', padahal yang benar adalah 'tidak ada yang mengukurnya'.",
+    "Setiap kartu mencetak PENYEBUTNYA SENDIRI. Keempat belas kolom nullable dan terisi saling bebas, sehingga satu penyebut bersama akan salah untuk setidaknya tiga belas di antaranya — dan di stasiun ini selisihnya ekstrem, karena tiga kolom laboratorium terisi berkali-kali lebih jarang daripada sebelas kolom lainnya.",
+    "Jumlah slot terisi dihitung atas SEMBILAN BELAS kolom, termasuk kedua kolom teks. Karena itu satu slot yang hanya mengisi temuan tetap terhitung pada cakupan tanpa menambah penyebut kartu mana pun, sehingga slot terisi dapat MELEBIHI setiap penyebut kartu. Itu benar dan dinyatakan di layar.",
+    "Ketiga kartu nilai laboratorium membawa penanda 'lab' DAN keterangan sifat pengukurannya DI KARTUNYA MASING-MASING, bukan pada satu keterangan di atas halaman. Di layar sempit pembaca melihat satu kartu pada satu waktu, jadi keterangan yang jauh dari angkanya tidak dibaca bersama angkanya.",
+    "Keempat belas kartu dikelompokkan menjadi ENAM blok berjudul yang sama dengan versi web. Pengelompokan ini murni penanda tempat bagi gulir yang panjang — tidak satu pun angka dihitung per blok, dan tidak ada total per blok, karena satuan di dalam satu blok pun berbeda.",
+    "Nilai yang tidak tersedia dirender sebagai keterangan, bukan sebagai 0. Persen cakupan dirender '—' ketika PENYEBUTNYA tidak terbentuk; periode yang punya record tetapi tanpa satu slot terisi menghasilkan 0,0% dan itu benar, karena penyebutnya ada.",
+    "Cakupan pencatatan dirender DI ATAS seluruh angka lain, dan TETAP dirender meski periode kosong.",
+    "Urutan cabang keterangan cakupan: hari terhitung nol DIPERIKSA SEBELUM periode-masih-berjalan, karena server menandai periode yang belum mulai sebagai masih berjalan juga.",
+    "Ketiga kolom status bersifat kategoris dan diterbitkan sebagai SEBARAN jumlah slot per nilai. Tidak ada nilai terendah, rata-rata, maupun tertinggi untuk ketiganya, dan tidak satu pun dari ketiganya muncul pada kedua grafik tren.",
+    "Sebaran status mencetak seluruh nilai yang dikenal, termasuk yang jumlahnya 0, dan menempatkan slot yang kolomnya kosong pada baris 'tidak tercatat' yang TERPISAH — tidak pernah dilipat ke 'Mati' maupun 'Berhenti'.",
+    "Porsi pada sebaran memakai jumlah slot TERCATAT sebagai penyebut, bukan slot yang diharapkan — yang kedua akan mencampur 'tidak tercatat' ke dalam porsi nilai.",
+    "Kedua kolom teks bebas dirender pada DUA BAGIAN TERPISAH sebagai daftar kejadian, satu entri per slot beserta tanggal dan slot waktunya. Bentuk ini mengikuti apa yang dikembalikan endpoint dan BERBEDA dari Kernel Plant mobile, yang mengelompokkan temuan menurut teksnya beserta jumlah slot — menyalin bentuk itu ke sini akan menghilangkan tanggal dan slot waktu, yang justru satu-satunya cara menemukan kembali kejadiannya.",
+    "Satu slot yang mengisi kedua kolom teks muncul pada kedua rekap, dan itu benar — bukan penghitungan ganda. Menyatukan keduanya menjadi satu daftar akan menghitung slot itu dua kali dan mencampur dua pertanyaan yang berbeda.",
+    "Kedua kolom teks bebas tidak pernah dirata-rata, tidak dijadikan nilai terendah atau tertinggi, dan tidak muncul pada grafik tren mana pun.",
+    "TIDAK ADA blok downtime, karena stasiun ini tidak mencatatnya. Ketiadaannya dinyatakan di layar supaya tidak terbaca sebagai bagian yang gagal dimuat — dan supaya tidak ditambahkan kelak karena 'laporan mobile lain punya'.",
+    "TIDAK ADA kolom target maupun rencana tindakan koreksi pada kartu mana pun, karena stasiun ini tidak punya tabel master target. Tidak ada medan yang dikarang sebagai keterangan selalu-kosong demi sebangun dengan Kernel Plant atau Depricarping mobile.",
+    "TIDAK ADA penandaan otomatis di luar batas, dan keterangannya dirender UTUH — tidak diringkas demi ruang layar. Empat di antara keempat belas metrik adalah parameter kepatuhan lingkungan, jadi keterangan yang terpotong di sini berisiko lebih besar daripada di laporan mana pun sebelumnya.",
+    "Pernyataan kepatuhan lingkungan dirender DI DALAM blok Buangan Akhir, tepat di dekat keempat angkanya — bukan sebagai catatan kaki halaman, yang di ponsel berarti puluhan layar jauhnya dari angka yang dirujuknya.",
+    "Tidak ada aritmetika di klien. Seluruh angka diambil apa adanya dari respons server; repo klien tidak menghitung, tidak merata-ratakan, dan tidak menormalkan apa pun.",
+    "Record draft ikut terhitung pada seluruh angka, dan jumlahnya dinyatakan terpisah.",
+    "Ekspor hanya CSV. Endpoint mendukung .xlsx untuk web, tetapi menyimpan dan membuka berkas itu di WebView ponsel menuntut penanganan berkas native yang belum ada di aplikasi ini.",
+    "Halaman tidak pernah menggulir mendatar pada lebar 390px. Kedua tabel rekap menggulir DI DALAM kartunya sendiri — dan di stasiun ini tabel rekap paling lebar yang pernah ada, karena ia membawa empat belas kolom rata-rata.",
+    "Sesi yang berakhir mengarahkan ke Login tanpa pesan jaringan — 'periksa koneksi Anda' pada sesi yang berakhir mengirim pembaca ke arah yang salah."
+  ],
+  "usecase_ids": [
+    "usecase-163--laporan-effluent-plant-mobile"
+  ],
+  "edge_cases": [
+    "Production Line belum dipilih — pemilih tampil dan TIDAK ada satu angka pun; bukan angka gabungan seluruh mill.",
+    "Mill tanpa Production Line — arahan menghubungi Admin, tanpa tombol coba lagi.",
+    "Daftar Production Line gagal dimuat — pesan BERBEDA dari 'mill belum punya line', dengan tombol coba lagi sendiri.",
+    "Line dari query rute dipakai dan diingat perangkat.",
+    "Line yang diingat perangkat dipakai tanpa diminta memilih lagi.",
+    "Line yang diingat sudah tidak ada — pemilih muncul lagi, tanpa menebak line lain.",
+    "Penyimpanan perangkat gagal (mode privat) — diperlakukan sebagai 'tidak ada ingatan', bukan galat.",
+    "Mill belum punya periode yang mencakup Effluent Plant — arahan menghubungi Admin, pemilih tetap ada dalam keadaan kosong.",
+    "Periode yang PUNYA record tetapi tanpa satu pun slot terisi — keterangan periode kosong, seluruh angka 'tidak tersedia', cakupan TETAP tampil, dan persennya 0,0% BUKAN '—' karena penyebutnya terbentuk.",
+    "Periode tanpa satu pun record — persen cakupan '—', karena tidak ada unit untuk dijadikan penyebut.",
+    "Satu kolom ukur kosong sepanjang periode — kartunya tetap ada dengan 'tidak tersedia' dan penyebut 0 pembacaan.",
+    "Ketiga nilai laboratorium kosong sepanjang periode walau bacaan per jam lengkap — ketiga kartunya tetap ada dengan 'tidak tersedia', penyebut 0, dan penanda 'lab' beserta keterangannya tetap tampil; sebelas kartu lain tetap normal. Ini keadaan WAJAR bagi periode pendek, bukan kegagalan pencatatan.",
+    "Empat belas penyebut yang berbeda pada periode yang sama — keempat belasnya tercetak, masing-masing pada kartunya sendiri.",
+    "Satu slot hanya mengisi catatan perawatan atau temuan tanpa satu pun kolom ukur — ia terhitung pada cakupan tetapi tidak menambah penyebut kartu mana pun, sehingga slot terisi dapat MELEBIHI setiap penyebut. Itu benar dan dinyatakan.",
+    "Seluruh slot tidak mencatat status biogas flare sepanjang periode — sebarannya mencetak ketiga nilai dengan jumlah 0 dan seluruh slot masuk 'tidak tercatat', dibedakan dengan jelas dari flare yang benar-benar mati.",
+    "Sebuah nilai status yang dikenal tidak pernah muncul — barisnya tetap dicetak dengan jumlah 0, tidak hilang dari sebaran.",
+    "Satu slot mengisi catatan perawatan DAN temuan — muncul pada kedua rekap, dan keterangan menyatakan itu bukan penghitungan ganda.",
+    "Kedua kolom teks bebas kosong sepanjang periode — keterangan pada masing-masing bagian, bukan tabel kosong tanpa penjelasan.",
+    "Teks catatan perawatan atau temuan sangat panjang — dibungkus utuh tanpa pemotongan yang menghilangkan isi.",
+    "Line punya lebih dari satu unit Effluent Plant — angka periode menggabungkan seluruh unit, rekap per unit menampilkan sebarannya, dan unit tanpa pembacaan tetap muncul dengan jumlah pembacaan 0.",
+    "Periode masih berjalan — penyebut hari berhenti di hari ini, dan hal itu dinyatakan.",
+    "Periode belum mulai — persen cakupan '—' dan keterangan itu menang atas keterangan 'periode berjalan'.",
+    "Periode tertutup — laporan tampil penuh, ekspor tetap aktif.",
+    "Periode memuat banyak tanggal — kedua grafik tren menggulir di dalam kartunya sendiri, tanpa membuat halaman menggulir mendatar.",
+    "Jaringan gagal saat memuat ringkasan — pesan dan tombol coba lagi, dan periode serta line yang sudah dipilih tidak hilang.",
+    "Dua permintaan ringkasan saling mendahului (pengguna mengganti periode cepat) — hanya respons permintaan terakhir yang dipakai.",
+    "Sesi berakhir (401) — diarahkan ke Login tanpa pesan jaringan.",
+    "Operator membuka layar ini sebelum pelebaran akses backend diterapkan — keempat endpoint menjawab 403 dan layar tampak rusak tanpa sebab yang terbaca. Karena itu pelebaran akses adalah bagian dari layar ini, bukan pekerjaan terpisah yang boleh menyusul.",
+    "Halaman tidak pernah menggulir mendatar pada lebar 390px; kedua tabel rekap dan kedua grafik tren menggulir DI DALAM kartunya sendiri."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Label ketiga kolom status belum seragam di seluruh produk, dan layar ini tidak boleh memutuskannya sendiri. Layar laporan web (screen-156) mencetak Nyala/Mati/Gangguan dan Jalan/Berhenti, sementara layar Detail, formulir, dan kedua berkas ekspor memakai On/Off/Fault dan Run/Stop lewat Display::OPTION_LABELS. Divergensi itu sudah diangkat sebagai open question pada business spec screen-156 v2 dan BELUM diputuskan. Layar ini harus mengikuti apa pun yang akhirnya dipilih web — ponsel dan web tidak boleh berselisih tentang label satu nilai yang sama.",
+    "Empat belas kartu bertumpuk adalah gulir yang jauh lebih panjang daripada laporan mobile mana pun sebelumnya (Kernel Plant tujuh kartu, dan itu pun sudah panjang). Pengelompokan enam blok berjudul dipilih lebih dulu karena ia memberi penanda tempat tanpa menambah vokabulari tata letak baru. Belum diputuskan apakah blok-blok itu sebaiknya dapat dilipat (misalnya hanya Cakupan dan Buangan Akhir terbuka secara bawaan), karena melipatnya berarti pembaca harus tahu dulu bahwa ada yang perlu dibuka — dan di stasiun ini yang dipertaruhkan adalah angka kepatuhan lingkungan.",
+    "Rekap per unit dan rekap harian versi mobile membawa empat belas kolom rata-rata di dalam tabel yang menggulir mendatar di dalam kartunya — tabel terlebar yang pernah ada di laporan mobile mana pun. Belum diputuskan apakah pada layar sempit lebih berguna memecahnya menjadi satu kartu per hari dan satu kartu per unit. Bentuk tabel dipilih lebih dulu karena ia sejajar dengan versi web dan membuat perbandingan antar hari serta antar unit tetap mungkin.",
+    "Kedua pertanyaan terbuka screen-156 masih berlaku di sini. Yang pertama menyentuh layar ini secara langsung: bila baku mutu lingkungan kelak dimasukkan sebagai master target, layar ini perlu ditinjau ulang bersama versi web — dan peninjauan itu menyangkut tanggung jawab hukum, bukan sekadar tampilan. Yang kedua: deskripsi screen-156 pada screen-index masih menyatakan ketiga kolom status 'varchar tanpa batasan di basis data', padahal ketiganya punya CHECK constraint."
+  ]
+}

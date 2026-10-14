@@ -1,8 +1,8 @@
 {
-  "ver": 78,
+  "ver": 79,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-13"
+    "updated_at": "2026-10-14"
   },
   "endpoints": [
     {
@@ -2442,14 +2442,15 @@
     {
       "method": "GET",
       "path": "/api/effluent-plant-reports/periods",
-      "description": "Daftar Periode Pelaporan yang punya baris period_stations berjenis 'effluent-plant' pada satu mill; status per baris period_stations, dan periode tertutup maupun draft ikut tercantum — laporan ini tidak menyaring status. business_unit_id WAJIB bagi Admin (422 bila absen) dan DIABAIKAN bagi peran terikat mill — diabaikan, bukan divalidasi, sehingga menyelidik id mill lain adalah no-op yang tetap 200. production_line_id sengaja bukan parameter: periode milik mill, bukan milik line. OPERATOR BELUM DITERIMA di sini, berbeda dari prefix Grading/Kernel Plant — kembaran mobile screen-157 belum dibangun, dan pelebarannya kelak wajib menyentuh daftar peran DAN cabang terikat-mill sekaligus, karena melebarkan yang pertama saja menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien dihormati (kebocoran lintas mill).",
+      "description": "Daftar Periode Pelaporan yang punya baris period_stations berjenis 'effluent-plant' pada satu mill; status per baris period_stations, dan periode tertutup maupun draft ikut tercantum — laporan ini tidak menyaring status. business_unit_id WAJIB bagi Admin (422 bila absen) dan DIABAIKAN bagi peran terikat mill — diabaikan, bukan divalidasi, sehingga menyelidik id mill lain adalah no-op yang tetap 200. production_line_id sengaja bukan parameter: periode milik mill, bukan milik line. OPERATOR DITERIMA di sini sejak screen-157 (kembaran mobile) dibangun pada 2026-10-14; sebelum itu ia ditolak 403 pada keempat rute prefix ini, karena menerima peran sebelum pemanggilnya ada adalah akses yang tak dapat ditinjau siapa pun — presedens Weighbridge (screen-143 lebih dulu, Operator ditambahkan saat screen-144 dibangun). Pelebarannya menyentuh tiga tempat sekaligus: daftar peran middleware, guardAccess(), DAN cabang terikat-mill di resolveBusinessUnit(); melebarkan dua yang pertama saja menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien dihormati, yang berarti kebocoran lintas mill.",
       "screen_id": "screen-156--laporan-effluent-plant-web",
       "usecase_id": "usecase-162--laporan-effluent-plant-web",
       "auth_required": true,
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
-        "actor-admin"
+        "actor-admin",
+        "actor-station-operator"
       ]
     },
     {
@@ -2462,7 +2463,8 @@
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
-        "actor-admin"
+        "actor-admin",
+        "actor-station-operator"
       ]
     },
     {
@@ -2475,7 +2477,8 @@
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
-        "actor-admin"
+        "actor-admin",
+        "actor-station-operator"
       ]
     }
   ]

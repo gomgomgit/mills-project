@@ -86,11 +86,12 @@ use Livewire\Component;
  *
  * OPERATOR HAS NO ACCESS TO THIS SCREEN AT ALL, and canAccess() below is its
  * own role list ON PURPOSE rather than a call to
- * EffluentPlantReportService::guardAccess(): the service refuses Operator
- * TODAY, but screen-157 (the mobile twin) will widen it, and if canAccess()
- * ever delegates to the service, this web screen opens to Operator silently
- * in the same breath. Keep the duplication — it is what makes the two
- * decisions independent.
+ * EffluentPlantReportService::guardAccess(): THE SERVICE NOW ADMITS OPERATOR
+ * (widened by screen-157--laporan-effluent-plant-mobile, 2026-10-13, which is
+ * its legitimate caller), so if canAccess() ever delegates to the service,
+ * this web screen opens to Operator silently in the same breath. Keep the
+ * duplication — it is what makes the two decisions independent, and it is
+ * what kept this page closed when the API opened.
  *
  * The period picker auto-selects the newest period, so the page is useful on
  * first paint rather than demanding a choice before showing anything — except
@@ -175,8 +176,9 @@ class LaporanEffluentPlant extends Component
      * which is exactly how the test scenario exercises it.
      *
      * abort_unless() over canAccess() — THE COMPONENT'S OWN ROLE LIST, never
-     * the service's guardAccess(). See the class docblock: screen-157 will
-     * widen the service, and borrowing it here would widen this page with it.
+     * the service's guardAccess(). See the class docblock: screen-157 ALREADY
+     * widened the service, and borrowing it here would have widened this page
+     * with it.
      */
     public function mount(): void
     {
@@ -432,12 +434,12 @@ class LaporanEffluentPlant extends Component
     /**
      * Supervisor, Mill Management, and Admin only — never Operator.
      *
-     * ITS OWN LIST, NOT EffluentPlantReportService::guardAccess(). The
-     * service refuses Operator today, but screen-157 (the mobile Effluent
-     * Plant report) will widen it; borrowing it here would SILENTLY OPEN THIS
-     * WEB SCREEN TO OPERATOR in the same change, with no error and nothing on
-     * screen to hint at it. Keep the duplication: it is the thing that makes
-     * the two decisions independent.
+     * ITS OWN LIST, NOT EffluentPlantReportService::guardAccess(). The service
+     * NOW ADMITS OPERATOR — screen-157 (the mobile Effluent Plant report)
+     * widened it on 2026-10-13 — so borrowing it here would SILENTLY OPEN THIS
+     * WEB SCREEN TO OPERATOR, with no error and nothing on screen to hint at
+     * it. Keep the duplication: it is the thing that makes the two decisions
+     * independent, and it is why the API widening did not reach this page.
      */
     protected function canAccess(): bool
     {

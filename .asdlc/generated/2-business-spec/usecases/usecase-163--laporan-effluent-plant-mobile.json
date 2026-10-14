@@ -1,0 +1,577 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-13"
+  },
+  "id": "usecase-163--laporan-effluent-plant-mobile",
+  "name": "Lihat Laporan Periode Effluent Plant (Mobile)",
+  "description": "Operator atau Supervisor membuka Laporan Effluent Plant dari Reporting di ponsel, menetapkan Production Line, memilih periode, lalu membaca kondisi pengolahan limbah sepanjang periode itu pada layar sempit: kelengkapan pencatatan paling atas, empat belas kartu metrik dalam enam blok berjudul dengan penyebut masing-masing, tiga sebaran status kategoris, dua rekap teks bebas yang terpisah, dua tren harian, serta rekap per unit dan per hari. Keempat endpoint dipakai ulang apa adanya dari versi web sehingga ponsel tidak mungkin berselisih dengan web tentang satu angka pun. Layar inilah yang membuka akses Operator ke keempat endpoint itu.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "Pengguna sudah login di aplikasi mobile sebagai Station Operator atau Supervisor.",
+    "Kedua peran terikat satu mill; tidak ada pemilih mill dan business_unit_id tidak pernah dikirim.",
+    "Mill itu punya minimal satu Production Line.",
+    "Ada periode pelaporan yang mencakup stasiun Effluent Plant pada mill itu.",
+    "Pelebaran akses Operator pada keempat endpoint /api/effluent-plant-reports/* sudah diterapkan — tanpa itu layar ini menerima 403 dan tampak rusak tanpa sebab yang terbaca."
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka Reporting (screen-141) dan menekan tile Effluent Plant."
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Memuat daftar Production Line mill itu dan daftar periode yang mencakup Effluent Plant."
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menyelesaikan Production Line dengan urutan: query rute → ingatan perangkat → satu-satunya line → tidak ada. Bila tidak ada, menampilkan pemilih dan NOL angka."
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Memilih Production Line bila belum berlaku, lalu memilih periode."
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Menampilkan CAKUPAN PENCATATAN paling atas: slot terisi, slot diharapkan, persennya, beserta jumlah unit Effluent Plant, hari terhitung, dan 24 slot kanonis per unit per hari."
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menyatakan bahwa satu slot dianggap terisi bila salah satu dari SEMBILAN BELAS kolomnya terisi — termasuk kedua kolom teks — sehingga jumlah slot terisi dapat melebihi penyebut setiap kartu metrik."
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Menampilkan ENAM blok berjudul yang memuat EMPAT BELAS kartu metrik bertumpuk: Kolam Anaerobik 1, Kolam Anaerobik 2, Cooling Pond, Aliran, Buangan Akhir, Bahan Kimia. Tiap kartu membawa terendah, rata-rata, dan tertinggi berdampingan di dalam kartunya, lalu jumlah pembacaan penyebutnya sendiri."
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Pada ketiga kartu nilai laboratorium (BOD, COD, TSS buangan akhir) menampilkan penanda 'lab' DI KARTUNYA MASING-MASING beserta keterangan bahwa penyebut yang kecil adalah keadaan normal, bukan data yang hilang."
+    },
+    {
+      "step": 9,
+      "actor": "System",
+      "description": "Menampilkan pernyataan kepatuhan lingkungan DI DALAM blok Buangan Akhir, tepat di dekat keempat angkanya — bukan sebagai catatan kaki halaman."
+    },
+    {
+      "step": 10,
+      "actor": "System",
+      "description": "Menampilkan TIGA kartu sebaran status (Biogas Flare, Pompa Dosing 1, Sludge Dewatering): nilai, jumlah slot, porsinya, nilai dikenal yang tidak muncul tetap dicetak dengan jumlah 0, dan baris 'tidak tercatat' dibedakan dari nilai mana pun."
+    },
+    {
+      "step": 11,
+      "actor": "System",
+      "description": "Menampilkan Rekap Catatan Perawatan dan Rekap Temuan pada DUA bagian TERPISAH, masing-masing satu entri per slot beserta tanggal dan slot waktunya."
+    },
+    {
+      "step": 12,
+      "actor": "System",
+      "description": "Menampilkan dua tren harian (laju POME masuk dan pH buangan akhir), rekap per unit Effluent Plant, dan rekap per hari — masing-masing dalam kartu yang menggulir mendatar di dalam dirinya sendiri, sehingga halaman tidak pernah menggulir mendatar."
+    },
+    {
+      "step": 13,
+      "actor": "System",
+      "description": "Menyatakan bahwa layar ini tidak memuat blok downtime karena stasiun ini tidak mencatatnya, dan bahwa laporan ini tidak menandai satu nilai pun sebagai di luar batas karena stasiun ini tidak punya master target — keduanya UTUH tanpa diringkas demi ruang."
+    },
+    {
+      "step": 14,
+      "actor": "actor-station-operator",
+      "description": "Dapat membuka/menutup bagian rekap, dan mengekspor CSV untuk periode serta line terpilih."
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Production Line belum berlaku",
+      "trigger": "Pada langkah 3, tidak ada line dari query rute, ingatan perangkat, maupun satu-satunya line",
+      "steps": [
+        "Pemilih Production Line ditampilkan",
+        "TIDAK ada satu angka pun ditampilkan",
+        "Tidak ada angka gabungan seluruh mill sebagai penggantinya",
+        "Penjagaannya ada di fungsi pemuatan ringkasan, bukan hanya di template"
+      ]
+    },
+    {
+      "name": "Mill tanpa Production Line",
+      "trigger": "Pada langkah 2, mill tidak punya satu pun Production Line",
+      "steps": [
+        "Arahan menghubungi Admin ditampilkan",
+        "Tidak ada tombol coba lagi, karena mencoba lagi tidak akan mengubah apa pun"
+      ]
+    },
+    {
+      "name": "Daftar Production Line gagal dimuat",
+      "trigger": "Pada langkah 2, permintaan daftar line gagal karena jaringan",
+      "steps": [
+        "Pesan BERBEDA dari 'mill belum punya line' ditampilkan",
+        "Tombol coba lagi sendiri disediakan"
+      ]
+    },
+    {
+      "name": "Line diingat perangkat",
+      "trigger": "Pada langkah 3, ingatan perangkat memuat line yang masih ada",
+      "steps": [
+        "Line itu langsung berlaku tanpa pengguna diminta memilih lagi",
+        "Kuncinya sama dengan yang dipakai Station List"
+      ]
+    },
+    {
+      "name": "Line yang diingat sudah tidak ada",
+      "trigger": "Pada langkah 3, line pada ingatan perangkat tidak lagi ada pada mill itu",
+      "steps": [
+        "Pemilih muncul kembali",
+        "Sistem tidak menebak line lain sebagai penggantinya"
+      ]
+    },
+    {
+      "name": "Penyimpanan perangkat gagal",
+      "trigger": "Pada langkah 3, penyimpanan perangkat tidak dapat dibaca (mode privat)",
+      "steps": [
+        "Diperlakukan sebagai 'tidak ada ingatan'",
+        "Bukan sebagai galat, dan tidak ada pesan galat ditampilkan"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode Effluent Plant",
+      "trigger": "Pada langkah 2, mill tidak punya periode yang mencakup Effluent Plant",
+      "steps": [
+        "Arahan menghubungi Admin ditampilkan",
+        "Pemilih periode tetap ada dalam keadaan kosong",
+        "Tidak ada angka ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode punya record tetapi tanpa slot terisi",
+      "trigger": "Pada langkah 5, periode punya record namun tidak satu slot pun terisi",
+      "steps": [
+        "Keterangan periode kosong ditampilkan",
+        "Seluruh angka 'tidak tersedia'",
+        "Cakupan pencatatan TETAP ditampilkan",
+        "Persennya 0,0% BUKAN '—', karena penyebutnya terbentuk"
+      ]
+    },
+    {
+      "name": "Periode tanpa satu pun record",
+      "trigger": "Pada langkah 5, periode tidak punya satu pun record",
+      "steps": [
+        "Persen cakupan '—'",
+        "Sebabnya: tidak ada unit untuk dijadikan penyebut"
+      ]
+    },
+    {
+      "name": "Satu kolom ukur kosong sepanjang periode",
+      "trigger": "Pada langkah 7, satu dari empat belas kolom ukur kosong sepanjang periode",
+      "steps": [
+        "Kartunya TETAP dirender",
+        "Angkanya 'tidak tersedia' dengan penyebut 0 pembacaan",
+        "Kartu yang hilang akan terbaca sebagai 'tidak ada metrik ini'"
+      ]
+    },
+    {
+      "name": "Ketiga nilai laboratorium kosong sepanjang periode",
+      "trigger": "Pada langkah 8, BOD, COD, dan TSS kosong sepanjang periode walau bacaan per jam lengkap",
+      "steps": [
+        "Ketiga kartunya tetap ada dengan 'tidak tersedia' dan penyebut 0",
+        "Penanda 'lab' beserta keterangannya tetap tampil",
+        "Sebelas kartu lain tetap normal",
+        "Keadaan ini WAJAR bagi periode pendek, bukan kegagalan pencatatan"
+      ]
+    },
+    {
+      "name": "Satu slot hanya mengisi teks bebas",
+      "trigger": "Pada langkah 6, sebuah slot hanya mengisi catatan perawatan atau temuan tanpa satu pun kolom ukur",
+      "steps": [
+        "Slot itu terhitung pada cakupan",
+        "Tidak menambah penyebut kartu mana pun",
+        "Sehingga jumlah slot terisi MELEBIHI setiap penyebut kartu, dan itu dinyatakan di layar"
+      ]
+    },
+    {
+      "name": "Seluruh slot tidak mencatat status flare",
+      "trigger": "Pada langkah 10, tidak satu slot pun mencatat status biogas flare",
+      "steps": [
+        "Sebarannya mencetak ketiga nilai dengan jumlah 0",
+        "Seluruh slot terisi masuk baris 'tidak tercatat'",
+        "Dibedakan dengan jelas dari flare yang benar-benar mati"
+      ]
+    },
+    {
+      "name": "Nilai status dikenal tidak pernah muncul",
+      "trigger": "Pada langkah 10, sebuah nilai status yang dikenal tidak muncul sama sekali",
+      "steps": [
+        "Barisnya tetap dicetak dengan jumlah 0",
+        "Tidak hilang dari sebaran"
+      ]
+    },
+    {
+      "name": "Satu slot mengisi catatan perawatan dan temuan",
+      "trigger": "Pada langkah 11, sebuah slot mengisi kedua kolom teks bebas",
+      "steps": [
+        "Slot itu muncul pada KEDUA rekap",
+        "Keterangan menyatakan itu bukan penghitungan ganda",
+        "Tidak ada daftar gabungan yang menghitungnya dua kali"
+      ]
+    },
+    {
+      "name": "Kedua kolom teks bebas kosong",
+      "trigger": "Pada langkah 11, tidak ada satu pun catatan perawatan maupun temuan",
+      "steps": [
+        "Keterangan ditampilkan pada MASING-MASING bagian",
+        "Bukan tabel kosong tanpa penjelasan"
+      ]
+    },
+    {
+      "name": "Teks sangat panjang",
+      "trigger": "Pada langkah 11, isi catatan perawatan atau temuan sangat panjang",
+      "steps": [
+        "Dibungkus utuh",
+        "Tanpa pemotongan yang menghilangkan isi"
+      ]
+    },
+    {
+      "name": "Line punya beberapa unit Effluent Plant",
+      "trigger": "Pada langkah 12, line itu punya lebih dari satu unit",
+      "steps": [
+        "Angka periode menggabungkan seluruh unit",
+        "Rekap per unit menampilkan sebarannya",
+        "Unit tanpa pembacaan tetap muncul dengan jumlah pembacaan 0"
+      ]
+    },
+    {
+      "name": "Periode masih berjalan",
+      "trigger": "Pada langkah 5, tanggal akhir periode masih di masa depan",
+      "steps": [
+        "Penyebut hari berhenti di hari ini",
+        "Hal itu dinyatakan di layar",
+        "Hari yang belum terjadi tidak menurunkan persentase"
+      ]
+    },
+    {
+      "name": "Periode belum mulai",
+      "trigger": "Pada langkah 5, tanggal mulai periode masih di masa depan",
+      "steps": [
+        "Persen cakupan '—'",
+        "Keterangan 'belum mulai' MENANG atas keterangan 'periode berjalan'",
+        "Urutan cabangnya: hari terhitung nol diperiksa lebih dulu"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 4, pengguna memilih periode berstatus tertutup",
+      "steps": [
+        "Laporan tampil penuh",
+        "Status tertutup ditampilkan sebagai badge",
+        "Ekspor tetap aktif"
+      ]
+    },
+    {
+      "name": "Jaringan gagal saat memuat ringkasan",
+      "trigger": "Pada langkah 5, permintaan ringkasan gagal karena jaringan",
+      "steps": [
+        "Pesan dan tombol coba lagi ditampilkan",
+        "Periode dan line yang sudah dipilih TIDAK hilang"
+      ]
+    },
+    {
+      "name": "Dua permintaan ringkasan saling mendahului",
+      "trigger": "Pada langkah 4, pengguna mengganti periode dengan cepat dua kali",
+      "steps": [
+        "Hanya respons permintaan TERAKHIR yang dipakai",
+        "Respons yang datang terlambat dibuang, bukan ditimpakan"
+      ]
+    },
+    {
+      "name": "Sesi berakhir",
+      "trigger": "Pada langkah apa pun, server menjawab 401",
+      "steps": [
+        "Diarahkan ke Login",
+        "TANPA pesan jaringan — 'periksa koneksi Anda' pada sesi yang berakhir mengirim pembaca ke arah yang salah"
+      ]
+    },
+    {
+      "name": "Operator membuka layar sebelum pelebaran akses diterapkan",
+      "trigger": "Pada langkah 2, pelebaran akses Operator pada keempat endpoint belum diterapkan",
+      "steps": [
+        "Keempat endpoint menjawab 403",
+        "Layar tampak rusak tanpa sebab yang terbaca pengguna",
+        "Karena itu pelebaran akses adalah bagian dari layar ini, bukan pekerjaan terpisah yang boleh menyusul"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pembaca mengetahui terendah/rata-rata/tertinggi keempat belas metrik beserta penyebut masing-masing, mana di antaranya nilai laboratorium, seberapa lengkap pencatatannya, sebaran ketiga status, catatan perawatan dan temuan apa saja, serta sebaran per unit dan per hari.",
+    "Pembaca mengetahui bahwa laporan ini tidak menilai kepatuhan lingkungan dan tidak menandai nilai di luar batas, beserta sebabnya.",
+    "Tidak ada satu pun data yang berubah — layar ini hanya membaca.",
+    "Pilihan Production Line tersimpan di perangkat untuk dipakai layar lain."
+  ],
+  "business_rules": [
+    "Layar hanya membaca; tidak ada aksi tulis",
+    "Keempat endpoint /api/effluent-plant-reports/* dipakai ulang apa adanya dari screen-156 — tidak ada endpoint baru, tidak ada perubahan payload",
+    "Pelebaran akses Operator menyentuh DUA tempat sekaligus: daftar peran penjaga endpoint DAN cabang terikat-mill pada resolusi mill; melebarkan yang pertama saja adalah kebocoran lintas mill",
+    "Endpoint daftar mill tetap tertutup bagi Operator, dan layar ini tidak pernah memanggilnya",
+    "Rute web /reports/effluent-plant tetap tertutup bagi Operator",
+    "Production Line WAJIB berlaku sebelum satu angka pun ditampilkan, dan penjagaannya ada di fungsi pemuatan ringkasan bukan hanya di template",
+    "Urutan penyelesaian line: query rute → ingatan perangkat → satu-satunya line → tidak ada; kegagalan penyimpanan diperlakukan sebagai 'tidak ada ingatan'",
+    "Tidak ada pemilih mill; business_unit_id tidak pernah dikirim untuk kedua peran",
+    "Keempat belas kartu metrik selalu dirender, termasuk yang tidak pernah terisi",
+    "Setiap kartu mencetak penyebutnya sendiri; satu penyebut bersama akan salah untuk setidaknya tiga belas di antaranya",
+    "Jumlah slot terisi dihitung atas sembilan belas kolom termasuk kedua kolom teks, sehingga ia dapat melebihi penyebut setiap kartu — dan itu dinyatakan",
+    "Ketiga kartu laboratorium membawa penanda 'lab' dan keterangan sifat pengukurannya DI KARTUNYA MASING-MASING, bukan pada satu keterangan di atas halaman",
+    "Keempat belas kartu dikelompokkan menjadi enam blok berjudul; pengelompokan itu murni penanda tempat dan tidak ada total per blok",
+    "Nilai tidak tersedia dirender sebagai keterangan, bukan 0; persen cakupan '—' hanya ketika penyebutnya tidak terbentuk",
+    "Cakupan pencatatan dirender di atas seluruh angka lain, dan tetap dirender meski periode kosong",
+    "Hari terhitung nol diperiksa SEBELUM periode-masih-berjalan, karena server menandai periode yang belum mulai sebagai berjalan juga",
+    "Ketiga kolom status diterbitkan sebagai sebaran jumlah slot per nilai; tidak ada min/rata-rata/maks untuk ketiganya dan tidak satu pun muncul pada grafik tren",
+    "Sebaran mencetak seluruh nilai dikenal termasuk yang jumlahnya 0, dan menempatkan slot kosong pada baris 'tidak tercatat' yang terpisah",
+    "Porsi sebaran memakai jumlah slot tercatat sebagai penyebut, bukan slot yang diharapkan",
+    "Kedua kolom teks bebas dirender pada dua bagian terpisah sebagai daftar kejadian dengan tanggal dan slot waktu — berbeda dari Kernel Plant mobile yang mengelompokkan menurut teks",
+    "Satu slot yang mengisi kedua kolom teks muncul pada kedua rekap, dan itu bukan penghitungan ganda",
+    "Kedua kolom teks bebas tidak pernah dirata-rata maupun digrafikkan",
+    "Tidak ada blok downtime, dan ketiadaannya dinyatakan di layar",
+    "Tidak ada kolom target maupun rencana tindakan koreksi, karena stasiun ini tidak punya master target; tidak ada medan yang dikarang sebagai keterangan selalu-kosong",
+    "Tidak ada penandaan otomatis di luar batas, dan keterangannya dirender utuh tanpa diringkas demi ruang",
+    "Pernyataan kepatuhan lingkungan dirender di dalam blok Buangan Akhir, bukan sebagai catatan kaki halaman",
+    "Tidak ada aritmetika di klien; seluruh angka diambil apa adanya dari respons server",
+    "Record draft ikut terhitung pada seluruh angka, dan jumlahnya dinyatakan terpisah",
+    "Ekspor hanya CSV; .xlsx tidak ditawarkan di WebView ponsel",
+    "Halaman tidak pernah menggulir mendatar pada lebar 390px; tabel dan grafik menggulir di dalam kartunya sendiri",
+    "Sesi yang berakhir mengarahkan ke Login tanpa pesan jaringan"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — berhasil sebagai Station Operator",
+      "given": "Station Operator sudah login di aplikasi mobile, akunnya terikat satu mill yang punya Production Line dan punya periode pelaporan yang mencakup Effluent Plant dengan pembacaan terkumpul, dan pelebaran akses Operator pada keempat endpoint sudah diterapkan",
+      "when": "Operator membuka Reporting, menekan tile Effluent Plant, menetapkan Production Line, lalu memilih sebuah periode",
+      "then": "Layar menampilkan cakupan pencatatan paling atas, enam blok berjudul berisi empat belas kartu metrik dengan terendah/rata-rata/tertinggi berdampingan dan penyebut masing-masing, penanda 'lab' pada ketiga kartu laboratorium, pernyataan kepatuhan lingkungan di dalam blok Buangan Akhir, tiga sebaran status, dua rekap teks bebas yang terpisah, dua tren harian, rekap per unit dan per hari — tanpa pemilih mill dan tanpa satu pun data stasiun berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — berhasil sebagai Supervisor",
+      "given": "Supervisor sudah login di aplikasi mobile, akunnya terikat satu mill yang punya Production Line dan periode yang mencakup Effluent Plant dengan pembacaan terkumpul",
+      "when": "Supervisor membuka Reporting, menekan tile Effluent Plant, menetapkan Production Line, lalu memilih sebuah periode",
+      "then": "Layar menampilkan isi yang sama persis seperti bagi Operator — kedua peran terikat satu mill dan tidak ada perbedaan tampilan di antara keduanya — dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — Production Line belum berlaku",
+      "given": "Pengguna sudah login di mobile pada mill yang punya beberapa Production Line, dan tidak ada line dari query rute maupun ingatan perangkat",
+      "when": "Pengguna membuka layar Laporan Effluent Plant",
+      "then": "Pemilih Production Line ditampilkan dan tidak ada satu angka pun dirender — tidak ada angka gabungan seluruh mill sebagai penggantinya — dan penjagaan itu berlaku juga pada jalur coba-lagi dan ganti periode karena ia berada di fungsi pemuatan ringkasan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — mill tanpa Production Line",
+      "given": "Pengguna sudah login di mobile pada mill yang tidak punya satu pun Production Line",
+      "when": "Pengguna membuka layar Laporan Effluent Plant",
+      "then": "Arahan menghubungi Admin ditampilkan tanpa tombol coba lagi, karena mencoba lagi tidak akan mengubah apa pun, dan tidak ada angka yang dirender"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — daftar Production Line gagal dimuat",
+      "given": "Pengguna sudah login di mobile dan permintaan daftar Production Line gagal karena jaringan",
+      "when": "Pengguna membuka layar Laporan Effluent Plant",
+      "then": "Pesan yang BERBEDA dari 'mill belum punya line' ditampilkan beserta tombol coba lagi sendiri, sehingga pembaca tahu ini gangguan sementara dan bukan keadaan master data"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — line diingat perangkat",
+      "given": "Pengguna sudah pernah memilih Production Line di perangkat ini dan line itu masih ada pada mill-nya",
+      "when": "Pengguna membuka layar Laporan Effluent Plant",
+      "then": "Line yang diingat langsung berlaku tanpa pengguna diminta memilih lagi, memakai kunci penyimpanan yang sama dengan Station List"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — line yang diingat sudah tidak ada",
+      "given": "Ingatan perangkat memuat Production Line yang sudah tidak ada lagi pada mill pengguna",
+      "when": "Pengguna membuka layar Laporan Effluent Plant",
+      "then": "Pemilih Production Line muncul kembali dan sistem tidak menebak line lain sebagai penggantinya, sehingga pengguna tidak membaca angka line yang tidak ia pilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — penyimpanan perangkat gagal",
+      "given": "Aplikasi berjalan dalam keadaan yang membuat penyimpanan perangkat tidak dapat dibaca, misalnya mode privat",
+      "when": "Pengguna membuka layar Laporan Effluent Plant",
+      "then": "Keadaan itu diperlakukan sebagai 'tidak ada ingatan' sehingga pemilih line ditampilkan secara normal, dan tidak ada pesan galat apa pun yang muncul"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — mill belum punya periode Effluent Plant",
+      "given": "Pengguna sudah login di mobile pada mill yang tidak punya satu pun periode pelaporan yang mencakup Effluent Plant",
+      "when": "Pengguna membuka layar Laporan Effluent Plant dan membuka pemilih periode",
+      "then": "Arahan menghubungi Admin ditampilkan, pemilih periode tetap ada dalam keadaan kosong, dan tidak ada angka yang dirender"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — periode punya record tetapi tanpa slot terisi",
+      "given": "Periode yang dipilih punya record Effluent Plant namun tidak satu slot pun mengisi salah satu dari sembilan belas kolomnya",
+      "when": "Pengguna memilih periode tersebut",
+      "then": "Keterangan periode kosong ditampilkan, seluruh angka tampil 'tidak tersedia', cakupan pencatatan TETAP dirender, dan persennya 0,0% — bukan '—' — karena penyebutnya terbentuk"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — periode tanpa satu pun record",
+      "given": "Periode yang dipilih tidak punya satu pun record Effluent Plant pada line itu",
+      "when": "Pengguna memilih periode tersebut",
+      "then": "Persen cakupan tampil '—' karena tidak ada unit untuk dijadikan penyebut, dan itu dibedakan dari 0,0% yang berarti penyebutnya ada tetapi tidak terisi"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — satu kolom ukur kosong sepanjang periode",
+      "given": "Periode yang dipilih memuat pembacaan di mana satu dari empat belas kolom ukur kosong sepanjang periode",
+      "when": "Pengguna menggulir melewati keenam blok metrik",
+      "then": "Kartu metrik itu TETAP dirender dengan angka 'tidak tersedia' dan penyebut 0 pembacaan, karena kartu yang hilang akan terbaca sebagai 'tidak ada metrik ini' alih-alih 'tidak ada yang mengukurnya'"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — ketiga nilai laboratorium kosong sepanjang periode",
+      "given": "Periode yang dipilih punya bacaan per jam lengkap namun BOD, COD, dan TSS buangan akhir tidak pernah diisi",
+      "when": "Pengguna menggulir sampai blok Buangan Akhir",
+      "then": "Ketiga kartu laboratorium tetap ada dengan 'tidak tersedia' dan penyebut 0, penanda 'lab' beserta keterangan sifat pengukurannya tetap tampil di kartunya masing-masing, sebelas kartu lain tetap normal, dan tidak ada nada kegagalan pencatatan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — satu slot hanya mengisi teks bebas",
+      "given": "Periode yang dipilih memuat slot yang hanya mengisi catatan perawatan atau temuan tanpa satu pun kolom ukur",
+      "when": "Pengguna membandingkan jumlah slot terisi pada cakupan dengan penyebut kartu metrik",
+      "then": "Jumlah slot terisi MELEBIHI penyebut setiap kartu metrik, dan layar menyatakan sebabnya — slot terisi dihitung atas sembilan belas kolom termasuk kedua kolom teks"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — seluruh slot tidak mencatat status flare",
+      "given": "Periode yang dipilih tidak memuat satu slot pun yang mencatat status biogas flare",
+      "when": "Pengguna menggulir sampai kartu sebaran Biogas Flare",
+      "then": "Sebaran mencetak ketiga nilai dengan jumlah 0 dan seluruh slot terisi masuk baris 'tidak tercatat', sehingga keadaan 'tidak dicatat' terbaca berbeda dari flare yang benar-benar mati"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — nilai status dikenal tidak pernah muncul",
+      "given": "Periode yang dipilih tidak memuat satu slot pun bernilai 'Gangguan' pada status biogas flare walau nilai itu dikenal sistem",
+      "when": "Pengguna membaca kartu sebaran Biogas Flare",
+      "then": "Baris nilai itu tetap dicetak dengan jumlah 0 dan tidak hilang dari sebaran, sehingga 'tidak pernah terjadi' terbaca berbeda dari 'tidak dilaporkan'"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — satu slot mengisi catatan perawatan dan temuan",
+      "given": "Periode yang dipilih memuat satu slot yang mengisi kolom catatan perawatan dan kolom temuan sekaligus",
+      "when": "Pengguna membaca Rekap Catatan Perawatan lalu Rekap Temuan",
+      "then": "Tanggal dan slot waktu yang sama muncul pada kedua rekap dengan teksnya masing-masing, keterangan menyatakan itu bukan penghitungan ganda, dan tidak ada satu daftar gabungan yang menghitungnya dua kali"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — kedua kolom teks bebas kosong",
+      "given": "Periode yang dipilih tidak memuat satu pun catatan perawatan maupun temuan",
+      "when": "Pengguna menggulir sampai kedua bagian rekap teks bebas",
+      "then": "Masing-masing bagian menampilkan keterangan tidak ada catatan, bukan tabel kosong tanpa penjelasan, dan kedua bagian tetap berjudul terpisah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — teks catatan sangat panjang",
+      "given": "Periode yang dipilih memuat catatan perawatan atau temuan yang isinya satu paragraf penuh",
+      "when": "Pengguna membaca rekap yang memuat teks itu pada lebar 390px",
+      "then": "Teks dibungkus utuh tanpa pemotongan yang menghilangkan isi, dan kartunya tidak membuat halaman menggulir mendatar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — line punya beberapa unit Effluent Plant",
+      "given": "Production Line yang berlaku punya lebih dari satu unit Effluent Plant, salah satunya tanpa pembacaan pada periode itu",
+      "when": "Pengguna membuka rekap per unit",
+      "then": "Angka periode menggabungkan seluruh unit, rekap per unit menampilkan satu baris per unit, dan unit tanpa pembacaan tetap muncul dengan jumlah pembacaan 0"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — periode masih berjalan",
+      "given": "Periode yang dipilih tanggal akhirnya masih di masa depan sementara hari-hari yang sudah lewat terisi penuh",
+      "when": "Pengguna membaca blok cakupan pencatatan",
+      "then": "Penyebut hari berhenti di hari ini sehingga persentasenya tidak diturunkan oleh hari yang belum terjadi, dan layar menyatakan bahwa perhitungan dilakukan sampai hari ini karena periode masih berjalan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — periode belum mulai",
+      "given": "Periode yang dipilih tanggal mulainya masih di masa depan, dan server menandainya sebagai masih berjalan juga",
+      "when": "Pengguna membaca blok cakupan pencatatan",
+      "then": "Persen cakupan tampil '—' dan keterangan 'belum mulai' yang ditampilkan — bukan keterangan 'periode berjalan' — karena cabang hari-terhitung-nol diperiksa lebih dulu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — periode tertutup",
+      "given": "Mill punya periode berstatus tertutup yang mencakup Effluent Plant",
+      "when": "Pengguna memilih periode yang berstatus tertutup",
+      "then": "Laporan tampil penuh dengan badge status tertutup, dan aksi Ekspor tetap aktif karena status periode tidak membatasi pembacaan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — jaringan gagal saat memuat ringkasan",
+      "given": "Pengguna sudah menetapkan Production Line dan memilih periode, lalu jaringan gagal saat permintaan ringkasan berjalan",
+      "when": "Permintaan ringkasan gagal",
+      "then": "Pesan galat beserta tombol coba lagi ditampilkan, dan periode serta Production Line yang sudah dipilih tidak hilang sehingga pengguna tidak perlu memilih ulang"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — dua permintaan ringkasan saling mendahului",
+      "given": "Pengguna mengganti periode dua kali dengan cepat sehingga dua permintaan ringkasan berjalan bersamaan",
+      "when": "Respons permintaan pertama datang SETELAH respons permintaan kedua",
+      "then": "Hanya respons permintaan terakhir yang dipakai dan respons yang terlambat dibuang, sehingga angka yang tampil selalu milik periode yang sedang dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — sesi berakhir",
+      "given": "Sesi pengguna sudah tidak berlaku sehingga server menjawab 401",
+      "when": "Pengguna memuat atau memuat ulang laporan",
+      "then": "Aplikasi mengarahkan ke Login TANPA pesan jaringan, karena 'periksa koneksi Anda' pada sesi yang berakhir mengirim pembaca ke arah yang salah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — Operator membuka layar sebelum pelebaran akses diterapkan",
+      "given": "Layar ini sudah terpasang tetapi pelebaran akses Operator pada keempat endpoint belum diterapkan di backend",
+      "when": "Station Operator membuka layar Laporan Effluent Plant",
+      "then": "Keempat endpoint menjawab 403 dan layar tampak rusak tanpa sebab yang terbaca pengguna — inilah mengapa pelebaran akses adalah bagian dari layar ini, bukan pekerjaan terpisah yang boleh menyusul"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — layar hanya membaca",
+      "given": "Pengguna sudah menampilkan laporan untuk periode yang memuat pembacaan",
+      "when": "Pengguna menelusuri seluruh isi layar termasuk ketiga sebaran status, kedua rekap teks bebas, rekap per unit, dan rekap harian",
+      "then": "Tidak ada satu pun kontrol tulis — tanpa tombol simpan, ubah, atau hapus — dan setelah layar ditutup tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — angka ponsel identik dengan web",
+      "given": "Periode dan Production Line yang sama dibuka di layar web screen-156 dan di layar mobile ini",
+      "when": "Kedua layar menampilkan ringkasannya",
+      "then": "Setiap angka identik pada keduanya karena keempat endpoint dipakai ulang apa adanya tanpa endpoint baru maupun perubahan payload, dan klien mobile tidak melakukan satu pun perhitungan sendiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — tidak ada pemilih mill dan business_unit_id tidak pernah dikirim",
+      "given": "Pengguna berperan Station Operator atau Supervisor yang terikat satu mill",
+      "when": "Layar memuat daftar periode dan ringkasan",
+      "then": "Tidak ada pemilih mill yang dirender, nama mill akun hanya tampil sebagai keterangan, dan tidak satu pun permintaan membawa business_unit_id — cakupan mill ditetapkan server dari akun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — pernyataan kepatuhan lingkungan berada di dekat angkanya",
+      "given": "Periode yang dipilih memuat nilai pH, BOD, COD, dan TSS buangan akhir yang terisi",
+      "when": "Pengguna menggulir sampai blok Buangan Akhir",
+      "then": "Pernyataan bahwa batas regulasi keempat parameter ditetapkan di luar aplikasi dirender DI DALAM blok itu, tepat di dekat angkanya dan bukan sebagai catatan kaki halaman, dan tidak ada label maupun kesimpulan patuh/tidak patuh di mana pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — tidak ada penandaan nilai di luar batas",
+      "given": "Periode yang dipilih memuat nilai yang secara ekstrem jauh di atas dan di bawah nilai lainnya",
+      "when": "Pengguna menelusuri keempat belas kartu metrik, kedua tren harian, rekap per unit, dan rekap harian",
+      "then": "Tidak ada satu pun nilai yang diberi warna peringatan, ikon, atau label pelanggaran, dan keterangan sebabnya dirender UTUH tanpa diringkas demi ruang layar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — tidak ada blok downtime",
+      "given": "Periode yang dipilih memuat pembacaan lengkap",
+      "when": "Pengguna menggulir seluruh halaman dari atas sampai bawah",
+      "then": "Tidak ada bagian, kartu, maupun angka downtime di mana pun, dan layar menyatakan bahwa stasiun ini tidak mencatatnya sehingga ketiadaannya tidak terbaca sebagai bagian yang gagal dimuat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — tidak ada kolom target pada kartu mana pun",
+      "given": "Periode yang dipilih memuat pembacaan pada keempat belas kolom ukur",
+      "when": "Pengguna membaca kartu metrik mana pun",
+      "then": "Tidak ada kolom target maupun rencana tindakan koreksi pada satu kartu pun, dan tidak ada medan selalu-kosong yang dikarang demi sebangun dengan laporan mobile lain; layar menyatakan bahwa stasiun ini tidak punya master target"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — ekspor hanya CSV",
+      "given": "Pengguna sudah menetapkan Production Line dan memilih periode sehingga aksi Ekspor tersedia",
+      "when": "Pengguna menjalankan Ekspor",
+      "then": "Berkas CSV satu baris per slot waktu terunduh, dan tidak ada pilihan .xlsx yang ditawarkan karena menyimpan serta membukanya di WebView ponsel menuntut penanganan berkas native yang belum ada"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — halaman tidak pernah menggulir mendatar",
+      "given": "Periode yang dipilih memuat banyak tanggal dan beberapa unit sehingga rekap harian dan rekap per unit keduanya lebar",
+      "when": "Pengguna membuka kedua rekap dan kedua grafik tren pada lebar 390px",
+      "then": "Keempatnya menggulir mendatar DI DALAM kartunya sendiri dan halaman itu sendiri tidak pernah menggulir mendatar, meski rekap di stasiun ini membawa empat belas kolom rata-rata — yang terlebar di laporan mobile mana pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Effluent Plant (Mobile) — tidak ada aritmetika di klien",
+      "given": "Respons ringkasan server memuat seluruh angka periode beserta penyebut tiap metrik",
+      "when": "Layar merender kartu metrik, sebaran status, cakupan, dan kedua rekap",
+      "then": "Setiap angka yang tampil berasal apa adanya dari respons server, dan klien tidak menghitung, merata-ratakan, maupun menormalkan satu nilai pun — sehingga tidak ada kebenaran kedua yang dapat menyimpang dari web"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-157--laporan-effluent-plant-mobile"
+  ]
+}

@@ -1059,6 +1059,37 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanKernelPlantView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-157--laporan-effluent-plant-mobile /
+    // usecase-163--laporan-effluent-plant-mobile "Lihat Laporan Periode
+    // Effluent Plant (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor) — without a token the router guard sends the caller to
+    // Login.
+    //
+    // THIS ONE DID REQUIRE A BACKEND CHANGE, unlike report-kernel-plant above.
+    // screen-156 (web) landed first and deliberately refused Operator 403 on
+    // all four /api/effluent-plant-reports/* routes, because the mobile twin
+    // had no caller yet. This screen IS that caller, so the widening landed
+    // WITH it, in three places at once: the role list in routes/api.php,
+    // EffluentPlantReportService::guardAccess(), AND the mill-bound branch of
+    // resolveBusinessUnit() — doing two of three would drop Operator into the
+    // Admin branch, where a client-supplied business_unit_id IS honoured, i.e.
+    // a cross-mill leak. What stayed closed: /business-units/options is Admin
+    // only (403 raised inside the service, not by the middleware), and the WEB
+    // route /reports/effluent-plant was NOT widened. This mobile screen has no
+    // mill picker at all.
+    //
+    // Pintu masuknya: rute 'report-stations' (screen-141) menampilkan grid
+    // stasiun, dan tile Effluent Plant-lah yang menavigasi ke sini — entri
+    // 'effluent-plant' pada REPORT_ROUTES di ReportingPilihStasiunView.vue
+    // adalah satu-satunya penentu tile itu hidup atau mati. Kuncinya WAJIB
+    // berkutip di sana karena bertanda hubung.
+    path: '/reports/effluent-plant',
+    name: 'report-effluent-plant',
+    component: () => import('@/views/LaporanEffluentPlantView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

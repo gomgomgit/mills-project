@@ -1480,31 +1480,45 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/kernel-plant-reports/export', [KernelPlantReportController::class, 'export']);
 });
 
-// === LAPORAN PERIODE EFFLUENT PLANT (screen-156 web) ===
-// Same four-endpoint shape as the eleven station report prefixes above, with
-// ONE deliberate difference: THE ROLE LIST HAS NO `operator`.
+// === LAPORAN PERIODE EFFLUENT PLANT (screen-156 web + screen-157 mobile) ===
+// Same four-endpoint shape and now the same role list as the Grading /
+// Kernel Plant prefixes above — `operator` INCLUDED.
 //
-// Grading and Kernel Plant admitted Operator from their first commit because
-// their mobile twins were built in the same series. The Effluent Plant mobile
-// twin (screen-157) has NOT been built, so there is no legitimate Operator
-// caller today, and admitting a role before its caller exists is access
-// nobody can review. This follows the Weighbridge precedent (screen-143
-// shipped first; Operator was added when screen-144 was built), and it is
-// asserted by tests — four unit cases plus a browser scenario expect 403 for
-// Operator.
+// OPERATOR WAS DELIBERATELY ABSENT UNTIL screen-157 (2026-10-13). The web
+// screen landed first and refused Operator 403 on all four routes, because
+// the mobile twin had no caller yet and admitting a role before its caller
+// exists is access nobody can review (the Weighbridge precedent: screen-143
+// shipped first; Operator was added when screen-144 was built). screen-157
+// --laporan-effluent-plant-mobile IS that caller, so the widening lands WITH
+// it rather than after it — without it the mobile screen answers 403 on all
+// four routes and looks broken for no reason the reader can see.
 //
-// WHEN screen-157 IS BUILT, the widening must touch BOTH this role list AND
-// the mill-bound branch of EffluentPlantReportService::resolveBusinessUnit().
-// Widening only the first drops Operator into the Admin branch, where a
-// client-supplied business_unit_id IS honoured — a cross-mill leak.
+// THE WIDENING IS ONE CHANGE IN THREE PLACES, NOT THREE CHANGES: this role
+// list, EffluentPlantReportService::guardAccess(), AND the MILL-BOUND branch
+// of EffluentPlantReportService::resolveBusinessUnit(). Doing the first two
+// only drops Operator into the Admin branch, where a client-supplied
+// business_unit_id IS honoured — an Operator could then read ANY mill's
+// report. That is a cross-mill leak, not a display defect.
 //
-// /business-units/options refuses anyone but Admin with 403 regardless, raised
-// inside EffluentPlantReportService rather than by this middleware.
+// WHAT STAYS CLOSED STAYS CLOSED: /business-units/options refuses anyone but
+// Admin with 403 — Operator, Supervisor and Mill Management alike — raised
+// inside EffluentPlantReportService rather than by this middleware, precisely
+// so widening this list cannot loosen it. The WEB route
+// /reports/effluent-plant is NOT widened either: widening API access must not
+// widen the web screen.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for every mill-bound role — Operator, Supervisor and Mill
+// Management alike (EffluentPlantReportService::resolveBusinessUnit) —
+// probing another mill still returns 200 with the caller's own data, on
+// purpose: a 403 would confirm the other mill exists. The real cross-mill
+// guards are on production_line_id (resolveProductionLine) and period_id
+// (authorizePeriod), and both DO answer 403.
 //
 // The production-line OPTION LIST is NOT duplicated here: GET
 // /api/production-lines/options-for-report (built for screen-135) is reused
 // verbatim.
-Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])->group(function () {
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
     Route::get('/effluent-plant-reports/business-units/options', [EffluentPlantReportController::class, 'businessUnitOptions']);
     Route::get('/effluent-plant-reports/periods', [EffluentPlantReportController::class, 'periods']);
     Route::get('/effluent-plant-reports/summary', [EffluentPlantReportController::class, 'summary']);

@@ -10,9 +10,11 @@ use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * EffluentPlantReportController — screen-156--laporan-effluent-plant-web.
- * auth_requirement: authenticated, Supervisor / Mill Management / Admin (see
- * routes/api.php's 'role:supervisor,mill_management,admin' middleware).
+ * EffluentPlantReportController — screen-156--laporan-effluent-plant-web +
+ * screen-157--laporan-effluent-plant-mobile.
+ * auth_requirement: authenticated, Supervisor / Mill Management / Admin /
+ * Operator (see routes/api.php's
+ * 'role:supervisor,mill_management,admin,operator' middleware).
  *
  * GET-ONLY BY DESIGN. There is no POST/PUT/PATCH/DELETE action here and none
  * on the /api/effluent-plant-reports prefix — this screen is a read-only
@@ -23,18 +25,22 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * (App\Livewire\Dashboard\LaporanEffluentPlant), so the web page and the API
  * can never disagree on a figure.
  *
- * OPERATOR IS REFUSED 403 ON ALL FOUR ROUTES, and that is the one thing that
- * differs from the Grading / Kernel Plant prefixes, which admit Operator on
- * three of their four from the first commit. The reason is not an oversight:
- * the mobile twin of this screen (screen-157) has NOT been built, so there is
- * no legitimate Operator caller today, and admitting a role before its caller
- * exists is access nobody can review. This follows the Weighbridge precedent
- * (screen-143 shipped first; Operator was added when screen-144 was built).
- * WHEN screen-157 IS BUILT, the widening must touch BOTH the role list here
- * and in EffluentPlantReportService::guardAccess() AND the mill-bound branch
- * of EffluentPlantReportService::resolveBusinessUnit() — widening only the
- * first would drop Operator into the Admin branch, where the client's
- * business_unit_id IS honoured, i.e. a cross-mill leak.
+ * OPERATOR WAS REFUSED 403 ON ALL FOUR ROUTES UNTIL screen-157 (2026-10-13),
+ * and that delay was the one thing that differed from the Grading / Kernel
+ * Plant prefixes, which admit Operator on three of their four from the first
+ * commit. The reason was not an oversight: the mobile twin of this screen had
+ * not been built, so there was no legitimate Operator caller, and admitting a
+ * role before its caller exists is access nobody can review. This followed the
+ * Weighbridge precedent (screen-143 shipped first; Operator was added when
+ * screen-144 was built). screen-157--laporan-effluent-plant-mobile IS that
+ * caller, and the widening landed WITH it, touching THREE places at once: the
+ * role list in routes/api.php, EffluentPlantReportService::guardAccess(), AND
+ * the mill-bound branch of
+ * EffluentPlantReportService::resolveBusinessUnit() — widening only the first
+ * two would drop Operator into the Admin branch, where the client's
+ * business_unit_id IS honoured, i.e. a cross-mill leak. WHAT STAYED CLOSED:
+ * businessUnitOptions() is Admin only (403 raised inside the service, not by
+ * the middleware), and the WEB route /reports/effluent-plant was NOT widened.
  *
  * FOURTEEN METRICS, FOURTEEN DENOMINATORS. `summary` returns min / avg / max
  * for the fourteen numeric columns on effluent_plant_details, and EACH ONE
@@ -98,10 +104,10 @@ class EffluentPlantReportController extends Controller
      * businessUnitOptions() — GET /api/effluent-plant-reports/business-units/options.
      *
      * Admin-only mill picker; the service throws 403 FORBIDDEN for anyone
-     * else, since Supervisor and Mill Management are already bound to one
-     * mill and have no picker at all. Enforced in the SERVICE rather than by
-     * this route's middleware on purpose: when screen-157 widens the
-     * middleware, this endpoint must stay closed.
+     * else, since Operator, Supervisor and Mill Management are each already
+     * bound to one mill and have no picker at all. Enforced in the SERVICE
+     * rather than by this route's middleware on purpose — which is why the
+     * screen-157 widening of that middleware left this endpoint closed.
      *
      * An empty master is a valid answer: { data: [] } with HTTP 200, never a
      * 404.

@@ -1,5 +1,5 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-13"
@@ -64,7 +64,7 @@
       "severity": "minor"
     },
     {
-      "description": "Satu kegagalan flake teramati sekali pada suite backend penuh: DashboardServiceTest.php:78 melaporkan 3 record weighbridge alih-alih 2 (total 10.856,22 alih-alih 8.000). Diselidiki dan BUKAN regresi layar ini: berkas itu lulus 3/3 saat dijalankan sendiri, suite Unit penuh lulus 1.787/0, dan pengulangan suite backend penuh lulus 5.464/0. Tidak satu pun berkas yang disentuh perubahan ini menyinggung DashboardService. Dicatat di sini supaya kalau muncul lagi di masa depan sudah ada jejaknya — dugaan terkuat: kebocoran state antar test yang bergantung pada urutan, pre-existing.",
+      "description": "Satu kegagalan flake teramati pada suite backend penuh: DashboardServiceTest.php:78 melaporkan 3 record weighbridge alih-alih 2. BUKAN regresi layar ini — berkas itu lulus saat dijalankan sendiri, suite Unit penuh lulus 1.787/0, dan pengulangan suite backend penuh lulus 5.464/0. AKAR MASALAHNYA KINI DIKETAHUI, dan dugaan pertama (kebocoran state antar test yang bergantung pada urutan) SALAH: GradingRecordFactory.php baris 51 menyetel 'weighbridge_record_id' => WeighbridgeRecord::factory(), sehingga setiap GradingRecord::factory() diam-diam MEMBUAT satu WeighbridgeRecord tambahan; dan WeighbridgeRecordFactory.php baris 29 menyetel record_datetime = faker->dateTimeBetween('-30 days','now') yang ACAK. Kira-kira satu dari tiga puluh kali tanggal acak itu jatuh pada HARI INI, menghasilkan record weighbridge ketiga pada hari yang sama beserta net_weight acaknya — dan asersi di baris 78 memaku tepat dua record hari ini. Jadi ini cacat tingkat repo yang akan menjatuhkan test mana pun yang mengasersi 'tepat N record hari ini' sambil memakai GradingRecord::factory(). Perbaikannya ada dua pilihan: pakukan tanggal weighbridge tersarang itu, atau batasi asersinya per stasiun/mill. Keduanya di luar cakupan layar ini dan menyentuh berkas milik layar lain, jadi TIDAK dikerjakan di sini. Diverifikasi 2026-10-13 dengan membaca kedua factory secara langsung, dan sub-agen test-runner mereproduksinya 1 dari 25 kali pada berkas itu saja.",
       "severity": "info"
     }
   ],

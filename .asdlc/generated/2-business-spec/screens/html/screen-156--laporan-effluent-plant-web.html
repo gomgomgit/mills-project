@@ -541,15 +541,15 @@
               <div class="md-budget__row">
                 <div class="md-budget__label">
                   <span>Slot waktu terisi sepanjang periode</span>
-                  <span class="md-budget__nums"><strong>260</strong> dari 312 slot</span>
+                  <span class="md-budget__nums"><strong>260</strong> dari 624 slot</span>
                 </div>
-                <span class="md-budget__pct">83,3%</span>
+                <span class="md-budget__pct">41,7%</span>
                 <div class="md-bar md-bar--lg"><span style="width: 83.333%"></span></div>
               </div>
             </div>
             <div class="md-threshold">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
-              <span><b>Dihitung sampai hari ini, periode masih berjalan (13 dari 20 hari periode sudah lewat).</b> Hari yang belum terjadi tidak mungkin tercatat, jadi tidak ikut menjadi penyebut. <small>Slot yang diharapkan = 2 unit Effluent Plant &times; 12 slot &times; 13 hari (sampai hari ini) = 312.</small> Seluruh angka di bawah dihitung dari <b>pembacaan yang ada</b>, bukan dari periode penuh &mdash; 52 slot yang tidak terisi tidak diperlakukan sebagai nol, melainkan tidak ikut dihitung. Bila belum ada unit tercatat atau periode belum mulai, persentasenya tampil &lsquo;&mdash;&rsquo; dengan keterangan &lsquo;belum ada slot yang diharapkan&rsquo;, bukan 0,0%.</span>
+              <span><b>Dihitung sampai hari ini, periode masih berjalan (13 dari 20 hari periode sudah lewat).</b> Hari yang belum terjadi tidak mungkin tercatat, jadi tidak ikut menjadi penyebut. <small>Slot yang diharapkan = 2 unit Effluent Plant &times; 24 slot &times; 13 hari (sampai hari ini) = 624.</small> Seluruh angka di bawah dihitung dari <b>pembacaan yang ada</b>, bukan dari periode penuh &mdash; 364 slot yang tidak terisi tidak diperlakukan sebagai nol, melainkan tidak ikut dihitung. Bila belum ada unit tercatat atau periode belum mulai, persentasenya tampil &lsquo;&mdash;&rsquo; dengan keterangan &lsquo;belum ada slot yang diharapkan&rsquo;, bukan 0,0%.</span>
             </div>
           </section>
 
@@ -1044,7 +1044,7 @@
                   <tr><td>13 Okt 2026</td><td>22</td><td>7,47</td><td>44,9</td><td>7,17</td><td>39,0</td><td>8,15</td><td>32,0</td><td>988</td><td>52,2</td><td>30,7</td><td>7,21</td><td>122</td><td>558</td><td>225</td><td>37,2</td></tr>
                 </tbody>
                 <tfoot>
-                  <tr><td>Total periode</td><td>260 <small>dari 312</small></td><td>7,24 <small>(n=260)</small></td><td>43,1 <small>(n=255)</small></td><td>7,44 <small>(n=257)</small></td><td>41,0 <small>(n=254)</small></td><td>7,86 <small>(n=252)</small></td><td>34,4 <small>(n=251)</small></td><td>1.197 <small>(n=240)</small></td><td>44,6 <small>(n=252)</small></td><td>39,7 <small>(n=243)</small></td><td>7,60 <small>(n=238)</small></td><td>77 <small>(n=14)</small></td><td>374 <small>(n=14)</small></td><td>151 <small>(n=11)</small></td><td>27,6 <small>(n=199)</small></td></tr>
+                  <tr><td>Total periode</td><td>260 <small>dari 624</small></td><td>7,24 <small>(n=260)</small></td><td>43,1 <small>(n=255)</small></td><td>7,44 <small>(n=257)</small></td><td>41,0 <small>(n=254)</small></td><td>7,86 <small>(n=252)</small></td><td>34,4 <small>(n=251)</small></td><td>1.197 <small>(n=240)</small></td><td>44,6 <small>(n=252)</small></td><td>39,7 <small>(n=243)</small></td><td>7,60 <small>(n=238)</small></td><td>77 <small>(n=14)</small></td><td>374 <small>(n=14)</small></td><td>151 <small>(n=11)</small></td><td>27,6 <small>(n=199)</small></td></tr>
                 </tfoot>
               </table>
             </div>
@@ -1064,9 +1064,15 @@
        dapat ditelusuri. Seluruh nilai di atas diturunkan dengan skrip, tidak dikarang.
 
        Periode 01-20 Okt 2026 MASIH BERJALAN; dibaca pada 13 Okt 2026.
-       Slot diharapkan = 2 unit x 12 slot x 13 hari (sampai hari ini) = 312.
+       Slot diharapkan = 2 unit x 24 slot x 13 hari (sampai hari ini) = 624.
+       KOREKSI 2026-10-13: draf pertama mock ini memakai 12 slot/unit/hari dan karena itu
+       menerbitkan 312 slot diharapkan dan cakupan 83,3%. Angka yang benar adalah 24 slot,
+       dari EffluentPlantRecordService::canonicalTimeSlots() (07:00..06:00) yang juga dipakai
+       EffluentPlantReportService::summary() sebagai $slotsPerUnitPerDay. Implementasi screen-156
+       memang memakai 24; hanya mock ini yang salah, dan kesalahan itu ditemukan dua kali secara
+       terpisah — oleh agen implementasi screen-156 dan oleh agen mock screen-157.
        Slot terisi per tanggal (01..13 Okt) = 20, 22, 19, 23, 18, 21, 17, 22, 20, 21, 16, 19, 22
-         jumlah = 260  ->  260/312 = 83,3%
+         jumlah = 260  ->  260/624 = 41,7%
 
        Empat belas metrik, MASING-MASING dengan penyebutnya sendiri
        (jumlah pembacaan per tanggal 01..13, lalu totalnya, lalu rata-rata periode
@@ -1118,7 +1124,7 @@
        KEADAAN NORMAL bagi pengukuran laboratorium, bukan data hilang. Bandingkan dengan
        pH AN-1 n=260. Itulah sebabnya tiap kartu menerbitkan jumlah pembacaannya sendiri.
 
-       Sebaran status (dasar = 260 slot tercatat, bukan 312 slot yang diharapkan):
+       Sebaran status (dasar = 260 slot tercatat, bukan 624 slot yang diharapkan):
          Biogas Flare       Nyala 221 + Mati 0 + Gangguan 6 + tidak tercatat 33 = 260
          Pompa Dosing 1     Jalan 203 + Berhenti 31 + tidak tercatat 26 = 260
          Sludge Dewatering  Jalan 168 + Berhenti 64 + tidak tercatat 28 = 260

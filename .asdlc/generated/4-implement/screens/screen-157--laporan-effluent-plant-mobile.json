@@ -1,0 +1,90 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-14"
+  },
+  "id": "screen-157--laporan-effluent-plant-mobile",
+  "name": "Laporan Effluent Plant (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/EffluentPlantReportService.php",
+    "backend/app/Http/Controllers/Api/EffluentPlantReportController.php",
+    "backend/app/Livewire/Dashboard/LaporanEffluentPlant.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "mobile/src/services/effluentPlantReportRepo.ts",
+    "mobile/src/router/index.ts"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/EffluentPlantReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanEffluentPlantTest.php",
+    "mobile/tests/effluentPlantReportRepo.spec.ts"
+  ],
+  "fe_files_generated": [
+    "mobile/src/views/LaporanEffluentPlantView.vue",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/LaporanEffluentPlantView.spec.ts",
+    "mobile/tests/e2e/laporan-effluent-plant.spec.ts",
+    "mobile/tests/ReportingPilihStasiunView.spec.ts",
+    "e2e-web/tests/laporan-effluent-plant.spec.ts",
+    "mobile/vite.config.ts"
+  ],
+  "implementation_notes": [
+    "Laporan stasiun ke-12 lengkap: Effluent Plant kini punya web (screen-156) dan mobile (screen-157). Keempat endpoint /api/effluent-plant-reports/* dipakai ulang APA ADANYA — tidak ada endpoint baru dan tidak ada perubahan bentuk payload, sehingga ponsel tidak mungkin berselisih dengan web tentang satu angka pun.",
+    "BERBEDA DARI screen-155 (Kernel Plant mobile) YANG NOL PERUBAHAN BACKEND: layar ini MENUNTUT pelebaran akses Operator, karena screen-156 sengaja menolaknya 403 selama kembaran mobile-nya belum ada. Pelebarannya menyentuh TIGA tempat, dan ketiganya diverifikasi langsung di kode setelah implementasi: (1) grup middleware di routes/api.php kini 'role:supervisor,mill_management,admin,operator'; (2) guardAccess() memuat UserRole::Operator->value pada daftar in_array-nya; (3) resolveBusinessUnit() menempatkan Operator pada CABANG TERIKAT-MILL bersama Supervisor dan MillManagement, tempat business_unit_id kiriman klien DIBUANG dan diganti business_unit_id akun. Komentar di tempat (3) menyatakan sendiri mengapa baris itu ada: tanpanya Operator jatuh ke cabang Admin tempat nilai kiriman klien DIHORMATI, dan itu kebocoran lintas mill — bukan cacat tampilan.",
+    "YANG TETAP TERTUTUP, dan ikut diverifikasi: businessUnitOptions() melempar AuthorizationException untuk peran apa pun selain Admin (jadi Operator, Supervisor, dan Mill Management tetap 403 walau ketiganya kini ada di daftar middleware), dan rute WEB /reports/effluent-plant tetap 'role:supervisor,mill_management,admin' tanpa operator. Pelebaran akses API tidak melebarkan layar web.",
+    "Tiga berkas test screen-156 yang sebelumnya mengasersi Operator 403 diperbarui menjadi 200 untuk ketiga rute data, dengan pemilih mill tetap 403. Ini BUKAN melemahkan asersi: asersi 403 itu sejak awal mendokumentasikan penundaan yang kini berakhir, dan tech spec screen-156 menyebutnya eksplisit sebagai langkah yang dapat ditinjau. EffluentPlantReportServiceTest naik 63 → 64 kasus (termasuk kasus baru: Operator mengirim business_unit_id mill lain → nilai DIBUANG, jawaban 200 data mill akun, bukan 403 dan bukan data mill lain), LaporanEffluentPlantTest naik 36 → 38.",
+    "Berkas mobile yang dibuat, dan hanya ini: src/services/effluentPlantReportRepo.ts (repo klien + tipe respons), src/views/LaporanEffluentPlantView.vue (layar), satu entri rute pada src/router/index.ts, dan SATU BARIS pada REPORT_ROUTES di src/views/ReportingPilihStasiunView.vue. Kuncinya 'effluent-plant' — bertanda hubung dan DIKUTIP pada literal objek, diverifikasi di baris 133; kunci bergaris-bawah akan terkompilasi, terlihat benar, dan tidak pernah cocok dengan station.type mana pun.",
+    "Tipe respons sengaja BERBEDA dari Kernel Plant pada tiga tempat, dan tidak satu pun disalin mentah: tidak ada objek target sama sekali (Effluent Plant tak punya master target, jadi seluruh logika keterangan standar-bersama beserta penjaga null-nya ikut hilang), tidak ada blok downtime, dan ADA status_distribution{} + maintenance_remarks[] + findings[] + penanda is_lab per metrik — tiga bentuk yang tidak ada di satu pun laporan mobile sebelumnya.",
+    "RIAK YANG DISENGAJA, DAN INI PEMINDAHAN KEENAM: mobile/tests/ReportingPilihStasiunView.spec.ts memakai satu jenis stasiun sebagai contoh kanonis 'laporan belum dibangun'. Contoh itu sebelumnya 'effluent-plant', dan membangun layar ini membuat tile-nya aktif sehingga jumlah tile nonaktif turun dari 4 ke 3 — ujinya gagal SEBAGAIMANA DIRANCANG. Docblock berkas itu menyatakan contohnya sudah lima kali dipindahkan karena laporannya memang dibangun, dan akan gagal lagi bila Effluent Plant pun dibuatkan laporan. Contohnya dipindahkan ke 'cpo-dispatch' (sort_order 170, tertinggi di antara jenis stasiun yang belum dipakai sebagai contoh di berkas itu dan belum punya laporan mobile), sehingga pemindahan ketujuh tertunda paling lama.",
+    "Satu DRIFT ikut dikoreksi di docblock berkas itu: ia mengklaim pemindahan kelima (screen-155) memindahkan contoh ke 'Process Quality Control', padahal fixture yang sebenarnya dipakai di seluruh berkas adalah 'process-water'. Klaim itu diselaraskan dengan kodenya.",
+    "SATU CACAT DI BERKAS TEST BARU DITEMUKAN DAN DIPERTAJAM, bukan dilemahkan: skenario 37 (muatan tidak konsisten dirender apa adanya) mengasersi `not.toContainText('78')` atas TEKS SELURUH baris total, untuk membuktikan daily_total dipakai dari server (99) dan bukan dijumlahkan klien (78). Tetapi baris total juga memuat rata-rata keempat belas metrik, dan salah satunya — BOD, dari fixture metrics() di berkas test itu SENDIRI — bernilai TEPAT 78. Jadi asersinya menabrak fixture-nya sendiri dan gagal walau implementasinya benar. Diperbaiki dengan mengasersi SEL-nya (td kedua, jumlah slot) memakai toHaveText('99') — lebih ketat daripada memindai substring, karena ia juga menolak 99 yang kebetulan muncul di kolom lain.",
+    "mobile/vite.config.ts: 'shots/**' ditambahkan ke daftar exclude Vitest. Ini menutup regresi dari commit 77a957f (tangkapan layar bahan sales deck): shots/mobile.spec.ts adalah spec Playwright dengan config-nya sendiri, tetapi shots/ tidak ikut dikecualikan, sehingga sejak commit itu `vitest run` selalu melaporkan 1 berkas gagal collect ('Playwright Test did not expect test() to be called here'). Akibatnya angka baseline yang dikutip di mana-mana — '131 berkas lulus' — sebenarnya 131 lulus + 1 gagal, dan suite mobile tidak pernah keluar bersih lagi. Setelah perbaikan: 133/133 berkas lulus, 0 gagal.",
+    "Nol aritmetika di klien, diuji keras: coverage_percent, rata-rata metrik, porsi sebaran, dan expected_slots semuanya dipakai apa adanya dari respons, dan satuan 'C' TIDAK dipetakan menjadi '°C'. Skenario 37 membuktikannya dengan muatan yang sengaja tidak konsisten secara aritmetika — setiap angka tetap dirender seperti yang dikirim server.",
+    "Penanda 'lab' diturunkan dari metrics[kolom].is_lab pada respons, bukan dari daftar nama kolom yang dipaku di template, dan dirender DI DALAM kartunya masing-masing. Sebaran status mengiterasi known_values sehingga baris bernilai 0 tetap tercetak, dan porsi memakai recorded_slots bukan expected_slots.",
+    "Spec browser mobile menstub `**/api/effluent-plant-reports/**` lewat page.route, jadi basis data DEV hanya tersentuh untuk login — tidak ada penulisan, seeding, maupun migrasi terhadap mill_smart_log. Basis data dev yang tertinggal satu migrasi tetap utuh.",
+    "Keempat jenis uji dijalankan sungguhan dan seluruhnya hijau. Server e2e di :8001 dan dev di :8000 dimatikan kembali setelah dipakai."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "AMBANG COVERAGE UNIT 80% TIDAK TERUKUR — xdebug dan pcov tidak terpasang, sehingga `--coverage --min=80` keluar tanpa menegakkan apa pun. Keadaan ini sama untuk ke-17 layar sebelumnya, yang semuanya tercatat coverage 0 dengan status complete, jadi ini BUKAN alasan menurunkan status. Angka pengganti kualitatif: 64 kasus unit backend untuk service-nya, plus 3.097 uji vitest mobile pada 133 berkas.",
+      "severity": "minor"
+    },
+    {
+      "description": "Flake lintas-suite yang sudah berakar jelas dan BUKAN dari layar ini: DashboardServiceTest.php:78 memaku 'tepat 2 record weighbridge hari ini', tetapi GradingRecordFactory.php:51 menyetel 'weighbridge_record_id' => WeighbridgeRecord::factory() sehingga setiap GradingRecord::factory() diam-diam membuat satu record weighbridge tambahan, dan WeighbridgeRecordFactory.php:29 memberinya record_datetime acak dari dateTimeBetween('-30 days','now'). Kira-kira 1 dari 30 kali tanggal acak itu jatuh pada HARI INI dan asersinya gagal. Tidak muncul pada putaran suite penuh terakhir (5.467 lulus / 0 gagal). Perbaikannya menyentuh berkas milik layar lain — pakukan tanggal record tersarangnya atau batasi asersinya per stasiun/mill — jadi tidak dikerjakan di sini. Juga dicatat pada known_issues screen-156 v2.",
+      "severity": "info"
+    },
+    {
+      "description": "Label ketiga kolom status masih belum seragam di seluruh produk dan BELUM diputuskan pemilik produk: layar laporan web dan mobile sama-sama mencetak Nyala/Mati/Gangguan dan Jalan/Berhenti, sementara layar Detail (screen-089), formulir, dan kedua berkas ekspor memakai On/Off/Fault dan Run/Stop lewat Display::OPTION_LABELS. Kedua layar laporan konsisten satu sama lain, jadi ponsel dan web tidak berselisih — yang berbeda adalah layar laporan versus layar Detail. Diangkat sebagai open_question pada business spec screen-156 v2 dan screen-157 v1. Memutuskannya sekarang lebih murah daripada nanti, karena perubahan apa pun menyentuh dua layar beserta asersinya.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-14T08:57:00Z",
+      "passed": 5467,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-14T08:57:00Z",
+      "passed": 38,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-14T08:54:00Z",
+      "passed": 3097,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-14T08:50:00Z",
+      "passed": 63,
+      "failed": 0
+    }
+  }
+}

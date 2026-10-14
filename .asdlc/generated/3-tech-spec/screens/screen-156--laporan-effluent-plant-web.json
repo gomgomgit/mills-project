@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-13"
+    "updated_at": "2026-10-14"
   },
   "id": "screen-156--laporan-effluent-plant-web",
   "name": "Laporan Effluent Plant (Web)",
@@ -28,7 +28,7 @@
     {
       "actor_id": "actor-station-operator",
       "can_access": false,
-      "conditions": "Ditolak pada rute WEB /reports/effluent-plant DAN pada keempat rute API. Ini BERBEDA dari Grading/Kernel Plant, di mana Operator diterima pada tiga rute data karena kembaran mobile-nya dibangun dalam perubahan yang sama. Kembaran mobile Effluent Plant (screen-157) BELUM dibangun, jadi penerimaan Operator ditunda dengan sengaja dan menjadi langkah tersendiri yang dapat ditinjau — mengikuti presedens Weighbridge (screen-143 lebih dulu, Operator ditambahkan saat screen-144 dibangun). Pelebaran itu nanti WAJIB menyentuh dua tempat: daftar peran middleware/guardAccess() DAN cabang terikat-mill di resolveBusinessUnit(); melebarkan hanya yang pertama akan menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI, yang berarti kebocoran lintas mill"
+      "conditions": "Ditolak pada rute WEB /reports/effluent-plant. DITERIMA pada ketiga rute API data (/periods, /summary, /export) sejak screen-157 dibangun (2026-10-14) — sebelum itu ia ditolak 403 pada keempatnya, karena belum ada pemanggil Operator yang sah dan menerima peran sebelum pemanggilnya ada adalah akses yang tak dapat ditinjau siapa pun. Penundaan itu mengikuti presedens Weighbridge (screen-143 lebih dulu, Operator ditambahkan saat screen-144 dibangun), dan pelebarannya menyentuh TIGA tempat sekaligus: daftar peran middleware di routes/api.php, daftar peran guardAccess(), DAN cabang terikat-mill di resolveBusinessUnit(). Yang terakhir itu yang menentukan: melebarkan dua yang pertama saja akan menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI, yang berarti kebocoran lintas mill. /business-units/options TETAP 403 bagi Operator (Admin saja, ditegakkan di dalam service), dan rute web tetap tertutup — pelebaran akses API tidak melebarkan layar web."
     }
   ],
   "api_contracts": [
@@ -114,7 +114,7 @@
               {
                 "http_code": 403,
                 "error_code": "FORBIDDEN",
-                "condition": "Peran di luar supervisor/mill_management/admin — termasuk Operator, sampai screen-157 dibangun"
+                "condition": "Peran di luar supervisor/mill_management/admin/operator. Operator DITERIMA di sini sejak screen-157 (2026-10-14) — sebelumnya ia termasuk yang ditolak"
               },
               {
                 "http_code": 422,
@@ -370,7 +370,7 @@
       ],
       "business_logic": [
         "1. Gate sesi + peran (guardAccess): 401 bila tidak ada sesi, 403 bila peran di luar supervisor/mill_management/admin. Gate ini dua lapis lebih dalam daripada middleware rute, supaya melewati middleware tidak cukup dengan sendirinya.",
-        "2. OPERATOR SENGAJA BELUM DITERIMA, dan penundaan itu adalah keputusan yang dapat ditinjau, bukan kelalaian. Kembaran mobile screen-157 belum dibangun, jadi tidak ada pemanggil Operator yang sah hari ini. Ketika screen-157 dibangun kelak, pelebarannya WAJIB menyentuh dua tempat sekaligus: daftar peran guardAccess()/middleware DAN cabang terikat-mill di langkah 3. Melebarkan guardAccess() SAJA akan menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI — seorang Operator lalu dapat membaca laporan mill mana pun. Itu kebocoran lintas mill, bukan cacat tampilan.",
+        "2. OPERATOR DITERIMA PADA KETIGA RUTE DATA SEJAK screen-157 DIBANGUN (2026-10-14). Sampai saat itu ia ditolak 403 pada keempat rute, dan penundaan itu keputusan yang dapat ditinjau, bukan kelalaian — belum ada pemanggil Operator yang sah. Pelebarannya menyentuh TIGA tempat sekaligus: daftar peran middleware di routes/api.php, daftar peran in_array() di guardAccess(), DAN cabang terikat-mill di langkah 3 (resolveBusinessUnit). Yang ketiga itu yang menentukan: melebarkan dua yang pertama saja akan menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI — seorang Operator lalu dapat membaca laporan mill mana pun. Itu kebocoran lintas mill, bukan cacat tampilan, dan ada kasus unit khusus yang menangkapnya (Operator mengirim business_unit_id mill lain → nilai DIBUANG, jawaban 200 data mill akun). Yang TIDAK ikut terbuka: /business-units/options tetap Admin saja, dan rute WEB tetap tanpa operator.",
         "3. Resolusi mill (resolveBusinessUnit): Supervisor/MillManagement SELALU memakai business_unit_id akunnya dan nilai kiriman klien DIBUANG — tidak divalidasi, tidak dibandingkan, dibuang; Admin WAJIB mengirimkannya (422 bila absen). Akun terikat mill tanpa business_unit_id GAGAL TERTUTUP dengan 422 dan daftar seluruh mill tidak pernah dibaca.",
         "4. Pemilih mill (businessUnitOptions): ADMIN SAJA, 403 untuk peran lain — ditegakkan di dalam service, bukan oleh middleware, sehingga melebarkan daftar peran rute tidak melonggarkannya. Master kosong adalah jawaban sah: [] dengan HTTP 200, bukan 404.",
         "5. Resolusi Production Line (resolveProductionLine): 422 bila absen, 403 bila milik mill lain. Keduanya terjadi SEBELUM satu pun kueri effluent_plant_records berjalan.",
@@ -979,7 +979,7 @@
     },
     {
       "screen_id": "screen-157--laporan-effluent-plant-mobile",
-      "reason": "Kembaran mobile yang BELUM dibangun. Ia akan memakai ULANG keempat endpoint layar ini; saat itulah Operator diterima, dan pelebarannya harus menyentuh guardAccess() DAN cabang terikat-mill sekaligus"
+      "reason": "Kembaran mobile, dibangun 2026-10-14. Ia memakai ULANG keempat endpoint layar ini tanpa endpoint baru maupun perubahan payload, dan ia pulalah yang membawa pelebaran akses Operator — menyentuh daftar peran middleware, guardAccess(), dan cabang terikat-mill di resolveBusinessUnit() sekaligus. Tiga berkas test layar ini (unit service, API feature, spec browser e2e-web) ikut diperbarui dari asersi 403 menjadi 200 untuk ketiga rute data saat itu."
     },
     {
       "screen_id": "screen-135--laporan-sterilizer-mobile",
@@ -989,7 +989,7 @@
   "implementation_notes": [
     "Berkas yang disentuh mengikuti pola sebelas laporan sebelumnya: app/Services/EffluentPlantReportService.php, app/Http/Controllers/Api/EffluentPlantReportController.php, app/Livewire/Dashboard/LaporanEffluentPlant.php, resources/views/livewire/dashboard/laporan-effluent-plant.blade.php, resources/views/dashboard/laporan-effluent-plant.blade.php, routes/api.php, routes/web.php, dan SATU BARIS di app/Services/StationReportService.php.",
     "Satu baris di StationReportService::REPORT_ROUTES itu menentukan layar ini dapat dicapai atau tidak. Tanpanya laporan ini ada, seluruh test-nya lulus, dan tile-nya tetap kelabu — pola kegagalan yang sudah pernah terjadi pada laporan Cages & Tracks versi web. Posisinya antara BoilerRoom dan Depricarping (sort_order 100), bukan di-append.",
-    "Middleware rute API: role:supervisor,mill_management,admin — TANPA operator, berbeda dari Grading/Kernel Plant. Ini disengaja (lihat business_logic langkah 2) dan harus tetap begitu sampai screen-157 dibangun.",
+    "Middleware rute API: role:supervisor,mill_management,admin,operator — sejajar prefix Grading/Kernel Plant sejak screen-157 dibangun (2026-10-14). Sebelum itu ia TANPA operator dengan sengaja (lihat business_logic langkah 2). Catatan yang tetap berlaku: operator ada di daftar middleware BUKAN berarti ia boleh ke mana saja di prefix ini — businessUnitOptions() tetap melempar AuthorizationException untuk peran apa pun selain Admin, dan penjagaan itu ada di dalam service justru supaya melebarkan daftar peran rute tidak melonggarkannya.",
     "Partial ber-<style> laporan ini WAJIB ditaruh di slot `styles` layout, bukan di tengah markup. Menaruhnya di tengah markup pernah membuat wire:id menempel pada elemen <style> dan mematikan SELURUH wire:model di screen-140 — cacat yang tidak dapat ditangkap component test.",
     "Mock HTML layar ini memakai dua kelas tata letak yang BELUM ada di resources/views/dashboard/partials/report-styles.blade.php: .md-kpis--2 (blok kolam berisi tepat dua kartu) dan .md-row--3 (tiga kartu sebaran status berdampingan). Keduanya harus ditambahkan ke report-styles.blade.php, atau markup-nya disusun ulang memakai grid yang sudah ada. Membiarkannya berarti kelas yang dipakai markup tidak punya definisi — dan itu harus diperiksa pada hasil compile, bukan pada sumbernya.",
     "Rata-rata metrik dibulatkan di satu tempat saja (service), supaya blade, API, dan ekspor tidak pernah membulatkan berbeda.",

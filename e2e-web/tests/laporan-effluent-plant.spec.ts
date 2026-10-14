@@ -78,8 +78,11 @@ import { statefulHeaders } from './support/periods'
  *   (i) Rekap harian dapat dibuka/ditutup tanpa mengubah satu angka pun.
  *   (j) PERNYATAAN KEPATUHAN LINGKUNGAN terender DI DALAM blok Buangan Akhir,
  *       bukan sebagai catatan kaki halaman.
- *   (k) Operator DITOLAK pada rute web — dan di laporan ini ia ditolak pada
- *       KEEMPAT rute API juga, berbeda dari Grading/Kernel Plant.
+ *   (k) Operator DITOLAK pada rute WEB — sementara KETIGA rute API DATA-nya
+ *       justru menerimanya 200 sejak screen-157 (laporan Effluent Plant
+ *       mobile) mendarat, dan /business-units/options tetap 403. Ketiga
+ *       jawaban yang berbeda itulah invariannya: pelebaran API tidak
+ *       melebarkan layar web ini, dan tidak melebarkan pemilih mill.
  *   - EKSPOR benar-benar mengunduh berkas.
  *
  * ────────────────────────────────────────────────────────────────────────
@@ -104,12 +107,19 @@ const PRODUCTION_LINE = 'PL Mill A'
 const SUPERVISOR = 'stest-supervisor01'
 const ADMIN = 'brtest-admin01'
 /**
- * Operator TIDAK punya akses ke laporan ini sama sekali — berbeda dari
+ * Operator tidak punya akses ke layar WEB ini, dan tidak pernah akan punya:
+ * penjagaannya ada pada middleware rute DAN pada canAccess() komponen, yang
+ * memegang daftar perannya SENDIRI justru supaya pelebaran service tidak
+ * dapat membukanya secara tidak sengaja.
+ *
+ * Yang BERUBAH pada 2026-10-13 adalah sisi API-nya. Sampai hari itu keempat
+ * rute /api/effluent-plant-reports/* menolak Operator 403 — berbeda dari
  * Grading/Kernel Plant, yang menerimanya pada ketiga rute datanya sejak
  * commit pertama karena kembaran mobile-nya dibangun dalam perubahan yang
- * sama. Kembaran mobile Effluent Plant (screen-157) BELUM dibangun, jadi
- * penerimaan Operator ditunda dengan sengaja dan menjadi langkah tersendiri
- * yang dapat ditinjau.
+ * sama. Kembaran mobile Effluent Plant (screen-157) memang ditunda, dan
+ * penundaan itu dicatat sebagai langkah tersendiri yang dapat ditinjau.
+ * screen-157 KINI DIBANGUN, jadi ketiga rute datanya menerima Operator 200
+ * dan hanya /business-units/options yang tetap 403.
  */
 const OPERATOR = 'operator01'
 
@@ -764,23 +774,22 @@ test.describe('Laporan Periode Effluent Plant (screen-156)', () => {
     await expect(page.locator('[data-testid="export-button"]')).toBeVisible()
   })
 
-  // Invarian (k): penjagaan peran pada RUTE-nya.
-  test('invarian (k) — Operator DITOLAK pada rute web (dan pada keempat rute API)', async ({ page }) => {
+  // Invarian (k): penjagaan peran pada RUTE-nya, dan TIGA jawaban berbeda.
+  test('invarian (k) — Operator DITOLAK pada rute web, 200 pada ketiga rute API data, 403 pada pemilih mill', async ({ page }) => {
     await login(page, OPERATOR, PASSWORD)
 
     const response = await page.goto(REPORT_PATH)
 
+    // LAYAR WEB TETAP TERTUTUP, dan itu bagian yang tidak berubah.
     // Penjagaannya ada pada middleware rute DAN pada canAccess() komponen,
     // yang memegang daftar perannya SENDIRI justru supaya pelebaran service
-    // untuk screen-157 (laporan mobile Effluent Plant) kelak tidak dapat
-    // membuka layar web ini secara tidak sengaja.
+    // untuk screen-157 (laporan mobile Effluent Plant) TIDAK dapat membuka
+    // layar web ini secara tidak sengaja. Pelebaran itu sudah mendarat, dan
+    // asersi ini membuktikan ia tidak merembes ke sini.
     expect(response?.status()).toBe(403)
     await expect(page.locator('[data-testid="laporan-effluent-plant"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="coverage"]')).toHaveCount(0)
 
-    // DAN — inilah yang membedakan laporan ini dari Grading/Kernel Plant —
-    // KEEMPAT rute API-nya juga menolaknya 403. Kembaran mobile screen-157
-    // belum dibangun, jadi tidak ada pemanggil Operator yang sah hari ini.
     // Header stateful WAJIB ada. Tanpa X-Requested-With + Referer,
     // EnsureFrontendRequestsAreStateful tidak mengaktifkan session guard dan
     // Sanctum menjawab 401 SEBELUM guard peran dievaluasi — 401 itu akan lulus
@@ -789,11 +798,78 @@ test.describe('Laporan Periode Effluent Plant (screen-156)', () => {
     // alasan yang sama (support/periods.ts).
     const headers = await statefulHeaders(page)
 
-    for (const path of ['business-units/options', 'periods', 'summary', 'export']) {
-      const api = await page.request.get(`/api/effluent-plant-reports/${path}`, { headers })
+    // PEMILIH MILL TETAP 403 — 403 yang diangkat DARI DALAM
+    // EffluentPlantReportService::businessUnitOptions(), bukan oleh daftar
+    // peran middleware yang screen-157 lebarkan. Operator terikat SATU mill,
+    // jadi meminta daftar seluruh mill bukan "daftar berisi satu" melainkan
+    // 403, dan layar mobile itu memang tidak punya jalur kode yang
+    // memanggilnya.
+    const options = await page.request.get(
+      '/api/effluent-plant-reports/business-units/options',
+      { headers },
+    )
 
-      expect(api.status(), path).toBe(403)
-    }
+    expect(options.status()).toBe(403)
+
+    // ────────────────────────────────────────────────────────────────────
+    // KETIGA RUTE DATA: 200, BUKAN 403 LAGI
+    // ────────────────────────────────────────────────────────────────────
+    // Parameter period_id dan production_line_id DITURUNKAN dari jawaban
+    // server untuk Operator ini sendiri — bukan dari fixture mill
+    // 'BU Browser Test', yang milik Supervisor/Admin dan BUKAN mill
+    // operator01. Keduanya memang diselesaikan server dari AKUN, jadi
+    // menurunkannya dari respons adalah satu-satunya cara memberi parameter
+    // yang sah tanpa menanam data di database bersama ini.
+    const periods = await page.request.get('/api/effluent-plant-reports/periods', { headers })
+
+    expect(periods.status()).toBe(200)
+
+    const periodId = ((await periods.json()).data ?? [])[0]?.id
+
+    const lines = await page.request.get('/api/production-lines/options-for-report', { headers })
+
+    expect(lines.status()).toBe(200)
+
+    const lineId = ((await lines.json()).data ?? [])[0]?.id
+
+    // Diasersi, bukan dilewati diam-diam: tanpa keduanya kedua asersi di
+    // bawah menjadi 422 tentang parameter yang hilang, dan "tidak 403" yang
+    // lulus karena alasan yang salah adalah asersi yang berhenti dibaca
+    // orang. Mill operator01 (Business Unit A pada DemoAccountSeeder) punya
+    // periode Effluent Plant dan punya Production Line; bila suatu hari tidak
+    // lagi punya, kegagalan ini menyebut sebabnya.
+    expect(periodId, 'mill operator01 tidak punya satu pun periode Effluent Plant').toBeTruthy()
+    expect(lineId, 'mill operator01 tidak punya satu pun Production Line').toBeTruthy()
+
+    const summary = await page.request.get(
+      `/api/effluent-plant-reports/summary?period_id=${periodId}&production_line_id=${lineId}`,
+      { headers },
+    )
+
+    expect(summary.status()).toBe(200)
+
+    const summaryBody = await summary.json()
+
+    const exported = await page.request.get(
+      `/api/effluent-plant-reports/export?period_id=${periodId}&production_line_id=${lineId}&format=csv`,
+      { headers },
+    )
+
+    expect(exported.status()).toBe(200)
+    expect(exported.headers()['content-type']).toContain('text/csv')
+
+    // Dan mill yang terbaca adalah mill AKUN, bukan mill fixture spec ini:
+    // business_unit_id kiriman klien memang tidak pernah dihormati bagi peran
+    // terikat mill — itulah tempat ketiga dari tiga tempat pelebaran
+    // screen-157, dan tanpanya pelebaran ini adalah kebocoran lintas mill.
+    const leak = await page.request.get(
+      `/api/effluent-plant-reports/summary?period_id=${periodId}&production_line_id=${lineId}`
+        + '&business_unit_id=00000000-0000-0000-0000-000000000000',
+      { headers },
+    )
+
+    expect(leak.status()).toBe(200)
+    expect((await leak.json()).business_unit?.id).toBe(summaryBody.business_unit?.id)
   })
 })
 

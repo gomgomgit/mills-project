@@ -99,27 +99,35 @@ use Throwable;
  * fourteen nullable columns, three of them almost always NULL.
  *
  * ------------------------------------------------------------------
- * ACCESS: OPERATOR IS DELIBERATELY NOT ADMITTED YET
+ * ACCESS: OPERATOR IS ADMITTED SINCE screen-157 (2026-10-13)
  * ------------------------------------------------------------------
- * Unlike GradingReportService / KernelPlantReportService — whose mobile
- * twins were built in the same series — Operator is refused 403 on ALL FOUR
- * endpoints here. The mobile twin (screen-157) has not been built, so there
- * is no legitimate Operator caller today. This follows the Weighbridge
- * precedent (screen-143 first, Operator added when screen-144 was built).
+ * Operator was refused 403 on ALL FOUR endpoints until the mobile twin
+ * existed: screen-156 (web) landed first, and admitting a role before its
+ * caller exists is access nobody can review. That delay followed the
+ * Weighbridge precedent (screen-143 first, Operator added when screen-144
+ * was built) and has now ENDED — screen-157--laporan-effluent-plant-mobile
+ * is the legitimate Operator caller, and the widening landed WITH it rather
+ * than after it.
  *
- * WHEN screen-157 IS BUILT, THE WIDENING MUST TOUCH TWO PLACES AT ONCE:
- * the role list in guardAccess()/routes/api.php AND the mill-bound branch
- * of resolveBusinessUnit(). Widening guardAccess() ALONE would drop
- * Operator into the Admin branch, where a client-supplied business_unit_id
- * IS honoured — an Operator could then read any mill's report. That is a
- * cross-mill leak, not a display defect.
+ * THE WIDENING TOUCHED THREE PLACES AT ONCE, and that is the whole point:
+ * the role list in routes/api.php, the role list in guardAccess(), AND the
+ * MILL-BOUND branch of resolveBusinessUnit(). Widening the first two alone
+ * would drop Operator into the Admin branch, where a client-supplied
+ * business_unit_id IS honoured — an Operator could then read any mill's
+ * report. That is a cross-mill leak, not a display defect.
+ *
+ * WHAT STAYED CLOSED: businessUnitOptions() still refuses Operator,
+ * Supervisor and Mill Management with 403 (Admin only, raised HERE inside
+ * the service rather than by the route middleware, precisely so widening the
+ * middleware cannot loosen it), and the WEB route /reports/effluent-plant
+ * was NOT widened — widening API access must not widen the web screen.
  *
  * ------------------------------------------------------------------
  * CROSS-MILL SECURITY IS CLOSED AT THREE DIFFERENT POINTS, on purpose
  * ------------------------------------------------------------------
  *   1. resolveBusinessUnit() IGNORES the client's business_unit_id for
- *      Supervisor / Mill Management — not validated, not compared,
- *      discarded. Probing another mill's id returns 200 with the CALLER'S
+ *      Operator / Supervisor / Mill Management — not validated, not
+ *      compared, discarded. Probing another mill's id returns 200 with the CALLER'S
  *      OWN data, deliberately not a 403: a 403 would confirm the other mill
  *      exists, and there is no access attempt to refuse because the
  *      parameter is never used for those roles.
@@ -308,10 +316,10 @@ class EffluentPlantReportService
     /**
      * business_logic step 3 — which mill the caller is allowed to look at.
      *
-     * Supervisor / Mill Management: ALWAYS their own business_unit_id; the
-     * `business_unit_id` argument is ignored outright, so probing another
-     * mill's id is a no-op that still returns the caller's own data with
-     * HTTP 200 — not validated, not compared, discarded.
+     * Operator / Supervisor / Mill Management: ALWAYS their own
+     * business_unit_id; the `business_unit_id` argument is ignored outright,
+     * so probing another mill's id is a no-op that still returns the caller's
+     * own data with HTTP 200 — not validated, not compared, discarded.
      *
      * Admin: the value MUST come from the caller. Missing is 422
      * VALIDATION_ERROR with errors.business_unit_id — never a silent null
@@ -322,10 +330,12 @@ class EffluentPlantReportService
      * 422, BEFORE any repository call, so allBusinessUnits() is provably
      * never reached from this path.
      *
-     * WHEN OPERATOR IS ADMITTED LATER (screen-157), IT BELONGS IN THE
-     * MILL-BOUND BRANCH BELOW — see the class docblock. Admitting it in
-     * guardAccess() alone drops it into the Admin branch, where the
-     * client's business_unit_id is honoured.
+     * OPERATOR (admitted with screen-157) BELONGS IN THE MILL-BOUND BRANCH
+     * BELOW AND NOWHERE ELSE — see the class docblock. Admitting it in
+     * guardAccess() / routes/api.php alone drops it into the Admin branch,
+     * where the client's business_unit_id IS honoured: an Operator could then
+     * read any mill's report. The line below is what makes admitting Operator
+     * in guardAccess() safe.
      *
      * @throws AuthenticationException 401 UNAUTHENTICATED
      * @throws AuthorizationException 403 FORBIDDEN
@@ -336,7 +346,13 @@ class EffluentPlantReportService
         $role = $this->guardAccess();
 
         if ($role === UserRole::Supervisor->value
-            || $role === UserRole::MillManagement->value) {
+            || $role === UserRole::MillManagement->value
+            // Operator belongs HERE and nowhere else: the branch below treats
+            // whatever reaches it as Admin and HONOURS the client's
+            // business_unit_id. This line is what makes admitting Operator in
+            // guardAccess() / routes/api.php safe — without it, widening the
+            // role lists is a cross-mill leak, not a display defect.
+            || $role === UserRole::Operator->value) {
             // Client-supplied business_unit_id is deliberately DISCARDED.
             $businessUnitId = (string) (auth()->user()->business_unit_id ?? '');
 
@@ -350,8 +366,8 @@ class EffluentPlantReportService
         }
 
         // Admin — the only role not bound to one mill, and the only role
-        // that can reach this point: guardAccess() admits exactly three
-        // roles and the other two are handled above.
+        // that can reach this point: guardAccess() admits exactly four
+        // roles and the other three are handled above.
         if ($requestedBusinessUnitId === null || $requestedBusinessUnitId === '') {
             // Incomplete input, not refused access — 422, never 403.
             throw ValidationException::withMessages([
@@ -365,11 +381,11 @@ class EffluentPlantReportService
     /**
      * business_logic step 4 — mill picker options, ADMIN ONLY.
      *
-     * Supervisor and Mill Management are bound to a single mill and have no
-     * picker at all, so asking for this list is a 403 rather than a
-     * filtered list of one. ENFORCED HERE, INSIDE THE SERVICE, not by the
-     * route middleware — so widening the route's role list (which
-     * screen-157 will do) cannot loosen it.
+     * Operator, Supervisor and Mill Management are each bound to a single
+     * mill and have no picker at all, so asking for this list is a 403
+     * rather than a filtered list of one. ENFORCED HERE, INSIDE THE SERVICE,
+     * not by the route middleware — which is why the screen-157 widening of
+     * that middleware did NOT loosen it.
      *
      * An empty master is a valid answer: [] with HTTP 200, never a 404.
      *
@@ -510,8 +526,8 @@ class EffluentPlantReportService
      * and the caller is mill-bound. Admin passes for any mill.
      *
      * THE ROLE GUARD RUNS BEFORE THE LOOKUP, on purpose: a role that is not
-     * admitted at all (Operator, until screen-157) must not be able to
-     * learn whether a period id exists by comparing a 403 against a 404.
+     * admitted at all must not be able to learn whether a period id exists
+     * by comparing a 403 against a 404.
      *
      * @throws AuthenticationException 401 UNAUTHENTICATED
      * @throws AuthorizationException 403 FORBIDDEN
@@ -1418,13 +1434,15 @@ class EffluentPlantReportService
      * widening a role here and widening routes/api.php are always one
      * change, never two.
      *
-     * OPERATOR IS DELIBERATELY ABSENT, and the delay is a reviewable
-     * decision rather than an oversight: the mobile twin (screen-157) has
-     * not been built, so there is no legitimate Operator caller today. When
-     * it is built, the widening must ALSO add Operator to the mill-bound
-     * branch of resolveBusinessUnit() — see the class docblock. This differs
-     * from GradingReportService / KernelPlantReportService on purpose; it is
-     * not an omission to "fix".
+     * OPERATOR IS ADMITTED since screen-157--laporan-effluent-plant-mobile
+     * (2026-10-13) — the mobile twin that is its one legitimate caller. It
+     * was deliberately absent before that, and the delay was a reviewable
+     * decision rather than an oversight. Admitting the role HERE is only one
+     * third of it: resolveBusinessUnit() must ALSO place Operator in the
+     * MILL-BOUND branch and routes/api.php must admit it too, or this line
+     * opens a cross-mill read. The one entry point that still refuses
+     * Operator is businessUnitOptions(), which checks the role itself
+     * precisely because this gate lets it through.
      *
      * @return string the caller's role
      *
@@ -1445,6 +1463,7 @@ class EffluentPlantReportService
             UserRole::Supervisor->value,
             UserRole::MillManagement->value,
             UserRole::Admin->value,
+            UserRole::Operator->value,
         ], true)) {
             throw new AuthorizationException('Anda tidak memiliki akses untuk aksi ini.');
         }

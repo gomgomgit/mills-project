@@ -14,13 +14,22 @@
  * ────────────────────────────────────────────────────────────────────────
  * YANG MEMBEDAKAN LAPORAN INI DARI SEBELAS SAUDARANYA
  * ────────────────────────────────────────────────────────────────────────
- * OPERATOR DITOLAK 403 PADA KEEMPAT RUTE, bukan diterima pada tiga rute data
- * seperti Grading / Kernel Plant. Kembaran mobile screen-157 belum dibangun,
- * jadi tidak ada pemanggil Operator yang sah hari ini — dan menerima sebuah
- * peran sebelum pemanggilnya ada adalah akses yang tidak dapat ditinjau
- * siapa pun. Mengikuti presedens Weighbridge (screen-143 lebih dulu, Operator
- * ditambahkan saat screen-144 dibangun). Skenario 21 di bawah yang
- * menjaganya; menyalin pola Grading ke sini akan menjatuhkannya.
+ * OPERATOR DITOLAK 403 PADA KEEMPAT RUTE SAMPAI 2026-10-13, bukan diterima
+ * pada tiga rute data seperti Grading / Kernel Plant. Alasannya bukan
+ * kelalaian: kembaran mobile screen-157 belum dibangun, jadi tidak ada
+ * pemanggil Operator yang sah — dan menerima sebuah peran sebelum
+ * pemanggilnya ada adalah akses yang tidak dapat ditinjau siapa pun.
+ * Mengikuti presedens Weighbridge (screen-143 lebih dulu, Operator
+ * ditambahkan saat screen-144 dibangun).
+ *
+ * PENUNDAAN ITU BERAKHIR BERSAMA screen-157--laporan-effluent-plant-mobile.
+ * Operator sekarang DITERIMA 200 pada KETIGA rute data dan TETAP DITOLAK 403
+ * pada /business-units/options. Skenario 21 di bawah yang menjaga keduanya,
+ * dan skenario 21c menjaga bagian yang paling mudah terlewat: pelebaran itu
+ * harus menyentuh TIGA tempat (daftar peran middleware, guardAccess(), DAN
+ * cabang terikat-mill resolveBusinessUnit()); dua dari tiga menjatuhkan
+ * Operator ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI,
+ * yaitu kebocoran lintas mill, bukan cacat tampilan.
  *
  * FIXTURE-NYA SENGAJA TIDAK RATA: kolom diisi pada HIMPUNAN SLOT YANG
  * BERBEDA-BEDA, dan ketiga kolom laboratorium diisi jauh lebih jarang
@@ -801,52 +810,163 @@ it('skenario 20 — production_line_id milik mill lain: 403 pada summary DAN pad
         ->assertStatus(403);
 });
 
-it('skenario 21 — OPERATOR DITOLAK 403 PADA KEEMPAT RUTE — berbeda dari Grading/Kernel Plant', function () {
+it('skenario 21 — OPERATOR 200 PADA KETIGA RUTE DATA, 403 HANYA PADA PEMILIH MILL', function () {
     $record = laporanEffluentPlantRecord($this->stationA, $this->day2, 'EP-1');
     laporanEffluentPlantSlot($record, '07:00', ['anaerobic_pond_1_ph' => 7.0]);
 
-    // KEMBARAN MOBILE screen-157 BELUM DIBANGUN, jadi tidak ada pemanggil
-    // Operator yang sah hari ini. Grading dan Kernel Plant menerima Operator
-    // pada ketiga rute datanya sejak commit pertama karena kembaran
-    // mobile-nya dibangun dalam perubahan yang sama; menyalin pola itu ke
-    // sini akan membuka akses yang tidak dapat ditinjau siapa pun.
+    // ────────────────────────────────────────────────────────────────────
+    // DULU 403 PADA KEEMPATNYA, DAN PERUBAHANNYA DISENGAJA
+    // ────────────────────────────────────────────────────────────────────
+    // Ketiga 403 pada rute DATA mendokumentasikan sebuah PENUNDAAN, bukan
+    // sebuah invarian: sampai kembaran mobile screen-157 dibangun tidak ada
+    // pemanggil Operator yang sah, dan menerima sebuah peran sebelum
+    // pemanggilnya ada adalah akses yang tidak dapat ditinjau siapa pun.
+    // screen-157--laporan-effluent-plant-mobile ADALAH pemanggil itu, jadi
+    // pelebarannya mendarat BERSAMA layar itu — persis seperti Grading dan
+    // Kernel Plant, yang kembaran mobile-nya memang dibangun dalam perubahan
+    // yang sama sejak commit pertama.
     //
-    // KETIKA screen-157 DIBANGUN, pelebarannya WAJIB menyentuh daftar peran
-    // middleware/guardAccess() DAN cabang terikat-mill di
-    // resolveBusinessUnit() sekaligus — melebarkan yang pertama saja
-    // menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman
-    // klien DIHORMATI, yaitu kebocoran lintas mill.
+    // PEMILIH MILL TIDAK IKUT DILEBARKAN, dan itu bagian terpenting dari
+    // perubahan ini: Operator terikat SATU mill, jadi meminta daftar seluruh
+    // mill bukan "daftar berisi satu" melainkan 403. Layar mobile itu memang
+    // tidak punya satu pun jalur kode yang memanggilnya.
     $this->actingAs($this->operator, 'web')
         ->getJson(laporanEffluentPlantUrl('business-units/options'))
         ->assertStatus(403);
 
-    $this->actingAs($this->operator, 'web')
-        ->getJson(laporanEffluentPlantUrl('periods'))
-        ->assertStatus(403);
+    $periods = $this->actingAs($this->operator, 'web')
+        ->getJson(laporanEffluentPlantUrl('periods'));
 
-    $this->actingAs($this->operator, 'web')
+    $periods->assertOk();
+    expect(collect($periods->json('data'))->pluck('id'))->toContain((string) $this->periodA->id);
+    // DENGAN TANDA HUBUNG — garis bawah di situ menjawab [] untuk setiap mill
+    // tanpa satu galat.
+    expect(collect($periods->json('data'))->pluck('station_type')->unique()->values()->all())
+        ->toBe(['effluent-plant']);
+
+    $summary = $this->actingAs($this->operator, 'web')
         ->getJson(laporanEffluentPlantUrl('summary', [
             'period_id' => (string) $this->periodA->id,
             'production_line_id' => $this->lineA,
-        ]))
-        ->assertStatus(403);
+        ]));
 
-    $this->actingAs($this->operator, 'web')
-        ->getJson(laporanEffluentPlantUrl('export', [
+    $summary->assertOk();
+    expect($summary->json('business_unit.name'))->toBe('Mill Alpha');
+    expect($summary->json('period.id'))->toBe((string) $this->periodA->id);
+    expect($summary->json('has_data'))->toBeTrue();
+
+    $export = $this->actingAs($this->operator, 'web')
+        ->get(laporanEffluentPlantUrl('export', [
             'period_id' => (string) $this->periodA->id,
             'production_line_id' => $this->lineA,
             'format' => 'csv',
-        ]))
-        ->assertStatus(403);
+        ]));
+
+    $export->assertOk();
+    expect($export->headers->get('content-type'))->toContain('text/csv');
 
     // Dan rute KEEMPAT tetap 403 untuk setiap peran terikat mill —
     // penolakan yang datang dari DALAM service, bukan dari middleware
-    // prefix, sehingga melebarkan daftar peran rute tidak melonggarkannya.
+    // prefix, sehingga pelebaran daftar peran rute untuk screen-157 justru
+    // TIDAK melonggarkannya. Uji ini gagal bila guard-nya dipindah ke rute.
     foreach ([$this->supervisor, $this->millManagement] as $user) {
         $this->actingAs($user, 'web')
             ->getJson(laporanEffluentPlantUrl('business-units/options'))
             ->assertStatus(403);
     }
+});
+
+/**
+ * PENJAGA REGRESI KEBOCORAN LINTAS MILL — tempat ketiga dari tiga tempat
+ * pelebaran screen-157.
+ *
+ * Melebarkan daftar peran middleware dan guardAccess() TANPA menambahkan
+ * Operator ke cabang terikat-mill resolveBusinessUnit() menjatuhkannya ke
+ * cabang ADMIN, tempat business_unit_id kiriman klien DIHORMATI. Akibatnya
+ * bukan 403 melainkan 200 BERISI DATA MILL LAIN — kegagalan yang tidak
+ * terlihat pada satu pun uji lain di berkas ini, karena setiap uji lainnya
+ * memakai mill akunnya sendiri.
+ *
+ * Yang benar: nilai kiriman DIBUANG tanpa dibandingkan maupun divalidasi, dan
+ * jawabannya 200 berisi data mill AKUN. Sengaja BUKAN 403 — 403 justru akan
+ * menegaskan bahwa mill lain itu ada.
+ */
+it('skenario 21c — KRITIS: business_unit_id mill lain dari Operator DIBUANG, 200 berisi data mill akun', function () {
+    $recordA = laporanEffluentPlantRecord($this->stationA, $this->day2, 'EP-A');
+    laporanEffluentPlantSlot($recordA, '07:00', ['anaerobic_pond_1_ph' => 7.0]);
+
+    $recordB = laporanEffluentPlantRecord($this->stationB, $this->day2, 'EP-B');
+    laporanEffluentPlantSlot($recordB, '07:00', ['anaerobic_pond_1_ph' => 99.0]);
+
+    $periodB = Period::factory()
+        ->forBusinessUnit($this->businessUnitB)
+        ->stationType(StationTypeEnum::EffluentPlant->value)
+        ->range($this->periodStart, $this->periodEnd)
+        ->open()
+        ->named('Periode Effluent Plant Beta')
+        ->create();
+
+    $summary = $this->actingAs($this->operator, 'web')
+        ->getJson(laporanEffluentPlantUrl('summary', [
+            'period_id' => (string) $this->periodA->id,
+            'production_line_id' => $this->lineA,
+            // Mill LAIN pada query — nilai inilah yang harus dibuang.
+            'business_unit_id' => (string) $this->businessUnitB->id,
+        ]));
+
+    $summary->assertOk();
+    expect($summary->json('business_unit.id'))->toBe((string) $this->businessUnitA->id);
+    expect($summary->json('business_unit.name'))->toBe('Mill Alpha');
+    // 99.0 dan 'EP-B' milik mill lain tidak boleh terbaca sama sekali.
+    // toEqual, bukan toBe: JSON menyerahkan 7.0 sebagai int 7 — konvensi
+    // yang sama dengan asersi metrik lain di berkas ini.
+    expect($summary->json('metrics.anaerobic_pond_1_ph.max'))->toEqual(7.0);
+    expect(collect($summary->json('by_unit'))->pluck('effluent_plant_id')->all())->toBe(['EP-A']);
+
+    // Daftar periode mengikuti cakupan yang sama: periode mill lain tidak
+    // pernah terdaftar, bahkan ketika mill-nya diminta secara eksplisit.
+    $periods = $this->actingAs($this->operator, 'web')
+        ->getJson(laporanEffluentPlantUrl('periods', [
+            'business_unit_id' => (string) $this->businessUnitB->id,
+        ]));
+
+    $periods->assertOk();
+    expect(collect($periods->json('data'))->pluck('id'))->toContain((string) $this->periodA->id);
+    expect(collect($periods->json('data'))->pluck('id'))->not->toContain((string) $periodB->id);
+
+    // Dan penjagaan lintas mill yang SUNGGUHAN tetap 403: line mill lain,
+    // yang ditolak sebelum satu kueri record pun berjalan.
+    $this->actingAs($this->operator, 'web')
+        ->getJson(laporanEffluentPlantUrl('summary', [
+            'period_id' => (string) $this->periodA->id,
+            'production_line_id' => $this->lineB,
+        ]))
+        ->assertStatus(403);
+});
+
+it('skenario 21d — Operator tanpa mill: 422 GAGAL TERTUTUP pada ketiga rute data, 403 pada pemilih mill', function () {
+    $operatorWithoutMill = User::factory()->role(UserRole::Operator)->create(['business_unit_id' => null]);
+
+    // DULU 403 (penjaga peran menolaknya lebih dulu). Sekarang Operator
+    // diterima, jadi ia sampai ke cabang terikat-mill dan berhenti di sana:
+    // 422 tentang akun yang belum terhubung ke mill, dan TIDAK ADA pemilih
+    // mill yang ditawarkan sebagai gantinya. Bentuknya sama persis dengan
+    // akun Supervisor tanpa mill.
+    $this->actingAs($operatorWithoutMill, 'web')
+        ->getJson(laporanEffluentPlantUrl('periods'))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('business_unit_id');
+
+    $this->actingAs($operatorWithoutMill, 'web')
+        ->getJson(laporanEffluentPlantUrl('summary', [
+            'period_id' => (string) $this->periodA->id,
+            'production_line_id' => $this->lineA,
+        ]))
+        ->assertStatus(422);
+
+    $this->actingAs($operatorWithoutMill, 'web')
+        ->getJson(laporanEffluentPlantUrl('business-units/options'))
+        ->assertStatus(403);
 });
 
 it('skenario 21b — tamu: 401 pada keempat rute', function () {

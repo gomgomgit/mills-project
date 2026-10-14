@@ -124,6 +124,13 @@ const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   // bergaris-bawah ('kernel_plant') akan terkompilasi, terlihat benar, dan
   // tidak pernah cocok dengan satu station.type pun.
   'kernel-plant': 'report-kernel-plant',
+  // screen-157--laporan-effluent-plant-mobile. Satu baris yang sama
+  // menentukannya: tanpa entri ini layar laporan Effluent Plant ada, rutenya
+  // ada, seluruh test-nya lulus, dan tile-nya tetap kelabu. Kuncinya WAJIB
+  // DIKUTIP karena bertanda hubung — kunci bergaris-bawah ('effluent_plant')
+  // akan terkompilasi, terlihat benar, dan tidak pernah cocok dengan satu
+  // station.type pun.
+  'effluent-plant': 'report-effluent-plant',
   sterilizer: 'report-sterilizer',
   'cages-track': 'report-cages-track',
   'boiler-room': 'report-boiler-room',

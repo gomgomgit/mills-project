@@ -48,7 +48,16 @@ export default defineConfig({
     // melaporkan 5 berkas gagal yang sebenarnya tidak pernah dimaksudkan
     // untuk berjalan di sini — dan kegagalan palsu yang selalu ada adalah
     // kegagalan yang berhenti dibaca orang.
-    exclude: ['**/node_modules/**', 'tests/e2e/**', 'tests/qa-run/**'],
+    //
+    // shots/** adalah hal yang sama sekali lagi, dan ia sempat terlewat:
+    // shots/mobile.spec.ts (tangkapan layar bahan sales deck, commit 77a957f)
+    // adalah spec Playwright dengan config-nya sendiri di shots/, tetapi
+    // shots/ TIDAK ikut dikecualikan di sini. Akibatnya sejak commit itu
+    // `vitest run` selalu melaporkan 1 berkas gagal collect ("Playwright Test
+    // did not expect test() to be called here") — jadi suite mobile tidak
+    // pernah keluar bersih lagi, dan angka baseline yang dikutip di mana-mana
+    // ("131 berkas lulus") sebenarnya 131 lulus + 1 gagal. Ditutup 2026-10-14.
+    exclude: ['**/node_modules/**', 'tests/e2e/**', 'tests/qa-run/**', 'shots/**'],
     // Dialog modal (ConfirmDialog/SyncResultDialog) di-<Teleport> ke <body>;
     // setup ini men-stub Teleport agar isinya tetap ada di dalam wrapper
     // spec layar. Lihat tests/setup/teleportStub.ts.

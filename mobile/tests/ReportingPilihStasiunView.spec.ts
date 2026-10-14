@@ -18,21 +18,39 @@
  * ada khusus untuk menjatuhkannya, dengan fixture yang sengaja dibuat
  * "tidak realistis":
  *
- * CONTOH "LAPORAN BELUM DIBANGUN" SUDAH EMPAT KALI DIPINDAHKAN, dan keempatnya
+ * CONTOH "LAPORAN BELUM DIBANGUN" SUDAH ENAM KALI DIPINDAHKAN, dan keenamnya
  * karena laporannya memang dibangun: Weighbridge -> Engine Room pada
  * screen-144, Threshing -> Process Water pada screen-149, Pressing ->
  * Kernel Plant pada screen-151, lalu Depricarping -> Effluent Plant pada
  * screen-153 (keempatnya 2026-10-06). PEMINDAHAN KELIMA pada screen-155
  * (2026-10-07): Kernel Plant -> Process Quality Control, karena laporan
  * Kernel Plant mobile dibangun dan tujuh test di berkas ini gagal — persis
- * seperti yang diperingatkan di bawah.
+ * seperti yang diperingatkan di bawah. PEMINDAHAN KEENAM pada screen-157
+ * (2026-10-13): Effluent Plant -> CPO Dispatch, karena laporan Effluent Plant
+ * mobile dibangun sehingga tile-nya menjadi AKTIF dan jumlah tile nonaktif
+ * pada fixture lima-stasiun di bawah turun dari 4 menjadi 3.
+ *
+ * KOREKSI ATAS PENYUSUNAN DOCBLOCK INI (screen-157): paragraf di atas dulu
+ * terbaca seolah pemindahan kelima menggantikan contoh kanonisnya di SELURUH
+ * berkas. Ia tidak. Berkas ini memegang TIGA contoh "belum dibangun"
+ * sekaligus, dan ketiganya masih dipakai hari ini:
+ *   - 'process-water' (sort_order 130) — hasil pemindahan KEDUA, dan inilah
+ *     yang dipakai pasangan asersi di bawah serta sebagian besar test
+ *     lainnya di berkas ini;
+ *   - 'process-quality-control' (sort_order 180) — hasil pemindahan KELIMA,
+ *     dipakai pada st-3/st-5 dan pada asersi urutan tile;
+ *   - 'cpo-dispatch' (sort_order 170) — hasil pemindahan KEENAM, dipakai
+ *     pada st-4 di fixture lima-stasiun.
+ *
  * Dipindahkan, BUKAN dihapus: bila Process Water, Process Quality Control,
- * Effluent Plant, Engine Room, Solid Waste Disposal, Kernel Dispatch atau
- * CPO Dispatch pun dibuatkan laporan mobile, spec ini akan gagal lagi — dan
- * itu benar, karena ia memaksa contohnya diperbarui alih-alih diam-diam
- * menjadi selalu hijau. Process Quality Control dipilih karena sort_order-nya
- * 180, paling akhir dari seluruh jenis stasiun, sehingga pemindahan keenam
- * tertunda paling lama.
+ * CPO Dispatch, Engine Room, Solid Waste Disposal atau Kernel Dispatch pun
+ * dibuatkan laporan mobile, spec ini akan gagal lagi — dan itu benar, karena
+ * ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
+ * CPO Dispatch dipilih untuk st-4 karena sort_order-nya 170, TERTINGGI di
+ * antara jenis yang belum terpakai sebagai contoh di berkas ini (Engine Room
+ * 120, Solid Waste Disposal 150, Kernel Dispatch 160, CPO Dispatch 170),
+ * sehingga pemindahan KETUJUH tertunda paling lama. Process Quality Control
+ * (180) lebih tinggi lagi, tetapi ia sudah terpakai pada st-3/st-5.
  *
  *   - 'process-water' dengan isActive = true → tile WAJIB nonaktif (kodenya
  *     tidak ada di REPORT_ROUTES).
@@ -562,11 +580,19 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
       makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
       makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
-      // DIPINDAHKAN dari Depricarping pada screen-153 — stasiun itu kini
-      // punya laporan mobile, jadi tile-nya aktif dan jumlah tile nonaktif
-      // turun jadi 3. Effluent Plant dipilih karena ia belum dipakai sebagai
-      // contoh di tempat lain mana pun.
-      makeStation({ id: 'st-4', name: 'Effluent Plant', type: 'effluent-plant', isActive: true }),
+      // PEMINDAHAN KEENAM — DIPINDAHKAN dari Effluent Plant pada screen-157
+      // (2026-10-13), yang sendiri hasil pemindahan KEEMPAT dari Depricarping
+      // pada screen-153. Laporan Effluent Plant mobile kini dibangun
+      // ('effluent-plant' ada di REPORT_ROUTES), jadi tile-nya AKTIF dan
+      // jumlah tile nonaktif di bawah turun dari 4 menjadi 3 — test ini gagal
+      // BY DESIGN sampai contohnya diperbarui, dan inilah pembaruannya.
+      //
+      // CPO Dispatch dipilih karena ia belum dipakai sebagai contoh di tempat
+      // lain mana pun DI BERKAS INI, dan belum punya laporan mobile — serta
+      // sort_order-nya 170, tertinggi di antara jenis yang belum terpakai di
+      // sini (Engine Room 120, Solid Waste Disposal 150, Kernel Dispatch 160),
+      // sehingga pemindahan KETUJUH tertunda paling lama.
+      makeStation({ id: 'st-4', name: 'CPO Dispatch', type: 'cpo-dispatch', isActive: true }),
       makeStation({ id: 'st-5', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
     ])
 

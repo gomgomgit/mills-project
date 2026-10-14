@@ -1006,13 +1006,14 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 
 // screen-156--laporan-effluent-plant-web (Laporan Periode Effluent Plant).
 //
-// Supervisor / Mill Management / Admin only. OPERATOR IS REFUSED HERE *AND*
-// ON /api/effluent-plant-reports, which is the one thing that differs from
-// the Grading / Kernel Plant pair: the mobile twin of this screen
-// (screen-157) has not been built, so Operator has no legitimate caller yet
-// on either side. When screen-157 is built, the API widens — this web route
-// and LaporanEffluentPlant::canAccess() deliberately do NOT, which is why
-// canAccess() keeps its own role list instead of borrowing the service's.
+// Supervisor / Mill Management / Admin only. OPERATOR IS STILL REFUSED HERE
+// EVEN THOUGH THE API NOW ADMITS IT: screen-157--laporan-effluent-plant-mobile
+// (2026-10-13) widened /api/effluent-plant-reports for Operator because that
+// mobile screen is its legitimate caller — and widening API access must NOT
+// widen the web screen. This web route and LaporanEffluentPlant::canAccess()
+// deliberately stayed closed, which is why canAccess() keeps its own role list
+// instead of borrowing EffluentPlantReportService::guardAccess(); if it ever
+// delegates, this web screen silently opens to Operator.
 //
 // Route is /reports/effluent-plant, NOT /laporan/effluent-plant — the repo's
 // convention for report screens is the English /reports/* prefix

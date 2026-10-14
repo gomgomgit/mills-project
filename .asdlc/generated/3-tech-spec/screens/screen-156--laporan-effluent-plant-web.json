@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-14"
@@ -1000,7 +1000,8 @@
     "Invarian yang hanya browser dapat membuktikan, dan karena itu wajib ada di spec-nya: (a) tile Effluent Plant pada screen-140 menyala dan mendarat di layar ini; (b) halamannya hidup — Livewire terpasang dan wire:model memicu putaran; (c) blok kelengkapan berada DI ATAS seluruh kartu metrik, diukur dari posisi di viewport bukan urutan sumber; (d) keempat belas kartu metrik mencetak penyebutnya SENDIRI, dan ketiga kartu lab boleh punya penyebut yang jauh lebih kecil — penyebut yang SAMA pada keempat belasnya adalah justru cacat yang dicari; (e) tidak ada satu pun ELEMEN berkelas penanda di luar batas pada halaman ter-render; (f) tidak ada bagian downtime; (g) ketiga sebaran status menjumlah ke slot tercatat, dan baris bernilai 0 tetap terender; (h) jumlah slot per unit menjumlah ke slot terisi periode; (i) rekap harian dapat ditutup tanpa mengubah satu angka pun; (j) pernyataan kepatuhan lingkungan terender dekat blok Buangan Akhir.",
     "Jebakan Playwright yang berlaku di sini: jangan memakai toHaveURL('**/x') bersama baseURL — polanya tidak akan pernah cocok; pakai jalur relatif. Jangan memanggil count() tanpa menunggu putaran Livewire selesai.",
     "SQLite vs PostgreSQL: seluruh agregasi di PHP (business_logic langkah 8). Selain itu, pada PostgreSQL nilai '' tidak dapat masuk kolom numerik — relevan bagi layar input, bukan bagi laporan ini, tetapi disebut karena service ini membaca kolom yang sama.",
-    "Kartu metrik dikelompokkan menjadi ENAM blok di blade (Kolam Anaerobik 1, Kolam Anaerobik 2, Cooling Pond, Aliran, Buangan Akhir, Bahan Kimia). Pengelompokan ini murni tata letak — tidak satu pun angka dihitung per blok, dan tidak ada total per blok, karena satuan di dalam satu blok pun berbeda (pH tanpa satuan, suhu °C)."
+    "Kartu metrik dikelompokkan menjadi ENAM blok di blade (Kolam Anaerobik 1, Kolam Anaerobik 2, Cooling Pond, Aliran, Buangan Akhir, Bahan Kimia). Pengelompokan ini murni tata letak — tidak satu pun angka dihitung per blok, dan tidak ada total per blok, karena satuan di dalam satu blok pun berbeda (pH tanpa satuan, suhu °C).",
+    "LABEL NILAI STATUS DI LAYAR MENDELEGASIKAN KE Display::option(), BUKAN MENYALINNYA. Keputusan pemilik produk 2026-10-14: ketiga kolom status memakai On/Off/Fault dan Run/Stop, sama dengan layar Detail (screen-089), formulir, ekspor Data Browser, dan ekspor laporan ini — satu nilai, satu label di seluruh produk. Sebelumnya blade ini memegang peta lokal yang mencetak Nyala/Mati/Gangguan & Jalan/Berhenti, dan itu menjadikan layar laporan satu-satunya tempat berbahasa Indonesia untuk kolom-kolom ini. Peta lokal itu DIHAPUS dan diganti pemanggilan \\App\\Support\\Display::option(), sehingga penyimpangan yang sama tidak dapat terulang tanpa menyentuh Display sendiri. Perilaku 'nilai di luar peta dicetak apa adanya' tetap sama, karena Display::option() memang OPTION_LABELS[$raw] ?? $raw."
   ],
   "test_scenarios": [
     {
@@ -1376,7 +1377,7 @@
       "browser_test": {
         "route": "/reports/effluent-plant",
         "action": "pilih line dan periode yang sebagian slot statusnya kosong",
-        "assert": "blok Sebaran Status Biogas Flare menampilkan Nyala/Mati/Gangguan plus baris 'tidak tercatat' dengan jumlah yang terpisah; jumlah 'Mati' tidak sama dengan jumlah slot kosong"
+        "assert": "blok Sebaran Status Biogas Flare menampilkan On/Off/Fault plus baris 'tidak tercatat' dengan jumlah yang terpisah; jumlah 'Off' tidak sama dengan jumlah slot kosong"
       }
     },
     {
@@ -1399,13 +1400,13 @@
       ],
       "component_test": {
         "component": "LaporanEffluentPlant",
-        "action": "mount komponen dan pilih periode yang tidak memuat satu pun slot bernilai 'Gangguan' pada status biogas flare",
-        "assert": "baris 'Gangguan' tetap dirender dengan jumlah 0, tidak hilang dari daftar, dan berbeda jelas dari baris 'tidak tercatat' sehingga 'tidak pernah terjadi' terbaca lain dari 'tidak dilaporkan'"
+        "action": "mount komponen dan pilih periode yang tidak memuat satu pun slot bernilai 'Fault' pada status biogas flare",
+        "assert": "baris 'Fault' tetap dirender dengan jumlah 0, tidak hilang dari daftar, dan berbeda jelas dari baris 'tidak tercatat' sehingga 'tidak pernah terjadi' terbaca lain dari 'tidak dilaporkan'"
       },
       "browser_test": {
         "route": "/reports/effluent-plant",
         "action": "pilih line dan periode tanpa slot bergangguan pada biogas flare",
-        "assert": "baris Gangguan terlihat dengan angka 0 dan ditonjolkan sebagaimana mestinya; baris 'tidak tercatat' tetap terlihat terpisah dengan angkanya sendiri"
+        "assert": "baris Fault terlihat dengan angka 0 dan ditonjolkan sebagaimana mestinya; baris 'tidak tercatat' tetap terlihat terpisah dengan angkanya sendiri. Diasersi pada barisnya lewat data-status-value, bukan dengan memindai teks seluruh kartu — 'On' hanya dua huruf dan akan cocok di dalam kata lain mana pun"
       }
     },
     {
@@ -2094,7 +2095,7 @@
       "browser_test": {
         "route": "/reports/effluent-plant",
         "action": "pilih line dan periode dengan status bervariasi lalu periksa bagian status dan kedua grafik tren",
-        "assert": "bagian status hanya menampilkan jumlah slot per nilai (Nyala/Mati/Gangguan dan Jalan/Berhenti) plus 'tidak tercatat'; tidak ada angka rata-rata status dan grafik tren hanya memuat laju POME masuk dan pH buangan akhir"
+        "assert": "bagian status hanya menampilkan jumlah slot per nilai (On/Off/Fault dan Run/Stop) plus 'tidak tercatat'; tidak ada angka rata-rata status dan grafik tren hanya memuat laju POME masuk dan pH buangan akhir"
       }
     },
     {

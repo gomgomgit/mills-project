@@ -43,7 +43,7 @@
        dikenal tetapi tidak pernah terjadi tetap tampil sebagai baris NOL —
        baris yang hilang tidak dapat dibedakan dari nilai yang tidak pernah
        ada. "Tidak tercatat" adalah barisnya sendiri dan TIDAK PERNAH
-       diperlakukan sebagai "Mati" atau "Berhenti". Porsinya memakai jumlah
+       diperlakukan sebagai "Off" atau "Stop". Porsinya memakai jumlah
        SLOT TERCATAT sebagai penyebut, bukan slot yang diharapkan.
 
     5. DUA REKAP TEKS ADALAH DUA BAGIAN TERPISAH. Catatan Perawatan menjawab
@@ -162,15 +162,21 @@
         'chemical_consumed_kgl' => ['label' => 'Konsumsi', 'panjang' => 'Konsumsi Bahan Kimia', 'pendek' => 'Bahan Kimia (kg/L)', 'satuan' => 'kg/L', 'digits' => 1],
     ];
 
-    // Label manusiawi tiap nilai status. Ketiga kolom status memakai himpunan
-    // nilai tertutup di basis data ($table->enum -> CHECK constraint), tetapi
-    // nilai di luar peta ini tetap dicetak APA ADANYA, bukan disembunyikan:
-    // nilai baru dari migrasi kelak harus terlihat, bukan hilang.
-    $labelStatus = [
-        'on' => 'Nyala', 'off' => 'Mati', 'fault' => 'Gangguan',
-        'run' => 'Jalan', 'stop' => 'Berhenti',
-    ];
-    $statusTeks = fn (string $value) => $labelStatus[$value] ?? $value;
+    // Label manusiawi tiap nilai status — DIDELEGASIKAN ke Display::option(),
+    // bukan disalin ke sini. Itu keputusan yang disengaja: layar Detail
+    // (screen-089), formulir, ekspor Data Browser, dan ekspor laporan ini
+    // SEMUANYA memakai Display::OPTION_LABELS, jadi satu nilai hanya boleh
+    // punya satu label di seluruh produk. Peta lokal di berkas ini sempat
+    // mencetak Nyala/Mati/Gangguan dan Jalan/Berhenti — satu-satunya tempat
+    // di produk yang berbahasa Indonesia untuk kolom-kolom ini — dan itu
+    // diselaraskan ke On/Off/Fault & Run/Stop pada 2026-10-14 atas keputusan
+    // pemilik produk. Mendelegasikan, bukan menyalin, membuat penyimpangan
+    // itu tidak dapat terulang tanpa menyentuh Display.
+    //
+    // Display::option() mencetak nilai di luar OPTION_LABELS APA ADANYA
+    // (OPTION_LABELS[$raw] ?? $raw), jadi nilai baru dari migrasi kelak tetap
+    // terlihat alih-alih hilang — perilaku yang sama dengan peta lama.
+    $statusTeks = fn (string $value) => \App\Support\Display::option($value);
 
     $blokStatus = [
         ['column' => 'biogas_flare_status', 'testid' => 'status-distribution-biogas-flare', 'judul' => 'Sebaran Biogas Flare'],
@@ -635,8 +641,8 @@
                                 @endforeach
                                 {{-- BARISNYA SENDIRI, SELALU. Slot yang tidak
                                      mencatat kolom ini TIDAK PERNAH
-                                     diperlakukan sebagai 'Mati' maupun
-                                     'Berhenti': melakukannya akan melaporkan
+                                     diperlakukan sebagai 'Off' maupun
+                                     'Stop': melakukannya akan melaporkan
                                      flare mati atau pompa berhenti yang tidak
                                      pernah terjadi. --}}
                                 <tr data-testid="status-not-recorded">
@@ -689,7 +695,7 @@
                     itulah sebabnya sebuah nilai yang tidak pernah terjadi sepanjang periode tetap
                     tampil sebagai baris nol, bukan hilang dari daftar. <b>&ldquo;Tidak
                     tercatat&rdquo; adalah keadaan tersendiri</b> dan tidak pernah diperlakukan sebagai
-                    &ldquo;Mati&rdquo; atau &ldquo;Berhenti&rdquo;: &ldquo;tidak kami tulis&rdquo; dan
+                    &ldquo;Off&rdquo; atau &ldquo;Stop&rdquo;: &ldquo;tidak kami tulis&rdquo; dan
                     &ldquo;memang tidak jalan&rdquo; adalah dua kenyataan yang berbeda akibatnya.
                     <b>Porsinya memakai jumlah slot tercatat sebagai penyebut</b>, bukan jumlah slot
                     yang diharapkan &mdash; yang kedua akan mencampur slot tak tersentuh ke dalam porsi

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-13"
+    "updated_at": "2026-10-14"
   },
   "id": "screen-157--laporan-effluent-plant-mobile",
   "name": "Laporan Effluent Plant (Mobile)",
@@ -802,7 +802,8 @@
     "401 MENGARAHKAN KE LOGIN TANPA PESAN JARINGAN.",
     "LAYAR INI DAPAT DIUJI DI BROWSER lewat Vite dev server; ia bukan 'mobile-only'. Spec Playwright-nya di mobile/tests/e2e/laporan-effluent-plant.spec.ts, sejajar sebelas spec laporan mobile lainnya, dan menuntut backend (php artisan serve) plus mobile dev server (npm run dev) berjalan. Untuk QA/tangkapan layar, VITE_API_BASE_URL WAJIB menunjuk :8001 — mobile/.env menunjuk :8000 yang adalah basis data DEV. Menunda uji browser dengan alasan 'ini mobile' adalah kesalahan yang pernah dibuat dan dikoreksi di proyek ini.",
     "DISIPLIN KELAS CSS: tiap kelas yang dipakai markup WAJIB punya definisi, diperiksa pada hasil render bukan pada sumbernya. Dua defek lama yang SENGAJA TIDAK disalin: LaporanDepricarpingView.vue membungkus angka downtime dengan kelas .metric-values yang tidak terdefinisi di satu berkas pun di src/, dan keterangan cakupan Depricarping mobile menyebut jumlah kolom bacaan yang salah. Pakai .metric-row/.metric-row-item yang terdefinisi, seperti LaporanKernelPlantView.vue.",
-    "JANGAN MENIRU KELALAIAN screen-155: unit_test_cases dan test_scenarios pada tech spec-nya kosong, satu-satunya di antara tiga belas kembaran mobile. Layar ini menurunkan keduanya dengan lengkap."
+    "JANGAN MENIRU KELALAIAN screen-155: unit_test_cases dan test_scenarios pada tech spec-nya kosong, satu-satunya di antara tiga belas kembaran mobile. Layar ini menurunkan keduanya dengan lengkap.",
+    "LABEL NILAI STATUS: On/Off/Fault dan Run/Stop, keputusan pemilik produk 2026-10-14, sama dengan layar laporan web, layar Detail (screen-089), formulir, dan kedua berkas ekspor. Berbeda dari sisi web yang MENDELEGASIKAN ke Display::option(), klien tidak dapat memanggil PHP — jadi STATUS_VALUE_LABELS di LaporanEffluentPlantView.vue adalah SALINAN Display::OPTION_LABELS yang wajib dijaga selaras, dan kewajiban itu dinyatakan di docblock peta itu. Menambah nilai baru di backend berarti menambahnya di sini juga; sampai itu dilakukan, nilainya tercetak apa adanya lewat fallback `STATUS_VALUE_LABELS[value] ?? value`, bukan hilang."
   ],
   "test_scenarios": [
     {
@@ -1304,12 +1305,12 @@
       "component_test": {
         "component": "LaporanEffluentPlantView",
         "action": "mount dengan sebaran biogas_flare_status yang memuat on 0, off 0, fault 0, dan not_recorded sama dengan seluruh slot terisi",
-        "assert": "kartu sebaran Biogas Flare mencetak ketiga nilai Nyala/Mati/Gangguan dengan jumlah 0; baris 'tidak tercatat' dirender terpisah membawa seluruh slot terisi; baris not_recorded TIDAK dilipat ke baris Mati; keterangan bahwa slot kosong tidak diperlakukan sebagai Mati dirender"
+        "assert": "kartu sebaran Biogas Flare mencetak ketiga nilai On/Off/Fault dengan jumlah 0; baris 'tidak tercatat' dirender terpisah membawa seluruh slot terisi; baris not_recorded TIDAK dilipat ke baris Off; keterangan bahwa slot kosong tidak diperlakukan sebagai Off dirender"
       },
       "browser_test": {
         "route": "/reports/effluent-plant",
         "action": "pilih periode yang tidak memuat satu slot pun dengan status biogas flare tercatat, lalu gulir sampai kartu sebaran Biogas Flare",
-        "assert": "baris Nyala, Mati, dan Gangguan terlihat dengan jumlah 0; baris tidak tercatat terlihat sebagai baris tersendiri dengan jumlah seluruh slot terisi; keadaan ini terbaca berbeda dari flare yang benar-benar mati"
+        "assert": "baris On, Off, dan Fault terlihat dengan jumlah 0; baris tidak tercatat terlihat sebagai baris tersendiri dengan jumlah seluruh slot terisi; keadaan ini terbaca berbeda dari flare yang benar-benar mati"
       }
     },
     {
@@ -1333,12 +1334,12 @@
       "component_test": {
         "component": "LaporanEffluentPlantView",
         "action": "mount dengan sebaran biogas_flare_status yang memuat on 310, off 90, fault 0",
-        "assert": "baris Gangguan tetap dirender dengan jumlah 0 dan tidak hilang dari sebaran; jumlah slot bergangguan tetap ditonjolkan tersendiri walau nilainya 0; porsi tiap baris memakai jumlah slot tercatat sebagai penyebut, bukan slot yang diharapkan"
+        "assert": "baris Fault tetap dirender dengan jumlah 0 dan tidak hilang dari sebaran; jumlah slot bergangguan tetap ditonjolkan tersendiri walau nilainya 0; porsi tiap baris memakai jumlah slot tercatat sebagai penyebut, bukan slot yang diharapkan"
       },
       "browser_test": {
         "route": "/reports/effluent-plant",
-        "action": "pilih periode yang tidak memuat satu slot pun bernilai Gangguan pada status biogas flare, lalu baca kartu sebaran Biogas Flare",
-        "assert": "baris Gangguan terlihat dengan jumlah 0; ketiga baris nilai dikenal terlihat lengkap sehingga 'tidak pernah terjadi' terbaca berbeda dari 'tidak dilaporkan'"
+        "action": "pilih periode yang tidak memuat satu slot pun bernilai Fault pada status biogas flare, lalu baca kartu sebaran Biogas Flare",
+        "assert": "baris Fault terlihat dengan jumlah 0; ketiga baris nilai dikenal terlihat lengkap sehingga 'tidak pernah terjadi' terbaca berbeda dari 'tidak dilaporkan'. Diasersi pada barisnya lewat data-status-value, bukan dengan memindai teks kartu — 'On' hanya dua huruf"
       }
     },
     {

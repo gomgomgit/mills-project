@@ -465,7 +465,7 @@ it('skenario 9 — nilai laboratorium tidak pernah diisi: ketiganya null dan is_
 // Skenario 10-11: sebaran status
 // =====================================================================
 
-it('skenario 10 — status tidak tercatat masuk not_recorded dan TIDAK PERNAH menjadi Mati/Berhenti', function () {
+it('skenario 10 — status tidak tercatat masuk not_recorded dan TIDAK PERNAH menjadi Off/Stop', function () {
     $record = laporanEffluentPlantRecord($this->stationA, $this->day2, 'EP-1');
 
     // 3 slot bernilai, 5 slot terisi lewat kolom lain tanpa status.
@@ -521,7 +521,7 @@ it('skenario 11 — nilai status dikenal yang tidak pernah muncul tetap hadir de
 
     $summary->assertOk();
 
-    // 'Gangguan' tidak pernah terjadi, dan baris itu TETAP ada dengan 0 —
+    // 'fault' tidak pernah terjadi, dan baris itu TETAP ada dengan 0 —
     // baris yang hilang tidak dapat dibedakan dari nilai yang tidak pernah
     // ada di basis data, dan "tidak pernah terjadi" harus terbaca lain dari
     // "tidak dilaporkan".

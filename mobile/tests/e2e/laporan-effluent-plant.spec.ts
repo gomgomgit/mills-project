@@ -1298,13 +1298,13 @@ test.describe('Laporan Effluent Plant Mobile (screen-157)', () => {
 
     await flare.scrollIntoViewIfNeeded()
     await expect(flare).toBeVisible()
-    // TIGA baris — Nyala, Mati, DAN Gangguan, meski Gangguan bernilai 0.
+    // TIGA baris — On, Off, DAN Fault, meski Fault bernilai 0.
     await expect(flare.getByTestId('status-row')).toHaveCount(3)
 
     const faultRow = flare.locator('[data-status-value="fault"]')
 
     await expect(faultRow).toBeVisible()
-    await expect(faultRow).toContainText('Gangguan')
+    await expect(faultRow).toContainText('Fault')
     // 100 × 0 / 118 = 0,0% — penyebutnya ada, jadi bukan tanda pisah.
     await expect(faultRow).toContainText('0,0%')
 

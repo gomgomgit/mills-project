@@ -22,3 +22,9 @@ Tidak ada wawancara baru — user berkata "lanjut" setelah screen-156 (pasangan 
 - `test_priority` = `high` ← sama dengan seluruh kembaran mobile lain dan dengan pasangan web-nya.
 - `edge_cases` (28 butir) ← mayoritas dibawa dari screen-155 (line/ingatan perangkat/jaringan/sesi), sisanya khas stasiun ini: ketiga nilai lab kosong, slot hanya mengisi teks bebas, seluruh slot tanpa status flare, nilai status dikenal tak pernah muncul, satu slot mengisi kedua kolom teks, kedua kolom teks kosong, dan Operator membuka layar sebelum pelebaran akses diterapkan.
 - `open_questions` (4 butir) ← seluruhnya turunan agent; butir 3 (rekap 14 kolom adalah tabel terlebar di laporan mobile mana pun) dan butir 2 (blok dapat dilipat) adalah pertanyaan tata letak yang hanya muncul karena jumlah metriknya dua kali lipat.
+
+## v2 — 2026-10-14
+
+- **`open_questions` butir 1 DITUTUP oleh keputusan pemilik produk:** label ketiga kolom status memakai **On/Off/Fault** dan **Run/Stop**, sama dengan layar Detail (screen-089), formulir, dan kedua berkas ekspor. Jadi dugaan saya di v1 — bahwa layar ini "harus mengikuti apa pun yang akhirnya dipilih web" — terpenuhi, dan yang dipilih web adalah menyerah pada layar Detail, bukan sebaliknya.
+- **Penerapannya sengaja TIDAK simetris**, dan itu turunan agent: blade web MENGHAPUS peta label lokalnya dan mendelegasikan ke `\App\Support\Display::option()`, sehingga penyimpangan yang sama tidak dapat terulang tanpa menyentuh `Display` sendiri. Klien mobile tidak dapat memanggil PHP, jadi `STATUS_VALUE_LABELS` tetap SALINAN — dan karena itu kewajiban menjaganya selaras dengan `Display::OPTION_LABELS` dinyatakan eksplisit di docblock peta itu, bukan diserahkan pada ingatan.
+- `information_displayed[13]` diperbarui ke On/Off/Fault & Run/Stop, dan menyebutkan bahwa labelnya sama di seluruh produk.

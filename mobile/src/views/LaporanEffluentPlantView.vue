@@ -71,7 +71,7 @@
  *    yang ada. Mengiterasi counts menghilangkan baris bernilai 0, dan baris
  *    yang hilang terbaca sebagai "nilai ini tidak ada" padahal yang benar
  *    adalah "nilai ini tidak pernah terjadi". Baris `not_recorded` TERPISAH
- *    dan TIDAK PERNAH dilipat ke Mati/Berhenti: kolom yang kosong berarti
+ *    dan TIDAK PERNAH dilipat ke Off/Stop: kolom yang kosong berarti
  *    tidak ada yang mencatatnya, bukan flare yang mati atau pompa yang
  *    berhenti. Penyebut porsinya `recorded_slots`, BUKAN `expected_slots` —
  *    penyebut kedua itu akan mencampur slot tak tersentuh ke dalam porsi
@@ -991,18 +991,27 @@ const STATUS_BLOCKS: StatusBlock[] = [
  * ADANYA, bukan disembunyikan: nilai baru dari migrasi kelak harus terlihat,
  * bukan hilang.
  *
- * Nyala/Mati/Gangguan dan Jalan/Berhenti mengikuti layar laporan WEB
- * screen-156 saat ini. Layar Detail, formulir, dan kedua berkas ekspor
- * memakai On/Off/Fault dan Run/Stop lewat Display::OPTION_LABELS — pilihan
- * itu masih OPEN QUESTION, dan layar ini mengikuti apa pun yang akhirnya
- * dipilih web, bukan memutuskannya sendiri.
+ * NILAINYA WAJIB SAMA DENGAN Display::OPTION_LABELS DI BACKEND
+ * (backend/app/Support/Display.php). Layar Detail (screen-089), formulir,
+ * ekspor Data Browser, dan ekspor laporan semuanya memakai peta itu, jadi
+ * satu nilai hanya boleh punya satu label di seluruh produk. Layar laporan
+ * web dan mobile sempat mencetak Nyala/Mati/Gangguan & Jalan/Berhenti —
+ * satu-satunya tempat berbahasa Indonesia untuk kolom-kolom ini — dan
+ * keduanya diselaraskan ke On/Off/Fault & Run/Stop pada 2026-10-14 atas
+ * keputusan pemilik produk.
+ *
+ * Berbeda dari sisi web yang dapat MENDELEGASIKAN ke Display::option(),
+ * klien tidak dapat memanggil PHP, jadi peta ini salinan yang harus dijaga
+ * selaras. Menambah nilai baru di Display::OPTION_LABELS berarti menambahnya
+ * di sini juga; sampai itu dilakukan, nilainya tetap tercetak apa adanya
+ * (lihat fallback di bawah) alih-alih hilang.
  */
 const STATUS_VALUE_LABELS: Record<string, string> = {
-  on: 'Nyala',
-  off: 'Mati',
-  fault: 'Gangguan',
-  run: 'Jalan',
-  stop: 'Berhenti',
+  on: 'On',
+  off: 'Off',
+  fault: 'Fault',
+  run: 'Run',
+  stop: 'Stop',
 }
 
 function statusValueLabel(value: string): string {

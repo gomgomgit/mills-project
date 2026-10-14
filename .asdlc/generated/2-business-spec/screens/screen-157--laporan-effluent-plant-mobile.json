@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-13"
+    "updated_at": "2026-10-14"
   },
   "id": "screen-157--laporan-effluent-plant-mobile",
   "name": "Laporan Effluent Plant (Mobile)",
@@ -30,7 +30,7 @@
     "Pada ketiga kartu nilai laboratorium (BOD, COD, TSS buangan akhir): penanda 'lab' DI KARTUNYA, beserta keterangan bahwa nilainya datang dari laboratorium sehingga terisi jauh lebih jarang dan penyebut yang kecil adalah keadaan normal — bukan data yang hilang",
     "PERNYATAAN KEPATUHAN LINGKUNGAN, dirender DI DALAM blok Buangan Akhir tepat di dekat keempat angkanya: batas regulasi pH/BOD/COD/TSS ditetapkan di luar aplikasi ini, dan laporan ini menampilkan angkanya tanpa menyatakan patuh atau tidak patuh",
     "Keterangan bahwa laporan ini tidak menandai satu nilai pun sebagai di luar batas, beserta sebabnya — dirender UTUH, tidak diringkas demi ruang layar",
-    "TIGA kartu sebaran status: Biogas Flare (Nyala/Mati/Gangguan), Pompa Dosing 1 (Jalan/Berhenti), Sludge Dewatering (Jalan/Berhenti) — masing-masing daftar pendek berisi nilai, jumlah slot, dan porsinya",
+    "TIGA kartu sebaran status: Biogas Flare (On/Off/Fault), Pompa Dosing 1 (Run/Stop), Sludge Dewatering (Run/Stop) — masing-masing daftar pendek berisi nilai, jumlah slot, dan porsinya. Labelnya sama dengan layar laporan web, layar Detail, formulir, dan kedua berkas ekspor — satu nilai, satu label di seluruh produk",
     "Pada tiap sebaran: baris 'tidak tercatat' yang DIBEDAKAN dari nilai mana pun, beserta keterangan bahwa slot yang kolomnya kosong tidak pernah diperlakukan sebagai 'Mati' maupun 'Berhenti'",
     "Pada tiap sebaran: nilai yang dikenal tetapi tidak muncul sepanjang periode tetap dicetak dengan jumlah 0",
     "Pada sebaran Biogas Flare: jumlah slot bergangguan ditonjolkan tersendiri, karena flare yang bergangguan berarti gas tidak terbakar sebagaimana mestinya",
@@ -157,7 +157,7 @@
   ],
   "test_priority": "high",
   "open_questions": [
-    "Label ketiga kolom status belum seragam di seluruh produk, dan layar ini tidak boleh memutuskannya sendiri. Layar laporan web (screen-156) mencetak Nyala/Mati/Gangguan dan Jalan/Berhenti, sementara layar Detail, formulir, dan kedua berkas ekspor memakai On/Off/Fault dan Run/Stop lewat Display::OPTION_LABELS. Divergensi itu sudah diangkat sebagai open question pada business spec screen-156 v2 dan BELUM diputuskan. Layar ini harus mengikuti apa pun yang akhirnya dipilih web — ponsel dan web tidak boleh berselisih tentang label satu nilai yang sama.",
+    "DIPUTUSKAN 2026-10-14 — label ketiga kolom status memakai On/Off/Fault dan Run/Stop, sama dengan layar laporan web, layar Detail (screen-089), formulir, dan kedua berkas ekspor. Sebelumnya kedua layar laporan mencetak Nyala/Mati/Gangguan dan Jalan/Berhenti, satu-satunya tempat berbahasa Indonesia untuk kolom-kolom ini. Keputusan pemilik produk: samakan ke layar Detail. Catatan penerapan yang berlaku khusus di sisi mobile: sisi web dapat MENDELEGASIKAN ke Display::option(), sementara klien tidak dapat memanggil PHP — jadi STATUS_VALUE_LABELS di LaporanEffluentPlantView.vue adalah SALINAN yang wajib dijaga selaras dengan Display::OPTION_LABELS, dan kewajiban itu dinyatakan di docblock-nya. Menambah nilai baru di backend berarti menambahnya di sini juga; sampai itu dilakukan, nilainya tetap tercetak apa adanya lewat fallback, bukan hilang.",
     "Empat belas kartu bertumpuk adalah gulir yang jauh lebih panjang daripada laporan mobile mana pun sebelumnya (Kernel Plant tujuh kartu, dan itu pun sudah panjang). Pengelompokan enam blok berjudul dipilih lebih dulu karena ia memberi penanda tempat tanpa menambah vokabulari tata letak baru. Belum diputuskan apakah blok-blok itu sebaiknya dapat dilipat (misalnya hanya Cakupan dan Buangan Akhir terbuka secara bawaan), karena melipatnya berarti pembaca harus tahu dulu bahwa ada yang perlu dibuka — dan di stasiun ini yang dipertaruhkan adalah angka kepatuhan lingkungan.",
     "Rekap per unit dan rekap harian versi mobile membawa empat belas kolom rata-rata di dalam tabel yang menggulir mendatar di dalam kartunya — tabel terlebar yang pernah ada di laporan mobile mana pun. Belum diputuskan apakah pada layar sempit lebih berguna memecahnya menjadi satu kartu per hari dan satu kartu per unit. Bentuk tabel dipilih lebih dulu karena ia sejajar dengan versi web dan membuat perbandingan antar hari serta antar unit tetap mungkin.",
     "Kedua pertanyaan terbuka screen-156 masih berlaku di sini. Yang pertama menyentuh layar ini secara langsung: bila baku mutu lingkungan kelak dimasukkan sebagai master target, layar ini perlu ditinjau ulang bersama versi web — dan peninjauan itu menyangkut tanggung jawab hukum, bukan sekadar tampilan. Yang kedua: deskripsi screen-156 pada screen-index masih menyatakan ketiga kolom status 'varchar tanpa batasan di basis data', padahal ketiganya punya CHECK constraint."

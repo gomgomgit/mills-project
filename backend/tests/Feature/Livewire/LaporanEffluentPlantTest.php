@@ -42,8 +42,8 @@
  * DUA TEMPAT KOMPONENNYA BERBEDA DARI TULISAN TECH SPEC, masing-masing
  * diberi komentar di tempatnya: rekap harian memakai elemen <details> native
  * alih-alih state komponen (skenario 23), dan label ketiga kolom status pada
- * TABEL SEBARAN memakai Bahasa Indonesia (Nyala/Mati/Gangguan,
- * Jalan/Berhenti) sementara BERKAS EKSPOR memakai label layar Detail
+ * TABEL SEBARAN dan BERKAS EKSPOR memakai label yang SAMA sejak 2026-10-14
+ * (On/Off/Fault, Run/Stop lewat Display::OPTION_LABELS) — layar Detail
  * (On/Off/Fault, Run/Stop) — dua pembaca yang berbeda, dua konvensi yang
  * memang berbeda.
  */
@@ -611,18 +611,22 @@ it('skenario 10 — setiap sebaran merender baris "Tidak tercatat" TERPISAH deng
 
     $kartu = laporanEffluentPlantComponentSlice($html, 'status-distribution-biogas-flare', '</table>');
 
-    // LABEL INDONESIA DI LAYAR: Nyala / Mati / Gangguan. (Berkas ekspor
-    // memakai label layar Detail — On/Off/Fault — dan itu memang dua
-    // konvensi yang berbeda untuk dua pembaca yang berbeda.)
-    expect($kartu)->toContain('>Nyala<');
-    expect($kartu)->toContain('>Mati<');
-    expect($kartu)->toContain('>Gangguan<');
+    // LABEL SAMA DENGAN LAYAR DETAIL: On / Off / Fault — satu nilai, satu
+    // label di seluruh produk. Layar ini, blade-nya, formulir, layar Detail,
+    // dan kedua berkas ekspor semuanya bersandar pada Display::OPTION_LABELS,
+    // dan blade laporan MENDELEGASIKAN ke Display::option() alih-alih
+    // menyalin petanya — jadi penyimpangan yang sempat ada (Nyala/Mati/
+    // Gangguan, hanya di layar laporan) tidak dapat terulang tanpa menyentuh
+    // Display sendiri.
+    expect($kartu)->toContain('>On<');
+    expect($kartu)->toContain('>Off<');
+    expect($kartu)->toContain('>Fault<');
     expect($kartu)->toContain('>Tidak tercatat<');
 
     $mati = laporanEffluentPlantComponentStatusRow($html, 'status-distribution-biogas-flare', 'off');
     $tidakTercatat = laporanEffluentPlantComponentSlice($html, 'status-not-recorded', '</tr>');
 
-    // Jumlah 'Mati' TIDAK sama dengan jumlah slot kosong: melipatnya akan
+    // Jumlah 'Off' TIDAK sama dengan jumlah slot kosong: melipatnya akan
     // melaporkan flare mati yang tidak pernah terjadi.
     expect($mati)->toContain('<td>0</td>');
     expect($tidakTercatat)->toContain('<td>5</td>');
@@ -646,13 +650,13 @@ it('skenario 11 — nilai status dikenal yang tidak pernah muncul tetap dirender
         ->set('productionLineId', $this->lineA)
         ->html();
 
-    // Baris 'Gangguan' TETAP ada dengan 0 — dan berbeda jelas dari baris
+    // Baris 'Fault' TETAP ada dengan 0 — dan berbeda jelas dari baris
     // 'Tidak tercatat', sehingga "tidak pernah terjadi" terbaca lain dari
     // "tidak dilaporkan".
     $gangguan = laporanEffluentPlantComponentStatusRow($html, 'status-distribution-biogas-flare', 'fault');
 
     expect($gangguan)->not->toBe('');
-    expect($gangguan)->toContain('>Gangguan<');
+    expect($gangguan)->toContain('>Fault<');
     expect($gangguan)->toContain('<td>0</td>');
 
     $tidakTercatat = laporanEffluentPlantComponentSlice($html, 'status-not-recorded', '</tr>');

@@ -1,5 +1,5 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-14"
@@ -60,7 +60,7 @@
       "severity": "info"
     },
     {
-      "description": "Label ketiga kolom status masih belum seragam di seluruh produk dan BELUM diputuskan pemilik produk: layar laporan web dan mobile sama-sama mencetak Nyala/Mati/Gangguan dan Jalan/Berhenti, sementara layar Detail (screen-089), formulir, dan kedua berkas ekspor memakai On/Off/Fault dan Run/Stop lewat Display::OPTION_LABELS. Kedua layar laporan konsisten satu sama lain, jadi ponsel dan web tidak berselisih — yang berbeda adalah layar laporan versus layar Detail. Diangkat sebagai open_question pada business spec screen-156 v2 dan screen-157 v1. Memutuskannya sekarang lebih murah daripada nanti, karena perubahan apa pun menyentuh dua layar beserta asersinya.",
+      "description": "DISELESAIKAN 2026-10-14. Sebelumnya: kedua layar laporan (web dan mobile) mencetak Nyala/Mati/Gangguan dan Jalan/Berhenti, sementara layar Detail (screen-089), formulir, dan kedua berkas ekspor memakai On/Off/Fault dan Run/Stop lewat Display::OPTION_LABELS — satu nilai punya dua label di dalam satu produk, dan kedua layar laporan itulah satu-satunya tempat berbahasa Indonesia untuk kolom-kolom ini. Keputusan pemilik produk: samakan ke layar Detail. Penerapannya tidak simetris dan itu disengaja: blade web MENGHAPUS peta lokalnya dan mendelegasikan ke \\App\\Support\\Display::option() sehingga penyimpangan yang sama tidak dapat terulang tanpa menyentuh Display; sisi mobile tidak dapat memanggil PHP, jadi STATUS_VALUE_LABELS tetap salinan dengan kewajiban-selaras yang dinyatakan di docblock-nya. Asersi di empat berkas uji ikut diperbarui (Livewire, vitest component, browser mobile, browser e2e-web), dan dua di antaranya sekaligus dipertajam ke baris per-nilai lewat data-status-value karena 'On' hanya dua huruf dan asersi substring atas seluruh kartu bisa hijau tanpa membuktikan apa pun. Keempat jenis uji dijalankan ulang setelahnya: backend 5.467/0, vitest mobile 3.097/0 pada 133/133 berkas, browser mobile 46/46, browser e2e-web 17/17.",
       "severity": "minor"
     }
   ],

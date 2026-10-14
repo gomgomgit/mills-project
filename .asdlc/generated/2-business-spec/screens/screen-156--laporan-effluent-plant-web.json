@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-13"
+    "updated_at": "2026-10-14"
   },
   "id": "screen-156--laporan-effluent-plant-web",
   "name": "Laporan Effluent Plant (Web)",
@@ -29,9 +29,9 @@
     "Buangan Akhir — pH, BOD (mg/L, laboratorium), COD (mg/L, laboratorium), dan TSS (mg/L, laboratorium) sepanjang periode: terendah, rata-rata, tertinggi. Ketiga nilai laboratorium diberi penanda 'lab' agar penyebutnya yang jauh lebih kecil terbaca sebagai sifat pengukuran, bukan sebagai data yang hilang",
     "Konsumsi bahan kimia (kg/L) sepanjang periode: terendah, rata-rata, tertinggi",
     "Jumlah pembacaan yang menjadi dasar setiap angka di atas — masing-masing dari empat belas metrik punya jumlahnya sendiri",
-    "Sebaran status Biogas Flare — jumlah slot per nilai (Nyala / Mati / Gangguan), ditambah jumlah slot yang tidak mencatatnya. Jumlah slot bergangguan ditonjolkan tersendiri karena flare yang bergangguan berarti gas tidak terbakar sebagaimana mestinya",
-    "Sebaran status Pompa Dosing 1 — jumlah slot per nilai (Jalan / Berhenti), ditambah jumlah slot yang tidak mencatatnya",
-    "Sebaran status Sludge Dewatering — jumlah slot per nilai (Jalan / Berhenti), ditambah jumlah slot yang tidak mencatatnya",
+    "Sebaran status Biogas Flare — jumlah slot per nilai (On / Off / Fault), ditambah jumlah slot yang tidak mencatatnya. Jumlah slot bergangguan (Fault) ditonjolkan tersendiri karena flare yang bergangguan berarti gas tidak terbakar sebagaimana mestinya. Labelnya sama dengan layar Detail, formulir, dan kedua berkas ekspor — satu nilai, satu label di seluruh produk",
+    "Sebaran status Pompa Dosing 1 — jumlah slot per nilai (Run / Stop), ditambah jumlah slot yang tidak mencatatnya",
+    "Sebaran status Sludge Dewatering — jumlah slot per nilai (Run / Stop), ditambah jumlah slot yang tidak mencatatnya",
     "Rekap Catatan Perawatan — daftar isi kolom catatan perawatan yang tidak kosong sepanjang periode, beserta tanggal dan slot waktunya",
     "Rekap Temuan — daftar isi kolom temuan yang tidak kosong sepanjang periode, beserta tanggal dan slot waktunya; terpisah dari Rekap Catatan Perawatan karena keduanya menjawab pertanyaan berbeda dan satu slot dapat mengisi kedua-duanya",
     "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan. Untuk periode yang masih berjalan slot yang diharapkan dihitung hanya sampai HARI INI, dengan keterangan 'Dihitung sampai hari ini, periode masih berjalan (N dari M hari periode sudah lewat)' dan rumus '× N hari (sampai hari ini)'. Bila tidak ada slot yang diharapkan (belum ada unit tercatat / periode belum mulai) persentasenya tampil '—' dengan teks 'belum ada slot yang diharapkan', bukan 0,0%",
@@ -139,6 +139,6 @@
   "open_questions": [
     "Effluent Plant tidak punya master target operasional, dan empat parameternya (BOD, COD, TSS, pH buangan akhir) adalah parameter kepatuhan lingkungan yang batasnya ditetapkan regulasi di luar aplikasi. Selama batas itu belum ada di dalam sistem, laporan ini sengaja tidak menandai penyimpangan maupun menyatakan kepatuhan. Bila kelak baku mutu dimasukkan sebagai master target, laporan ini perlu ditinjau ulang — dan peninjauan itu menyangkut tanggung jawab hukum, bukan sekadar tampilan.",
     "Deskripsi screen-156 pada screen-index menyatakan ketiga kolom status adalah 'varchar tanpa batasan di basis data'. Pemeriksaan langsung ke PostgreSQL menunjukkan sebaliknya: ketiganya punya CHECK constraint (on/off/fault dan run/stop). Business rule di spec ini memakai keadaan yang terverifikasi itu, dan deskripsi screen-index sebaiknya diperbaiki agar keduanya tidak saling bertentangan.",
-    "Tabel sebaran status DI LAYAR laporan ini menulis Nyala/Mati/Gangguan dan Jalan/Berhenti, sementara layar Detail (screen-089), formulir, dan kedua berkas ekspor memakai On/Off/Fault dan Run/Stop lewat Display::OPTION_LABELS. Jadi nilai yang sama kini punya dua label di dalam satu produk, dan laporan inilah satu-satunya tempat yang memakai label Indonesia. Pilihannya dua: (a) samakan layar laporan ke On/Off/Fault agar satu nilai punya satu label di mana pun — konsisten dengan konvensi 'label ekspor ikut layar Detail', dan menuntut suntingan blade + beberapa asersi component test; atau (b) pertahankan Indonesia di layar laporan karena pembacanya manajemen, dan terima bahwa label layar berbeda dari label berkas. Implementasi saat ini adalah (b), karena itulah yang dinyatakan spec ini ketika ditulis. Keputusan ini soal keseragaman istilah, bukan soal kebenaran angka."
+    "DIPUTUSKAN 2026-10-14 — label ketiga kolom status memakai On/Off/Fault dan Run/Stop, sama dengan layar Detail (screen-089), formulir, dan kedua berkas ekspor. Sebelumnya layar laporan ini (dan kembaran mobile-nya) adalah satu-satunya tempat di produk yang mencetak Nyala/Mati/Gangguan dan Jalan/Berhenti untuk kolom-kolom ini, sehingga satu nilai punya dua label di dalam satu produk. Keputusan pemilik produk: samakan ke layar Detail. Penerapannya tidak menyalin peta label ke blade laporan melainkan MENDELEGASIKAN ke Display::option(), supaya penyimpangan yang sama tidak dapat terulang tanpa menyentuh Display sendiri; sisi mobile tetap memegang salinan (klien tak bisa memanggil PHP) dengan catatan wajib-selaras di berkasnya."
   ]
 }

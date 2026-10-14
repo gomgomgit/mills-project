@@ -500,7 +500,7 @@ test.describe('Laporan Periode Effluent Plant (screen-156)', () => {
 
       // sum(counts) + not_recorded === recorded_slots === slot terisi periode.
       // "Tidak tercatat" adalah KEADAAN TERSENDIRI dan tidak pernah dilipat ke
-      // 'Mati' maupun 'Berhenti': melakukannya akan melaporkan flare mati atau
+      // 'Off' maupun 'Stop': melakukannya akan melaporkan flare mati atau
       // pompa berhenti yang tidak pernah terjadi.
       expect(
         counts.reduce((sum, value) => sum + value, 0) + (notRecorded as number),
@@ -509,14 +509,21 @@ test.describe('Laporan Periode Effluent Plant (screen-156)', () => {
       expect(recorded as number, block.testid).toBe(filledSlots)
     }
 
-    // Label Bahasa Indonesia di LAYAR (berkas ekspor memakai label layar
-    // Detail — dua pembaca yang berbeda, dua konvensi yang memang berbeda).
+    // Label SAMA dengan layar Detail, formulir, dan kedua berkas ekspor
+    // (Display::OPTION_LABELS) sejak 2026-10-14: satu nilai, satu label di
+    // seluruh produk. Layar ini sempat menjadi satu-satunya tempat yang
+    // mencetak Nyala/Mati/Gangguan, dan itu diselaraskan.
+    //
+    // Diasersi PADA BARISNYA MASING-MASING lewat data-status-value, bukan
+    // dengan memindai teks seluruh kartu: 'On' hanya dua huruf dan akan
+    // cocok di dalam kata lain mana pun yang kebetulan ada di kartu itu,
+    // sehingga asersi substring bisa hijau tanpa membuktikan apa pun.
     const flare = page.locator('[data-testid="status-distribution-biogas-flare"]')
 
-    await expect(flare).toContainText('Nyala')
-    await expect(flare).toContainText('Mati')
-    await expect(flare).toContainText('Gangguan')
-    await expect(flare).toContainText('Tidak tercatat')
+    await expect(flare.locator('[data-status-value="on"]')).toContainText('On')
+    await expect(flare.locator('[data-status-value="off"]')).toContainText('Off')
+    await expect(flare.locator('[data-status-value="fault"]')).toContainText('Fault')
+    await expect(flare.locator('[data-testid="status-not-recorded"]')).toContainText('Tidak tercatat')
 
     // Dan ketiganya TIDAK PERNAH muncul sebagai kartu metrik maupun seri tren:
     // terendah, rata-rata dan tertinggi tidak punya arti untuk kolom

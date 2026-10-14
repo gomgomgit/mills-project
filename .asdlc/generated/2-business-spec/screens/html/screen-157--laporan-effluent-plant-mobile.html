@@ -27,7 +27,13 @@
        screen-156--laporan-effluent-plant-web.html — keduanya dilayani
        perhitungan server yang sama (EffluentPlantReportService), jadi
        tidak boleh ada satu angka yang berselisih. SATU pengecualian yang
-       disengaja: jumlah slot kanonis per unit per hari. Lihat JEJAK ANGKA
+       disengaja: jumlah slot kanonis per unit per hari. Lihat KOREKSI LABEL 2026-10-14: label nilai status diselaraskan ke On/Off/Fault dan
+       Run/Stop (Display::OPTION_LABELS), sama dengan layar Detail, formulir, dan
+       kedua berkas ekspor. Mock ini sempat mencetak Nyala/Mati/Gangguan dan
+       Jalan/Berhenti mengikuti layar laporan saat itu; keputusan pemilik produk
+       menyamakannya ke layar Detail.
+
+       JEJAK ANGKA
        di akhir berkas.
        ------------------------------------------------------------------ */
 
@@ -1041,7 +1047,7 @@
 
     <!-- 6. TIGA kartu sebaran status kategoris.
             CATATAN LABEL — MASIH OPEN QUESTION:
-            label di bawah (Nyala / Mati / Gangguan dan Jalan / Berhenti)
+            label di bawah (On / Mati / Fault dan Run / Stop)
             mengikuti layar laporan WEB screen-156 saat ini. Layar Detail,
             formulir, dan kedua berkas ekspor memakai On/Off/Fault dan
             Run/Stop lewat Display::OPTION_LABELS. Divergensi itu diangkat
@@ -1059,9 +1065,9 @@
             <tr><th scope="col">Nilai</th><th scope="col" class="num">Slot</th><th scope="col" class="num">Porsi</th></tr>
           </thead>
           <tbody>
-            <tr><td>Nyala</td><td class="num">221</td><td class="num">85,0%</td></tr>
-            <tr><td>Mati</td><td class="num">0</td><td class="num">0,0%</td></tr>
-            <tr><td>Gangguan</td><td class="num">6</td><td class="num">2,3%</td></tr>
+            <tr><td>On</td><td class="num">221</td><td class="num">85,0%</td></tr>
+            <tr><td>Off</td><td class="num">0</td><td class="num">0,0%</td></tr>
+            <tr><td>Fault</td><td class="num">6</td><td class="num">2,3%</td></tr>
             <tr><td class="is-muted">Tidak tercatat</td><td class="num is-muted">33</td><td class="num is-muted">12,7%</td></tr>
           </tbody>
           <tfoot>
@@ -1087,8 +1093,8 @@
             <tr><th scope="col">Nilai</th><th scope="col" class="num">Slot</th><th scope="col" class="num">Porsi</th></tr>
           </thead>
           <tbody>
-            <tr><td>Jalan</td><td class="num">203</td><td class="num">78,1%</td></tr>
-            <tr><td>Berhenti</td><td class="num">31</td><td class="num">11,9%</td></tr>
+            <tr><td>Run</td><td class="num">203</td><td class="num">78,1%</td></tr>
+            <tr><td>Stop</td><td class="num">31</td><td class="num">11,9%</td></tr>
             <tr><td class="is-muted">Tidak tercatat</td><td class="num is-muted">26</td><td class="num is-muted">10,0%</td></tr>
           </tbody>
           <tfoot>
@@ -1101,7 +1107,7 @@
              stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>
         </svg>
-        <span>26 slot tidak mencatat status pompa. Slot itu dilaporkan <b>terpisah</b> dan <b>tidak pernah</b> dilipat menjadi &lsquo;Berhenti&rsquo; &mdash; kolom yang kosong berarti tidak ada yang mencatatnya, bukan pompa yang berhenti.</span>
+        <span>26 slot tidak mencatat status pompa. Slot itu dilaporkan <b>terpisah</b> dan <b>tidak pernah</b> dilipat menjadi &lsquo;Stop&rsquo; &mdash; kolom yang kosong berarti tidak ada yang mencatatnya, bukan pompa yang berhenti.</span>
       </div>
     </section>
 
@@ -1114,8 +1120,8 @@
             <tr><th scope="col">Nilai</th><th scope="col" class="num">Slot</th><th scope="col" class="num">Porsi</th></tr>
           </thead>
           <tbody>
-            <tr><td>Jalan</td><td class="num">168</td><td class="num">64,6%</td></tr>
-            <tr><td>Berhenti</td><td class="num">64</td><td class="num">24,6%</td></tr>
+            <tr><td>Run</td><td class="num">168</td><td class="num">64,6%</td></tr>
+            <tr><td>Stop</td><td class="num">64</td><td class="num">24,6%</td></tr>
             <tr><td class="is-muted">Tidak tercatat</td><td class="num is-muted">28</td><td class="num is-muted">10,8%</td></tr>
           </tbody>
           <tfoot>
@@ -1128,7 +1134,7 @@
              stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>
         </svg>
-        <span>Berhenti 64 slot adalah angka operasional biasa &mdash; dewatering memang tidak dijalankan sepanjang hari, dan tidak ditandai sebagai apa pun di sini.</span>
+        <span>Stop 64 slot adalah angka operasional biasa &mdash; dewatering memang tidak dijalankan sepanjang hari, dan tidak ditandai sebagai apa pun di sini.</span>
       </div>
     </section>
 
@@ -1202,7 +1208,7 @@
           </div>
           <div class="event-item event-item--dual">
             <span class="event-stamp">07 Okt 2026 &middot; 22:00</span>
-            <p class="event-text">Nyala flare mati sendiri dua kali dalam satu slot; tekanan gas terbaca turun.</p>
+            <p class="event-text">On flare mati sendiri dua kali dalam satu slot; tekanan gas terbaca turun.</p>
             <span class="event-cross">Slot ini juga mengisi kolom catatan perawatan &mdash; lihat Rekap Catatan Perawatan di atas.</span>
           </div>
           <div class="event-item">
@@ -1496,11 +1502,11 @@
      sehingga ia >= setiap penyebut kartu dan melebihi tiga belas di antaranya.
 
      Sebaran status (dasar = 260 slot TERCATAT, bukan 624 slot diharapkan):
-       Biogas Flare       Nyala 221 (85,0%) + Mati 0 (0,0%) + Gangguan 6 (2,3%)
+       Biogas Flare       On 221 (85,0%) + Mati 0 (0,0%) + Fault 6 (2,3%)
                           + tidak tercatat 33 (12,7%) = 260 (100,0%)
-       Pompa Dosing 1     Jalan 203 (78,1%) + Berhenti 31 (11,9%)
+       Pompa Dosing 1     Run 203 (78,1%) + Stop 31 (11,9%)
                           + tidak tercatat 26 (10,0%) = 260 (100,0%)
-       Sludge Dewatering  Jalan 168 (64,6%) + Berhenti 64 (24,6%)
+       Sludge Dewatering  Run 168 (64,6%) + Stop 64 (24,6%)
                           + tidak tercatat 28 (10,8%) = 260 (100,0%)
        "Mati" = 0 -> pelengkapan nol: nilai dikenal yang tidak pernah muncul
        tetap tercetak sebagai 0, bukan hilang dari daftar.
@@ -1539,7 +1545,7 @@
        - pemilih mill (kedua peran terikat satu mill)
        - tombol ekspor .xlsx (hanya CSV di WebView ponsel)
 
-     LABEL STATUS MASIH OPEN QUESTION: Nyala/Mati/Gangguan dan Jalan/Berhenti
+     LABEL STATUS MASIH OPEN QUESTION: On/Off/Fault dan Run/Stop
      di berkas ini mengikuti layar laporan web screen-156 saat ini; layar
      Detail, formulir, dan kedua berkas ekspor memakai On/Off/Fault dan
      Run/Stop lewat Display::OPTION_LABELS. Belum diputuskan — layar mobile

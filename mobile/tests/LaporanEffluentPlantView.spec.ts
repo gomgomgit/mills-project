@@ -41,7 +41,7 @@
  *    bernilai 0 WAJIB tetap tercetak, karena baris yang hilang terbaca
  *    sebagai "nilai ini tidak ada" padahal yang benar adalah "nilai ini tidak
  *    pernah terjadi". `not_recorded` adalah baris TERPISAH dan tidak pernah
- *    dilipat ke Mati/Berhenti.
+ *    dilipat ke Off/Stop.
  *
  * 4. DUA REKAP TEKS BEBAS, DUA BAGIAN TERPISAH, dan keduanya daftar KEJADIAN
  *    {date, time_slot, text}. Fixture memberi SATU SLOT yang mengisi KEDUA
@@ -1253,12 +1253,12 @@ describe('sebaran status', () => {
     const flare = block(wrapper, 'status-distribution-biogas-flare')
     const rows = flare.findAll('[data-testid="status-row"]')
 
-    // TIGA baris: Nyala, Mati, DAN Gangguan — meski Gangguan bernilai 0.
+    // TIGA baris: On, Off, DAN Fault — meski Fault bernilai 0.
     // Mengiterasi kunci `counts` yang ada tetap memberi tiga di sini, jadi
     // test berikutnya memberi `counts` yang BENAR-BENAR kehilangan kuncinya.
     expect(rows).toHaveLength(3)
     expect(rows.map((row) => row.attributes('data-status-value'))).toEqual(['on', 'off', 'fault'])
-    expect(flare.get('[data-status-value="fault"]').text()).toContain('Gangguan')
+    expect(flare.get('[data-status-value="fault"]').text()).toContain('Fault')
     expect(flare.get('[data-status-value="fault"]').text()).toContain('0')
 
     // Dan jumlah slot bergangguan tetap DITONJOLKAN walau 0.
@@ -1293,7 +1293,7 @@ describe('sebaran status', () => {
     const flare = block(wrapper, 'status-distribution-biogas-flare')
 
     expect(flare.findAll('[data-testid="status-row"]')).toHaveLength(3)
-    expect(flare.get('[data-status-value="fault"]').text()).toContain('Gangguan')
+    expect(flare.get('[data-status-value="fault"]').text()).toContain('Fault')
     // Baris yang hilang terbaca sebagai "nilai ini tidak ada" padahal yang
     // benar adalah "nilai ini tidak pernah terjadi".
     expect(flare.get('[data-status-value="fault"]').text()).toContain('0')
@@ -1442,8 +1442,8 @@ describe('sebaran status', () => {
     const sludge = block(wrapper, 'status-distribution-sludge-dewatering')
 
     expect(sludge.findAll('[data-testid="status-row"]')).toHaveLength(2)
-    expect(sludge.get('[data-status-value="run"]').text()).toContain('Jalan')
-    expect(sludge.get('[data-status-value="stop"]').text()).toContain('Berhenti')
+    expect(sludge.get('[data-status-value="run"]').text()).toContain('Run')
+    expect(sludge.get('[data-status-value="stop"]').text()).toContain('Stop')
     expect(sludge.get('[data-testid="status-not-recorded"]').text()).toContain('118')
   })
 })

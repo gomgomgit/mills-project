@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\GradingRecordController;
 use App\Http\Controllers\Api\GradingReportController;
 use App\Http\Controllers\Api\DepricarpingReportController;
 use App\Http\Controllers\Api\EffluentPlantReportController;
+use App\Http\Controllers\Api\EngineRoomReportController;
 use App\Http\Controllers\Api\KernelPlantReportController;
 use App\Http\Controllers\Api\PressingReportController;
 use App\Http\Controllers\Api\ThreshingReportController;
@@ -1523,6 +1524,53 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/effluent-plant-reports/periods', [EffluentPlantReportController::class, 'periods']);
     Route::get('/effluent-plant-reports/summary', [EffluentPlantReportController::class, 'summary']);
     Route::get('/effluent-plant-reports/export', [EffluentPlantReportController::class, 'export']);
+});
+
+// === LAPORAN PERIODE ENGINE ROOM (screen-158 web + screen-159 mobile) ===
+// Same four-endpoint shape and the same role list as the Grading / Kernel
+// Plant / Effluent Plant prefixes above — `operator` INCLUDED.
+//
+// OPERATOR IS ADMITTED FROM THE FIRST COMMIT HERE, and that DIFFERS from
+// screen-156 directly above, where it was deliberately deferred. The reason
+// is the mobile twin: screen-159--laporan-engine-room-mobile is built in the
+// SAME series as this web screen, so its legitimate Operator caller exists
+// from the start — the Grading / Kernel Plant precedent, not the Weighbridge
+// / Effluent Plant one where the web screen landed first and the widening had
+// to be done as a follow-up. Choosing the first precedent avoids an expensive
+// ripple: three test files whose assertions would have to be inverted and
+// four artifact fields that would have to be updated.
+//
+// THE ADMISSION IS ONE CHANGE IN THREE PLACES, NOT THREE CHANGES: this role
+// list, EngineRoomReportService::guardAccess(), AND the MILL-BOUND branch of
+// EngineRoomReportService::resolveBusinessUnit(). Doing the first two only
+// drops Operator into the Admin branch, where a client-supplied
+// business_unit_id IS honoured — an Operator could then read ANY mill's
+// report. That is a cross-mill leak, not a display defect.
+//
+// WHAT STAYS CLOSED STAYS CLOSED: /business-units/options refuses anyone but
+// Admin with 403 — Operator, Supervisor and Mill Management alike — raised
+// inside EngineRoomReportService rather than by this middleware, PRECISELY
+// because this list admits four roles for the sake of the three data routes,
+// so a guard placed here would not close that route at all. The WEB route
+// /reports/engine-room is NOT widened either: admitting Operator on the API
+// for the mobile twin must not widen the web screen.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for every mill-bound role — Operator, Supervisor and Mill
+// Management alike (EngineRoomReportService::resolveBusinessUnit) — probing
+// another mill still returns 200 with the caller's own data, on purpose: a
+// 403 would confirm the other mill exists. The real cross-mill guards are on
+// production_line_id (resolveProductionLine) and period_id (authorizePeriod),
+// and both DO answer 403.
+//
+// The production-line OPTION LIST is NOT duplicated here: GET
+// /api/production-lines/options-for-report (built for screen-135) is reused
+// verbatim.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/engine-room-reports/business-units/options', [EngineRoomReportController::class, 'businessUnitOptions']);
+    Route::get('/engine-room-reports/periods', [EngineRoomReportController::class, 'periods']);
+    Route::get('/engine-room-reports/summary', [EngineRoomReportController::class, 'summary']);
+    Route::get('/engine-room-reports/export', [EngineRoomReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

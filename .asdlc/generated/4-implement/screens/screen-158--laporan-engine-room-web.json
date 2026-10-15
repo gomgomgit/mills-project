@@ -1,0 +1,101 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-15"
+  },
+  "id": "screen-158--laporan-engine-room-web",
+  "name": "Laporan Engine Room (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-15T00:00:00Z",
+      "passed": 73,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-15T00:00:00Z",
+      "passed": 37,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-15T00:00:00Z",
+      "passed": 39,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-15T00:00:00Z",
+      "passed": 18,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/EngineRoomReportService.php",
+    "backend/app/Http/Controllers/Api/EngineRoomReportController.php",
+    "backend/app/Livewire/Dashboard/LaporanEngineRoom.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/app/Services/EngineRoomRecordService.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/EngineRoomReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanEngineRoomTest.php",
+    "backend/tests/Feature/Livewire/LaporanEngineRoomTest.php",
+    "e2e-web/tests/laporan-engine-room.spec.ts",
+    "backend/tests/Unit/Services/DepricarpingReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanDepricarpingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/resources/views/livewire/dashboard/laporan-engine-room.blade.php",
+    "backend/resources/views/dashboard/laporan-engine-room.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "Laporan stasiun ke-13 dari 18. Dikerjakan dengan menyalin bentuk screen-156 (Effluent Plant web) — laporan kondisi bergrid 24 slot paling mutakhir dan paling mirip bentuknya — ditambah pola pasangan identik dari screen-154 (Kernel Plant), dengan satu beda yang dinyatakan: di sini TIDAK ADA master target, jadi keterangan layar menyebut kesejajaran FISIK kedua genset, bukan standar bersama, dan tidak ada logika shares_standard_with yang bisa disalin.",
+    "Satu baris di StationReportService::REPORT_ROUTES adalah yang membuat layar ini dapat dicapai: 'engine-room' (BERTANDA HUBUNG) disisipkan ANTARA Depricarping (sort_order 110) dan StorageTank (140), karena engine-room bernilai 120. Urutan peta itu load-bearing — ada asersi toBe() berurutan atas array_keys(REPORT_ROUTES).",
+    "Dua asersi tetangga yang MEMANG dirancang gagal ketika peta berubah sudah diperbarui, dan hanya dua: DepricarpingReportServiceTest.php:1606 (StorageTank -> EngineRoom) dan LaporanDepricarpingTest.php:674 ('storage-tank' -> 'engine-room'). Diverifikasi lewat grep atas 'at + 1]' dan 'at - 1]' di seluruh backend/tests; asersi $at - 1 (pendahulu = effluent-plant) tidak terdampak.",
+    "Dua test yang MEMUAI SENDIRI ikut menguji layar ini tanpa disunting: LaporanStasiunTest.php:539 dan :639 mengiterasi array_keys(REPORT_ROUTES), membuat satu periode per kode, lalu menegaskan assertOk() + assertDontSee('Pilih mill terlebih dahulu') + assertSee('Periode Rantai engine-room'). Keduanya hijau.",
+    "EngineRoomRecordService: HANYA visibilitas yang diubah — READING_FIELDS (protected const -> public const) dan isRowFilled() (protected -> public). Laporan MEMINJAM definisi 27 kolom alih-alih menulisnya ulang; menulis ulang adalah cara laporan dan formulir mulai berbeda pendapat tentang apa yang tercatat. Empat sibling (BoilerRoom, KernelPlant, Clarification, StorageTank) sudah public untuk alasan yang sama. canonicalTimeSlots() sudah public static sejak semula.",
+    "Operator diterima pada ketiga rute API data SEJAK COMMIT PERTAMA (presedens Grading/Kernel Plant), berbeda dari screen-156 yang sengaja menundanya. Yang menentukan bukan daftar peran melainkan penempatannya di cabang terikat-mill resolveBusinessUnit(): melebarkan daftar peran saja akan menjatuhkan Operator ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI — kebocoran lintas mill. /business-units/options tetap Admin-saja, ditegakkan DI DALAM service justru karena middleware prefix ini menerima empat peran. Rute web /reports/engine-room tetap tertutup bagi Operator.",
+    "Kartu metrik satu blok markup yang di-loop atas field `group` dari respons (data-metric-group per seksi); hanya kartu ekspor energi yang ditulis manual. Label pasangan kompresor dan fuel_tank_level ditulis manusiawi dan tidak mengarang satuan.",
+    "Kotak keterangan memakai kelas .md-explain, bukan .md-threshold seperti di mock yang disetujui — identik secara visual, tetapi invarian 'nol penanda di luar batas' diasersi lewat NAMA KELAS dan kotak bernama threshold akan memerahkannya. Sama dengan screen-133 dan screen-156. Ini satu-satunya penyimpangan sengaja dari mock; bila mock dibangun ulang, mock yang menyusul.",
+    "by_unit[] dan daily[] membawa kunci tambahan energy_export {last_value, date, time_slot, reading_count}, dan by_unit[] juga days_with_rows. Mock menampilkan 23 kolom rekap numerik sementara spec mendefinisikan rekap itu sebagai rata-rata saja — dan rata-rata per-bucket untuk kolom energi justru rata-rata 24-slot yang dilarang, jadi kolom ke-23 adalah nilai TERAKHIR yang dibatasi bucket-nya. Sel total harian '—'; tfoot per unit menampilkan nilai terakhir periode dengan (n=…).",
+    "statsOf() membulatkan ke 3 desimal (sibling memakai 2) karena electrical_sync_power_factor ditampilkan 3 desimal; membulatkan di 2 akan menerbitkan 0,900 untuk pengukuran 0,896.",
+    "daily_energy_export.series MELEWATKAN tanggal yang tidak pernah mengisi kolom itu — tanpa titik null maupun nol; tidak pernah terisi berarti series: [] dan has_data: false. Angka kartu energi tingkat periode diturunkan di blade dari series.",
+    "Partial ber-<style> ditaruh di slot `styles` layout, bukan di tengah markup — menaruhnya di tengah markup pernah membuat wire:id menempel pada elemen <style> dan mematikan SELURUH wire:model di screen-140.",
+    "Gulir mendatar DIUKUR, bukan disimpulkan dari struktur: document.scrollingElement.scrollWidth <= clientWidth + 1 sementara kedua wrapper .md-recap melaporkan overflowX === 'auto' dan scrollWidth > clientWidth. Rekap harian dan rekap per unit membawa 23 kolom rata-rata — tabel rekap terlebar di laporan web mana pun.",
+    "Asersi 'kedelapan kolom genset tetap delapan' memeriksa NAMA KUNCI lewat penelusur rekursif, bukan keluaran json_encode: _note_absences menyebut ketiadaan itu dalam prosa, sehingga pemindaian string akan gagal terhadap kode yang justru benar.",
+    "Spec browser mengikuti konvensi laporan terbaru — 18 test yang menegaskan INVARIAN yang hanya browser dapat buktikan (bukan cermin 1:1 dari 35 skenario), menutupi seluruh butir implementation_notes #13 tech spec: tile aktif dan menavigasi, halaman hidup, kelengkapan di atas kartu diukur dari posisi viewport, tiap kartu mencetak penyebutnya sendiri, nol elemen penanda di luar batas, tanpa bagian downtime, kedua sebaran menjumlah ke slot tercatat dengan baris 0 tetap terender, seri energi menampilkan time_slot asal, rekap dapat ditutup, halaman tidak menggulir mendatar. Memakai e2e-web/tests/support/period-fixture.ts, tanpa menanam data laporannya sendiri dan tanpa memaku satu angka pun.",
+    "Asersi label pendek menyasar elemennya: jumlah per nilai dibaca dari <td> kedua di dalam baris [data-status-value] lewat penolong terbatas-td (PHP) dan td:nth-child(2) (Playwright), bukan memindai substring kontainer. Pelajaran ini sudah dibayar tiga kali sebelumnya.",
+    "Ekspor diverifikasi pada 35 kolom header, format=pdf -> 422 tanpa streaming, EXPORT_ROW_LIMIT dihitung atas BARIS SLOT lewat subkelas berbatas 5, .xlsx sungguhan dibuktikan lewat magic ZIP 'PK', dan kedua pemeta diasersi atas string label sebenarnya di selnya masing-masing ('Standby' lawan 'Tersimpan', masing-masing not->toBe yang lain).",
+    "Keempat pertanyaan terbuka (semantik daily_energy_export_kwh, penamaan pasangan kompresor, satuan fuel_tank_level, ketiadaan batas kelistrikan) DINYATAKAN DI LAYAR, bukan ditebak.",
+    "mobile/ tidak disentuh sama sekali (git status --porcelain mobile/ kosong di awal dan akhir). Kembaran mobile adalah screen-159, putaran terpisah.",
+    "Jalur browser memverifikasi identitas basis data SEBELUM menyentuh apa pun ({env: e2e, database: mill_smart_log_e2e}); prepare-db.sh tidak dijalankan, tidak ada migrate di mana pun, dan basis data dev mill_smart_log tidak pernah dikontak (phpunit.xml memaku suite backend ke sqlite :memory:)."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Coverage tidak terukur di lingkungan ini — php -m memastikan tidak ada xdebug maupun pcov pada PHP 8.5.4, sehingga ambang coverage test-strategy tidak dapat ditegakkan dan angka 0 pada test_results berarti 'tidak terukur', BUKAN 'nol tercakup'. Bukan alasan menurunkan status ke partial.",
+      "severity": "minor"
+    },
+    {
+      "description": "Kegagalan pint yang SUDAH ADA SEBELUMNYA (ordered_imports / fully_qualified_strict_types) di routes/api.php, routes/web.php, dan kedua berkas test Depricarping. Dibuktikan ada di HEAD dengan menjalankan pint atas salinan git show HEAD:. Dibiarkan agar tidak menimbulkan perubahan yang tidak berkaitan. Ketiga berkas PHP baru dan berkas test Engine Room lolos pint.",
+      "severity": "minor"
+    },
+    {
+      "description": "Mock HTML yang disetujui (.asdlc/generated/2-business-spec/screens/html/screen-158--laporan-engine-room-web.html) masih memakai kelas .md-threshold untuk kotak keterangan, sementara implementasinya memakai .md-explain demi invarian 'nol penanda di luar batas'. Bila mock dibangun ulang, mock yang harus menyusul implementasi.",
+      "severity": "minor"
+    },
+    {
+      "description": "Cacat aksesibilitas yang SUDAH ADA SEBELUMNYA di CSS laporan bersama, di luar cakupan layar ini: backend/resources/views/dashboard/partials/report-styles.blade.php:27 menetapkan .md small tanpa font-size sehingga terkomputasi 10px (dan <code> di dalamnya 9,2px), sementara baris 115 dan 177 menetapkan 11px dan 12px — ketiganya di bawah ambang uiux-spec accessibility.text_content.min_font_size 14px. Menyentuh 12 layar laporan yang sudah tercommit, jadi layak jadi perubahan sendiri dengan putaran ujinya sendiri. Belum diperbaiki, menunggu keputusan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Pelajaran test yang berlaku se-repo: expect()->toContain($a, $b) menerima NEEDLE VARIADIK, bukan needle+message. Dua asersi awal sempat hijau diam-diam karena 'message'-nya kebetulan berada di dalam potongan yang diperiksa. Keduanya diubah ke assertStringContainsString($needle, $haystack, $message). toBe/toBeNull/toHaveCount/toBeGreaterThan memang menerima message.",
+      "severity": "minor"
+    }
+  ]
+}

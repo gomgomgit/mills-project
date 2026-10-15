@@ -71,7 +71,15 @@ class EngineRoomRecordService
 
     protected const ENUM_FIELDS = ['diesel_gen_1_status', 'diesel_gen_2_status'];
 
-    protected const READING_FIELDS = [
+    /**
+     * DIBUKA KE `public` UNTUK LAPORAN PERIODE (screen-158). Definisi ke-27
+     * kolom ini DIPINJAM oleh EngineRoomReportService alih-alih ditulis ulang
+     * di sana — menulisnya ulang adalah cara laporan dan formulir mulai
+     * berbeda pendapat tentang apa yang tercatat. Empat sibling (BoilerRoom,
+     * KernelPlant, Clarification, StorageTank) sudah public untuk alasan yang
+     * sama persis.
+     */
+    public const READING_FIELDS = [
         'steam_turbine_inlet_pressure_bar', 'steam_turbine_inlet_temp_c', 'steam_turbine_exhaust_pressure_bar',
         'steam_turbine_rpm', 'steam_turbine_alternator_bearing_temp_1_c', 'steam_turbine_alternator_bearing_temp_2_c',
         'diesel_gen_1_status', 'diesel_gen_1_load_kw', 'diesel_gen_1_amperage_a',
@@ -318,7 +326,7 @@ class EngineRoomRecordService
      * 27 non-time_slot columns — this station has no identifying/context
      * columns to exclude) is non-null/non-empty.
      */
-    protected function isRowFilled(array $row): bool
+    public function isRowFilled(array $row): bool
     {
         foreach (self::READING_FIELDS as $field) {
             $value = $row[$field] ?? null;

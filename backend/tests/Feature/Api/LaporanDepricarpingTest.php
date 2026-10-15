@@ -670,6 +670,10 @@ it('skenario 25 — REPORT_ROUTES memetakan depricarping, menaruhnya DI ANTARA t
     // DIPERBARUI 2026-10-13 (screen-156--laporan-effluent-plant-web): tetangga
     // kiri kini effluent-plant (sort_order 100), yang disisipkan antara
     // boiler-room (90) dan depricarping (110).
+    //
+    // DIPERBARUI 2026-10-15 (screen-158--laporan-engine-room-web): tetangga
+    // KANAN kini engine-room (sort_order 120), yang disisipkan antara
+    // depricarping (110) dan storage-tank (140).
     expect($codes[$at - 1])->toBe('effluent-plant');
-    expect($codes[$at + 1])->toBe('storage-tank');
+    expect($codes[$at + 1])->toBe('engine-room');
 });

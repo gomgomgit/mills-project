@@ -8,6 +8,7 @@ use App\Livewire\Dashboard\LaporanClarification;
 use App\Livewire\Dashboard\LaporanGrading;
 use App\Livewire\Dashboard\LaporanDepricarping;
 use App\Livewire\Dashboard\LaporanEffluentPlant;
+use App\Livewire\Dashboard\LaporanEngineRoom;
 use App\Livewire\Dashboard\LaporanKernelPlant;
 use App\Livewire\Dashboard\LaporanPressing;
 use App\Livewire\Dashboard\LaporanThreshing;
@@ -1033,5 +1034,35 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/effluent-plant', LaporanEffluentPlant::class)
     ->name('reports.effluent-plant');
+
+// screen-158--laporan-engine-room-web (Laporan Periode Engine Room).
+//
+// Supervisor / Mill Management / Admin only. OPERATOR IS REFUSED HERE EVEN
+// THOUGH THE API ADMITS IT FROM THE FIRST COMMIT: the three data routes under
+// /api/engine-room-reports admit Operator because
+// screen-159--laporan-engine-room-mobile is built in the same series and is
+// their legitimate caller — and admitting a role on the API must NOT widen
+// the web screen. This web route and LaporanEngineRoom::canAccess()
+// deliberately stay closed, which is why canAccess() keeps its own role list
+// instead of borrowing EngineRoomReportService::guardAccess(); if it ever
+// delegates, this web screen silently opens to Operator.
+//
+// Route is /reports/engine-room, NOT /laporan/engine-room — the repo's
+// convention for report screens is the English /reports/* prefix
+// (/reports/management, /reports/stations, /reports/boiler-room,
+// /reports/kernel-plant, /reports/effluent-plant), and no route in this file
+// uses /laporan. It is also distinct from the DATA screens for the same
+// station, which live under /data/engine-room (browser),
+// /data/engine-room/create (input form, screen-117), /data/engine-room/{id}
+// and /data/engine-room/{id}/edit — this report reads what those screens
+// write and never writes anything itself.
+//
+// Reachable from the UI ONLY through the Engine Room tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES now
+// maps the 'engine-room' code to this route name. Without that one line the
+// report exists, every test here passes, and the screen stays unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/engine-room', LaporanEngineRoom::class)
+    ->name('reports.engine-room');
 
 // === ASDLC_ROUTES_END ===

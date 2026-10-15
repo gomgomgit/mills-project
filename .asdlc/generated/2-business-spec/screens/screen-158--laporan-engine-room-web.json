@@ -1,0 +1,160 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-14"
+  },
+  "id": "screen-158--laporan-engine-room-web",
+  "name": "Laporan Engine Room (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Engine Room (pembangkit dan kelistrikan pabrik) di web — laporan kondisi, bukan laporan keluaran. Yang dicatat stasiun ini bukan 'berapa banyak diproduksi' melainkan 'apakah pabrik punya tenaga dan apakah tenaganya stabil': tekanan dan suhu turbin uap, beban dan suhu dua genset diesel, frekuensi serta tegangan sistem tersinkron, tekanan kompresor, dan beberapa angka penunjang.\n\nINI LAPORAN TERBESAR SEJAUH INI, dan ukurannya sendiri yang menentukan bentuknya. DUA PULUH TIGA kolom ukur numerik — melampaui Effluent Plant yang empat belas dan lebih dari tiga kali Kernel Plant yang tujuh — seluruhnya nullable dan terisi saling bebas, sehingga setiap metrik menerbitkan penyebutnya sendiri. Dua puluh tiga kartu seragam tanpa batas tidak terbaca, jadi keduapuluh tiga dikelompokkan menjadi ENAM blok berjudul: Turbin Uap, Genset 1, Genset 2, Kelistrikan Tersinkron, Kompresor, dan Penunjang.\n\nDUA PASANGAN YANG HARUS TETAP TERPISAH, dan ini pembeda terpentingnya. Genset 1 dan Genset 2 membawa EMPAT KOLOM YANG SAMA PERSIS — beban kW, ampere, suhu jacket water, tekanan lube oil — dan itu pola yang sama dengan ripple mill serta kernel silo di Kernel Plant. Konsekuensinya pun sama: angka kedua genset TIDAK PERNAH dirata-ratakan menjadi satu dan selisihnya TIDAK ditandai sebagai penyimpangan, karena rata-rata gabungan menyembunyikan ketidakseimbangan beban yang justru menjadi alasan parameter itu diukur. Satu genset menanggung 80% beban sementara yang lain menganggur adalah temuan; rata-rata keduanya menyembunyikannya sebagai 'normal'. BEDANYA dari Kernel Plant: di sana pasangan berbagi satu baris master target, sementara di sini tidak ada master target sama sekali — jadi yang dinyatakan di layar adalah kesejajaran FISIK kedua mesin, bukan standar bersama.\n\nDUA KOLOM STATUS BERNILAI TIGA, bukan dua. diesel_gen_1_status dan diesel_gen_2_status masing-masing bernilai run, standby, atau off, dan 'standby' BUKAN 'off': genset siaga siap menanggung beban, genset mati tidak. Melipat standby ke off akan melaporkan pembangkit mati yang tidak pernah terjadi. Keduanya diterbitkan sebagai sebaran jumlah slot per nilai, karena terendah/rata-rata/tertinggi tidak punya arti untuk kolom kategoris.\n\nSATU KOLOM YANG TIDAK BOLEH DIPERLAKUKAN SEPERTI DUA PULUH DUA LAINNYA: daily_energy_export_kwh. Namanya menyebut 'daily' sementara ia disimpan PER SLOT WAKTU, dan ketidakcocokan itu belum terjelaskan di sumber mana pun — tidak di kode, tidak di keenam spec layar Engine Room yang sudah ada. Dua bacaan sama-sama masuk akal: ia angka meter kumulatif harian yang dicatat ulang tiap slot, atau ia energi yang diekspor pada slot itu dan kata 'daily' salah. Di bawah bacaan pertama, merata-ratakan atau menjumlahkannya antar dua puluh empat slot menghasilkan angka yang terlihat sah dan sepenuhnya salah. Karena itu laporan ini TIDAK menerbitkan rata-rata periode untuk kolom ini; ia menerbitkan nilai TERAKHIR per tanggal sebagai seri harian, perlakuan yang aman di bawah kedua bacaan, dan menyatakan ketidakpastian semantiknya di layar alih-alih memilih satu bacaan diam-diam.\n\nDUA KOLOM TEKS BEBAS diterbitkan pada dua bagian terpisah — catatan tindakan perawatan dan temuan — karena keduanya menjawab pertanyaan berbeda dan satu slot dapat mengisi kedua-duanya.\n\nYANG TIDAK ADA DI SINI: kolom downtime (stasiun ini tidak mencatatnya) dan tabel master target. Ketiadaan master target menuntut satu pernyataan yang lebih keras daripada di laporan mana pun sebelumnya, karena beberapa metrik di sini punya batas yang SANGAT DIKENAL di luar aplikasi — frekuensi sistem 50 Hz, power factor, tegangan busbar — sehingga godaan menandai penyimpangan paling besar justru di sini. Menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas keselamatan kelistrikan padahal hanya turunan statistik.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Engine Room",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Engine Room, ditulis ringkas 'Nama · rentang · Status' dengan badge status periode terpilih",
+    "Pemilih Mill — hanya bagi Admin; Supervisor dan Mill Management melihat field 'Mill' berisi nama mill akunnya sebagai keterangan",
+    "Pemilih Production Line (wajib) — hanya line milik mill yang berlaku; sebelum line dipilih tidak ada satu angka pun yang ditampilkan",
+    "Nama mill yang berlaku, nama Production Line terpilih di hero, rentang tanggal, dan status periode",
+    "Kelengkapan pencatatan, dirender DI ATAS seluruh angka lain: slot terisi dibanding yang diharapkan, jumlah unit Engine Room, hari terhitung, dan 24 slot kanonis per unit per hari",
+    "Keterangan bahwa penyebut hari berhenti di HARI INI bila periode masih berjalan, dengan rumus '× N hari (sampai hari ini)'; atau '—' dengan 'belum ada slot yang diharapkan' bila slot diharapkan nol",
+    "Keterangan bahwa satu slot dianggap terisi bila minimal satu dari DUA PULUH TUJUH kolomnya terisi — termasuk kedua kolom teks — sehingga jumlah slot terisi dapat MELEBIHI penyebut setiap kartu metrik, dan itu benar",
+    "Blok Turbin Uap — enam metrik: tekanan masuk (bar), suhu masuk (°C), tekanan buang (bar), rpm, dan dua suhu bearing alternator (°C); masing-masing terendah, rata-rata, tertinggi beserta jumlah pembacaannya sendiri",
+    "Blok Genset 1 — empat metrik: beban (kW), ampere (A), suhu jacket water (°C), tekanan lube oil (bar)",
+    "Blok Genset 2 — empat metrik yang SAMA PERSIS dengan Genset 1",
+    "Pada kedua blok genset: keterangan bahwa keduanya mesin fisik yang berbeda, bahwa angkanya sengaja TIDAK dirata-ratakan menjadi satu, dan bahwa selisih di antara keduanya tidak ditandai sebagai penyimpangan — sebab ketidakseimbangan beban adalah temuan, bukan galat",
+    "Blok Kelistrikan Tersinkron — empat metrik: beban total pabrik (kW), frekuensi sistem (Hz), power factor, tegangan busbar (V)",
+    "Blok Kompresor — dua metrik tekanan (bar). Labelnya ditulis manusiawi dan TIDAK diturunkan mekanis dari nama kolom, karena kedua kolom itu dinamai tidak konsisten di basis data",
+    "Blok Penunjang — tegangan UPS/battery charger (V), level tangki bahan bakar (tanpa satuan yang pasti, lihat pertanyaan terbuka), dan ekspor energi harian (kWh) yang diperlakukan berbeda",
+    "Jumlah pembacaan yang mendasari setiap angka, ditampilkan berdampingan dengan angkanya — masing-masing dari 23 metrik punya jumlahnya sendiri",
+    "PERNYATAAN KETIADAAN PENANDAAN DI LUAR BATAS, dirender UTUH tanpa diringkas: stasiun ini tidak punya master target, dan meski frekuensi sistem, power factor, serta tegangan busbar punya batas yang dikenal luas di luar aplikasi ini, laporan ini tidak menurunkan ambang apa pun dari data periode dan tidak menyatakan satu nilai pun di luar batas",
+    "Sebaran status Genset 1 — jumlah slot per nilai (Run / Standby / Off) ditambah baris 'tidak tercatat' yang dibedakan; nilai dikenal yang tidak muncul tetap dicetak dengan jumlah 0",
+    "Sebaran status Genset 2 — bentuk yang sama",
+    "Pada kedua sebaran: keterangan bahwa 'Standby' BUKAN 'Off' — genset siaga siap menanggung beban, genset mati tidak — dan bahwa slot yang kolomnya kosong tidak pernah diperlakukan sebagai salah satu dari ketiga nilai itu",
+    "Keterangan bahwa porsi pada sebaran memakai jumlah slot TERCATAT sebagai penyebut, bukan slot yang diharapkan",
+    "EKSPOR ENERGI HARIAN sebagai seri per tanggal berisi nilai TERAKHIR hari itu — bukan rata-rata periode — beserta keterangan mengapa: nama kolomnya menyebut 'daily' sementara ia disimpan per slot waktu, dan semantiknya belum terjelaskan, sehingga merata-ratakannya berisiko menerbitkan angka yang terlihat sah tetapi salah",
+    "Tren harian beban total pabrik rata-rata per tanggal",
+    "Rekap Catatan Tindakan Perawatan — daftar isi kolom yang tidak kosong sepanjang periode beserta tanggal dan slot waktunya",
+    "Rekap Temuan — bentuk yang sama, pada bagian TERPISAH; satu slot dapat muncul di kedua rekap dan itu bukan penghitungan ganda",
+    "Rekap per unit Engine Room — satu baris per engine_room_id: jumlah hari tercatat, jumlah slot terisi, dan rata-rata tiap kolom ukur",
+    "Rekap harian yang dapat dibuka dan ditutup — satu baris per tanggal beserta baris total periode",
+    "Keterangan bahwa layar ini tidak memuat bagian downtime, karena stasiun ini tidak mencatatnya",
+    "Keterangan bila periode tidak memuat data, dengan kelengkapan pencatatan TETAP ditampilkan",
+    "Tombol Ekspor CSV dan Ekspor Excel (.xlsx sungguhan) — hanya tampil setelah Production Line dipilih",
+    "Petunjuk 'Geser mendatar untuk melihat seluruh tanggal' di bawah seri harian bila periode memuat lebih dari 10 tanggal"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill yang dilihat. Hanya bagi Admin yang tidak terikat satu mill.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan production line yang dilihat. Wajib dipilih sebelum angka dan tombol ekspor tampil.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap",
+      "description": "Menyembunyikan atau menampilkan rekap per unit dan rekap harian. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode (cakupan line terpilih) sebagai CSV atau Excel (.xlsx sungguhan), satu baris per slot. Kolom Periode, Mill, dan Production Line diulang di setiap baris, disusul kolom konteks record, lalu ke-27 kolom pembacaan. Kedua kolom status ditulis memakai label yang sama dengan layar Detail (Run / Standby / Off), slot waktu HH:MM, sel kosong tetap kosong. Selama berkas disiapkan kedua tombol terkunci sesaat dan tombol yang diklik menampilkan 'Mengekspor…'",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor dan Mill Management terikat pada mill di akunnya; Admin tidak terikat sehingga ia memilih.",
+    "Operator tidak punya akses ke layar web ini. Jalur laporan Engine Room bagi Operator ada di mobile (screen-159).",
+    "Production Line WAJIB dipilih lebih dulu. Selama belum dipilih layar tidak menampilkan SATU ANGKA PUN, dan tidak menampilkan angka seluruh mill sebagai penggantinya.",
+    "Mengganti mill MENGOSONGKAN pilihan periode dan pilihan Production Line, bukan menggantinya diam-diam — sebuah periode maupun sebuah line milik tepat satu mill.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Engine Room.",
+    "Status periode tidak membatasi apa pun. Periode tertutup tetap dapat dilihat dan diekspor.",
+    "Rentang periode inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "SETIAP metrik dihitung dari pembacaan yang terisi untuk metrik ITU SENDIRI. Kedua puluh tiga kolom ukur nullable dan terisi saling bebas, sehingga satu penyebut bersama akan salah untuk setidaknya dua puluh dua di antaranya.",
+    "Satu slot dianggap terisi bila minimal satu dari DUA PULUH TUJUH kolom pembacaan terisi, termasuk kedua kolom teks bebas. Karena itu jumlah slot terisi dapat MELEBIHI jumlah pembacaan setiap metrik — dan itu dinyatakan di layar, bukan dikoreksi.",
+    "Jumlah pembacaan yang mendasari setiap angka ditampilkan berdampingan dengan angkanya. Rata-rata dari tiga pembacaan dan rata-rata dari tiga ratus pembacaan tidak boleh terlihat sama meyakinkan.",
+    "ANGKA KEDUA GENSET TIDAK PERNAH DIRATA-RATAKAN MENJADI SATU, dan selisih di antara keduanya tidak ditandai sebagai penyimpangan. Keduanya mesin fisik yang berbeda, dan rata-rata gabungan menyembunyikan ketidakseimbangan beban yang justru menjadi alasan parameter itu diukur.",
+    "Kedua blok genset membawa keterangan bahwa keempat kolomnya sejajar secara fisik. Keterangan itu TIDAK menyebut standar bersama, karena stasiun ini tidak punya master target — berbeda dari pasangan ripple mill dan kernel silo di Kernel Plant yang memang berbagi satu baris master.",
+    "Kedua kolom status bersifat kategoris dan diterbitkan sebagai SEBARAN jumlah slot per nilai; terendah, rata-rata, dan tertinggi tidak punya arti untuknya, dan keduanya tidak pernah muncul pada seri harian.",
+    "Sebaran status disusun dengan mengelompokkan nilai yang benar-benar ada, lalu melengkapi nilai yang dikenal tetapi tidak muncul dengan jumlah nol. Himpunan nilainya tertutup di basis data (enum run|standby|off, yang pada PostgreSQL menghasilkan varchar dengan CHECK constraint); pengelompokan harfiah tetap dipakai supaya menambah nilai baru lewat migrasi kelak tidak diam-diam menghilangkan satu kelompok.",
+    "'STANDBY' BUKAN 'OFF'. Genset siaga siap menanggung beban, genset mati tidak. Melipat standby ke off akan melaporkan pembangkit mati yang tidak pernah terjadi, dan itu kesimpulan yang salah tentang kesiapan pabrik.",
+    "Slot yang kolom statusnya kosong dilaporkan terpisah sebagai 'tidak tercatat' dan tidak pernah diperlakukan sebagai Run, Standby, maupun Off.",
+    "Porsi pada sebaran status memakai jumlah slot TERCATAT sebagai penyebut, bukan slot yang diharapkan — memakai yang kedua akan mencampur 'tidak tercatat' ke dalam porsi nilai.",
+    "Label nilai status memakai label yang SAMA dengan layar Detail, formulir, dan kedua berkas ekspor (Run / Standby / Off lewat Display::OPTION_LABELS). Satu nilai hanya boleh punya satu label di seluruh produk, dan layar laporan tidak menerjemahkannya sendiri.",
+    "daily_energy_export_kwh TIDAK diterbitkan sebagai rata-rata periode. Nama kolomnya menyebut 'daily' sementara ia disimpan per slot waktu, dan semantiknya belum terjelaskan di sumber mana pun. Di bawah bacaan 'angka meter kumulatif harian', merata-ratakan atau menjumlahkannya antar dua puluh empat slot menghasilkan angka yang terlihat sah dan sepenuhnya salah. Laporan ini menerbitkan nilai TERAKHIR hari itu sebagai seri per tanggal — perlakuan yang aman di bawah kedua bacaan — dan menyatakan ketidakpastiannya di layar alih-alih memilih satu bacaan diam-diam.",
+    "Label kedua kolom kompresor ditulis manusiawi dan TIDAK diturunkan secara mekanis dari nama kolom, karena pasangan itu dinamai tidak konsisten di basis data (satu menyebut 'air compressor 1', satu hanya 'compressor 2').",
+    "Label level tangki bahan bakar TIDAK mengarang satuan. Kolomnya satu-satunya kolom numerik tanpa satuan di namanya, dan persen atau liter belum jelas.",
+    "Catatan tindakan perawatan dan temuan adalah dua kolom teks bebas yang diterbitkan pada DUA BAGIAN TERPISAH. Keduanya tidak pernah dirata-rata maupun digrafikkan, dan satu slot yang mengisi kedua-duanya muncul pada kedua rekap tanpa itu berarti penghitungan ganda.",
+    "Stasiun ini tidak mencatat downtime, sehingga laporan ini tidak punya blok downtime. Ketiadaannya disengaja dan dinyatakan di layar.",
+    "TIDAK ADA penandaan nilai di luar batas untuk metrik mana pun, dan keterangannya dirender UTUH tanpa diringkas. Stasiun ini tidak punya master target, dan meski frekuensi sistem, power factor, serta tegangan busbar punya batas yang dikenal luas di luar aplikasi, menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas keselamatan kelistrikan padahal hanya turunan statistik.",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki, dan dirender di atas seluruh angka lain.",
+    "Kelengkapan pencatatan untuk periode yang MASIH BERJALAN dihitung hanya sampai hari ini: hari yang belum terjadi tidak mungkin tercatat. Periode yang belum mulai menghasilkan nol slot yang diharapkan dan tampil '—', bukan 0,0%.",
+    "Ekspor Excel adalah berkas .xlsx sungguhan yang dapat dibuka Excel (bukan CSV yang diberi nama .xlsx). Isi kolom kedua format sama."
+  ],
+  "usecase_ids": [
+    "usecase-164--laporan-engine-room-web"
+  ],
+  "edge_cases": [
+    "Periode tidak memuat satu pun pembacaan — seluruh angka ditampilkan tidak tersedia dengan keterangan belum ada data, bukan sebagai nol, dan kelengkapan pencatatan tetap tampil.",
+    "Sebuah metrik tidak pernah diisi sepanjang periode walau metrik lain terisi — kartunya tetap ada dengan 'tidak tersedia' dan jumlah pembacaan nol.",
+    "Satu genset dipakai sepanjang periode sementara yang lain tidak pernah menyala — keempat kartu genset yang menganggur tampil tidak tersedia dengan penyebut nol, sebarannya menunjukkan seluruh slot Off atau tidak tercatat, dan laporan TIDAK menandai itu sebagai galat; itu keadaan operasional yang sah.",
+    "Kedua genset terisi dengan angka yang sangat berbeda — keduanya tampil apa adanya, tidak dirata-ratakan, dan selisihnya tidak ditandai.",
+    "Sebuah slot hanya mengisi kolom teks bebas tanpa satu pun kolom ukur — slot itu terhitung pada kelengkapan tetapi tidak menambah penyebut kartu mana pun, sehingga jumlah slot terisi melebihi setiap penyebut. Itu benar dan dinyatakan.",
+    "Seluruh slot tidak mencatat status genset sepanjang periode — sebarannya menampilkan ketiga nilai dengan jumlah nol dan seluruh slot masuk 'tidak tercatat'.",
+    "Sebuah nilai status yang dikenal tidak pernah muncul sepanjang periode — nilai itu tetap tampil dengan jumlah nol, bukan hilang dari daftar.",
+    "daily_energy_export_kwh tidak pernah diisi sepanjang periode — seri hariannya menyatakan tidak ada data, bukan menggambar garis nol.",
+    "daily_energy_export_kwh turun dibanding slot sebelumnya pada hari yang sama — keadaan yang mustahil bila ia angka meter kumulatif, jadi laporan menampilkannya apa adanya tanpa mengoreksi, dan keadaan itu justru bukti yang berguna untuk menjawab pertanyaan terbuka soal semantik kolom ini.",
+    "Satu slot mengisi catatan perawatan DAN temuan sekaligus — muncul pada kedua rekap, dan itu benar.",
+    "Kedua kolom teks bebas kosong sepanjang periode — kedua rekap menampilkan keterangan tidak ada catatan, bukan tabel kosong tanpa penjelasan.",
+    "Line punya lebih dari satu unit Engine Room — angka periode menggabungkan seluruh unit, rekap per unit menunjukkan sebarannya, dan unit tanpa pembacaan tetap muncul dengan jumlah pembacaan nol.",
+    "Kelengkapan pencatatan sangat rendah — angka tetap ditampilkan tetapi kelengkapannya menonjol di atas seluruh angka lain.",
+    "Periode masih berjalan — penyebut hari berhenti di hari ini dan hal itu dinyatakan.",
+    "Periode belum mulai atau belum ada unit tercatat sehingga slot diharapkan nol — kelengkapan tampil '—' dengan 'belum ada slot yang diharapkan', bukan 0,0%.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Production Line belum dipilih — tidak ada satu angka pun, termasuk tidak menampilkan angka seluruh mill sebagai penggantinya.",
+    "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Mill belum punya satu pun periode yang mencakup Engine Room — pemilih periode kosong dengan arahan menghubungi Admin.",
+    "Periode tertutup — laporan tampil penuh, status tertutup ditampilkan, ekspor tetap dapat dijalankan.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca, dan rekap harian membawa dua puluh tiga kolom rata-rata sehingga ia menggulir mendatar di dalam kartunya sendiri."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "SEMANTIK `daily_energy_export_kwh` BELUM TERJELASKAN, dan ini pertanyaan terbuka yang paling menentukan di layar ini. Nama kolomnya menyebut 'daily' sementara ia disimpan per slot waktu, dan tidak ada docblock, komentar, maupun spec dari keenam layar Engine Room yang sudah ada yang menjelaskannya. Dua bacaan sama-sama masuk akal: (a) ia angka meter KUMULATIF HARIAN yang dicatat ulang tiap slot, sehingga merata-ratakan atau menjumlahkannya antar slot tidak bermakna; atau (b) ia energi yang diekspor PADA SLOT ITU dan kata 'daily' salah nama, sehingga rata-rata maupun jumlah periode sah. Laporan ini memilih perlakuan yang aman di bawah kedua bacaan — nilai terakhir per tanggal, tanpa rata-rata periode — tetapi jawabannya tetap dibutuhkan: bila (b) yang benar, laporan ini menahan angka total ekspor energi periode yang sebenarnya berguna. Yang paling tahu adalah orang yang mengisi formulirnya.",
+    "Pasangan kolom kompresor dinamai TIDAK KONSISTEN di basis data: `air_compressor_1_pressure_bar` melawan `compressor_2_pressure_bar`. Ketidakkonsistenan itu menyarankan salah satu dari keduanya mungkin salah nama — apakah 'compressor 2' juga air compressor, atau ia kompresor jenis lain? Label layar sementara ini ditulis manusiawi tanpa menurunkannya dari nama kolom, tetapi bila keduanya memang mesin sejenis, penamaan kolomnya layak diselaraskan lewat migrasi agar label dapat diturunkan mekanis seperti kolom lain.",
+    "`fuel_tank_level` adalah satu-satunya kolom numerik di stasiun ini tanpa satuan di namanya, sementara dua puluh dua lainnya membawa _bar, _c, _kw, _a, _hz, _v, atau _kwh. Persen atau liter belum jelas, dan keduanya menghasilkan pembacaan yang sangat berbeda (level 80 berarti hampir penuh bila persen, dan hampir kosong bila liter pada tangki besar). Label layar tidak mengarang satuan sampai ini dijawab.",
+    "Stasiun ini tidak punya master target, sementara beberapa metriknya punya batas yang dikenal sangat luas di luar aplikasi — frekuensi sistem 50 Hz, power factor, tegangan busbar nominal. Bila kelak batas operasional kelistrikan dimasukkan sebagai master target, laporan ini perlu ditinjau ulang; dan peninjauan itu menyangkut keselamatan peralatan, bukan sekadar tampilan. Sampai itu ada, laporan ini sengaja tidak menandai apa pun."
+  ]
+}

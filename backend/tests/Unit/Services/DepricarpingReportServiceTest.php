@@ -1600,8 +1600,14 @@ it('case 66 — REPORT_ROUTES memetakan depricarping, dan posisinya mengikuti so
     // Inilah yang dimaksud catatan di bawah — asersinya gagal, lalu daftarnya
     // diperbarui, bukan dibiarkan selalu hijau.
     //
+    // DIPERBARUI 2026-10-15 (screen-158--laporan-engine-room-web): tetangga
+    // KANAN berubah dari storage-tank (140) ke engine-room (120), karena
+    // laporan Engine Room menyisipkan entrinya di antara depricarping (110)
+    // dan storage-tank (140), sesuai sort_order. Tetangga kirinya tidak
+    // berubah.
+    //
     // Asersi berurutan ini MEMANG dimaksudkan gagal bila peta berubah, supaya
     // daftarnya diperbarui alih-alih diam-diam menjadi selalu hijau.
     expect($codes[$at - 1])->toBe(StationTypeEnum::EffluentPlant->value);
-    expect($codes[$at + 1])->toBe(StationTypeEnum::StorageTank->value);
+    expect($codes[$at + 1])->toBe(StationTypeEnum::EngineRoom->value);
 });

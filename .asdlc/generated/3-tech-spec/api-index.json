@@ -1,5 +1,5 @@
 {
-  "ver": 79,
+  "ver": 80,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-14"
@@ -2473,6 +2473,59 @@
       "description": "Unduhan CSV/Excel Laporan Effluent Plant — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, unit effluent plant, status, catatan) diulang verbatim di setiap baris, memuat ke-19 kolom READING_FIELDS: 14 kolom ukur, ketiga kolom status, dan kedua kolom teks bebas apa adanya. Pemetaan label: kolom 'Status' konteks lewat ExportValue::status() (status RECORD — Tersimpan/Tersinkron), ketiga kolom status pengukuran lewat ExportValue::option() (Display::OPTION_LABELS — On/Off/Fault, Run/Stop) sehingga identik dengan layar Detail dan dengan ekspor Data Browser stasiun ini; kedua pemeta itu bernama mirip tetapi menjawab hal berbeda dan tidak boleh ditukar. Menghilangkan kedua kolom teks membuat berkasnya tak dapat menggantikan laporan, yang justru inti dari mengekspornya. Excel adalah .xlsx SUNGGUHAN lewat SheetWriter, bukan CSV bernama .xlsx. Batas 50.000 dihitung atas BARIS SLOT bukan record — satu record dapat menghasilkan 24 baris, jadi batasnya tercapai pada jumlah record 24 kali lebih kecil. Gate peran, resolusi mill, resolusi line, pemeriksaan format, dan pemeriksaan batas berjalan EAGER sebelum aliran dimulai, supaya 403/422 tidak sampai ke klien sebagai unduhan berhasil yang kosong. Bukan respons JSON.",
       "screen_id": "screen-156--laporan-effluent-plant-web",
       "usecase_id": "usecase-162--laporan-effluent-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/engine-room-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Engine Room — ADMIN SAJA. 403 untuk Operator, Supervisor, dan Mill Management, ditegakkan DI DALAM service dan bukan oleh middleware — justru karena middleware prefix ini menerima keempat peran demi ketiga rute data di bawahnya, sehingga penjaga di middleware tidak akan menutup rute ini. Master kosong adalah jawaban sah: [] dengan 200, bukan 404.",
+      "screen_id": "screen-158--laporan-engine-room-web",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/engine-room-reports/periods",
+      "description": "Daftar Periode Pelaporan yang punya baris period_stations berjenis 'engine-room' pada satu mill; status per baris period_stations, dan periode tertutup maupun draft ikut tercantum — laporan ini tidak menyaring status. business_unit_id WAJIB bagi Admin (422 bila absen) dan DIABAIKAN bagi peran terikat mill termasuk Operator — diabaikan, bukan divalidasi. production_line_id sengaja bukan parameter: periode milik mill, bukan milik line. OPERATOR DITERIMA SEJAK COMMIT PERTAMA, berbeda dari prefix Effluent Plant yang sengaja menundanya: kembaran mobile screen-159 dibangun dalam seri yang sama, jadi presedens Grading/Kernel Plant yang berlaku. Pelebaran itu menempatkan Operator pada cabang TERIKAT-MILL resolveBusinessUnit(), bukan hanya di daftar peran — menaruhnya hanya di daftar peran akan menjatuhkannya ke cabang Admin tempat business_unit_id kiriman klien dihormati, yang berarti kebocoran lintas mill.",
+      "screen_id": "screen-158--laporan-engine-room-web",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/engine-room-reports/summary",
+      "description": "Seluruh angka Laporan Engine Room untuk satu periode pada satu Production Line. DUA PULUH TIGA kolom ukur — terbesar di antara seluruh laporan stasiun — tetapi hanya DUA PULUH DUA yang masuk kunci `metrics`, masing-masing min/avg/max dengan penyebutnya sendiri dan field `group` (steam_turbine|diesel_gen_1|diesel_gen_2|electrical_sync|compressor|auxiliary) supaya blade menyusun keenam blok berjudul dari RESPONS, bukan dari daftar nama kolom yang dipaku. Kolom ke-23, `daily_energy_export_kwh`, DITERBITKAN TERPISAH pada kunci `daily_energy_export` dan TIDAK punya rata-rata periode: namanya menyebut 'daily' sementara ia disimpan PER SLOT WAKTU dan semantiknya belum terjelaskan di sumber mana pun, sehingga di bawah bacaan 'angka meter kumulatif harian' merata-ratakannya antar 24 slot menghasilkan angka yang terlihat sah dan sepenuhnya salah. Yang diterbitkan adalah nilai TERAKHIR hari itu per tanggal beserta time_slot asalnya — dan 'terakhir' diambil dari POSISI slot pada canonicalTimeSlots(), bukan dari perbandingan string jam, karena kisi dimulai 07:00 dan berakhir 06:00 keesokan hari. DUA kolom status kategoris (diesel_gen_1_status, diesel_gen_2_status) masing-masing TIGA nilai (run|standby|off) diterbitkan sebagai sebaran jumlah slot per nilai dengan pelengkapan nol atas known_values, baris not_recorded TERPISAH, dan porsi memakai recorded_slots bukan expected_slots; 'standby' TIDAK PERNAH dilipat ke 'off' karena genset siaga siap menanggung beban sementara genset mati tidak. DUA kolom teks bebas diterbitkan sebagai dua daftar kejadian terpisah. KEDELAPAN kolom genset tetap berdiri sendiri: payload TIDAK memuat satu pun kunci gabungan, selisih, maupun rasio antar diesel_gen_1 dan diesel_gen_2, karena rata-rata gabungan menyembunyikan ketidakseimbangan beban yang justru menjadi alasan parameter itu diukur. Kelengkapan = slot terisi terhadap unit × days_counted × 24, dengan baris terisi dihitung atas 27 READING_FIELDS sehingga ia dapat MELEBIHI penyebut setiap metrik. Satu tren harian (beban total pabrik, rata-rata per tanggal) yang agregasinya sengaja BERBEDA dari seri ekspor energi. TANPA blok downtime dan TANPA penandaan nilai di luar batas — stasiun ini tidak punya master target, dan itu berlaku meski frekuensi sistem, power factor, serta tegangan busbar punya batas yang dikenal sangat luas di luar aplikasi. Seluruh agregasi di PHP; nol agregat SQL atas 23 kolom nullable. period_id dan production_line_id KEDUANYA WAJIB; line maupun periode milik mill lain → 403.",
+      "screen_id": "screen-158--laporan-engine-room-web",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/engine-room-reports/export",
+      "description": "Unduhan CSV/Excel Laporan Engine Room — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, unit engine room, status, catatan) diulang verbatim di setiap baris, memuat ke-27 kolom READING_FIELDS: 23 kolom ukur, kedua kolom status genset, dan kedua kolom teks bebas. Pemetaan label: kolom 'Status' konteks lewat ExportValue::status() (status RECORD — Tersimpan/Tersinkron), kedua kolom status genset lewat ExportValue::option() (Display::OPTION_LABELS — Run/Standby/Off) sehingga identik dengan layar Detail; kedua pemeta bernama mirip dan tidak boleh ditukar. `daily_energy_export_kwh` diekspor APA ADANYA per slot — ekspor adalah rincian mentah, jadi perlakuan 'nilai terakhir per tanggal' berlaku pada /summary saja. Excel adalah .xlsx SUNGGUHAN lewat SheetWriter. Batas 50.000 dihitung atas BARIS SLOT bukan record — satu record dapat menghasilkan 24 baris. Gate peran, resolusi mill, resolusi line, pemeriksaan format, dan pemeriksaan batas berjalan EAGER sebelum aliran dimulai, supaya 403/422 tidak sampai ke klien sebagai unduhan berhasil yang kosong. Bukan respons JSON.",
+      "screen_id": "screen-158--laporan-engine-room-web",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
       "auth_required": true,
       "actor_ids": [
         "actor-supervisor",

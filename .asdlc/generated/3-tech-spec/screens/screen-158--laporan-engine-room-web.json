@@ -1,0 +1,2290 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-14"
+  },
+  "id": "screen-158--laporan-engine-room-web",
+  "name": "Laporan Engine Room (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/engine-room",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill lewat pemilih Mill"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Rute WEB /reports/engine-room tertutup baginya. TETAPI ketiga rute API data (/periods, /summary, /export) MENERIMANYA sejak commit pertama, karena kembaran mobile screen-159 dibangun dalam seri yang sama — presedens Grading/Kernel Plant, bukan presedens Weighbridge/Effluent Plant yang web-nya mendarat lebih dulu sehingga Operator harus ditunda lalu ditambahkan belakangan. Memilih presedens pertama menghindari riak yang mahal: tiga berkas test yang asersinya harus dibalik dan empat field artefak yang harus diperbarui. /business-units/options TETAP 403 baginya (Admin saja, ditegakkan di dalam service)."
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "usecase_name": "Lihat Laporan Periode Engine Room (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/engine-room-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — ADMIN SAJA; 403 untuk setiap peran yang terikat satu mill, termasuk Operator yang diterima pada ketiga rute lain",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan Admin. Penjagaan ada DI DALAM service, bukan di middleware — justru karena middleware prefix ini menerima empat peran demi ketiga rute data, jadi penjaga di middleware tidak akan menutup rute ini"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/engine-room-reports/periods",
+          "description": "Daftar Periode Pelaporan yang punya baris period_stations berjenis 'engine-room'",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "WAJIB bagi Admin (422 bila absen); DIABAIKAN total bagi peran terikat mill termasuk Operator. production_line_id TIDAK PERNAH dikirim ke endpoint ini — periode milik MILL, bukan milik line"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string (draft|open|closed) — status BARIS period_stations engine-room",
+                  "station_type": "string — selalu 'engine-room' (BERTANDA HUBUNG)",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar operator/supervisor/mill_management/admin"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tidak mengirim business_unit_id, atau akun terikat mill yang users.business_unit_id-nya NULL"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/engine-room-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode pada satu Production Line: 23 metrik ukur dengan penyebutnya masing-masing, 2 sebaran status tiga-nilai, dua daftar teks bebas terpisah, seri harian ekspor energi berperlakuan khusus, tren beban total pabrik, kelengkapan, rekap per unit, dan rekap harian",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Absen → 422 VALIDATION_ERROR dengan errors.period_id"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — absen → 422 dan NOL kueri engine_room_records berjalan. TIDAK PERNAH di-default ke 'semua line mill'. Penyaringan memakai kolom engine_room_records.production_line_id, bukan join ke stations"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Wajib bagi Admin, diabaikan bagi peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string",
+                "business_unit_name": "string"
+              },
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "has_data": "boolean — filled_slots > 0",
+              "coverage": {
+                "filled_slots": "integer",
+                "expected_slots": "integer — unit_count x days_counted x 24",
+                "coverage_percent": "float — 0.0 ketika expected_slots 0; layar menampilkan '—'",
+                "engine_room_unit_count": "integer",
+                "slots_per_unit_per_day": "integer — selalu 24, dari EngineRoomRecordService::canonicalTimeSlots()",
+                "days_in_period": "integer",
+                "days_counted": "integer — ReportPeriodDays::counted(); berhenti di HARI INI untuk periode berjalan, 0 bila belum mulai",
+                "period_running": "boolean"
+              },
+              "metrics": {
+                "<nama_kolom>": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer — PENYEBUT metrik INI sendiri",
+                  "group": "string — salah satu dari steam_turbine|diesel_gen_1|diesel_gen_2|electrical_sync|compressor|auxiliary; dipakai blade untuk keenam blok berjudul"
+                },
+                "_note": "DUA PULUH DUA kolom ukur hadir di sini. daily_energy_export_kwh TIDAK termasuk — lihat daily_energy_export di bawah"
+              },
+              "daily_energy_export": {
+                "_note": "DITERBITKAN TERPISAH dari `metrics`, dan ini keputusan yang paling mudah salah di layar ini. Kolom daily_energy_export_kwh TIDAK punya entri rata-rata periode, karena namanya menyebut 'daily' sementara ia disimpan PER SLOT WAKTU dan semantiknya belum terjelaskan di sumber mana pun. Di bawah bacaan 'angka meter kumulatif harian', merata-ratakan atau menjumlahkannya antar 24 slot menghasilkan angka yang terlihat sah dan sepenuhnya salah. Yang diterbitkan adalah nilai TERAKHIR hari itu per tanggal — slot waktu terbesar yang terisi pada tanggal itu, menurut urutan kanonis 07:00..06:00, BUKAN nilai tertinggi dan BUKAN nilai pertama. Perlakuan ini aman di bawah kedua bacaan semantik.",
+                "series": [
+                  {
+                    "date": "date",
+                    "last_value": "float|null",
+                    "time_slot": "string HH:MM — slot asal nilai itu, supaya pembaca dapat memeriksanya",
+                    "reading_count": "integer — banyaknya slot pada tanggal itu yang mengisi kolom ini"
+                  }
+                ],
+                "has_data": "boolean"
+              },
+              "status_distribution": {
+                "<nama_kolom_status>": {
+                  "known_values": [
+                    "string — run, standby, off; SELURUHNYA termasuk yang jumlahnya 0"
+                  ],
+                  "counts": {
+                    "<nilai>": "integer"
+                  },
+                  "not_recorded": "integer — slot terisi yang kolom ini NULL; TERPISAH, tidak pernah dilipat ke run, standby, maupun off",
+                  "recorded_slots": "integer — PENYEBUT porsi; bukan expected_slots"
+                }
+              },
+              "maintenance_remarks": [
+                {
+                  "date": "date",
+                  "time_slot": "string HH:MM",
+                  "text": "string"
+                }
+              ],
+              "findings": [
+                {
+                  "date": "date",
+                  "time_slot": "string HH:MM",
+                  "text": "string"
+                }
+              ],
+              "daily_trend": {
+                "electrical_sync_total_factory_load_kw": [
+                  {
+                    "date": "date",
+                    "avg": "float|null",
+                    "reading_count": "integer"
+                  }
+                ],
+                "_note": "RATA-RATA per tanggal — agregasi yang BERBEDA dari daily_energy_export yang memakai nilai terakhir. Perbedaan itu dinyatakan di layar supaya keduanya tidak terbaca sejenis."
+              },
+              "by_unit": [
+                {
+                  "engine_room_id": "string",
+                  "reading_rows": "integer",
+                  "metrics": "objek dengan bentuk yang sama seperti `metrics`, dibatasi pada unit ini"
+                }
+              ],
+              "daily": [
+                {
+                  "date": "date",
+                  "reading_rows": "integer",
+                  "metrics_avg": "objek — rata-rata per metrik pada tanggal itu, masing-masing dengan reading_count-nya"
+                }
+              ],
+              "daily_total": {
+                "reading_rows": "integer"
+              },
+              "total": {
+                "days_with_records": "integer",
+                "reading_rows": "integer"
+              },
+              "_note_absences": "TIDAK ADA kunci downtime — engine_room_details tidak punya satu pun kolomnya. TIDAK ADA kunci target maupun penanda di luar batas — stasiun ini tidak punya tabel master target, dan itu berlaku meski frekuensi sistem, power factor, dan tegangan busbar punya batas yang dikenal sangat luas di luar aplikasi. TIDAK ADA kunci gabungan maupun selisih antar kedua genset: kedelapan kolomnya tetap berdiri sendiri, karena rata-rata gabungan menyembunyikan ketidakseimbangan beban yang justru menjadi alasan parameter itu diukur. Kedua kolom status TIDAK PERNAH muncul di `metrics` maupun `daily_trend`."
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran tidak diterima; ATAU production_line_id milik mill lain; ATAU period_id milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen; Admin tanpa business_unit_id; akun terikat mill tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — angka laporan harus mencerminkan keadaan saat dibaca",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/engine-room-reports/export",
+          "description": "Ekspor rincian periode pada satu line, SATU BARIS PER SLOT WAKTU; respons streaming, csv atau xlsx",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — berkas yang mencampur line adalah kesalahan yang paling sulit dibantah setelah terkirim"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv|excel; di luar itu 422 VALIDATION_ERROR"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_content_type": "text/csv atau application/vnd.openxmlformats-officedocument.spreadsheetml.sheet (xlsx SUNGGUHAN lewat App\\Support\\SheetWriter, bukan CSV bernama .xlsx) — SATU BARIS PER SLOT WAKTU; kolom konteks (Periode / Mill / Production Line / Tanggal / Unit Engine Room / Status / Catatan) diulang verbatim di setiap baris, lalu Slot Waktu, lalu ke-27 kolom READING_FIELDS dalam urutan EngineRoomRecordService::READING_FIELDS. Kolom 'Status' konteks memakai ExportValue::status() (status RECORD — Tersimpan/Tersinkron); kedua kolom status genset memakai ExportValue::option() (Display::OPTION_LABELS — Run/Standby/Off) sehingga identik dengan layar Detail; slot waktu HH:MM lewat ExportValue::time(). Kedua pemeta itu bernama mirip dan TIDAK boleh ditukar. Sel kosong tetap kosong, bukan 0 dan bukan '-'. daily_energy_export_kwh diekspor APA ADANYA per slot — ekspor adalah rincian mentah, jadi perlakuan khusus 'nilai terakhir per tanggal' berlaku pada /summary saja, tidak di sini"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi atau token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Sama seperti /summary — dicek EAGER sebelum streaming dimulai"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen; format di luar csv|excel"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "Lebih dari 50.000 BARIS SLOT WAKTU, bukan record: satu record dapat menghasilkan sampai 24 baris, jadi batas ini tercapai pada jumlah record 24 kali lebih kecil. Diperiksa atas jumlah baris yang akan DIEMIT"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Gate sesi + peran (guardAccess): 401 bila tidak ada sesi, 403 bila peran di luar operator/supervisor/mill_management/admin. Gate ini dua lapis lebih dalam daripada middleware rute, supaya melewati middleware tidak cukup dengan sendirinya.",
+        "2. OPERATOR DITERIMA SEJAK COMMIT PERTAMA pada ketiga rute data, karena kembaran mobile screen-159 dibangun dalam seri yang sama (presedens Grading/Kernel Plant). Memilih presedens itu, bukan presedens Weighbridge/Effluent Plant, menghindari riak yang mahal: tiga berkas test yang asersinya harus dibalik dan empat field artefak yang harus diperbarui ketika mobile menyusul.",
+        "3. Resolusi mill (resolveBusinessUnit): Operator/Supervisor/MillManagement SELALU memakai business_unit_id akunnya dan nilai kiriman klien DIBUANG — tidak divalidasi, tidak dibandingkan, dibuang; Admin WAJIB mengirimkannya (422 bila absen). OPERATOR ADA DI CABANG TERIKAT-MILL INI, dan baris itu yang menentukan: melebarkan daftar peran guardAccess()/middleware TANPA menempatkan Operator di sini akan menjatuhkannya ke cabang Admin tempat business_unit_id kiriman klien DIHORMATI — seorang Operator lalu dapat membaca laporan mill mana pun. Itu kebocoran lintas mill, bukan cacat tampilan. Akun terikat mill tanpa business_unit_id GAGAL TERTUTUP dengan 422 dan daftar seluruh mill tidak pernah dibaca.",
+        "4. Pemilih mill (businessUnitOptions): ADMIN SAJA, 403 untuk peran lain — ditegakkan di dalam service justru karena middleware prefix ini menerima empat peran demi ketiga rute data. Master kosong adalah jawaban sah: [] dengan HTTP 200, bukan 404.",
+        "5. Resolusi Production Line (resolveProductionLine): 422 bila absen, 403 bila milik mill lain. Keduanya terjadi SEBELUM satu pun kueri engine_room_records berjalan.",
+        "6. Daftar periode (listPeriods): periode milik mill yang berlaku yang PUNYA baris period_stations berjenis 'engine-room'. Status TIDAK pernah menyaring daftar. Relasi stations dimuat terbatas pada jenis stasiun ini supaya statusValue() tidak menembak satu kueri per periode (N+1).",
+        "7. Otorisasi periode (authorizePeriod): 404 bila id tidak ada, 403 bila milik mill lain. Urutan guard: peran → mill → line → id periode → periode itu sendiri, supaya pemanggil yang tidak berhak tidak pernah belajar id periode mana yang ada.",
+        "8. SATU KUERI untuk seluruh record periode+line dengan relasi details dimuat eager, dan seluruh agregasi sesudahnya DI PHP — tanpa satu pun agregat SQL maupun ekspresi mentah. Alasannya sama dengan dua belas laporan sebelumnya: perilaku agregat SQL atas kolom nullable TIDAK identik antara SQLite (suite test) dan PostgreSQL (produksi). Di laporan ini risikonya paling besar — dua puluh tiga kolom nullable.",
+        "9. Keanggotaan periode: whereDate pada engine_room_records.date antara start_date dan end_date, INKLUSIF kedua ujung. Kolom `date` bertipe DATE, tetapi whereDate tetap dipakai — konvensi sama dengan BoilerRoomReportService dan EffluentPlantReportService, sehingga tidak ada satu laporan yang mengeja keanggotaan periode berbeda dari yang lain.",
+        "10. Penyaringan line memakai kolom engine_room_records.production_line_id milik record itu sendiri, BUKAN join ke stations — stasiun yang dipindah ke line lain tidak boleh menulis ulang riwayat pembacaan.",
+        "11. Baris 'terisi' = minimal satu dari 27 EngineRoomRecordService::READING_FIELDS non-null (23 kolom ukur + 2 status + 2 teks). Baris yang 27 kolomnya NULL semuanya adalah slot tak tersentuh, sudah dilaporkan coverage.",
+        "12. DUA PULUH DUA metrik numerik masuk `metrics`, masing-masing min/avg/max atas baris non-null MILIKNYA SENDIRI dengan reading_count-nya sendiri. Metrik tanpa satu pun nilai → min/avg/max NULL (BUKAN 0) dengan reading_count 0. Satu penyebut bersama akan salah untuk setidaknya dua puluh satu di antaranya.",
+        "13. Tiap entri `metrics` membawa `group` (steam_turbine | diesel_gen_1 | diesel_gen_2 | electrical_sync | compressor | auxiliary) supaya blade menyusun keenam blok berjudul dari RESPONS, bukan dari daftar nama kolom yang dipaku di template — kolom baru dari migrasi kelak lalu masuk ke blok yang benar tanpa menyunting blade.",
+        "14. `daily_energy_export_kwh` TIDAK masuk `metrics` dan TIDAK punya rata-rata periode. Ia diterbitkan pada kunci `daily_energy_export` sebagai seri per tanggal berisi nilai TERAKHIR hari itu — slot waktu terbesar yang TERISI pada tanggal itu menurut urutan kanonis 07:00..06:00, bukan nilai tertinggi dan bukan nilai pertama. Tiap titik membawa `time_slot` asalnya supaya pembaca dapat memeriksanya. Sebabnya: namanya menyebut 'daily' sementara ia disimpan per slot, semantiknya belum terjelaskan di sumber mana pun, dan merata-ratakan nilai kumulatif antar 24 slot menghasilkan angka yang terlihat sah dan sepenuhnya salah. Perlakuan ini aman di bawah kedua bacaan semantik.",
+        "15. PERHATIAN pada urutan 'terakhir': kisi kanonis dimulai 07:00 dan berakhir 06:00 keesokan hari, jadi 'slot terakhir' BUKAN slot dengan nilai jam terbesar secara leksikal. Urutan harus diambil dari posisi slot pada canonicalTimeSlots(), bukan dari perbandingan string jam — kalau tidak, 06:00 akan terbaca sebagai paling awal padahal ia paling akhir.",
+        "16. KEDELAPAN KOLOM GENSET TETAP BERDIRI SENDIRI. Payload TIDAK memuat satu pun kunci rata-rata gabungan, selisih, maupun rasio antar diesel_gen_1 dan diesel_gen_2. Keduanya mesin fisik yang berbeda, dan rata-rata gabungan menyembunyikan ketidakseimbangan beban yang justru menjadi alasan parameter itu diukur. Yang diterbitkan hanyalah `group` yang menandai keduanya sebagai blok terpisah; keterangan kesejajaran fisik ada di blade, dan ia TIDAK menyebut standar bersama karena stasiun ini tidak punya master target — berbeda dari Kernel Plant yang pasangannya memang berbagi satu baris master dan punya shares_standard_with pada responsnya.",
+        "17. DUA kolom status kategoris diterbitkan sebagai SEBARAN jumlah slot per nilai, masing-masing dengan TIGA nilai dikenal (run, standby, off). Keduanya TIDAK PERNAH masuk metrics maupun daily_trend — terendah, rata-rata, dan tertinggi tidak punya arti untuk kolom kategoris.",
+        "18. Sebaran disusun dengan mengelompokkan nilai yang benar-benar ada, LALU melengkapi nilai dikenal yang tidak muncul dengan jumlah 0 (known_values memuat ketiganya). Himpunan nilainya tertutup di basis data — enum(['run','standby','off']) yang pada PostgreSQL menghasilkan varchar DENGAN CHECK constraint — tetapi pengelompokan harfiah tetap dipakai supaya menambah nilai baru lewat migrasi kelak tidak diam-diam menghilangkan satu kelompok, dan pelengkapan nol memastikan nilai yang tidak pernah terjadi tetap terlihat sebagai nol.",
+        "19. not_recorded dihitung TERPISAH per kolom status: slot terisi yang kolom itu NULL. TIDAK PERNAH dilipat ke run, standby, maupun off. Dan 'standby' TIDAK PERNAH dilipat ke 'off': genset siaga siap menanggung beban, genset mati tidak — melipatnya akan melaporkan pembangkit mati yang tidak pernah terjadi, dan itu kesimpulan yang salah tentang kesiapan pabrik.",
+        "20. DUA kolom teks bebas diterbitkan sebagai DUA DAFTAR TERPISAH, tiap entri {date, time_slot, text}, hanya untuk slot yang kolom itu tidak kosong. Satu slot yang mengisi keduanya muncul di KEDUA daftar — menyatukannya akan menghitung slot itu dua kali, dan keduanya menjawab pertanyaan berbeda: apa yang dikerjakan, versus apa yang ditemukan.",
+        "21. TIDAK ADA blok downtime: engine_room_details tidak punya satu pun kolomnya. Ketiadaannya dinyatakan di payload (_note_absences) dan di layar.",
+        "22. TIDAK ADA penandaan nilai di luar batas untuk metrik mana pun, dan TIDAK ADA ambang yang diturunkan dari data periode itu sendiri. Stasiun ini tidak punya tabel master target. Yang khas di sini: frekuensi sistem, power factor, dan tegangan busbar punya batas yang dikenal SANGAT luas di luar aplikasi, sehingga godaan menandai penyimpangan paling besar justru di laporan ini — dan menurunkan ambang dari data periode sendiri berisiko dibaca sebagai batas keselamatan kelistrikan padahal hanya turunan statistik. Keterangannya dirender UTUH di layar, tidak diringkas.",
+        "23. Kelengkapan: expected_slots = engine_room_unit_count x days_counted x 24. Angka 24 datang dari EngineRoomRecordService::canonicalTimeSlots() — kisi slot kanonik yang dipakai layar input itu sendiri — bukan angka yang dikarang di sini. days_counted dari ReportPeriodDays::counted($period): BERHENTI DI HARI INI untuk periode yang masih berjalan; 0 bila periode belum mulai.",
+        "24. expected_slots === 0 → coverage_percent 0.0 dari service, dan blade menampilkan '—' dengan 'belum ada slot yang diharapkan' — bukan '0,0%' yang akan terbaca seolah pencatatan gagal.",
+        "25. Kelengkapan dirender DI ATAS seluruh angka lain, dan keterangan bahwa slot terisi dihitung atas 27 kolom (sehingga dapat MELEBIHI reading_count setiap metrik) ikut dirender di sana. Yang dilampaui adalah penyebut metrik, bukan penyebut cakupan.",
+        "26. Satu tren harian: rata-rata electrical_sync_total_factory_load_kw per tanggal. Agregasinya BERBEDA dari daily_energy_export yang memakai nilai terakhir, dan perbedaan itu dinyatakan di layar supaya keduanya tidak terbaca sejenis.",
+        "27. Rekap per unit dikelompokkan pada engine_room_records.engine_room_id (kolom string, jadi satu line dapat punya beberapa unit). Angka periode menggabungkan seluruh unit; unit tanpa pembacaan tetap muncul dengan reading_rows 0.",
+        "28. Rekap harian: satu baris per TANGGAL yang punya minimal satu baris terisi; daily_total menjumlah reading_rows seluruh barisnya. coverage.filled_slots dan total.reading_rows adalah satu definisi dengan satu jawaban.",
+        "29. Ekspor: SATU BARIS PER SLOT WAKTU, konteks diulang verbatim. daily_energy_export_kwh diekspor APA ADANYA per slot — ekspor adalah rincian mentah, jadi perlakuan 'nilai terakhir per tanggal' berlaku pada /summary saja. Guard, resolusi mill/line, pemeriksaan format, dan pemeriksaan batas baris berjalan EAGER sebelum streaming dimulai; kalau tidak, 403/422 akan sampai ke klien sebagai unduhan yang berhasil tetapi kosong.",
+        "30. Label nilai status DIDELEGASIKAN ke App\\Support\\Display::option() (Run/Standby/Off), tidak disalin ke blade. Keputusan pemilik produk 2026-10-14: satu nilai, satu label di seluruh produk — layar Detail, formulir, ekspor Data Browser, dan ekspor laporan semuanya bersandar pada Display::OPTION_LABELS. Mendelegasikan, bukan menyalin, membuat penyimpangan tidak dapat terulang tanpa menyentuh Display sendiri.",
+        "31. Komponen Livewire LaporanEngineRoom memakai service yang SAMA dengan controller API, sehingga halaman web dan API tidak mungkin berbeda angkanya. mount() memanggil abort_unless atas daftar perannya SENDIRI (supervisor/mill_management/admin) — bukan meminjam guardAccess() yang menerima empat peran — supaya penerimaan Operator pada rute API tidak melebarkan layar web.",
+        "32. Mengganti mill MENGOSONGKAN periode DAN Production Line yang terpilih: keduanya milik tepat satu mill (temuan QA LP-W-09). Sebelum Production Line berlaku, layar tidak menampilkan SATU ANGKA PUN dan tidak punya jalur mundur ke angka seluruh mill; penjaganya ada di FUNGSI pemuatan ringkasan, bukan hanya di template."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Induk periode: nama dan rentang tanggal pada pemilih dan header laporan."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Penyaring daftar periode (station_type = 'engine-room') dan sumber nilai status pada opsi periode serta header summary."
+        },
+        {
+          "entity_id": "engine-room-record",
+          "operation": "SELECT",
+          "description": "Satu baris per record harian per unit. Disaring pada production_line_id milik record itu sendiri dan whereDate pada kolom `date` di dalam rentang periode (inklusif). engine_room_id adalah kunci pengelompokan rekap per unit."
+        },
+        {
+          "entity_id": "engine-room-detail",
+          "operation": "SELECT",
+          "description": "Satu baris per slot waktu: 23 kolom ukur, 2 kolom status enum tiga-nilai, 2 kolom teks bebas — seluruhnya nullable. Dimuat eager bersama recordnya. Baris terisi = minimal satu dari 27 READING_FIELDS non-null."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih Production Line dan penamaan line pada blok production_line jawaban summary."
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin dan penamaan mill pada blok business_unit."
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Relasi stations pada periode, dimuat TERBATAS pada jenis stasiun engine-room agar statusValue() tidak menembak satu kueri per periode."
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "users.business_unit_id dan users.role — penentu cabang terikat-mill vs Admin."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Periode tidak memuat satu pun baris terisi",
+          "handling": "has_data false; seluruh metrik min/avg/max NULL dengan reading_count 0; blok coverage TETAP dirender; blade menyatakan belum ada data dan MENOLAK menggambar tren maupun seri"
+        },
+        {
+          "condition": "Sebuah dari 22 metrik tidak pernah diisi sepanjang periode",
+          "handling": "Metrik itu NULL dengan reading_count 0; penyebut metrik lain tidak terpengaruh"
+        },
+        {
+          "condition": "Satu genset dipakai, satu tidak pernah menyala",
+          "handling": "Keempat metrik genset yang menganggur NULL dengan reading_count 0; sebarannya menunjukkan seluruh slot off atau not_recorded; TIDAK ada penanda galat — itu keadaan operasional yang sah"
+        },
+        {
+          "condition": "Kedua genset berbeban sangat timpang",
+          "handling": "Kedelapan metrik tetap berdiri sendiri; payload tidak memuat kunci gabungan, selisih, maupun rasio; tidak ada penanda penyimpangan"
+        },
+        {
+          "condition": "Satu slot hanya mengisi kolom teks",
+          "handling": "Terhitung pada coverage.filled_slots tanpa menambah reading_count metrik mana pun, sehingga filled_slots melebihi setiap reading_count — dan keterangannya dirender di blok coverage"
+        },
+        {
+          "condition": "Seluruh slot tidak mencatat sebuah kolom status",
+          "handling": "counts mencetak ketiga known_values dengan 0 dan not_recorded memuat seluruh slot terisi"
+        },
+        {
+          "condition": "Nilai status dikenal tidak pernah muncul (mis. tidak pernah standby)",
+          "handling": "Barisnya tetap dirender dengan jumlah 0, karena iterasinya atas known_values bukan atas kunci counts yang ada"
+        },
+        {
+          "condition": "daily_energy_export_kwh tidak pernah diisi sepanjang periode",
+          "handling": "daily_energy_export.has_data false dan series kosong; blade menyatakan tidak ada data, tidak menggambar garis nol"
+        },
+        {
+          "condition": "daily_energy_export_kwh hanya terisi pada sebagian slot dalam satu hari",
+          "handling": "Nilai yang dipakai adalah slot TERISI terakhir menurut urutan kanonis, dan time_slot asalnya ikut diterbitkan supaya dapat diperiksa"
+        },
+        {
+          "condition": "daily_energy_export_kwh turun dibanding slot sebelumnya pada hari yang sama",
+          "handling": "Diterbitkan apa adanya tanpa koreksi dan tanpa penanda galat. Keadaan itu mustahil bila kolom ini angka meter kumulatif, sehingga ia justru bukti yang berguna untuk menjawab pertanyaan terbuka soal semantiknya"
+        },
+        {
+          "condition": "Slot terakhir hari itu adalah 06:00 (akhir kisi kanonis)",
+          "handling": "Urutan diambil dari posisi pada canonicalTimeSlots(), bukan dari perbandingan string jam — 06:00 adalah slot PALING AKHIR, bukan paling awal"
+        },
+        {
+          "condition": "Satu slot mengisi kedua kolom teks",
+          "handling": "Dirender pada KEDUA daftar, dengan keterangan bahwa itu bukan penghitungan ganda"
+        },
+        {
+          "condition": "Kedua kolom teks kosong sepanjang periode",
+          "handling": "Keterangan pada MASING-MASING bagian, bukan tabel kosong tanpa penjelasan"
+        },
+        {
+          "condition": "Line punya beberapa unit Engine Room",
+          "handling": "by_unit memuat satu baris per unit; unit tanpa pembacaan tetap muncul dengan reading_rows 0 dan ikut menambah engine_room_unit_count sehingga expected_slots tetap benar"
+        },
+        {
+          "condition": "Kelengkapan pencatatan sangat rendah",
+          "handling": "Angka tetap diterbitkan; blok coverage dirender di ATAS seluruh angka lain"
+        },
+        {
+          "condition": "Periode masih berjalan",
+          "handling": "days_counted berhenti di hari ini; period_running true; blade menampilkan keterangan beserta rumus dan jumlah hari yang sudah lewat"
+        },
+        {
+          "condition": "expected_slots 0 — belum ada unit tercatat atau periode belum mulai",
+          "handling": "coverage_percent 0.0 dari service; blade menampilkan '—' dengan 'belum ada slot yang diharapkan'"
+        },
+        {
+          "condition": "Admin belum memilih mill",
+          "handling": "Tidak ada kueri record; layar menampilkan arahan memilih mill lebih dulu"
+        },
+        {
+          "condition": "Production Line belum dipilih",
+          "handling": "422 pada /summary dan /export bila dipanggil langsung; pada layar: tidak ada satu angka pun, tombol ekspor belum dirender, dan TIDAK ADA jalur mundur ke angka seluruh mill"
+        },
+        {
+          "condition": "production_line_id milik mill lain",
+          "handling": "403 FORBIDDEN, dilempar sebelum satu pun kueri engine_room_records berjalan"
+        },
+        {
+          "condition": "period_id milik mill lain",
+          "handling": "403 FORBIDDEN — setelah guard line, sehingga pemanggil tidak berhak tidak belajar id periode mana yang ada"
+        },
+        {
+          "condition": "period_id tidak ada",
+          "handling": "404 NOT_FOUND"
+        },
+        {
+          "condition": "Akun terikat mill dengan users.business_unit_id NULL",
+          "handling": "422 VALIDATION_ERROR — GAGAL TERTUTUP; daftar seluruh mill tidak pernah dibaca"
+        },
+        {
+          "condition": "Peran terikat mill (termasuk Operator) mengirim business_unit_id mill lain",
+          "handling": "Nilai itu DIBUANG tanpa divalidasi; jawaban 200 berisi data mill akunnya sendiri. Inilah asersi yang menangkap pelebaran peran yang hanya setengah dikerjakan"
+        },
+        {
+          "condition": "Admin mengirim business_unit_id mill lain",
+          "handling": "200 berisi data mill itu — cabang Admin memang menghormati nilai kiriman, dan penerimaan Operator tidak mengubahnya"
+        },
+        {
+          "condition": "Mill belum punya satu pun periode yang mencakup Engine Room",
+          "handling": "data: [] dengan 200; pemilih periode kosong dengan arahan menghubungi Admin — bukan 404"
+        },
+        {
+          "condition": "Periode berstatus tertutup",
+          "handling": "Tetap terdaftar, tetap dapat dibaca dan diekspor; status hanya ditampilkan sebagai keterangan"
+        },
+        {
+          "condition": "Operator memanggil /business-units/options",
+          "handling": "403 FORBIDDEN dari dalam service — ia diterima pada ketiga rute data tetapi tidak di sini"
+        },
+        {
+          "condition": "Operator membuka rute web /reports/engine-room",
+          "handling": "403 lewat middleware role + abort_unless di mount(); halaman errors/403.blade.php"
+        },
+        {
+          "condition": "format di luar csv|excel",
+          "handling": "422 VALIDATION_ERROR sebelum streaming dimulai"
+        },
+        {
+          "condition": "Ekspor melebihi 50.000 baris slot waktu",
+          "handling": "422 EXPORT_FAILED, diperiksa EAGER atas jumlah baris yang akan diemit — bukan atas jumlah record, yang 24 kali lebih kecil"
+        },
+        {
+          "condition": "Klik ganda pada tombol ekspor",
+          "handling": "wire:loading.attr=disabled pada target export mengunci kedua tombol sesaat; tombol yang diklik menampilkan 'Mengekspor…'"
+        },
+        {
+          "condition": "Rekap harian puluhan baris dengan 23 kolom rata-rata",
+          "handling": "Dirender di dalam <details> yang dapat ditutup, dan tabelnya menggulir mendatar DI DALAM kartunya sendiri sehingga halaman tidak pernah menggulir mendatar"
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca; tidak ada aksi tulis",
+        "Supervisor dan Mill Management terkunci pada mill akunnya; Admin memilih",
+        "Operator tidak punya akses ke rute web ini, tetapi diterima pada ketiga rute API data sejak commit pertama",
+        "/business-units/options tetap Admin saja, ditegakkan di dalam service bukan middleware",
+        "Operator wajib berada di cabang terikat-mill resolveBusinessUnit(); melebarkan daftar peran saja adalah kebocoran lintas mill",
+        "Production Line WAJIB dipilih lebih dulu, dan tidak ada jalur mundur ke angka seluruh mill",
+        "Mengganti mill mengosongkan pilihan periode DAN pilihan Production Line",
+        "Daftar periode hanya yang mencakup Engine Room",
+        "Status periode tidak membatasi pembacaan maupun ekspor",
+        "Rentang periode inklusif di kedua ujung",
+        "Setiap metrik punya penyebutnya sendiri — 23 kolom nullable terisi saling bebas",
+        "Baris terisi dihitung atas 27 READING_FIELDS sehingga dapat melebihi penyebut tiap metrik — dan itu dinyatakan",
+        "Jumlah pembacaan ditampilkan berdampingan dengan angkanya",
+        "Kedelapan kolom genset tetap berdiri sendiri; tidak ada kunci gabungan, selisih, maupun rasio, dan selisihnya tidak ditandai",
+        "Keterangan pada kedua blok genset menyebut kesejajaran FISIK, bukan standar bersama — stasiun ini tidak punya master target",
+        "Kedua kolom status diterbitkan sebagai sebaran tiga-nilai; tidak ada min/avg/max dan tidak muncul pada tren maupun seri",
+        "Sebaran mengiterasi known_values sehingga nilai berjumlah 0 tetap tercetak",
+        "not_recorded terpisah dan tidak pernah dilipat ke run, standby, maupun off",
+        "'standby' tidak pernah dilipat ke 'off' — genset siaga siap menanggung beban, genset mati tidak",
+        "Porsi sebaran memakai recorded_slots sebagai penyebut, bukan expected_slots",
+        "Label nilai status didelegasikan ke Display::option() (Run/Standby/Off), tidak disalin ke blade",
+        "daily_energy_export_kwh tidak punya rata-rata periode; ia seri nilai terakhir per tanggal, dan urutan 'terakhir' diambil dari posisi pada canonicalTimeSlots() bukan dari perbandingan string jam",
+        "Ekspor menerbitkan daily_energy_export_kwh apa adanya per slot — perlakuan khusus berlaku pada /summary saja",
+        "Label kedua kolom kompresor tidak diturunkan mekanis dari nama kolom",
+        "Label fuel_tank_level tidak mengarang satuan",
+        "Kedua kolom teks dirender pada dua bagian terpisah; satu slot yang mengisi keduanya muncul pada keduanya",
+        "Tidak ada blok downtime, dan ketiadaannya dinyatakan",
+        "Tidak ada penandaan di luar batas, dan keterangannya dirender utuh",
+        "Kelengkapan dirender di atas seluruh angka lain dan tetap dirender saat periode kosong",
+        "Kelengkapan untuk periode berjalan dihitung hanya sampai hari ini; expected 0 → '—'",
+        "Seluruh agregasi di PHP; nol agregat SQL atas kolom nullable",
+        "Ekspor Excel adalah .xlsx sungguhan lewat SheetWriter",
+        "Komponen Livewire memakai service yang sama dengan controller API, dan mount() memakai daftar perannya sendiri"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "403 pada /business-units/options bagi Operator",
+          "given": "Pengguna terautentikasi berperan operator memanggil EngineRoomReportService::businessUnitOptions()",
+          "expect": "ForbiddenException dengan kode FORBIDDEN; nol kueri ke tabel business_units"
+        },
+        {
+          "description": "403 pada /business-units/options bagi Supervisor dan Mill Management",
+          "given": "Pengguna terautentikasi berperan supervisor, lalu berperan mill_management, memanggil businessUnitOptions()",
+          "expect": "Keduanya ForbiddenException FORBIDDEN; penjagaan ini berada DI DALAM service sehingga lolos middleware rute tetap tertahan"
+        },
+        {
+          "description": "200 daftar mill bagi Admin pada /business-units/options",
+          "given": "Pengguna berperan admin dan master business_units memuat tiga mill",
+          "expect": "Mengembalikan tiga entri {id,name}; tidak ada kolom lain yang dibocorkan"
+        },
+        {
+          "description": "master mill kosong mengembalikan daftar kosong, bukan 404",
+          "given": "Pengguna berperan admin dan tabel business_units kosong",
+          "expect": "Mengembalikan array kosong dengan status 200; tidak melempar NotFoundException"
+        },
+        {
+          "description": "Operator DITERIMA pada ketiga rute data sejak commit pertama",
+          "given": "Pengguna berperan operator terikat mill A memanggil periods(), summary(), dan export() dengan parameter lengkap milik mill A",
+          "expect": "Ketiganya mengembalikan hasil normal; guardAccess() TIDAK melempar ForbiddenException bagi operator pada ketiga rute data"
+        },
+        {
+          "description": "resolveBusinessUnit() menempatkan Operator pada cabang terikat-mill",
+          "given": "Pengguna berperan operator dengan users.business_unit_id = mill A; request membawa business_unit_id = mill B",
+          "expect": "resolveBusinessUnit() mengembalikan mill A; cabang yang dieksekusi adalah cabang peran terikat mill (operator|supervisor|mill_management), BUKAN cabang admin yang menghormati nilai kiriman"
+        },
+        {
+          "description": "Operator mill A yang mengirim business_unit_id mill B tetap menerima data mill A",
+          "given": "Operator terikat mill A; request summary membawa business_unit_id mill B, period_id dan production_line_id milik mill A",
+          "expect": "Mengembalikan 200 berisi agregasi mill A; BUKAN 403 dan BUKAN data mill B — nilai kiriman dibuang tanpa divalidasi"
+        },
+        {
+          "description": "ekspor Operator tidak pernah membawa baris mill lain",
+          "given": "Operator terikat mill A; request export membawa business_unit_id mill B",
+          "expect": "Streaming berisi hanya baris engine_room_records milik mill A; nol baris milik mill B"
+        },
+        {
+          "description": "Supervisor dan Mill Management yang mengirim mill lain tetap dikunci pada mill akunnya",
+          "given": "Supervisor mill A lalu Mill Management mill A mengirim business_unit_id mill B",
+          "expect": "Keduanya 200 berisi data mill A; nilai kiriman dibuang tanpa divalidasi"
+        },
+        {
+          "description": "Admin TETAP menghormati business_unit_id kiriman sesudah pelebaran akses Operator",
+          "given": "Admin mengirim business_unit_id mill B beserta period_id dan production_line_id milik mill B",
+          "expect": "Mengembalikan agregasi mill B; cabang admin tidak berubah oleh pelebaran daftar peran"
+        },
+        {
+          "description": "Admin tanpa business_unit_id pada /periods ditolak 422",
+          "given": "Admin memanggil periods() tanpa query business_unit_id",
+          "expect": "ValidationException VALIDATION_ERROR pada field business_unit_id; nol kueri report_periods"
+        },
+        {
+          "description": "/periods mengabaikan business_unit_id dan production_line_id bagi peran terikat mill",
+          "given": "Supervisor mill A memanggil periods() dengan business_unit_id mill B dan production_line_id apa pun",
+          "expect": "Daftar periode milik mill A; production_line_id tidak ikut menyaring karena periode milik MILL, bukan line"
+        },
+        {
+          "description": "/periods hanya memuat periode yang mencakup stasiun Engine Room",
+          "given": "Mill A punya dua periode mencakup engine-room dan tiga periode yang hanya mencakup stasiun lain",
+          "expect": "Mengembalikan tepat dua entri, masing-masing station_type 'engine-room' beserta station_type_label; tiga periode lain tidak muncul"
+        },
+        {
+          "description": "Admin tanpa business_unit_id pada /summary ditolak 422",
+          "given": "Admin memanggil summary() dengan period_id dan production_line_id tetapi tanpa business_unit_id",
+          "expect": "ValidationException VALIDATION_ERROR; nol kueri engine_room_records"
+        },
+        {
+          "description": "Supervisor dengan users.business_unit_id NULL gagal tertutup 422",
+          "given": "Supervisor dengan users.business_unit_id = null memanggil summary() dengan parameter lengkap",
+          "expect": "ValidationException VALIDATION_ERROR; sistem tidak jatuh ke cabang admin dan tidak menawarkan seluruh mill"
+        },
+        {
+          "description": "Operator dengan users.business_unit_id NULL gagal tertutup 422",
+          "given": "Operator dengan users.business_unit_id = null memanggil summary()",
+          "expect": "ValidationException VALIDATION_ERROR; pelebaran akses operator tidak membuka jalur mill-bebas"
+        },
+        {
+          "description": "production_line_id absen ditolak 422 dan nol kueri record",
+          "given": "Supervisor mill A memanggil summary() dengan period_id sah tetapi tanpa production_line_id",
+          "expect": "ValidationException VALIDATION_ERROR pada production_line_id; query log mencatat NOL kueri engine_room_records; tidak pernah di-default ke seluruh line mill"
+        },
+        {
+          "description": "production_line_id milik mill lain ditolak 403",
+          "given": "Supervisor mill A mengirim production_line_id milik mill B",
+          "expect": "ForbiddenException FORBIDDEN; nol kueri agregasi dijalankan"
+        },
+        {
+          "description": "period_id absen ditolak 422",
+          "given": "Supervisor mill A memanggil summary() dengan production_line_id sah tetapi tanpa period_id",
+          "expect": "ValidationException VALIDATION_ERROR pada period_id"
+        },
+        {
+          "description": "period_id yang tidak ada ditolak 404",
+          "given": "Supervisor mill A mengirim period_id yang tidak ada di report_periods",
+          "expect": "NotFoundException NOT_FOUND"
+        },
+        {
+          "description": "periode milik mill lain ditolak 403",
+          "given": "Supervisor mill A mengirim period_id milik mill B yang memang mencakup Engine Room",
+          "expect": "ForbiddenException FORBIDDEN; periode mill lain tidak dapat dibuka walau id-nya sah"
+        },
+        {
+          "description": "urutan guard: peran → mill → line → period_id → periode",
+          "given": "Supervisor dengan business_unit_id NULL mengirim request tanpa production_line_id, tanpa period_id, pada mill yang tak terselesaikan",
+          "expect": "Galat pertama yang dilempar adalah VALIDATION_ERROR (422); setelah mill diisi, galat berikutnya VALIDATION_ERROR production_line_id; setelah line diisi, baru VALIDATION_ERROR period_id — bukan gabungan atau urutan lain"
+        },
+        {
+          "description": "401 bagi permintaan tanpa autentikasi",
+          "given": "Request ke keempat rute dikirim tanpa token Sanctum",
+          "expect": "UnauthenticatedException dengan kode UNAUTHENTICATED pada keempatnya; service tidak pernah dipanggil"
+        },
+        {
+          "description": "expected_slots = jumlah unit × hari terhitung × 24",
+          "given": "Line terpilih punya 2 unit Engine Room, ReportPeriodDays::counted() mengembalikan 5 hari",
+          "expect": "expected_slots = 2 × 5 × 24 = 240"
+        },
+        {
+          "description": "24 slot kanonis diambil dari EngineRoomRecordService::canonicalTimeSlots()",
+          "given": "Perhitungan kelengkapan dijalankan untuk satu unit dan satu hari",
+          "expect": "Pengali slot adalah count(EngineRoomRecordService::canonicalTimeSlots()) yang bernilai 24; angka 24 tidak ditulis keras di dua tempat"
+        },
+        {
+          "description": "hari terhitung berhenti di hari ini untuk periode yang masih berjalan",
+          "given": "Periode 1–30 bulan ini, hari ini tanggal 10, satu unit",
+          "expect": "days_counted = 10 dan expected_slots = 240; hari ke-11 sampai ke-30 tidak masuk penyebut sehingga tidak menurunkan coverage_percent"
+        },
+        {
+          "description": "periode yang belum mulai menghasilkan nol slot yang diharapkan",
+          "given": "Periode yang start_date-nya masih di masa depan, satu unit",
+          "expect": "days_counted 0, expected_slots 0, coverage_percent 0.0 tanpa pembagian nol; payload menandai bahwa belum ada slot yang diharapkan sehingga layar menampilkan '—'"
+        },
+        {
+          "description": "coverage_percent dan has_data pada periode yang terisi sebagian",
+          "given": "expected_slots 240 dan filled_slots 60",
+          "expect": "coverage_percent 25.0 dan has_data true; dengan filled_slots 0 maka has_data false dan coverage_percent 0.0"
+        },
+        {
+          "description": "slot dianggap terisi bila minimal satu dari 27 kolom pembacaan non-null",
+          "given": "Satu record hanya mengisi steam_turbine_rpm, seluruh 26 kolom lain null",
+          "expect": "filled_slots = 1; iterasi dilakukan atas EngineRoomRecordService::READING_FIELDS yang berisi tepat 27 kolom (23 ukur + 2 status + 2 teks)"
+        },
+        {
+          "description": "slot yang hanya mengisi kolom teks bebas tetap terhitung terisi",
+          "given": "Satu record hanya mengisi findings, seluruh 23 kolom ukur dan kedua status null",
+          "expect": "filled_slots = 1; tidak ada satu pun reading_count metrik yang bertambah"
+        },
+        {
+          "description": "filled_slots dapat MELEBIHI penyebut setiap kartu metrik dan itu benar",
+          "given": "5 record hanya mengisi action_taken_maintenance_remark dan 2 record mengisi steam_turbine_rpm",
+          "expect": "filled_slots = 7 sementara reading_count terbesar di antara 23 metrik = 2; selisih tidak dikoreksi dan payload memuat keterangan sebabnya"
+        },
+        {
+          "description": "record dengan seluruh 27 kolom null tidak terhitung terisi",
+          "given": "Satu record ada di rentang periode tetapi seluruh 27 kolom pembacaannya null",
+          "expect": "filled_slots = 0 dan has_data false; record tetap tidak dibuang dari hasil kueri, hanya tidak dihitung terisi"
+        },
+        {
+          "description": "keanggotaan periode inklusif di kedua ujung tanggal",
+          "given": "Periode 2026-03-01..2026-03-31 dengan record tepat pada 2026-03-01, 2026-03-31, 2026-02-28, dan 2026-04-01",
+          "expect": "Dua record ujung ikut terhitung di seluruh metrik, sebaran, kelengkapan, seri harian, dan ekspor; dua record di luar rentang tidak; penyaringan memakai whereDate('engine_room_records.date', '>=' / '<=')"
+        },
+        {
+          "description": "penyaringan line memakai kolom production_line_id milik record sendiri",
+          "given": "Sebuah engine_room_records.production_line_id = line A sementara stations miliknya tertaut line B",
+          "expect": "Record muncul pada laporan line A dan tidak pada line B; kueri tidak melakukan join ke tabel stations untuk menyaring line"
+        },
+        {
+          "description": "payload memuat tepat 22 kunci metrik ukur, ditambah daily_energy_export sebagai kunci sendiri",
+          "given": "Periode terisi penuh",
+          "expect": "Peta metrik memuat tepat 22 kunci dengan nama kolom yang sama persis seperti di basis data; tidak ada kunci tambahan dan tidak ada yang hilang. 22, BUKAN 23: dari 23 kolom ukur, daily_energy_export_kwh TIDAK masuk `metrics` dan diterbitkan pada kunci `daily_energy_export` miliknya sendiri (business_logic langkah 12 dan 14). Pembukuan 22+1 harus utuh — asersi memeriksa keduanya: count(metrics) === 22 DAN daily_energy_export_kwh absen dari metrics sementara hadir sebagai kunci sendiri."
+        },
+        {
+          "description": "min/avg/max dan reading_count setiap metrik dihitung dari baris non-null miliknya sendiri",
+          "given": "4 record: steam_turbine_inlet_pressure_bar = 20, 22, null, 24; steam_turbine_rpm = 3000, null, null, null",
+          "expect": "inlet_pressure min 20, avg 22, max 24, reading_count 3; rpm min/avg/max 3000 dengan reading_count 1 — penyebut tidak dibagi bersama"
+        },
+        {
+          "description": "metrik tanpa satu pun nilai menghasilkan null, bukan 0",
+          "given": "Periode terisi tetapi electrical_sync_power_factor null pada seluruh record",
+          "expect": "min, avg, dan max bernilai null dan reading_count 0; bukan 0 yang akan terbaca sebagai hasil pengukuran"
+        },
+        {
+          "description": "dua suhu bearing alternator tetap dua metrik terpisah",
+          "given": "steam_turbine_alternator_bearing_temp_1_c = 60 dan _2_c = 85 pada record yang sama",
+          "expect": "Dua kunci metrik dengan angka masing-masing; tidak ada kunci rata-rata bearing gabungan"
+        },
+        {
+          "description": "dua kolom kompresor tetap dua metrik terpisah walau dinamai tidak konsisten",
+          "given": "air_compressor_1_pressure_bar = 7 dan compressor_2_pressure_bar = 6.2",
+          "expect": "Dua kunci metrik terpisah dengan nama kolom aslinya; service tidak menormalkan atau menggabungkan nama kolom itu"
+        },
+        {
+          "description": "payload tidak memuat satu pun kunci penandaan di luar batas",
+          "given": "Periode memuat electrical_sync_system_frequency_hz 43.0, power_factor 0.35, dan busbar_voltage_v 310 yang jauh dari nominal",
+          "expect": "Tidak ada kunci out_of_range, threshold, target, violation, atau severity pada kunci metrik mana pun; nilai diterbitkan apa adanya"
+        },
+        {
+          "description": "payload tidak memuat blok downtime",
+          "given": "Periode terisi penuh",
+          "expect": "Tidak ada kunci downtime, downtime_minutes, maupun daftar kejadian berhenti di seluruh payload"
+        },
+        {
+          "description": "seluruh agregasi dijalankan di PHP tanpa agregat SQL",
+          "given": "summary() dipanggil dengan parameter lengkap dan query log diaktifkan",
+          "expect": "Satu kueri engine_room_records plus eager load relasi; nol selectRaw, nol DB::raw, nol AVG/MIN/MAX/COUNT di level SQL"
+        },
+        {
+          "description": "daily_energy_export_kwh TIDAK diterbitkan sebagai rata-rata periode",
+          "given": "Periode memuat daily_energy_export_kwh = 100, 150, 200 pada tiga slot",
+          "expect": "Peta metrik rata-rata periode TIDAK memuat avg untuk daily_energy_export_kwh (tidak ada kunci rata-rata/jumlah periode untuk kolom ini); yang diterbitkan adalah seri per tanggal"
+        },
+        {
+          "description": "seri ekspor energi memakai nilai slot TERAKHIR hari itu",
+          "given": "Tanggal 2026-03-05 memuat slot 07:00 = 400, 12:00 = 900, 18:00 = 700 (posisi kanonis 0, 5, 11 — 18:00 yang paling akhir di antara ketiganya)",
+          "expect": "Seri untuk 2026-03-05 bernilai 700 — nilai pada slot dengan POSISI KANONIS terbesar yang terisi, bukan 900 (tertinggi) dan bukan 400 (pertama). DITAMBAH satu kasus jebakan pada tanggal lain dengan slot 07:00 = 400, 12:00 = 900, 06:00 = 150: hasilnya WAJIB 150, karena 06:00 berada di POSISI 23 (paling akhir pada kisi 07:00..06:00) walau jamnya terkecil secara leksikal. Asersi menyertakan not->toBe(900) dan not->toBe(400) supaya pengurutan leksikal tidak dapat lolos."
+        },
+        {
+          "description": "slot terakhir hari itu yang null dilewati, bukan dianggap kosong",
+          "given": "Tanggal 2026-03-06 memuat 07:00 = 500, 12:00 = 800, 18:00 = null (posisi kanonis 0, 5, 11)",
+          "expect": "Seri untuk 2026-03-06 bernilai 800 — slot TERISI dengan posisi kanonis terbesar; slot 18:00 yang null dilewati, bukan dianggap sebagai nilai hari itu, dan tanggal itu tidak dilaporkan tanpa data"
+        },
+        {
+          "description": "kolom ekspor energi kosong sepanjang periode menghasilkan seri tanpa data",
+          "given": "Seluruh record memuat daily_energy_export_kwh null walau kolom lain terisi",
+          "expect": "Seri harian kosong atau seluruh titiknya null dengan penanda tidak ada data; tidak ada satu pun titik bernilai 0"
+        },
+        {
+          "description": "nilai ekspor energi yang turun di dalam satu hari diterbitkan apa adanya",
+          "given": "Tanggal 2026-03-07 memuat 07:00 = 900 lalu 12:00 = 300, dan 12:00 adalah slot terisi dengan posisi kanonis terbesar",
+          "expect": "Seri untuk 2026-03-07 bernilai 300 tanpa koreksi, tanpa kunci anomaly/flag/warning; keadaan itu tidak diperlakukan sebagai galat"
+        },
+        {
+          "description": "kedelapan metrik genset tetap delapan kunci terpisah",
+          "given": "Record mengisi keempat kolom diesel_gen_1_* dan keempat kolom diesel_gen_2_*",
+          "expect": "Delapan kunci metrik terpisah, masing-masing dengan min/avg/max dan reading_count sendiri"
+        },
+        {
+          "description": "beban kedua genset yang sangat timpang tidak pernah digabung",
+          "given": "diesel_gen_1_load_kw rata-rata 800 kW sepanjang periode sementara diesel_gen_2_load_kw rata-rata 40 kW",
+          "expect": "Kedua angka diterbitkan apa adanya; TIDAK ada kunci rata-rata gabungan genset, tidak ada total genset, dan tidak ada kunci selisih/imbalance/deviation di seluruh payload"
+        },
+        {
+          "description": "tidak ada penanda selisih antar pasangan genset untuk keempat kolom sejajarnya",
+          "given": "Keempat pasangan kolom genset terisi dengan selisih besar (beban, ampere, suhu jacket water, tekanan lube oil)",
+          "expect": "Nol kunci bertanda delta/diff/imbalance/flag pada keempat pasangan; kesejajaran yang dinyatakan hanya kesejajaran fisik, bukan standar bersama"
+        },
+        {
+          "description": "genset yang tidak pernah menyala menghasilkan empat metrik null dengan penyebut nol",
+          "given": "Seluruh kolom diesel_gen_2_* null sepanjang periode sementara diesel_gen_1_* terisi",
+          "expect": "Keempat metrik Genset 2 bernilai null dengan reading_count 0; keempat metrik Genset 1 tetap normal; tidak ada galat yang dilempar"
+        },
+        {
+          "description": "sebaran status mencetak ketiga nilai dikenal termasuk yang berjumlah nol",
+          "given": "diesel_gen_1_status hanya bernilai 'run' pada 10 slot dan 'off' pada 2 slot",
+          "expect": "Sebaran memuat tiga entri run=10, standby=0, off=2; iterasi dilakukan atas known_values ['run','standby','off'] sehingga standby tetap tercetak"
+        },
+        {
+          "description": "slot dengan status NULL masuk not_recorded yang terpisah",
+          "given": "12 slot terisi: 5 bernilai 'run', 7 dengan diesel_gen_1_status null",
+          "expect": "run=5, standby=0, off=0, dan not_recorded=7 sebagai kunci TERPISAH; tujuh slot itu tidak pernah dilipat ke run, standby, maupun off"
+        },
+        {
+          "description": "'standby' tidak pernah digabung dengan 'off'",
+          "given": "diesel_gen_2_status bernilai 'standby' pada 6 slot dan 'off' pada 4 slot",
+          "expect": "standby=6 dan off=4 sebagai dua entri terpisah; tidak ada entri gabungan bernilai 10 dan tidak ada pemetaan standby→off"
+        },
+        {
+          "description": "porsi sebaran memakai jumlah slot tercatat sebagai penyebut",
+          "given": "expected_slots 240, slot tercatat untuk kolom status itu 20, di antaranya run=15",
+          "expect": "Porsi run dihitung 15/20 = 75.0%, BUKAN 15/240; not_recorded tidak ikut mengempiskan porsi nilai"
+        },
+        {
+          "description": "kolom status tidak punya min/avg/max dan tidak muncul pada seri harian",
+          "given": "Periode terisi dengan kedua kolom status",
+          "expect": "Entri sebaran tidak memuat kunci min, avg, atau max; kedua kolom status tidak muncul pada seri harian maupun tren mana pun"
+        },
+        {
+          "description": "dua sebaran status diterbitkan sebagai dua struktur terpisah",
+          "given": "diesel_gen_1_status dan diesel_gen_2_status terisi dengan pola berbeda",
+          "expect": "Dua kunci sebaran terpisah (satu per kolom), masing-masing lengkap dengan ketiga nilai dan not_recorded sendiri; tidak ada sebaran gabungan dua genset"
+        },
+        {
+          "description": "seluruh slot tanpa status menghasilkan ketiga nilai nol dan semuanya not_recorded",
+          "given": "18 slot terisi namun tidak satu pun mencatat diesel_gen_1_status",
+          "expect": "run=0, standby=0, off=0, not_recorded=18; sebaran tetap dirender, bukan dihilangkan"
+        },
+        {
+          "description": "dua kolom teks bebas diterbitkan sebagai dua daftar terpisah dengan bentuk entri lengkap",
+          "given": "Satu slot mengisi action_taken_maintenance_remark dan slot lain mengisi findings",
+          "expect": "Dua daftar terpisah; setiap entri berbentuk {date, time_slot, text}; keduanya tidak pernah dirata-rata maupun masuk seri harian"
+        },
+        {
+          "description": "satu slot yang mengisi kedua kolom teks muncul pada kedua daftar",
+          "given": "Satu record mengisi action_taken_maintenance_remark dan findings sekaligus",
+          "expect": "Slot itu muncul satu kali di masing-masing daftar; tidak ada daftar gabungan yang memuatnya dua kali, dan filled_slots tetap bertambah satu"
+        },
+        {
+          "description": "kedua kolom teks kosong sepanjang periode menghasilkan dua daftar kosong",
+          "given": "Seluruh record memuat kedua kolom teks null",
+          "expect": "Dua daftar kosong yang tetap diterbitkan sebagai dua kunci terpisah; bukan satu kunci null dan bukan daftar dihilangkan"
+        },
+        {
+          "description": "tren harian beban total pabrik adalah RATA-RATA per tanggal",
+          "given": "Tanggal 2026-03-05 memuat electrical_sync_total_factory_load_kw = 600, 800, 1000 pada tiga slot",
+          "expect": "Titik tren untuk 2026-03-05 bernilai 800 (rata-rata ketiga slot) dengan penyebut 3"
+        },
+        {
+          "description": "agregasi tren beban berbeda dari agregasi seri ekspor energi pada hari yang sama",
+          "given": "Tanggal 2026-03-05: total_factory_load_kw = 600, 800, 1000 dan daily_energy_export_kwh = 400, 900, 700 pada slot 06:00, 12:00, 18:00",
+          "expect": "Tren beban = 800 (rata-rata) sementara seri energi = 700 (nilai slot terakhir); kedua agregasi tidak pernah dipertukarkan"
+        },
+        {
+          "description": "rekap per unit dikelompokkan pada engine_room_records.engine_room_id",
+          "given": "Line terpilih punya dua unit dengan record yang berbeda",
+          "expect": "Satu baris per engine_room_id berisi jumlah hari tercatat, jumlah slot terisi, dan rata-rata tiap kolom ukur unit itu; pengelompokan tidak memakai station_id atau production_line_id"
+        },
+        {
+          "description": "unit tanpa pembacaan tetap muncul pada rekap per unit dengan jumlah nol",
+          "given": "Line punya dua unit Engine Room, salah satunya tanpa satu pun record di periode itu",
+          "expect": "Rekap memuat dua baris; baris unit tanpa pembacaan memuat slot terisi 0, hari tercatat 0, dan rata-rata null untuk seluruh kolom ukur"
+        },
+        {
+          "description": "ekspor menghasilkan satu baris per slot waktu dengan 27 kolom pembacaan",
+          "given": "Periode memuat 3 record pada line terpilih",
+          "expect": "Streaming berisi header plus 3 baris data; kolom Periode, Mill, dan Production Line diulang di setiap baris, disusul kolom konteks record, lalu tepat 27 kolom pembacaan"
+        },
+        {
+          "description": "ekspor lebih dari 50.000 baris ditolak 422 EXPORT_FAILED",
+          "given": "Hitungan baris eager menghasilkan 50.001",
+          "expect": "ValidationException EXPORT_FAILED; tidak satu byte pun di-stream; dengan 50.000 tepat ekspor tetap berjalan"
+        },
+        {
+          "description": "format di luar csv|excel ditolak 422 dan format kosong jatuh ke csv",
+          "given": "Request export dengan format='pdf', lalu request tanpa parameter format",
+          "expect": "Yang pertama ValidationException VALIDATION_ERROR; yang kedua menghasilkan berkas CSV sebagai bawaan"
+        },
+        {
+          "description": "guard, resolusi mill/line, dan batas baris diperiksa EAGER sebelum streaming dimulai",
+          "given": "Request export dari Operator mill A membawa production_line_id milik mill B",
+          "expect": "ForbiddenException dilempar sebelum response streaming dibuka; klien tidak pernah menerima berkas separuh yang sudah berisi header"
+        },
+        {
+          "description": "ekspor memakai helper penulis nilai yang sama dengan layar Detail",
+          "given": "Record memuat diesel_gen_1_status='standby', diesel_gen_2_status=null, time_slot 06:00, status record tertentu, dan beberapa kolom ukur null",
+          "expect": "Kolom status ditulis 'Standby' lewat ExportValue::option() dan sel kosong untuk yang null; slot waktu '06:00' lewat ExportValue::time(); kolom Status record lewat ExportValue::status(); berkas excel ditulis App\\Support\\SheetWriter sebagai .xlsx sungguhan"
+        },
+        {
+          "description": "mount() komponen Livewire menjaga daftar perannya SENDIRI",
+          "given": "Pengguna berperan operator membuka komponen LaporanEngineRoom",
+          "expect": "abort_unless atas daftar supervisor|mill_management|admin menghasilkan 403; penjagaan ini tidak memanggil EngineRoomReportService::guardAccess() yang memang menerima operator"
+        },
+        {
+          "description": "mengganti mill mengosongkan periode DAN Production Line terpilih",
+          "given": "Admin sudah memilih mill A, production_line_id, dan period_id sehingga laporan tampil, lalu mengubah properti mill ke mill B",
+          "expect": "Properti period_id dan production_line_id menjadi null; tidak ada pemanggilan summary() sampai keduanya dipilih ulang"
+        },
+        {
+          "description": "label nilai status didelegasikan ke Display::option()",
+          "given": "Blade livewire/dashboard/laporan-engine-room.blade.php merender sebaran dengan nilai run, standby, off",
+          "expect": "Label berasal dari App\\Support\\Display::option() dan berbunyi Run / Standby / Off; blade tidak memuat peta label sendiri dan tidak menerjemahkannya ke Bahasa Indonesia"
+        },
+        {
+          "description": "jalur sukses: seluruh prasyarat terpenuhi mengembalikan payload lengkap",
+          "given": "Supervisor mill A dengan period_id dan production_line_id sah; periode memuat pembacaan pada dua unit, kedua status, kedua kolom teks, dan kolom ekspor energi",
+          "expect": "Mengembalikan payload berisi kelengkapan pencatatan, 23 kunci metrik berpenyebut masing-masing, dua sebaran status lengkap dengan not_recorded, seri harian ekspor energi nilai terakhir, tren beban total rata-rata, dua daftar teks terpisah, rekap per unit, dan rekap harian — tanpa kunci downtime, tanpa kunci ambang batas, dan tanpa rata-rata periode untuk daily_energy_export_kwh"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "engine-room-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "engine-room-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Pintu masuk satu-satunya. Tile Engine Room baru menyala setelah StationReportService::REPORT_ROUTES ditambah entri 'engine-room'. Entri itu harus diselipkan ANTARA Depricarping dan StorageTank, bukan di-append: station_types.sort_order menaruh engine-room di 120, di belakang depricarping (110) dan di depan storage-tank (140), dan urutan map itu load-bearing — ada asersi toBe() berurutan atas array_keys(REPORT_ROUTES) di berkas test stasiun sekitarnya, dan asersi itu MEMANG dirancang gagal saat peta berubah. Kuncinya BERTANDA HUBUNG ('engine-room')"
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan yang mencakup Engine Room, layar ini tidak punya apa pun untuk ditampilkan"
+    },
+    {
+      "screen_id": "screen-142--detail-periode-pelaporan",
+      "reason": "Status Engine Room pada sebuah periode — yang ditampilkan sebagai badge di layar ini — ditetapkan di sana"
+    },
+    {
+      "screen_id": "screen-077--form-engine-room",
+      "reason": "Sumber data: record, slot waktu, dan ke-27 kolom pembacaan yang dibaca laporan ini diinput di sana (mobile), termasuk kisi 24 slot kanonis"
+    },
+    {
+      "screen_id": "screen-117--form-engine-room-web",
+      "reason": "Sumber data versi web, dengan kisi slot dan aturan kolom yang sama"
+    },
+    {
+      "screen_id": "screen-107--detail-engine-room-web",
+      "reason": "Acuan label: judul kolom ekspor dan label nilai status mengikuti layar Detail ini, dan keduanya bersandar pada Display::OPTION_LABELS yang sama"
+    },
+    {
+      "screen_id": "screen-159--laporan-engine-room-mobile",
+      "reason": "Kembaran mobile yang dibangun dalam seri yang SAMA. Karena itu Operator diterima pada ketiga rute data sejak commit pertama, dan tidak ada riak pelebaran akses yang perlu dikerjakan belakangan"
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Kembaran mobile layar ini akan memakai ulang GET /api/production-lines/options-for-report yang dibangun untuk layar itu, verbatim"
+    }
+  ],
+  "implementation_notes": [
+    "Berkas yang disentuh mengikuti pola dua belas laporan sebelumnya: app/Services/EngineRoomReportService.php, app/Http/Controllers/Api/EngineRoomReportController.php, app/Livewire/Dashboard/LaporanEngineRoom.php, resources/views/livewire/dashboard/laporan-engine-room.blade.php, resources/views/dashboard/laporan-engine-room.blade.php, routes/api.php, routes/web.php, dan SATU BARIS di app/Services/StationReportService.php.",
+    "Satu baris REPORT_ROUTES itu menentukan layar ini dapat dicapai atau tidak. Posisinya ANTARA Depricarping (110) dan StorageTank (140) karena engine-room sort_order 120, bukan di-append. Asersi tetangga di berkas test stasiun sekitarnya kemungkinan gagal setelahnya, dan itu MEMANG dirancang — jalankan `grep -rn \"at - 1\\]\" backend/tests` untuk menemukannya sebelum menyalahkan kode.",
+    "Middleware rute API: role:supervisor,mill_management,admin,operator SEJAK COMMIT PERTAMA (berbeda dari screen-156 yang sengaja menundanya). Tetapi businessUnitOptions() HARUS tetap melempar AuthorizationException untuk non-Admin, dan penjagaan itu ada di dalam service justru karena middleware di sini menerima empat peran.",
+    "Operator WAJIB ditempatkan pada cabang terikat-mill resolveBusinessUnit(), bukan hanya di daftar peran. Lihat business_logic langkah 3. Ada kasus unit khusus untuk menangkapnya, dan satu kasus pembanding yang membuktikan cabang Admin tidak berubah.",
+    "`EngineRoomRecordService::READING_FIELDS` dan `isRowFilled()` masih `protected` — keduanya perlu dibuka ke `public`, sama seperti yang dilakukan pada EffluentPlantRecordService. Empat sibling (BoilerRoom, KernelPlant, Clarification, StorageTank) sudah public untuk alasan yang sama: laporan MEMINJAM definisi 27 kolom, tidak menulis ulangnya. Menulis ulang adalah cara laporan dan formulir mulai berbeda pendapat tentang apa yang tercatat.",
+    "Markup kartu metrik ditulis SEKALI dan di-loop atas `metrics` yang dikelompokkan menurut field `group` dari respons — bukan atas daftar nama kolom yang dipaku di blade. 23 kartu yang ditulis manual adalah 23 kesempatan kehilangan penyebut, dan kolom baru dari migrasi kelak masuk ke blok yang benar tanpa menyunting blade.",
+    "`daily_energy_export` adalah bagian yang paling mudah salah diimplementasikan. Ia TIDAK boleh masuk `metrics`, dan 'nilai terakhir hari itu' harus diambil dari POSISI slot pada canonicalTimeSlots() — bukan dari perbandingan string jam, karena kisi dimulai 07:00 dan berakhir 06:00 keesokan hari sehingga 06:00 adalah slot paling AKHIR. Mengurutkan secara leksikal akan memilih 06:00 sebagai paling awal dan hasilnya akan terlihat masuk akal.",
+    "Partial ber-<style> laporan ini WAJIB ditaruh di slot `styles` layout, bukan di tengah markup — menaruhnya di tengah markup pernah membuat wire:id menempel pada elemen <style> dan mematikan SELURUH wire:model di screen-140.",
+    "Rekap harian dan rekap per unit membawa 23 kolom rata-rata — tabel rekap terlebar di laporan web mana pun. Keduanya harus menggulir mendatar DI DALAM kartunya sendiri; halaman tidak boleh menggulir mendatar. Periksa pada hasil render, bukan pada sumbernya.",
+    "Label nilai status DIDELEGASIKAN ke \\App\\Support\\Display::option(), jangan menyalin peta ke blade. Pemetaan ekspor: kolom 'Status' konteks pakai ExportValue::status() (status RECORD), kedua kolom status genset pakai ExportValue::option(). Kedua pemeta bernama mirip dan menukarnya menghasilkan label yang tampak benar sampai dibandingkan dengan layar Detail.",
+    "Ekspor memakai App\\Support\\SheetWriter untuk xlsx sungguhan; EXPORT_ROW_LIMIT 50.000 diperiksa atas BARIS SLOT, bukan record — rasionya 1:24.",
+    "Spec browser mengikuti konvensi laporan terbaru: TIDAK menanam data laporannya sendiri dan TIDAK memaku satu angka pun. Memakai e2e-web/tests/support/period-fixture.ts dan mengasersi INVARIAN yang dihitung dari DOM. Asersi atas label pendek seperti 'Run' atau 'Off' WAJIB menargetkan baris lewat data-status-value, bukan memindai teks seluruh kartu — dua sampai tiga huruf akan cocok di dalam kata lain dan asersinya hijau tanpa membuktikan apa pun. Pelajaran ini sudah dibayar dua kali: toContainText('On') di screen-156 dan not.toContainText('78') di screen-157.",
+    "Invarian yang hanya browser dapat membuktikan: tile Engine Room pada screen-140 menyala dan mendarat di layar ini; halaman hidup (wire:model memicu putaran); blok kelengkapan DI ATAS seluruh kartu metrik diukur dari posisi viewport; kedua puluh tiga kartu mencetak penyebutnya SENDIRI (penyebut yang SAMA pada 23 kartu adalah cacat yang dicari); nol ELEMEN berkelas penanda di luar batas; tidak ada bagian downtime; kedua sebaran status menjumlah ke slot tercatat dan baris bernilai 0 tetap terender; seri ekspor energi menampilkan time_slot asal nilainya; rekap harian dapat ditutup tanpa mengubah angka; halaman tidak menggulir mendatar walau rekapnya 23 kolom.",
+    "SQLite vs PostgreSQL: seluruh agregasi di PHP (business_logic langkah 8). Dengan 23 kolom nullable, inilah laporan dengan permukaan risiko terbesar untuk perbedaan perilaku agregat SQL atas NULL.",
+    "KOREKSI ARTEFAK 2026-10-15, sesudah implementasi. Tiga butir pada spec ini SALAH saat ditulis dan sudah diperbaiki di tempatnya; dicatat di sini supaya koreksinya tidak hilang. (a) Satu unit case menyebut '23 kunci metrik' sementara `success_schema.metrics._note` dan business_logic langkah 12 dan 14 menyebut 22 — yang benar 22, karena `daily_energy_export_kwh` punya kuncinya sendiri. (b) Empat fixture (unit case 44, 45, 47 dan test_scenarios butir 15) memakai slot 06:00 lalu mengharapkan nilai dari jam terbesar secara LEKSIKAL — itu bertentangan dengan aturan layar ini sendiri, sebab 06:00 berada di POSISI KANONIS 23 alias paling akhir. Fixture-nya diganti ke 07:00/12:00/18:00 dan satu kasus jebakan 06:00 eksplisit ditambahkan. BUTIR (b) PENTING MELEBIHI PEMBUKUAN: siapa pun yang membangun ulang layar ini dari spec versi lama akan MENGEMBALIKAN cacat yang sudah ditemukan dan diperbaiki, dan menyalin fixture lamanya justru akan mendorong 'perbaikan' ke arah pengurutan leksikal.",
+    "HOOK `data-*` PADA `test_scenarios` BERSIFAT ILUSTRATIF, BUKAN KONTRAK. Scenario component_test dan browser_test menyebut nama seperti `[data-coverage]`, `[data-status-dist]`, `[data-filled-slots]`, `[data-metric-count]`, `[data-export-csv]` dan `[data-status-count]`; sebagian di antaranya tidak pernah dirender, dan mock HTML yang disetujui tidak memuat satu pun atribut `data-*`. Yang berlaku adalah hook yang benar-benar dirender blade. Khususnya `data-status-count` TIDAK ADA — jumlah per nilai berada di `<td>` kedua di dalam baris `[data-status-value]` dan dibaca lewat penolong yang dibatasi ke `td` itu (PHP) serta `td:nth-child(2)` (Playwright). Aturan yang TETAP mengikat: asersi label pendek wajib menyasar elemennya, bukan memindai substring kontainer — apa pun nama hook-nya."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "line-001",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen sebagai Supervisor mill A, pilih Production Line line-001, lalu pilih periode pertama",
+        "assert": "Pemilih Mill tidak dirender dan nama mill akun tampil sebagai keterangan; blok kelengkapan [data-coverage] muncul sebelum elemen metrik pertama di urutan DOM; enam [data-metric-block] memuat total 23 [data-metric] yang masing-masing punya [data-metric-count]; [data-genset-note='1'] dan [data-genset-note='2'] terlihat; dua [data-status-dist] masing-masing memuat [data-status-value='run'], ='standby', ='off', dan [data-status-not-recorded]; [data-energy-series], [data-load-trend], [data-remark-list], [data-findings-list], [data-unit-recap], dan [data-daily-recap] ada; [data-export-csv] dan [data-export-excel] terlihat"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Masuk sebagai Supervisor mill A, buka /reports/engine-room, pilih Production Line pada [data-line-picker], lalu pilih periode pada [data-period-picker], tunggu [data-coverage-percent] terisi",
+        "assert": "Blok kelengkapan berada di atas kartu metrik pertama secara visual; 23 kartu [data-metric] terlihat dengan angka dan jumlah pembacaannya; sebaran [data-status-dist='diesel_gen_1_status'] menampilkan tiga baris nilai dan satu baris tidak tercatat; kedua tombol ekspor aktif; tidak ada permintaan tulis (POST/PUT/PATCH/DELETE) yang terkirim sepanjang sesi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — berhasil sebagai Admin",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}",
+            "period_id": "{{step2.data[0].id}}",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/export"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}",
+            "period_id": "{{step2.data[0].id}}",
+            "production_line_id": "line-001",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen sebagai Admin, pilih mill pada [data-mill-picker], pilih Production Line, lalu pilih periode",
+        "assert": "Pemilih Mill dirender; daftar periode hanya memuat periode milik mill yang dipilih; isi laporan identik dengan peran terikat mill — 23 [data-metric], dua [data-status-dist], [data-energy-series], dan kedua rekap teks ada; tidak ada aksi tulis yang tersedia"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Masuk sebagai Admin, buka /reports/engine-room, pilih mill, pilih Production Line, lalu pilih periode",
+        "assert": "Laporan tampil lengkap untuk mill dan line yang dipilih dengan isi yang sama seperti peran terikat mill; nama mill terpilih tampil di hero bersama nama Production Line"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen sebagai Admin tanpa memilih mill apa pun",
+        "assert": "[data-mill-picker] dirender beserta arahan memilih mill terlebih dahulu; tidak ada satu pun [data-metric], [data-status-dist], maupun [data-coverage-percent] di DOM; tombol ekspor tidak dirender"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Masuk sebagai Admin dan buka /reports/engine-room tanpa memilih mill",
+        "assert": "Pemilih Mill dan arahan memilih mill terlihat; tidak ada angka laporan yang terlihat di halaman dan tidak ada permintaan ke /summary yang terkirim"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — Production Line belum dipilih",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan mill sudah ditetapkan tetapi production_line_id null, lalu ganti periode, lalu panggil aksi coba lagi",
+        "assert": "Pada ketiga keadaan itu tidak ada [data-metric], [data-coverage-percent], [data-status-dist], maupun [data-energy-series] di DOM; tidak ada angka seluruh mill yang dirender sebagai pengganti; [data-export-csv] dan [data-export-excel] tidak dirender; arahan memilih line terlihat; service summary tidak pernah dipanggil karena penjagaan ada di fungsi pemuatan"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Masuk sebagai Supervisor, buka /reports/engine-room, biarkan Production Line kosong, lalu ganti periode dan tekan tombol coba lagi",
+        "assert": "Pada ketiga percobaan halaman tetap tanpa satu angka laporan; kedua tombol ekspor tidak terlihat; arahan memilih Production Line terlihat sepanjang ketiga percobaan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — Admin mengganti mill mengosongkan periode dan line",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "bu-002"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen sebagai Admin dengan mill A, Production Line, dan periode terpilih sehingga laporan tampil, lalu set properti mill ke mill B",
+        "assert": "Properti period_id dan production_line_id menjadi null sesudah mill diganti; tidak ada [data-metric] maupun [data-coverage-percent] yang dirender; daftar periode dimuat ulang untuk mill B dan tidak memuat periode mill A; layar menampilkan arahan memilih line dan periode baru"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Sebagai Admin, tampilkan laporan untuk mill A lalu ubah pemilih Mill ke mill B",
+        "assert": "[data-period-picker] dan [data-line-picker] kembali ke keadaan belum terpilih; tidak ada laporan mill B yang terisi diam-diam dan tidak ada pesan galat tentang periode yang tidak cocok"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — mill belum punya periode",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen untuk mill yang tidak punya satu pun periode mencakup Engine Room, lalu buka pemilih periode",
+        "assert": "[data-period-picker] tidak memuat satu pun option data; arahan menghubungi Admin terlihat; tidak ada [data-metric] maupun [data-coverage-percent] di DOM"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Masuk sebagai Supervisor pada mill tanpa periode Engine Room dan buka /reports/engine-room, lalu klik pemilih periode",
+        "assert": "Pemilih periode terlihat kosong, arahan menghubungi Admin terlihat, dan tidak ada angka laporan di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — periode tanpa data",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-empty-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode yang tidak memuat satu pun pembacaan",
+        "assert": "Kedua puluh tiga [data-metric] dirender dengan penanda tidak tersedia pada [data-metric-avg] dan [data-metric-count] bernilai 0 — bukan angka 0 pada nilainya; [data-coverage] tetap dirender; keterangan belum ada data terlihat; [data-energy-series] dan [data-load-trend] tidak menggambar titik nol"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih Production Line lalu pilih periode yang belum memuat pembacaan",
+        "assert": "Blok kelengkapan tetap terlihat; seluruh kartu metrik menampilkan tidak tersedia, bukan 0; tidak ada grafik kosong yang terlihat seperti garis nol"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — sebuah metrik tidak pernah diisi",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode yang mengisi 22 kolom ukur sementara electrical_sync_power_factor kosong sepanjang periode",
+        "assert": "[data-metric='electrical_sync_power_factor'] tetap dirender dengan penanda tidak tersedia dan [data-metric-count] bernilai 0; 22 [data-metric] lain menampilkan angka beserta jumlah pembacaannya masing-masing yang berbeda satu sama lain"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu telusuri keenam blok metrik",
+        "assert": "Kartu power factor terlihat dengan keterangan tidak tersedia dan jumlah pembacaan 0; kartu lain terlihat normal; kartu kosong tidak hilang dari blok Kelistrikan Tersinkron"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — satu genset tidak pernah menyala",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan Genset 1 terisi sepanjang periode dan seluruh kolom diesel_gen_2_* kosong",
+        "assert": "Keempat [data-metric] berawalan diesel_gen_2_ menampilkan tidak tersedia dengan [data-metric-count] 0; pada [data-status-dist='diesel_gen_2_status'], [data-status-value='off'] dan/atau [data-status-not-recorded] memuat seluruh slot sementara [data-status-value='run'] bernilai 0; tidak ada elemen bertanda galat atau peringatan yang dirender"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu bandingkan blok Genset 1 dan Genset 2 beserta kedua sebarannya",
+        "assert": "Keempat kartu Genset 2 terlihat dengan penyebut nol; sebaran Genset 2 menunjukkan seluruh slot pada baris Off atau baris tidak tercatat (dibaca dari [data-status-count] di dalam barisnya); tidak ada ikon atau warna galat di blok Genset 2"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — kedua genset terisi dengan angka sangat berbeda",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan diesel_gen_1_load_kw rata-rata 800 kW dan diesel_gen_2_load_kw rata-rata 40 kW",
+        "assert": "[data-metric='diesel_gen_1_load_kw'] menampilkan 800 dan [data-metric='diesel_gen_2_load_kw'] menampilkan 40 sebagai dua kartu terpisah; tidak ada elemen bertanda rata-rata gabungan genset, selisih, atau penyimpangan di DOM; [data-genset-note='1'] dan [data-genset-note='2'] memuat keterangan mesin fisik berbeda tanpa menyebut standar bersama"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu baca kedua blok genset",
+        "assert": "Delapan kartu genset terlihat terpisah dengan angka masing-masing; tidak ada kartu gabungan, badge selisih, maupun penanda penyimpangan; keterangan kesejajaran fisik terlihat pada kedua blok"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — satu slot hanya mengisi kolom teks bebas",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode yang memuat lima slot hanya berisi kolom teks bebas dan dua slot berisi kolom ukur",
+        "assert": "[data-filled-slots] bernilai 7 sementara nilai terbesar di antara seluruh [data-metric-count] bernilai 2; keterangan bahwa slot terisi dihitung atas dua puluh tujuh kolom termasuk kedua kolom teks dirender dan tidak diringkas"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu bandingkan jumlah slot terisi pada blok kelengkapan dengan jumlah pembacaan tiap kartu metrik",
+        "assert": "Jumlah slot terisi terlihat lebih besar daripada setiap jumlah pembacaan kartu; keterangan sebabnya terlihat di blok kelengkapan, bukan sebagai catatan kaki tersembunyi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — seluruh slot tidak mencatat status genset",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan 18 slot terisi yang tidak satu pun mencatat diesel_gen_1_status",
+        "assert": "Di dalam [data-status-dist='diesel_gen_1_status']: [data-status-value='run'] [data-status-count] = 0, ='standby' = 0, ='off' = 0, dan [data-status-not-recorded] [data-status-count] = 18; ketiga baris nilai tetap dirender dan tak satu pun slot dilipat ke run/standby/off"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu baca sebaran status Genset 1",
+        "assert": "Tiga baris nilai terlihat dengan jumlah nol masing-masing (dibaca dari [data-status-count] di dalam [data-status-value] yang bersangkutan) dan baris tidak tercatat memuat 18; keterangan bahwa Standby bukan Off tetap terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — nilai status dikenal tidak pernah muncul",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan diesel_gen_1_status hanya bernilai run dan off sepanjang periode",
+        "assert": "[data-status-dist='diesel_gen_1_status'] [data-status-value='standby'] tetap ada di DOM dengan [data-status-count] bernilai 0; ia tidak hilang dari sebaran, sehingga 'tidak pernah siaga' terbaca berbeda dari 'tidak dilaporkan' yang muncul pada [data-status-not-recorded]"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu baca sebaran status Genset 1",
+        "assert": "Baris Standby terlihat dengan jumlah 0 pada [data-status-count] di dalam barisnya sendiri, terpisah dari baris tidak tercatat yang punya jumlah berbeda"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — ekspor energi harian tidak pernah diisi",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode yang terisi namun daily_energy_export_kwh null pada seluruh record",
+        "assert": "[data-energy-series-empty] dirender dengan keterangan tidak ada data; tidak ada satu pun [data-energy-date] bernilai 0 dan tidak ada garis yang digambar"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu baca bagian seri harian ekspor energi",
+        "assert": "Keterangan tidak ada data terlihat di tempat seri; tidak ada garis atau titik nol yang terlihat seperti hasil pengukuran"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — ekspor energi harian turun di dalam satu hari",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan tanggal 2026-03-07 memuat slot 07:00 bernilai 900 lalu slot 12:00 bernilai 300 sebagai slot terisi dengan posisi kanonis terbesar",
+        "assert": "[data-energy-date='2026-03-07'] menampilkan 300 apa adanya; tidak ada elemen bertanda anomali, galat, atau koreksi; keterangan ketidakpastian semantik kolom ini tetap dirender di dekat seri"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu baca titik seri untuk tanggal 2026-03-07",
+        "assert": "Nilai 300 terlihat tanpa ikon peringatan atau label pelanggaran; keterangan mengapa kolom ini tidak dirata-ratakan terlihat utuh"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — satu slot mengisi catatan perawatan dan temuan sekaligus",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan satu slot yang mengisi action_taken_maintenance_remark dan findings sekaligus",
+        "assert": "[data-remark-list] memuat satu entri untuk slot itu dan [data-findings-list] juga memuat satu entri untuk slot yang sama, masing-masing dengan tanggal dan slot waktunya; tidak ada daftar gabungan di DOM dan jumlah slot terisi tidak bertambah dua"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu baca Rekap Catatan Tindakan Perawatan lalu Rekap Temuan",
+        "assert": "Slot yang sama terlihat di kedua rekap yang berjudul terpisah; tidak ada satu tabel gabungan yang menampilkan slot itu dua kali"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — kedua kolom teks bebas kosong",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode yang tidak memuat satu pun catatan perawatan maupun temuan",
+        "assert": "[data-remark-list] dan [data-findings-list] masing-masing dirender dengan keterangan tidak ada catatan; keduanya tetap punya judul terpisah dan tidak ada tabel kosong tanpa penjelasan"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu baca kedua rekap teks bebas",
+        "assert": "Dua bagian berjudul terpisah terlihat, masing-masing dengan keterangan tidak ada catatan; tidak ada header tabel yang berdiri sendiri tanpa baris"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — line punya beberapa unit Engine Room",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan line yang punya dua unit Engine Room, salah satunya tanpa pembacaan, lalu buka rekap per unit",
+        "assert": "Angka periode pada [data-metric] menggabungkan kedua unit; [data-unit-recap] memuat dua baris ber-[data-engine-room-id]; baris unit tanpa pembacaan memuat jumlah slot terisi 0 dan rata-rata tidak tersedia, bukan dihilangkan dari tabel"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu buka rekap per unit",
+        "assert": "Dua baris unit terlihat; baris unit yang tidak mencatat apa pun terlihat dengan jumlah pembacaan nol; angka periode di atas tetap mencerminkan gabungan kedua unit"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — pencatatan sangat tidak lengkap",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode yang hanya terisi pada sebagian kecil slot (mis. 12 dari 720)",
+        "assert": "[data-coverage-percent] menampilkan persentase rendah dan elemennya muncul sebelum [data-metric] pertama di urutan DOM; angka metrik tetap dirender beserta [data-metric-count] kecilnya masing-masing"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode yang sangat tidak lengkap",
+        "assert": "Blok kelengkapan terlihat menonjol di atas seluruh angka lain; angka metrik tetap terlihat dengan jumlah pembacaan kecil di sebelahnya sehingga pembaca tahu angkanya bersandar pada sedikit pembacaan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — periode masih berjalan",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-running-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode 1–30 bulan ini sementara hari ini tanggal 10 dan hari-hari yang lewat terisi penuh",
+        "assert": "[data-expected-slots] dihitung dari 10 hari, bukan 30; [data-coverage-percent] mendekati 100 dan tidak turun akibat hari yang belum terjadi; [data-coverage-note] memuat rumus '× N hari (sampai hari ini)'"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode yang masih berjalan lalu baca blok kelengkapan",
+        "assert": "Persentase kelengkapan tinggi terlihat beserta keterangan bahwa perhitungan berhenti di hari ini dan jumlah hari periode yang sudah lewat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — tidak ada slot yang diharapkan",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-future-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode yang belum mulai, atau line tanpa satu pun unit Engine Room, sehingga expected_slots 0",
+        "assert": "[data-coverage-percent] merender tanda hubung '—' dan bukan teks '0,0%'; [data-coverage-note] menyatakan belum ada slot yang diharapkan"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode yang belum mulai lalu baca blok kelengkapan",
+        "assert": "Tanda hubung terlihat di tempat persentase beserta keterangan belum ada slot yang diharapkan; angka 0,0% tidak terlihat di blok kelengkapan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen sebagai Supervisor dengan users.business_unit_id null",
+        "assert": "Pesan menghubungi Admin dirender; [data-mill-picker] TIDAK dirender sehingga daftar seluruh mill tidak ditawarkan; tidak ada [data-metric] maupun [data-coverage-percent] di DOM"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Masuk sebagai Supervisor yang akunnya belum terhubung ke mill lalu buka /reports/engine-room",
+        "assert": "Pesan menghubungi Admin terlihat; tidak ada pemilih Mill dan tidak ada angka laporan di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — mencoba melihat mill lain",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "bu-002",
+            "period_id": "period-bu-001-a",
+            "production_line_id": "line-bu-001-a"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-bu-002-a",
+            "production_line_id": "line-bu-001-a"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen sebagai Supervisor mill A lalu paksa properti mill ke mill B melalui pembaruan properti",
+        "assert": "Angka yang dirender tetap milik mill A; nama mill pada hero tetap mill A; tidak ada [data-metric] berisi angka mill B"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Sebagai Supervisor mill A, buka /reports/engine-room dan kirim ulang permintaan laporan dengan membawa business_unit_id mill B, lalu coba membuka periode milik mill B",
+        "assert": "Permintaan pertama tetap mengembalikan 200 dengan angka mill A di halaman; permintaan yang membawa periode mill B ditolak dan tidak ada angka mill B yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — mencoba melihat line mill lain",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-bu-001-a",
+            "production_line_id": "line-bu-002-a"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen sebagai Supervisor mill A lalu set production_line_id ke line milik mill B",
+        "assert": "Komponen menampilkan keadaan ditolak dan tidak merender satu pun [data-metric]; service tidak mengembalikan agregasi line mill B"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Sebagai Supervisor mill A, kirim permintaan laporan dengan production_line_id milik mill B",
+        "assert": "Permintaan ditolak dan halaman tidak menampilkan satu pun angka milik line mill B"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — Operator mencoba membuka layar web ini",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "line-001",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen sebagai pengguna berperan operator",
+        "assert": "mount() melempar 403 melalui abort_unless atas daftar supervisor|mill_management|admin miliknya sendiri; tidak ada bagian laporan yang dirender; penjagaan ini tidak meminjam guardAccess() yang memang menerima operator"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Masuk sebagai Station Operator lalu buka /reports/engine-room secara langsung",
+        "assert": "Halaman menolak akses (403) dan tidak ada satu pun angka laporan yang terlihat; sementara itu permintaan ke ketiga rute API data dari akun yang sama tetap berhasil karena jalur Operator ada di layar mobile screen-159"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — periode tertutup",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-closed-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-closed-001",
+            "production_line_id": "line-001",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode berstatus tertutup terpilih",
+        "assert": "Seluruh bagian laporan dirender penuh; badge status periode menampilkan status tertutup pada elemennya sendiri; [data-export-csv] dan [data-export-excel] tetap dirender dan tidak dinonaktifkan"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line lalu pilih periode berstatus tertutup dan klik Ekspor CSV",
+        "assert": "Laporan tampil penuh dengan badge status tertutup terlihat; unduhan CSV berhasil dimulai sehingga status periode terbukti tidak membatasi pembacaan maupun ekspor"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — rekap harian panjang",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-long-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode 31 hari lalu panggil aksi buka/tutup rekap harian dua kali",
+        "assert": "[data-daily-recap] berisi 31 baris tanggal plus satu baris total periode; aksi buka/tutup hanya mengubah penyingkapan tanpa memicu permintaan data baru; wrapper tabel punya kelas gulir mendatar yang terdefinisi di CSS hasil compile"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode panjang, buka rekap harian, gulir tabelnya mendatar sampai kolom rata-rata terakhir, lalu tutup rekap",
+        "assert": "Tabel rekap harian menggulir mendatar DI DALAM kartunya (scrollWidth wrapper > clientWidth) sementara document.scrollingElement tidak pernah punya gulir mendatar; sesudah ditutup, angka utama dan seri harian tetap terbaca tanpa gulir panjang; petunjuk 'Geser mendatar…' terlihat karena periode lebih dari 10 tanggal"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — layar hanya membaca",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode terisi lalu telusuri DOM-nya termasuk kedua sebaran status, kedua rekap teks, rekap per unit, dan rekap harian",
+        "assert": "Tidak ada elemen form, tombol simpan/ubah/hapus, maupun input yang dapat disunting di seluruh DOM; komponen tidak mengekspos satu pun metode publik yang menulis ke tabel engine_room_records"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Buka laporan, telusuri seluruh bagian termasuk membuka kedua rekap, lalu tutup halaman dan periksa data stasiun",
+        "assert": "Tidak ada tombol aksi tulis yang terlihat; tidak ada permintaan POST/PUT/PATCH/DELETE yang terkirim; jumlah dan isi record engine_room_records tidak berubah sesudah sesi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — daftar periode hanya yang mencakup Engine Room",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen untuk mill yang punya dua periode mencakup Engine Room dan tiga periode yang hanya mencakup stasiun lain, lalu buka pemilih periode",
+        "assert": "[data-period-picker] memuat tepat dua option; setiap entri membawa station_type 'engine-room'; ketiga periode stasiun lain tidak ada di DOM sehingga tidak dapat dipilih"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Buka /reports/engine-room pada mill tersebut dan buka pemilih periode",
+        "assert": "Hanya dua periode Engine Room terlihat sebagai pilihan; nama ketiga periode stasiun lain tidak muncul di pemilih"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — rentang periode inklusif di kedua ujung",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-inclusive-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-inclusive-001",
+            "production_line_id": "line-001",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode 2026-03-01..2026-03-31 yang memuat pembacaan tepat pada kedua tanggal ujung, ditambah record pada 2026-02-28 dan 2026-04-01",
+        "assert": "[data-metric-count] mencakup kedua record ujung; [data-energy-date='2026-03-01'] dan [data-energy-date='2026-03-31'] ada; [data-daily-recap] memuat baris untuk kedua tanggal ujung; kedua [data-status-dist] menghitung slot ujung; record 2026-02-28 dan 2026-04-01 tidak muncul di mana pun"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut, periksa seri harian dan rekap harian, lalu unduh CSV dan buka isinya",
+        "assert": "Baris untuk tanggal mulai dan tanggal akhir terlihat di rekap harian dan ada di berkas CSV; tanggal sehari sebelum mulai dan sehari sesudah akhir tidak muncul di halaman maupun di CSV"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — setiap metrik punya penyebutnya sendiri",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode di mana sebagian slot hanya mengisi kolom turbin uap sementara kolom genset dan kelistrikan dikosongkan",
+        "assert": "Nilai [data-metric-count] berbeda-beda antar [data-metric] dan setiap [data-metric-avg] setara rata-rata baris non-null metrik itu sendiri; tidak ada satu penyebut bersama; metrik yang jarang diisi tidak mengempis ke arah nol"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu bandingkan jumlah pembacaan antara kartu turbin uap dan kartu genset",
+        "assert": "Kartu turbin uap menampilkan jumlah pembacaan jauh lebih besar daripada kartu genset, dan rata-rata genset tidak terlihat mengempis akibat baris yang kosong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — jumlah pembacaan ditampilkan berdampingan dengan angkanya",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan satu metrik bersandar pada 3 pembacaan dan metrik lain pada 300 pembacaan",
+        "assert": "Setiap dari 23 [data-metric] memuat [data-metric-count] di dalam kartunya sendiri, berdampingan dengan [data-metric-avg]; tidak ada kartu yang menampilkan angka tanpa jumlah pembacaannya"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu periksa setiap kartu metrik",
+        "assert": "Jumlah pembacaan terlihat di sebelah angka pada kedua puluh tiga kartu; kartu dengan 3 pembacaan tidak tampil sama meyakinkan dengan kartu berisi 300 pembacaan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — tidak ada penandaan nilai di luar batas",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan frekuensi sistem 43 Hz, power factor 0.35, dan tegangan busbar 310 V yang jauh dari nominal",
+        "assert": "Tidak ada elemen bertanda peringatan, pelanggaran, atau di luar batas pada [data-metric] mana pun, pada [data-load-trend], [data-unit-recap], maupun [data-daily-recap]; [data-no-threshold-note] dirender UTUH tanpa diringkas dan menyebut ketiadaan master target serta risiko menurunkan ambang dari data periode"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode tersebut lalu telusuri kedua puluh tiga kartu, seri harian, rekap per unit, dan rekap harian",
+        "assert": "Tidak ada warna peringatan, ikon, maupun label pelanggaran yang terlihat di mana pun; keterangan ketiadaan penandaan terlihat utuh dan tidak terpotong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — laporan tidak memuat blok downtime",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan periode yang memuat pembacaan lengkap lalu telusuri seluruh DOM",
+        "assert": "Tidak ada elemen, kartu, maupun judul bagian downtime; header CSV pada langkah ekspor tidak memuat kolom downtime; [data-no-downtime-note] dirender menyatakan ketiadaan itu secara sengaja"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Buka laporan dari atas sampai bawah lalu unduh CSV dan periksa header kolomnya",
+        "assert": "Tidak ada bagian downtime di halaman dan tidak ada kolom downtime di CSV; keterangan bahwa stasiun ini tidak mencatat downtime terlihat sehingga tidak terbaca sebagai bagian yang gagal dimuat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Engine Room (Web) — ekspor Excel .xlsx sungguhan dengan label status yang sama seperti layar Detail",
+      "usecase_id": "usecase-164--laporan-engine-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001",
+            "format": "excel"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/engine-room-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-001",
+            "production_line_id": "line-001",
+            "format": "pdf"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanEngineRoom",
+        "action": "Render komponen dengan line dan periode terpilih lalu panggil aksi ekspor Excel dan ekspor CSV",
+        "assert": "Kedua tombol terkunci sesaat selama berkas disiapkan dan tombol yang diklik menampilkan 'Mengekspor…'; respons Excel memakai mime type xlsx dan ditulis App\\Support\\SheetWriter; label status pada kedua berkas berasal dari ExportValue::option()"
+      },
+      "browser_test": {
+        "route": "/reports/engine-room",
+        "action": "Pilih line dan periode, unduh berkas Excel lalu berkas CSV, buka keduanya dan bandingkan baris untuk slot yang mencatat diesel_gen_1_status='standby' dan diesel_gen_2_status kosong",
+        "assert": "Berkas Excel terbuka tanpa peringatan format (zip xlsx sungguhan, bukan CSV berganti nama); kedua berkas punya header kolom yang sama dengan satu baris per slot waktu, kolom Periode/Mill/Production Line diulang, dan 27 kolom pembacaan; sel status bernilai tepat 'Standby' pada kolom Genset 1 dan kosong pada kolom Genset 2; slot waktu berformat HH:MM; tidak ada label Bahasa Indonesia untuk nilai status"
+      }
+    }
+  ]
+}

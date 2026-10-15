@@ -146,6 +146,18 @@ class StationReportService
         // Without this one line the report exists, every one of its own tests
         // passes, and the tile stays greyed out.
         StationTypeEnum::Depricarping->value => 'reports.depricarping',
+        // screen-158--laporan-engine-room-web. BETWEEN depricarping and
+        // storage-tank, and NOT appended: station_types.sort_order puts
+        // engine-room at 120 — behind depricarping (110), ahead of
+        // storage-tank (140) — and the ordering of this map is load-bearing,
+        // see the note below. Verified against the station_types table, not
+        // inferred from the enum's declaration order (where engine-room sits
+        // fourteenth). Note the key is 'engine-room' WITH A HYPHEN, which is
+        // what StationTypeEnum::EngineRoom->value holds; a snake_case key
+        // would compile, look right, and never match a master row. Without
+        // this one line the report exists, every one of its own tests passes,
+        // and the tile stays greyed out.
+        StationTypeEnum::EngineRoom->value => 'reports.engine-room',
         StationTypeEnum::StorageTank->value => 'reports.storage-tank',
     ];
 

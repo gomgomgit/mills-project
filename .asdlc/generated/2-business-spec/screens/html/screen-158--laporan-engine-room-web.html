@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Engine Room (Web) | Mills Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* ============================================================================
+       Kosakata `md-*` bersama — SALINAN STRUKTURAL dari
+       backend/resources/views/dashboard/partials/report-styles.blade.php, kosakata
+       yang sama dipakai Daily Mill Report (screen-025) dan dua belas laporan
+       periode yang sudah ada. Acuan terdekat berkas ini adalah
+       screen-156--laporan-effluent-plant-web.html.
+
+       Mock ini tidak bisa meng-@include partial Blade, jadi kelas yang dipakai
+       disalin ke sini. Bedanya HANYA satu: seluruh nilai warna di partial itu di
+       sini diambil dari design-tokens.css lewat variabel — tidak ada satu pun
+       literal warna, radius, atau shadow di berkas ini.
+
+       TIDAK ADA kosakata baru yang dikarang. Seluruh kelas yang dipakai markup di
+       bawah sudah ada di partial: md, md-hero*, md-chip*, md-filters*, md-field*,
+       md-btn*, md-pill, md-kpis / --2 / --3 / --4, md-kpi*, md-bar / --lg,
+       md-row / --2 / --2-1, md-card*, md-budget*, md-trendchart* / --days,
+       md-legend*, md-threshold, md-notes*, md-details, md-recap, md-table,
+       md-scrollhint, is-muted. Tambahannya hanya TIGA aturan ber-tanda 'TAMBAHAN' di bawah, masing-masing
+       dengan alasannya: dua aturan TATA LETAK murni dan satu aturan TIPOGRAFI
+       murni. Tidak satu pun membawa nilai warna, radius, atau shadow baru.
+
+       CATATAN PENTING soal warna: laporan Engine Room sengaja TIDAK memuat kelas
+       penanda ambang sama sekali — tidak ada modifier kolom grafik, penanda sel
+       tabel, maupun variabel warna bernuansa peringatan. Stasiun ini tidak punya
+       master target, dan frekuensi sistem, power factor, serta tegangan busbar
+       punya batas yang dikenal luas DI LUAR aplikasi ini. Tidak satu pun nilai di
+       layar ini boleh terlihat "aman" atau "bahaya".
+       ============================================================================ */
+
+    .md {
+      --md-brand: var(--color-brand);
+      --md-brand-dark: var(--color-brand-hover);
+      --md-brand-soft: color-mix(in srgb, var(--color-brand) 12%, var(--color-background));
+      --md-ink: var(--color-text-primary);
+      --md-muted: var(--color-text-muted);
+      --md-line: var(--color-border);
+      --md-card: var(--color-background);
+      --md-soft: color-mix(in srgb, var(--color-surface) 70%, var(--color-background));
+      --md-track: color-mix(in srgb, var(--color-brand) 8%, var(--color-surface));
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+      margin-bottom: var(--space-xl);
+      min-width: 0;
+      color: var(--md-ink);
+    }
+    /* TAMBAHAN 3 — aturan TIPOGRAFI murni (tanpa satu pun nilai warna/radius/shadow).
+       Di partial, `.md small` hanya mengatur bobot dan warna, sehingga ukurannya
+       jatuh ke bawaan peramban (0,8em) — di dalam kotak keterangan yang sudah
+       var(--font-size-xs) hasil compile-nya 10px, dan <code> di dalam <small>
+       9,2px. Ukuran itu di bawah lantai 12px yang dipakai seluruh teks terkecil
+       berkas ini, jadi keduanya dikunci ke token --font-size-xs. Diperiksa pada
+       HTML hasil compile, bukan pada sumbernya: sebelum aturan ini ada, audit
+       getComputedStyle menemukan 10px dan 9,2px (cacat yang sama masih ada di
+       screen-156 dan di report-styles.blade.php — dilaporkan terpisah). */
+    .md small { font-size: var(--font-size-xs); font-weight: 500; color: var(--md-muted); }
+    .md code { font-family: ui-monospace, monospace; font-size: inherit; }
+
+    /* ---------- md-hero ---------- */
+    .md-hero {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: var(--space-md);
+      padding: var(--space-lg) var(--space-xl);
+      border-radius: var(--radius-modal);
+      color: var(--color-background);
+      background:
+        radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--color-brand) 72%, var(--color-background)) 0%, transparent 55%),
+        linear-gradient(135deg, var(--color-brand-hover) 0%, var(--color-brand) 60%, color-mix(in srgb, var(--color-brand) 88%, var(--color-background)) 100%);
+    }
+    .md-hero::after {
+      content: '';
+      position: absolute;
+      right: calc(var(--space-2xl) * -1.25);
+      bottom: calc(var(--space-2xl) * -1.6);
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      border: var(--space-xl) solid color-mix(in srgb, var(--color-background) 7%, transparent);
+    }
+    .md-hero__main { position: relative; z-index: 1; min-width: 0; }
+    .md-hero__eyebrow {
+      margin: 0 0 var(--space-xs);
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      opacity: .85;
+    }
+    .md-hero__title { margin: 0; font-size: var(--font-size-h1); font-weight: var(--font-weight-h1); letter-spacing: -.01em; line-height: 1.2; }
+    .md-hero__subtitle { margin: var(--space-xs) 0 0; font-size: var(--font-size-sm); opacity: .85; }
+    .md-hero__meta { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+
+    /* ---------- md-chip ---------- */
+    .md-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: 7px var(--space-sm);
+      border-radius: var(--radius-chip);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+    }
+    .md-chip svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .md-chip--date {
+      background: color-mix(in srgb, var(--color-background) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--color-background) 28%, transparent);
+    }
+    .md-chip--status {
+      background: color-mix(in srgb, var(--color-background) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--color-background) 28%, transparent);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-size: var(--font-size-xs);
+    }
+
+    /* ---------- md-filters ---------- */
+    .md-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: var(--space-sm) var(--space-md);
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-modal);
+      padding: var(--space-md) var(--space-lg);
+      box-shadow: var(--shadow-card);
+    }
+    .md-field { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; flex: 1 1 240px; }
+    .md-field__label { font-size: var(--font-size-xs); font-weight: 600; color: var(--md-muted); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+    .md-field__control {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 9px var(--space-sm);
+      font: inherit;
+      font-size: var(--font-size-sm);
+      color: var(--md-ink);
+      background: var(--color-background);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-button);
+    }
+    .md-field__control:focus { outline: 2px solid var(--md-brand); outline-offset: 1px; border-color: var(--md-brand); }
+    .md-filters__actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-left: auto; }
+    .md-filters__hint { flex: 1 1 100%; margin: 0; font-size: var(--font-size-xs); line-height: 1.6; color: var(--md-muted); }
+    .md-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 9px var(--space-md);
+      border-radius: var(--radius-button);
+      border: 1px solid var(--md-line);
+      background: var(--color-background);
+      color: var(--md-ink);
+      font: inherit;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      min-height: var(--space-touch_target_min);
+    }
+    .md-btn svg { width: 16px; height: 16px; }
+    .md-btn:hover { border-color: var(--md-brand); color: var(--md-brand-dark); }
+    .md-btn--primary { background: var(--md-brand); border-color: var(--md-brand); color: var(--color-background); }
+    .md-btn--primary:hover { background: var(--md-brand-dark); border-color: var(--md-brand-dark); color: var(--color-background); }
+
+    /* ---------- md-pill ---------- */
+    .md-pill {
+      display: inline-block;
+      padding: 3px var(--space-sm);
+      border-radius: var(--radius-chip);
+      background: var(--md-brand-soft);
+      color: var(--md-brand-dark);
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    /* ---------- md-kpis ---------- */
+    .md-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+    .md-kpis--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .md-kpis--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .md-kpis--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .md-kpi {
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-card);
+      padding: var(--space-md);
+      box-shadow: var(--shadow-card);
+      transition: box-shadow .15s, transform .15s;
+      min-width: 0;
+    }
+    .md-kpi:hover { box-shadow: var(--shadow-dropdown); transform: translateY(-1px); }
+    .md-kpi__top { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); }
+    .md-kpi__label { font-size: var(--font-size-sm); font-weight: 600; color: var(--md-muted); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); min-width: 0; }
+    .md-kpi__icon {
+      display: grid;
+      place-items: center;
+      width: var(--space-xl);
+      height: var(--space-xl);
+      border-radius: var(--radius-button);
+      background: var(--md-brand-soft);
+      color: var(--md-brand);
+      flex-shrink: 0;
+    }
+    .md-kpi__icon svg { width: 18px; height: 18px; }
+    .md-kpi__value {
+      margin: var(--space-sm) 0 2px;
+      font-size: var(--font-size-h2);
+      font-weight: var(--font-weight-h1);
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+    }
+    .md-kpi__value span { font-size: var(--font-size-xs); font-weight: 600; color: var(--md-muted); }
+    .md-kpi__meta { margin: 0 0 var(--space-sm); font-size: var(--font-size-xs); color: var(--md-muted); font-variant-numeric: tabular-nums; }
+    .md-kpi__foot { margin: var(--space-xs) 0 0; font-size: var(--font-size-xs); line-height: 1.5; color: var(--md-muted); }
+
+    /* ---------- md-bar ---------- */
+    .md-bar { position: relative; height: var(--space-sm); border-radius: var(--radius-chip); background: var(--md-track); }
+    .md-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--color-brand) 82%, var(--color-background)), var(--color-brand));
+    }
+    .md-bar--lg { height: 12px; }
+
+    /* ---------- md-row / md-card ---------- */
+    .md-row { display: grid; gap: var(--space-lg); align-items: stretch; }
+    .md-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .md-row--2-1 { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+    .md-card {
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-modal);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-card);
+      min-width: 0;
+    }
+    .md-card__head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: var(--space-xs) var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+    .md-card__head h3 { margin: 0; font-size: var(--font-size-lg); font-weight: 700; }
+    .md-card__hint { font-size: var(--font-size-xs); color: var(--md-muted); }
+
+    /* ---------- md-budget (kartu kelengkapan pencatatan) ---------- */
+    .md-budget { display: flex; flex-direction: column; gap: var(--space-md); }
+    .md-budget__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'label pct' 'bar bar'; gap: 6px var(--space-sm); }
+    .md-budget__label { grid-area: label; display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-xs) var(--space-sm); font-size: var(--font-size-sm); font-weight: 600; }
+    .md-budget__nums { font-size: var(--font-size-sm); font-weight: 500; color: var(--md-muted); font-variant-numeric: tabular-nums; }
+    .md-budget__nums strong { color: var(--md-ink); }
+    .md-budget__row .md-bar { grid-area: bar; }
+    .md-budget__pct { grid-area: pct; font-size: var(--font-size-h2); font-weight: 700; color: var(--md-brand-dark); font-variant-numeric: tabular-nums; line-height: 1; }
+
+    /* ---------- md-trendchart ---------- */
+    .md-trendchart {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-xs);
+      min-height: 176px;
+      height: 200px;
+      padding-bottom: var(--space-xs);
+      overflow-x: auto;
+    }
+    .md-trendchart__col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 5px;
+      flex: 1 1 0;
+      min-width: 38px;
+      height: 100%;
+    }
+    .md-trendchart__val { font-size: var(--font-size-xs); font-weight: 700; color: var(--md-muted); font-variant-numeric: tabular-nums; }
+    .md-trendchart__bar {
+      width: 100%;
+      max-width: 34px;
+      min-height: var(--space-xs);
+      border-radius: var(--radius-input) var(--radius-input) calc(var(--radius-input) / 2) calc(var(--radius-input) / 2);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--color-brand) 82%, var(--color-background)), var(--color-brand));
+    }
+    .md-trendchart__lbl { font-size: var(--font-size-xs); color: var(--md-muted); white-space: nowrap; }
+    /* tiap kolom selebar labelnya supaya label tanggal/nilai tidak bertumpuk */
+    .md-trendchart--days { gap: var(--space-xs); }
+    .md-trendchart--days .md-trendchart__col { flex: 1 0 44px; min-width: 44px; }
+
+    /* ---------- md-scrollhint ---------- */
+    .md-scrollhint { display: flex; align-items: center; gap: 6px; margin: var(--space-sm) 0 0; font-size: var(--font-size-xs); color: var(--md-muted); }
+    .md-scrollhint svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* ---------- md-legend ---------- */
+    .md-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-sm) var(--space-md);
+      margin-top: 14px;
+      font-size: var(--font-size-xs);
+      line-height: 1.6;
+      color: var(--md-muted);
+      list-style: none;
+      padding: 0;
+    }
+    .md-legend__item { display: inline-flex; align-items: center; gap: var(--space-xs); }
+
+    /* ---------- md-threshold ---------- */
+    .md-threshold {
+      display: flex;
+      gap: var(--space-sm);
+      margin-top: 14px;
+      padding: var(--space-sm) 14px;
+      border-radius: var(--radius-card);
+      background: var(--md-soft);
+      color: var(--md-ink);
+      font-size: var(--font-size-xs);
+      line-height: 1.6;
+    }
+    .md-threshold b { color: var(--md-ink); }
+    .md-threshold svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--md-brand); }
+
+    /* ---------- md-notes (dua rekap teks bebas) ---------- */
+    .md-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .md-notes__item {
+      padding: 14px;
+      border-left: 3px solid var(--md-brand);
+      background: var(--md-soft);
+      border-radius: 0 var(--radius-card) var(--radius-card) 0;
+      min-width: 0;
+    }
+    .md-notes__item p { margin: var(--space-sm) 0 0; font-size: var(--font-size-sm); line-height: 1.55; color: var(--md-ink); }
+
+    /* ---------- md-details + md-table ---------- */
+    .md-details { background: var(--md-card); border: 1px solid var(--md-line); border-radius: var(--radius-modal); overflow: hidden; }
+    .md-details > summary {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-xs) var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+    }
+    .md-details > summary::-webkit-details-marker { display: none; }
+    .md-details > summary::after {
+      content: '';
+      width: 9px;
+      height: 9px;
+      border-right: 2px solid var(--md-muted);
+      border-bottom: 2px solid var(--md-muted);
+      transform: rotate(45deg);
+      margin-left: auto;
+      transition: transform .15s;
+    }
+    .md-details[open] > summary::after { transform: rotate(-135deg); }
+    .md-details > summary small { font-size: var(--font-size-xs); }
+    .md-details[open] > summary { border-bottom: 1px solid var(--md-line); }
+
+    .md-recap { padding: var(--space-lg); background: var(--md-soft); overflow-x: auto; }
+    .md-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; }
+    .md-table th, .md-table td { padding: var(--space-sm) var(--space-sm); text-align: right; border-bottom: 1px solid var(--md-line); white-space: nowrap; }
+    .md-table th:first-child, .md-table td:first-child { text-align: left; }
+    .md-table thead th { font-size: var(--font-size-xs); font-weight: 700; color: var(--md-muted); background: var(--md-track); white-space: normal; vertical-align: bottom; line-height: 1.3; min-width: 56px; }
+    .md-table tfoot td { font-weight: 700; background: var(--md-track); border-bottom: none; }
+    .md-table .is-muted { color: var(--md-muted); }
+
+    /* TAMBAHAN 1 — aturan TATA LETAK murni (tanpa nilai warna/radius/shadow baru):
+       panel md-recap yang bersarang di dalam md-card ditarik sampai tepi kartu,
+       supaya tabelnya menggulir mendatar DI DALAM kartunya sendiri dan halaman
+       tidak pernah punya gulir horizontal. Dibutuhkan di sini lebih keras
+       daripada di laporan mana pun: rekap per unit membawa 23 kolom rata-rata
+       (26 kolom total) dan rekap harian 25 kolom — tabel rekap terlebar di
+       seluruh laporan web. */
+    .md-card > .md-recap {
+      margin: 0 calc(var(--space-lg) * -1) calc(var(--space-lg) * -1);
+      border-radius: 0 0 var(--radius-modal) var(--radius-modal);
+    }
+
+    /* TAMBAHAN 2 — aturan TATA LETAK murni: kartu sebaran status memakai md-recap
+       hanya sebagai pembungkus tabel pendek (4 baris) yang masih diikuti
+       keterangan md-threshold di bawahnya, jadi panel itu TIDAK boleh ditarik ke
+       dasar kartu. Varian ini mengembalikan jarak bawahnya tanpa menyentuh satu
+       pun nilai warna/radius/shadow. */
+    .md-card > .md-recap:not(:last-child) {
+      margin-bottom: 0;
+      border-radius: 0 0 var(--radius-card) var(--radius-card);
+    }
+
+    /* ---------- responsif (mengikuti report-styles) ---------- */
+    @media (max-width: 1100px) {
+      .md-kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .md-kpis--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 1024px) {
+      .md-row--2, .md-row--2-1 { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 767px) {
+      .md { gap: 14px; }
+      .md-hero { padding: var(--space-md); border-radius: var(--radius-card); }
+      .md-hero__title { font-size: var(--font-size-h2); }
+      .md-kpis, .md-kpis--4, .md-kpis--3, .md-kpis--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .md-kpi { padding: var(--space-sm) var(--space-sm) var(--space-md); }
+      /* label metrik Engine Room panjang ('Suhu Bearing Alternator 1'), jadi di
+         layar sempit nilainya boleh membungkus — mencegah kartu melebar dan
+         membuat halaman punya gulir mendatar. Aturan tata letak murni. */
+      .md-kpi__value { font-size: var(--font-size-h3); white-space: normal; }
+      .md-kpi__icon { width: 28px; height: 28px; }
+      .md-card { padding: var(--space-md); border-radius: var(--radius-card); }
+      .md-card > .md-recap { margin: 0 calc(var(--space-md) * -1) calc(var(--space-md) * -1); border-radius: 0 0 var(--radius-card) var(--radius-card); }
+      .md-filters { padding: 14px; border-radius: var(--radius-card); }
+      .md-field { flex: 1 1 100%; }
+      .md-filters__actions { margin-left: 0; width: 100%; }
+      .md-btn { flex: 1 1 auto; }
+      .md-budget__pct { font-size: var(--font-size-h3); }
+      .md-notes { grid-template-columns: minmax(0, 1fr); }
+      .md-recap { padding: var(--space-sm); }
+      .md-table { font-size: var(--font-size-xs); }
+      .md-details > summary { padding: var(--space-md); font-size: var(--font-size-body); }
+    }
+
+    /* ---------- catatan aktor (khusus mock, bukan bagian UI) ---------- */
+    .mock-actors {
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground);
+      font-style: italic;
+      margin-top: var(--space-lg);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="label">Mills Smart Log</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#"><span class="label">Dashboard</span></a>
+        <a class="nav-item" href="#"><span class="label">Data Stasiun</span></a>
+        <a class="nav-item active" href="#"><span class="label">Laporan Stasiun</span></a>
+        <a class="nav-item" href="#"><span class="label">Master Data</span></a>
+        <a class="nav-item" href="#"><span class="label">User &amp; Role Management</span></a>
+        <a class="nav-item" href="#"><span class="label">Pengaturan Akun</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-start">
+          <button class="hamburger-btn" type="button" aria-label="Buka menu navigasi">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <div class="topbar-title">Laporan Stasiun &gt; Engine Room</div>
+        </div>
+        <div class="topbar-end">
+          <span>Admin</span>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="md">
+          <!-- ============ 1. Hero periode ============ -->
+          <section class="md-hero">
+            <div class="md-hero__main">
+              <p class="md-hero__eyebrow">Laporan Periode &middot; Stasiun Engine Room</p>
+              <h1 class="md-hero__title">Periode Oktober 2026</h1>
+              <p class="md-hero__subtitle">PKS Sungai Bahar &middot; Line A &middot; 01 &ndash; 20 Okt 2026 (20 hari, masih berjalan)</p>
+            </div>
+            <div class="md-hero__meta">
+              <span class="md-chip md-chip--date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 01 &ndash; 20 Okt 2026</span>
+              <span class="md-chip md-chip--date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M6 20V9l6-5 6 5v11"/><path d="M10 20v-5h4v5"/></svg> 2 unit Engine Room</span>
+              <span class="md-chip md-chip--date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h7v12H3zM14 6h7v12h-7z"/><path d="M10 12h4"/></svg> Line A</span>
+              <span class="md-chip md-chip--status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="4" y="11" width="16" height="10" rx="2"/></svg> Periode Terbuka</span>
+            </div>
+          </section>
+
+          <!-- ============ 2. Bar filter — Mill (Admin) . Production Line (wajib) . Periode ============ -->
+          <section class="md-filters">
+            <div class="md-field">
+              <label class="md-field__label" for="f-mill">Mill</label>
+              <select class="md-field__control" id="f-mill">
+                <option>&mdash; Pilih Mill &mdash;</option>
+                <option selected>PKS Sungai Bahar</option>
+                <option>PKS Bukit Kemuning</option>
+                <option>PKS Tanjung Raya</option>
+              </select>
+            </div>
+
+            <div class="md-field">
+              <label class="md-field__label" for="f-line">Production Line <strong>(wajib)</strong> <span class="md-pill">Aktif</span></label>
+              <select class="md-field__control" id="f-line">
+                <option>&mdash; Pilih Line &mdash;</option>
+                <option selected>Line A</option>
+                <option>Line B</option>
+              </select>
+            </div>
+
+            <div class="md-field">
+              <label class="md-field__label" for="f-periode">Periode Pelaporan <span class="md-pill">Terbuka</span></label>
+              <select class="md-field__control" id="f-periode">
+                <option>&mdash; Pilih Periode &mdash;</option>
+                <option selected>Periode Oktober &middot; 01&ndash;20 Okt 2026 &middot; Terbuka</option>
+                <option>Periode September II &middot; 16&ndash;30 Sep 2026 &middot; Tertutup</option>
+                <option>Periode September I &middot; 01&ndash;15 Sep 2026 &middot; Tertutup</option>
+                <option>Periode Agustus II &middot; 16&ndash;31 Ags 2026 &middot; Tertutup</option>
+              </select>
+            </div>
+
+            <div class="md-filters__actions">
+              <button class="md-btn md-btn--primary" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg> Ekspor CSV</button>
+              <button class="md-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M9 13l6 5M15 13l-6 5"/></svg> Ekspor Excel</button>
+            </div>
+
+            <p class="md-filters__hint">Daftar periode hanya memuat periode yang mencakup Engine Room. Periode tertutup tetap dapat dilihat dan diekspor. Pemilih Mill hanya tampil bagi Admin; Supervisor dan Mill Management melihat nama mill akunnya sebagai keterangan di posisi yang sama. Mengganti mill mengosongkan pilihan periode <em>dan</em> pilihan Production Line, bukan menggantinya diam-diam. Production Line wajib dipilih lebih dulu &mdash; sebelum itu tidak ada satu angka pun yang ditampilkan, dan kedua tombol ekspor baru tampil setelahnya. Ekspor memuat satu baris per slot waktu beserta ke-27 kolom pembacaan; kedua kolom status ditulis Run / Standby / Off, sama dengan layar Detail.</p>
+          </section>
+
+          <!-- ============ 3. Kelengkapan pencatatan — di ATAS seluruh angka ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Kelengkapan Pencatatan</h3>
+              <span class="md-card__hint">Baca ini lebih dulu &mdash; 23 metrik di bawah bersandar padanya</span>
+            </header>
+            <div class="md-budget">
+              <div class="md-budget__row">
+                <div class="md-budget__label">
+                  <span>Slot waktu terisi sepanjang periode</span>
+                  <span class="md-budget__nums"><strong>320</strong> dari 672 slot</span>
+                </div>
+                <span class="md-budget__pct">47,6%</span>
+                <div class="md-bar md-bar--lg"><span style="width: 47.619%"></span></div>
+              </div>
+            </div>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span><b>Dihitung sampai hari ini, periode masih berjalan (14 dari 20 hari periode sudah lewat).</b> Hari yang belum terjadi tidak mungkin tercatat, jadi tidak ikut menjadi penyebut. <small>Slot yang diharapkan = 2 unit Engine Room &times; 24 slot kanonis per unit per hari &times; 14 hari (sampai hari ini) = 672.</small> Seluruh angka di bawah dihitung dari <b>pembacaan yang ada</b>, bukan dari periode penuh &mdash; 352 slot yang tidak terisi tidak diperlakukan sebagai nol, melainkan tidak ikut dihitung. Bila belum ada unit tercatat atau periode belum mulai, persentasenya tampil &lsquo;&mdash;&rsquo; dengan keterangan &lsquo;belum ada slot yang diharapkan&rsquo;, bukan 0,0%.</span>
+            </div>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+              <span><b>Satu slot dianggap terisi bila minimal satu dari DUA PULUH TUJUH kolomnya terisi &mdash; termasuk kedua kolom teks bebas</b> (catatan tindakan perawatan dan temuan). Karena itu jumlah slot terisi <b>dapat melebihi penyebut setiap kartu metrik</b>, dan di periode ini memang begitu: 320 slot terisi, sementara penyebut terbesar di antara 23 metrik hanya <b>307 pembacaan</b> (tekanan masuk turbin) dan yang terkecil <b>177 pembacaan</b> (ekspor energi harian). Selisihnya bukan galat: ada slot yang hanya mengisi kolom teks tanpa satu pun kolom ukur, dan slot itu terhitung pada kelengkapan tanpa menambah penyebut kartu mana pun. Ke-23 kolom ukur nullable dan terisi saling bebas, jadi <b>setiap metrik menerbitkan penyebutnya sendiri</b> &mdash; satu penyebut bersama akan salah untuk setidaknya 22 di antaranya.</span>
+            </div>
+          </section>
+
+          <!-- ============ 4. Blok 1 — Turbin Uap (6 dari 23 metrik) ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Turbin Uap</h3>
+              <span class="md-card__hint">6 metrik &middot; masing-masing dengan penyebutnya sendiri</span>
+            </header>
+            <div class="md-kpis md-kpis--3">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Tekanan Masuk</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M4 18a9 9 0 1 1 16 0"/><circle cx="12" cy="18" r="1.4"/></svg></span>
+              </div>
+              <p class="md-kpi__value">20,6 <span>bar rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 19,1 &middot; tertinggi 21,8</p>
+              <p class="md-kpi__foot">dari <b>307 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Penyebut terbesar di antara 23 metrik &mdash; tekanan masuk turbin hampir selalu ikut terisi.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Suhu Masuk</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">286 <span>&deg;C rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 271 &middot; tertinggi 296</p>
+              <p class="md-kpi__foot">dari <b>294 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>13 pembacaan lebih sedikit daripada tekanan masuk; satu slot boleh mengisi tekanan tetapi mengosongkan suhu.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Tekanan Buang</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l4-4"/><path d="M4 18a9 9 0 1 1 16 0"/><circle cx="12" cy="18" r="1.4"/></svg></span>
+              </div>
+              <p class="md-kpi__value">0,33 <span>bar rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 0,27 &middot; tertinggi 0,38</p>
+              <p class="md-kpi__foot">dari <b>279 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Penyebutnya sendiri &mdash; tidak diwarisi dari tekanan masuk.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Putaran</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/></svg></span>
+              </div>
+              <p class="md-kpi__value">2.972 <span>rpm rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 2.870 &middot; tertinggi 3.040</p>
+              <p class="md-kpi__foot">dari <b>290 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Terendah dan tertinggi diambil dari rata-rata harian pada rekap di bawah.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Suhu Bearing Alternator 1</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">62,9 <span>&deg;C rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 59,6 &middot; tertinggi 65,0</p>
+              <p class="md-kpi__foot">dari <b>265 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Bearing sisi penggerak. Penyebutnya berbeda dari bearing 2, dan keduanya tidak disatukan.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Suhu Bearing Alternator 2</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">65,4 <span>&deg;C rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 61,8 &middot; tertinggi 67,6</p>
+              <p class="md-kpi__foot">dari <b>251 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Bearing sisi non-penggerak. Rata-ratanya 2,5 &deg;C di atas bearing 1; selisih itu <b>tidak</b> ditandai.</small></p>
+            </article>
+            </div>
+          </section>
+
+          <!-- ============ 5. Blok 2 & 3 — dua genset, EMPAT KOLOM SAMA PERSIS, tidak pernah disatukan ============ -->
+          <div class="md-row md-row--2">
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Genset 1</h3>
+                <span class="md-card__hint">4 metrik &middot; mesin fisik tersendiri</span>
+              </header>
+              <div class="md-kpis md-kpis--2">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Beban</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">735 <span>kW rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 688 &middot; tertinggi 772</p>
+              <p class="md-kpi__foot">dari <b>292 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Genset 1 menanggung hampir seluruh beban diesel sepanjang periode.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Ampere</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">1.083 <span>A rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 1.013 &middot; tertinggi 1.136</p>
+              <p class="md-kpi__foot">dari <b>278 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Penyebutnya berbeda dari beban &mdash; ampere boleh kosong pada slot yang mencatat beban.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Suhu Jacket Water</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">84,7 <span>&deg;C rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 80,9 &middot; tertinggi 87,0</p>
+              <p class="md-kpi__foot">dari <b>264 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Suhu jacket water sejalan dengan beban tinggi; tidak ada ambang yang dibandingkan.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Tekanan Lube Oil</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">4,20 <span>bar rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 4,02 &middot; tertinggi 4,31</p>
+              <p class="md-kpi__foot">dari <b>250 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Penyebut terkecil di blok Genset 1.</small></p>
+            </article>
+              </div>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>
+                <span><b>Genset 1 dan Genset 2 adalah dua mesin fisik yang berbeda.</b> Keempat kolomnya sejajar <b>secara fisik</b> &mdash; beban, ampere, suhu jacket water, tekanan lube oil &mdash; tetapi angkanya <b>sengaja tidak dirata-ratakan menjadi satu</b>, dan <b>selisih di antara keduanya tidak ditandai sebagai penyimpangan</b>. Ketidakseimbangan beban adalah temuan, bukan galat: satu genset menanggung hampir seluruh beban sementara yang lain menganggur adalah hal yang perlu dilihat, dan rata-rata gabungan justru menyembunyikannya sebagai &lsquo;normal&rsquo;. Kesejajaran yang dinyatakan di sini adalah kesejajaran FISIK kedua mesin &mdash; <b>bukan standar bersama</b>: stasiun ini tidak punya master target sama sekali, jadi tidak ada satu baris acuan yang keduanya bagi bersama.</span>
+              </div>
+            </section>
+
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Genset 2</h3>
+                <span class="md-card__hint">4 metrik yang sama persis &middot; mesin fisik tersendiri</span>
+              </header>
+              <div class="md-kpis md-kpis--2">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Beban</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">124 <span>kW rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 96 &middot; tertinggi 142</p>
+              <p class="md-kpi__foot">dari <b>233 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Jauh di bawah Genset 1 &mdash; <b>temuan, bukan galat</b>. Ikut dirata-ratakan atas slot saat genset siaga, yang menarik angkanya turun.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Ampere</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">188 <span>A rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 147 &middot; tertinggi 214</p>
+              <p class="md-kpi__foot">dari <b>219 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Penyebutnya sendiri, 219 pembacaan &mdash; 59 lebih sedikit daripada ampere Genset 1.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Suhu Jacket Water</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">61,0 <span>&deg;C rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 56,2 &middot; tertinggi 63,5</p>
+              <p class="md-kpi__foot">dari <b>205 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Lebih dingin daripada Genset 1 karena sebagian besar periode genset ini siaga, bukan berbeban.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Tekanan Lube Oil</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">3,55 <span>bar rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 3,38 &middot; tertinggi 3,66</p>
+              <p class="md-kpi__foot">dari <b>191 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Penyebut terkecil di antara 22 metrik yang menerbitkan rata-rata periode.</small></p>
+            </article>
+              </div>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>
+                <span><b>Genset 1 dan Genset 2 adalah dua mesin fisik yang berbeda.</b> Keempat kolomnya sejajar <b>secara fisik</b> &mdash; beban, ampere, suhu jacket water, tekanan lube oil &mdash; tetapi angkanya <b>sengaja tidak dirata-ratakan menjadi satu</b>, dan <b>selisih di antara keduanya tidak ditandai sebagai penyimpangan</b>. Ketidakseimbangan beban adalah temuan, bukan galat: satu genset menanggung hampir seluruh beban sementara yang lain menganggur adalah hal yang perlu dilihat, dan rata-rata gabungan justru menyembunyikannya sebagai &lsquo;normal&rsquo;. Kesejajaran yang dinyatakan di sini adalah kesejajaran FISIK kedua mesin &mdash; <b>bukan standar bersama</b>: stasiun ini tidak punya master target sama sekali, jadi tidak ada satu baris acuan yang keduanya bagi bersama.</span>
+              </div>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+                <span>Periode ini memang timpang: beban rata-rata Genset 1 <b>735 kW</b> melawan Genset 2 <b>124 kW</b>, dan ampere <b>1.083 A</b> melawan <b>188 A</b>. Laporan ini <b>tidak</b> menghitung selisihnya, tidak menyebutnya tinggi atau rendah, dan tidak menandai satu kartu pun. Keduanya ditampilkan apa adanya, berdampingan, supaya ketimpangan itu terbaca tanpa perlu ditandai.</span>
+              </div>
+            </section>
+          </div>
+
+          <!-- ============ 6. Blok 4 — Kelistrikan Tersinkron + pernyataan ketiadaan penandaan (UTUH) ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Kelistrikan Tersinkron</h3>
+              <span class="md-card__hint">4 metrik &middot; angka sistem, bukan angka per mesin</span>
+            </header>
+            <div class="md-kpis md-kpis--4">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Beban Total Pabrik</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">1.857 <span>kW rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 1.722 &middot; tertinggi 1.952</p>
+              <p class="md-kpi__foot">dari <b>293 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Metrik yang digrafikkan sebagai tren harian rata-rata di bawah.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Frekuensi Sistem</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0"/></svg></span>
+              </div>
+              <p class="md-kpi__value">49,95 <span>Hz rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 49,74 &middot; tertinggi 50,11</p>
+              <p class="md-kpi__foot">dari <b>281 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Angka 50 Hz dikenal luas di luar aplikasi ini, tetapi laporan ini tidak memakainya sebagai ambang &mdash; lihat pernyataan di bawah blok ini.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Power Factor</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-2.5"/><path d="M12 3v2M3 12h2M19 12h2"/></svg></span>
+              </div>
+              <p class="md-kpi__value">0,890 <span>rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 0,862 &middot; tertinggi 0,911</p>
+              <p class="md-kpi__foot">dari <b>267 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Tanpa satuan. Tidak ada nilai 'baik' atau 'buruk' yang dinyatakan laporan ini.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Tegangan Busbar</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">400 <span>V rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 394 &middot; tertinggi 405</p>
+              <p class="md-kpi__foot">dari <b>255 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Tegangan nominal busbar hidup di luar aplikasi; tidak ada nilai yang ditandai di luar batas.</small></p>
+            </article>
+            </div>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 4v5c0 5-3.8 8.4-9 9.9C6.8 20.4 3 17 3 12V7z"/><path d="M12 8v4M12 15h.01"/></svg>
+              <span><b>TIDAK ADA penandaan nilai di luar batas pada metrik mana pun di layar ini, dan pernyataan ini dirender utuh tanpa diringkas.</b> Stasiun Engine Room tidak punya tabel master target. Yang membuat pernyataan ini lebih keras daripada di laporan mana pun sebelumnya: beberapa metrik di blok ini punya batas yang <b>dikenal sangat luas di luar aplikasi</b> &mdash; frekuensi sistem 50 Hz, power factor, dan tegangan busbar nominal &mdash; sehingga godaan menandai penyimpangan paling besar justru di sini. Laporan ini tetap <b>tidak menurunkan satu pun ambang dari data periode itu sendiri</b>, dan tidak menyatakan satu nilai pun berada di luar batas. Alasannya bukan selera tampilan: ambang yang diturunkan dari sebaran periode hanyalah <b>turunan statistik</b>, sementara pembaca akan membacanya sebagai <b>batas keselamatan kelistrikan</b>. Frekuensi 49,74 Hz pada 07 Okt 2026 dan 50,11 Hz pada 04 Okt 2026 ditampilkan apa adanya, tanpa satu kelas atau warna peringatan. Bila kelak batas operasional kelistrikan dimasukkan sebagai master target, laporan ini perlu ditinjau ulang &mdash; dan peninjauan itu menyangkut keselamatan peralatan, bukan sekadar tampilan.</span>
+            </div>
+          </section>
+
+          <!-- ============ 7. Blok 5 & 6 — Kompresor (2) + Penunjang (3) ============ -->
+          <div class="md-row md-row--2">
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Kompresor</h3>
+                <span class="md-card__hint">2 metrik tekanan</span>
+              </header>
+              <div class="md-kpis md-kpis--2">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Tekanan Kompresor Udara 1</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 13h15a3 3 0 1 1-3 3"/><path d="M3 18h8"/></svg></span>
+              </div>
+              <p class="md-kpi__value">7,3 <span>bar rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 6,6 &middot; tertinggi 7,7</p>
+              <p class="md-kpi__foot">dari <b>236 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Label ditulis manusiawi, tidak diturunkan dari nama kolom <code>air_compressor_1_pressure_bar</code>.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Tekanan Kompresor 2</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h11a3 3 0 1 0-3-3"/><path d="M3 13h15a3 3 0 1 1-3 3"/><path d="M3 18h8"/></svg></span>
+              </div>
+              <p class="md-kpi__value">6,5 <span>bar rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 5,8 &middot; tertinggi 6,9</p>
+              <p class="md-kpi__foot">dari <b>222 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Nama kolomnya <code>compressor_2_pressure_bar</code> &mdash; tanpa kata 'air'. Ketidakkonsistenan itu pertanyaan terbuka, jadi labelnya tidak diturunkan mekanis.</small></p>
+            </article>
+              </div>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+                <span>Label kedua kartu ini <b>ditulis manusiawi dan tidak diturunkan mekanis dari nama kolom</b>, karena pasangannya dinamai tidak konsisten di basis data: <code>air_compressor_1_pressure_bar</code> melawan <code>compressor_2_pressure_bar</code>. Apakah &lsquo;compressor 2&rsquo; juga kompresor udara atau kompresor jenis lain masih pertanyaan terbuka, jadi laporan ini tidak menyamakan keduanya dan tidak membandingkan angkanya.</span>
+              </div>
+            </section>
+
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Penunjang</h3>
+                <span class="md-card__hint">3 metrik &middot; satu di antaranya diperlakukan berbeda</span>
+              </header>
+              <div class="md-kpis md-kpis--3">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Tegangan UPS / Battery Charger</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="8" width="16" height="9" rx="2"/><path d="M20 11v3"/><path d="M6 12h2M10 12h2"/></svg></span>
+              </div>
+              <p class="md-kpi__value">27,5 <span>V rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 26,7 &middot; tertinggi 28,0</p>
+              <p class="md-kpi__foot">dari <b>208 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Tegangan DC battery charger, bukan tegangan jala-jala.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Level Tangki Bahan Bakar</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M4 13h16"/></svg></span>
+              </div>
+              <p class="md-kpi__value">76 <span>rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 66 &middot; tertinggi 90</p>
+              <p class="md-kpi__foot">dari <b>194 pembacaan</b></p>
+              <p class="md-kpi__foot"><small><b>Tanpa satuan</b> &mdash; satu-satunya kolom numerik stasiun ini yang tidak membawa satuan di namanya. Persen atau liter belum pasti, jadi laporan ini tidak mengarang satuannya.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Ekspor Energi Harian</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-2.5"/><path d="M12 3v2M3 12h2M19 12h2"/></svg></span>
+              </div>
+              <p class="md-kpi__value">11.860 <span>kWh nilai terakhir 14 Okt</span></p>
+              <p class="md-kpi__meta">terendah harian 10.920 &middot; tertinggi harian 13.580</p>
+              <p class="md-kpi__foot">dari <b>177 pembacaan</b></p>
+              <p class="md-kpi__foot"><small><b>Tanpa rata-rata periode &mdash; disengaja.</b> Terendah dan tertinggi di atas adalah nilai TERAKHIR hari itu, bukan rata-rata. Lihat seri harian dan alasannya di bawah.</small></p>
+            </article>
+              </div>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M4 13h16"/></svg>
+                <span><b>Level tangki bahan bakar ditulis tanpa satuan</b>, dan itu disengaja. Kolomnya satu-satunya kolom numerik stasiun ini yang tidak membawa satuan di namanya &mdash; 22 lainnya membawa <code>_bar</code>, <code>_c</code>, <code>_kw</code>, <code>_a</code>, <code>_hz</code>, <code>_v</code>, atau <code>_kwh</code>. Persen atau liter belum jelas, dan keduanya menghasilkan pembacaan yang sangat berbeda: level 90 berarti hampir penuh bila persen, dan hampir kosong bila liter pada tangki besar. Laporan ini tidak mengarang satuannya sampai pertanyaan itu dijawab.</span>
+              </div>
+            </section>
+          </div>
+
+          <!-- ============ 8. Dua sebaran status kategoris — TIGA nilai, bukan dua ============ -->
+          <div class="md-row md-row--2">
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Sebaran Status Genset 1</h3>
+                <span class="md-card__hint">3 nilai dikenal &middot; dasar 320 slot tercatat</span>
+              </header>
+              <div class="md-recap">
+                <table class="md-table">
+                  <thead>
+                    <tr><th scope="col">Nilai</th><th scope="col">Jumlah slot</th><th scope="col">Porsi</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Run</td><td>277</td><td>86,6%</td></tr>
+                    <tr><td>Standby</td><td>20</td><td>6,2%</td></tr>
+                    <tr><td>Off</td><td><span class="is-muted">0</span></td><td><span class="is-muted">0,0%</span></td></tr>
+                    <tr><td><span class="is-muted">Tidak tercatat</span></td><td><span class="is-muted">23</span></td><td><span class="is-muted">7,2%</span></td></tr>
+                  </tbody>
+                  <tfoot>
+                    <tr><td>Seluruh slot tercatat</td><td>320</td><td>100,0%</td></tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+                <span><b>Off tampil 0, bukan hilang dari daftar.</b> Genset 1 tidak pernah dimatikan sepanjang periode ini &mdash; ia berbeban 277 slot dan siaga 20 slot. Nilai &lsquo;Off&rsquo; dikenal di basis data tetapi tidak muncul, jadi sebaran melengkapinya dengan jumlah nol: baris nol itulah yang membedakan <i>nilai yang dikenal namun tidak pernah terjadi</i> dari <i>nilai yang belum pernah ada</i>. Pengelompokan dilakukan harfiah atas nilai yang benar-benar ada lalu dilengkapi nol, supaya menambah nilai baru lewat migrasi kelak tidak diam-diam menghilangkan satu kelompok.</span>
+              </div>
+              <div class="md-threshold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg><span><b>Porsi memakai jumlah slot TERCATAT sebagai penyebut &mdash; 320 slot &mdash; bukan 672 slot yang diharapkan.</b> Memakai yang kedua akan mencampur &lsquo;tidak tercatat&rsquo; ke dalam porsi tiap nilai. Slot yang kolom statusnya kosong dilaporkan terpisah dan <b>tidak pernah</b> diperlakukan sebagai Run, Standby, maupun Off.</span></div>
+            </section>
+
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Sebaran Status Genset 2</h3>
+                <span class="md-card__hint">3 nilai dikenal &middot; dasar 320 slot tercatat</span>
+              </header>
+              <div class="md-recap">
+                <table class="md-table">
+                  <thead>
+                    <tr><th scope="col">Nilai</th><th scope="col">Jumlah slot</th><th scope="col">Porsi</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Run</td><td>35</td><td>10,9%</td></tr>
+                    <tr><td>Standby</td><td>226</td><td>70,6%</td></tr>
+                    <tr><td>Off</td><td>45</td><td>14,1%</td></tr>
+                    <tr><td><span class="is-muted">Tidak tercatat</span></td><td><span class="is-muted">14</span></td><td><span class="is-muted">4,4%</span></td></tr>
+                  </tbody>
+                  <tfoot>
+                    <tr><td>Seluruh slot tercatat</td><td>320</td><td>100,0%</td></tr>
+                  </tfoot>
+                </table>
+              </div>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+                <span>Genset 2 menghabiskan sebagian besar periode dalam keadaan <b>Standby</b> (226 slot, 70,6%), berbeban hanya 35 slot, dan benar-benar <b>Off</b> 45 slot. Ketiganya keadaan operasional yang sah &mdash; laporan ini <b>tidak</b> menandai satu pun sebagai galat. Inilah pasangan angka yang menjelaskan beban rata-rata Genset 2 yang rendah di blok di atas.</span>
+              </div>
+              <div class="md-threshold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg><span><b>Porsi memakai jumlah slot TERCATAT sebagai penyebut &mdash; 320 slot &mdash; bukan 672 slot yang diharapkan.</b> Memakai yang kedua akan mencampur &lsquo;tidak tercatat&rsquo; ke dalam porsi tiap nilai. Slot yang kolom statusnya kosong dilaporkan terpisah dan <b>tidak pernah</b> diperlakukan sebagai Run, Standby, maupun Off.</span></div>
+            </section>
+          </div>
+
+          <section class="md-card">
+            <div class="md-threshold" style="margin-top: 0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>
+              <span><b>&lsquo;Standby&rsquo; BUKAN &lsquo;Off&rsquo;.</b> Genset siaga siap menanggung beban; genset mati tidak. Melipat Standby ke Off akan melaporkan pembangkit mati yang tidak pernah terjadi &mdash; dan itu kesimpulan yang salah tentang kesiapan pabrik. Label <b>Run / Standby / Off</b> dipakai apa adanya dari <code>Display::OPTION_LABELS</code>, sama dengan layar Detail, formulir, dan kedua berkas ekspor; layar laporan tidak menerjemahkannya sendiri, karena satu nilai hanya boleh punya satu label di seluruh produk.</span>
+            </div>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+              <span>Kedua kolom status bersifat <b>kategoris</b>: terendah, rata-rata, dan tertinggi tidak punya arti untuknya, jadi keduanya diterbitkan sebagai sebaran jumlah slot per nilai dan <b>tidak pernah muncul pada seri harian</b>. <small>Layar ini juga <b>tidak memuat bagian downtime</b>, dan ketiadaannya disengaja &mdash; stasiun Engine Room tidak mencatat downtime sama sekali, jadi tidak ada kolom yang bisa diterbitkan. Ketiadaan itu dinyatakan di sini, bukan dibiarkan terbaca sebagai bagian yang terlewat.</small></span>
+            </div>
+          </section>
+
+          <!-- ============ 9a. Rekap Catatan Tindakan Perawatan (bagian terpisah) ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Rekap Catatan Tindakan Perawatan</h3>
+              <span class="md-card__hint">5 slot mengisi kolom catatan tindakan perawatan sepanjang periode</span>
+            </header>
+            <div class="md-notes">
+              <div class="md-notes__item">
+                <span class="md-pill">02 Okt 2026 &middot; 09:00</span>
+                <p>Ganti elemen filter lube oil Genset 1 setelah 500 jam operasi; tekanan kembali 4,2 bar.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">05 Okt 2026 &middot; 13:00</span>
+                <p>Penyetelan ulang governor turbin uap; putaran kembali stabil di 3.000 rpm.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">06 Okt 2026 &middot; 21:00</span>
+                <p>Pembersihan radiator Genset 2 dan pengisian ulang coolant.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">09 Okt 2026 &middot; 05:00</span>
+                <p>Kalibrasi meter ekspor energi bersama petugas PLN; segel lama dicatat sebelum dibuka.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">12 Okt 2026 &middot; 17:00</span>
+                <p>Pengurasan air kondensat receiver kompresor udara 1.</p>
+              </div>
+            </div>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>
+              <span>Daftar ini menjawab <b>apa yang dikerjakan</b>. Isinya ditampilkan apa adanya beserta tanggal dan slot waktunya &mdash; tidak pernah dirata-rata maupun digrafikkan. Bila sepanjang periode tidak ada satu pun catatan, bagian ini menampilkan keterangan tidak ada catatan, bukan tabel kosong tanpa penjelasan.</span>
+            </div>
+          </section>
+
+          <!-- ============ 9b. Rekap Temuan (bagian TERPISAH — pertanyaan yang berbeda) ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Rekap Temuan</h3>
+              <span class="md-card__hint">4 slot mengisi kolom temuan sepanjang periode</span>
+            </header>
+            <div class="md-notes">
+              <div class="md-notes__item">
+                <span class="md-pill">03 Okt 2026 &middot; 11:00</span>
+                <p>Suhu bearing alternator 2 naik perlahan sepanjang shift; dipantau tiap slot.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">06 Okt 2026 &middot; 21:00</span>
+                <p>Genset 2 tidak mau dibebani di atas 150 kW; injektor dicurigai, dilaporkan ke Supervisor.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">07 Okt 2026 &middot; 03:00</span>
+                <p>Frekuensi sistem terbaca 49,74 Hz saat beban puncak; dicatat apa adanya.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">11 Okt 2026 &middot; 19:00</span>
+                <p>Level tangki bahan bakar terbaca 90 setelah pengisian &mdash; satuan di formulir belum jelas.</p>
+              </div>
+            </div>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>
+              <span>Daftar ini menjawab <b>apa yang ditemukan</b> &mdash; pertanyaan yang berbeda dari Rekap Catatan Tindakan Perawatan, karena itu keduanya dua bagian terpisah dan tidak pernah disatukan. Slot <b>06 Okt 2026 &middot; 21:00</b> mengisi kedua kolom sekaligus sehingga muncul pada kedua rekap; itu benar, <b>bukan penghitungan ganda</b> &mdash; menyatukan keduanya justru akan menghitung slot itu dua kali dalam satu daftar. Pada slot itu radiator Genset 2 dibersihkan (tindakan) dan pada slot yang sama genset itu tetap tidak mau dibebani di atas 150 kW (temuan).</span>
+            </div>
+          </section>
+
+          <!-- ============ 10. Dua seri harian dengan agregasi BERBEDA ============ -->
+          <div class="md-row md-row--2">
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Seri Harian Ekspor Energi</h3>
+                <span class="md-card__hint"><b>Nilai TERAKHIR hari itu</b>, dalam kWh &middot; 14 tanggal berdata</span>
+              </header>
+              <div class="md-trendchart md-trendchart--days">
+                <div class="md-trendchart__col"><span class="md-trendchart__val">12.480</span><div class="md-trendchart__bar" style="height: 70%"></div><span class="md-trendchart__lbl">01</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">13.120</span><div class="md-trendchart__bar" style="height: 88%"></div><span class="md-trendchart__lbl">02</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">11.640</span><div class="md-trendchart__bar" style="height: 47%"></div><span class="md-trendchart__lbl">03</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">13.580</span><div class="md-trendchart__bar" style="height: 100%"></div><span class="md-trendchart__lbl">04</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">12.260</span><div class="md-trendchart__bar" style="height: 64%"></div><span class="md-trendchart__lbl">05</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">12.940</span><div class="md-trendchart__bar" style="height: 83%"></div><span class="md-trendchart__lbl">06</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">11.180</span><div class="md-trendchart__bar" style="height: 35%"></div><span class="md-trendchart__lbl">07</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">13.360</span><div class="md-trendchart__bar" style="height: 94%"></div><span class="md-trendchart__lbl">08</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">12.620</span><div class="md-trendchart__bar" style="height: 74%"></div><span class="md-trendchart__lbl">09</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">13.040</span><div class="md-trendchart__bar" style="height: 85%"></div><span class="md-trendchart__lbl">10</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">10.920</span><div class="md-trendchart__bar" style="height: 28%"></div><span class="md-trendchart__lbl">11</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">12.380</span><div class="md-trendchart__bar" style="height: 68%"></div><span class="md-trendchart__lbl">12</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">13.240</span><div class="md-trendchart__bar" style="height: 91%"></div><span class="md-trendchart__lbl">13</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">11.860</span><div class="md-trendchart__bar" style="height: 53%"></div><span class="md-trendchart__lbl">14</span></div>
+              </div>
+              <p class="md-scrollhint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg> Geser mendatar untuk melihat seluruh tanggal &mdash; periode ini memuat 14 tanggal berdata (lebih dari 10).</p>
+              <ul class="md-legend">
+                <li class="md-legend__item">Terendah 10.920 kWh (11 Okt 2026) &middot; tertinggi 13.580 kWh (04 Okt 2026)</li>
+                <li class="md-legend__item">Dari 177 pembacaan sepanjang periode &mdash; penyebut terkecil di antara 23 metrik</li>
+              </ul>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 12l4-2.5"/><path d="M12 3v2M3 12h2M19 12h2"/></svg>
+                <span><b>Seri ini berisi nilai TERAKHIR hari itu, bukan rata-rata &mdash; dan tidak ada rata-rata periode untuk kolom ini sama sekali.</b> Sebabnya: nama kolomnya, <code>daily_energy_export_kwh</code>, menyebut <b>&lsquo;daily&rsquo;</b> sementara ia disimpan <b>per slot waktu</b>, dan ketidakcocokan itu belum terjelaskan di sumber mana pun &mdash; tidak di kode, tidak di keenam spec layar Engine Room yang sudah ada. Dua bacaan sama-sama masuk akal: (a) ia angka meter <b>kumulatif harian</b> yang dicatat ulang tiap slot, atau (b) ia energi yang diekspor <b>pada slot itu</b> dan kata &lsquo;daily&rsquo; salah nama. Di bawah bacaan (a), merata-ratakan atau menjumlahkannya antar 24 slot menghasilkan angka yang <b>terlihat sah dan sepenuhnya salah</b>. Nilai terakhir per tanggal aman di bawah <i>kedua</i> bacaan, jadi itulah yang diterbitkan &mdash; dan ketidakpastiannya dinyatakan di sini alih-alih dipilih diam-diam. <small>Pada 11 Okt 2026 nilainya 10.920 kWh, turun dari 13.040 kWh sehari sebelumnya; keadaan yang mustahil bila ia angka meter kumulatif, jadi laporan menampilkannya apa adanya tanpa mengoreksi &mdash; justru bukti yang berguna untuk menjawab pertanyaan terbuka ini.</small></span>
+              </div>
+            </section>
+
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Tren Harian Beban Total Pabrik</h3>
+                <span class="md-card__hint"><b>Rata-rata per tanggal</b>, dalam kW &middot; 14 tanggal berdata</span>
+              </header>
+              <div class="md-trendchart md-trendchart--days">
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.842</span><div class="md-trendchart__bar" style="height: 66%"></div><span class="md-trendchart__lbl">01</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.908</span><div class="md-trendchart__bar" style="height: 86%"></div><span class="md-trendchart__lbl">02</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.776</span><div class="md-trendchart__bar" style="height: 45%"></div><span class="md-trendchart__lbl">03</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.952</span><div class="md-trendchart__bar" style="height: 100%"></div><span class="md-trendchart__lbl">04</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.814</span><div class="md-trendchart__bar" style="height: 57%"></div><span class="md-trendchart__lbl">05</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.880</span><div class="md-trendchart__bar" style="height: 77%"></div><span class="md-trendchart__lbl">06</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.722</span><div class="md-trendchart__bar" style="height: 28%"></div><span class="md-trendchart__lbl">07</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.936</span><div class="md-trendchart__bar" style="height: 95%"></div><span class="md-trendchart__lbl">08</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.856</span><div class="md-trendchart__bar" style="height: 70%"></div><span class="md-trendchart__lbl">09</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.896</span><div class="md-trendchart__bar" style="height: 82%"></div><span class="md-trendchart__lbl">10</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.748</span><div class="md-trendchart__bar" style="height: 36%"></div><span class="md-trendchart__lbl">11</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.828</span><div class="md-trendchart__bar" style="height: 61%"></div><span class="md-trendchart__lbl">12</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.920</span><div class="md-trendchart__bar" style="height: 90%"></div><span class="md-trendchart__lbl">13</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">1.794</span><div class="md-trendchart__bar" style="height: 51%"></div><span class="md-trendchart__lbl">14</span></div>
+              </div>
+              <p class="md-scrollhint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg> Geser mendatar untuk melihat seluruh tanggal &mdash; periode ini memuat 14 tanggal berdata (lebih dari 10).</p>
+              <ul class="md-legend">
+                <li class="md-legend__item">Terendah 1.722 kW (07 Okt 2026) &middot; tertinggi 1.952 kW (04 Okt 2026)</li>
+                <li class="md-legend__item">Rata-rata periode 1.857 kW, berbobot 293 pembacaan</li>
+                <li class="md-legend__item"><small>Sumbu tegak tidak dimulai dari nol &mdash; batang membandingkan tanggal, bukan besaran mutlak. Tidak ada batang yang ditandai di luar batas.</small></li>
+              </ul>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+                <span><b>Agregasi kedua seri ini BERBEDA, dan perbedaan itu dinyatakan supaya keduanya tidak terbaca sejenis.</b> Grafik di sebelah kiri memuat <b>nilai terakhir</b> hari itu; grafik ini memuat <b>rata-rata</b> hari itu. Bentuk batangnya memang mirip, tetapi angkanya menjawab dua pertanyaan yang berbeda &mdash; satu &lsquo;berapa angka meter pada akhir hari&rsquo;, satu &lsquo;seberapa berat pabrik hari itu&rsquo;. Rata-rata di sini sah karena beban total pabrik memang besaran sesaat per slot, bukan angka kumulatif.</span>
+              </div>
+            </section>
+          </div>
+
+          <!-- ============ 11. Rekap per unit Engine Room — 23 kolom rata-rata, menggulir DI DALAM kartunya ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Rekap per Unit Engine Room</h3>
+              <span class="md-card__hint">Angka periode di atas menggabungkan kedua unit &mdash; tabel ini menunjukkan sebarannya</span>
+            </header>
+            <p class="md-scrollhint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg> Tabel ini membawa <b>23 kolom rata-rata</b> (26 kolom seluruhnya) &mdash; rekap terlebar di antara seluruh laporan web, jadi ia menggulir mendatar di dalam kartunya sendiri dan halaman tidak pernah menggulir mendatar.</p>
+            <div class="md-recap">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Unit Engine Room</th>
+                    <th scope="col">Hari tercatat</th>
+                    <th scope="col">Slot terisi</th>
+                    <th scope="col">Tekanan Masuk Turbin (bar)</th>
+                    <th scope="col">Suhu Masuk Turbin (&deg;C)</th>
+                    <th scope="col">Tekanan Buang (bar)</th>
+                    <th scope="col">Putaran (rpm)</th>
+                    <th scope="col">Bearing Alt. 1 (&deg;C)</th>
+                    <th scope="col">Bearing Alt. 2 (&deg;C)</th>
+                    <th scope="col">G1 Beban (kW)</th>
+                    <th scope="col">G1 Ampere (A)</th>
+                    <th scope="col">G1 Jacket Water (&deg;C)</th>
+                    <th scope="col">G1 Lube Oil (bar)</th>
+                    <th scope="col">G2 Beban (kW)</th>
+                    <th scope="col">G2 Ampere (A)</th>
+                    <th scope="col">G2 Jacket Water (&deg;C)</th>
+                    <th scope="col">G2 Lube Oil (bar)</th>
+                    <th scope="col">Beban Total (kW)</th>
+                    <th scope="col">Frekuensi (Hz)</th>
+                    <th scope="col">Power Factor</th>
+                    <th scope="col">Tegangan Busbar (V)</th>
+                    <th scope="col">Kompresor Udara 1 (bar)</th>
+                    <th scope="col">Kompresor 2 (bar)</th>
+                    <th scope="col">Tegangan UPS (V)</th>
+                    <th scope="col">Level Tangki <small>(tanpa satuan)</small></th>
+                    <th scope="col">Ekspor Energi (kWh) <small>nilai terakhir</small></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>ER-01</td><td>14</td><td>178</td><td>20,9 <small>(n=172)</small></td><td>290 <small>(n=165)</small></td><td>0,35 <small>(n=156)</small></td><td>3.000 <small>(n=162)</small></td><td>64,1 <small>(n=148)</small></td><td>64,4 <small>(n=141)</small></td><td>751 <small>(n=164)</small></td><td>1.107 <small>(n=156)</small></td><td>86,1 <small>(n=148)</small></td><td>4,25 <small>(n=140)</small></td><td>115 <small>(n=130)</small></td><td>175 <small>(n=123)</small></td><td>59,9 <small>(n=115)</small></td><td>3,51 <small>(n=107)</small></td><td>1.891 <small>(n=164)</small></td><td>49,98 <small>(n=157)</small></td><td>0,896 <small>(n=150)</small></td><td>402 <small>(n=143)</small></td><td>7,5 <small>(n=132)</small></td><td>6,3 <small>(n=124)</small></td><td>27,8 <small>(n=116)</small></td><td>71 <small>(n=109)</small></td><td>12.939 <small>(n=99)</small></td></tr>
+                  <tr><td>ER-02</td><td>14</td><td>142</td><td>20,2 <small>(n=135)</small></td><td>280 <small>(n=129)</small></td><td>0,31 <small>(n=123)</small></td><td>2.936 <small>(n=128)</small></td><td>61,3 <small>(n=117)</small></td><td>66,7 <small>(n=110)</small></td><td>715 <small>(n=128)</small></td><td>1.052 <small>(n=122)</small></td><td>82,9 <small>(n=116)</small></td><td>4,13 <small>(n=110)</small></td><td>136 <small>(n=103)</small></td><td>205 <small>(n=96)</small></td><td>62,4 <small>(n=90)</small></td><td>3,60 <small>(n=84)</small></td><td>1.814 <small>(n=129)</small></td><td>49,91 <small>(n=124)</small></td><td>0,883 <small>(n=117)</small></td><td>398 <small>(n=112)</small></td><td>7,0 <small>(n=104)</small></td><td>6,7 <small>(n=98)</small></td><td>27,1 <small>(n=92)</small></td><td>82 <small>(n=85)</small></td><td>12.349 <small>(n=78)</small></td></tr>
+                </tbody>
+                <tfoot>
+                  <tr><td>Gabungan 2 unit</td><td>14</td><td>320</td><td>20,6 <small>(n=307)</small></td><td>286 <small>(n=294)</small></td><td>0,33 <small>(n=279)</small></td><td>2.972 <small>(n=290)</small></td><td>62,9 <small>(n=265)</small></td><td>65,4 <small>(n=251)</small></td><td>735 <small>(n=292)</small></td><td>1.083 <small>(n=278)</small></td><td>84,7 <small>(n=264)</small></td><td>4,20 <small>(n=250)</small></td><td>124 <small>(n=233)</small></td><td>188 <small>(n=219)</small></td><td>61,0 <small>(n=205)</small></td><td>3,55 <small>(n=191)</small></td><td>1.857 <small>(n=293)</small></td><td>49,95 <small>(n=281)</small></td><td>0,890 <small>(n=267)</small></td><td>400 <small>(n=255)</small></td><td>7,3 <small>(n=236)</small></td><td>6,5 <small>(n=222)</small></td><td>27,5 <small>(n=208)</small></td><td>76 <small>(n=194)</small></td><td>12.679 <small>(n=177)</small></td></tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+
+          <!-- ============ 12. Rekap harian (tertutup secara bawaan) — 25 kolom ============ -->
+          <details class="md-details">
+            <summary>
+              Rekap Harian
+              <small>14 baris &middot; 01 &ndash; 14 Okt 2026 (sampai hari ini) &middot; 23 kolom rata-rata, menggulir mendatar di dalam kartunya &middot; klik untuk membuka</small>
+            </summary>
+            <div class="md-recap">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tanggal</th>
+                    <th scope="col">Slot Terisi</th>
+                    <th scope="col">Tekanan Masuk Turbin (bar)</th>
+                    <th scope="col">Suhu Masuk Turbin (&deg;C)</th>
+                    <th scope="col">Tekanan Buang (bar)</th>
+                    <th scope="col">Putaran (rpm)</th>
+                    <th scope="col">Bearing Alt. 1 (&deg;C)</th>
+                    <th scope="col">Bearing Alt. 2 (&deg;C)</th>
+                    <th scope="col">G1 Beban (kW)</th>
+                    <th scope="col">G1 Ampere (A)</th>
+                    <th scope="col">G1 Jacket Water (&deg;C)</th>
+                    <th scope="col">G1 Lube Oil (bar)</th>
+                    <th scope="col">G2 Beban (kW)</th>
+                    <th scope="col">G2 Ampere (A)</th>
+                    <th scope="col">G2 Jacket Water (&deg;C)</th>
+                    <th scope="col">G2 Lube Oil (bar)</th>
+                    <th scope="col">Beban Total (kW)</th>
+                    <th scope="col">Frekuensi (Hz)</th>
+                    <th scope="col">Power Factor</th>
+                    <th scope="col">Tegangan Busbar (V)</th>
+                    <th scope="col">Kompresor Udara 1 (bar)</th>
+                    <th scope="col">Kompresor 2 (bar)</th>
+                    <th scope="col">Tegangan UPS (V)</th>
+                    <th scope="col">Level Tangki <small>(tanpa satuan)</small></th>
+                    <th scope="col">Ekspor Energi (kWh) <small>nilai terakhir</small></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>01 Okt 2026</td><td>23</td><td>20,4</td><td>284</td><td>0,32</td><td>2.960</td><td>62,4</td><td>64,9</td><td>728</td><td>1.072</td><td>84,2</td><td>4,18</td><td>121</td><td>183</td><td>60,6</td><td>3,52</td><td>1.842</td><td>49,92</td><td>0,886</td><td>399</td><td>7,2</td><td>6,4</td><td>27,4</td><td>78</td><td>12.480</td></tr>
+                  <tr><td>02 Okt 2026</td><td>25</td><td>21,2</td><td>291</td><td>0,36</td><td>3.010</td><td>64,1</td><td>66,8</td><td>755</td><td>1.112</td><td>86,1</td><td>4,26</td><td>134</td><td>202</td><td>62,4</td><td>3,61</td><td>1.908</td><td>50,04</td><td>0,902</td><td>403</td><td>7,5</td><td>6,7</td><td>27,8</td><td>72</td><td>13.120</td></tr>
+                  <tr><td>03 Okt 2026</td><td>21</td><td>19,6</td><td>276</td><td>0,29</td><td>2.905</td><td>60,8</td><td>63,2</td><td>702</td><td>1.034</td><td>82,4</td><td>4,09</td><td>108</td><td>164</td><td>58,3</td><td>3,44</td><td>1.776</td><td>49,81</td><td>0,871</td><td>396</td><td>6,9</td><td>6,1</td><td>27,0</td><td>85</td><td>11.640</td></tr>
+                  <tr><td>04 Okt 2026</td><td>26</td><td>21,8</td><td>296</td><td>0,38</td><td>3.040</td><td>65,0</td><td>67,6</td><td>772</td><td>1.136</td><td>87,0</td><td>4,31</td><td>142</td><td>214</td><td>63,5</td><td>3,66</td><td>1.952</td><td>50,11</td><td>0,911</td><td>405</td><td>7,7</td><td>6,9</td><td>28,0</td><td>66</td><td>13.580</td></tr>
+                  <tr><td>05 Okt 2026</td><td>22</td><td>20,0</td><td>281</td><td>0,31</td><td>2.945</td><td>61,9</td><td>64,3</td><td>716</td><td>1.054</td><td>83,5</td><td>4,14</td><td>115</td><td>174</td><td>59,7</td><td>3,48</td><td>1.814</td><td>49,88</td><td>0,880</td><td>398</td><td>7,1</td><td>6,3</td><td>27,2</td><td>81</td><td>12.260</td></tr>
+                  <tr><td>06 Okt 2026</td><td>24</td><td>20,9</td><td>288</td><td>0,35</td><td>2.990</td><td>63,5</td><td>66,0</td><td>744</td><td>1.096</td><td>85,4</td><td>4,22</td><td>128</td><td>194</td><td>61,8</td><td>3,57</td><td>1.880</td><td>49,98</td><td>0,896</td><td>402</td><td>7,4</td><td>6,6</td><td>27,6</td><td>74</td><td>12.940</td></tr>
+                  <tr><td>07 Okt 2026</td><td>20</td><td>19,1</td><td>271</td><td>0,27</td><td>2.870</td><td>59,6</td><td>61,8</td><td>688</td><td>1.013</td><td>80,9</td><td>4,02</td><td>96</td><td>147</td><td>56,2</td><td>3,38</td><td>1.722</td><td>49,74</td><td>0,862</td><td>394</td><td>6,6</td><td>5,8</td><td>26,7</td><td>88</td><td>11.180</td></tr>
+                  <tr><td>08 Okt 2026</td><td>25</td><td>21,5</td><td>294</td><td>0,37</td><td>3.025</td><td>64,6</td><td>67,1</td><td>766</td><td>1.128</td><td>86,6</td><td>4,29</td><td>138</td><td>208</td><td>62,9</td><td>3,64</td><td>1.936</td><td>50,08</td><td>0,907</td><td>404</td><td>7,6</td><td>6,8</td><td>27,9</td><td>69</td><td>13.360</td></tr>
+                  <tr><td>09 Okt 2026</td><td>23</td><td>20,6</td><td>286</td><td>0,33</td><td>2.970</td><td>62,8</td><td>65,4</td><td>734</td><td>1.081</td><td>84,7</td><td>4,20</td><td>124</td><td>187</td><td>61,0</td><td>3,54</td><td>1.856</td><td>49,95</td><td>0,890</td><td>400</td><td>7,3</td><td>6,5</td><td>27,5</td><td>76</td><td>12.620</td></tr>
+                  <tr><td>10 Okt 2026</td><td>24</td><td>21,0</td><td>290</td><td>0,36</td><td>3.005</td><td>63,9</td><td>66,5</td><td>751</td><td>1.106</td><td>85,8</td><td>4,24</td><td>131</td><td>198</td><td>62,1</td><td>3,59</td><td>1.896</td><td>50,02</td><td>0,899</td><td>402</td><td>7,5</td><td>6,7</td><td>27,7</td><td>71</td><td>13.040</td></tr>
+                  <tr><td>11 Okt 2026</td><td>19</td><td>19,4</td><td>274</td><td>0,28</td><td>2.890</td><td>60,2</td><td>62,6</td><td>694</td><td>1.022</td><td>81,6</td><td>4,06</td><td>102</td><td>155</td><td>57,4</td><td>3,41</td><td>1.748</td><td>49,78</td><td>0,866</td><td>395</td><td>6,8</td><td>6,0</td><td>26,9</td><td>90</td><td>10.920</td></tr>
+                  <tr><td>12 Okt 2026</td><td>22</td><td>20,2</td><td>283</td><td>0,32</td><td>2.955</td><td>62,1</td><td>64,6</td><td>722</td><td>1.063</td><td>83,9</td><td>4,16</td><td>118</td><td>179</td><td>60,1</td><td>3,50</td><td>1.828</td><td>49,90</td><td>0,883</td><td>399</td><td>7,1</td><td>6,3</td><td>27,3</td><td>80</td><td>12.380</td></tr>
+                  <tr><td>13 Okt 2026</td><td>25</td><td>21,3</td><td>292</td><td>0,37</td><td>3.020</td><td>64,4</td><td>67,0</td><td>760</td><td>1.119</td><td>86,4</td><td>4,28</td><td>136</td><td>205</td><td>62,6</td><td>3,63</td><td>1.920</td><td>50,06</td><td>0,905</td><td>404</td><td>7,6</td><td>6,8</td><td>27,8</td><td>68</td><td>13.240</td></tr>
+                  <tr><td>14 Okt 2026</td><td>21</td><td>19,8</td><td>279</td><td>0,30</td><td>2.920</td><td>61,3</td><td>63,7</td><td>710</td><td>1.045</td><td>82,8</td><td>4,11</td><td>111</td><td>169</td><td>58,9</td><td>3,46</td><td>1.794</td><td>49,84</td><td>0,876</td><td>397</td><td>7,0</td><td>6,2</td><td>27,1</td><td>83</td><td>11.860</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr><td>Total periode</td><td>320 <small>dari 672</small></td><td>20,6 <small>(n=307)</small></td><td>286 <small>(n=294)</small></td><td>0,33 <small>(n=279)</small></td><td>2.972 <small>(n=290)</small></td><td>62,9 <small>(n=265)</small></td><td>65,4 <small>(n=251)</small></td><td>735 <small>(n=292)</small></td><td>1.083 <small>(n=278)</small></td><td>84,7 <small>(n=264)</small></td><td>4,20 <small>(n=250)</small></td><td>124 <small>(n=233)</small></td><td>188 <small>(n=219)</small></td><td>61,0 <small>(n=205)</small></td><td>3,55 <small>(n=191)</small></td><td>1.857 <small>(n=293)</small></td><td>49,95 <small>(n=281)</small></td><td>0,890 <small>(n=267)</small></td><td>400 <small>(n=255)</small></td><td>7,3 <small>(n=236)</small></td><td>6,5 <small>(n=222)</small></td><td>27,5 <small>(n=208)</small></td><td>76 <small>(n=194)</small></td><td><span class="is-muted">&mdash;</span> <small>(n=177)</small></td></tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="md-recap">
+              <p class="md-scrollhint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg> Baris total periode <b>tidak</b> menerbitkan rata-rata untuk kolom ekspor energi &mdash; kolom itu hanya punya nilai per tanggal, dan sel totalnya sengaja &lsquo;&mdash;&rsquo;.</p>
+            </div>
+          </details>
+
+        </div>
+
+        <p class="mock-actors">
+          Actors: Supervisor, Mill Management, Admin &nbsp;&middot;&nbsp;
+          Entry points: Menu sidebar &lsquo;Laporan Stasiun&rsquo; &rarr; pilih stasiun Engine Room, Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih
+        </p>
+      </main>
+    </div>
+  </div>
+  <!-- ===========================================================================
+       JEJAK ANGKA (audit) — bukan bagian UI, hanya agar setiap angka di layar ini
+       dapat ditelusuri. Seluruh nilai di atas diturunkan dengan skrip, tidak dikarang.
+
+       Periode 01-20 Okt 2026 MASIH BERJALAN; dibaca pada 14 Okt 2026.
+       Slot diharapkan = 2 unit x 24 slot kanonis x 14 hari (sampai hari ini) = 672.
+       Slot terisi per tanggal (01..14 Okt) = 23, 25, 21, 26, 22, 24, 20, 25, 23, 24, 19, 22, 25, 21
+         jumlah = 320  ->  320/672 = 47.619% -> 47,6%
+       Slot terisi dihitung atas 27 kolom TERMASUK kedua kolom teks bebas, sehingga ia
+       MELEBIHI penyebut tiap kartu metrik: 320 lebih besar dari 307 (penyebut terbesar, t_in_p)
+       dan jauh di atas 177 (penyebut terkecil, kwh). Ke-23 penyebut berbeda satu dari
+       yang lain; tidak ada dua metrik yang berbagi penyebut (uji keunikan dijalankan di skrip).
+
+       DUA PULUH TIGA metrik, MASING-MASING dengan penyebutnya sendiri
+       (jumlah pembacaan per tanggal 01..14, lalu totalnya, lalu rata-rata periode
+        = rata-rata harian berbobot jumlah pembacaan metrik itu sendiri):
+         t_in_p  n = 22, 25, 19, 26, 21, 23, 18, 25, 22, 23, 17, 21, 25, 20  (total 307)
+                 v = 20.4, 21.2, 19.6, 21.8, 20, 20.9, 19.1, 21.5, 20.6, 21, 19.4, 20.2, 21.3, 19.8
+                 rata-rata periode 20,6 | terendah 19,1 (07 Okt 2026) | tertinggi 21,8 (04 Okt 2026)
+         t_in_t  n = 21, 24, 18, 25, 20, 22, 17, 24, 21, 23, 16, 20, 24, 19  (total 294)
+                 v = 284, 291, 276, 296, 281, 288, 271, 294, 286, 290, 274, 283, 292, 279
+                 rata-rata periode 286 | terendah 271 (07 Okt 2026) | tertinggi 296 (04 Okt 2026)
+         t_ex_p  n = 20, 23, 17, 24, 19, 21, 15, 23, 20, 22, 15, 19, 23, 18  (total 279)
+                 v = 0.32, 0.36, 0.29, 0.38, 0.31, 0.35, 0.27, 0.37, 0.33, 0.36, 0.28, 0.32, 0.37, 0.3
+                 rata-rata periode 0,33 | terendah 0,27 (07 Okt 2026) | tertinggi 0,38 (04 Okt 2026)
+         t_rpm   n = 21, 23, 18, 25, 20, 22, 16, 24, 21, 22, 15, 20, 24, 19  (total 290)
+                 v = 2960, 3010, 2905, 3040, 2945, 2990, 2870, 3025, 2970, 3005, 2890, 2955, 3020, 2920
+                 rata-rata periode 2.972 | terendah 2.870 (07 Okt 2026) | tertinggi 3.040 (04 Okt 2026)
+         alt_b1  n = 19, 22, 16, 23, 18, 20, 14, 22, 19, 21, 14, 18, 22, 17  (total 265)
+                 v = 62.4, 64.1, 60.8, 65, 61.9, 63.5, 59.6, 64.6, 62.8, 63.9, 60.2, 62.1, 64.4, 61.3
+                 rata-rata periode 62,9 | terendah 59,6 (07 Okt 2026) | tertinggi 65,0 (04 Okt 2026)
+         alt_b2  n = 18, 21, 15, 22, 17, 19, 13, 21, 18, 20, 13, 17, 21, 16  (total 251)
+                 v = 64.9, 66.8, 63.2, 67.6, 64.3, 66, 61.8, 67.1, 65.4, 66.5, 62.6, 64.6, 67, 63.7
+                 rata-rata periode 65,4 | terendah 61,8 (07 Okt 2026) | tertinggi 67,6 (04 Okt 2026)
+         g1_kw   n = 21, 24, 18, 25, 20, 22, 16, 24, 21, 23, 15, 20, 24, 19  (total 292)
+                 v = 728, 755, 702, 772, 716, 744, 688, 766, 734, 751, 694, 722, 760, 710
+                 rata-rata periode 735 | terendah 688 (07 Okt 2026) | tertinggi 772 (04 Okt 2026)
+         g1_a    n = 20, 23, 17, 24, 19, 21, 15, 23, 20, 22, 14, 19, 23, 18  (total 278)
+                 v = 1072, 1112, 1034, 1136, 1054, 1096, 1013, 1128, 1081, 1106, 1022, 1063, 1119, 1045
+                 rata-rata periode 1.083 | terendah 1.013 (07 Okt 2026) | tertinggi 1.136 (04 Okt 2026)
+         g1_jw   n = 19, 22, 16, 23, 18, 20, 14, 22, 19, 21, 13, 18, 22, 17  (total 264)
+                 v = 84.2, 86.1, 82.4, 87, 83.5, 85.4, 80.9, 86.6, 84.7, 85.8, 81.6, 83.9, 86.4, 82.8
+                 rata-rata periode 84,7 | terendah 80,9 (07 Okt 2026) | tertinggi 87,0 (04 Okt 2026)
+         g1_lo   n = 18, 21, 15, 22, 17, 19, 13, 21, 18, 20, 12, 17, 21, 16  (total 250)
+                 v = 4.18, 4.26, 4.09, 4.31, 4.14, 4.22, 4.02, 4.29, 4.2, 4.24, 4.06, 4.16, 4.28, 4.11
+                 rata-rata periode 4,20 | terendah 4,02 (07 Okt 2026) | tertinggi 4,31 (04 Okt 2026)
+         g2_kw   n = 17, 20, 13, 21, 16, 18, 11, 20, 17, 19, 10, 16, 20, 15  (total 233)
+                 v = 121, 134, 108, 142, 115, 128, 96, 138, 124, 131, 102, 118, 136, 111
+                 rata-rata periode 124 | terendah 96 (07 Okt 2026) | tertinggi 142 (04 Okt 2026)
+         g2_a    n = 16, 19, 12, 20, 15, 17, 10, 19, 16, 18, 9, 15, 19, 14  (total 219)
+                 v = 183, 202, 164, 214, 174, 194, 147, 208, 187, 198, 155, 179, 205, 169
+                 rata-rata periode 188 | terendah 147 (07 Okt 2026) | tertinggi 214 (04 Okt 2026)
+         g2_jw   n = 15, 18, 11, 19, 14, 16, 9, 18, 15, 17, 8, 14, 18, 13  (total 205)
+                 v = 60.6, 62.4, 58.3, 63.5, 59.7, 61.8, 56.2, 62.9, 61, 62.1, 57.4, 60.1, 62.6, 58.9
+                 rata-rata periode 61,0 | terendah 56,2 (07 Okt 2026) | tertinggi 63,5 (04 Okt 2026)
+         g2_lo   n = 14, 17, 10, 18, 13, 15, 8, 17, 14, 16, 7, 13, 17, 12  (total 191)
+                 v = 3.52, 3.61, 3.44, 3.66, 3.48, 3.57, 3.38, 3.64, 3.54, 3.59, 3.41, 3.5, 3.63, 3.46
+                 rata-rata periode 3,55 | terendah 3,38 (07 Okt 2026) | tertinggi 3,66 (04 Okt 2026)
+         tot_kw  n = 21, 24, 18, 25, 20, 22, 16, 24, 21, 23, 15, 20, 24, 20  (total 293)
+                 v = 1842, 1908, 1776, 1952, 1814, 1880, 1722, 1936, 1856, 1896, 1748, 1828, 1920, 1794
+                 rata-rata periode 1.857 | terendah 1.722 (07 Okt 2026) | tertinggi 1.952 (04 Okt 2026)
+         hz      n = 21, 23, 18, 24, 19, 21, 15, 23, 20, 22, 15, 19, 23, 18  (total 281)
+                 v = 49.92, 50.04, 49.81, 50.11, 49.88, 49.98, 49.74, 50.08, 49.95, 50.02, 49.78, 49.9, 50.06, 49.84
+                 rata-rata periode 49,95 | terendah 49,74 (07 Okt 2026) | tertinggi 50,11 (04 Okt 2026)
+         pf      n = 20, 22, 17, 23, 18, 20, 14, 22, 19, 21, 14, 18, 22, 17  (total 267)
+                 v = 0.886, 0.902, 0.871, 0.911, 0.88, 0.896, 0.862, 0.907, 0.89, 0.899, 0.866, 0.883, 0.905, 0.876
+                 rata-rata periode 0,890 | terendah 0,862 (07 Okt 2026) | tertinggi 0,911 (04 Okt 2026)
+         bus_v   n = 19, 22, 16, 22, 17, 19, 14, 21, 18, 20, 13, 17, 21, 16  (total 255)
+                 v = 399, 403, 396, 405, 398, 402, 394, 404, 400, 402, 395, 399, 404, 397
+                 rata-rata periode 400 | terendah 394 (07 Okt 2026) | tertinggi 405 (04 Okt 2026)
+         c1      n = 17, 20, 14, 21, 16, 18, 12, 20, 17, 19, 11, 16, 20, 15  (total 236)
+                 v = 7.2, 7.5, 6.9, 7.7, 7.1, 7.4, 6.6, 7.6, 7.3, 7.5, 6.8, 7.1, 7.6, 7
+                 rata-rata periode 7,3 | terendah 6,6 (07 Okt 2026) | tertinggi 7,7 (04 Okt 2026)
+         c2      n = 16, 19, 13, 20, 15, 17, 11, 19, 16, 18, 10, 15, 19, 14  (total 222)
+                 v = 6.4, 6.7, 6.1, 6.9, 6.3, 6.6, 5.8, 6.8, 6.5, 6.7, 6, 6.3, 6.8, 6.2
+                 rata-rata periode 6,5 | terendah 5,8 (07 Okt 2026) | tertinggi 6,9 (04 Okt 2026)
+         ups_v   n = 15, 18, 12, 19, 14, 16, 10, 18, 15, 17, 9, 14, 18, 13  (total 208)
+                 v = 27.4, 27.8, 27, 28, 27.2, 27.6, 26.7, 27.9, 27.5, 27.7, 26.9, 27.3, 27.8, 27.1
+                 rata-rata periode 27,5 | terendah 26,7 (07 Okt 2026) | tertinggi 28,0 (04 Okt 2026)
+         fuel    n = 14, 17, 11, 18, 13, 15, 9, 17, 14, 16, 8, 13, 17, 12  (total 194)
+                 v = 78, 72, 85, 66, 81, 74, 88, 69, 76, 71, 90, 80, 68, 83
+                 rata-rata periode 76 | terendah 66 (04 Okt 2026) | tertinggi 90 (11 Okt 2026)
+         kwh     n = 13, 16, 9, 17, 12, 14, 7, 16, 13, 15, 6, 12, 16, 11  (total 177)
+                 v = 12480, 13120, 11640, 13580, 12260, 12940, 11180, 13360, 12620, 13040, 10920, 12380, 13240, 11860
+                 TANPA rata-rata periode (disengaja) | terendah harian 10.920 (11 Okt 2026) | tertinggi harian 13.580 (04 Okt 2026)
+                 nilai terakhir tanggal terakhir = 11.860 kWh
+                 11 Okt 10.920 < 10 Okt 13.040 -> turun; ditampilkan apa adanya, tidak dikoreksi
+
+       KETIMPANGAN DUA GENSET (sengaja, dan sengaja TIDAK ditandai):
+         beban        G1 735 kW  vs  G2 124 kW
+         ampere       G1 1.083 A   vs  G2 188 A
+         jacket water G1 84,7 C  vs  G2 61,0 C
+         lube oil     G1 4,20 bar vs  G2 3,55 bar
+         Keempat kolom SAMA PERSIS, tidak pernah dirata-ratakan menjadi satu, dan
+         selisihnya tidak dihitung maupun ditandai di layar. Keterangan di kedua blok
+         menyebut kesejajaran FISIK kedua mesin, BUKAN standar bersama: stasiun ini
+         tidak punya master target sama sekali (beda dari ripple mill / kernel silo di
+         Kernel Plant yang berbagi satu baris master).
+
+       SEBARAN STATUS (dasar = 320 slot TERCATAT, bukan 672 slot yang diharapkan):
+         Genset 1   Run 277 + Standby 20 + Off 0 + tidak tercatat 23 = 320
+                    porsi 86,6% + 6,2% + 0,0% + 7,2% = 100,0%
+         Genset 2   Run 35 + Standby 226 + Off 45 + tidak tercatat 14 = 320
+                    porsi 10,9% + 70,6% + 14,1% + 4,4% = 100,0%
+         'Off' pada Genset 1 = 0 -> pelengkapan nol: nilai dikenal yang tidak pernah
+         muncul tetap tampil sebagai 0, bukan hilang dari daftar. Genset 1 tidak pernah
+         dimatikan sepanjang periode ini.
+         Label Run / Standby / Off diambil apa adanya dari Display::OPTION_LABELS, sama
+         dengan layar Detail, formulir, dan kedua berkas ekspor. TIDAK diterjemahkan.
+         'Standby' BUKAN 'Off' dan dinyatakan di layar.
+
+       REKAP PER UNIT (bobot pembacaan ER-01 : ER-02 = 56% : 44%, dibulatkan):
+         slot terisi  ER-01 178 + ER-02 142 = 320
+         t_in_p  ER-01 20,9 (n=172) + ER-02 20,2 (n=135) -> gabungan 20,6 (n=307)
+         t_in_t  ER-01 290 (n=165) + ER-02 280 (n=129) -> gabungan 286 (n=294)
+         t_ex_p  ER-01 0,35 (n=156) + ER-02 0,31 (n=123) -> gabungan 0,33 (n=279)
+         t_rpm   ER-01 3.000 (n=162) + ER-02 2.936 (n=128) -> gabungan 2.972 (n=290)
+         alt_b1  ER-01 64,1 (n=148) + ER-02 61,3 (n=117) -> gabungan 62,9 (n=265)
+         alt_b2  ER-01 64,4 (n=141) + ER-02 66,7 (n=110) -> gabungan 65,4 (n=251)
+         g1_kw   ER-01 751 (n=164) + ER-02 715 (n=128) -> gabungan 735 (n=292)
+         g1_a    ER-01 1.107 (n=156) + ER-02 1.052 (n=122) -> gabungan 1.083 (n=278)
+         g1_jw   ER-01 86,1 (n=148) + ER-02 82,9 (n=116) -> gabungan 84,7 (n=264)
+         g1_lo   ER-01 4,25 (n=140) + ER-02 4,13 (n=110) -> gabungan 4,20 (n=250)
+         g2_kw   ER-01 115 (n=130) + ER-02 136 (n=103) -> gabungan 124 (n=233)
+         g2_a    ER-01 175 (n=123) + ER-02 205 (n=96) -> gabungan 188 (n=219)
+         g2_jw   ER-01 59,9 (n=115) + ER-02 62,4 (n=90) -> gabungan 61,0 (n=205)
+         g2_lo   ER-01 3,51 (n=107) + ER-02 3,60 (n=84) -> gabungan 3,55 (n=191)
+         tot_kw  ER-01 1.891 (n=164) + ER-02 1.814 (n=129) -> gabungan 1.857 (n=293)
+         hz      ER-01 49,98 (n=157) + ER-02 49,91 (n=124) -> gabungan 49,95 (n=281)
+         pf      ER-01 0,896 (n=150) + ER-02 0,883 (n=117) -> gabungan 0,890 (n=267)
+         bus_v   ER-01 402 (n=143) + ER-02 398 (n=112) -> gabungan 400 (n=255)
+         c1      ER-01 7,5 (n=132) + ER-02 7,0 (n=104) -> gabungan 7,3 (n=236)
+         c2      ER-01 6,3 (n=124) + ER-02 6,7 (n=98) -> gabungan 6,5 (n=222)
+         ups_v   ER-01 27,8 (n=116) + ER-02 27,1 (n=92) -> gabungan 27,5 (n=208)
+         fuel    ER-01 71 (n=109) + ER-02 82 (n=85) -> gabungan 76 (n=194)
+         kwh     ER-01 12.939 (n=99) + ER-02 12.349 (n=78) -> gabungan 12.679 (n=177)
+         Nilai per unit diturunkan dari rata-rata gabungan: v2 dihitung supaya
+         (n1*v1 + n2*v2) / (n1+n2) tepat sama dengan rata-rata periode, lalu keduanya
+         dibulatkan ke presisi tampilan. Pembulatan itu membuat rekomposisi dari angka
+         yang TERCETAK bisa menyimpang pada digit terakhir; angka gabungan adalah yang
+         dihitung dari pembacaan, bukan dari dua nilai unit yang sudah dibulatkan.
+
+       TINGGI BATANG kedua seri harian = 28% + 72% x (nilai, dikurangi terendah, dibagi rentang).
+         kwh    (nilai TERAKHIR hari itu) = 70, 88, 47, 100, 64, 83, 35, 94, 74, 85, 28, 68, 91, 53
+         tot_kw (RATA-RATA hari itu)      = 66, 86, 45, 100, 57, 77, 28, 95, 70, 82, 36, 61, 90, 51
+         Agregasi keduanya BERBEDA dan perbedaan itu dinyatakan di layar. Sumbu tegak
+         sengaja tidak dimulai dari nol, dan hal itu juga dinyatakan.
+
+       DUA REKAP TEKS BEBAS, dua bagian TERPISAH:
+         catatan tindakan perawatan 5 slot | temuan 4 slot
+         slot 06 Okt 2026 . 21:00 mengisi KEDUA kolom, jadi muncul pada kedua rekap.
+         Itu benar, bukan penghitungan ganda, dan dinyatakan di layar.
+
+       LEBAR TABEL: rekap per unit 26 kolom (unit + hari + slot + 23 rata-rata), rekap
+       harian 25 kolom (tanggal + slot + 23 rata-rata). Keduanya rekap TERLEBAR di antara
+       seluruh laporan web, dan keduanya menggulir mendatar DI DALAM kartunya sendiri
+       lewat .md-recap { overflow-x: auto }. Halaman sendiri tidak pernah menggulir
+       mendatar: seluruh grid memakai minmax(0, 1fr), .md dan .md-card memakai
+       min-width: 0, dan .md-card > .md-recap ditarik sampai tepi kartu.
+
+       TIDAK ADA di layar ini, dan ketiadaannya DINYATAKAN di layar, bukan sekadar hilang:
+         - blok downtime (stasiun Engine Room tidak mencatat downtime sama sekali)
+         - tabel master target dan penanda nilai di luar batas. Pernyataannya dirender
+           UTUH, menempel pada blok Kelistrikan Tersinkron, dan menyebut alasan khasnya:
+           frekuensi 50 Hz, power factor, dan tegangan busbar punya batas yang dikenal
+           luas DI LUAR aplikasi, jadi godaan menandai paling besar di sini, dan ambang
+           yang diturunkan dari data periode berisiko dibaca sebagai batas keselamatan
+           kelistrikan padahal hanya turunan statistik.
+         - rata-rata periode untuk daily_energy_export_kwh (semantik kolom belum
+           terjelaskan; nilai terakhir per tanggal aman di bawah kedua bacaan)
+         - satuan pada level tangki bahan bakar (persen atau liter belum jelas)
+
+       NOL PENANDA DI LUAR BATAS: tidak ada satu kelas, modifier, atau warna peringatan
+       pada nilai mana pun. Kosakata md-* yang bernuansa peringatan di report-styles
+       sengaja TIDAK dipakai dan tidak disalin ke blok <style> berkas ini: modifier
+       'warn' pada md-param, md-status, dan md-tank; modifier 'low' serta 'off' pada
+       md-trendchart__col; dan seluruh keluarga md-outlier. Kotak md-threshold di layar
+       ini dipakai HANYA sebagai kotak keterangan, tidak pernah sebagai penanda ambang.
+  =========================================================================== -->
+</body>
+</html>

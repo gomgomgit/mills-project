@@ -78,6 +78,7 @@ use App\Livewire\MasterData\KelolaCorporate;
 use App\Livewire\MasterData\KelolaMachinery;
 use App\Livewire\MasterData\KelolaPeriodePelaporan;
 use App\Livewire\MasterData\KelolaProductionLine;
+use App\Livewire\MasterData\KelolaShift;
 use App\Livewire\MasterData\KelolaStation;
 use App\Livewire\MasterData\MasterDataTreeView;
 use App\Livewire\Settings\ChangePasswordForm;
@@ -769,6 +770,19 @@ Route::middleware(['auth', 'role:admin'])
 Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/periods/{id}', DetailPeriodePelaporan::class)
     ->name('master-data.periods.detail');
+
+// screen-170--kelola-shift (usecase-176 — Kelola Shift per Production Line).
+// Session-guarded ('auth') + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions — supervisor / mill_management /
+// operator semuanya can_access=false). Mengikuti pola pendaftaran
+// screen-128 di atas: EnsureRole::forbidden() memanggil abort(403) dengan
+// halaman 403 aplikasi (resources/views/errors/403.blade.php) sebelum
+// App\Livewire\MasterData\KelolaShift mount. Komponennya TETAP memanggil
+// abort_unless() sendiri di mount() sebagai lapis kedua, dan ShiftService
+// sebagai lapis ketiga.
+Route::middleware(['auth', 'role:admin'])
+    ->get('/master-data/shifts', KelolaShift::class)
+    ->name('master-data.shifts');
 
 // screen-129--laporan-sterilizer-web (usecase-129 — Laporan Periode
 // Sterilizer). Session-guarded + role-guarded to supervisor /

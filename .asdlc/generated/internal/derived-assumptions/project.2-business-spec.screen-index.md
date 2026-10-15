@@ -55,3 +55,17 @@ User berkata "lanjutkan laporan yang belum". Enam jenis stasiun tersisa belum ma
 - **CPO Dispatch punya `time_in` dan `time_out`, sehingga turnaround tanker dapat dihitung** ← satu-satunya laporan pengiriman yang bisa; metrik sejenis pernah diturunkan dari `arrival_datetime`→`dispatch_datetime` di Weighbridge.
 - **Solid Waste Disposal punya EMPAT sumbu pengelompokan** (jenis limbah, stasiun asal, lokasi pembuangan, tujuan penggunaan akhir) melawan dua di Weighbridge ← dari kolomnya. Dan `purpose_end_use` dinyatakan sebagai pembeda yang menentukan: limbah yang DIBUANG versus DIMANFAATKAN kembali, yang kalau dijumlahkan menghapus justru informasi yang paling dicari.
 - **Nomor gate pass dan segel diterbitkan sebagai penghitung kelengkapan, bukan dirata-rata** ← keduanya kolom string jejak kepatuhan. Turunan agent, sejajar dengan perlakuan kolom teks bebas di laporan lain.
+
+## v17 — 2026-10-15
+
+Penambahan `screen-170--kelola-shift` (fitur Shift per Production Line, putaran master). Keputusan user yang dinyatakan eksplisit dalam diskusi: shift per production line (bukan per mill); celah waktu diizinkan tetapi ditandai; jendela sinkronisasi ditetapkan per mill sehingga TIDAK ada di layar ini; tata letak timeline-plus-tabel. Yang di bawah ini turunan agent yang user terima tanpa koreksi:
+
+- **`module_id` = `module-master-data`** ← pilihan agent; sejajar dengan Kelola Production Line (screen-036, induk entitasnya) dan Kelola Periode Pelaporan (screen-128, analogi terdekat). Tidak dinyatakan user.
+- **Admin only** ← turunan agent dari pola seluruh master lain; screen-128 juga Admin-only. User tidak menyebut perannya.
+- **Nama shift unik per line** ← turunan agent, meniru aturan "nama periode unik dalam satu Business Unit" di screen-128.
+- **Tumpang tindih ditolak dengan batas INKLUSIF** ← turunan agent; pola dan batas inklusifnya dibawa dari aturan tumpang tindih rentang tanggal screen-128 yang sudah terbukti.
+- **Union shift yang tidak dimulai 07:00 DITANDAI tetapi tidak ditolak** ← turunan agent. Dasarnya terverifikasi (kisi 24 slot kanonis berjalan `(7+i)%24`, 07:00..06:00, jadi hari produksi dimulai 07:00), tetapi keputusan "tandai, jangan tolak" adalah pilihan agent — menolaknya akan memaksa pabrik yang shift-nya tidak selaras hari produksi mengarang jadwal.
+- **Timeline mengikuti filter Production Line**, bukan selalu merender semua line ← turunan agent. Dasarnya terverifikasi: docblock `StationReportService` menyatakan satu mill bisa punya belasan production line, dan itu sebabnya pemilih line wajib di semua laporan. Dengan belasan line, merender semua batang sekaligus hanya berguna saat Admin sengaja mengaudit cakupan.
+- **Urutan tampil diturunkan dari jam mulai, BUKAN kolom urutan manual** ← turunan agent; satu sumber kebenaran yang tidak bisa berselisih dengan jamnya sendiri.
+- **Komponen timeline dipakai ulang sebagai pratinjau hidup di form** ← turunan agent. Alasannya: tumpang tindih dan celah adalah cacat BERBENTUK, jadi pratinjau membuatnya terlihat sebelum Simpan ditekan alih-alih muncul sebagai pesan validasi sesudahnya. Dibangun sekali, terpakai dua kali.
+- **Jam selesai lebih awal daripada jam mulai diperlakukan normal** (shift melewati tengah malam) dan ditulis '23:00 — 07:00 +1' ← turunan agent.

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kelola Shift | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour/radius/shadow literals, CSS variables only */
+
+    /* ---- Minimum font size 14px (uiux_spec.accessibility.text_content.min_font_size).
+            The shared assets size .badge / .btn-sm / .input-hint at --font-size-xs (12px);
+            this screen lifts them to --font-size-sm (14px). No literal sizes. ---- */
+    .content-area .badge,
+    .content-area .btn-sm { font-size: var(--font-size-sm); }
+    .content-area .btn-sm { padding: var(--space-xs) var(--space-sm); }
+
+    .ks-filter-bar {
+      display: flex;
+      /* flex-start, BUKAN flex-end: grup Production Line lebih tinggi karena
+         memuat keterangan di bawah select-nya, dan bottom-align memaksa label
+         serta field Mill turun relatif terhadap tetangganya sehingga kedua
+         label tidak sebaris. */
+      align-items: flex-start;
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+    }
+    .ks-filter-bar .input-group { min-width: 220px; flex: 1 1 220px; }
+
+    .ks-note {
+      font-size: var(--font-size-sm);
+      color: var(--color-muted-foreground);
+      line-height: var(--line-height-base);
+    }
+    .ks-note strong { color: var(--color-foreground); }
+    .ks-card { margin-bottom: var(--space-xl); }
+
+    /* ---- Timeline ------------------------------------------------------- */
+    /* The card scrolls its own track horizontally; the page never does. */
+    .ks-scroll { overflow-x: auto; }
+    /* Minimum track width: wide enough that (a) the '03:00 +1' and '06:00 +1'
+       labels never touch and (b) the 4-hour gap block still fits its own caption.
+       Below this the card scrolls — the page never does. */
+    .ks-timeline-inner { min-width: 800px; }
+
+    .ks-axis {
+      position: relative;
+      height: calc(var(--space-lg) + var(--space-xs));
+      margin-bottom: var(--space-sm);
+    }
+    .ks-axis-tick {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      font-size: var(--font-size-sm);
+      color: var(--color-muted-foreground);
+      white-space: nowrap;
+    }
+    .ks-axis-tick--start { transform: none; }
+    .ks-axis-tick--end   { transform: translateX(-100%); }
+
+    .ks-line { padding: var(--space-md) 0; }
+    .ks-line + .ks-line { border-top: 1px solid var(--color-border); }
+    .ks-line-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+      margin-bottom: var(--space-sm);
+    }
+    .ks-line-name {
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-h3);
+      color: var(--color-foreground);
+    }
+    .ks-line-meta { font-size: var(--font-size-sm); color: var(--color-muted-foreground); }
+    .ks-line-status { display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+
+    .ks-track {
+      position: relative;
+      height: calc(var(--space-2xl) + var(--space-md));
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-input);
+      background-color: var(--color-background);
+      /* 4-hour gridlines, aligned with the hour axis above */
+      background-image: repeating-linear-gradient(
+        to right,
+        var(--color-border) 0 1px,
+        transparent 1px 16.6667%
+      );
+      overflow: hidden;
+    }
+
+    .ks-block {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-sm);
+      overflow: hidden;
+    }
+    .ks-block-name {
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-h3);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ks-block-time {
+      font-size: var(--font-size-sm);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ks-block-shift {
+      background: var(--color-brand);
+      color: var(--color-background);
+      border-right: 1px solid var(--color-background);
+    }
+    /* Gap: textured, never plain background — an empty white stretch reads as
+       card background instead of as a finding. */
+    .ks-block-gap {
+      background-color: var(--color-surface);
+      background-image: repeating-linear-gradient(
+        45deg,
+        color-mix(in srgb, var(--color-warning) 38%, transparent) 0 var(--space-xs),
+        transparent var(--space-xs) var(--space-sm)
+      );
+      border: 1px dashed var(--color-warning);
+      color: var(--color-foreground);
+    }
+    /* "Belum diatur" is deliberately NOT drawn as a gap — not-yet-done is not
+       the same finding as a possibly-wrong decision. */
+    .ks-block-empty {
+      background: var(--color-surface);
+      color: var(--color-muted-foreground);
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ks-legend {
+      display: flex;
+      gap: var(--space-lg);
+      flex-wrap: wrap;
+      margin-top: var(--space-md);
+    }
+    .ks-legend-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: var(--font-size-sm);
+      color: var(--color-muted-foreground);
+    }
+    .ks-swatch {
+      width: var(--space-lg);
+      height: var(--space-md);
+      border-radius: var(--radius-input);
+      flex-shrink: 0;
+    }
+    .ks-swatch-shift { background: var(--color-brand); }
+    .ks-swatch-gap {
+      background-color: var(--color-surface);
+      background-image: repeating-linear-gradient(
+        45deg,
+        color-mix(in srgb, var(--color-warning) 38%, transparent) 0 var(--space-xs),
+        transparent var(--space-xs) var(--space-sm)
+      );
+      border: 1px dashed var(--color-warning);
+    }
+    .ks-swatch-empty { background: var(--color-surface); border: 1px solid var(--color-border); }
+
+    /* ---- Table --------------------------------------------------------- */
+    .ks-row-actions { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
+    .ks-row-note { color: var(--color-muted-foreground); font-size: var(--font-size-sm); }
+    .ks-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+      width: 100%;
+    }
+    .ks-pagination-pages { display: flex; gap: var(--space-xs); }
+
+    .actors-note {
+      font-size: var(--font-size-sm);
+      color: var(--color-muted-foreground);
+      font-style: italic;
+      margin-top: var(--space-lg);
+    }
+
+    /* Narrow viewports: thin the hour labels out, never shrink them below 14px. */
+    @media (max-width: 767px) {
+      .ks-timeline-inner { min-width: 700px; }
+      .ks-axis-tick--secondary { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="label">Mill Smart Log</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#"><span class="label">Dashboard</span></a>
+        <a class="nav-item" href="#"><span class="label">Data Stasiun</span></a>
+        <a class="nav-item active" href="#"><span class="label">Master Data</span></a>
+        <a class="nav-item" href="#"><span class="label">User &amp; Role Management</span></a>
+        <a class="nav-item" href="#"><span class="label">Pengaturan Akun</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-title">Master Data &gt; Kelola Shift</div>
+        <div class="topbar-end">
+          <span>Admin</span>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="page-header">
+          <h1 class="page-title">Kelola Shift</h1>
+          <div class="page-actions">
+            <button class="btn btn-primary" type="button">+ Tambah Shift</button>
+          </div>
+        </div>
+
+        <div class="ks-filter-bar">
+          <div class="input-group">
+            <label class="input-label" for="ks-mill">Mill <span class="required">*</span></label>
+            <select class="input" id="ks-mill">
+              <option selected>Kilang Sawit Tenang</option>
+              <option>Kilang Sawit Utara</option>
+              <option>Kilang Sawit Selatan</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="ks-line">Production Line</label>
+            <select class="input" id="ks-line">
+              <option selected>Semua line</option>
+              <option>Line 1</option>
+              <option>Line 2</option>
+              <option>Line 3</option>
+            </select>
+            <p class="ks-note">Semua line ditampilkan — satu batang per line, untuk mengaudit cakupan seluruh mill sekaligus.</p>
+          </div>
+        </div>
+
+        <!-- ============ TIMELINE: cacat pada data shift itu berbentuk ============ -->
+        <div class="card ks-card">
+          <div class="card-header">Cakupan Shift per Production Line — Kilang Sawit Tenang</div>
+          <div class="card-body">
+            <p class="ks-note">
+              <strong>Hari produksi berjalan 07:00 sampai 06:00 keesokan hari</strong>, mengikuti kisi slot
+              waktu yang dipakai seluruh stasiun bergrid — karena itu batang di bawah dimulai 07:00, bukan
+              tengah malam. Shift yang melewati tengah malam (ditulis <strong>23:00 — 07:00 +1</strong>)
+              tergambar sebagai satu blok utuh di ujung kanan batang, bukan dua potongan di kedua ujungnya.
+            </p>
+
+            <div class="ks-scroll">
+              <div class="ks-timeline-inner">
+
+                <div class="ks-axis">
+                  <span class="ks-axis-tick ks-axis-tick--start" style="left:0">07:00</span>
+                  <span class="ks-axis-tick ks-axis-tick--secondary" style="left:16.6667%">11:00</span>
+                  <span class="ks-axis-tick" style="left:33.3333%">15:00</span>
+                  <span class="ks-axis-tick" style="left:50%">19:00</span>
+                  <span class="ks-axis-tick" style="left:66.6667%">23:00</span>
+                  <span class="ks-axis-tick ks-axis-tick--secondary" style="left:83.3333%">03:00 +1</span>
+                  <span class="ks-axis-tick ks-axis-tick--end" style="left:95.8333%">06:00 +1</span>
+                </div>
+
+                <!-- Line 1 — tercakup penuh -->
+                <div class="ks-line">
+                  <div class="ks-line-head">
+                    <span class="ks-line-name">Line 1</span>
+                    <span class="ks-line-status">
+                      <span class="ks-line-meta">3 shift</span>
+                      <span class="badge badge-success">tercakup 24 jam</span>
+                    </span>
+                  </div>
+                  <div class="ks-track">
+                    <div class="ks-block ks-block-shift" style="left:0;width:33.3333%">
+                      <span class="ks-block-name">Pagi</span>
+                      <span class="ks-block-time">07:00 — 15:00</span>
+                    </div>
+                    <div class="ks-block ks-block-shift" style="left:33.3333%;width:33.3333%">
+                      <span class="ks-block-name">Siang</span>
+                      <span class="ks-block-time">15:00 — 23:00</span>
+                    </div>
+                    <div class="ks-block ks-block-shift" style="left:66.6667%;width:33.3333%">
+                      <span class="ks-block-name">Malam</span>
+                      <span class="ks-block-time">23:00 — 07:00 +1</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Line 2 — ada celah 15:00–19:00 -->
+                <div class="ks-line">
+                  <div class="ks-line-head">
+                    <span class="ks-line-name">Line 2</span>
+                    <span class="ks-line-status">
+                      <span class="ks-line-meta">2 shift · 4 jam tidak tercakup</span>
+                      <span class="badge badge-warning">ada celah 4 jam</span>
+                    </span>
+                  </div>
+                  <div class="ks-track">
+                    <div class="ks-block ks-block-shift" style="left:0;width:33.3333%">
+                      <span class="ks-block-name">Pagi</span>
+                      <span class="ks-block-time">07:00 — 15:00</span>
+                    </div>
+                    <div class="ks-block ks-block-gap" style="left:33.3333%;width:16.6667%">
+                      <span class="ks-block-name">Celah 4 jam</span>
+                      <span class="ks-block-time">15:00–19:00</span>
+                    </div>
+                    <div class="ks-block ks-block-shift" style="left:50%;width:50%">
+                      <span class="ks-block-name">Malam</span>
+                      <span class="ks-block-time">19:00 — 07:00 +1</span>
+                    </div>
+                  </div>
+                  <p class="ks-note">
+                    Celah tidak ditolak — pabrik yang tidak beroperasi dua puluh empat jam itu sah. Tetapi
+                    record yang nanti jatuh pada <strong>15:00–19:00</strong> tidak akan punya shift, jadi
+                    celahnya dinyatakan beserta jumlah jamnya.
+                  </p>
+                </div>
+
+                <!-- Line 3 — belum diatur (bukan celah 24 jam) -->
+                <div class="ks-line">
+                  <div class="ks-line-head">
+                    <span class="ks-line-name">Line 3</span>
+                    <span class="ks-line-status">
+                      <span class="ks-line-meta">0 shift</span>
+                      <span class="badge badge-neutral">belum diatur</span>
+                    </span>
+                  </div>
+                  <div class="ks-track">
+                    <div class="ks-block ks-block-empty" style="left:0;width:100%">
+                      <span class="ks-block-time">Belum diatur — belum ada satu pun shift pada line ini</span>
+                    </div>
+                  </div>
+                  <p class="ks-note">
+                    Dinyatakan <strong>belum diatur</strong>, bukan <strong>celah 24 jam</strong>: yang
+                    pertama belum dikerjakan, yang kedua keputusan yang mungkin salah.
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="ks-legend">
+              <span class="ks-legend-item"><span class="ks-swatch ks-swatch-shift"></span>Shift</span>
+              <span class="ks-legend-item"><span class="ks-swatch ks-swatch-gap"></span>Celah — tidak dimiliki shift mana pun</span>
+              <span class="ks-legend-item"><span class="ks-swatch ks-swatch-empty"></span>Belum diatur</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ TABEL SHIFT — urutannya sama dengan timeline ============ -->
+        <div class="card ks-card">
+          <div class="card-header">Daftar Shift</div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Production Line</th>
+                    <th>Nama Shift</th>
+                    <th>Mulai</th>
+                    <th>Selesai</th>
+                    <th>Durasi</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Line 1</td>
+                    <td>Pagi</td>
+                    <td>07:00</td>
+                    <td>15:00</td>
+                    <td>8 jam</td>
+                    <td>
+                      <div class="ks-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Ubah</button>
+                        <button class="btn btn-destructive btn-sm" type="button">Hapus</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Line 1</td>
+                    <td>Siang</td>
+                    <td>15:00</td>
+                    <td>23:00</td>
+                    <td>8 jam</td>
+                    <td>
+                      <div class="ks-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Ubah</button>
+                        <button class="btn btn-destructive btn-sm" type="button">Hapus</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Line 1</td>
+                    <td>Malam</td>
+                    <td>23:00</td>
+                    <td>07:00 +1</td>
+                    <td>8 jam</td>
+                    <td>
+                      <div class="ks-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Ubah</button>
+                        <button class="btn btn-destructive btn-sm" type="button">Hapus</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Line 2</td>
+                    <td>Pagi</td>
+                    <td>07:00</td>
+                    <td>15:00</td>
+                    <td>8 jam</td>
+                    <td>
+                      <div class="ks-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Ubah</button>
+                        <button class="btn btn-destructive btn-sm" type="button">Hapus</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Line 2</td>
+                    <td>Malam</td>
+                    <td>19:00</td>
+                    <td>07:00 +1</td>
+                    <td>12 jam</td>
+                    <td>
+                      <div class="ks-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Ubah</button>
+                        <button class="btn btn-destructive btn-sm" type="button">Hapus</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="ks-row-note" colspan="6">
+                      Line 3 — belum diatur, belum punya satu pun shift. Tambahkan shift lewat tombol
+                      “+ Tambah Shift” di atas.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="ks-pagination">
+              <span class="ks-note">
+                Menampilkan 5 dari 5 shift pada 3 Production Line. Urutannya mengikuti jam mulai relatif
+                awal hari produksi — sama dengan urutan blok pada timeline.
+              </span>
+              <span class="ks-pagination-pages">
+                <button class="btn btn-outline btn-sm" type="button">Sebelumnya</button>
+                <button class="btn btn-primary btn-sm" type="button">1</button>
+                <button class="btn btn-outline btn-sm" type="button">Berikutnya</button>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Yang TIDAK diatur di layar ini -->
+        <div class="alert alert-info">
+          <div>
+            <div class="alert-title">Jarak waktu sinkronisasi tidak diatur di layar ini</div>
+            <div>
+              Jarak itu ditetapkan <strong>per mill</strong>, bukan per shift — tempatnya di
+              <strong>Master Data &rarr; Mills Setting</strong> (pengaturan mill), bersama gerbang
+              sinkronisasinya. Layar ini hanya mengatur nama dan jam shift per Production Line.
+            </div>
+          </div>
+        </div>
+
+        <p class="actors-note">
+          Actors: Admin &nbsp;·&nbsp;
+          Entry points: Menu sidebar 'Master Data' → Kelola Shift, Kembali dari layar lain dengan mill dan filter Production Line yang sama masih terpilih
+        </p>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

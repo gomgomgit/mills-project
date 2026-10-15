@@ -1,0 +1,121 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-15"
+  },
+  "id": "screen-159--laporan-engine-room-mobile",
+  "name": "Laporan Engine Room (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-15T00:00:00Z",
+      "passed": 79,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-15T00:00:00Z",
+      "passed": 100,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-15T00:00:00Z",
+      "passed": 53,
+      "failed": 0
+    }
+  },
+  "files_generated": [],
+  "test_files_generated": [
+    "mobile/tests/engineRoomReportRepo.spec.ts",
+    "mobile/tests/ReportingPilihStasiunView.spec.ts"
+  ],
+  "fe_files_generated": [
+    "mobile/src/services/engineRoomReportRepo.ts",
+    "mobile/src/views/LaporanEngineRoomView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/LaporanEngineRoomView.spec.ts",
+    "mobile/tests/e2e/laporan-engine-room.spec.ts"
+  ],
+  "implementation_notes": [
+    "NOL perubahan backend, diverifikasi dengan `git status --short -- backend/` kosong di akhir putaran. Nol endpoint baru, nol entri api-index. Keempat endpoint sudah ada: tiga dari screen-158 (commit 657438a, middleware-nya sudah menerima Operator sejak commit pertama) dan satu dipakai ulang verbatim dari screen-135. Inilah yang dibeli oleh keputusan menerima Operator lebih awal di screen-158 — screen-157 harus mengerjakan pelebaran aksesnya sendiri di putaran mobile-nya, screen-159 tidak.",
+    "Satu entri REPORT_ROUTES di ReportingPilihStasiunView.vue dengan kunci DIKUTIP bertanda hubung ('engine-room'), di-append karena peta mobile tidak berurut sort_order dan tidak punya asersi urutan. Ikon 'engine-room' sudah ada di berkas itu dan tidak ditambah.",
+    "RIAK KETUJUH mendarat dan hijau: fixture 'stasiun belum berlaporan' di ReportingPilihStasiunView.spec.ts dipindah dari engine-room ke kernel-dispatch (sort_order 160, tertinggi di antara yang belum terpakai). Testid diperbarui, docblock kepala berkas mencatatnya sebagai pemindahan ketujuh, daftar contohnya menjadi empat, dan satu catatan basi tentang sisa kandidat ikut dikoreksi. 39/39 lolos.",
+    "KOREKSI SPEC 1 — ROUTER TIDAK PUNYA DAFTAR PERAN. Spec versi pertama saya menulis 'router menolak Mill Management dan Admin'; itu tidak dapat dipenuhi. Diverifikasi sendiri: mobile/src/router/index.ts hanya punya satu guard global atas meta.public yang memeriksa SESI, dan tidak ada satu rute pun di berkas itu yang membawa daftar peran. Agen menolak memalsukan penolakan yang tidak ada dan justru mengasersi kontrak yang sebenarnya: rute ada, menuntut sesi, tidak membawa roles/allowedRoles, dan begitu pula seluruh rute lain — sehingga asersinya memerah pada hari seseorang menambahkan penjaga peran. Yang benar-benar menahan kedua peran itu adalah otorisasi sisi server plus ketiadaan jalur mobile. Artefak sudah dikoreksi.",
+    "KOREKSI SPEC 2 — PORSI SEBARAN MEMANG DIHITUNG DI KLIEN. Diverifikasi bahwa EngineRoomReportService tidak menerbitkan field `share` sama sekali, jadi klien harus menghitungnya dari counts/recorded_slots. Yang diikat aturan nol-aritmetika adalah PENYEBUTNYA — wajib recorded_slots, tidak boleh expected_slots (15/20 = 75,0%, bukan 15/240 = 6,3%). Ini satu-satunya pengecualian sah atas aturan itu di layar ini, dan sekarang dinyatakan di spec supaya tidak terbaca sebagai pelanggaran maupun 'diperbaiki' dengan menerbitkan share dari server tanpa alasan.",
+    "KOREKSI SPEC 3 — REKAP MOBILE MENUMPUK, TIDAK MENGGULIR MENDATAR. Spec versi pertama saya menyalin aturan versi web. Konvensi mobile yang berlaku ditegakkan global oleh direktif v-stacked-table dan src/assets/stacked-table.css yang memaksa .detail-table-wrap { overflow-x: visible } di ≤640px, dan sebabnya tercatat di kepala berkas itu sebagai temuan QA LP-M-02/LP-M-03: pada 390px tabel 23 kolom menjadi ~1411px, dan menggulir mendatar di dalam halaman yang juga digulir tegak adalah gerakan yang paling mudah gagal di layar sentuh. Menambahkan overflow-x: auto dari style berlingkup akan mengalahkan lembar bersama itu dan mengembalikan cacat QA tersebut. Satu-satunya elemen yang memang menggulir mendatar adalah pembungkus tren .chart-scroll, dan di situlah asersi gulir diarahkan.",
+    "Nol aritmetika di klien dibuktikan dengan fixture yang akan MEMERAH bila klien menghitung: coverage_percent 88,8 diasersi atas fixture yang 260/1440-nya bernilai 18,1, sehingga perhitungan klien akan menampilkan angka yang salah. Satuan server 'C' diasersi apa adanya pada label kartunya sendiri — tidak pernah menjadi '°C'.",
+    "Ponsel tidak memilih slot energi 'terakhir': fixture memakai kisi ['06:00','23:00','13:00',...] yang tidak terurut leksikal maupun numerik, lalu urutan baris DOM diasersi sama dengan array server DAN not.toEqual versi tersortirnya. Diperkuat audit statis (komentar dibuang) yang membuktikan tidak ada baris menyebut time_slot/energy_export/energySeries yang memuat .sort(, localeCompare, Math.max, Math.min, atau .reverse(.",
+    "Keterangan genset diasersi dengan MENGHITUNG kemunculan (toHaveLength(2) / toHaveCount(2)), dan tiap kemunculan diverifikasi lewat closest() berada di dalam bloknya sendiri serta ABSEN dari blok lain. Teksnya diasersi memuat 'bukan standar bersama' dan 'tidak punya tabel master target'. Mengasersi 'ada' saja akan lolos pada implementasi yang menaruhnya sekali di atas halaman — persis cacat yang dihindari.",
+    "Penjagaan Production Line diasersi pada KETIGA jalur (awal, ganti periode, coba lagi), masing-masing menegaskan nol pemanggilan fetchSummary, ditambah satu test yang membuktikan tombol coba-lagi benar-benar melewati loadSummary(). Urutan resolusi route → msl_production_line_{userId} → minta memilih diasersi, dan ketiadaan 'pilih line pertama' MAUPUN 'pilih line satu-satunya' keduanya diasersi.",
+    "TIDAK ADA auto-pilih ketika line hanya satu — penyimpangan sengaja dari acuan Effluent Plant yang punya langkah keempat lines.length === 1. Konsekuensinya: pemilih Production Line dirender setiap kali productionLines.length > 0 (Effluent: hanya > 1), karena kalau tidak, mill berline-tunggal tidak akan pernah bisa memilih dan selamanya melihat nol angka.",
+    "Jumlah per nilai status dibaca dari td.num DI DALAM baris yang ditemukan lewat data-status-value, dan labelnya lewat toBe/toHaveText pada sel status-value-label — nol pemindaian substring kontainer. Ketiga nilai dikenal dicetak pada jumlah 0 lewat dua fixture (standby absen dari counts, dan counts kosong). Nilai tak dikenal 'turbo' dirender mentah.",
+    "Klaim 'kartu dibangun dengan meloop group dari respons' dibuktikan dengan MEMINDAHKAN fuel_tank_level ke group 'compressor' (kartunya mengikuti respons) dan dengan menambahkan kolom yang sama sekali baru yang mendarat di blok yang benar — bukan hanya dengan menghitung 23 kartu.",
+    "Keterangan ketiadaan penandaan diasersi >600 karakter dengan scrollHeight <= clientHeight + 1, textOverflow === 'clip', tanpa line-clamp dan tanpa 'selengkapnya' — diukur pada hasil render.",
+    "STATUS_VALUE_LABELS dan statusValueLabel() diekspor dari REPO, bukan dari view (Effluent menyimpannya di view) — sehingga spec repo dapat mengimpor petanya langsung dan salinannya tidak tersebar. Hanya memuat run/standby/off dengan jalur mundur map[v] ?? v dan docblock wajib-selaras yang menunjuk Display::OPTION_LABELS.",
+    "Seri ekspor energi dirender sebagai tabel bertumpuk, bukan grafik batang — satu baris per tanggal. Menurunkan min/maks/terakhir tingkat periode akan menjadi aritmetika klien SEKALIGUS keputusan 'mana yang terakhir' yang kedua, jadi kolom itu tidak menampilkan min/maks/terakhir periode dan sel totalnya berupa em dash.",
+    "422 dibedakan menurut PEMANGGIL, bukan menurut kode HTTP: /periods dan /summary → keadaan mill-not-linked dengan arahan menghubungi Admin tanpa pesan jaringan; /export → pesannya ditampilkan verbatim. 404 pada /summary mengosongkan periode tanpa tombol coba lagi, karena mengulang id yang tidak ada tidak mungkin berhasil.",
+    "Keadaan luring dinyatakan lewat navigator.onLine plus listener yang ditambah/dilepas di onMounted/onUnmounted. Tidak satu pun dari dua belas sibling punya ini; spec bisnis layar ini yang menuntutnya. Nol penulisan ke localDb maupun localStorage untuk hasil laporan.",
+    "CollapsibleSection hanya diberi title + data-testid. View Effluent melewatkan prop :subtitle yang TIDAK ADA pada komponen itu — tidak disalin.",
+    "Tiap kartu membawa data-metric=\"<kolom>\" sehingga asersi menyasar tepat, bukan lewat teks dua sampai tiga huruf.",
+    "Keamanan basis data dev DIBUKTIKAN, bukan diandaikan: jumlah baris seluruh 58 tabel publik dibandingkan sebelum dan sesudah putaran Playwright. Tepat satu yang berubah — personal_access_tokens 12857 → 12911 (+54, satu token Sanctum per login sungguhan, pengecualian yang memang disanksi). Lima puluh tujuh tabel lain identik, termasuk migrations 90 → 90. Nol migrate/migrate:fresh/db:seed/penulisan factory. Suite backend berjalan di sqlite :memory: dan tidak dapat menjangkaunya.",
+    "Kelas markup diverifikasi terhadap CSS HASIL COMPILE (dist/assets/LaporanEngineRoomView-*.css) sesudah vite build berhasil — nol kelas tanpa definisi. vue-tsc --noEmit bersih. Gulir mendatar diukur: .chart-scroll satu-satunya elemen ber-overflowX auto dengan scrollWidth > clientWidth, sementara document.scrollingElement tidak pernah menggulir mendatar."
+  ],
+  "deferred_items": [
+    {
+      "description": "unit_test_cases 69 (versi pertama: 'Router menolak Mill Management dan Admin') dan test_scenarios butir 29 bagian penolakan router",
+      "reason": "Tidak dapat dipenuhi: router mobile tidak punya daftar peran sama sekali, dan menambahkannya adalah perubahan se-router yang menyentuh seluruh 13 layar laporan. Artefak sudah dikoreksi ke kontrak yang sebenarnya, dan asersi penggantinya memerah bila penjaga peran kelak ditambahkan. Setengah bagian positifnya (Operator dan Supervisor termount dengan keluaran identik) tetap tercakup."
+    },
+    {
+      "description": "test_scenarios butir 37, bagian browser 'unduh CSV dan buka isinya'",
+      "reason": "Isi CSV di e2e berasal dari page.route, jadi membukanya akan mengasersi stub-nya sendiri, bukan berkas server. Isi CSV sungguhan adalah tugas suite ekspor backend (screen-158, sudah hijau); mengujinya sungguhan di sini berarti mengkueri basis data dev. Bagian komponennya tercakup."
+    },
+    {
+      "description": "unit_test_cases 71 (REPORT_ROUTES memuat kunci bertanda hubung yang dikutip) dan 72 (tile tersedia walau isActive false)",
+      "reason": "Butir 71 dibuktikan lebih kuat secara ujung-ke-ujung oleh test pintu masuk e2e: tile terlihat, aria-disabled false, klik mendarat di /reports/engine-room. Kunci bergaris-bawah akan menjatuhkan test itu. Butir 72 sudah dijaga test sterilizer + isActive false yang sudah ada di ReportingPilihStasiunView.spec.ts; duplikat khusus stasiun tidak menangkap apa pun lagi."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "422 EXPORT_FAILED tidak tampil verbatim di peramban sungguhan, dan sebabnya ada di apiClient, bukan di layar ini. /export memakai responseType 'blob', sehingga error.response.data berupa Blob dan normalizeError membaca data?.message → undefined → jatuh ke pesan generik (status 422 tetap utuh). Dispatch 422-nya sendiri benar dan itulah yang diasersi e2e. INI MENYENTUH JALUR EKSPOR SELURUH TIGA BELAS LAYAR LAPORAN MOBILE, jadi perbaikannya (membaca Blob 422 sebagai teks sebelum normalisasi) milik mobile/src/services/apiClient.ts dan layak jadi putaran sendiri.",
+      "severity": "minor"
+    },
+    {
+      "description": "KANDIDAT FIXTURE 'stasiun belum berlaporan' HAMPIR HABIS. Sesudah pemindahan ketujuh ini hanya Solid Waste Disposal (150) yang tersisa; sesudah screen-160..169 tidak akan ada jenis stasiun nyata yang dapat menjadi contoh, dan test itu menjadi mustahil dipenuhi setelah tiga pemindahan sia-sia lagi. Perbaikan termurah — menyuntik REPORT_ROUTES atau memakai kode stasiun fiktif — paling baik dikerjakan SEBELUM tiga pemindahan berikutnya, bukan sesudahnya.",
+      "severity": "minor"
+    },
+    {
+      "description": "STATUS_VALUE_LABELS membocorkan rantai prototipenya: ia objek literal biasa, jadi statusValueLabel('constructor') memulangkan sebuah FUNGSI yang akan dirender template sebagai kode sumber. Tidak terjangkau hari ini (enum basis data tertutup dengan CHECK constraint, dan view mengiterasi known_values dari server), jadi sengaja tidak dipaku ke arah mana pun. Perbaikannya bila diinginkan: Object.create(null) atau penjaga hasOwnProperty di engineRoomReportRepo.ts.",
+      "severity": "minor"
+    },
+    {
+      "description": "Keadaan no-periods tidak terjangkau selama Production Line belum dipilih — production-line-required-hint lebih dulu pada rantai v-if yang sama. Prioritas itu arguably benar (memilih line adalah langkah satu), dan e2e memilih line lebih dulu lalu mendokumentasikannya.",
+      "severity": "minor"
+    },
+    {
+      "description": "401 saat memuat daftar line sempat merender production-line-unavailable satu tick sebelum router.push('login'). Tidak terlihat di produksi (router melepas view-nya), hanya terlihat di harness test bermock. Didokumentasikan supaya tidak ada yang mengejar cacat yang hanya ada di harness.",
+      "severity": "minor"
+    },
+    {
+      "description": "Metrik yang group-nya di luar keenam blok dikenal tidak dirender sama sekali — judul dan urutan blok milik view, kolomnya datang dari respons. Disengaja: kolom di blok yang salah lebih buruk daripada kolom yang belum punya blok. Sekarang diasersi dan didokumentasikan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Peringatan non-fatal 'Failed to resolve directive: stacked-table' pada test komponen, karena v-stacked-table terdaftar di src/main.ts dan bukan di setup test. Identik dengan dua belas sibling.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage tidak terukur di lingkungan ini — tidak ada xdebug maupun pcov, dan tidak ada mesin ambang coverage di sisi mobile. Angka 0 pada test_results berarti 'tidak terukur', bukan 'nol tercakup'; bukan alasan menurunkan status ke partial.",
+      "severity": "minor"
+    }
+  ]
+}

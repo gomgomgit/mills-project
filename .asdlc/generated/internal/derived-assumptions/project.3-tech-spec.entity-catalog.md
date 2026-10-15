@@ -78,3 +78,19 @@ Sumber: audit-fix 2026-10-05 (commit 30b7f27 / f79b1fe), code is truth (backend/
 - mill-setting: field app_name dan logo DIHAPUS dari fields dan test_fixture ← keputusan user mencabut keduanya dari Mills Setting; migrasi 2026_10_12_000001 menjatuhkan kolomnya
 - mill-setting: field immediate_sync_enabled DITAMBAHKAN ← agent derived, dan ini KOREKSI DRIFT, bukan fitur baru: kolomnya sudah ada di basis data dan dibaca aplikasi mobile sejak 2026-09-14, tetapi tidak pernah tercatat di katalog. Ditemukan saat menulis ulang entitas ini dan dicatat sekarang karena membiarkannya berarti katalog tetap salah tentang entitas yang baru saja diperiksa baris demi baris
 - test_fixture app_name diisi 'Mills Smart Log' pada versi lama — nilai itu ikut hilang; tidak ada penggantinya karena tidak ada field teks yang tersisa pada entitas ini
+
+## v23 — 2026-10-15
+
+Penambahan entitas `shift` (fitur Shift per Production Line, putaran master) beserta relasi balasannya pada `production-line`.
+
+Keputusan user yang dinyatakan eksplisit: shift melekat pada **Production Line**, bukan pada mill · jadwalnya **sama setiap hari** (yang bergilir regunya, bukan jamnya) · celah antar shift diizinkan tetapi ditandai. Yang di bawah ini turunan agent:
+
+- **`start_time`/`end_time` bertipe `time`, bukan `datetime`** ← konsekuensi langsung dari "sama setiap hari": tanggal tidak boleh ikut masuk, karena begitu ia masuk, jadwalnya berhenti berlaku seragam.
+- **TIDAK ADA kolom hari maupun masa berlaku** ← dicatat sebagai constraint eksplisit, bukan sekadar ketiadaan. Ketiadaan yang tidak dinyatakan akan terbaca sebagai kelalaian oleh orang berikutnya, dan ia akan menambahkannya "untuk berjaga-jaga".
+- **`end_time` boleh lebih awal daripada `start_time`** ← shift melewati tengah malam adalah bentuk paling umum untuk shift malam, bukan kasus khusus; dicatat di deskripsi field agar tidak divalidasi sebagai salah input.
+- **Tumpang tindih berbatas INKLUSIF**, sehingga shift yang berakhir tepat pada jam mulai shift lain tidak bertindih ← pola dibawa dari aturan rentang tanggal `screen-128--kelola-periode-pelaporan`.
+- **Tumpang tindih diperiksa hanya di dalam satu Production Line** ← dua line boleh punya shift pada jam yang sama persis; keduanya bekerja bersamaan di line berbeda.
+- **Celah diizinkan di DATA, ditandai di LAYAR** ← pemisahan yang disengaja: data tidak menolak celah, tampilan yang membuatnya terlihat.
+- **Nama unik per line, bukan unik global** ← 'Pagi' di Line 1 dan 'Pagi' di Line 2 adalah dua shift berbeda dan itu normal di lapangan.
+- **`test_fixture` memakai `shf-001` / `pl-001`** mengikuti pola penamaan fixture katalog ini; `production_line_id` menunjuk fixture Production Line yang sudah ada alih-alih id baru.
+- **Catatan arah ke depan ditulis di deskripsi entitas**: entitas ini akan menjadi tujuan FK `shift_id` pada 18 tabel record, bermakna "shift yang berlaku saat operator menyimpan di perangkat". Dicatat di sini supaya maksudnya tidak hilang di antara putaran.

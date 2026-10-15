@@ -1,0 +1,142 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-15"
+  },
+  "id": "screen-170--kelola-shift",
+  "name": "Kelola Shift",
+  "module_id": "module-master-data",
+  "description": "Admin mendefinisikan Shift PER PRODUCTION LINE — nama, jam mulai, jam selesai. Shift melekat pada Production Line dan bukan pada mill, karena satu mill di lapangan dapat punya belasan line dan tiap line punya jadwal kerjanya sendiri.\n\nYANG MENENTUKAN BENTUK LAYAR INI: CACAT PADA DATA SHIFT ITU BERBENTUK, BUKAN BERANGKA. Dua kesalahan yang mungkin terjadi pada jadwal shift adalah tumpang tindih dan celah, dan keduanya adalah geometri. Tabel berisi '15:00' dan '19:00' menuntut pembacanya menghitung selisihnya di kepala; sebuah batang 24 jam membuat celah empat jam itu langsung terlihat sebagai ruang kosong. Karena itu layar ini menampilkan TIMELINE 24 JAM per Production Line di atas tabelnya — pola panel-di-atas-tabel yang sama dengan Kelola Periode Pelaporan — dan komponen timeline yang sama dipakai ulang sebagai PRATINJAU HIDUP di dalam form. Saat Admin mengetik jam, batangnya ikut bergerak, sehingga tumpang tindih dan celah terlihat SEBELUM Simpan ditekan alih-alih muncul sebagai pesan validasi sesudahnya.\n\nTIMELINE DIMULAI 07:00, BUKAN 00:00, dan itu bukan pilihan estetis. Kisi slot waktu yang dipakai seluruh stasiun bergrid di sistem ini berjalan 07:00 sampai 06:00 keesokan hari, jadi hari produksi pabrik ini memang dimulai 07:00. Timeline yang dimulai tengah malam akan memotong hari produksi di tengah dan membuat shift malam tampak terbelah dua padahal ia utuh.\n\nSHIFT MELEWATI TENGAH MALAM ITU NORMAL, bukan kasus khusus. Jam selesai yang lebih awal daripada jam mulai — 23:00 sampai 07:00 — adalah bentuk yang paling umum untuk shift malam, dan ditampilkan apa adanya sebagai '23:00 — 07:00 +1' supaya tidak terbaca sebagai salah input.\n\nTUMPANG TINDIH DITOLAK, CELAH DIIZINKAN TAPI DITANDAI. Keduanya diperlakukan berbeda dengan sengaja. Dua shift yang bertindih pada satu line berarti satu waktu dimiliki dua shift sekaligus, dan tidak ada jawaban benar untuk 'record ini masuk shift mana' — jadi ia ditolak di titik simpan. Celah berbeda: pabrik yang tidak beroperasi dua puluh empat jam itu sah, jadi celah tidak ditolak. Tetapi celah berarti ada record yang nanti jatuh di luar shift mana pun, dan itu harus terlihat sebagai persoalan alih-alih diam — sehingga layar menyatakan berapa jam yang tidak tercakup, dan timeline menampilkan ruang kosongnya.\n\nYANG TIDAK ADA DI SINI: pengaturan jarak waktu sinkronisasi. Jarak itu ditetapkan per mill, bukan per shift, sehingga tempatnya di pengaturan mill — dan ia mendarat bersama gerbang sinkronisasinya, karena setelan yang belum mengatur apa pun hanya jadi kendali yang tidak melakukan apa-apa.",
+  "actors": [
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Master Data' → Kelola Shift",
+    "Kembali dari layar lain dengan mill dan filter Production Line yang sama masih terpilih"
+  ],
+  "usecase_ids": [
+    "usecase-176--kelola-shift"
+  ],
+  "test_priority": "high",
+  "information_displayed": [
+    "Pemilih Mill — Admin tidak terikat satu mill, jadi ia memilih; sebelum mill dipilih tidak ada shift maupun timeline yang ditampilkan",
+    "Pemilih Production Line — memuat line milik mill terpilih, ditambah pilihan 'semua line' untuk mengaudit cakupan seluruh mill sekaligus",
+    "TIMELINE 24 JAM per Production Line, dimulai 07:00 mengikuti awal hari produksi dan berakhir 06:00 keesokan hari — satu batang per line, mengikuti filter",
+    "Blok shift pada timeline, masing-masing memuat nama shift dan jam mulai–selesainya, dengan lebar sebanding durasinya",
+    "Penanda celah pada timeline — ruang kosong bertekstur pada rentang yang tidak dimiliki shift mana pun, bukan ruang putih biasa yang terbaca sebagai latar",
+    "Status cakupan per line, dinyatakan dengan kata bukan hanya warna: 'tercakup 24 jam' atau 'ada celah N jam'",
+    "Jumlah jam yang tidak tercakup, disebut angkanya — bukan hanya 'ada celah'",
+    "Penanda bila union shift pada satu line tidak dimulai 07:00, beserta keterangan bahwa hari produksi dimulai jam itu; ini peringatan, bukan penolakan",
+    "Keterangan bahwa hari produksi berjalan 07:00 sampai 06:00, dirender di dekat timeline supaya pembaca tahu mengapa batangnya tidak dimulai tengah malam",
+    "Tabel shift — satu baris per shift: Production Line, nama shift, jam mulai, jam selesai, dan aksi ubah/hapus",
+    "Shift yang melewati tengah malam ditulis '23:00 — 07:00 +1' pada tabel maupun timeline, sehingga jam selesai yang lebih kecil tidak terbaca sebagai salah input",
+    "Durasi tiap shift dalam jam, dihitung dengan memperhitungkan lintasan tengah malam",
+    "Urutan baris tabel dan urutan blok timeline sama, keduanya mengikuti jam mulai relatif awal hari produksi — bukan urutan abjad nama dan bukan urutan penambahan",
+    "Form tambah/ubah shift berisi pemilih Production Line, nama, jam mulai, dan jam selesai — dengan PRATINJAU TIMELINE HIDUP yang ikut bergerak saat jam diketik",
+    "Pada pratinjau form: penanda tumpang tindih dengan shift lain pada line itu, muncul saat diketik dan sebelum Simpan ditekan",
+    "Pesan penolakan tumpang tindih yang menyebut shift mana yang bertindih dan pada rentang jam berapa — bukan hanya 'jam bertindih'",
+    "Keadaan line yang belum punya satu pun shift — dinyatakan sebagai belum diatur, bukan ditampilkan sebagai celah 24 jam yang terbaca seperti kesalahan",
+    "Keterangan bahwa jarak waktu sinkronisasi TIDAK diatur di layar ini, beserta tempat ia diatur — supaya Admin yang mencarinya di sini tidak menyimpulkan fiturnya belum ada",
+    "Konfirmasi inline saat menghapus shift, menyebut nama shift dan line-nya"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill yang dikelola. Mengganti mill mengosongkan filter Production Line, karena sebuah line milik tepat satu mill.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Filter Production Line",
+      "description": "Menyaring timeline dan tabel pada satu line, atau menampilkan seluruh line mill itu untuk mengaudit cakupan sekaligus.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Shift",
+      "description": "Membuka form kosong untuk membuat shift baru pada satu Production Line. Pratinjau timeline di dalam form bergerak saat jam diketik, sehingga tumpang tindih dan celah terlihat sebelum disimpan.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit Shift",
+      "description": "Membuka form terisi untuk mengubah nama, line, atau jam shift. Pratinjau dan validasi berlaku sama seperti saat menambah, dan shift yang sedang diubah tidak dihitung bertindih dengan dirinya sendiri.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus Shift",
+      "description": "Menghapus satu shift dengan konfirmasi inline. Menghapus shift membesarkan celah pada line itu, dan akibat itu ditampilkan pada timeline setelah penghapusan.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Navigasi halaman",
+      "description": "Berpindah halaman pada tabel shift bila jumlahnya melampaui satu halaman. Timeline tidak ikut berpindah halaman karena ia merangkum cakupan, bukan mendaftar baris.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Hanya Admin yang punya layar ini, sama seperti seluruh master lain di modul Master Data.",
+    "Shift melekat pada PRODUCTION LINE, bukan pada mill. Satu mill dapat punya belasan line dengan jadwal kerja yang berbeda-beda, jadi jadwal tingkat mill akan salah untuk sebagian besar line-nya.",
+    "Mill wajib dipilih lebih dulu. Admin tidak terikat satu mill, dan sebelum mill dipilih layar tidak menampilkan satu shift pun.",
+    "Mengganti mill mengosongkan filter Production Line — sebuah line milik tepat satu mill, jadi membawanya ke mill lain akan menampilkan galat untuk sesuatu yang tidak dilakukan Admin.",
+    "Nama shift wajib diisi dan harus unik dalam satu Production Line. Dua line berbeda BOLEH punya shift bernama sama — 'Pagi' di Line 1 dan 'Pagi' di Line 2 adalah dua shift yang berbeda, dan itu normal.",
+    "Jam mulai dan jam selesai wajib diisi.",
+    "Jam selesai BOLEH lebih awal daripada jam mulai. Itu berarti shift melewati tengah malam, bentuk yang paling umum untuk shift malam, dan ia ditampilkan '23:00 — 07:00 +1'.",
+    "Jam mulai dan jam selesai TIDAK BOLEH sama — shift berdurasi nol tidak dapat menampung record apa pun, dan shift berdurasi dua puluh empat jam penuh harus ditulis sebagai satu shift yang menutup seluruh hari, bukan sebagai jam yang berimpit.",
+    "TUMPANG TINDIH ANTAR SHIFT PADA SATU LINE DITOLAK, dengan batas INKLUSIF — mengikuti pola aturan tumpang tindih rentang tanggal di Kelola Periode Pelaporan. Shift yang berakhir tepat pada jam mulai shift lain TIDAK dianggap bertindih; itu pergantian shift yang normal.",
+    "Penolakan tumpang tindih menyebut shift mana yang bertindih dan pada rentang jam berapa. Pesan yang hanya berbunyi 'jam bertindih' memaksa Admin mencari sendiri penyebabnya di antara belasan baris.",
+    "Shift yang sedang diubah tidak dihitung bertindih dengan dirinya sendiri.",
+    "Tumpang tindih hanya diperiksa DI DALAM satu Production Line. Dua line boleh punya shift pada jam yang sama persis — keduanya bekerja bersamaan di line yang berbeda.",
+    "CELAH DIIZINKAN, tetapi DITANDAI beserta jumlah jamnya. Pabrik yang tidak beroperasi dua puluh empat jam itu sah; yang tidak boleh adalah celah yang tidak terlihat, karena record yang nanti jatuh di sana tidak akan punya shift.",
+    "Union shift yang tidak dimulai 07:00 DITANDAI tetapi TIDAK DITOLAK. Hari produksi dimulai 07:00, jadi jadwal yang tidak selaras dengannya layak diperingatkan — tetapi menolaknya akan memaksa pabrik yang shift-nya memang tidak selaras mengarang jadwal yang tidak mereka jalankan.",
+    "Timeline dimulai 07:00 dan berakhir 06:00 keesokan hari, mengikuti kisi slot waktu yang dipakai seluruh stasiun bergrid. Timeline yang dimulai tengah malam akan membelah shift malam menjadi dua potongan padahal ia satu shift utuh.",
+    "Urutan tampil shift diturunkan dari jam mulai relatif awal hari produksi, BUKAN dari kolom urutan manual dan bukan dari abjad nama. Satu sumber kebenaran yang tidak dapat berselisih dengan jam shift-nya sendiri.",
+    "Urutan baris tabel dan urutan blok timeline WAJIB sama. Dua urutan yang berbeda untuk data yang sama adalah cara tercepat membuat pembaca berhenti mempercayai keduanya.",
+    "Pratinjau timeline di dalam form bergerak saat jam diketik, dan tumpang tindih muncul di situ SEBELUM Simpan ditekan. Validasi yang hanya muncul setelah Simpan memaksa Admin menebak-nebak pada data yang bentuknya justru mudah ditampilkan.",
+    "Status cakupan dinyatakan dengan KATA, bukan hanya dengan warna — 'tercakup 24 jam' atau 'ada celah N jam'. Warna saja tidak terbaca oleh semua orang dan tidak terbaca sama sekali saat dicetak.",
+    "Line yang belum punya satu pun shift dinyatakan sebagai BELUM DIATUR, bukan ditampilkan sebagai celah dua puluh empat jam. Keduanya berbeda artinya: yang pertama belum dikerjakan, yang kedua keputusan yang mungkin salah.",
+    "Layar ini TIDAK mengatur jarak waktu sinkronisasi. Jarak itu per mill, bukan per shift, jadi tempatnya di pengaturan mill — dan layar ini menyebutkan di mana, supaya Admin yang mencarinya di sini tidak menyimpulkan fiturnya belum ada.",
+    "Seluruh teks pada layar ini berukuran minimal 14px, termasuk keterangan pada timeline dan label jam pada sumbunya. Keterangan kecil yang tidak terbaca sama saja dengan keterangan yang tidak ada.",
+    "Penghapusan shift dikonfirmasi inline dengan menyebut nama shift dan line-nya, dan akibatnya pada cakupan ditampilkan setelah penghapusan — menghapus shift selalu membesarkan celah.",
+    "JADWAL SHIFT BERLAKU SAMA SETIAP HARI. Jam mulai dan jam selesai tiap shift tidak berubah menurut hari dalam seminggu maupun menurut musim, sehingga satu baris per shift per line sudah cukup dan shift tidak membawa dimensi hari maupun masa berlaku. Pertanyaan 'jam sekian itu shift apa pada line ini' selalu punya jawaban yang sama tanpa perlu mengetahui tanggalnya. Pergiliran REGU yang mengisi shift tidak menyentuh aturan ini — yang bergilir adalah orangnya, bukan batas jamnya, dan penugasan regu adalah persoalan terpisah di luar master ini."
+  ],
+  "edge_cases": [
+    "Mill belum punya satu pun Production Line — layar menyatakannya dan mengarahkan ke Kelola Production Line, bukan menampilkan timeline kosong tanpa penjelasan.",
+    "Mill belum dipilih — tidak ada timeline maupun tabel yang ditampilkan, hanya arahan memilih mill.",
+    "Line belum punya satu pun shift — dinyatakan 'belum diatur', bukan sebagai celah 24 jam.",
+    "Mill punya belasan Production Line dan filter diset 'semua line' — timeline merender satu batang per line dan halaman menjadi panjang; itu diterima karena memilih 'semua' adalah tindakan audit yang disengaja, dan filter satu line tersedia untuk pemakaian sehari-hari.",
+    "Satu line punya tepat satu shift yang menutup 24 jam penuh — sah, timeline menampilkan satu blok penuh tanpa celah.",
+    "Satu line punya shift yang union-nya menutup 24 jam tetapi tidak dimulai 07:00 — cakupan dinyatakan penuh, dan peringatan ketidakselarasan dengan hari produksi tetap ditampilkan.",
+    "Shift melewati tengah malam — pada timeline ia digambar sebagai satu blok utuh, bukan dua potongan, karena timeline-nya memang dimulai 07:00.",
+    "Shift yang berakhir tepat pada jam mulai shift berikutnya — TIDAK dianggap bertindih; itu pergantian shift yang normal.",
+    "Shift yang bertindih satu menit — ditolak, dan pesannya menyebut rentang jam yang bertindih itu.",
+    "Admin mencoba memberi nama shift yang sudah dipakai di line yang sama — ditolak dengan pesan yang menyebut nama itu sudah dipakai.",
+    "Admin memberi nama shift yang sama dengan shift di line LAIN — diterima; keduanya shift yang berbeda.",
+    "Jam mulai dan jam selesai diisi sama — ditolak, karena shift berdurasi nol tidak dapat menampung record.",
+    "Admin mengubah jam sebuah shift sehingga ia kini bertindih dengan shift lain — ditolak, dan shift yang sedang diubah tidak dihitung bertindih dengan dirinya sendiri.",
+    "Admin mengubah Production Line sebuah shift ke line lain — tumpang tindih diperiksa ulang terhadap shift di line tujuan, bukan di line asalnya.",
+    "Admin menghapus satu shift sehingga line itu kini punya celah — penghapusan diizinkan dan celahnya ditampilkan; menghapus shift selalu membesarkan celah.",
+    "Admin menghapus seluruh shift sebuah line — line itu kembali ke keadaan 'belum diatur', bukan 'celah 24 jam'.",
+    "Jam diketik manual tanpa memakai picker — diterima; field waktu menerima pengetikan langsung MAUPUN pilihan lewat picker, keduanya.",
+    "Jam diketik separuh atau tidak valid saat pratinjau sedang hidup — pratinjau menahan diri alih-alih menggambar blok yang salah, dan tidak menampilkan galat sampai Admin selesai mengetik.",
+    "Mill belum punya Production Line sama sekali — layar menyatakannya dan mengarahkan ke Kelola Production Line.",
+    "Jumlah shift melampaui satu halaman tabel — tabel berpindah halaman sementara timeline tidak, karena timeline merangkum cakupan dan bukan mendaftar baris.",
+    "Layar dibuka pada lebar sempit — timeline tetap terbaca dan label jamnya tidak mengecil di bawah 14px; bila ruangnya tidak cukup, label jam dijarangkan alih-alih diperkecil."
+  ],
+  "open_questions": [
+    "APA YANG TERJADI PADA RECORD YANG SUDAH DITANDAI SHIFT BILA JAM SHIFT-NYA DIUBAH ATAU SHIFT-NYA DIHAPUS? Putaran ini belum menyentuhnya karena belum ada record yang merujuk shift, tetapi putaran berikutnya akan menambahkan penandaan itu pada delapan belas tabel record — dan sejak saat itu mengubah jam sebuah shift berarti mengubah arti data yang sudah tersimpan, sementara menghapusnya meninggalkan record yang menunjuk shift yang tidak ada lagi. Tiga jalan yang masuk akal: tolak ubah/hapus bila sudah ada record yang merujuknya (pola yang sudah dipakai Kelola Periode Pelaporan, yang menolak hapus bila periodenya sudah berisi data); izinkan tetapi pertahankan nilai lama pada record yang sudah ada sehingga shift menjadi data historis; atau versikan shift sehingga perubahan jadwal menghasilkan baris baru dan yang lama tetap utuh. Jawabannya tidak dibutuhkan untuk membangun master-nya, tetapi dibutuhkan SEBELUM penandaan record mendarat — dan memilihnya belakangan berarti memilih di antara data yang sudah terkumpul.",
+    "TERJAWAB 2026-10-15 — DICATAT DI SINI AGAR ALASANNYA TIDAK HILANG, BUKAN SEBAGAI PERTANYAAN YANG MASIH TERBUKA. Pertanyaannya: apakah jadwal shift perlu mengenal hari libur, pola musiman, atau pola bergilir? Jawaban pemilik produk: JAM MULAI DAN SELESAI TIAP SHIFT SAMA PERSIS SETIAP HARI, sepanjang tahun, tanpa pengecualian menurut hari dalam seminggu maupun menurut musim. Yang bergilir di lapangan adalah REGU yang mengisi shift, bukan batas jamnya — dan pergiliran regu tidak menyentuh master ini sama sekali, karena shift 'Pagi 07:00–15:00' tetap ada setiap hari siapa pun yang bekerja. Konsekuensi yang dikunci oleh jawaban ini: satu baris per shift per line sudah cukup, shift TIDAK membutuhkan dimensi hari maupun masa berlaku, dan pertanyaan 'jam 14:00 itu shift apa di line ini' selalu punya jawaban yang sama tanpa perlu mengetahui tanggalnya. Bila kelak penugasan regu per hari dibutuhkan, ia entitasnya sendiri dan bukan perluasan tabel shift.",
+    "BAGAIMANA JADWAL BARU BERLAKU TERHADAP WAKTU — SEJAK KAPAN? Mengubah jam shift hari ini mengubah arti 'shift yang berlaku' untuk record yang disimpan sesudahnya, tetapi tidak jelas apakah ia juga berlaku surut bagi hari yang sudah lewat. Selama belum ada record yang merujuk shift, pertanyaan ini tidak menimbulkan akibat; sejak putaran berikutnya ia menimbulkan akibat pada setiap record.",
+    "APAKAH PERLU PENANDA SHIFT AKTIF SAAT INI di layar ini? Admin yang membuka layar ini mungkin ingin tahu shift mana yang sedang berjalan sekarang pada tiap line — informasi yang murah ditampilkan di atas timeline dan berguna untuk memeriksa bahwa jadwalnya sesuai kenyataan. Belum dimasukkan karena belum diminta, dan karena ia menambah satu hal yang bergantung pada jam server."
+  ]
+}

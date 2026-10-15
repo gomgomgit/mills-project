@@ -1,0 +1,118 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-16"
+  },
+  "id": "screen-170--kelola-shift",
+  "name": "Kelola Shift",
+  "module_id": "module-master-data",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-16T00:00:00Z",
+      "passed": 55,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-16T00:00:00Z",
+      "passed": 31,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-16T00:00:00Z",
+      "passed": 39,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-16T00:00:00Z",
+      "passed": 28,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/database/migrations/2026_10_15_000001_create_shifts_table.php",
+    "backend/app/Models/Shift.php",
+    "backend/app/Services/ShiftService.php",
+    "backend/app/Http/Controllers/Api/ShiftController.php",
+    "backend/app/Livewire/MasterData/KelolaShift.php",
+    "backend/app/Exceptions/ShiftOverlapException.php",
+    "backend/database/factories/ShiftFactory.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/resources/views/components/layouts/app.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ShiftServiceTest.php",
+    "backend/tests/Feature/Api/KelolaShiftTest.php",
+    "backend/tests/Feature/Livewire/KelolaShiftTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/resources/views/livewire/master-data/kelola-shift.blade.php",
+    "backend/resources/views/master-data/shifts.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "e2e-web/tests/kelola-shift.spec.ts",
+    "e2e-web/tests/support/shifts.ts"
+  ],
+  "implementation_notes": [
+    "Layar pertama fitur Shift per Production Line. Backend + web saja; mobile/ nol tersentuh (delapan entri mobile yang belum tercommit adalah sisa screen-159 dari putaran sebelumnya, diverifikasi identik di awal dan akhir).",
+    "Suite backend diverifikasi SENDIRI sesudah agen melapor: 5741 lolos / 0 gagal / 34.511 asersi / exit 0 — baseline 5616 ditambah tepat 125 test baru (55 unit + 31 API + 39 Livewire). Browser 28/28 dengan 1 worker, fullyParallel false, retries 0, jadi tidak ada kelulusan yang tertutup percobaan ulang.",
+    "SUMBU MENIT, BUKAN STRING JAM — jebakan utama layar ini dan ia terjaga di tiga lapis. Kasus jebakan (01:00–03:00 lawan 23:00–07:00 yang sudah ada) diasersi di unit (findOverlap tidak null, jendela persis 1080/1200, create() melempar), API (422 SHIFT_OVERLAP), dan Livewire (pesan form menyebut 'Malam'). Agen membuktikan test itu benar-benar memerahkan implementasi string-compare lewat simulasi terpisah: '01:00' < '07:00' && '23:00' < '03:00' menyimpulkan tidak bertindih, sementara sumbu menit menemukan irisan 120 menit. Unit test-nya juga mengasersi perbandingan string yang menyesatkan itu sendiri sehingga jebakannya mendokumentasikan dirinya.",
+    "Offset dari 07:00: 07:00 → 0, 15:00 → 480, 23:00 → 960, 06:00 → 1380, timeFromOffset(1440) → '07:00'. Shift melewati tengah malam adalah SATU blok dengan durasi utuh dan crosses_midnight true di payload, serta tepat satu elemen DOM yang menempel ke tepi kanan track dengan tepi kirinya melewati titik tengah — pecahan kedua di sisi kiri akan menjatuhkan test.",
+    "Tumpang tindih = irisan KETAT lebih besar dari nol. Batas nol menit DITERIMA di keempat lapis (browser mengukur kedua blok bersebelahan tanpa blok celah di antaranya); tindihan satu menit DITOLAK dengan pesan menyebut 14:59–15:00. Per line saja. PATCH mengecualikan shift yang diubah dari himpunannya sendiri; memindahkan line memeriksa line tujuan.",
+    "Cakupan dihitung SEKALI di ShiftService. Test API membandingkan coverage DAN data respons HTTP terhadap ShiftService::listShifts(); test Livewire membandingkan viewData('coverage') terhadap body API sekaligus terhadap service. Satu test terpisah mengasersi blade tidak melakukan pengurutan (sortBy/usort) maupun aritmetika waktu (strtotime/Carbon::/diffInMinutes), dan bahwa $pct() masih membagi dengan 14,4.",
+    "Kelas CSS diperiksa terhadap CSS HASIL COMPILE — view:cache, token class diekstrak dari view terkompilasi dengan interpolasi Blade dibuang, selektor dikumpulkan dari blok <style> view yang benar-benar dikirim halaman ini. Hasil: 72 kelas dipakai, NOL tanpa definisi; view:clear dijalankan sesudahnya. Dan pemeriksaan ini kini DITEGAKKAN PERMANEN oleh suite Livewire atas 48 kelas ks- — jadi kelas cacat kelola-machinery sekarang menjadi test, bukan kebiasaan.",
+    "Ambang 14px: 13 deklarasi font-size, seluruhnya --font-size-sm (14px) atau --font-size-base (16px); nol --font-size-xs, nol literal px, nol literal warna. .ks-page .badge dan .ks-page .btn-sm mengangkat bawaan bersama yang 12px menjadi 14px. Diukur pada 1440/1280/1024/820/768. Pada viewport sempit label sumbu DIJARANGKAN (display:none pada tick sekunder di 700px, ukuran tick yang tersisa tidak berubah), bukan diperkecil.",
+    "Nol gulir mendatar halaman: document.scrollingElement diasersi tidak pernah menggulir mendatar; track menggulir di dalam .ks-scroll pada lebar sempit.",
+    "Perbedaan arsiran dibaca dari CSS terkompilasi: backgroundImage blok celah wajib memuat 'gradient', blok 'belum diatur' wajib persis 'none' — sehingga keduanya tidak mungkin tertukar.",
+    "Badge dibaca lewat elemen badge-nya sendiri, dan satu test membuktikan teks 'belum diatur' muncul LEBIH DARI SEKALI di halaman — justru itu sebabnya pemindaian kontainer dilarang. Nol pemanggilan toContain bermultiple-needle; tiap asersi substring bermuatan pesan memakai assertStringContainsString($needle, $haystack, $message).",
+    "Urutan pendaftaran rute diasersi dari Route::getRoutes(): kedua rute literal options terdaftar SEBELUM api/shifts/{id}, keduanya menjawab 200 di aksinya sendiri alih-alih 404 sebagai {id}, dan grupnya berisi tepat 6 rute. Urutan: business-units/options → production-lines/options → GET /shifts → POST → PATCH /{id} → DELETE /{id}.",
+    "Geometri diasersi dari DOM lewat rasio boundingBox(), tanpa piksel yang dipaku — lebar bergantung viewport.",
+    "Gate admin tiga lapis: middleware rute → abort_unless di mount() → ShiftService::guardAdmin() di tiap metode publik. Lapis ketiga ada karena spec menuntut 'nol kueri shift' bagi non-admin; ia memakai abort(403) karena ApiExceptionHandler sudah menurunkan FORBIDDEN dari HttpException 403.",
+    "Entri sidebar ditambahkan ke components/layouts/app.blade.php, berpenjaga RouteAccess::allows('master-data.shifts'). Tanpa entri itu layar hanya dapat dicapai dengan mengetik URL, sementara spec bisnis menyebut pintu masuknya lewat menu. Berkas ini permukaan bersama — blast radius-nya tests/Feature/WebAccessTest.php, dan keempat belas test-nya diperiksa lolos termasuk ketiga yang mengasersi isi sidebar per peran.",
+    "Keamanan basis data: DB dev mill_smart_log TIDAK PERNAH dikontak — diverifikasi sendiri sesudahnya bahwa jumlah migrasinya tetap 90 dan tabel shifts TIDAK ADA di sana. backend/phpunit.xml memaku sqlite :memory: sehingga ketiga suite PHP secara struktural tidak dapat menjangkaunya. Endpoint identitas e2e diverifikasi dua kali mengembalikan {env: e2e, database: mill_smart_log_e2e}.",
+    "PERUBAHAN LINGKUNGAN: `php artisan migrate --env=e2e --force` dijalankan terhadap mill_smart_log_e2e SAJA (diperiksa lebih dulu dengan --pretend: DDL PostgreSQL bersih, unique index pada (production_line_id, name), tanpa constraint tumpang tindih di level DB). Tidak destruktif, data fixture utuh.",
+    "Server `php artisan serve --env=e2e --port=8001` yang ditinggalkan agen SUDAH DIHENTIKAN; port 8001 bersih."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "SHIFT 24 JAM TIDAK DAPAT DIBUAT LEWAT API MAUPUN FORM — dan sebabnya BUG SPEC YANG SAYA TULIS SENDIRI, menunggu keputusan produk. Aturan bisnis melarang start_time == end_time sambil menambahkan kalimat yang tidak koheren bahwa 'shift 24 jam harus ditulis sebagai satu shift yang menutup seluruh hari, bukan sebagai jam yang berimpit' — padahal 07:00 → 07:00 ADALAH jam berimpit dan tidak ada cara lain menuliskan 1440 menit. Edge case dan satu unit case mengandaikannya bisa; satu unit case lain melarangnya. Implementasi memilih resolusi koheren: validate() menolak jam berimpit, durationMinutes() membaca modulo 0 sebagai 1440 sehingga baris yang terlanjur ada tetap tergambar penuh. Akibatnya shift 24 jam hanya dapat ditanam lewat factory, dan itulah cara ketiga suite backend mengasersinya. Dua jalan: (A) terima jam berimpit HANYA ketika line belum punya shift lain — tidak ambigu secara struktur, dan pratinjau hidup menggambar batang penuh sebelum Simpan sehingga salah ketik terlihat lebih dulu; atau (B) tetap tolak, dan edge case serta unit case yang menjanjikan 24 jam DICABUT dari artefak. Rekomendasi: A.",
+      "severity": "major"
+    },
+    {
+      "description": "Shift yang melintasi batas hari produksi 07:00 (mis. 05:00–09:00) TERPOTONG di layar. Diterbitkan sebagai SATU blok dengan start_offset_minutes 1320 dan durasi 240, sehingga 120 menit terakhirnya jatuh melewati tepi kanan track (overflow hidden). Memecahnya akan melanggar aturan 'satu blok utuh', jadi pemotongan adalah konsekuensi yang diterima. Hanya terjangkau pada line yang jadwalnya memang tidak selaras hari produksi — persis keadaan yang diperingatkan starts_at_production_day false.",
+      "severity": "minor"
+    },
+    {
+      "description": "Asimetri ketukan pada input waktu di Chromium headless, PERLU DIPERIKSA MATA MANUSIA pada peramban berkepala. Ketukan per-segmen ke #ks-form-end bekerja ('1500' → 15:00); urutan identik ke #ks-form-start tidak menghasilkan event input sama sekali dan nilainya tetap kosong, meski keydown sampai ke elemen dan document.activeElement adalah field itu. Empat posisi klik, focus(), Tab, dan ArrowUp-dulu semuanya dicoba. Markup kedua input identik byte per byte, jadi ini terbaca sebagai artefak shadow-DOM Chromium dan bukan cacat produk. Test tidak mengasersinya — mengasersinya berarti menguji peramban, dan mengasersinya hanya pada satu dari dua field identik lebih buruk. Yang diasersi adalah klaim yang sebenarnya penting: pengetikan manual tanpa membuka picker diterima, nilainya sampai ke Alpine, tersimpan, kedua field mengekspos showPicker, dan tidak ada input yang disabled maupun readonly. Mengingat aturan proyek bahwa field waktu wajib menerima pengetikan, ini layak diverifikasi dengan mata.",
+      "severity": "minor"
+    },
+    {
+      "description": "expected_error_code FORBIDDEN pada satu test_scenario tidak terjangkau di permukaan HTTP — sama dengan screen-128. EnsureRole membangun respons JSON-nya sendiri dan tidak pernah sampai ke ApiExceptionHandler, sehingga 403 API hanya membawa message tanpa code. Test API mengasersi status, message, dan KETIADAAN code secara sengaja, beserta alasannya; varian code FORBIDDEN yang dilempar guardAdmin() sendiri tercakup di unit test tempat service dipanggil langsung.",
+      "severity": "minor"
+    },
+    {
+      "description": "Placeholder id pada spec bukan UUID yang sah (pl-001, pl-003, bu-001 di beberapa skenario), diganti UUID factory sungguhan karena production_line_id bukan-UUID memang 422 menurut rancangan. Satu literal yang dipertahankan adalah business_unit_id=bu-tanpa-line, diasersi tetap menjawab 200 dengan data kosong.",
+      "severity": "minor"
+    },
+    {
+      "description": "Bukti lapisan unit hanya dari SQLite — kondisi proyek yang sudah ada sebelumnya. Ketiga suite PHP berjalan di SQLite in-memory sementara produksi PostgreSQL, sehingga 125 test backend hijau itu sendiri belum membuktikan perilaku waktu dan tumpang tindih identik di PostgreSQL. Ke-28 test browser memang menjalankan server ber-basis mill_smart_log_e2e sungguhan sehingga sebagian besar tertutup; kasus tepi tumpang tindih yang hanya diasersi di lapisan unit tetap berbukti SQLite saja. Peringan: putaran implementasi menjalankan probe 63 asersi dua kali — sekali di SQLite sekali pakai, sekali di PostgreSQL sekali pakai (shift_migration_probe_tmp yang ia buat lalu hapus) — keduanya hijau, termasuk verifikasi bahwa id bukan-UUID tidak memicu 22P02.",
+      "severity": "minor"
+    },
+    {
+      "description": "Shift.php membawa `use App\\Services\\ShiftService;` yang hanya dirujuk dari docblock {@see}. Diperkenalkan fixer fully_qualified_strict_types milik Pint; dipertahankan karena pint --test harus tetap hijau.",
+      "severity": "minor"
+    },
+    {
+      "description": "coverage dihitung ulang pada setiap render Livewire untuk seluruh line pada mill itu, ditambah shiftBlocksByLine() selagi form terbuka. Dibatasi oleh jumlah line dikali jumlah shift (belasan dikali beberapa) dan sengaja dipilih daripada memelihara dua dialek SQL untuk pengurutan offset — tetapi ia pekerjaan PHP per render, bukan nilai yang di-cache.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage tidak terukur — tidak ada xdebug maupun pcov. Angka 0 pada test_results berarti 'tidak terukur', bukan 'nol tercakup'; bukan alasan menurunkan status ke partial.",
+      "severity": "minor"
+    }
+  ]
+}

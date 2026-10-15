@@ -18,9 +18,9 @@
  * ada khusus untuk menjatuhkannya, dengan fixture yang sengaja dibuat
  * "tidak realistis":
  *
- * CONTOH "LAPORAN BELUM DIBANGUN" SUDAH ENAM KALI DIPINDAHKAN, dan keenamnya
- * karena laporannya memang dibangun: Weighbridge -> Engine Room pada
- * screen-144, Threshing -> Process Water pada screen-149, Pressing ->
+ * CONTOH "LAPORAN BELUM DIBANGUN" SUDAH TUJUH KALI DIPINDAHKAN, dan
+ * ketujuhnya karena laporannya memang dibangun: Weighbridge -> Engine Room
+ * pada screen-144, Threshing -> Process Water pada screen-149, Pressing ->
  * Kernel Plant pada screen-151, lalu Depricarping -> Effluent Plant pada
  * screen-153 (keempatnya 2026-10-06). PEMINDAHAN KELIMA pada screen-155
  * (2026-10-07): Kernel Plant -> Process Quality Control, karena laporan
@@ -28,29 +28,37 @@
  * seperti yang diperingatkan di bawah. PEMINDAHAN KEENAM pada screen-157
  * (2026-10-13): Effluent Plant -> CPO Dispatch, karena laporan Effluent Plant
  * mobile dibangun sehingga tile-nya menjadi AKTIF dan jumlah tile nonaktif
- * pada fixture lima-stasiun di bawah turun dari 4 menjadi 3.
+ * pada fixture lima-stasiun di bawah turun dari 4 menjadi 3. PEMINDAHAN
+ * KETUJUH pada screen-159 (2026-10-15): Engine Room -> Kernel Dispatch,
+ * karena laporan Engine Room mobile dibangun ('engine-room' masuk ke
+ * REPORT_ROUTES) sehingga test "tile tanpa laporan tetap tidak berpindah
+ * rute" — yang sejak screen-144 memakai Engine Room sebagai contohnya —
+ * berhenti menguji apa pun dan memerah. Itu kegagalan yang DIRANCANG, dan
+ * inilah pembaruannya.
  *
  * KOREKSI ATAS PENYUSUNAN DOCBLOCK INI (screen-157): paragraf di atas dulu
  * terbaca seolah pemindahan kelima menggantikan contoh kanonisnya di SELURUH
- * berkas. Ia tidak. Berkas ini memegang TIGA contoh "belum dibangun"
- * sekaligus, dan ketiganya masih dipakai hari ini:
+ * berkas. Ia tidak. Berkas ini memegang EMPAT contoh "belum dibangun"
+ * sekaligus, dan keempatnya masih dipakai hari ini:
  *   - 'process-water' (sort_order 130) — hasil pemindahan KEDUA, dan inilah
  *     yang dipakai pasangan asersi di bawah serta sebagian besar test
  *     lainnya di berkas ini;
  *   - 'process-quality-control' (sort_order 180) — hasil pemindahan KELIMA,
  *     dipakai pada st-3/st-5 dan pada asersi urutan tile;
  *   - 'cpo-dispatch' (sort_order 170) — hasil pemindahan KEENAM, dipakai
- *     pada st-4 di fixture lima-stasiun.
+ *     pada st-4 di fixture lima-stasiun;
+ *   - 'kernel-dispatch' (sort_order 160) — hasil pemindahan KETUJUH, dipakai
+ *     pada test "tile tanpa laporan tetap tidak berpindah rute".
  *
  * Dipindahkan, BUKAN dihapus: bila Process Water, Process Quality Control,
- * CPO Dispatch, Engine Room, Solid Waste Disposal atau Kernel Dispatch pun
- * dibuatkan laporan mobile, spec ini akan gagal lagi — dan itu benar, karena
- * ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
- * CPO Dispatch dipilih untuk st-4 karena sort_order-nya 170, TERTINGGI di
- * antara jenis yang belum terpakai sebagai contoh di berkas ini (Engine Room
- * 120, Solid Waste Disposal 150, Kernel Dispatch 160, CPO Dispatch 170),
- * sehingga pemindahan KETUJUH tertunda paling lama. Process Quality Control
- * (180) lebih tinggi lagi, tetapi ia sudah terpakai pada st-3/st-5.
+ * CPO Dispatch, Kernel Dispatch atau Solid Waste Disposal pun dibuatkan
+ * laporan mobile, spec ini akan gagal lagi — dan itu benar, karena ia memaksa
+ * contohnya diperbarui alih-alih diam-diam menjadi selalu hijau. Konvensinya:
+ * ambil sort_order TERTINGGI di antara jenis yang belum terpakai sebagai
+ * contoh di berkas ini, sehingga pemindahan berikutnya tertunda paling lama.
+ * Yang MASIH tersisa setelah pemindahan ketujuh hanya Solid Waste Disposal
+ * (150); Engine Room (120) sudah punya laporan mobile sejak screen-159, dan
+ * Kernel Dispatch (160) baru terpakai di sini.
  *
  *   - 'process-water' dengan isActive = true → tile WAJIB nonaktif (kodenya
  *     tidak ada di REPORT_ROUTES).
@@ -590,8 +598,13 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       // CPO Dispatch dipilih karena ia belum dipakai sebagai contoh di tempat
       // lain mana pun DI BERKAS INI, dan belum punya laporan mobile — serta
       // sort_order-nya 170, tertinggi di antara jenis yang belum terpakai di
-      // sini (Engine Room 120, Solid Waste Disposal 150, Kernel Dispatch 160),
-      // sehingga pemindahan KETUJUH tertunda paling lama.
+      // sini saat itu, sehingga pemindahan KETUJUH tertunda paling lama.
+      //
+      // DIPERBARUI pada screen-159 (2026-10-15): daftar "belum terpakai" yang
+      // dulu tertulis di sini (Engine Room 120, Solid Waste Disposal 150,
+      // Kernel Dispatch 160) sudah basi. Engine Room kini PUNYA laporan
+      // mobile, dan Kernel Dispatch terpakai oleh pemindahan KETUJUH di
+      // bawah — yang tersisa hanya Solid Waste Disposal (150).
       makeStation({ id: 'st-4', name: 'CPO Dispatch', type: 'cpo-dispatch', isActive: true }),
       makeStation({ id: 'st-5', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
     ])
@@ -832,18 +845,30 @@ describe('ReportingPilihStasiunView — membawa Production Line ke laporan', () 
     // 2026-10-05 test ini memakai Weighbridge; screen-144 kemudian
     // membangun laporan Weighbridge mobile, sehingga tile itu menjadi aktif
     // dan test ini berhenti menguji apa pun. Engine Room dipakai sebagai
-    // gantinya — dan kalau suatu hari ia pun dibuatkan laporan, test ini
-    // akan gagal lagi, yang justru benar: ia memaksa contohnya diperbarui
+    // gantinya — dan persis seperti yang diperingatkan di situ, screen-159
+    // (2026-10-15) membangun laporan Engine Room mobile: 'engine-room' masuk
+    // ke REPORT_ROUTES, tile-nya menjadi AKTIF, dan test ini memerah.
+    //
+    // PEMINDAHAN KETUJUH, dan ia memang dirancang terjadi. Kernel Dispatch
+    // dipakai sebagai gantinya: ia belum punya laporan mobile dan belum
+    // dipakai sebagai contoh di tempat lain mana pun DI BERKAS INI, serta
+    // sort_order-nya 160 — tertinggi di antara jenis yang belum terpakai di
+    // sini (Process Water 130, CPO Dispatch 170, dan Process Quality Control
+    // 180 sudah terpakai di tempat lain; Solid Waste Disposal 150 lebih
+    // rendah), sehingga pemindahan KEDELAPAN tertunda paling lama.
+    //
+    // Kalau suatu hari Kernel Dispatch pun dibuatkan laporan, test ini akan
+    // gagal lagi — dan itu justru benar: ia memaksa contohnya diperbarui
     // alih-alih diam-diam menjadi selalu hijau.
     window.localStorage.setItem('msl_production_line_user-1', 'pl-2')
     getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([
-      makeStation({ id: 'st-x', name: 'Engine Room', type: 'engine-room', isActive: true }),
+      makeStation({ id: 'st-x', name: 'Kernel Dispatch', type: 'kernel-dispatch', isActive: true }),
     ])
 
     const wrapper = mount(ReportingPilihStasiunView)
     await flushPromises()
 
-    await wrapper.get('[data-testid="station-tile-engine-room"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-kernel-dispatch"]').trigger('click')
 
     expect(pushMock).not.toHaveBeenCalled()
     expect(wrapper.get('[data-testid="info-message"]').text()).toContain('belum tersedia')

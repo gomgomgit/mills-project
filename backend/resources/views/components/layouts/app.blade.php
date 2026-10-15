@@ -508,6 +508,13 @@
             @if (\App\Support\RouteAccess::allows('master-data.periods'))
             <li><a href="{{ route('master-data.periods') }}"{!! request()->routeIs('master-data.periods') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="15" height="13" rx="2"/><path d="M2.5 8h15M6.5 2.5v3M13.5 2.5v3"/></svg><span class="label">Kelola Periode Pelaporan</span></a></li>
             @endif
+            {{-- screen-170--kelola-shift — entry point "Menu sidebar 'Master Data'
+                 -> Kelola Shift". Ikonnya jam, sejajar dengan entri master lain;
+                 RouteAccess membaca middleware 'role:' rutenya sendiri sehingga
+                 hanya Admin melihatnya tanpa daftar peran ditulis dua kali. --}}
+            @if (\App\Support\RouteAccess::allows('master-data.shifts'))
+            <li><a href="{{ route('master-data.shifts') }}"{!! request()->routeIs('master-data.shifts') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 6v4l3 2"/></svg><span class="label">Kelola Shift</span></a></li>
+            @endif
             @if (\App\Support\RouteAccess::allows('mill-settings'))
             <li><a href="{{ route('mill-settings') }}"{!! request()->routeIs('mill-settings') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l-1-1 5.3-5.3a4 4 0 0 1 5.4-5.4l-2.4 2.4 1 1 2.4-2.4z"/></svg><span class="label">Mills Setting</span></a></li>
             @endif

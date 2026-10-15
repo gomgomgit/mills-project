@@ -1,0 +1,453 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-15"
+  },
+  "id": "usecase-176--kelola-shift",
+  "name": "Kelola Shift per Production Line",
+  "description": "Admin memilih mill, lalu mendefinisikan shift pada tiap Production Line milik mill itu — nama, jam mulai, jam selesai. Layar menampilkan timeline 24 jam per line yang dimulai 07:00 mengikuti awal hari produksi, sehingga cakupan dan celah terlihat sebagai bentuk alih-alih harus dihitung dari tabel. Tumpang tindih antar shift pada satu line ditolak dengan batas inklusif; celah diizinkan tetapi ditandai beserta jumlah jamnya. Shift melewati tengah malam adalah bentuk normal dan ditampilkan '23:00 — 07:00 +1'. Pratinjau timeline di dalam form bergerak saat jam diketik, sehingga tumpang tindih terlihat sebelum Simpan ditekan.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran Admin",
+    "Minimal satu Business Unit (mill) tersedia di master",
+    "Mill yang dikelola sudah punya minimal satu Production Line"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Admin membuka Kelola Shift dari menu Master Data"
+    },
+    {
+      "step": 2,
+      "actor": "actor-admin",
+      "description": "Admin memilih mill; sebelum mill dipilih tidak ada timeline maupun tabel yang ditampilkan"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Sistem memuat Production Line milik mill itu beserta shift yang sudah ada pada masing-masing line"
+    },
+    {
+      "step": 4,
+      "actor": "actor-admin",
+      "description": "Sistem menampilkan timeline 24 jam per line, dimulai 07:00 dan berakhir 06:00 keesokan hari, dengan blok shift di atasnya"
+    },
+    {
+      "step": 5,
+      "actor": "actor-admin",
+      "description": "Sistem menyatakan status cakupan tiap line dengan kata — tercakup 24 jam, atau ada celah sebanyak N jam — dan menandai celahnya pada timeline"
+    },
+    {
+      "step": 6,
+      "actor": "actor-admin",
+      "description": "Sistem menampilkan tabel shift di bawah timeline, dengan urutan baris yang sama dengan urutan blok timeline"
+    },
+    {
+      "step": 7,
+      "actor": "actor-admin",
+      "description": "Admin menekan Tambah Shift dan memilih Production Line, mengisi nama, jam mulai, dan jam selesai"
+    },
+    {
+      "step": 8,
+      "actor": "actor-admin",
+      "description": "Pratinjau timeline di dalam form bergerak saat jam diketik, menampilkan posisi shift baru itu beserta tumpang tindih atau celah yang dihasilkannya"
+    },
+    {
+      "step": 9,
+      "actor": "actor-admin",
+      "description": "Admin menyimpan; sistem memeriksa nama unik per line, jam tidak sama, dan tidak bertindih dengan shift lain pada line itu dengan batas inklusif"
+    },
+    {
+      "step": 10,
+      "actor": "actor-admin",
+      "description": "Sistem menyimpan shift dan memperbarui timeline beserta status cakupan line itu"
+    },
+    {
+      "step": 11,
+      "actor": "actor-admin",
+      "description": "Admin dapat mengubah atau menghapus shift; penghapusan dikonfirmasi inline dan akibatnya pada cakupan ditampilkan setelahnya"
+    }
+  ],
+  "postconditions": [
+    "Mill yang dikelola punya jadwal shift per Production Line yang tersimpan",
+    "Admin mengetahui line mana yang cakupannya belum penuh dan berapa jam yang belum tercakup",
+    "Tidak ada dua shift yang bertindih pada satu Production Line"
+  ],
+  "alternative_flows": [
+    {
+      "name": "Mill belum dipilih",
+      "trigger": "Pada langkah 2, Admin belum memilih mill",
+      "steps": [
+        "Tidak ada timeline maupun tabel yang ditampilkan",
+        "Sistem menampilkan arahan memilih mill terlebih dahulu"
+      ]
+    },
+    {
+      "name": "Mill belum punya Production Line",
+      "trigger": "Pada langkah 3, mill yang dipilih tidak punya satu pun line",
+      "steps": [
+        "Sistem menyatakannya dan mengarahkan ke Kelola Production Line",
+        "Tidak ada timeline kosong yang ditampilkan tanpa penjelasan"
+      ]
+    },
+    {
+      "name": "Line belum punya shift",
+      "trigger": "Pada langkah 4, sebuah line tidak punya satu pun shift",
+      "steps": [
+        "Line itu dinyatakan 'belum diatur'",
+        "BUKAN ditampilkan sebagai celah 24 jam — belum dikerjakan dan keputusan yang mungkin salah adalah dua hal berbeda"
+      ]
+    },
+    {
+      "name": "Filter diset seluruh line",
+      "trigger": "Pada langkah 4, Admin memilih 'semua line' pada mill berbelasan line",
+      "steps": [
+        "Timeline merender satu batang per line dan halaman menjadi panjang",
+        "Itu diterima karena memilih 'semua' adalah tindakan audit yang disengaja",
+        "Filter satu line tetap tersedia untuk pemakaian sehari-hari"
+      ]
+    },
+    {
+      "name": "Cakupan penuh tetapi tidak selaras hari produksi",
+      "trigger": "Pada langkah 5, union shift menutup 24 jam tetapi tidak dimulai 07:00",
+      "steps": [
+        "Cakupan dinyatakan penuh",
+        "Peringatan ketidakselarasan dengan awal hari produksi tetap ditampilkan",
+        "Simpan TIDAK ditolak"
+      ]
+    },
+    {
+      "name": "Shift melewati tengah malam",
+      "trigger": "Pada langkah 7, Admin mengisi jam selesai lebih awal daripada jam mulai",
+      "steps": [
+        "Diterima sebagai bentuk normal",
+        "Ditampilkan '23:00 — 07:00 +1' pada tabel maupun timeline",
+        "Pada timeline ia digambar sebagai satu blok utuh, bukan dua potongan"
+      ]
+    },
+    {
+      "name": "Pratinjau menampilkan tumpang tindih sebelum simpan",
+      "trigger": "Pada langkah 8, jam yang diketik bertindih dengan shift lain pada line itu",
+      "steps": [
+        "Pratinjau menandai rentang yang bertindih saat itu juga",
+        "Admin dapat memperbaikinya tanpa pernah menekan Simpan"
+      ]
+    },
+    {
+      "name": "Jam diketik separuh",
+      "trigger": "Pada langkah 8, jam masih terisi sebagian atau belum valid",
+      "steps": [
+        "Pratinjau menahan diri alih-alih menggambar blok yang salah",
+        "Tidak ada galat yang ditampilkan sampai Admin selesai mengetik"
+      ]
+    },
+    {
+      "name": "Jam diketik manual tanpa picker",
+      "trigger": "Pada langkah 7, Admin mengetik jam langsung alih-alih memakai picker",
+      "steps": [
+        "Diterima — field waktu menerima pengetikan manual maupun picker, keduanya"
+      ]
+    },
+    {
+      "name": "Tumpang tindih ditolak saat simpan",
+      "trigger": "Pada langkah 9, jam bertindih dengan shift lain pada line yang sama",
+      "steps": [
+        "Simpan ditolak",
+        "Pesan menyebut shift mana yang bertindih dan pada rentang jam berapa",
+        "Bukan hanya 'jam bertindih'"
+      ]
+    },
+    {
+      "name": "Pergantian shift berimpit diterima",
+      "trigger": "Pada langkah 9, shift baru berakhir tepat pada jam mulai shift lain",
+      "steps": [
+        "TIDAK dianggap bertindih — batas tumpang tindihnya inklusif",
+        "Diterima sebagai pergantian shift yang normal"
+      ]
+    },
+    {
+      "name": "Nama shift sudah dipakai di line yang sama",
+      "trigger": "Pada langkah 9, nama shift bentrok di dalam satu line",
+      "steps": [
+        "Simpan ditolak dengan pesan yang menyebut nama itu sudah dipakai"
+      ]
+    },
+    {
+      "name": "Nama shift sama dengan line lain",
+      "trigger": "Pada langkah 9, nama shift sama dengan shift di line yang berbeda",
+      "steps": [
+        "Diterima — keduanya shift yang berbeda",
+        "'Pagi' di Line 1 dan 'Pagi' di Line 2 adalah hal yang normal"
+      ]
+    },
+    {
+      "name": "Jam mulai dan selesai sama",
+      "trigger": "Pada langkah 9, kedua jam diisi dengan nilai yang sama",
+      "steps": [
+        "Simpan ditolak — shift berdurasi nol tidak dapat menampung record apa pun"
+      ]
+    },
+    {
+      "name": "Mengubah shift sehingga bertindih",
+      "trigger": "Pada langkah 11, Admin mengubah jam sehingga kini bertindih dengan shift lain",
+      "steps": [
+        "Ditolak",
+        "Shift yang sedang diubah tidak dihitung bertindih dengan dirinya sendiri"
+      ]
+    },
+    {
+      "name": "Memindahkan shift ke line lain",
+      "trigger": "Pada langkah 11, Admin mengubah Production Line sebuah shift",
+      "steps": [
+        "Tumpang tindih diperiksa ulang terhadap shift di line TUJUAN",
+        "Bukan terhadap shift di line asalnya"
+      ]
+    },
+    {
+      "name": "Menghapus shift membesarkan celah",
+      "trigger": "Pada langkah 11, Admin menghapus satu shift dari line yang tadinya tercakup penuh",
+      "steps": [
+        "Penghapusan diizinkan setelah konfirmasi inline yang menyebut nama shift dan line-nya",
+        "Celah yang dihasilkannya ditampilkan pada timeline setelah penghapusan"
+      ]
+    },
+    {
+      "name": "Menghapus seluruh shift sebuah line",
+      "trigger": "Pada langkah 11, shift terakhir pada sebuah line dihapus",
+      "steps": [
+        "Line itu kembali ke keadaan 'belum diatur'",
+        "BUKAN 'celah 24 jam'"
+      ]
+    },
+    {
+      "name": "Shift tunggal menutup 24 jam",
+      "trigger": "Pada langkah 9, Admin menyimpan satu shift yang menutup seluruh hari",
+      "steps": [
+        "Sah — timeline menampilkan satu blok penuh tanpa celah"
+      ]
+    },
+    {
+      "name": "Admin mencari pengaturan jendela sinkronisasi di sini",
+      "trigger": "Pada langkah 4, Admin mencari setelan jarak waktu sinkronisasi",
+      "steps": [
+        "Layar menyatakan setelan itu tidak diatur di sini",
+        "Dan menyebut di mana ia diatur, supaya Admin tidak menyimpulkan fiturnya belum ada"
+      ]
+    },
+    {
+      "name": "Jumlah shift melampaui satu halaman",
+      "trigger": "Pada langkah 6, shift pada mill itu lebih banyak daripada satu halaman tabel",
+      "steps": [
+        "Tabel berpindah halaman",
+        "Timeline TIDAK ikut berpindah halaman — ia merangkum cakupan, bukan mendaftar baris"
+      ]
+    },
+    {
+      "name": "Layar dibuka pada lebar sempit",
+      "trigger": "Pada langkah 4, lebar jendela tidak cukup untuk seluruh label jam",
+      "steps": [
+        "Timeline tetap terbaca",
+        "Label jam DIJARANGKAN, bukan diperkecil di bawah 14px"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Hanya Admin yang punya layar ini",
+    "Shift melekat pada Production Line, bukan pada mill",
+    "Mill wajib dipilih lebih dulu, dan mengganti mill mengosongkan filter line",
+    "Nama shift wajib diisi dan unik dalam satu Production Line; dua line berbeda boleh punya nama shift yang sama",
+    "Jam mulai dan jam selesai wajib diisi dan tidak boleh sama",
+    "Jam selesai boleh lebih awal daripada jam mulai — shift melewati tengah malam, ditampilkan '+1'",
+    "Tumpang tindih pada satu line ditolak dengan batas inklusif; shift yang berakhir tepat pada jam mulai shift lain tidak dianggap bertindih",
+    "Tumpang tindih hanya diperiksa di dalam satu Production Line",
+    "Shift yang sedang diubah tidak dihitung bertindih dengan dirinya sendiri",
+    "Celah diizinkan tetapi ditandai beserta jumlah jamnya",
+    "Union shift yang tidak dimulai 07:00 ditandai tetapi tidak ditolak",
+    "Timeline dimulai 07:00 mengikuti awal hari produksi",
+    "Urutan tampil diturunkan dari jam mulai, bukan dari kolom urutan manual maupun abjad",
+    "Urutan baris tabel dan urutan blok timeline wajib sama",
+    "Pratinjau timeline di dalam form bergerak saat jam diketik dan menampilkan tumpang tindih sebelum Simpan",
+    "Status cakupan dinyatakan dengan kata, bukan hanya dengan warna",
+    "Line tanpa shift dinyatakan 'belum diatur', bukan 'celah 24 jam'",
+    "Layar ini tidak mengatur jarak waktu sinkronisasi, dan menyebutkan di mana ia diatur",
+    "Field waktu menerima pengetikan manual maupun picker, keduanya",
+    "Seluruh teks minimal 14px, termasuk label jam pada sumbu timeline"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Kelola Shift per Production Line — berhasil menambahkan shift",
+      "given": "Admin sudah masuk di web, mill terpilih punya tiga Production Line, dan Line 1 belum punya shift",
+      "when": "Admin menekan Tambah Shift, memilih Line 1, mengisi nama 'Pagi', jam 07:00 sampai 15:00, lalu menyimpan",
+      "then": "Shift tersimpan, blok 'Pagi' muncul pada timeline Line 1 mulai dari ujung kiri batang, status cakupan Line 1 berbunyi ada celah 16 jam, dan barisnya muncul di tabel dengan urutan yang sama seperti urutan blok timeline"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — mill belum dipilih",
+      "given": "Admin baru membuka layar Kelola Shift",
+      "when": "Admin belum memilih mill apa pun",
+      "then": "Tidak ada timeline maupun tabel yang ditampilkan, dan arahan memilih mill terlebih dahulu terlihat"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — mill belum punya Production Line",
+      "given": "Mill yang dipilih tidak punya satu pun Production Line",
+      "when": "Admin memilih mill itu",
+      "then": "Layar menyatakan mill itu belum punya Production Line dan mengarahkan ke Kelola Production Line, tanpa menampilkan timeline kosong yang tidak dijelaskan"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — line belum punya shift",
+      "given": "Mill terpilih punya Line 2 yang belum pernah diberi shift",
+      "when": "Admin membaca timeline Line 2",
+      "then": "Line 2 dinyatakan 'belum diatur' dan BUKAN 'ada celah 24 jam' — belum dikerjakan dan keputusan yang mungkin salah adalah dua hal yang berbeda"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — filter diset seluruh line",
+      "given": "Mill terpilih punya dua belas Production Line dengan jadwal yang berbeda-beda",
+      "when": "Admin memilih 'semua line' pada filter",
+      "then": "Timeline merender satu batang per line sehingga halaman menjadi panjang, dan itu diterima karena memilih 'semua' adalah tindakan audit yang disengaja; filter satu line tetap tersedia"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — cakupan penuh tetapi tidak selaras hari produksi",
+      "given": "Line 1 punya tiga shift yang union-nya menutup 24 jam tetapi dimulai 06:00, bukan 07:00",
+      "when": "Admin membaca timeline Line 1",
+      "then": "Cakupan dinyatakan penuh, peringatan bahwa jadwalnya tidak selaras dengan awal hari produksi 07:00 tetap ditampilkan, dan tidak ada yang ditolak"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — shift melewati tengah malam",
+      "given": "Line 1 sudah punya shift Pagi dan Siang sampai 23:00",
+      "when": "Admin menambahkan shift 'Malam' dengan jam 23:00 sampai 07:00",
+      "then": "Diterima sebagai bentuk normal, ditulis '23:00 — 07:00 +1' pada tabel dan timeline, dan digambar sebagai SATU blok utuh pada timeline karena batangnya dimulai 07:00 — bukan dua potongan di kedua ujung"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — pratinjau menampilkan tumpang tindih sebelum simpan",
+      "given": "Line 1 sudah punya shift Pagi 07:00 sampai 15:00, dan form Tambah Shift sedang terbuka untuk Line 1",
+      "when": "Admin mengetik jam mulai 14:00",
+      "then": "Pratinjau timeline di dalam form langsung menandai rentang 14:00 sampai 15:00 sebagai bertindih, tanpa Admin pernah menekan Simpan"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — jam diketik separuh",
+      "given": "Form Tambah Shift terbuka dengan pratinjau hidup",
+      "when": "Admin baru mengetik sebagian jam sehingga nilainya belum valid",
+      "then": "Pratinjau menahan diri alih-alih menggambar blok yang salah, dan tidak ada galat yang ditampilkan sampai Admin selesai mengetik"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — jam diketik manual tanpa picker",
+      "given": "Form Tambah Shift terbuka",
+      "when": "Admin mengetik '07:00' langsung ke field jam tanpa membuka picker",
+      "then": "Nilainya diterima — field waktu menerima pengetikan manual MAUPUN pilihan lewat picker, keduanya, dan tidak ada field yang dinonaktifkan"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — tumpang tindih ditolak saat simpan",
+      "given": "Line 1 punya shift Siang 15:00 sampai 23:00",
+      "when": "Admin menyimpan shift baru pada Line 1 dengan jam 22:00 sampai 02:00",
+      "then": "Simpan ditolak, dan pesannya menyebut shift 'Siang' sebagai yang bertindih beserta rentang 22:00 sampai 23:00 — bukan hanya berbunyi 'jam bertindih'"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — pergantian shift berimpit diterima",
+      "given": "Line 1 punya shift Pagi 07:00 sampai 15:00",
+      "when": "Admin menyimpan shift Siang pada Line 1 dengan jam mulai tepat 15:00",
+      "then": "Diterima — batas tumpang tindihnya inklusif, jadi shift yang berakhir tepat pada jam mulai shift lain tidak dianggap bertindih; itu pergantian shift yang normal"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — tumpang tindih satu menit ditolak",
+      "given": "Line 1 punya shift Pagi 07:00 sampai 15:00",
+      "when": "Admin menyimpan shift baru pada Line 1 dengan jam mulai 14:59",
+      "then": "Simpan ditolak dan pesannya menyebut rentang satu menit yang bertindih itu"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — nama shift sudah dipakai di line yang sama",
+      "given": "Line 1 sudah punya shift bernama 'Pagi'",
+      "when": "Admin menyimpan shift baru pada Line 1 dengan nama 'Pagi'",
+      "then": "Simpan ditolak dengan pesan yang menyebut nama itu sudah dipakai pada line tersebut"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — nama shift sama dengan line lain diterima",
+      "given": "Line 1 sudah punya shift bernama 'Pagi'",
+      "when": "Admin menyimpan shift bernama 'Pagi' pada Line 2",
+      "then": "Diterima — keduanya shift yang berbeda, dan nama yang sama di dua line adalah hal yang normal di lapangan"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — jam mulai dan selesai sama ditolak",
+      "given": "Form Tambah Shift terbuka untuk Line 1",
+      "when": "Admin mengisi jam mulai dan jam selesai dengan nilai yang sama persis lalu menyimpan",
+      "then": "Simpan ditolak — shift berdurasi nol tidak dapat menampung record apa pun"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — mengubah shift sehingga bertindih",
+      "given": "Line 1 punya shift Pagi 07:00–15:00 dan Siang 15:00–23:00",
+      "when": "Admin mengubah jam selesai shift Pagi menjadi 16:00 lalu menyimpan",
+      "then": "Ditolak karena bertindih dengan Siang, dan shift Pagi yang sedang diubah TIDAK dihitung bertindih dengan dirinya sendiri"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — memindahkan shift ke line lain",
+      "given": "Shift 'Pagi' ada di Line 1, dan Line 2 sudah punya shift pada jam 07:00–15:00",
+      "when": "Admin mengubah Production Line shift 'Pagi' dari Line 1 menjadi Line 2",
+      "then": "Tumpang tindih diperiksa ulang terhadap shift di Line 2 sebagai line TUJUAN — bukan terhadap shift di Line 1 — sehingga perubahan itu ditolak"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — menghapus shift membesarkan celah",
+      "given": "Line 1 tercakup penuh 24 jam oleh tiga shift",
+      "when": "Admin menghapus shift Siang dan menyetujui konfirmasi inline yang menyebut nama shift dan line-nya",
+      "then": "Shift terhapus, status cakupan Line 1 berubah menjadi ada celah delapan jam, dan celahnya terlihat sebagai ruang kosong bertekstur pada timeline"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — menghapus seluruh shift sebuah line",
+      "given": "Line 2 hanya punya satu shift",
+      "when": "Admin menghapus shift terakhir itu",
+      "then": "Line 2 kembali ke keadaan 'belum diatur' dan BUKAN 'celah 24 jam'"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — shift tunggal menutup 24 jam",
+      "given": "Line 3 belum punya shift",
+      "when": "Admin menyimpan satu shift yang menutup seluruh hari produksi, 07:00 sampai 07:00 keesokan hari",
+      "then": "Sah — timeline menampilkan satu blok penuh tanpa celah dan status cakupannya berbunyi tercakup 24 jam"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — mengganti mill mengosongkan filter line",
+      "given": "Admin sudah memilih mill A beserta filter Line 1 sehingga timeline tampil",
+      "when": "Admin mengganti mill ke mill B",
+      "then": "Filter Production Line dikosongkan karena sebuah line milik tepat satu mill, dan timeline dimuat ulang untuk line milik mill B tanpa pesan galat tentang line yang tidak cocok"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — Admin mencari pengaturan jendela sinkronisasi",
+      "given": "Layar Kelola Shift sedang terbuka dengan jadwal yang sudah terisi",
+      "when": "Admin mencari setelan jarak waktu sinkronisasi setelah shift berakhir",
+      "then": "Layar menyatakan setelan itu tidak diatur di sini dan menyebut di mana ia diatur, sehingga Admin tidak menyimpulkan fiturnya belum ada; tidak ada field jendela sinkronisasi di form shift"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — tabel berpindah halaman sementara timeline tidak",
+      "given": "Mill terpilih punya shift lebih banyak daripada satu halaman tabel",
+      "when": "Admin berpindah ke halaman kedua tabel",
+      "then": "Tabel menampilkan baris halaman kedua sementara timeline tetap menampilkan seluruh cakupan line yang terpilih — ia merangkum cakupan, bukan mendaftar baris"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — urutan tabel dan timeline selalu sama",
+      "given": "Line 1 punya shift yang ditambahkan dengan urutan acak: Malam lebih dulu, lalu Pagi, lalu Siang",
+      "when": "Admin membaca timeline dan tabel Line 1",
+      "then": "Keduanya terurut sama mengikuti jam mulai relatif awal hari produksi — Pagi, Siang, Malam — bukan urutan penambahan dan bukan abjad nama"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — status cakupan terbaca tanpa warna",
+      "given": "Line 1 tercakup penuh dan Line 2 punya celah",
+      "when": "Layar dibaca tanpa membedakan warna sama sekali",
+      "then": "Status keduanya tetap terbaca karena dinyatakan dengan kata — 'tercakup 24 jam' dan 'ada celah N jam' — bukan hanya dengan warna blok"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — layar dibuka pada lebar sempit",
+      "given": "Jendela peramban dipersempit sehingga sumbu jam tidak cukup ruang untuk seluruh labelnya",
+      "when": "Admin membaca timeline",
+      "then": "Timeline tetap terbaca dan label jamnya DIJARANGKAN alih-alih diperkecil; tidak ada teks pada layar ini yang turun di bawah 14px"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — hanya Admin punya layar ini",
+      "given": "Pengguna berperan Supervisor, Mill Management, lalu Operator",
+      "when": "Masing-masing mencoba membuka Kelola Shift",
+      "then": "Ketiganya ditolak — layar ini Admin saja, sama seperti seluruh master lain di modul Master Data"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-170--kelola-shift"
+  ]
+}

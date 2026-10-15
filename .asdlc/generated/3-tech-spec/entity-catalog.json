@@ -1,8 +1,8 @@
 {
-  "ver": 22,
+  "ver": 23,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-12"
+    "updated_at": "2026-10-15"
   },
   "entities": [
     {
@@ -771,6 +771,11 @@
           "entity_id": "sterilizer-record",
           "type": "one-to-many",
           "description": "Satu Production Line memiliki banyak Sterilizer Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "shift",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki beberapa Shift. Jadwalnya berlaku sama setiap hari, dan tumpang tindih antar shift diperiksa di dalam satu line ini saja."
         }
       ],
       "constraints": [
@@ -6689,6 +6694,94 @@
         "status": "open",
         "closed_by": null,
         "closed_at": null,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "shift",
+      "name": "Shift",
+      "description": "Jadwal shift kerja PER PRODUCTION LINE (2026-10-15) — satu Production Line memiliki beberapa Shift, dan tiap Shift punya nama serta jam mulai dan selesai. Shift melekat pada Production Line dan bukan pada Business Unit, karena satu mill dapat punya belasan line dengan jadwal kerja yang berbeda-beda. JADWALNYA BERLAKU SAMA SETIAP HARI: tidak ada dimensi hari dalam seminggu dan tidak ada masa berlaku, sehingga pertanyaan 'jam sekian itu shift apa pada line ini' selalu punya jawaban yang sama tanpa mengetahui tanggalnya (keputusan pemilik produk 2026-10-15). Yang bergilir di lapangan adalah REGU yang mengisi shift, bukan batas jamnya, dan penugasan regu adalah entitas tersendiri bila kelak dibutuhkan — bukan perluasan entitas ini. Entitas ini akan menjadi tujuan FK `shift_id` pada kedelapan belas tabel record di putaran berikutnya, bermakna 'shift yang berlaku saat operator menyimpan record di perangkat'.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line induk. Shift melekat pada line, bukan pada mill."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama shift, mis. 'Pagi'. Unik dalam satu Production Line; dua line berbeda boleh memakai nama yang sama."
+        },
+        {
+          "name": "start_time",
+          "type": "time",
+          "required": true,
+          "description": "Jam mulai shift."
+        },
+        {
+          "name": "end_time",
+          "type": "time",
+          "required": true,
+          "description": "Jam selesai shift. BOLEH lebih awal daripada start_time — artinya shift melewati tengah malam, bentuk yang paling umum untuk shift malam, ditampilkan '23:00 — 07:00 +1'."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record."
+        },
+        {
+          "name": "updated_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User yang terakhir memperbarui record."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "production-line",
+          "type": "many-to-one",
+          "description": "Setiap Shift dimiliki tepat satu Production Line. Memindahkan Shift ke line lain memeriksa ulang tumpang tindih terhadap shift di line TUJUAN, bukan di line asalnya."
+        }
+      ],
+      "constraints": [
+        "name unik dalam satu production_line_id; nama yang sama pada line berbeda diizinkan",
+        "start_time tidak boleh sama dengan end_time — shift berdurasi nol tidak dapat menampung record apa pun",
+        "end_time boleh lebih awal daripada start_time (shift melewati tengah malam); rentangnya lalu dibaca melintasi batas hari",
+        "Rentang jam tidak boleh tumpang tindih dengan Shift lain pada production_line_id yang SAMA, dengan batas INKLUSIF: shift yang berakhir tepat pada jam mulai shift lain TIDAK dianggap bertindih — itu pergantian shift yang normal",
+        "Tumpang tindih diperiksa hanya DI DALAM satu Production Line; dua line boleh punya shift pada jam yang sama persis",
+        "Celah antar shift pada satu line DIIZINKAN — pabrik yang tidak beroperasi 24 jam itu sah; celah ditandai di layar, bukan ditolak di data",
+        "Jadwal berlaku sama setiap hari — tidak ada kolom hari maupun masa berlaku, dan penambahannya kelak bukan perluasan entitas ini melainkan entitas penugasan regu tersendiri"
+      ],
+      "test_fixture": {
+        "id": "shf-001",
+        "production_line_id": "pl-001",
+        "name": "Pagi",
+        "start_time": "07:00:00",
+        "end_time": "15:00:00",
+        "created_by": "usr-001",
+        "updated_by": null,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
       }

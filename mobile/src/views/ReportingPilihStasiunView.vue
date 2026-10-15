@@ -131,6 +131,16 @@ const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   // akan terkompilasi, terlihat benar, dan tidak pernah cocok dengan satu
   // station.type pun.
   'effluent-plant': 'report-effluent-plant',
+  // screen-159--laporan-engine-room-mobile. Satu baris yang sama
+  // menentukannya: tanpa entri ini layar laporan Engine Room ada, rutenya
+  // ada, seluruh test-nya lulus, dan tile-nya tetap kelabu. Kuncinya WAJIB
+  // DIKUTIP karena bertanda hubung — kunci bergaris-bawah ('engine_room')
+  // akan terkompilasi, terlihat benar, dan tidak pernah cocok dengan satu
+  // station.type pun. Peta ini TIDAK berurut sort_order dan TIDAK punya
+  // asersi urutan, jadi entrinya cukup di-append — beda penting dari
+  // StationReportService::REPORT_ROUTES di sisi web, yang urutannya
+  // load-bearing. Ikon 'engine-room' sudah ada di STATION_ICONS di bawah.
+  'engine-room': 'report-engine-room',
   sterilizer: 'report-sterilizer',
   'cages-track': 'report-cages-track',
   'boiler-room': 'report-boiler-room',

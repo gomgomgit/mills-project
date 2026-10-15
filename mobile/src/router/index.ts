@@ -1090,6 +1090,37 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanEffluentPlantView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-159--laporan-engine-room-mobile /
+    // usecase-165--laporan-engine-room-mobile "Lihat Laporan Periode Engine
+    // Room (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor) — without a token the router guard sends the caller to
+    // Login. Mill Management and Admin are NOT "unsupported" here: they are
+    // deliberately routed to the WEB screen (screen-158), and this route is
+    // never rendered for them because the Reporting grid that leads here is a
+    // mobile-only screen.
+    //
+    // ZERO BACKEND CHANGE, and unlike report-effluent-plant above that is not
+    // luck — it was paid for in advance on purpose. All three
+    // /api/engine-room-reports/* data routes have admitted Operator since
+    // screen-158's FIRST commit, precisely so this mobile twin would not have
+    // to widen anything, and /api/production-lines/options-for-report is
+    // reused verbatim from screen-135. What stayed closed stays closed:
+    // /business-units/options is Admin only (403 raised inside the service,
+    // not by the middleware), and the WEB route /reports/engine-room is not
+    // touched. This mobile screen has no mill picker at all.
+    //
+    // Pintu masuknya: rute 'report-stations' (screen-141) menampilkan grid
+    // stasiun, dan tile Engine Room-lah yang menavigasi ke sini — entri
+    // 'engine-room' pada REPORT_ROUTES di ReportingPilihStasiunView.vue
+    // adalah satu-satunya penentu tile itu hidup atau mati. Kuncinya WAJIB
+    // berkutip di sana karena bertanda hubung.
+    path: '/reports/engine-room',
+    name: 'report-engine-room',
+    component: () => import('@/views/LaporanEngineRoomView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

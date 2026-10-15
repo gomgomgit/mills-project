@@ -1,0 +1,626 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-15"
+  },
+  "id": "usecase-165--laporan-engine-room-mobile",
+  "name": "Lihat Laporan Periode Engine Room (Mobile)",
+  "description": "Operator atau Supervisor membuka laporan Engine Room dari Reporting di ponsel, memilih Production Line lalu periode, dan membaca kondisi Engine Room sepanjang periode itu pada layar sempit. Isinya identik dengan versi web — keempat endpoint dipakai ulang apa adanya — dan ponsel tidak menghitung apa pun. Dua puluh tiga kartu metrik dalam enam blok berjudul, dua sebaran status bernilai tiga, satu kartu ekspor energi yang nilainya TERAKHIR bukan rata-rata, dua rekap teks bebas terpisah, dan kelengkapan pencatatan paling atas. Yang khas layar ini: kedelapan kartu genset terpisah oleh gulir, sehingga keterangan bahwa keduanya mesin fisik berbeda dirender DI DALAM kedua blok, bukan sekali di atas halaman.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi mobile dengan peran Operator atau Supervisor",
+    "Akun pengguna terhubung ke sebuah mill",
+    "Mill sudah punya minimal satu Production Line",
+    "Mill sudah punya minimal satu periode pelaporan yang mencakup stasiun Engine Room",
+    "Perangkat terhubung ke jaringan — layar ini tidak punya mode luring"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Pengguna membuka Reporting (screen-141) dan menekan tile Engine Room"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Sistem menetapkan mill dari akun pengguna; tidak ada pemilih Mill di layar ini"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Sistem memuat pilihan Production Line dan memilih otomatis line yang terakhir dipilih pengguna di Daftar Stasiun bila perangkat mengingatnya"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Selama Production Line belum berlaku, layar tidak menampilkan satu angka pun, tombol ekspor belum dirender, dan tidak ada permintaan ringkasan yang terkirim"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Engine Room pada mill itu"
+    },
+    {
+      "step": 6,
+      "actor": "actor-station-operator",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 7,
+      "actor": "actor-station-operator",
+      "description": "Sistem meminta ringkasan ke endpoint yang sama dengan versi web dan merender angkanya apa adanya tanpa menghitung ulang apa pun"
+    },
+    {
+      "step": 8,
+      "actor": "actor-station-operator",
+      "description": "Sistem menampilkan kelengkapan pencatatan PALING ATAS, beserta keterangan bahwa slot terisi dihitung atas dua puluh tujuh kolom sehingga dapat melebihi penyebut tiap kartu"
+    },
+    {
+      "step": 9,
+      "actor": "actor-station-operator",
+      "description": "Sistem menampilkan enam blok berjudul berisi dua puluh tiga kartu, masing-masing dengan terendah, rata-rata, tertinggi, dan penyebutnya sendiri"
+    },
+    {
+      "step": 10,
+      "actor": "actor-station-operator",
+      "description": "Pada kedua blok genset sistem menampilkan keterangan mesin fisik berbeda DI DALAM blok masing-masing, karena kedelapan kartunya terpisah oleh gulir"
+    },
+    {
+      "step": 11,
+      "actor": "actor-station-operator",
+      "description": "Sistem menampilkan dua sebaran status (Run / Standby / Off) beserta baris 'tidak tercatat' yang terpisah, dan keterangan bahwa Standby bukan Off"
+    },
+    {
+      "step": 12,
+      "actor": "actor-station-operator",
+      "description": "Sistem menampilkan kartu ekspor energi harian berisi nilai terakhir per tanggal beserta slot waktu asalnya — bukan rata-rata periode — beserta keterangan mengapa"
+    },
+    {
+      "step": 13,
+      "actor": "actor-station-operator",
+      "description": "Sistem menampilkan tren harian beban total pabrik, rekap catatan perawatan dan rekap temuan pada dua bagian terpisah, dan rekap per unit"
+    },
+    {
+      "step": 14,
+      "actor": "actor-station-operator",
+      "description": "Sistem menyatakan ketiadaan blok downtime dan ketiadaan penandaan nilai di luar batas, keduanya utuh tanpa dipendekkan"
+    },
+    {
+      "step": 15,
+      "actor": "actor-station-operator",
+      "description": "Pengguna dapat mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV"
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rekap periode yang dipilih untuk Production Line yang dipilih",
+    "Pengguna mengetahui seberapa lengkap pencatatannya sebelum mempercayai angkanya",
+    "Tidak ada satu pun data stasiun yang berubah",
+    "Tidak ada hasil laporan yang disimpan ke penyimpanan lokal perangkat"
+  ],
+  "alternative_flows": [
+    {
+      "name": "Production Line belum berlaku",
+      "trigger": "Pada langkah 4, perangkat belum mengingat line atau line yang diingat tidak berlaku",
+      "steps": [
+        "Layar meminta memilih Production Line",
+        "Tidak ada satu angka pun yang ditampilkan",
+        "Tombol ekspor tidak dirender",
+        "Tidak ada permintaan ringkasan yang terkirim — penjagaannya ada di fungsi pemuatan, sehingga jalur ganti-periode dan jalur coba-lagi ikut terlindung"
+      ]
+    },
+    {
+      "name": "Perangkat sudah mengingat Production Line",
+      "trigger": "Pada langkah 3, penyimpanan perangkat memuat line terakhir dari Daftar Stasiun",
+      "steps": [
+        "Line itu terpilih otomatis",
+        "Laporan dapat langsung dimuat setelah periode dipilih",
+        "Kuncinya sama persis dengan yang ditulis Daftar Stasiun — kunci berbeda akan terkompilasi dan tidak pernah cocok"
+      ]
+    },
+    {
+      "name": "Penyimpanan perangkat melempar",
+      "trigger": "Pada langkah 3, penyimpanan tidak dapat dibaca (mode privat)",
+      "steps": [
+        "Pembacaan dibungkus try/catch",
+        "Layar jatuh ke keadaan belum ada line terpilih dan tetap berfungsi",
+        "Tidak ada galat yang ditampilkan ke pengguna"
+      ]
+    },
+    {
+      "name": "Line yang diingat sudah tidak berlaku",
+      "trigger": "Pada langkah 3, line yang tersimpan milik mill lain atau sudah dihapus",
+      "steps": [
+        "Server mengabaikan nilai itu",
+        "Layar meminta memilih line",
+        "Tidak ada angka mill lain yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode",
+      "trigger": "Pada langkah 5, mill tidak punya periode yang mencakup Engine Room",
+      "steps": [
+        "Pemilih periode kosong",
+        "Sistem menampilkan arahan menghubungi Admin",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 7, periode tidak memuat satu pun pembacaan",
+      "steps": [
+        "Seluruh kartu menampilkan tidak tersedia dengan penyebut nol, bukan nol",
+        "Kelengkapan pencatatan TETAP ditampilkan",
+        "Tidak ada grafik kosong yang menyesatkan"
+      ]
+    },
+    {
+      "name": "Sebuah kartu tidak pernah diisi",
+      "trigger": "Pada langkah 9, satu dari dua puluh tiga kartu kosong sepanjang periode",
+      "steps": [
+        "Kartunya tetap dirender dengan tidak tersedia dan penyebut nol",
+        "Ia tidak dihilangkan dari bloknya",
+        "Kartu lain tetap tampil dengan penyebutnya sendiri"
+      ]
+    },
+    {
+      "name": "Satu genset tidak pernah menyala",
+      "trigger": "Pada langkah 9, satu genset dipakai sepanjang periode sementara yang lain menganggur",
+      "steps": [
+        "Keempat kartu genset yang menganggur tampil tidak tersedia dengan penyebut nol",
+        "Sebarannya menunjukkan seluruh slot Off atau tidak tercatat",
+        "Laporan TIDAK menandai itu sebagai galat"
+      ]
+    },
+    {
+      "name": "Kedua genset terisi dengan angka sangat berbeda",
+      "trigger": "Pada langkah 10, beban kedua genset timpang jauh",
+      "steps": [
+        "Keduanya tampil apa adanya pada blok masing-masing",
+        "Tidak dirata-ratakan menjadi satu dan selisihnya tidak dihitung di klien",
+        "Keterangan kesejajaran fisik terlihat DI DALAM kedua blok, sehingga pembaca yang menggulir ke salah satunya tetap menemukannya"
+      ]
+    },
+    {
+      "name": "Satu slot hanya mengisi kolom teks bebas",
+      "trigger": "Pada langkah 8, sebuah slot mengisi catatan atau temuan tanpa kolom ukur",
+      "steps": [
+        "Slot itu terhitung pada kelengkapan",
+        "Tidak menambah penyebut kartu mana pun",
+        "Jumlah slot terisi melebihi setiap penyebut, dan keterangannya dirender di blok kelengkapan"
+      ]
+    },
+    {
+      "name": "Seluruh slot tidak mencatat status genset",
+      "trigger": "Pada langkah 11, tidak satu slot pun mencatat status salah satu genset",
+      "steps": [
+        "Sebarannya mencetak ketiga nilai dengan jumlah nol",
+        "Seluruh slot terisi masuk baris tidak tercatat",
+        "Tidak satu pun dilipat ke Run, Standby, maupun Off"
+      ]
+    },
+    {
+      "name": "Nilai status dikenal tidak pernah muncul",
+      "trigger": "Pada langkah 11, sebuah nilai status yang dikenal tidak muncul sama sekali",
+      "steps": [
+        "Barisnya tetap dicetak dengan jumlah nol",
+        "Tidak hilang dari sebaran"
+      ]
+    },
+    {
+      "name": "Server memulangkan nilai status tak dikenal",
+      "trigger": "Pada langkah 11, server memulangkan nilai di luar run/standby/off",
+      "steps": [
+        "Ponsel menampilkan nilai mentahnya",
+        "Tidak ada baris kosong dan tidak ada galat yang dilempar",
+        "Salinan peta label membawa jalur mundur justru untuk keadaan ini"
+      ]
+    },
+    {
+      "name": "Ekspor energi harian tidak pernah diisi",
+      "trigger": "Pada langkah 12, kolom ekspor energi kosong sepanjang periode",
+      "steps": [
+        "Kartunya menyatakan tidak ada data",
+        "Tidak menggambar nol yang akan terbaca sebagai pengukuran"
+      ]
+    },
+    {
+      "name": "Ekspor energi harian turun di dalam satu hari",
+      "trigger": "Pada langkah 12, nilai pada slot berikutnya lebih kecil daripada slot sebelumnya di hari yang sama",
+      "steps": [
+        "Ponsel menampilkan apa yang diterbitkan server tanpa mengoreksi",
+        "Tidak ada penanda galat",
+        "Ponsel tidak menurunkan sendiri nilai mana yang terakhir — server yang menentukannya menurut posisi pada kisi kanonis"
+      ]
+    },
+    {
+      "name": "Satu slot mengisi catatan perawatan dan temuan sekaligus",
+      "trigger": "Pada langkah 13, sebuah slot mengisi kedua kolom teks bebas",
+      "steps": [
+        "Slot itu muncul pada kedua rekap",
+        "Keduanya tetap dua bagian terpisah, bukan satu daftar yang menghitungnya dua kali"
+      ]
+    },
+    {
+      "name": "Kedua kolom teks bebas kosong",
+      "trigger": "Pada langkah 13, tidak ada catatan perawatan maupun temuan sepanjang periode",
+      "steps": [
+        "Kedua rekap menampilkan keterangan tidak ada catatan",
+        "Tidak ada daftar kosong tanpa penjelasan"
+      ]
+    },
+    {
+      "name": "Teks catatan sangat panjang",
+      "trigger": "Pada langkah 13, isi kolom teks bebas jauh lebih panjang daripada lebar layar",
+      "steps": [
+        "Teks dibungkus, bukan dipotong",
+        "Ia tidak mendorong lebar halaman",
+        "Halaman tidak menggulir mendatar"
+      ]
+    },
+    {
+      "name": "Line punya beberapa unit Engine Room",
+      "trigger": "Pada langkah 13, terdapat lebih dari satu unit pada line itu",
+      "steps": [
+        "Angka periode menggabungkan seluruh unit",
+        "Rekap per unit menampilkan sebarannya",
+        "Unit tanpa pembacaan tetap muncul dengan penyebut nol"
+      ]
+    },
+    {
+      "name": "Pencatatan sangat tidak lengkap",
+      "trigger": "Pada langkah 8, hanya sebagian kecil slot terisi sepanjang periode",
+      "steps": [
+        "Angka tetap ditampilkan",
+        "Blok kelengkapan yang berada paling atas memastikan pembaca melihatnya sebelum satu kartu pun",
+        "Pembaca dapat melihat bahwa angkanya bersandar pada sedikit pembacaan"
+      ]
+    },
+    {
+      "name": "Periode masih berjalan",
+      "trigger": "Pada langkah 8, tanggal akhir periode masih di masa depan",
+      "steps": [
+        "Slot yang diharapkan dihitung hanya sampai hari ini",
+        "Keterangannya dirender",
+        "Hari yang belum terjadi tidak menurunkan persentase"
+      ]
+    },
+    {
+      "name": "Tidak ada slot yang diharapkan",
+      "trigger": "Pada langkah 8, periode belum mulai atau belum ada unit tercatat",
+      "steps": [
+        "Persentase kelengkapan tampil sebagai tanda hubung",
+        "Sistem menyatakan belum ada slot yang diharapkan",
+        "Bukan 0,0% yang akan terbaca seolah pencatatan gagal"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun pengguna belum terhubung ke mill mana pun",
+      "steps": [
+        "Sistem menampilkan pesan menghubungi Admin",
+        "Sistem tidak menawarkan daftar seluruh mill",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 6, pengguna memilih periode berstatus tertutup",
+      "steps": [
+        "Laporan tetap tampil penuh",
+        "Status tertutup ditampilkan",
+        "Ekspor CSV tetap dapat dijalankan"
+      ]
+    },
+    {
+      "name": "Jaringan gagal di tengah pemuatan",
+      "trigger": "Pada langkah 7, permintaan ringkasan gagal",
+      "steps": [
+        "Keadaan galat ditampilkan dengan aksi coba lagi",
+        "Penjagaan Production Line tetap berlaku pada jalur coba lagi",
+        "Tidak ada angka separuh yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Perangkat luring",
+      "trigger": "Pada langkah 7, perangkat tidak terhubung jaringan",
+      "steps": [
+        "Layar menyatakan laporan perlu jaringan",
+        "Tidak ada angka basi tanpa penanda yang ditampilkan",
+        "Layar tidak diam tanpa penjelasan"
+      ]
+    },
+    {
+      "name": "Mill Management atau Admin membuka rute mobile ini",
+      "trigger": "Pada langkah 1, pengguna berperan Mill Management atau Admin",
+      "steps": [
+        "Akses ditolak",
+        "Jalur mereka ada di web (screen-158)"
+      ]
+    },
+    {
+      "name": "Rekap harian panjang",
+      "trigger": "Pada langkah 13, periode cukup panjang sehingga rekap hariannya puluhan baris",
+      "steps": [
+        "Rekap dapat ditutup agar gulirnya tetap terkendali",
+        "Tabelnya menggulir mendatar di dalam kartunya sendiri",
+        "Halaman itu sendiri tidak menggulir mendatar"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Isi laporan IDENTIK dengan screen-158; keempat endpoint dipakai ulang apa adanya",
+    "Ponsel tidak menghitung apa pun, termasuk tidak mengubah satuan",
+    "Hanya Operator dan Supervisor; Mill Management dan Admin memakai web",
+    "Tidak ada pemilih Mill — kedua aktornya terikat mill akunnya",
+    "Production Line wajib dipilih lebih dulu, tanpa jalur mundur ke angka seluruh mill",
+    "Penjagaan Production Line ada di fungsi pemuatan, bukan di template",
+    "Line awal dibaca dari penyimpanan perangkat dengan kunci yang sama persis seperti Daftar Stasiun, dibungkus try/catch",
+    "Setiap kartu menampilkan penyebutnya sendiri",
+    "Kedua puluh tiga kartu dikelompokkan menjadi enam blok berjudul yang dibiarkan terbuka",
+    "Angka kedua genset tidak pernah dirata-ratakan dan selisihnya tidak dihitung",
+    "Keterangan kesejajaran fisik genset dirender di dalam kedua blok, bukan sekali di atas halaman",
+    "Keterangan itu tidak menyebut standar bersama — tidak ada master target di stasiun ini",
+    "Kedua kolom status diterbitkan sebagai sebaran, tanpa min/avg/max",
+    "'Standby' bukan 'Off'",
+    "Slot tanpa status dilaporkan terpisah sebagai 'tidak tercatat'",
+    "Nilai dikenal yang tidak muncul tetap dicetak berjumlah 0",
+    "Porsi sebaran memakai slot tercatat sebagai penyebut",
+    "Label status memakai salinan peta yang wajib selaras dengan server, dengan jalur mundur ke nilai mentah",
+    "Kartu ekspor energi menampilkan nilai terakhir per tanggal beserta slot asalnya, bukan rata-rata",
+    "Slot terisi dihitung atas dua puluh tujuh kolom sehingga dapat melebihi penyebut tiap kartu",
+    "Dua rekap teks bebas terpisah; satu slot dapat muncul di keduanya",
+    "Tidak ada blok downtime, dan ketiadaannya dinyatakan",
+    "Tidak ada penandaan di luar batas, dan keterangannya dirender utuh tanpa dipotong",
+    "Kelengkapan pencatatan dirender paling atas",
+    "Kelengkapan periode berjalan dihitung sampai hari ini; expected nol tampil '—'",
+    "Ekspor hanya CSV; tombol .xlsx tidak dirender",
+    "Layar ini perlu jaringan dan tidak menyimpan hasil laporan secara lokal",
+    "Status periode tidak membatasi pembacaan maupun ekspor",
+    "Rentang periode inklusif di kedua ujung",
+    "Daftar periode hanya yang mencakup Engine Room",
+    "Layar hanya membaca"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — berhasil sebagai Station Operator",
+      "given": "Station Operator sudah login di aplikasi mobile, akunnya terikat satu mill yang punya Production Line dan punya periode pelaporan yang mencakup Engine Room dengan pembacaan terkumpul, dan ketiga rute API data memang menerima Operator sejak commit pertama screen-158",
+      "when": "Operator membuka Reporting, menekan tile Engine Room, menetapkan Production Line, lalu memilih sebuah periode",
+      "then": "Layar menampilkan kelengkapan pencatatan paling atas, enam blok berjudul berisi dua puluh tiga kartu metrik dengan terendah/rata-rata/tertinggi berdampingan dan penyebut masing-masing, keterangan mesin fisik berbeda di dalam KEDUA blok genset, dua sebaran status Run/Standby/Off beserta baris tidak tercatat, kartu ekspor energi berisi nilai terakhir per tanggal beserta slot asalnya, tren harian beban total, dua rekap teks bebas yang terpisah, dan rekap per unit — tanpa pemilih mill, tanpa tombol ekspor Excel, dan tanpa satu pun data stasiun berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — berhasil sebagai Supervisor",
+      "given": "Supervisor sudah login di aplikasi mobile, akunnya terikat satu mill yang punya Production Line dan periode yang mencakup Engine Room dengan pembacaan terkumpul",
+      "when": "Supervisor membuka Reporting, menekan tile Engine Room, menetapkan Production Line, lalu memilih sebuah periode",
+      "then": "Layar menampilkan isi yang sama persis seperti bagi Operator — kedua peran terikat satu mill dan tidak ada pemilih mill, jadi tidak ada perbedaan tampilan di antara keduanya — dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — Production Line belum berlaku",
+      "given": "Pengguna sudah login di mobile pada mill yang punya beberapa Production Line, dan tidak ada line dari query rute maupun ingatan perangkat",
+      "when": "Pengguna membuka layar Laporan Engine Room",
+      "then": "Pemilih Production Line ditampilkan dan tidak ada satu angka pun dirender — tidak ada angka gabungan seluruh mill sebagai penggantinya — tombol ekspor tidak dirender, dan penjagaan itu berlaku juga pada jalur ganti-periode dan coba-lagi karena ia berada di fungsi pemuatan ringkasan, bukan di template"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — perangkat sudah mengingat Production Line",
+      "given": "Pengguna terakhir memilih sebuah Production Line di layar Daftar Stasiun, sehingga perangkat menyimpannya di bawah kunci yang sama persis yang ditulis layar itu",
+      "when": "Pengguna membuka layar Laporan Engine Room",
+      "then": "Line itu terpilih otomatis sehingga laporan dapat langsung dimuat setelah periode dipilih, dan pembacaannya memakai kunci yang identik — kunci yang berbeda akan terkompilasi, terlihat benar, dan tidak pernah cocok"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — penyimpanan perangkat melempar",
+      "given": "Peramban berada pada mode privat sehingga pembacaan penyimpanan perangkat melempar galat",
+      "when": "Pengguna membuka layar Laporan Engine Room",
+      "then": "Pembacaan yang dibungkus try/catch menjatuhkan layar ke keadaan belum ada line terpilih dan layar tetap berfungsi, tanpa satu pun galat yang ditampilkan ke pengguna"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — line yang diingat sudah tidak berlaku",
+      "given": "Perangkat mengingat sebuah production line yang kini milik mill lain atau sudah dihapus",
+      "when": "Pengguna membuka layar Laporan Engine Room",
+      "then": "Server mengabaikan nilai itu dan layar meminta memilih line, tanpa menampilkan satu angka pun milik mill lain"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — mill belum punya periode",
+      "given": "Mill pada akun pengguna tidak punya satu pun periode pelaporan yang mencakup stasiun Engine Room",
+      "when": "Pengguna membuka layar Laporan Engine Room dan membuka pemilih periode",
+      "then": "Pemilih periode kosong, arahan menghubungi Admin ditampilkan, dan tidak ada angka laporan yang dirender"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — periode tanpa data",
+      "given": "Periode yang dipilih tidak memuat satu pun pembacaan pada line terpilih",
+      "when": "Pengguna memilih periode itu",
+      "then": "Kedua puluh tiga kartu menampilkan tidak tersedia dengan penyebut nol — bukan angka nol pada nilainya — kelengkapan pencatatan TETAP ditampilkan, dan tidak ada grafik kosong yang menyesatkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — sebuah kartu tidak pernah diisi",
+      "given": "Periode mengisi dua puluh dua kolom ukur sementara satu kolom kosong sepanjang periode",
+      "when": "Pengguna menggulir blok yang memuat kartu itu",
+      "then": "Kartunya tetap dirender dengan keterangan tidak tersedia dan penyebut nol, ia tidak dihilangkan dari bloknya, dan kartu lain tetap tampil dengan penyebutnya masing-masing yang berbeda satu sama lain"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — satu genset tidak pernah menyala",
+      "given": "Genset 1 terisi sepanjang periode sementara seluruh kolom Genset 2 kosong",
+      "when": "Pengguna menggulir dari blok Genset 1 ke blok Genset 2 dan ke kedua sebaran statusnya",
+      "then": "Keempat kartu Genset 2 tampil tidak tersedia dengan penyebut nol, sebarannya menunjukkan seluruh slot pada Off atau baris tidak tercatat, dan laporan TIDAK menandai itu sebagai galat — genset yang menganggur adalah keadaan operasional yang sah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — kedua genset terisi dengan angka sangat berbeda",
+      "given": "Beban rata-rata Genset 1 sekitar 800 kW sementara Genset 2 sekitar 40 kW pada periode yang sama",
+      "when": "Pengguna menggulir melewati blok Genset 1 lalu blok Genset 2",
+      "then": "Kedelapan kartu tampil apa adanya pada blok masing-masing tanpa rata-rata gabungan, tanpa kartu selisih, dan tanpa badge penyimpangan — dan keterangan mesin fisik berbeda terlihat DUA KALI, sekali di dalam tiap blok, sehingga pembaca yang menggulir ke salah satu blok tetap menemukannya meski kedelapan kartunya terpisah oleh gulir"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — satu slot hanya mengisi kolom teks bebas",
+      "given": "Periode memuat lima slot yang hanya mengisi kolom teks bebas dan dua slot yang mengisi kolom ukur",
+      "when": "Pengguna membandingkan jumlah slot terisi di blok kelengkapan dengan penyebut tiap kartu",
+      "then": "Jumlah slot terisi bernilai tujuh sementara penyebut terbesar di antara seluruh kartu bernilai dua, dan keterangan bahwa slot terisi dihitung atas dua puluh tujuh kolom termasuk kedua kolom teks dirender di blok kelengkapan — selisihnya dinyatakan, bukan dikoreksi"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — seluruh slot tidak mencatat status genset",
+      "given": "Delapan belas slot terisi namun tidak satu pun mencatat status Genset 1",
+      "when": "Pengguna membuka sebaran status Genset 1",
+      "then": "Ketiga nilai Run, Standby, dan Off tetap dicetak dengan jumlah nol masing-masing, dan seluruh delapan belas slot masuk baris tidak tercatat tanpa satu pun dilipat ke ketiga nilai itu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — nilai status dikenal tidak pernah muncul",
+      "given": "Status Genset 1 hanya pernah bernilai run dan off sepanjang periode, tidak pernah standby",
+      "when": "Pengguna membuka sebaran status Genset 1",
+      "then": "Baris Standby tetap dicetak dengan jumlah nol dan tidak hilang dari sebaran, sehingga 'tidak pernah siaga' terbaca berbeda dari 'tidak dilaporkan' yang ada di baris tidak tercatat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — server memulangkan nilai status tak dikenal",
+      "given": "Sebuah migrasi menambah nilai status baru yang belum ada di salinan peta label pada ponsel",
+      "when": "Server memulangkan nilai itu di dalam sebaran status",
+      "then": "Ponsel menampilkan nilai mentahnya lewat jalur mundur pada peta label, tanpa baris kosong dan tanpa galat yang dilempar — justru keadaan inilah alasan jalur mundur itu ada"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — ekspor energi harian tidak pernah diisi",
+      "given": "Periode terisi namun kolom ekspor energi harian kosong pada seluruh record",
+      "when": "Pengguna menggulir ke kartu ekspor energi harian",
+      "then": "Kartunya menyatakan tidak ada data dan tidak menggambar nol yang akan terbaca sebagai hasil pengukuran"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — ekspor energi harian turun di dalam satu hari",
+      "given": "Pada satu tanggal, nilai ekspor energi pada slot yang lebih akhir lebih kecil daripada slot sebelumnya",
+      "when": "Pengguna membaca kartu ekspor energi harian untuk tanggal itu",
+      "then": "Ponsel menampilkan nilai yang diterbitkan server apa adanya tanpa mengoreksi dan tanpa penanda galat, dan ponsel tidak menurunkan sendiri slot mana yang terakhir — server yang menentukannya menurut posisi pada kisi dua puluh empat slot kanonis"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — satu slot mengisi catatan perawatan dan temuan sekaligus",
+      "given": "Sebuah slot mengisi kolom catatan tindakan perawatan dan kolom temuan sekaligus",
+      "when": "Pengguna membaca Rekap Catatan Tindakan Perawatan lalu menggulir ke Rekap Temuan",
+      "then": "Slot yang sama muncul di kedua rekap yang berjudul terpisah, dan tidak ada satu daftar gabungan yang menampilkannya dua kali"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — kedua kolom teks bebas kosong",
+      "given": "Periode tidak memuat satu pun catatan perawatan maupun temuan",
+      "when": "Pengguna menggulir ke kedua rekap teks bebas",
+      "then": "Kedua rekap tetap punya judul terpisah dan masing-masing menampilkan keterangan tidak ada catatan, bukan daftar kosong tanpa penjelasan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — teks catatan sangat panjang",
+      "given": "Sebuah catatan perawatan jauh lebih panjang daripada lebar layar ponsel",
+      "when": "Pengguna membaca rekap yang memuat catatan itu",
+      "then": "Teksnya dibungkus dan bukan dipotong, ia tidak mendorong lebar halaman, dan halaman tidak menggulir mendatar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — line punya beberapa unit Engine Room",
+      "given": "Production Line terpilih punya dua unit Engine Room dan salah satunya tidak punya pembacaan sama sekali",
+      "when": "Pengguna membuka rekap per unit",
+      "then": "Angka periode di atas menggabungkan kedua unit, rekap per unit memuat dua baris, dan baris unit tanpa pembacaan tetap muncul dengan penyebut nol alih-alih dihilangkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — pencatatan sangat tidak lengkap",
+      "given": "Hanya sebagian kecil slot yang terisi sepanjang periode",
+      "when": "Pengguna membuka laporan",
+      "then": "Angka tetap ditampilkan, dan blok kelengkapan yang berada paling atas memastikan pembaca melihat persentase rendahnya sebelum satu kartu pun — sehingga ia tahu angka di bawahnya bersandar pada sedikit pembacaan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — periode masih berjalan",
+      "given": "Periode berjalan dari tanggal 1 sampai 30 bulan ini sementara hari ini tanggal 10, dan hari-hari yang lewat terisi penuh",
+      "when": "Pengguna membaca blok kelengkapan",
+      "then": "Penyebut hari berhenti di hari ini sehingga persentasenya mendekati penuh, keterangannya dirender, dan hari yang belum terjadi tidak menurunkan persentase"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — tidak ada slot yang diharapkan",
+      "given": "Periode yang dipilih belum mulai, atau line terpilih belum punya satu pun unit Engine Room tercatat",
+      "when": "Pengguna membaca blok kelengkapan",
+      "then": "Persentase kelengkapan tampil sebagai tanda hubung beserta pernyataan belum ada slot yang diharapkan, bukan 0,0% yang akan terbaca seolah pencatatan gagal"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — akun belum terhubung ke mill",
+      "given": "Akun Operator atau Supervisor belum terhubung ke mill mana pun",
+      "when": "Pengguna membuka layar Laporan Engine Room",
+      "then": "Pesan menghubungi Admin ditampilkan, sistem tidak menawarkan daftar seluruh mill, dan tidak ada angka laporan yang dirender"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — periode tertutup",
+      "given": "Mill punya periode Engine Room berstatus tertutup dengan pembacaan terkumpul",
+      "when": "Pengguna memilih periode itu lalu menekan Ekspor CSV",
+      "then": "Laporan tampil penuh dengan status tertutup ditampilkan sebagai keterangan, dan unduhan CSV tetap berhasil dijalankan — status periode tidak membatasi pembacaan maupun ekspor"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — jaringan gagal di tengah pemuatan",
+      "given": "Permintaan ringkasan gagal karena jaringan terputus",
+      "when": "Pengguna membuka laporan lalu menekan aksi coba lagi",
+      "then": "Keadaan galat ditampilkan beserta aksi coba lagi, tidak ada angka separuh yang dirender, dan penjagaan Production Line tetap berlaku pada jalur coba lagi itu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — perangkat luring",
+      "given": "Perangkat tidak terhubung ke jaringan",
+      "when": "Pengguna membuka layar Laporan Engine Room",
+      "then": "Layar menyatakan laporan perlu jaringan, tanpa menampilkan angka basi tanpa penanda dan tanpa diam tanpa penjelasan — layar ini memang tidak punya mode luring"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — Mill Management atau Admin membuka rute mobile ini",
+      "given": "Pengguna berperan Mill Management atau Admin",
+      "when": "Pengguna mencoba membuka rute laporan Engine Room di aplikasi mobile",
+      "then": "Akses ditolak dan tidak ada data yang terlihat — jalur kedua peran itu ada di layar web screen-158"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — rekap harian panjang",
+      "given": "Periode berdurasi tiga puluh satu hari sehingga rekap hariannya puluhan baris dengan dua puluh tiga kolom rata-rata",
+      "when": "Pengguna membuka rekap harian, menggulirnya mendatar, lalu menutupnya kembali",
+      "then": "Rekap dapat ditutup agar gulir halaman tetap terkendali, tabelnya menggulir mendatar DI DALAM kartunya sendiri, dan halaman itu sendiri tidak pernah menggulir mendatar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — ponsel tidak menghitung apa pun",
+      "given": "Server menerbitkan ringkasan berisi rata-rata, penyebut, porsi sebaran, kelengkapan, dan nilai terakhir seri energi yang sudah terhitung",
+      "when": "Pengguna membuka laporan dan menggulir seluruh bagiannya",
+      "then": "Setiap angka yang terlihat sama persis dengan yang diterbitkan server dan ponsel tidak menurunkan satu pun di antaranya — termasuk tidak mengubah satuan, sehingga nilai bersatuan 'C' tidak pernah dirender sebagai '°C' di klien"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — setiap kartu punya penyebutnya sendiri",
+      "given": "Periode di mana sebagian slot hanya mengisi kolom turbin uap sementara kolom genset dan kelistrikan dikosongkan",
+      "when": "Pengguna menggulir keenam blok dan membandingkan penyebut tiap kartu",
+      "then": "Penyebutnya berbeda-beda antar kartu dan tiap rata-rata setara rata-rata baris non-null kartu itu sendiri — penyebut yang SAMA pada kedua puluh tiga kartu adalah cacat, dan cacat itu lebih sulit terlihat di ponsel justru karena kartunya tidak pernah berdampingan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — keenam blok dibiarkan terbuka",
+      "given": "Laporan termuat penuh dengan kedua puluh tiga kartu berisi angka",
+      "when": "Pengguna membuka layar tanpa menyentuh kontrol apa pun",
+      "then": "Keenam blok berjudul sudah terbuka sehingga penyebut tiap kartu terlihat begitu digulir, tanpa satu pun blok yang perlu dibuka lebih dulu — melipatnya akan menyembunyikan justru penyebut yang paling perlu dilihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — Standby tidak pernah dilipat ke Off",
+      "given": "Status Genset 2 bernilai standby pada enam slot dan off pada empat slot",
+      "when": "Pengguna membuka sebaran status Genset 2",
+      "then": "Standby bernilai enam dan Off bernilai empat sebagai dua baris terpisah tanpa baris gabungan bernilai sepuluh, keterangan bahwa Standby bukan Off tetap terlihat, dan porsinya dihitung atas jumlah slot TERCATAT bukan atas slot yang diharapkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — ekspor hanya CSV",
+      "given": "Laporan termuat penuh dengan Production Line dan periode terpilih",
+      "when": "Pengguna mencari pilihan ekspor",
+      "then": "Hanya tombol Ekspor CSV yang dirender dan tombol Ekspor Excel TIDAK ADA di layar sama sekali — WebView ponsel tidak membuka .xlsx, dan menyediakan tombol yang menghasilkan berkas tak terbuka lebih buruk daripada tidak menyediakannya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — keterangan ketiadaan penandaan dirender utuh",
+      "given": "Periode memuat frekuensi sistem, power factor, dan tegangan busbar yang jauh dari nominal",
+      "when": "Pengguna menggulir keenam blok dan membaca keterangan ketiadaan penandaan di luar batas",
+      "then": "Tidak ada satu pun penanda peringatan atau pelanggaran yang dirender, dan keterangannya terlihat UTUH — tidak dipendekkan, tidak dilipat, dan tidak dipotong dengan elipsis demi lebar layar, sebab keterangan yang terpotong di tengah berhenti menerangkan apa pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — rentang periode inklusif di kedua ujung",
+      "given": "Periode 2026-03-01 sampai 2026-03-31 memuat pembacaan tepat pada kedua tanggal ujung, ditambah record pada 2026-02-28 dan 2026-04-01",
+      "when": "Pengguna membuka laporan lalu mengunduh CSV",
+      "then": "Kedua record ujung ikut terhitung di seluruh kartu, sebaran, kelengkapan, dan berkas CSV, sementara record di luar rentang tidak muncul di layar maupun di berkas"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — daftar periode hanya yang mencakup Engine Room",
+      "given": "Mill punya dua periode yang mencakup Engine Room dan tiga periode yang hanya mencakup stasiun lain",
+      "when": "Pengguna membuka pemilih periode",
+      "then": "Hanya dua periode Engine Room yang dapat dipilih dan nama ketiga periode stasiun lain tidak muncul di pemilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Engine Room (Mobile) — layar hanya membaca dan tidak menyimpan hasilnya",
+      "given": "Laporan termuat penuh dengan kedua sebaran status, kedua rekap teks, dan rekap per unit",
+      "when": "Pengguna menelusuri seluruh bagian lalu menutup layar dan memeriksa data stasiun serta penyimpanan perangkat",
+      "then": "Tidak ada kontrol tulis apa pun di layar, tidak ada permintaan tulis yang terkirim, jumlah dan isi record Engine Room tidak berubah, dan tidak ada hasil laporan yang tersimpan ke penyimpanan lokal perangkat"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-159--laporan-engine-room-mobile"
+  ]
+}

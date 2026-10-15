@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\ProcessWaterRecordController;
 use App\Http\Controllers\Api\ProductionLineController;
 use App\Http\Controllers\Api\RecordVerificationController;
 use App\Http\Controllers\Api\RecordVerificationStatusController;
+use App\Http\Controllers\Api\ShiftController;
 use App\Http\Controllers\Api\SolidWasteDisposalRecordController;
 use App\Http\Controllers\Api\StationController;
 use App\Http\Controllers\Api\StationReportController;
@@ -992,6 +993,43 @@ Route::middleware(['auth:web', 'role:admin'])->group(function () {
     Route::post('/period-stations/{id}/close', [PeriodController::class, 'close']);
     Route::post('/period-stations/{id}/reopen', [PeriodController::class, 'reopen']);
     Route::post('/period-stations/{id}/open', [PeriodController::class, 'open']);
+});
+
+// screen-170--kelola-shift (usecase-176 — Kelola Shift per Production
+// Line). Admin-only di seluruh aksinya, per
+// screen_tech_spec.actor_permissions — supervisor / mill_management /
+// operator semuanya can_access=false: master data adalah wewenang Admin,
+// sama seperti seluruh layar lain di module-master-data.
+//
+// PENTING — URUTAN PENDAFTARAN ADALAH BAGIAN DARI KONTRAK, BUKAN GAYA.
+// GET /shifts/business-units/options dan GET /shifts/production-lines/options
+// WAJIB terdaftar SEBELUM rute ber-{id} di bawahnya. Bila dibalik, Laravel
+// mencocokkan segmen literal "business-units" / "production-lines" sebagai
+// {id} dan menjawab 404 untuk rute yang jelas-jelas ada. Ini jebakan yang
+// SUDAH PERNAH TERJADI di berkas ini — lihat komentar panjang pada
+// /periods/business-units/options di atas, dan /production-lines/current.
+// Jangan mengurutkan ulang grup ini "supaya rapi": kedua literal itu harus
+// tetap berada DI ATAS /shifts/{id}.
+//
+// ShiftService menegakkan gate admin SEKALI LAGI di dalam dirinya (lapis
+// ketiga, di atas middleware ini dan abort_unless() di
+// KelolaShift::mount()), sehingga peran non-admin tidak dapat menjalankan
+// satu kueri shift pun.
+//
+// TIDAK ADA SATU PUN PARAMETER TANGGAL/HARI pada keenam rute ini, dan
+// ketiadaan itu disengaja: jadwal shift berlaku sama setiap hari (keputusan
+// pemilik produk 2026-10-15). Jangan "melengkapi"-nya.
+Route::middleware(['auth:web', 'role:admin'])->group(function () {
+    // Dua rute LITERAL — wajib di atas /shifts/{id}, lihat komentar di atas.
+    Route::get('/shifts/business-units/options', [ShiftController::class, 'businessUnitOptions']);
+    Route::get('/shifts/production-lines/options', [ShiftController::class, 'productionLineOptions']);
+
+    Route::get('/shifts', [ShiftController::class, 'index']);
+    Route::post('/shifts', [ShiftController::class, 'store']);
+
+    // Rute ber-{id}: SESUDAH kedua rute literal di atas.
+    Route::patch('/shifts/{id}', [ShiftController::class, 'update']);
+    Route::delete('/shifts/{id}', [ShiftController::class, 'destroy']);
 });
 
 // screen-129--laporan-sterilizer-web (usecase-129 — Laporan Periode

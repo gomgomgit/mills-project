@@ -28,3 +28,10 @@
 
 - 12 usecase baru (`usecase-164` s.d. `usecase-175`) ditambahkan mendampingi 12 layar laporan baru, satu usecase per layar, penomoran lanjut dari 163. Nama dan `screen_ids`-nya mekanis — turunan dari nama layarnya, tidak ada keputusan di dalamnya.
 - Diverifikasi setelah penulisan: nol id duplikat pada kedua index, dan tidak ada `screen_ids` yang menunjuk layar yang tidak ada di `screen-index`.
+
+## v30 — 2026-10-15
+
+Penambahan `usecase-176--kelola-shift` → `screen-170--kelola-shift`.
+
+- **Nama usecase "Kelola Shift per Production Line"** ← turunan agent; frasa "per Production Line" sengaja masuk ke nama usecase supaya cakupannya tidak terbaca sebagai per-mill saat dibaca terpisah dari layarnya.
+- **Satu usecase saja untuk layar ini** ← turunan agent. CRUD plus validasi cakupan diperlakukan sebagai satu usecase, mengikuti pola master lain; tidak dipecah menjadi tambah/ubah/hapus terpisah.

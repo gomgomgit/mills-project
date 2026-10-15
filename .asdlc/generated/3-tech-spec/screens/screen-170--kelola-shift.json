@@ -1,0 +1,1667 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-15"
+  },
+  "id": "screen-170--kelola-shift",
+  "name": "Kelola Shift",
+  "module_id": "module-master-data",
+  "route": "/master-data/shifts (Livewire App\\Livewire\\MasterData\\KelolaShift, nama rute 'master-data.shifts', middleware ['auth','role:admin'])",
+  "auth_requirement": "authenticated — sesi web. Peran: admin SAJA, dijaga di middleware rute DAN di mount() komponen, sama seperti screen-128--kelola-periode-pelaporan.",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu mill — wajib memilih mill lewat pemilih Mill sebelum shift mana pun ditampilkan"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": false,
+      "conditions": "Master data adalah wewenang Admin; sama seperti seluruh layar lain di module-master-data"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "Master data adalah wewenang Admin"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Tidak punya akses web ke master data sama sekali"
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "shift",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-176--kelola-shift",
+      "usecase_name": "Kelola Shift per Production Line",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/shifts/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — ADMIN SAJA. WAJIB didaftarkan SEBELUM rute ber-{id} di bawahnya, atau ia ditelan oleh /shifts/{id} dan menjawab 404 — jebakan yang sudah terdokumentasi di routes/api.php untuk /periods/business-units/options",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/shifts/production-lines/options",
+          "description": "Daftar Production Line milik mill terpilih untuk filter. Rute LITERAL — wajib didaftarkan sebelum /shifts/{id}",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — Admin tidak terikat mill, jadi tidak ada nilai yang dapat diturunkan dari akun"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "business_unit_id absen"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/shifts",
+          "description": "Daftar shift pada satu mill, disaring opsional pada satu Production Line, BESERTA ringkasan cakupan per line yang dihitung SERVER — bukan klien",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB; absen → 422 dan nol kueri shift"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Absen berarti seluruh line milik mill itu — ini pemakaian audit yang disengaja, berbeda dari layar laporan tempat line WAJIB dipilih"
+              },
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": 1,
+                "description": "Halaman tabel; ringkasan cakupan TIDAK ikut berpaginasi"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "production_line_id": "uuid",
+                  "production_line_name": "string",
+                  "name": "string",
+                  "start_time": "string HH:MM",
+                  "end_time": "string HH:MM",
+                  "crosses_midnight": "boolean — end_time < start_time",
+                  "duration_minutes": "integer — dihitung server dengan memperhitungkan lintasan tengah malam",
+                  "position": "integer — urutan pada hari produksi, diturunkan dari start_time relatif 07:00; dipakai blade untuk mengurutkan tabel DAN blok timeline dari satu sumber yang sama"
+                }
+              ],
+              "coverage": [
+                {
+                  "production_line_id": "uuid",
+                  "production_line_name": "string",
+                  "shift_count": "integer",
+                  "state": "string — 'covered' | 'gap' | 'unconfigured'; 'unconfigured' hanya ketika shift_count 0, dan ia BUKAN 'gap' 24 jam",
+                  "uncovered_minutes": "integer",
+                  "starts_at_production_day": "boolean — false bila union shift tidak dimulai 07:00; peringatan, bukan penolakan",
+                  "blocks": [
+                    {
+                      "kind": "string — 'shift' | 'gap'",
+                      "shift_id": "uuid|null",
+                      "label": "string|null",
+                      "start_offset_minutes": "integer — diukur dari 07:00, 0..1440",
+                      "duration_minutes": "integer"
+                    }
+                  ]
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "business_unit_id absen; atau production_line_id bukan milik mill itu"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/shifts",
+          "description": "Membuat shift baru pada satu Production Line",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "production_line_id": "uuid — wajib",
+              "name": "string — wajib, unik dalam line itu",
+              "start_time": "string HH:MM — wajib",
+              "end_time": "string HH:MM — wajib, boleh lebih awal daripada start_time"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "data": {
+                "id": "uuid",
+                "production_line_id": "uuid",
+                "name": "string",
+                "start_time": "string HH:MM",
+                "end_time": "string HH:MM"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Field wajib absen; nama sudah dipakai pada line itu; start_time sama dengan end_time; production_line_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "SHIFT_OVERLAP",
+                "condition": "Rentang jam bertindih dengan shift lain pada line yang SAMA. Pesannya menyebut nama shift yang bertindih dan rentang jam tindihannya — bukan hanya 'jam bertindih'"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/shifts/{id}",
+          "description": "Mengubah shift. Didaftarkan SESUDAH seluruh rute literal di atas",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "string (uuid)",
+                "required": true,
+                "description": "Id shift"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "production_line_id": "uuid — opsional; memindahkan shift ke line lain",
+              "name": "string — opsional",
+              "start_time": "string HH:MM — opsional",
+              "end_time": "string HH:MM — opsional"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "data": {
+                "id": "uuid",
+                "production_line_id": "uuid",
+                "name": "string",
+                "start_time": "string HH:MM",
+                "end_time": "string HH:MM"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Shift tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Sama seperti POST"
+              },
+              {
+                "http_code": 422,
+                "error_code": "SHIFT_OVERLAP",
+                "condition": "Bertindih — shift yang sedang diubah TIDAK dihitung bertindih dengan dirinya sendiri, dan bila production_line_id ikut berubah maka pemeriksaan dilakukan terhadap line TUJUAN"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/shifts/{id}",
+          "description": "Menghapus shift. Tidak ada penjagaan 'sudah dipakai record' pada putaran ini karena belum ada record yang merujuk shift — lihat open_question #1 pada business spec",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "string (uuid)",
+                "required": true,
+                "description": "Id shift"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": {
+                "deleted": "boolean"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Shift tidak ada"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Gate peran: admin saja, ditegakkan di middleware rute, di mount() komponen, DAN di dalam service — tiga lapis, sama seperti screen-128. Melewati satu lapis tidak cukup dengan sendirinya.",
+        "2. URUTAN PENDAFTARAN RUTE ADALAH BAGIAN DARI KONTRAK, BUKAN GAYA. /shifts/business-units/options dan /shifts/production-lines/options WAJIB terdaftar SEBELUM /shifts/{id}; bila tidak, Laravel mencocokkan keduanya sebagai {id} dan menjawab 404 untuk rute yang jelas-jelas ada. Jebakan ini sudah terjadi dan terdokumentasi di routes/api.php untuk /periods/business-units/options — di sini ia diulang dengan sengaja sebagai aturan, bukan ditemukan ulang.",
+        "3. Mill WAJIB dipilih. Admin tidak terikat satu mill, jadi tidak ada nilai yang dapat diturunkan dari akun; business_unit_id absen → 422 dan NOL kueri shift berjalan.",
+        "4. production_line_id OPSIONAL pada daftar — berbeda dari layar laporan tempat line wajib. Alasannya berbeda pula: laporan menghasilkan ANGKA GABUNGAN yang tidak bermakna bila mencampur line, sementara layar ini menampilkan DAFTAR yang setiap barisnya menyebut line-nya sendiri, dan 'semua line' justru pemakaian audit yang disengaja.",
+        "5. CAKUPAN DIHITUNG DI SERVER, bukan di blade. Server menerbitkan `coverage[].blocks` berisi posisi dan durasi tiap blok dalam MENIT DARI 07:00, sehingga blade cukup menggambar persentase. Alasannya bukan kerapian: perhitungan yang sama akan dibutuhkan lagi oleh gerbang sinkronisasi dan oleh penandaan shift pada record, dan tiga penghitung yang berdiri sendiri akan berselisih.",
+        "6. Offset diukur dari 07:00, bukan dari 00:00. Hari produksi dimulai 07:00 — kisi slot kanonis seluruh stasiun bergrid berjalan (7+i)%24 — jadi `start_offset_minutes` 0 berarti 07:00 dan 1440 berarti 07:00 keesokan hari. Mengukurnya dari tengah malam akan membelah shift malam menjadi dua blok di kedua ujung batang.",
+        "7. Shift melewati tengah malam diterbitkan sebagai SATU blok dengan durasi utuh, bukan dua. `crosses_midnight` true hanya menerangkan bentuknya kepada pembaca; ia tidak memecah bloknya.",
+        "8. `position` diturunkan server dari start_time relatif 07:00 dan dipakai blade untuk mengurutkan TABEL maupun BLOK TIMELINE. Satu sumber urutan untuk dua tampilan — dua pengurutan yang berdiri sendiri adalah cara tercepat membuat keduanya berselisih.",
+        "9. Deteksi tumpang tindih memakai batas INKLUSIF: dua rentang dianggap bertindih bila irisannya LEBIH BESAR dari nol menit. Shift yang berakhir tepat pada jam mulai shift lain beririsan nol menit, jadi ia tidak bertindih — itu pergantian shift yang normal.",
+        "10. Perbandingan rentang dilakukan pada SUMBU MENIT 0..1440 relatif 07:00, bukan pada string jam. Membandingkan '23:00' dengan '07:00' sebagai string akan menyimpulkan yang pertama lebih besar dan karenanya rentangnya kosong — dan hasil salahnya terlihat masuk akal. Ini kelas kesalahan yang sama dengan cacat pengurutan slot di laporan Engine Room.",
+        "11. Shift yang melewati tengah malam dipecah menjadi dua segmen HANYA DI DALAM perhitungan tumpang tindih (0..1440 dan segmen yang melewati batas), tidak pernah pada payload maupun tampilan.",
+        "12. Tumpang tindih diperiksa hanya di dalam satu production_line_id. Dua line boleh punya shift pada jam yang sama persis.",
+        "13. Pada PATCH, shift yang sedang diubah DIKECUALIKAN dari himpunan pembanding — kalau tidak, setiap perubahan akan bertindih dengan dirinya sendiri dan tidak ada yang pernah bisa disimpan.",
+        "14. Pada PATCH yang mengubah production_line_id, pemeriksaan tumpang tindih dijalankan terhadap shift di line TUJUAN, bukan line asal.",
+        "15. Pesan SHIFT_OVERLAP menyebut nama shift yang bertindih DAN rentang jam tindihannya. Pesan yang hanya berbunyi 'jam bertindih' memaksa Admin mencari sendiri di antara belasan baris.",
+        "16. Nama unik diperiksa dalam satu production_line_id, bukan global. Dua line boleh punya shift bernama sama.",
+        "17. start_time == end_time ditolak sebagai VALIDATION_ERROR, bukan SHIFT_OVERLAP — keduanya kesalahan yang berbeda dan pesannya pun berbeda.",
+        "18. `state` bernilai 'unconfigured' HANYA ketika line tidak punya satu pun shift, dan itu BUKAN 'gap' dengan uncovered_minutes 1440. Keduanya berbeda artinya: belum dikerjakan versus keputusan yang mungkin salah — dan membedakannya di payload adalah yang membuat blade dapat membedakannya di layar.",
+        "19. `starts_at_production_day` false adalah PERINGATAN, bukan penolakan. Simpan tidak pernah ditolak karena union shift tidak dimulai 07:00; menolaknya akan memaksa pabrik yang jadwalnya memang tidak selaras mengarang shift yang tidak mereka jalankan.",
+        "20. Celah TIDAK PERNAH ditolak di lapisan data. Ia diterbitkan sebagai blok ber-kind 'gap' beserta durasinya, dan layar yang membuatnya terlihat.",
+        "21. Jadwal berlaku SAMA SETIAP HARI (keputusan pemilik produk 2026-10-15). Tidak ada kolom hari, tidak ada masa berlaku, dan tidak ada parameter tanggal pada satu pun endpoint di atas. Ketiadaan itu disengaja dan dicatat supaya tidak terbaca sebagai kelalaian lalu 'dilengkapi' oleh orang berikutnya.",
+        "22. Komponen Livewire memakai service yang SAMA dengan controller API, sehingga halaman dan API tidak mungkin berbeda hasil hitungan cakupannya.",
+        "23. mount() memanggil abort_unless atas peran admin — lapisan kedua di atas middleware rute, mengikuti pola screen-128.",
+        "24. Pratinjau timeline di dalam form dihitung di KLIEN dari nilai yang sedang diketik, karena ia harus bergerak sebelum ada permintaan jaringan. Itu satu-satunya perhitungan cakupan di sisi klien, dan ia BUKAN sumber kebenaran — penolakan tetap datang dari server saat Simpan, dan pratinjau memakai rumus offset-dari-07:00 yang sama persis.",
+        "25. Mengganti mill mengosongkan filter Production Line: sebuah line milik tepat satu mill, jadi membawanya ke mill lain akan menampilkan galat untuk sesuatu yang tidak dilakukan Admin."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "shift",
+          "operation": "SELECT",
+          "description": "Daftar shift pada mill terpilih, disaring opsional pada satu production line."
+        },
+        {
+          "entity_id": "shift",
+          "operation": "INSERT",
+          "description": "Membuat shift baru setelah pemeriksaan nama unik per line, jam tidak sama, dan tumpang tindih."
+        },
+        {
+          "entity_id": "shift",
+          "operation": "UPDATE",
+          "description": "Mengubah nama, jam, atau production_line_id; shift itu sendiri dikecualikan dari pembanding tumpang tindih."
+        },
+        {
+          "entity_id": "shift",
+          "operation": "DELETE",
+          "description": "Menghapus satu shift. Tidak ada penjagaan 'sudah dipakai record' pada putaran ini karena belum ada record yang merujuk shift."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih dan filter Production Line, serta penamaan line pada tiap baris dan tiap batang timeline."
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill — Admin saja."
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "users.role — penentu gate admin pada ketiga lapisnya."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Mill belum dipilih",
+          "handling": "Tidak ada kueri shift yang berjalan; layar menampilkan arahan memilih mill"
+        },
+        {
+          "condition": "Mill belum punya satu pun Production Line",
+          "handling": "data dan coverage keduanya kosong dengan 200; blade menyatakan mill itu belum punya line dan mengarahkan ke Kelola Production Line — bukan timeline kosong tanpa penjelasan"
+        },
+        {
+          "condition": "Line tidak punya satu pun shift",
+          "handling": "coverage[].state 'unconfigured' dengan shift_count 0; BUKAN 'gap' dengan uncovered_minutes 1440"
+        },
+        {
+          "condition": "Filter production_line_id absen pada mill berbelasan line",
+          "handling": "coverage memuat satu entri per line; halaman menjadi panjang dan itu diterima karena memilih 'semua' adalah tindakan audit yang disengaja"
+        },
+        {
+          "condition": "production_line_id milik mill lain",
+          "handling": "422 VALIDATION_ERROR — bukan 403, karena dari sudut pandang Admin itu parameter yang keliru, bukan penolakan akses"
+        },
+        {
+          "condition": "Union shift menutup 24 jam tetapi tidak dimulai 07:00",
+          "handling": "state 'covered' dengan uncovered_minutes 0, tetapi starts_at_production_day false; blade menampilkan peringatan dan tidak menolak apa pun"
+        },
+        {
+          "condition": "Shift melewati tengah malam",
+          "handling": "Diterbitkan sebagai SATU blok dengan durasi utuh dan crosses_midnight true; dipecah dua hanya di dalam perhitungan tumpang tindih, tidak pernah di payload"
+        },
+        {
+          "condition": "Satu shift menutup 24 jam penuh",
+          "handling": "state 'covered', satu blok berdurasi 1440 menit, nol blok gap"
+        },
+        {
+          "condition": "Shift berakhir tepat pada jam mulai shift lain",
+          "handling": "Irisan nol menit → TIDAK bertindih; diterima sebagai pergantian shift normal"
+        },
+        {
+          "condition": "Tumpang tindih satu menit",
+          "handling": "422 SHIFT_OVERLAP; pesannya menyebut nama shift pembanding dan rentang satu menit itu"
+        },
+        {
+          "condition": "start_time == end_time",
+          "handling": "422 VALIDATION_ERROR — bukan SHIFT_OVERLAP; shift berdurasi nol tidak dapat menampung record"
+        },
+        {
+          "condition": "Nama shift bentrok di dalam satu line",
+          "handling": "422 VALIDATION_ERROR menyebut nama itu sudah dipakai pada line tersebut"
+        },
+        {
+          "condition": "Nama shift sama dengan shift di line lain",
+          "handling": "Diterima — keunikan diperiksa per line, bukan global"
+        },
+        {
+          "condition": "PATCH yang membuat shift bertindih dengan dirinya sendiri",
+          "handling": "Shift yang sedang diubah dikecualikan dari himpunan pembanding; tanpa pengecualian itu tidak ada perubahan yang pernah bisa disimpan"
+        },
+        {
+          "condition": "PATCH memindahkan shift ke line lain yang jamnya sudah terisi",
+          "handling": "Pemeriksaan tumpang tindih dijalankan terhadap line TUJUAN; 422 SHIFT_OVERLAP bila bertindih di sana"
+        },
+        {
+          "condition": "Menghapus shift terakhir sebuah line",
+          "handling": "Berhasil; coverage line itu berubah menjadi 'unconfigured', bukan 'gap' 1440 menit"
+        },
+        {
+          "condition": "Menghapus shift dari line yang tadinya tercakup penuh",
+          "handling": "Berhasil; coverage berubah menjadi 'gap' dengan uncovered_minutes sebesar durasi shift yang dihapus"
+        },
+        {
+          "condition": "business_unit_id absen",
+          "handling": "422 VALIDATION_ERROR dan NOL kueri shift berjalan"
+        },
+        {
+          "condition": "Shift id tidak ada pada PATCH atau DELETE",
+          "handling": "404 NOT_FOUND"
+        },
+        {
+          "condition": "Peran bukan admin",
+          "handling": "403 FORBIDDEN dari service; rute web juga 403 lewat middleware role dan abort_unless di mount()"
+        },
+        {
+          "condition": "Jumlah shift melampaui satu halaman",
+          "handling": "data berpaginasi; coverage TIDAK ikut berpaginasi karena ia merangkum cakupan line, bukan mendaftar baris"
+        },
+        {
+          "condition": "Jam diketik separuh pada pratinjau klien",
+          "handling": "Pratinjau menahan diri dan tidak menggambar blok; tidak ada permintaan jaringan yang terkirim sampai Simpan"
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya Admin yang punya layar ini",
+        "Shift melekat pada Production Line, bukan pada mill",
+        "Mill wajib dipilih; business_unit_id absen → 422 dan nol kueri",
+        "production_line_id opsional pada daftar — 'semua line' adalah pemakaian audit yang sah",
+        "Nama shift unik per line; dua line boleh punya nama sama",
+        "start_time tidak boleh sama dengan end_time",
+        "end_time boleh lebih awal daripada start_time — shift melewati tengah malam",
+        "Tumpang tindih ditolak dengan batas inklusif; irisan nol menit bukan tindihan",
+        "Tumpang tindih diperiksa hanya di dalam satu production line",
+        "Shift yang sedang diubah dikecualikan dari pembanding",
+        "Memindahkan shift memeriksa terhadap line tujuan",
+        "Pesan tumpang tindih menyebut shift pembanding dan rentang jamnya",
+        "Celah diizinkan dan diterbitkan sebagai blok, tidak pernah ditolak di data",
+        "Union yang tidak dimulai 07:00 ditandai, tidak ditolak",
+        "state 'unconfigured' berbeda dari 'gap' 1440 menit",
+        "Offset diukur dari 07:00, bukan dari tengah malam",
+        "Perbandingan rentang pada sumbu menit, bukan pada string jam",
+        "position diturunkan server dan dipakai untuk mengurutkan tabel maupun timeline",
+        "Cakupan dihitung di server; pratinjau klien bukan sumber kebenaran",
+        "Jadwal berlaku sama setiap hari — tidak ada parameter tanggal pada endpoint mana pun",
+        "Mengganti mill mengosongkan filter line",
+        "Admin saja, dijaga tiga lapis",
+        "Komponen Livewire memakai service yang sama dengan controller API",
+        "Rute literal didaftarkan sebelum rute ber-{id}"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "403 bagi peran selain admin pada keenam endpoint",
+          "given": "Pengguna berperan supervisor, lalu mill_management, lalu operator",
+          "expect": "Ketiganya ForbiddenException FORBIDDEN pada options, list, POST, PATCH, dan DELETE; nol kueri shift berjalan"
+        },
+        {
+          "description": "401 tanpa sesi",
+          "given": "Permintaan dikirim tanpa sesi yang berlaku",
+          "expect": "UnauthenticatedException pada seluruh endpoint; service tidak pernah dipanggil"
+        },
+        {
+          "description": "mount() komponen menjaga peran admin sendiri",
+          "given": "Pengguna berperan supervisor membuka komponen KelolaShift",
+          "expect": "abort_unless atas peran admin menghasilkan 403; penjagaan ini lapisan kedua di atas middleware rute"
+        },
+        {
+          "description": "business_unit_id absen ditolak 422 dengan nol kueri shift",
+          "given": "Admin memanggil daftar shift tanpa business_unit_id",
+          "expect": "ValidationException VALIDATION_ERROR; query log mencatat NOL kueri ke tabel shifts"
+        },
+        {
+          "description": "production_line_id milik mill lain ditolak 422",
+          "given": "Admin mengirim business_unit_id mill A dan production_line_id milik mill B",
+          "expect": "ValidationException VALIDATION_ERROR — bukan ForbiddenException, karena bagi Admin itu parameter keliru dan bukan penolakan akses"
+        },
+        {
+          "description": "daftar tanpa production_line_id memuat seluruh line mill itu",
+          "given": "Mill punya tiga line masing-masing dengan shift",
+          "expect": "coverage memuat tiga entri, satu per line; data memuat seluruh shift ketiganya"
+        },
+        {
+          "description": "offset diukur dari 07:00, bukan dari tengah malam",
+          "given": "Shift 07:00–15:00 pada sebuah line",
+          "expect": "start_offset_minutes 0 dan duration_minutes 480; shift 23:00–07:00 menghasilkan start_offset_minutes 960 dan duration_minutes 480"
+        },
+        {
+          "description": "shift melewati tengah malam adalah SATU blok, bukan dua",
+          "given": "Shift 23:00–07:00",
+          "expect": "coverage[].blocks memuat tepat satu blok ber-kind 'shift' untuk shift itu dengan duration_minutes 480; crosses_midnight true; TIDAK ada dua blok di kedua ujung sumbu"
+        },
+        {
+          "description": "shift tunggal menutup 24 jam",
+          "given": "Satu shift 07:00–07:00 pada sebuah line",
+          "expect": "state 'covered', uncovered_minutes 0, satu blok berdurasi 1440, nol blok gap"
+        },
+        {
+          "description": "cakupan penuh oleh tiga shift",
+          "given": "Pagi 07–15, Siang 15–23, Malam 23–07",
+          "expect": "state 'covered', uncovered_minutes 0, tiga blok 'shift' berurutan tanpa blok gap di antaranya, starts_at_production_day true"
+        },
+        {
+          "description": "celah diterbitkan sebagai blok ber-kind gap",
+          "given": "Pagi 07–15 dan Malam 19–07 pada satu line",
+          "expect": "state 'gap', uncovered_minutes 240, dan blocks memuat blok 'gap' ber-start_offset_minutes 480 berdurasi 240 di antara kedua blok shift"
+        },
+        {
+          "description": "celah tidak pernah ditolak di lapisan data",
+          "given": "Admin menyimpan shift yang meninggalkan celah",
+          "expect": "Simpan BERHASIL; celah hanya diterbitkan sebagai blok, tidak pernah menjadi galat"
+        },
+        {
+          "description": "line tanpa shift bernilai unconfigured, bukan gap 1440",
+          "given": "Sebuah line tidak punya satu pun shift",
+          "expect": "state 'unconfigured' dengan shift_count 0; state BUKAN 'gap' dan uncovered_minutes tidak dilaporkan sebagai 1440"
+        },
+        {
+          "description": "starts_at_production_day false ketika union tidak mulai 07:00",
+          "given": "Union shift menutup 24 jam tetapi dimulai 06:00",
+          "expect": "state 'covered' dengan uncovered_minutes 0, tetapi starts_at_production_day false; tidak ada penolakan"
+        },
+        {
+          "description": "position diturunkan dari start_time relatif 07:00",
+          "given": "Shift ditambahkan dengan urutan acak: Malam dulu, lalu Pagi, lalu Siang",
+          "expect": "position Pagi < Siang < Malam; urutan itu mengikuti jam mulai relatif 07:00, bukan urutan penambahan dan bukan abjad nama"
+        },
+        {
+          "description": "urutan data dan urutan blocks memakai position yang sama",
+          "given": "Satu line dengan tiga shift",
+          "expect": "Urutan entri data dan urutan blok 'shift' pada coverage identik; keduanya diturunkan dari satu nilai position yang sama"
+        },
+        {
+          "description": "tumpang tindih berbatas inklusif: irisan nol menit diterima",
+          "given": "Line sudah punya Pagi 07:00–15:00",
+          "expect": "Menyimpan Siang 15:00–23:00 BERHASIL — irisannya nol menit, jadi bukan tindihan; itu pergantian shift normal"
+        },
+        {
+          "description": "tumpang tindih satu menit ditolak",
+          "given": "Line sudah punya Pagi 07:00–15:00",
+          "expect": "Menyimpan shift 14:59–23:00 → 422 SHIFT_OVERLAP, dan pesannya menyebut nama 'Pagi' beserta rentang 14:59–15:00"
+        },
+        {
+          "description": "tumpang tindih terdeteksi pada shift yang melewati tengah malam",
+          "given": "Line sudah punya Malam 23:00–07:00",
+          "expect": "Menyimpan shift 02:00–05:00 → 422 SHIFT_OVERLAP; perbandingannya di sumbu menit relatif 07:00, bukan pada string jam yang akan menyimpulkan rentang Malam kosong"
+        },
+        {
+          "description": "perbandingan string jam TIDAK dipakai — kasus jebakan",
+          "given": "Line punya shift 23:00–07:00 dan kandidat baru 01:00–03:00",
+          "expect": "Terdeteksi bertindih. Implementasi yang membandingkan '23:00' > '07:00' sebagai string akan menyimpulkan rentangnya kosong dan MELOLOSKAN kandidat ini — kasus ini ada justru untuk memerahkan implementasi itu"
+        },
+        {
+          "description": "tumpang tindih diperiksa hanya di dalam satu line",
+          "given": "Line 1 punya Pagi 07:00–15:00",
+          "expect": "Menyimpan Pagi 07:00–15:00 pada Line 2 BERHASIL — keduanya bekerja bersamaan di line yang berbeda"
+        },
+        {
+          "description": "nama unik per line",
+          "given": "Line 1 sudah punya shift bernama 'Pagi'",
+          "expect": "Menyimpan 'Pagi' lagi pada Line 1 → 422 VALIDATION_ERROR menyebut nama itu sudah dipakai; menyimpan 'Pagi' pada Line 2 BERHASIL"
+        },
+        {
+          "description": "start_time sama dengan end_time ditolak sebagai VALIDATION_ERROR",
+          "given": "Admin menyimpan shift 07:00–07:00 yang dimaksudkan berdurasi nol",
+          "expect": "422 VALIDATION_ERROR, BUKAN SHIFT_OVERLAP — keduanya kesalahan berbeda dengan pesan berbeda"
+        },
+        {
+          "description": "field wajib absen ditolak",
+          "given": "POST tanpa name, atau tanpa start_time, atau tanpa production_line_id",
+          "expect": "422 VALIDATION_ERROR menyebut field yang absen"
+        },
+        {
+          "description": "production_line_id tidak ada ditolak",
+          "given": "POST dengan production_line_id yang tidak ada di master",
+          "expect": "422 VALIDATION_ERROR"
+        },
+        {
+          "description": "PATCH mengecualikan shift itu sendiri dari pembanding",
+          "given": "Line punya Pagi 07:00–15:00 dan Siang 15:00–23:00",
+          "expect": "Mengubah nama Pagi tanpa mengubah jamnya BERHASIL; tanpa pengecualian ini setiap perubahan akan bertindih dengan dirinya sendiri dan tidak ada yang pernah bisa disimpan"
+        },
+        {
+          "description": "PATCH yang membuat bertindih ditolak",
+          "given": "Line punya Pagi 07:00–15:00 dan Siang 15:00–23:00",
+          "expect": "Mengubah jam selesai Pagi menjadi 16:00 → 422 SHIFT_OVERLAP menyebut 'Siang' dan rentang 15:00–16:00"
+        },
+        {
+          "description": "PATCH yang memindahkan line memeriksa line TUJUAN",
+          "given": "Shift 'Pagi' ada di Line 1, dan Line 2 sudah punya shift 07:00–15:00",
+          "expect": "Mengubah production_line_id Pagi menjadi Line 2 → 422 SHIFT_OVERLAP terhadap shift di Line 2; pemeriksaan TIDAK dilakukan terhadap shift di Line 1"
+        },
+        {
+          "description": "PATCH pada id yang tidak ada",
+          "given": "PATCH /api/shifts/{id} dengan id yang tidak ada",
+          "expect": "404 NOT_FOUND"
+        },
+        {
+          "description": "DELETE berhasil dan cakupan berubah",
+          "given": "Line tercakup penuh oleh tiga shift",
+          "expect": "Menghapus Siang berhasil; coverage line itu berubah menjadi state 'gap' dengan uncovered_minutes 480 dan satu blok gap baru"
+        },
+        {
+          "description": "DELETE shift terakhir mengembalikan line ke unconfigured",
+          "given": "Line hanya punya satu shift",
+          "expect": "Sesudah dihapus, state line itu 'unconfigured' dengan shift_count 0 — bukan 'gap' 1440"
+        },
+        {
+          "description": "DELETE pada id yang tidak ada",
+          "given": "DELETE /api/shifts/{id} dengan id yang tidak ada",
+          "expect": "404 NOT_FOUND"
+        },
+        {
+          "description": "mill tanpa production line mengembalikan daftar kosong, bukan 404",
+          "given": "Mill terpilih tidak punya satu pun Production Line",
+          "expect": "data dan coverage keduanya array kosong dengan HTTP 200"
+        },
+        {
+          "description": "master mill kosong mengembalikan daftar kosong, bukan 404",
+          "given": "Tabel business_units kosong",
+          "expect": "options mengembalikan array kosong dengan 200"
+        },
+        {
+          "description": "daftar berpaginasi sementara coverage tidak",
+          "given": "Mill punya shift lebih banyak daripada satu halaman",
+          "expect": "data memuat satu halaman dengan meta page/per_page/total; coverage memuat SELURUH line tanpa dipotong halaman"
+        },
+        {
+          "description": "tidak ada parameter tanggal pada endpoint mana pun",
+          "given": "Seluruh definisi keenam endpoint",
+          "expect": "Nol query param maupun body field bernama date, day, weekday, effective_from, atau sejenisnya — jadwal berlaku sama setiap hari dan ketiadaan itu disengaja"
+        },
+        {
+          "description": "entitas shift tidak punya kolom hari maupun masa berlaku",
+          "given": "Skema tabel shifts",
+          "expect": "Nol kolom hari dalam seminggu, nol kolom tanggal berlaku; unique index ada pada (production_line_id, name)"
+        },
+        {
+          "description": "komponen Livewire memakai service yang sama dengan controller API",
+          "given": "Komponen KelolaShift dan ShiftController dipanggil dengan parameter yang sama",
+          "expect": "Keduanya memulangkan coverage yang identik; cakupan tidak dihitung ulang di blade"
+        },
+        {
+          "description": "mengganti mill mengosongkan filter production line",
+          "given": "Admin sudah memilih mill A dan Line 1 sehingga timeline tampil",
+          "expect": "Mengubah properti mill ke mill B menjadikan production_line_id null; daftar line dimuat ulang untuk mill B dan tidak memuat line mill A"
+        },
+        {
+          "description": "blade mengurutkan tabel dan timeline dari position, bukan mengurutkan sendiri",
+          "given": "Respons dengan position yang sudah terisi",
+          "expect": "Blade tidak memanggil fungsi pengurutan apa pun atas jam; ia memakai urutan dari respons untuk kedua tampilan"
+        },
+        {
+          "description": "pratinjau klien memakai rumus offset yang sama dengan server",
+          "given": "Jam 23:00–07:00 diketik di form",
+          "expect": "Pratinjau menempatkan blok pada offset 960 berdurasi 480 — sama persis dengan yang akan diterbitkan server sesudah disimpan"
+        },
+        {
+          "description": "pratinjau menahan diri saat jam belum valid",
+          "given": "Jam baru terisi sebagian di form",
+          "expect": "Pratinjau tidak menggambar blok dan tidak ada permintaan jaringan yang terkirim"
+        },
+        {
+          "description": "rute literal terdaftar sebelum rute ber-{id}",
+          "given": "Daftar rute API terdaftar",
+          "expect": "Posisi /shifts/business-units/options dan /shifts/production-lines/options berada SEBELUM /shifts/{id}; GET pada keduanya menjawab 200, bukan 404"
+        },
+        {
+          "description": "status cakupan tersedia sebagai kata, bukan hanya kode",
+          "given": "coverage[].state bernilai covered, gap, dan unconfigured",
+          "expect": "Blade memetakan ketiganya ke teks 'tercakup 24 jam', 'ada celah N jam', dan 'belum diatur' pada badge-nya sendiri — status terbaca tanpa bergantung warna"
+        },
+        {
+          "description": "jumlah jam celah ditampilkan angkanya",
+          "given": "uncovered_minutes 240",
+          "expect": "Badge menampilkan 'ada celah 4 jam' — angka jamnya disebut, bukan hanya 'ada celah'"
+        }
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-036--kelola-production-line",
+      "reason": "Induk entitas. Shift melekat pada Production Line, jadi mill tanpa line sama sekali tidak dapat punya shift — layar ini mengarahkan ke sana saat itu terjadi."
+    },
+    {
+      "screen_id": "screen-029--kelola-business-unit",
+      "reason": "Sumber daftar mill pada pemilih Mill."
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Acuan pola terdekat: master Admin-only bertenggat waktu dengan panel ringkasan di atas tabel, aturan tumpang tindih berbatas inklusif, dan konfirmasi hapus inline. Pola rute web /master-data/{resource} dan urutan pendaftaran rute API literal-sebelum-{id} keduanya diikuti dari sana."
+    }
+  ],
+  "implementation_notes": [
+    "Berkas: app/Livewire/MasterData/KelolaShift.php, app/Services/ShiftService.php, app/Http/Controllers/Api/ShiftController.php, app/Models/Shift.php, resources/views/livewire/master-data/kelola-shift.blade.php, satu migrasi create_shifts_table, routes/web.php, routes/api.php.",
+    "URUTAN PENDAFTARAN RUTE API ADALAH BAGIAN DARI KONTRAK. /shifts/business-units/options dan /shifts/production-lines/options wajib terdaftar SEBELUM /shifts/{id}. Jebakan ini sudah pernah terjadi dan terdokumentasi di routes/api.php untuk /periods/business-units/options — bila terbalik, rute literalnya menjawab 404 padahal jelas-jelas ada.",
+    "Perbandingan rentang WAJIB di sumbu menit 0..1440 relatif 07:00, bukan pada string jam. Membandingkan '23:00' dengan '07:00' sebagai string menyimpulkan rentangnya kosong, dan hasil salahnya terlihat masuk akal — kelas kesalahan yang sama dengan cacat pengurutan slot di laporan Engine Room yang baru diperbaiki. Tanam kasus jebakan shift melewati tengah malam di test sejak awal.",
+    "Shift melewati tengah malam dipecah dua HANYA di dalam perhitungan tumpang tindih; payload dan tampilan selalu satu blok utuh. Memecahnya di payload akan membuat blade menggambar dua potongan di kedua ujung batang — persis yang dihindari dengan memulai timeline di 07:00.",
+    "Cakupan dihitung sekali di ShiftService dan dipakai controller API maupun komponen Livewire. Jangan menghitungnya lagi di blade: perhitungan yang sama akan dibutuhkan gerbang sinkronisasi dan penandaan shift pada record, dan tiga penghitung yang berdiri sendiri akan berselisih.",
+    "Timeline digambar dari coverage[].blocks dengan persentase = start_offset_minutes/1440 dan width = duration_minutes/1440. Blade tidak menghitung jam sama sekali — ia hanya memetakan menit ke persen.",
+    "Pratinjau di dalam form adalah SATU-SATUNYA perhitungan cakupan di klien, dan ia bukan sumber kebenaran — penolakan tetap datang dari server. Pratinjau wajib memakai rumus offset-dari-07:00 yang sama persis, kalau tidak ia akan menggambar posisi yang berbeda dari yang nanti tersimpan.",
+    "Mock HTML yang disetujui ada di .asdlc/generated/2-business-spec/screens/html/screen-170--kelola-shift.html — ikuti urutan bagian, label, dan hierarki visualnya. Mock itu memakai aset bersama Phase 1 dan sudah diverifikasi: nol kelas tanpa definisi, nol literal warna, minimum 14px di seluruh elemen, dan nol gulir mendatar halaman pada 13 lebar.",
+    "SELURUH TEKS MINIMAL 14px, termasuk label jam pada sumbu timeline. Bila ruang tidak cukup, label DIJARANGKAN bukan diperkecil. Ambang ini dari uiux_spec.accessibility.text_content.min_font_size, dan ia justru dilanggar CSS laporan bersama hari ini (report-styles.blade.php: .md small tanpa font-size → 10px) — layar baru tidak boleh mengulanginya.",
+    "Tiap kelas CSS yang dipakai markup WAJIB punya definisi. Periksa pada CSS HASIL COMPILE, bukan pada sumbernya — di kelola-machinery.blade.php lima kelas tanpa definisi lolos 25 test Livewire dan 19 spec browser, karena test menguji perilaku sementara yang rusak adalah tampilan.",
+    "Field waktu menerima pengetikan manual MAUPUN picker, keduanya, dan tidak ada input yang dinonaktifkan — aturan form web yang sudah berlaku di proyek ini.",
+    "Celah pada timeline dirender dengan tekstur, bukan ruang putih. Ruang putih terbaca sebagai latar kartu dan bukan sebagai temuan; keadaan 'belum diatur' justru TANPA tekstur, supaya keduanya tidak tertukar.",
+    "Status cakupan dirender sebagai KATA pada badge-nya ('tercakup 24 jam' / 'ada celah N jam' / 'belum diatur'), bukan hanya warna. Asersi test menyasar teks badge itu, bukan kelas warnanya.",
+    "Spec browser mengasersi INVARIAN geometris yang diukur dari DOM: urutan blok timeline sama dengan urutan baris tabel, blok shift melewati tengah malam adalah SATU elemen yang menempel ke ujung kanan track, lebar blok sebanding durasinya, dan halaman tidak menggulir mendatar. Jangan memaku lebar piksel — ia bergantung lebar viewport.",
+    "Asersi label pendek pada badge status wajib menyasar elemennya, bukan memindai teks kontainer — 'belum diatur' muncul juga di kalimat penjelas di bawah batang, jadi pemindaian kontainer akan cocok pada tempat yang salah.",
+    "Migrasi create_shifts_table: production_line_id FK NOT NULL dengan cascade mengikuti pola tabel anak Production Line lain, name string, start_time dan end_time bertipe TIME, plus created_by/updated_by/timestamps. Unique index pada (production_line_id, name). Tumpang tindih TIDAK dapat ditegakkan unique index — ia ditegakkan di lapisan aplikasi, sama seperti aturan tumpang tindih rentang tanggal pada Periode Pelaporan.",
+    "Jangan menambahkan kolom hari, tanggal berlaku, maupun pola bergilir. Jadwal berlaku sama setiap hari — keputusan pemilik produk 2026-10-15 — dan ketiadaan itu disengaja, bukan kelalaian yang perlu dilengkapi."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Kelola Shift per Production Line — berhasil menambahkan shift",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts/production-lines/options"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "{{step2.data[0].id}}",
+            "name": "Pagi",
+            "start_time": "07:00",
+            "end_time": "15:00"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mount sebagai Admin, pilih mill, tekan Tambah Shift, isi Line 1 / 'Pagi' / 07:00 / 15:00, lalu simpan",
+        "assert": "Shift tersimpan; blok 'Pagi' muncul pada timeline Line 1 dengan start_offset 0 dan durasi 480; badge Line 1 berbunyi 'ada celah 16 jam'; baris tabelnya muncul dengan urutan yang sama seperti urutan blok timeline"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Masuk sebagai Admin, buka /master-data/shifts, pilih mill, tambahkan shift Pagi 07:00–15:00 pada Line 1",
+        "assert": "Blok Pagi terlihat menempel ke ujung kiri batang Line 1; badge cakupannya menyebut jumlah jam celah; halaman tidak menggulir mendatar"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — mill belum dipilih",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mount tanpa memilih mill",
+        "assert": "Nol timeline dan nol baris tabel dirender; arahan memilih mill terlihat; service daftar shift tidak pernah dipanggil"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Buka layar tanpa memilih mill",
+        "assert": "Arahan memilih mill terlihat dan tidak ada batang timeline di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — mill belum punya Production Line",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "bu-tanpa-line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mount dengan mill yang tidak punya satu pun Production Line",
+        "assert": "data dan coverage keduanya kosong dengan 200; layar menyatakan mill itu belum punya line dan mengarahkan ke Kelola Production Line; bukan timeline kosong tanpa penjelasan"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Pilih mill yang belum punya Production Line",
+        "assert": "Keterangan dan tautan ke Kelola Production Line terlihat; tidak ada batang kosong yang membingungkan"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — line belum punya shift",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mount dengan mill yang punya Line 3 tanpa satu pun shift",
+        "assert": "coverage Line 3 ber-state 'unconfigured' dengan shift_count 0; badge-nya berbunyi 'belum diatur' dan BUKAN 'ada celah 24 jam'; bloknya dirender tanpa tekstur sehingga tidak tertukar dengan celah"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Baca batang Line 3",
+        "assert": "Teks 'belum diatur' terlihat pada badge-nya, bloknya polos tanpa arsiran, dan kalimat yang membedakannya dari celah 24 jam terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — filter diset seluruh line",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mount dengan mill berdua belas line dan filter kosong",
+        "assert": "coverage memuat dua belas entri, satu per line; production_line_id yang absen diterima dan tidak menghasilkan 422 — berbeda dari layar laporan tempat line wajib"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Pilih 'semua line' pada mill berbanyak line",
+        "assert": "Satu batang per line terlihat; halaman memang panjang namun tidak menggulir mendatar"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — cakupan penuh tetapi tidak selaras hari produksi",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001",
+            "production_line_id": "pl-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mount dengan line yang union shift-nya menutup 24 jam tetapi dimulai 06:00",
+        "assert": "state 'covered' dengan uncovered_minutes 0, starts_at_production_day false; peringatan ketidakselarasan dengan awal hari produksi dirender; nol penolakan"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Baca batang line tersebut",
+        "assert": "Badge berbunyi tercakup penuh dan peringatan ketidakselarasan tetap terlihat di dekatnya"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — shift melewati tengah malam",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-001",
+            "name": "Malam",
+            "start_time": "23:00",
+            "end_time": "07:00"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Simpan shift Malam 23:00–07:00 lalu periksa payload cakupan dan DOM",
+        "assert": "Diterima; coverage memuat TEPAT SATU blok untuk Malam dengan start_offset_minutes 960 dan duration_minutes 480, crosses_midnight true; label ditulis '23:00 — 07:00 +1' pada tabel maupun blok"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Tambahkan shift Malam 23:00–07:00 lalu periksa batangnya",
+        "assert": "Elemen blok Malam berjumlah SATU dan tepi kanannya menempel ke ujung kanan track — bukan dua potongan di kedua ujung; itu yang dibeli oleh batang yang dimulai 07:00"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — pratinjau menampilkan tumpang tindih sebelum simpan",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 sudah punya Pagi 07:00–15:00; buka form Tambah Shift untuk Line 1 dan ketik jam mulai 14:00",
+        "assert": "Pratinjau menandai rentang 14:00–15:00 sebagai bertindih saat itu juga; NOL permintaan jaringan terkirim; Simpan belum pernah ditekan"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Ketik jam yang bertindih pada form tanpa menekan Simpan",
+        "assert": "Penanda tindihan terlihat pada pratinjau dan tidak ada permintaan POST yang terkirim"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — jam diketik separuh",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Ketik jam secara tidak lengkap pada form sehingga nilainya belum valid",
+        "assert": "Pratinjau tidak menggambar blok apa pun; nol pesan galat dirender; nol permintaan jaringan terkirim"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Ketik sebagian jam lalu berhenti",
+        "assert": "Pratinjau tetap kosong tanpa blok yang salah posisi, dan tidak ada galat yang muncul sebelum pengetikan selesai"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — jam diketik manual tanpa picker",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-001",
+            "name": "Pagi",
+            "start_time": "07:00",
+            "end_time": "15:00"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Isi field jam dengan mengetik langsung, tanpa membuka picker, lalu simpan",
+        "assert": "Nilainya diterima dan tersimpan; tidak ada field waktu pada form ini yang dinonaktifkan maupun readonly"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Ketik '07:00' langsung ke field jam lalu simpan",
+        "assert": "Shift tersimpan; kedua field waktu menerima pengetikan manual dan tetap punya picker"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — tumpang tindih ditolak saat simpan",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-001",
+            "name": "Sore",
+            "start_time": "22:00",
+            "end_time": "02:00"
+          },
+          "expected_status": 422,
+          "expected_error_code": "SHIFT_OVERLAP"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 punya Siang 15:00–23:00; simpan shift baru 22:00–02:00 pada Line 1",
+        "assert": "422 SHIFT_OVERLAP; pesan yang dirender menyebut nama 'Siang' DAN rentang 22:00–23:00 — bukan hanya 'jam bertindih'"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Simpan shift yang bertindih",
+        "assert": "Pesan penolakan terlihat dan memuat nama shift pembanding beserta rentang jam tindihannya"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — pergantian shift berimpit diterima",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-001",
+            "name": "Siang",
+            "start_time": "15:00",
+            "end_time": "23:00"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 punya Pagi 07:00–15:00; simpan Siang dengan jam mulai tepat 15:00",
+        "assert": "BERHASIL — irisannya nol menit, jadi batas inklusif tidak menganggapnya bertindih; coverage menampilkan dua blok bersebelahan tanpa blok gap di antaranya"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Tambahkan shift yang mulai tepat saat shift sebelumnya berakhir",
+        "assert": "Tersimpan tanpa penolakan; kedua blok terlihat bersebelahan tanpa celah di antaranya"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — tumpang tindih satu menit ditolak",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-001",
+            "name": "Sore",
+            "start_time": "14:59",
+            "end_time": "23:00"
+          },
+          "expected_status": 422,
+          "expected_error_code": "SHIFT_OVERLAP"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 punya Pagi 07:00–15:00; simpan shift baru mulai 14:59",
+        "assert": "422 SHIFT_OVERLAP; pesannya menyebut rentang satu menit 14:59–15:00 — membuktikan batasnya inklusif pada irisan nol dan bukan pada toleransi menit"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Simpan shift yang bertindih satu menit",
+        "assert": "Ditolak, dan rentang satu menit itu disebut pada pesannya"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — nama shift sudah dipakai di line yang sama",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-001",
+            "name": "Pagi",
+            "start_time": "15:00",
+            "end_time": "23:00"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 sudah punya shift bernama 'Pagi'; simpan shift lain bernama 'Pagi' pada Line 1",
+        "assert": "422 VALIDATION_ERROR; pesannya menyebut nama itu sudah dipakai pada line tersebut — bukan SHIFT_OVERLAP, karena jamnya sama sekali tidak bertindih"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Simpan nama shift yang sudah dipakai pada line yang sama",
+        "assert": "Pesan nama sudah dipakai terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — nama shift sama dengan line lain diterima",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-002",
+            "name": "Pagi",
+            "start_time": "07:00",
+            "end_time": "15:00"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 sudah punya 'Pagi'; simpan 'Pagi' pada Line 2",
+        "assert": "BERHASIL — keunikan nama diperiksa per production_line_id, bukan global; keduanya muncul sebagai dua baris pada tabel dengan line yang berbeda"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Tambahkan shift bernama sama pada line yang berbeda",
+        "assert": "Tersimpan tanpa penolakan; dua baris 'Pagi' terlihat dengan kolom Production Line yang berbeda"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — jam mulai dan selesai sama ditolak",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-001",
+            "name": "Nol",
+            "start_time": "07:00",
+            "end_time": "07:00"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Isi jam mulai dan jam selesai dengan nilai yang sama persis lalu simpan",
+        "assert": "422 VALIDATION_ERROR — BUKAN SHIFT_OVERLAP; keduanya kesalahan berbeda dengan pesan berbeda, dan shift berdurasi nol tidak dapat menampung record"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Simpan shift dengan jam mulai dan selesai yang sama",
+        "assert": "Pesan penolakan terlihat dan menyebut durasi nol, bukan tumpang tindih"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — mengubah shift sehingga bertindih",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/shifts/{id}"
+          },
+          "request_example": {
+            "end_time": "16:00"
+          },
+          "expected_status": 422,
+          "expected_error_code": "SHIFT_OVERLAP"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 punya Pagi 07:00–15:00 dan Siang 15:00–23:00; ubah jam selesai Pagi menjadi 16:00",
+        "assert": "422 SHIFT_OVERLAP menyebut 'Siang' dan rentang 15:00–16:00; DAN mengubah hanya nama Pagi tanpa menyentuh jamnya tetap BERHASIL — membuktikan shift yang sedang diubah dikecualikan dari pembanding"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Ubah jam selesai sebuah shift sehingga menabrak shift berikutnya",
+        "assert": "Ditolak dengan pesan yang menyebut shift pembanding; mengubah namanya saja tetap berhasil"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — memindahkan shift ke line lain",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/shifts/{id}"
+          },
+          "request_example": {
+            "production_line_id": "pl-002"
+          },
+          "expected_status": 422,
+          "expected_error_code": "SHIFT_OVERLAP"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Shift 'Pagi' 07:00–15:00 ada di Line 1; Line 2 sudah punya shift pada jam yang sama; pindahkan Pagi ke Line 2",
+        "assert": "422 SHIFT_OVERLAP terhadap shift di Line 2 — pemeriksaan dijalankan terhadap line TUJUAN, bukan terhadap shift di Line 1 yang justru tidak lagi relevan"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Ubah Production Line sebuah shift ke line yang jamnya sudah terisi",
+        "assert": "Ditolak dengan menyebut shift di line tujuan"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — menghapus shift membesarkan celah",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/shifts/{id}"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001",
+            "production_line_id": "pl-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 tercakup penuh oleh tiga shift; hapus Siang dan setujui konfirmasi inline",
+        "assert": "Konfirmasi inline menyebut nama shift DAN line-nya; sesudah dihapus state berubah dari 'covered' menjadi 'gap' dengan uncovered_minutes 480, dan satu blok ber-kind 'gap' muncul di posisi yang ditinggalkannya"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Hapus satu shift dari line yang tadinya tercakup penuh",
+        "assert": "Badge berubah menyebut jumlah jam celah, dan ruang bertekstur muncul pada batang tepat di posisi shift yang dihapus"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — menghapus seluruh shift sebuah line",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/shifts/{id}"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 2 hanya punya satu shift; hapus shift terakhir itu",
+        "assert": "state line itu menjadi 'unconfigured' dengan shift_count 0 — BUKAN 'gap' dengan uncovered_minutes 1440; badge berbunyi 'belum diatur'"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Hapus shift terakhir sebuah line",
+        "assert": "Badge line itu berbunyi 'belum diatur' dan bloknya polos tanpa arsiran celah"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — shift tunggal menutup 24 jam",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-003",
+            "name": "Penuh",
+            "start_time": "07:00",
+            "end_time": "07:00"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Coba menutup 24 jam dengan satu shift; perhatikan bahwa 07:00–07:00 ditolak sebagai durasi nol",
+        "assert": "Jam yang berimpit DITOLAK sebagai VALIDATION_ERROR; menutup 24 jam dengan satu shift karena itu ditulis sebagai rentang yang tidak berimpit, dan payload-nya menghasilkan satu blok berdurasi 1440 dengan state 'covered' tanpa blok gap"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Buat satu shift yang menutup seluruh hari produksi lalu baca batangnya",
+        "assert": "Satu blok penuh terlihat tanpa celah, dan badge berbunyi tercakup 24 jam"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — mengganti mill mengosongkan filter line",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts/production-lines/options"
+          },
+          "request_example": {
+            "business_unit_id": "bu-002"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Pilih mill A dan Line 1 sehingga timeline tampil, lalu ubah properti mill ke mill B",
+        "assert": "production_line_id menjadi null; daftar line dimuat ulang untuk mill B dan tidak memuat satu pun line mill A; tidak ada pesan galat tentang line yang tidak cocok"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Tampilkan jadwal mill A lalu ganti pemilih Mill ke mill B",
+        "assert": "Filter Production Line kembali ke keadaan belum terpilih dan daftar line-nya milik mill B"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — Admin mencari pengaturan jendela sinkronisasi",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mount dengan jadwal terisi lalu telusuri seluruh DOM layar dan form",
+        "assert": "NOL field bernama jendela/sync/sinkronisasi pada form shift; keterangan yang menyatakan setelan itu tidak diatur di sini DAN menyebut di mana ia diatur dirender di halaman"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Cari pengaturan jarak waktu sinkronisasi di layar dan di form",
+        "assert": "Tidak ada field-nya, dan keterangan tempat ia diatur terlihat sehingga Admin tidak menyimpulkan fiturnya belum ada"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — tabel berpindah halaman sementara timeline tidak",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001",
+            "page": 2
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mill dengan shift lebih banyak daripada satu halaman; berpindah ke halaman kedua",
+        "assert": "data memuat satu halaman dengan meta page/per_page/total; coverage memuat SELURUH line tanpa dipotong halaman — ia merangkum cakupan, bukan mendaftar baris"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Pindah ke halaman kedua tabel",
+        "assert": "Baris tabel berganti sementara batang timeline tetap menampilkan cakupan seluruh line yang terpilih"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — urutan tabel dan timeline selalu sama",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001",
+            "production_line_id": "pl-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 diisi dengan urutan acak: Malam dulu, lalu Pagi, lalu Siang",
+        "assert": "position Pagi < Siang < Malam; urutan baris tabel dan urutan blok 'shift' pada coverage IDENTIK, dan keduanya diturunkan dari satu nilai position yang sama — blade tidak mengurutkan sendiri"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Baca urutan blok pada batang dan urutan baris pada tabel",
+        "assert": "Keduanya Pagi, Siang, Malam — bukan urutan penambahan dan bukan abjad nama; urutan dibaca dari DOM keduanya lalu dibandingkan"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — status cakupan terbaca tanpa warna",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mount dengan Line 1 tercakup penuh, Line 2 bercelah, Line 3 belum diatur",
+        "assert": "Teks badge masing-masing berbunyi 'tercakup 24 jam', 'ada celah 4 jam', dan 'belum diatur' — asersi menyasar TEKS badge-nya, bukan kelas warnanya, dan 'belum diatur' juga muncul di kalimat penjelas sehingga pemindaian kontainer akan cocok di tempat yang salah"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Baca ketiga badge tanpa membedakan warna",
+        "assert": "Ketiga status terbaca dari katanya saja; jumlah jam celah disebut angkanya, bukan hanya 'ada celah'"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — layar dibuka pada lebar sempit",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Render pada lebar yang tidak cukup untuk seluruh label sumbu jam",
+        "assert": "Label jam dijarangkan, bukan diperkecil; nol elemen teks berukuran di bawah 14px"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Persempit jendela sampai sumbu jam kehabisan ruang, periksa pada beberapa lebar",
+        "assert": "Tidak ada teks di bawah 14px pada lebar mana pun; document.scrollingElement tidak pernah menggulir mendatar; bila batang perlu menggulir, ia menggulir DI DALAM kartunya sendiri"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — hanya Admin punya layar ini",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-001",
+            "name": "X",
+            "start_time": "07:00",
+            "end_time": "15:00"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mount sebagai supervisor, lalu mill_management, lalu operator",
+        "assert": "Ketiganya 403 lewat abort_unless di mount(); nol kueri shift berjalan pada ketiganya"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Masuk sebagai Supervisor, Mill Management, lalu Operator dan buka rute itu langsung",
+        "assert": "Ketiganya ditolak oleh middleware role dan tidak mendarat di layar; nol data shift terlihat"
+      }
+    }
+  ]
+}

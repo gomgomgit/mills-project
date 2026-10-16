@@ -8,6 +8,7 @@ use App\Models\BusinessUnit;
 use App\Models\ProductionLine;
 use App\Models\Shift;
 use App\Support\Pagination;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -252,6 +253,177 @@ class ShiftService
             [$startOffset, self::DAY_MINUTES],
             [0, $end - self::DAY_MINUTES],
         ];
+    }
+
+    /**
+     * shiftIdAt() — SHIFT YANG SEDANG BERJALAN pada sebuah Production Line
+     * di sebuah saat; null bila saat itu tidak tercakup shift mana pun.
+     *
+     * INILAH SATU-SATUNYA TEMPAT ATURAN "RECORD INI MASUK SHIFT MANA"
+     * DIPUTUSKAN. Mobile menyetempel `shift_id` dari jam perangkatnya dan web
+     * menurunkannya dari jam simpan di server, tetapi KEDUANYA memakai aturan
+     * yang sama persis — yang berbeda hanya JAM MANA yang dimasukkan ke sini.
+     *
+     * ── BATASNYA SETENGAH TERBUKA: start <= m < end ─────────────────────
+     *
+     * Berbeda dari findOverlap(), yang batasnya inklusif karena pertanyaannya
+     * lain. Di sana pertanyaannya "bolehkah dua shift ini berdampingan" dan
+     * jawabannya ya untuk pergantian yang berimpit. Di sini pertanyaannya
+     * "menit ini milik siapa", dan ia WAJIB punya tepat satu jawaban: dengan
+     * Pagi 07:00–15:00 dan Siang 15:00–23:00, menit 15:00 adalah milik Siang
+     * SAJA. Batas inklusif di sini akan membuat satu menit dimiliki dua shift
+     * — persis keadaan yang ditolak layar Kelola Shift saat menyimpan.
+     *
+     * ── NULL ADALAH JAWABAN YANG SAH, DAN SERING ───────────────────────
+     *
+     * Celah jadwal DIIZINKAN oleh rancangan (Kelola Shift menandainya, tidak
+     * menolaknya), dan sebuah line boleh belum punya shift sama sekali. Maka
+     * record yang disimpan pada saat seperti itu tersimpan TANPA shift alih
+     * -alih ditolak: menukar data lapangan dengan kelengkapan master akan
+     * menghukum orang yang tidak dapat memperbaikinya. Laporan nanti
+     * menampilkannya sebagai 'tanpa shift' sehingga celahnya terlihat sebagai
+     * temuan. (Keputusan pemilik produk 2026-10-16.)
+     *
+     * ── DATA LAMA YANG BERTINDIH: JAWABANNYA TETAP DETERMINISTIK ────────
+     *
+     * Tumpang tindih ditolak di jalur tulis, jadi ia tidak dapat lahir dari
+     * aplikasi — tetapi baris yang ditanam factory atau data yang lebih tua
+     * dari aturannya bisa saja bertindih. Yang dipilih adalah shift dengan
+     * SEGMEN TERAKHIR YANG DIMULAI sebelum menit itu, yakni yang paling baru
+     * berjalan. Memulangkan yang pertama ditemukan akan membuat jawabannya
+     * bergantung pada urutan baris di basis data, dan jawaban yang berubah
+     * tanpa datanya berubah adalah yang paling mahal ditelusuri.
+     *
+     * Baris tertutup (soft delete) TIDAK PERNAH dipertimbangkan — global
+     * scope SoftDeletes membuangnya dari kueri ini seperti dari semua jalur
+     * hidup lain.
+     *
+     * @param  string  $at  jam 'HH:MM'/'HH:MM:SS', atau datetime apa pun yang
+     *                      dapat dibaca Carbon; hanya JAM-nya yang dipakai.
+     */
+    public function shiftIdAt(string $productionLineId, string $at): ?string
+    {
+        // SENGAJA TANPA guardAdmin(), dan ini satu-satunya metode publik
+        // kelas ini yang tidak memakainya. Pemanggilnya adalah ke-18 record
+        // service saat OPERATOR menyimpan — menambahkan gate admin di sini
+        // akan membuat setiap penyimpanan operator gagal 403. Gate layar
+        // Kelola Shift tetap utuh: ia ada pada metode-metode yang MENGUBAH
+        // jadwal, bukan pada pembacaan satu id ini.
+        $minute = self::minuteOfDayOf($at);
+
+        $found = null;
+        $foundStart = -1;
+
+        foreach (Shift::query()->where('production_line_id', $productionLineId)->get() as $shift) {
+            $segments = self::segmentsFor(
+                self::offsetOnAxis($shift->start_time),
+                self::durationMinutes($shift->start_time, $shift->end_time)
+            );
+
+            foreach ($segments as $segment) {
+                if ($minute < $segment[0] || $minute >= $segment[1]) {
+                    continue;
+                }
+
+                if ($segment[0] > $foundStart) {
+                    $found = $shift->id;
+                    $foundStart = $segment[0];
+                }
+            }
+        }
+
+        return $found;
+    }
+
+    /**
+     * resolveShiftIdForSave() — nilai `shift_id` yang ditulis sebuah record
+     * saat disimpan. SATU pintu untuk dua jalur tulis yang berbeda.
+     *
+     * ── JALUR MOBILE: PERANGKAT YANG MENYETEMPEL ────────────────────────
+     *
+     * Klien mengirim `shift_id`, dan nilai itu DIPERCAYA sebagai jawaban —
+     * inversi yang disengaja terhadap `production_line_id`, yang justru tidak
+     * pernah dibaca dari request. Alasannya bukan selera: server hanya tahu
+     * kapan record DISINKRONKAN, sementara yang ditanyakan adalah kapan
+     * operator menekan Simpan, dan jarak keduanya memang berjam-jam secara
+     * rancangan. Menurunkannya di server akan salah SECARA SISTEMATIS, bukan
+     * sesekali.
+     *
+     * Karena nilainya datang dari klien, ia WAJIB diperiksa: shift kiriman
+     * harus hidup DAN milik line record itu. Tanpa pemeriksaan ini sebuah
+     * klien yang keliru dapat menandai record dengan shift line lain, dan
+     * laporan per-line akan memuat shift yang bukan miliknya — kebocoran yang
+     * bentuknya sama dengan yang sudah tiga kali terbukti pada cakupan
+     * Production Line.
+     *
+     * ── JALUR WEB: DITURUNKAN DARI JAM SIMPAN ───────────────────────────
+     *
+     * Form web menyimpan langsung di server, jadi tidak ada `shift_id` yang
+     * dikirim dan server menurunkannya dari `now()`. `now()` sudah berupa jam
+     * dinding WIB (config('app.timezone') = Asia/Jakarta), dan itu memang yang
+     * dibutuhkan karena jam shift pun jam dinding — JANGAN menggantinya dengan
+     * UTC, itu akan menggeser setiap penandaan tujuh jam.
+     *
+     * BATAS YANG DIKETAHUI DAN DITERIMA: form web punya field Tanggal yang
+     * BOLEH DIMUNDURKAN. Supervisor yang menginput data kemarin pada pukul
+     * 14:00 hari ini akan menghasilkan record bertanggal kemarin dengan shift
+     * SIANG — shift saat input, bukan shift saat kejadian. Itu pilihan sadar
+     * pemilik produk 2026-10-16 ketika konsekuensinya disampaikan, bukan cacat
+     * yang terlewat. Bila kelak ingin diperbaiki, perbaikannya adalah membuat
+     * manusia memilih shift-nya di form, bukan menebak lebih pintar di sini.
+     *
+     * ── NULL ADALAH JAWABAN YANG SAH ────────────────────────────────────
+     *
+     * Baik karena saat itu tidak tercakup shift mana pun, maupun karena line
+     * itu belum punya jadwal. Lihat shiftIdAt().
+     *
+     * @throws ValidationException bila `shift_id` kiriman klien tidak hidup
+     *                             atau bukan milik line record itu
+     */
+    public function resolveShiftIdForSave(?string $clientShiftId, string $productionLineId): ?string
+    {
+        $clientShiftId = is_string($clientShiftId) ? trim($clientShiftId) : null;
+
+        if ($clientShiftId === null || $clientShiftId === '') {
+            return $this->shiftIdAt($productionLineId, now()->toDateTimeString());
+        }
+
+        $belongs = Shift::query()
+            ->whereKey($clientShiftId)
+            ->where('production_line_id', $productionLineId)
+            ->exists();
+
+        if (! $belongs) {
+            throw ValidationException::withMessages([
+                'shift_id' => 'Shift yang dikirim tidak dikenal pada Production Line record ini.',
+            ]);
+        }
+
+        return $clientShiftId;
+    }
+
+    /**
+     * Menit-ke-dalam-hari dari 'HH:MM', 'HH:MM:SS', ATAU sebuah datetime
+     * penuh ('2026-10-16 14:30:00', ISO-8601 dengan zona waktu, dan
+     * seterusnya).
+     *
+     * Dua bentuk masukan bertemu di sini karena dua pemanggilnya memang
+     * berbeda bentuk: web menyerahkan `now()` (datetime penuh) sementara
+     * mobile menyerahkan jam perangkat. Memecahnya menjadi dua fungsi akan
+     * menggandakan satu-satunya tempat format jam dibaca di layar ini, dan
+     * penggandaan itulah yang membuat dua pembaca akhirnya berselisih.
+     */
+    public static function minuteOfDayOf(string $at): int
+    {
+        $trimmed = trim($at);
+
+        if (preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $trimmed) === 1) {
+            return self::minuteOfDay($trimmed);
+        }
+
+        $parsed = Carbon::parse($trimmed);
+
+        return ($parsed->hour * 60) + $parsed->minute;
     }
 
     /**

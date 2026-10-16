@@ -25,6 +25,7 @@ class KernelDispatchRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'kernel_dispatch_id',
         'date',
         'note',

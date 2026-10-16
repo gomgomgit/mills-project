@@ -62,7 +62,7 @@ class GradingRecordController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->only([
-            'production_line_id', 'grading_number', 'date', 'weighbridge_record_id',
+            'production_line_id', 'shift_id', 'grading_number', 'date', 'weighbridge_record_id',
             'license_plate_no', 'vehicle_code', 'estate_supplier', 'division',
             'netto', 'quantity', 'note', 'acknowledged', 'details',
         ]);

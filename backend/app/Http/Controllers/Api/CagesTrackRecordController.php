@@ -64,7 +64,7 @@ class CagesTrackRecordController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->only([
-            'production_line_id', 'cages_track_number', 'date', 'tippler_start_time',
+            'production_line_id', 'shift_id', 'cages_track_number', 'date', 'tippler_start_time',
             'tippler_stop_time', 'cages_out', 'cages_tipped', 'note',
             'checked', 'acknowledged', 'details',
         ]);

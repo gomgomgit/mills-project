@@ -25,6 +25,7 @@ class ClarificationRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'clarification_id',
         'date',
         'note',

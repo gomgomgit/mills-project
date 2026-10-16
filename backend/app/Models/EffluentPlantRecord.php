@@ -25,6 +25,7 @@ class EffluentPlantRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'effluent_plant_id',
         'date',
         'note',

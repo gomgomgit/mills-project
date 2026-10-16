@@ -26,6 +26,7 @@ class KernelPlantRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'kernel_plant_id',
         'date',
         'note',

@@ -25,6 +25,7 @@ class StorageTankRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'storage_tank_id',
         'date',
         'note',

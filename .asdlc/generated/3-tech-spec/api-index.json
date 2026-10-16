@@ -1,5 +1,5 @@
 {
-  "ver": 81,
+  "ver": 82,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-16"
@@ -2585,6 +2585,20 @@
         "actor-mill-management",
         "actor-admin",
         "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/production-lines/current/shifts",
+      "description": "Jadwal Shift satu Production Line, UNTUK DICACHE DI PERANGKAT — dasar penandaan `shift_id` pada ke-18 tabel record. Ada terpisah dari /api/shifts karena endpoint layar Kelola Shift ADMIN SAJA sampai ke dalam service-nya, sementara yang membutuhkan jadwal ini justru OPERATOR; melonggarkan gate di sana berarti membuka seluruh layar master data. Scoping identik dengan /production-lines/current/stations: line WAJIB milik mill akun itu, tidak ada parameter mill yang dapat menggesernya, line mill lain → 404 (bukan daftar kosong, yang akan terbaca sebagai 'line ini belum berjadwal'). Baris TERTUTUP tidak ikut — perangkat yang menyetempel dari baris tertutup akan menghasilkan record yang ditolak saat sync, karena pemeriksaan di ShiftService::resolveShiftIdForSave() juga mengecualikannya. Bentuk barisnya sengaja MINIMAL (id, name, start_time, end_time): perangkat menghitung sendiri shift mana yang berjalan dari jam dindingnya, jadi mengirim cakupan/celah/urutan hanya akan menciptakan perhitungan kedua yang dapat berselisih dengan perhitungan server. Line tanpa jadwal → 200 dengan data kosong.",
+      "screen_id": "screen-170--kelola-shift",
+      "usecase_id": "usecase-176--kelola-shift",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
       ]
     }
   ]

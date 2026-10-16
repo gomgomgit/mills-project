@@ -59,6 +59,21 @@ class ProductionLineController extends Controller
     }
 
     /**
+     * currentShifts() — GET /api/production-lines/current/shifts?production_line_id=.
+     *
+     * Jadwal Shift satu Production Line, untuk dicache perangkat supaya mobile
+     * dapat menyetempel `shift_id` saat Simpan ditekan — termasuk saat offline,
+     * yang justru keadaan normalnya. Scoping-nya identik dengan
+     * currentStations(): line wajib milik mill akun itu.
+     */
+    public function currentShifts(Request $request): JsonResponse
+    {
+        $productionLineId = (string) $request->query('production_line_id', '');
+
+        return response()->json(['data' => $this->service->currentShifts($request->user(), $productionLineId)]);
+    }
+
+    /**
      * optionsForReport() — GET /api/production-lines/options-for-report?business_unit_id=.
      *
      * The mill-scoped counterpart to current(), for the five mobile report

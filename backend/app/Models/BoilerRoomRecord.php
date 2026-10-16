@@ -25,6 +25,7 @@ class BoilerRoomRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'boiler_room_id',
         'date',
         'note',

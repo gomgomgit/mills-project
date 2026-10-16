@@ -26,6 +26,7 @@ class ThreshingRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'thresher_id',
         'date',
         'note',

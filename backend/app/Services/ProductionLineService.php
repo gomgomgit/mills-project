@@ -8,6 +8,7 @@ use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\ProductionLine;
+use App\Models\Shift;
 use App\Models\Station;
 use App\Models\User;
 use App\Rules\UniqueCaseInsensitive;
@@ -320,6 +321,60 @@ class ProductionLineService
                 'machinery_count' => $station->type instanceof StationType && $station->type->value === 'cages-track'
                     ? Machinery::where('station_id', $station->id)->count()
                     : null,
+            ])
+            ->all();
+    }
+
+    /**
+     * currentShifts() — jadwal Shift sebuah Production Line untuk DICACHE DI
+     * PERANGKAT, sehingga mobile dapat menyetempel `shift_id` saat operator
+     * menekan Simpan, termasuk ketika sedang offline.
+     *
+     * MENGAPA ADA DI SINI DAN BUKAN MEMAKAI /api/shifts. Endpoint layar
+     * Kelola Shift ADMIN SAJA — tiga lapis gate, sampai ke dalam service.
+     * Operator tidak akan pernah menembusnya, padahal operator-lah yang
+     * membutuhkan jadwal ini. Melonggarkan gate di sana berarti membuka
+     * seluruh layar master data; yang dibutuhkan mobile hanyalah daftar baca
+     * saja milik SATU line miliknya sendiri, dan itulah yang diberikan di
+     * sini — scoping yang sama persis dengan currentStations() di atas: line
+     * wajib milik mill akun itu, tidak ada parameter mill yang dapat
+     * menggesernya.
+     *
+     * BARIS TERTUTUP TIDAK IKUT (global scope SoftDeletes). Perangkat yang
+     * menyetempel dari baris tertutup akan menghasilkan record yang menunjuk
+     * shift yang sudah tidak dijalankan siapa pun — dan server akan
+     * menolaknya saat sync, karena pemeriksaan di
+     * ShiftService::resolveShiftIdForSave() juga mengecualikan baris tertutup.
+     *
+     * Bentuk barisnya sengaja MINIMAL — id, nama, jam mulai, jam selesai.
+     * Perangkat menghitung sendiri shift mana yang berjalan dari jam dindingnya,
+     * jadi ia tidak membutuhkan cakupan, celah, maupun urutan; mengirimkannya
+     * hanya akan menciptakan perhitungan kedua yang dapat berselisih dengan
+     * perhitungan server.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function currentShifts(User $user, string $productionLineId): array
+    {
+        if ($user->business_unit_id === null) {
+            throw new ModelNotFoundException;
+        }
+
+        $productionLine = ProductionLine::query()
+            ->where('id', $productionLineId)
+            ->where('business_unit_id', $user->business_unit_id)
+            ->firstOrFail();
+
+        return Shift::query()
+            ->where('production_line_id', $productionLine->id)
+            ->orderBy('start_time')
+            ->orderBy('name')
+            ->get(['id', 'name', 'start_time', 'end_time'])
+            ->map(fn (Shift $shift) => [
+                'id' => $shift->id,
+                'name' => $shift->name,
+                'start_time' => ShiftService::displayTime($shift->start_time),
+                'end_time' => ShiftService::displayTime($shift->end_time),
             ])
             ->all();
     }

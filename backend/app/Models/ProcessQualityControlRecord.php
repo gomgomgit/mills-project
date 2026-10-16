@@ -25,6 +25,7 @@ class ProcessQualityControlRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'process_qc_id',
         'date',
         'note',

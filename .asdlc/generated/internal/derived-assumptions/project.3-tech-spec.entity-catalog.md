@@ -94,3 +94,11 @@ Keputusan user yang dinyatakan eksplisit: shift melekat pada **Production Line**
 - **Nama unik per line, bukan unik global** ← 'Pagi' di Line 1 dan 'Pagi' di Line 2 adalah dua shift berbeda dan itu normal di lapangan.
 - **`test_fixture` memakai `shf-001` / `pl-001`** mengikuti pola penamaan fixture katalog ini; `production_line_id` menunjuk fixture Production Line yang sudah ada alih-alih id baru.
 - **Catatan arah ke depan ditulis di deskripsi entitas**: entitas ini akan menjadi tujuan FK `shift_id` pada 18 tabel record, bermakna "shift yang berlaku saat operator menyimpan di perangkat". Dicatat di sini supaya maksudnya tidak hilang di antara putaran.
+
+## v25 — 2026-10-16 · `shift_id` pada ke-18 entity Record
+
+Satu field ditambahkan ke ke-18 entity `* Record`: `shift_id` (uuid, **tidak wajib — nullable selamanya**).
+
+Seluruh alasannya, termasuk kenapa ia tidak pernah di-backfill dan kenapa perangkat yang menyetempelnya di jalur mobile, ada di log `shared-decisions` v15 dan tidak diulang di sini. Yang perlu diingat saat membaca katalog ini: **`shift_id` null bukan data yang belum lengkap, melainkan keadaan yang sah dan sering** — setiap pembaca yang mengelompokkan menurut shift wajib punya kelompok 'tanpa shift', dan hari ini kelompok itu memuat SELURUH baris yang sudah ada.
+
+Field-nya di-APPEND ke akhir daftar, bukan disisipkan setelah `production_line_id` tempat ia secara makna berada. Alasannya mekanis dan disengaja: menyisipkan berarti menulis ulang ke-18 daftar field secara utuh, dan penulisan ulang daftar panjang adalah cara isi hilang diam-diam (aturan `artifact__patch` di CLAUDE.md §4). Urutan field di katalog bersifat kosmetis; isinya tidak.

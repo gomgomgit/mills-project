@@ -139,6 +139,8 @@ interface StationPushConfig {
 
 interface LocalWeighbridgeRow {
   id: string
+  /** Stempel shift dari perangkat; null itu sah (celah jadwal, line tanpa jadwal, cache kosong). */
+  shift_id: string | null
   wb_card_number: string | null
   weighbridge_type: string | null
   record_datetime: string | null
@@ -160,6 +162,8 @@ interface LocalWeighbridgeRow {
 
 interface LocalGradingRow {
   id: string
+  /** Stempel shift dari perangkat; null itu sah (celah jadwal, line tanpa jadwal, cache kosong). */
+  shift_id: string | null
   grading_number: string | null
   date: string | null
   weighbridge_record_id: string | null
@@ -184,6 +188,8 @@ interface LocalGradingDetailRow {
 
 interface LocalCagesTrackRow {
   id: string
+  /** Stempel shift dari perangkat; null itu sah (celah jadwal, line tanpa jadwal, cache kosong). */
+  shift_id: string | null
   cages_track_number: string | null
   date: string | null
   tippler_start_time: string | null
@@ -503,6 +509,14 @@ async function pushUniformRow(
   try {
     const response = await apiClient.post(config.endpoint, {
       production_line_id: productionLineId,
+      // STEMPEL SHIFT dari PERANGKAT, bukan diturunkan server. Server hanya
+      // tahu kapan record ini SAMPAI kepadanya — dan sinkronisasi memang
+      // terjadi setelah shift berakhir, itu rancangannya. Nilainya ditulis
+      // saat operator menekan Simpan (lihat shiftRepo.stampShiftOnRecord).
+      // Server memeriksa ulang bahwa shift ini memang milik line record itu,
+      // jadi stempel dari cache basi ditolak alih-alih diterima diam-diam.
+      // null itu sah: celah jadwal diizinkan oleh rancangan.
+      shift_id: row.shift_id ?? null,
       [config.idPayloadKey]: row[config.idColumn],
       // Selalu tanggal LOKAL 'YYYY-MM-DD' — termasuk record lama yang masih
       // menyimpan ISO UTC (lihat src/utils/localDate.ts).
@@ -701,6 +715,14 @@ async function pushWeighbridgeRow(productionLineId: string, row: LocalWeighbridg
   try {
     const response = await apiClient.post('/api/weighbridge-records', {
       production_line_id: productionLineId,
+      // STEMPEL SHIFT dari PERANGKAT, bukan diturunkan server. Server hanya
+      // tahu kapan record ini SAMPAI kepadanya — dan sinkronisasi memang
+      // terjadi setelah shift berakhir, itu rancangannya. Nilainya ditulis
+      // saat operator menekan Simpan (lihat shiftRepo.stampShiftOnRecord).
+      // Server memeriksa ulang bahwa shift ini memang milik line record itu,
+      // jadi stempel dari cache basi ditolak alih-alih diterima diam-diam.
+      // null itu sah: celah jadwal diizinkan oleh rancangan.
+      shift_id: row.shift_id ?? null,
       wb_card_number: row.wb_card_number,
       weighbridge_type: row.weighbridge_type,
       // Jam lokal + offset eksplisit perangkat (mis. +07:00) — server tidak
@@ -759,6 +781,14 @@ async function pushGradingRow(productionLineId: string, row: LocalGradingRow): P
   try {
     const response = await apiClient.post('/api/grading-records', {
       production_line_id: productionLineId,
+      // STEMPEL SHIFT dari PERANGKAT, bukan diturunkan server. Server hanya
+      // tahu kapan record ini SAMPAI kepadanya — dan sinkronisasi memang
+      // terjadi setelah shift berakhir, itu rancangannya. Nilainya ditulis
+      // saat operator menekan Simpan (lihat shiftRepo.stampShiftOnRecord).
+      // Server memeriksa ulang bahwa shift ini memang milik line record itu,
+      // jadi stempel dari cache basi ditolak alih-alih diterima diam-diam.
+      // null itu sah: celah jadwal diizinkan oleh rancangan.
+      shift_id: row.shift_id ?? null,
       grading_number: row.grading_number,
       date: toLocalDateString(row.date),
       weighbridge_record_id: weighbridgeServerId,
@@ -797,6 +827,14 @@ async function pushCagesTrackRow(productionLineId: string, row: LocalCagesTrackR
   try {
     const response = await apiClient.post('/api/cages-track-records', {
       production_line_id: productionLineId,
+      // STEMPEL SHIFT dari PERANGKAT, bukan diturunkan server. Server hanya
+      // tahu kapan record ini SAMPAI kepadanya — dan sinkronisasi memang
+      // terjadi setelah shift berakhir, itu rancangannya. Nilainya ditulis
+      // saat operator menekan Simpan (lihat shiftRepo.stampShiftOnRecord).
+      // Server memeriksa ulang bahwa shift ini memang milik line record itu,
+      // jadi stempel dari cache basi ditolak alih-alih diterima diam-diam.
+      // null itu sah: celah jadwal diizinkan oleh rancangan.
+      shift_id: row.shift_id ?? null,
       cages_track_number: row.cages_track_number,
       date: toLocalDateString(row.date),
       tippler_start_time: toOffsetDateTime(row.tippler_start_time),

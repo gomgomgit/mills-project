@@ -27,6 +27,7 @@ class SterilizerRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'sterilizer_id',
         'date',
         'note',

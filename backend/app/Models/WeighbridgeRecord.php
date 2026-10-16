@@ -22,6 +22,7 @@ class WeighbridgeRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'wb_card_number',
         'weighbridge_type',
         'record_datetime',

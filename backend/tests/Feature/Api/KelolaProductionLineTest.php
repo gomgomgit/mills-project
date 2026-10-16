@@ -24,6 +24,7 @@ use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\ProductionLine;
+use App\Models\Shift;
 use App\Models\Station;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
@@ -372,6 +373,79 @@ it('mobile sync (Sanctum): current()/currentStations() are reachable via Sanctum
 
     $this->getJson('/api/production-lines/current')->assertOk();
     $this->getJson("/api/production-lines/current/stations?production_line_id={$productionLine->id}")->assertOk();
+    $this->getJson("/api/production-lines/current/shifts?production_line_id={$productionLine->id}")->assertOk();
+});
+
+/*
+|--------------------------------------------------------------------------
+| currentShifts() — jadwal Shift untuk dicache perangkat (2026-10-16)
+|--------------------------------------------------------------------------
+| Ada karena /api/shifts milik layar Kelola Shift ADMIN SAJA sampai ke dalam
+| service-nya, sementara yang membutuhkan jadwal ini justru OPERATOR: ia yang
+| menyetempel `shift_id` saat menekan Simpan, dan ia sering sedang offline
+| saat itu — jadi jadwalnya dicache lebih dulu, bukan ditanyakan.
+*/
+
+it('currentShifts(): memulangkan jadwal line itu, urut jam mulai', function () {
+    $productionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+
+    // Ditanam dengan urutan ACAK supaya urutan keluaran memang hasil
+    // pengurutan, bukan urutan penyisipan.
+    Shift::factory()->forProductionLine($productionLine)->malam()->create();
+    Shift::factory()->forProductionLine($productionLine)->pagi()->create();
+    Shift::factory()->forProductionLine($productionLine)->siang()->create();
+
+    $response = $this->actingAs($this->operator, 'web')
+        ->getJson("/api/production-lines/current/shifts?production_line_id={$productionLine->id}");
+
+    $response->assertOk();
+
+    expect(array_column($response->json('data'), 'name'))->toBe(['Pagi', 'Siang', 'Malam']);
+
+    // Bentuknya MINIMAL dan disengaja: perangkat menghitung sendiri shift mana
+    // yang berjalan dari jam dindingnya, jadi mengirim cakupan atau urutan
+    // hanya akan menciptakan perhitungan kedua yang dapat berselisih.
+    expect(array_keys($response->json('data.0')))->toBe(['id', 'name', 'start_time', 'end_time']);
+    expect($response->json('data.0.start_time'))->toBe('07:00');
+    expect($response->json('data.2.end_time'))->toBe('07:00');
+});
+
+it('currentShifts(): shift tertutup tidak ikut dikirim ke perangkat', function () {
+    $productionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    Shift::factory()->forProductionLine($productionLine)->pagi()->create();
+    $closed = Shift::factory()->forProductionLine($productionLine)->closed()->siang()->create();
+
+    $response = $this->actingAs($this->operator, 'web')
+        ->getJson("/api/production-lines/current/shifts?production_line_id={$productionLine->id}");
+
+    $response->assertOk();
+
+    // Perangkat yang menyetempel dari baris tertutup akan menghasilkan record
+    // yang ditolak saat sync — karena pemeriksaan di
+    // ShiftService::resolveShiftIdForSave() juga mengecualikan baris tertutup.
+    expect($response->json('data'))->toHaveCount(1);
+    expect(array_column($response->json('data'), 'id'))->not->toContain($closed->id);
+});
+
+it('currentShifts(): line milik mill lain dijawab 404, bukan daftar kosong', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $otherLine = ProductionLine::factory()->forBusinessUnit($otherBusinessUnit)->create();
+    Shift::factory()->forProductionLine($otherLine)->pagi()->create();
+
+    $response = $this->actingAs($this->operator, 'web')
+        ->getJson("/api/production-lines/current/shifts?production_line_id={$otherLine->id}");
+
+    $response->assertStatus(404);
+});
+
+it('currentShifts(): line tanpa jadwal dijawab 200 dengan data kosong, bukan 404', function () {
+    $productionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+
+    $response = $this->actingAs($this->operator, 'web')
+        ->getJson("/api/production-lines/current/shifts?production_line_id={$productionLine->id}");
+
+    $response->assertOk();
+    expect($response->json('data'))->toBe([]);
 });
 
 it('returns 401 for current()/currentStations() when there is no authenticated session', function () {

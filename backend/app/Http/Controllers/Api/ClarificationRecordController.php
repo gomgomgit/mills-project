@@ -55,7 +55,7 @@ class ClarificationRecordController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->only([
-            'production_line_id', 'clarification_id', 'date', 'note',
+            'production_line_id', 'shift_id', 'clarification_id', 'date', 'note',
             'checked', 'acknowledged', 'details',
         ]);
 

@@ -1,4 +1,5 @@
 import { query, run } from '@/services/localDb'
+import { stampShiftOnRecord } from '@/services/shiftRepo'
 import { resolveActiveStationId } from '@/services/activeStation'
 import { todayLocalDateString } from '@/utils/localDate'
 
@@ -534,6 +535,16 @@ export async function saveDraft(
   }
 
   const timestamp = nowIso()
+
+  // STEMPEL SHIFT — shift yang sedang berjalan SAAT SIMPAN DITEKAN,
+  // bukan saat draft dibuka: draft pukul 06:50 yang disimpan 07:10 adalah
+  // pekerjaan shift pagi. Perangkat yang memutuskannya, bukan server, karena
+  // server hanya tahu kapan record DISINKRONKAN — dan jarak keduanya memang
+  // berjam-jam secara rancangan. null adalah hasil yang sah (celah jadwal,
+  // line belum berjadwal, atau cache belum pernah terisi) dan TIDAK PERNAH
+  // menghalangi penyimpanan. Lihat shiftRepo.ts.
+  await stampShiftOnRecord('boiler_room_record', recordId)
+
   const isSupervisor = currentUserRole === 'supervisor'
   const checkedBy = isSupervisor && headerData.checked_by ? headerData.checked_by : null
   const isMillManagement = currentUserRole === 'mill_management'

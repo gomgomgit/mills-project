@@ -155,6 +155,15 @@ describe('localSchema — initLocalSchema() weighbridge_record v5 migration', ()
       { name: 'acknowledged_by_name' },
       // added 2026-10-04 by migrateRecordTablesForSyncError()
       { name: 'sync_error' },
+      // added 2026-10-16 by migrateRecordTablesForShift()
+      //
+      // DAFTAR INI MEMANG DIRANCANG GUGUR setiap kali sebuah kolom baru
+      // ditambahkan ke tabel record, dan itulah gunanya: ia memaksa kolom
+      // barunya didaftarkan di sini alih-alih test ini diam-diam berhenti
+      // memeriksa apa pun. Fixture yang tertinggal satu kolom akan selalu
+      // melihat satu ALTER berjalan, jadi asersinya selalu merah apa pun
+      // keadaan kodenya — merah yang benar, bukan regresi.
+      { name: 'shift_id' },
     ] as never)
 
     await initLocalSchema()
@@ -228,6 +237,15 @@ describe('localSchema — initLocalSchema() grading_record/grading_detail v2 mig
       { name: 'acknowledged_by_name' },
       // added 2026-10-04 by migrateRecordTablesForSyncError()
       { name: 'sync_error' },
+      // added 2026-10-16 by migrateRecordTablesForShift()
+      //
+      // DAFTAR INI MEMANG DIRANCANG GUGUR setiap kali sebuah kolom baru
+      // ditambahkan ke tabel record, dan itulah gunanya: ia memaksa kolom
+      // barunya didaftarkan di sini alih-alih test ini diam-diam berhenti
+      // memeriksa apa pun. Fixture yang tertinggal satu kolom akan selalu
+      // melihat satu ALTER berjalan, jadi asersinya selalu merah apa pun
+      // keadaan kodenya — merah yang benar, bukan regresi.
+      { name: 'shift_id' },
     ] as never)
 
     await initLocalSchema()
@@ -299,6 +317,15 @@ describe('localSchema — initLocalSchema() cages_track_record/cages_tipped_time
       { name: 'acknowledged_by_name' },
       // added 2026-10-04 by migrateRecordTablesForSyncError()
       { name: 'sync_error' },
+      // added 2026-10-16 by migrateRecordTablesForShift()
+      //
+      // DAFTAR INI MEMANG DIRANCANG GUGUR setiap kali sebuah kolom baru
+      // ditambahkan ke tabel record, dan itulah gunanya: ia memaksa kolom
+      // barunya didaftarkan di sini alih-alih test ini diam-diam berhenti
+      // memeriksa apa pun. Fixture yang tertinggal satu kolom akan selalu
+      // melihat satu ALTER berjalan, jadi asersinya selalu merah apa pun
+      // keadaan kodenya — merah yang benar, bukan regresi.
+      { name: 'shift_id' },
     ] as never)
 
     await initLocalSchema()

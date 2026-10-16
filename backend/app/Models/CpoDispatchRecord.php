@@ -25,6 +25,7 @@ class CpoDispatchRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'cpo_dispatch_id',
         'date',
         'note',

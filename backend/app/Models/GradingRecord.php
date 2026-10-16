@@ -25,6 +25,7 @@ class GradingRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'grading_number',
         'date',
         'weighbridge_record_id',

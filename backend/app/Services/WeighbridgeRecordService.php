@@ -11,6 +11,7 @@ use App\Models\WeighbridgeRecord;
 use App\Support\AppTime;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
+use App\Support\Concerns\StampsShift;
 use App\Support\ExportValue;
 use App\Support\Pagination;
 use App\Support\SheetWriter;
@@ -39,7 +40,7 @@ use Throwable;
  */
 class WeighbridgeRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill;
+    use EnforcesPeriodLock, ScopesToActorMill, StampsShift;
 
     /**
      * Row limit enforced on export() (business_logic step 5) — protects
@@ -343,6 +344,15 @@ class WeighbridgeRecordService
         // moving this station to another line later cannot rewrite this
         // record's history. See 2026_09_28_000041.
         $attributes['production_line_id'] = $station->production_line_id;
+        // STEMPEL SHIFT — record ini dihasilkan pada shift mana. Mobile
+        // mengirim `shift_id` (perangkat yang menyetempel, karena server hanya
+        // tahu waktu SINKRONISASI); web tidak mengirim apa pun dan server
+        // menurunkannya dari jam simpan. Line-nya diambil dari stasiun yang
+        // SUDAH di-resolve, sama seperti baris di atas — shift kiriman klien
+        // diperiksa terhadap line itu, bukan terhadap line kiriman klien.
+        // null adalah hasil yang sah: celah jadwal diizinkan oleh rancangan.
+        // Lihat App\Support\Concerns\StampsShift.
+        $attributes['shift_id'] = $this->stampShiftId($data, $station->production_line_id);
         $attributes['status'] = 'saved';
         $attributes['created_by'] = $actor->id;
         $this->applyVerification($attributes, $data, $actor);

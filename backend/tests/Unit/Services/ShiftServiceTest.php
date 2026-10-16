@@ -1883,3 +1883,227 @@ it('menerima kembali shift 24 jam pada line yang seluruh shift-nya sudah ditutup
     expect($entry['shift_count'])->toBe(1);
     expect(gapBlocksOf($entry))->toBe([]);
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// PENANDAAN shift_id PADA RECORD (2026-10-16)
+//
+// Sampai putaran ini jadwal Shift tidak punya satu pun pembaca: jadwalnya
+// ada, dan tidak ada data yang terhubung kepadanya. shiftIdAt() dan
+// resolveShiftIdForSave() adalah penghubungnya, dan keduanyalah satu-satunya
+// tempat aturan "record ini masuk shift mana" diputuskan — mobile maupun web
+// memanggil yang sama, yang berbeda hanya JAM MANA yang dimasukkan.
+// ═══════════════════════════════════════════════════════════════════════
+
+it('shiftIdAt: memulangkan shift yang sedang berjalan pada jam yang diberikan', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+    $siang = Shift::factory()->forProductionLine($this->lineA1)->siang()->create();
+    $malam = Shift::factory()->forProductionLine($this->lineA1)->malam()->create();
+
+    // Pagi 07:00–15:00, Siang 15:00–23:00, Malam 23:00–07:00.
+    expect($this->service->shiftIdAt($this->lineA1->id, '07:00'))->toBe($pagi->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '11:30'))->toBe($pagi->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '14:59'))->toBe($pagi->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '15:00'))->toBe($siang->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '22:59'))->toBe($siang->id);
+
+    // MELINTASI TENGAH MALAM — kedua sisi titik nol sumbu milik shift yang
+    // SAMA, dan inilah kasus yang akan diloloskan implementasi yang
+    // membandingkan string jam: '01:00' tidak berada di antara '23:00' dan
+    // '07:00' secara leksikografis.
+    expect($this->service->shiftIdAt($this->lineA1->id, '23:00'))->toBe($malam->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '23:59'))->toBe($malam->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '00:00'))->toBe($malam->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '01:00'))->toBe($malam->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '06:59'))->toBe($malam->id);
+});
+
+/**
+ * BATAS SETENGAH TERBUKA, dan ini pembeda yang DISENGAJA dari findOverlap().
+ *
+ * Di sana batasnya inklusif, sehingga Pagi 07:00–15:00 dan Siang 15:00–23:00
+ * boleh berdampingan. Di sini pertanyaannya lain — "menit ini milik siapa" —
+ * dan ia wajib punya TEPAT SATU jawaban. Kedua aturan itu benar untuk
+ * pertanyaannya masing-masing, dan menyamakannya akan merusak salah satunya.
+ */
+it('shiftIdAt: menit pergantian milik shift yang BARU, bukan yang berakhir', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+    $siang = Shift::factory()->forProductionLine($this->lineA1)->siang()->create();
+
+    expect($this->service->shiftIdAt($this->lineA1->id, '14:59'))->toBe($pagi->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '15:00'))->toBe($siang->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '15:00'))->not->toBe($pagi->id);
+
+    // Dan jalur tulis TETAP menerima keduanya berdampingan — kedua aturan
+    // hidup berdampingan, tidak saling menggantikan.
+    expect($this->service->findOverlap($this->lineA1->id, '15:00', '23:00', $siang->id))->toBeNull();
+});
+
+it('shiftIdAt: null ketika jamnya jatuh pada celah jadwal', function () {
+    Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+    Shift::factory()->forProductionLine($this->lineA1)->named('Malam')->range('19:00:00', '07:00:00')->create();
+
+    // Celahnya 15:00–19:00, dan ia memang diizinkan oleh rancangan.
+    expect($this->service->shiftIdAt($this->lineA1->id, '15:00'))->toBeNull();
+    expect($this->service->shiftIdAt($this->lineA1->id, '17:30'))->toBeNull();
+    expect($this->service->shiftIdAt($this->lineA1->id, '18:59'))->toBeNull();
+    expect($this->service->shiftIdAt($this->lineA1->id, '19:00'))->not->toBeNull();
+});
+
+it('shiftIdAt: null untuk line yang belum punya jadwal sama sekali', function () {
+    Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    // lineA2 tidak diberi shift — dan line yang shift-nya ada di line LAIN
+    // tidak boleh ikut terbaca.
+    expect($this->service->shiftIdAt($this->lineA2->id, '08:00'))->toBeNull();
+    expect($this->service->shiftIdAt($this->lineA1->id, '08:00'))->not->toBeNull();
+});
+
+it('shiftIdAt: shift tertutup tidak pernah dipulangkan', function () {
+    $closed = Shift::factory()->forProductionLine($this->lineA1)->closed()->pagi()->create();
+
+    expect($this->service->shiftIdAt($this->lineA1->id, '08:00'))->toBeNull();
+
+    // Barisnya memang masih ada — yang dibuktikan di sini adalah ia
+    // dikecualikan, bukan bahwa ia tidak pernah ditulis.
+    expect(Shift::withTrashed()->whereKey($closed->id)->exists())->toBeTrue();
+});
+
+it('shiftIdAt: shift 24 jam memiliki setiap menit pada line itu', function () {
+    $penuh = $this->service->create(shiftPayload($this->lineA1, [
+        'name' => 'Penuh',
+        'start_time' => '07:00',
+        'end_time' => '07:00',
+    ]));
+
+    foreach (['00:00', '06:59', '07:00', '12:00', '23:59'] as $jam) {
+        expect($this->service->shiftIdAt($this->lineA1->id, $jam))->toBe($penuh['id'], "menit $jam tidak dimiliki shift 24 jam");
+    }
+});
+
+/**
+ * Data yang BERTINDIH mustahil lahir dari aplikasi — jalur tulis menolaknya —
+ * tetapi baris yang ditanam factory bisa. Yang diasersi di sini bukan bahwa
+ * tindihannya benar, melainkan bahwa jawabannya DETERMINISTIK: segmen yang
+ * paling baru dimulai. Jawaban yang bergantung pada urutan baris basis data
+ * adalah yang paling mahal ditelusuri ketika ia salah.
+ */
+it('shiftIdAt: pada data bertindih memilih segmen yang paling baru dimulai', function () {
+    Shift::factory()->forProductionLine($this->lineA1)->named('Lama')->range('06:00:00', '18:00:00')->create();
+    $baru = Shift::factory()->forProductionLine($this->lineA1)->named('Baru')->range('10:00:00', '20:00:00')->create();
+
+    // 12:00 ada di dalam keduanya; yang menang adalah yang mulai 10:00.
+    expect($this->service->shiftIdAt($this->lineA1->id, '12:00'))->toBe($baru->id);
+
+    // Dan jawabannya tidak berubah ketika kueri yang sama diulang — bukan
+    // sekadar kebetulan urutan baris pada pemanggilan pertama.
+    expect($this->service->shiftIdAt($this->lineA1->id, '12:00'))->toBe($baru->id);
+});
+
+it('shiftIdAt: menerima jam maupun datetime penuh, dan hanya jamnya yang dipakai', function () {
+    $siang = Shift::factory()->forProductionLine($this->lineA1)->siang()->create();
+
+    expect($this->service->shiftIdAt($this->lineA1->id, '16:00'))->toBe($siang->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '16:00:00'))->toBe($siang->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '2026-10-16 16:00:00'))->toBe($siang->id);
+    expect($this->service->shiftIdAt($this->lineA1->id, '2020-01-01 16:45:30'))->toBe($siang->id);
+
+    // TANGGALNYA TIDAK BERPENGARUH — jadwal berlaku sama setiap hari, dan
+    // ketiadaan dimensi hari itu keputusan pemilik produk 2026-10-15.
+    expect(ShiftService::minuteOfDayOf('2026-10-16 16:00:00'))->toBe(960);
+    expect(ShiftService::minuteOfDayOf('16:00'))->toBe(960);
+});
+
+/**
+ * JALUR MOBILE — stempel perangkat DIPERCAYA, tetapi diperiksa.
+ *
+ * Inversi yang disengaja terhadap `production_line_id`, yang justru tidak
+ * pernah dibaca dari request. Alasannya dinyatakan di
+ * ShiftService::resolveShiftIdForSave(): server hanya tahu waktu
+ * SINKRONISASI, dan jarak ke waktu Simpan memang berjam-jam.
+ */
+it('resolveShiftIdForSave: memakai shift kiriman klien ketika ia milik line itu', function () {
+    $malam = Shift::factory()->forProductionLine($this->lineA1)->malam()->create();
+
+    // Jam server sengaja TIDAK diatur — yang membuktikan nilainya datang dari
+    // klien adalah bahwa ia dipulangkan apa adanya tanpa line itu perlu
+    // sedang berada di shift mana pun pada jam server.
+    expect($this->service->resolveShiftIdForSave($malam->id, $this->lineA1->id))->toBe($malam->id);
+});
+
+it('resolveShiftIdForSave: menolak shift milik line lain', function () {
+    $milikLineLain = Shift::factory()->forProductionLine($this->lineA2)->pagi()->create();
+
+    $thrown = null;
+
+    try {
+        $this->service->resolveShiftIdForSave($milikLineLain->id, $this->lineA1->id);
+    } catch (ValidationException $e) {
+        $thrown = $e;
+    }
+
+    expect($thrown)->not->toBeNull();
+    expect($thrown->errors())->toHaveKey('shift_id');
+
+    // INILAH gunanya pemeriksaan ini: tanpa ia, laporan per-line akan memuat
+    // shift yang bukan miliknya — bentuk kebocoran yang sudah tiga kali
+    // terbukti pada cakupan Production Line di proyek ini.
+});
+
+it('resolveShiftIdForSave: menolak shift yang sudah ditutup', function () {
+    $closed = Shift::factory()->forProductionLine($this->lineA1)->closed()->pagi()->create();
+
+    expect(fn () => $this->service->resolveShiftIdForSave($closed->id, $this->lineA1->id))
+        ->toThrow(ValidationException::class);
+});
+
+it('resolveShiftIdForSave: menolak id yang tidak dikenal sama sekali', function () {
+    expect(fn () => $this->service->resolveShiftIdForSave('a2fe23a6-0000-4000-8000-000000000000', $this->lineA1->id))
+        ->toThrow(ValidationException::class);
+});
+
+it('resolveShiftIdForSave: menurunkan dari jam server ketika klien tidak mengirim apa pun', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+    $malam = Shift::factory()->forProductionLine($this->lineA1)->malam()->create();
+
+    // JAM SERVER DIBEKUKAN, bukan dibiarkan apa adanya: tanpa ini test lulus
+    // atau gagal menurut jam dinding mesin yang menjalankannya, dan test yang
+    // gagal pada pukul tertentu saja adalah test yang akan dihapus orang.
+    $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-16 09:00:00'));
+    expect($this->service->resolveShiftIdForSave(null, $this->lineA1->id))->toBe($pagi->id);
+    expect($this->service->resolveShiftIdForSave('', $this->lineA1->id))->toBe($pagi->id);
+    expect($this->service->resolveShiftIdForSave('   ', $this->lineA1->id))->toBe($pagi->id);
+
+    $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-16 02:00:00'));
+    expect($this->service->resolveShiftIdForSave(null, $this->lineA1->id))->toBe($malam->id);
+
+    $this->travelBack();
+});
+
+it('resolveShiftIdForSave: null ketika jam server jatuh di celah, bukan galat', function () {
+    Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-16 20:00:00'));
+
+    // Menolak menyimpan di sini berarti menukar data lapangan dengan
+    // kelengkapan master — menghukum orang yang tidak dapat memperbaikinya.
+    expect($this->service->resolveShiftIdForSave(null, $this->lineA1->id))->toBeNull();
+
+    $this->travelBack();
+});
+
+/**
+ * shiftIdAt() SENGAJA TANPA guardAdmin(), dan ia satu-satunya metode publik
+ * kelas ini yang begitu. Pemanggilnya adalah ke-18 record service saat
+ * OPERATOR menyimpan; gate admin di sini akan menjatuhkan setiap penyimpanan
+ * operator dengan 403. Diasersi supaya "kelalaian" itu tidak diperbaiki oleh
+ * orang berikutnya yang membaca docblock gate tiga lapis di kepala kelas.
+ */
+it('shiftIdAt dan resolveShiftIdForSave berjalan untuk peran non-admin', function (string $role) {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $actor = User::factory()->role(UserRole::from($role))->forBusinessUnit($this->millA)->create();
+    $this->actingAs($actor);
+
+    expect($this->service->shiftIdAt($this->lineA1->id, '08:00'))->toBe($pagi->id);
+    expect($this->service->resolveShiftIdForSave($pagi->id, $this->lineA1->id))->toBe($pagi->id);
+})->with(['operator', 'supervisor', 'mill_management']);

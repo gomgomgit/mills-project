@@ -104,6 +104,7 @@ const CREATE_WEIGHBRIDGE_RECORD = `
   CREATE TABLE IF NOT EXISTS weighbridge_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     wb_card_number TEXT,
     weighbridge_type TEXT,
     record_datetime TEXT,
@@ -140,6 +141,7 @@ const CREATE_GRADING_RECORD = `
   CREATE TABLE IF NOT EXISTS grading_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     grading_number TEXT,
     date TEXT,
     weighbridge_record_id TEXT,
@@ -218,6 +220,7 @@ const CREATE_CAGES_TRACK_RECORD = `
   CREATE TABLE IF NOT EXISTS cages_track_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     cages_track_number TEXT,
     date TEXT,
     tippler_start_time TEXT,
@@ -325,10 +328,38 @@ const CREATE_MILL_SETTING = `
 // tambah-baris/hapus-baris UI exists for this grid at all, unlike
 // cages_tipped_time. `date` auto-fills once at draft creation (mirrors
 // cages_track_record.tippler_start_time's pattern), not manually editable.
+// Cache master BACA SAJA jadwal Shift per Production Line
+// (screen-170--kelola-shift). Server pemilik kebenarannya; mobile hanya
+// membaca, lewat GET /api/production-lines/current/shifts.
+//
+// MENGAPA PERANGKAT PERLU MEMEGANGNYA SAMA SEKALI. `shift_id` pada record
+// disetempel OLEH PERANGKAT saat operator menekan Simpan, bukan oleh server
+// saat sync — karena server hanya tahu kapan record DISINKRONKAN, dan jarak
+// antara menekan Simpan dan sync memang berjam-jam secara rancangan.
+// Menyetempel menuntut jadwalnya tersedia saat itu juga, dan saat itu juga
+// perangkat sering sedang offline. Karena itu ia dicache, bukan ditanyakan.
+//
+// Jamnya 'HH:MM' apa adanya — jam DINDING, bukan instan. Ia tidak pernah
+// dikonversi zona: sebuah shift yang berjalan 23:00–07:00 berjalan pada jam
+// dinding itu di mill mana pun, dan memperlakukannya sebagai instan akan
+// menggesernya tujuh jam. Lihat normalizeLegacyUtcDates() untuk kelas cacat
+// yang persis itu pada kolom tanggal.
+const CREATE_SHIFT = `
+  CREATE TABLE IF NOT EXISTS shift (
+    id TEXT PRIMARY KEY,
+    production_line_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    updated_at TEXT
+  )
+`
+
 const CREATE_THRESHING_RECORD = `
   CREATE TABLE IF NOT EXISTS threshing_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     thresher_id TEXT,
     date TEXT,
     note TEXT,
@@ -382,6 +413,7 @@ const CREATE_PRESSING_RECORD = `
   CREATE TABLE IF NOT EXISTS pressing_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     presser_id TEXT,
     date TEXT,
     note TEXT,
@@ -442,6 +474,7 @@ const CREATE_DEPRICARPING_RECORD = `
   CREATE TABLE IF NOT EXISTS depricarping_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     depricarping_id TEXT,
     date TEXT,
     note TEXT,
@@ -502,6 +535,7 @@ const CREATE_KERNEL_PLANT_RECORD = `
   CREATE TABLE IF NOT EXISTS kernel_plant_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     kernel_plant_id TEXT,
     date TEXT,
     note TEXT,
@@ -559,6 +593,7 @@ const CREATE_SOLID_WASTE_DISPOSAL_RECORD = `
   CREATE TABLE IF NOT EXISTS solid_waste_disposal_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     solid_waste_disposal_id TEXT,
     date TEXT,
     note TEXT,
@@ -619,6 +654,7 @@ const CREATE_PROCESS_WATER_RECORD = `
   CREATE TABLE IF NOT EXISTS process_water_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     process_water_id TEXT,
     date TEXT,
     note TEXT,
@@ -677,6 +713,7 @@ const CREATE_KERNEL_DISPATCH_RECORD = `
   CREATE TABLE IF NOT EXISTS kernel_dispatch_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     kernel_dispatch_id TEXT,
     date TEXT,
     note TEXT,
@@ -743,6 +780,7 @@ const CREATE_CPO_DISPATCH_RECORD = `
   CREATE TABLE IF NOT EXISTS cpo_dispatch_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     cpo_dispatch_id TEXT,
     date TEXT,
     note TEXT,
@@ -807,6 +845,7 @@ const CREATE_EFFLUENT_PLANT_RECORD = `
   CREATE TABLE IF NOT EXISTS effluent_plant_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     effluent_plant_id TEXT,
     date TEXT,
     note TEXT,
@@ -874,6 +913,7 @@ const CREATE_STORAGE_TANK_RECORD = `
   CREATE TABLE IF NOT EXISTS storage_tank_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     storage_tank_id TEXT,
     date TEXT,
     note TEXT,
@@ -932,6 +972,7 @@ const CREATE_ENGINE_ROOM_RECORD = `
   CREATE TABLE IF NOT EXISTS engine_room_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     engine_room_id TEXT,
     date TEXT,
     note TEXT,
@@ -1004,6 +1045,7 @@ const CREATE_BOILER_ROOM_RECORD = `
   CREATE TABLE IF NOT EXISTS boiler_room_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     boiler_room_id TEXT,
     date TEXT,
     note TEXT,
@@ -1063,6 +1105,7 @@ const CREATE_CLARIFICATION_RECORD = `
   CREATE TABLE IF NOT EXISTS clarification_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     clarification_id TEXT,
     date TEXT,
     note TEXT,
@@ -1111,6 +1154,7 @@ const CREATE_PROCESS_QUALITY_CONTROL_RECORD = `
   CREATE TABLE IF NOT EXISTS process_quality_control_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     process_qc_id TEXT,
     date TEXT,
     note TEXT,
@@ -1178,6 +1222,7 @@ const CREATE_STERILIZER_RECORD = `
   CREATE TABLE IF NOT EXISTS sterilizer_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
+    shift_id TEXT,
     sterilizer_id TEXT,
     date TEXT,
     note TEXT,
@@ -1234,6 +1279,7 @@ const CREATE_TABLE_STATEMENTS: string[] = [
   CREATE_CAGES_TIPPED_TIME,
   CREATE_STATION,
   CREATE_MILL_SETTING,
+  CREATE_SHIFT,
   CREATE_THRESHING_RECORD,
   CREATE_THRESHING_DETAIL,
   CREATE_PRESSING_RECORD,
@@ -1302,6 +1348,7 @@ export async function initLocalSchema(): Promise<void> {
   await migrateRecordTablesForVerifierNames()
   await migrateMillSettingForImmediateSync()
   await migrateRecordTablesForSyncError()
+  await migrateRecordTablesForShift()
   await migrateDepricarpingDetailKernelLossRename()
   await migrateKernelPlantDetailShellLossRename()
   await migrateDepricarpingRecordPresserIdRename()
@@ -1669,6 +1716,29 @@ export const RECORD_TABLES = [
 async function migrateRecordTablesForSyncError(): Promise<void> {
   for (const table of RECORD_TABLES) {
     await addMissingColumns(table, [{ name: 'sync_error', type: 'TEXT' }])
+  }
+}
+
+/**
+ * `shift_id` (2026-10-16) — shift yang sedang berjalan saat operator menekan
+ * Simpan, disetempel PERANGKAT.
+ *
+ * WAJIB ADA, bukan pelengkap — alasan yang sama dengan migrasi kolom lain di
+ * berkas ini: `CREATE TABLE IF NOT EXISTS` adalah no-op pada tabel yang sudah
+ * ada, dan basis data lokal ini PERSISTEN. Tanpa migrasi ini, perangkat yang
+ * sudah pernah membuka satu formulir pun akan gagal pada setiap
+ * `saveDraft()` yang menulis kolom ini — hanya di perangkat itu, tidak pernah
+ * di perangkat baru maupun di test.
+ *
+ * TEXT dan NULLABLE, selamanya. Celah jadwal diizinkan oleh rancangan dan
+ * sebuah line boleh belum punya shift sama sekali, jadi null adalah hasil yang
+ * sah dan sering — bukan tanda kegagalan, dan bukan alasan menolak simpan.
+ * Record lama pun tetap null: tidak ada kebenaran untuk di-backfill, karena
+ * satu-satunya jam yang tersimpan pada baris lama adalah waktu SINKRONISASI.
+ */
+async function migrateRecordTablesForShift(): Promise<void> {
+  for (const table of RECORD_TABLES) {
+    await addMissingColumns(table, [{ name: 'shift_id', type: 'TEXT' }])
   }
 }
 

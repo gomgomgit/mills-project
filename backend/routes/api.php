@@ -344,6 +344,10 @@ Route::middleware(['auth:web', 'role:admin'])->group(function () {
 Route::middleware(['auth:web,sanctum', 'role:operator,supervisor,mill_management,admin'])->group(function () {
     Route::get('/production-lines/current', [ProductionLineController::class, 'current']);
     Route::get('/production-lines/current/stations', [ProductionLineController::class, 'currentStations']);
+    // Jadwal Shift line itu, untuk dicache perangkat (penandaan shift_id pada
+    // record). Rute literal, jadi ia tunduk pada aturan urutan yang sama
+    // dengan dua rute di atasnya.
+    Route::get('/production-lines/current/shifts', [ProductionLineController::class, 'currentShifts']);
     // /production-lines/options-for-report — added 2026-09-28. SAME ROUTE-
     // ORDERING CONSTRAINT as /current above, and the reason it is declared
     // HERE rather than next to the admin CRUD block below: "options-for-

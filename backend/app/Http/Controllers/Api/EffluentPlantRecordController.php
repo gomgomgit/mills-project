@@ -55,7 +55,7 @@ class EffluentPlantRecordController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->only([
-            'production_line_id', 'effluent_plant_id', 'date', 'note',
+            'production_line_id', 'shift_id', 'effluent_plant_id', 'date', 'note',
             'checked', 'acknowledged', 'details',
         ]);
 

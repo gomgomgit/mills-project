@@ -25,6 +25,7 @@ class EngineRoomRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'engine_room_id',
         'date',
         'note',

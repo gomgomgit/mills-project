@@ -88,3 +88,32 @@ Sumber: artifact-sync round 3 2026-10-05 (commit 54f6a13, 658cedc, db73fbd, c321
 - other_decisions[32] ditulis ulang untuk ketiga kalinya dalam satu hari, dan judulnya berubah lagi ← urutannya: (1) "MILL-SETTING BENAR-BENAR DIPAKAI LAYAR MOBILE" saat app_name/logo mulai dibaca Home, (2) "...BARIS MEREK TETAP NAMA PRODUK" saat pembacaan itu dibatalkan, (3) sekarang "...DAN PENGATURAN TANPA PEMBACA DICABUT" saat kolomnya dihapus. Ketiganya keputusan user; entri ini sengaja menyimpan seluruh urutannya, bukan hanya keadaan akhir, supaya tidak ada yang mengulang langkah pertama tanpa melihat mengapa ia dibatalkan
 - dua konsekuensi teknis dinaikkan menjadi aturan UMUM, bukan catatan satu layar ← agent derived: (1) endpoint mengabaikan kunci yang kolomnya dicabut, dan (2) tabel SQLite perangkat lama tetap punya kolom lamanya sehingga kolom nullable yang tak terpakai tidak memerlukan migrasi lokal. Keduanya akan berlaku persis sama pada pencabutan kolom berikutnya, dan di sinilah tempatnya dibaca
 - "jaminan uji yang kendaraannya dicabut DIPINDAHKAN, tidak dibuang" dicatat sebagai bagian keputusan ← agent derived; tiga jaminan nyata (unggahan tersimpan, format ditolak, pesan berbahasa Indonesia) hanya diuji lewat logo, dan menghapus ujinya bersama kolomnya akan menurunkan cakupan tanpa ada yang menyadarinya
+
+## v15 — 2026-10-16 · penandaan `shift_id` pada ke-18 tabel record
+
+### Yang DINYATAKAN pemilik produk (bukan asumsi)
+
+1. **Record yang diinput lewat web ditandai dari JAM SIMPAN di server.** Dipilih setelah konsekuensinya disampaikan: form web punya Tanggal yang boleh dimundurkan, sehingga input susulan tertandai shift saat input — bukan shift saat kejadian. Dua alternatif ditolak: manusia memilih shift di form (satu field di 18 form), dan membiarkan record web tanpa shift.
+2. **Saat tidak tercakup shift mana pun, record TETAP TERSIMPAN dengan `shift_id` null** — tidak ditolak.
+3. **Ke-18 stasiun sekaligus**, bukan pilot satu stasiun.
+
+### Yang SAYA turunkan, dan alasannya
+
+- **Satu endpoint baru `/api/production-lines/current/shifts`, bukan melonggarkan `/api/shifts`** ← layar Kelola Shift admin-saja sampai ke dalam service-nya, sementara yang butuh jadwal ini justru operator. Melonggarkan gate di sana membuka seluruh layar master data.
+- **Bentuk barisnya minimal (id, name, start_time, end_time)** ← perangkat menghitung sendiri shift mana yang berjalan; mengirim cakupan/celah/urutan hanya menciptakan perhitungan kedua yang dapat berselisih dengan server.
+- **Batas SETENGAH TERBUKA `start <= m < end`**, berbeda dari batas inklusif `findOverlap()` ← dua pertanyaan yang berbeda. "Bolehkah dua shift berdampingan" dijawab inklusif supaya pergantian berimpit diterima; "menit ini milik siapa" wajib punya TEPAT SATU jawaban.
+- **Pemilihan deterministik pada data bertindih** (segmen yang paling baru dimulai) ← tumpang tindih mustahil lahir dari aplikasi tapi mungkin dari factory/data lama; jawaban yang bergantung pada urutan baris adalah yang paling mahal ditelusuri.
+- **`shiftIdAt()` TANPA `guardAdmin()`** — satu-satunya metode publik ShiftService yang begitu ← pemanggilnya ke-18 record service saat OPERATOR menyimpan; gate admin di sini menjatuhkan setiap penyimpanan operator dengan 403. Diasersi oleh test supaya "kelalaian" ini tidak diperbaiki orang berikutnya.
+- **`UPDATE` tersendiri untuk stempel di mobile, bukan ikut UPDATE header** ← ke-18 UPDATE header berbeda jumlah dan urutan parameternya; menyisipkan satu parameter ke tengah 18 daftar berbeda adalah tempat kekeliruan transkripsi hidup, dan kekeliruan itu menyimpan nilai ke kolom salah lalu lolos karena kedua kolomnya TEXT.
+- **Stub global `shiftRepo` di setup test mobile** ← 20 spec repo memakai antrian `mockResolvedValueOnce`, jadi jawabannya ditentukan URUTAN PANGGILAN bukan SQL-nya; dua pembacaan baru menggeser semuanya dan 164 test memerah tanpa ada yang rusak. Menyesuaikan antrian di 20 berkas justru MEMPERDALAM ketergantungan itu.
+- **ON DELETE RESTRICT**, bukan cascade/set null ← sama dengan `station_id` dan `production_line_id` pada ke-18 tabel yang sama; record adalah bukti pekerjaan yang sudah terjadi.
+- **Index kolom tunggal per tabel** ← PostgreSQL tidak meng-index kolom FK otomatis; tanpa ini setiap pemeriksaan FK memindai 18 tabel berurutan.
+
+### Dua bug nyata yang DITEMUKAN TEST, bukan oleh pembacaan
+
+Keduanya ditemukan karena `tests/Feature/ShiftStampingTest.php` ditulis sebelum dianggap selesai, dan keduanya tidak akan terlihat dari jalur mana pun yang sudah ada:
+
+1. **`$request->only([...])` di ke-18 controller tidak memuat `shift_id`** — stempel perangkat DIBUANG diam-diam dan server menurunkan sendiri. Seluruh alur tetap 201, record tetap bershift, dan nilainya salah secara sistematis persis pada kasus yang menjadi alasan fitur ini ada.
+2. **Pemeriksaan kepemilikan line tidak pernah berjalan** sebagai akibat (1) — shift line lain tidak akan pernah ditolak.
+
+Catatan ketiga, untuk diri sendiri: asersi `expect(...)->toContain($needle, $message)` saya pakai lagi di test baru ini, dan ia memerah menuntut array memuat kalimat pesannya sendiri. Jebakan itu sudah tercatat di [[feedback-vacuous-assertions]] sejak 2026-10-15. Dibiarkan tertulis di komentar test-nya supaya pembaca berikutnya mengenalinya.

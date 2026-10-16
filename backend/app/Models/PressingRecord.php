@@ -26,6 +26,7 @@ class PressingRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'presser_id',
         'date',
         'note',

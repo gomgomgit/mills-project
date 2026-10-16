@@ -61,7 +61,7 @@ class WeighbridgeRecordController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->only([
-            'production_line_id', 'wb_card_number', 'weighbridge_type', 'record_datetime',
+            'production_line_id', 'shift_id', 'wb_card_number', 'weighbridge_type', 'record_datetime',
             'vehicle_number', 'driver_name', 'estate_supplier', 'destination',
             'division', 'block', 'gross_weight', 'tare_weight', 'quantity',
             'checked', 'acknowledged',

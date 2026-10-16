@@ -26,6 +26,7 @@ class DepricarpingRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'depricarping_id',
         'date',
         'note',

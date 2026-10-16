@@ -52,6 +52,7 @@ import { useAiAssistantStore } from '@/stores/aiAssistant'
 import { rememberProductionLineName, tandaiCacheStasiunSegar } from '@/services/activeStation'
 import { stationRepo, type StationSlot, type StationType } from '@/services/stationRepo'
 import { productionLineRepo, type ProductionLineOption } from '@/services/productionLineRepo'
+import shiftRepo from '@/services/shiftRepo'
 import { seedDefaultStationsIfNeeded } from '@/services/localSchema'
 import { weighbridgeRecordRepo } from '@/services/weighbridgeRecordRepo'
 import { gradingRecordRepo } from '@/services/gradingRecordRepo'
@@ -376,6 +377,21 @@ async function selectProductionLine(line: ProductionLineOption, businessUnitId: 
       // Offline / server bermasalah: cache dibiarkan apa adanya dan TIDAK
       // ditandai segar, sehingga penjaga di layar Form tetap mengizinkan
       // penyimpanan. Mencatat offline adalah inti aplikasi ini.
+    }
+
+    // JADWAL SHIFT line ini, untuk penandaan `shift_id` saat Simpan ditekan.
+    // Diambil DI SINI karena di sinilah line dipilih, dan stempelnya nanti
+    // dibutuhkan ketika perangkat sering sedang offline — jadi ia dicache
+    // lebih dulu, bukan ditanyakan saat dibutuhkan.
+    //
+    // Kegagalannya TIDAK fatal dan sengaja tidak menghentikan apa pun: cache
+    // lama lebih baik daripada tidak ada cache, dan tanpa cache sama sekali
+    // stempelnya null — yang memang hasil yang sah. Tak satu pun dari
+    // keduanya boleh menghalangi operator mencatat.
+    try {
+      await shiftRepo.fetchAndCacheShiftsForProductionLine(line.id)
+    } catch {
+      // Sengaja senyap, dengan alasan yang sama seperti blok di atasnya.
     }
     stations.value = await stationRepo.getActiveAndPlaceholderStationsForProductionLine(line.id)
   } catch (err) {

@@ -25,6 +25,7 @@ class SolidWasteDisposalRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'solid_waste_disposal_id',
         'date',
         'note',

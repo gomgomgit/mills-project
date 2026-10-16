@@ -61,6 +61,6 @@ export default defineConfig({
     // Dialog modal (ConfirmDialog/SyncResultDialog) di-<Teleport> ke <body>;
     // setup ini men-stub Teleport agar isinya tetap ada di dalam wrapper
     // spec layar. Lihat tests/setup/teleportStub.ts.
-    setupFiles: ['tests/setup/teleportStub.ts'],
+    setupFiles: ['tests/setup/teleportStub.ts', 'tests/setup/shiftRepoStub.ts'],
   },
 })

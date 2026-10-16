@@ -26,6 +26,7 @@ class CagesTrackRecord extends Model
     protected $fillable = [
         'station_id',
         'production_line_id',
+        'shift_id',
         'cages_track_number',
         'date',
         'tippler_start_time',

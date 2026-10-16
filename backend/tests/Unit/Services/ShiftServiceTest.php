@@ -9,9 +9,9 @@
  * (`uses(TestCase::class, RefreshDatabase::class)` at the top is MANDATORY —
  * without it the factories' faker calls fail with "Unknown format").
  *
- * COVERAGE MAP — this file implements unit_test_cases 1, 2 and 4–37 of the
- * screen tech-spec. Each test carries its case number. The cases that do NOT
- * live here, and where they went instead:
+ * COVERAGE MAP — this file implements unit_test_cases 1, 2, 4–37 and 46–53
+ * of the screen tech-spec. Each test carries its case number. The cases that
+ * do NOT live here, and where they went instead:
  *   - case 3  (mount() guards admin itself) → Feature/Livewire/KelolaShiftTest
  *   - case 38 (component and controller share one coverage calculation)
  *     → asserted on BOTH sides: Feature/Api + Feature/Livewire
@@ -50,12 +50,34 @@
  * overlap window it names must be 01:00–03:00. Same defect class as the slot
  * ordering bug in the Engine Room report.
  *
- * RESOLVED SPEC INCONSISTENCY, TESTED BOTH WAYS. `start_time == end_time` is
- * REJECTED on the write path as VALIDATION_ERROR (entity constraint #2, case
- * 23), while durationMinutes() READS an equal pair as 1440 so a row inserted
- * directly renders as one full `covered` block (case 9). Case 23 therefore
- * goes through create(); case 9 seeds the row through the factory, never
- * through create().
+ * ── SPEC v2 (2026-10-16): TWO RULES CHANGED, AND BOTH CHANGED WHAT A
+ *    PASSING TEST MEANS ────────────────────────────────────────────────
+ *
+ * 1. COINCIDING HOURS MEAN A 24-HOUR SHIFT. `start_time == end_time` is the
+ *    only way to express 1440 minutes, so it is ACCEPTED on the write path —
+ *    but only while the line has no OTHER LIVE shift. On a line that already
+ *    holds one it is rejected as VALIDATION_ERROR on `end_time` with a
+ *    zero-duration message, and DELIBERATELY NOT as SHIFT_OVERLAP: a 24-hour
+ *    shift cannot sit beside any shift at all, so there it can only be a
+ *    typo, and a typo is not an overlap. Case 23 asserts BOTH branches; case
+ *    9 now goes through create() rather than the factory, because the write
+ *    path itself produces the row that case used to have to smuggle in.
+ *
+ * 2. DELETION IS SOFT DELETE. All four live paths — the list, the
+ *    coverage/gap computation, the form's live preview (shiftBlocksByLine)
+ *    and THE OVERLAP COMPARISON SET — exclude closed rows, the last of those
+ *    being the one most easily missed. Its failure mode is characteristic
+ *    and is asserted head-on (cases 48, 49): if closed rows were still
+ *    compared, the hours and the name just freed could never be reused by
+ *    the replacement — and reusing them is precisely why soft delete was
+ *    chosen over a hard delete.
+ *
+ * NOT BUILT IN THIS ROUND, AND NOT TESTED HERE: supersede-on-edit
+ * (business_logic 29–30). Its trigger is "a record references this shift",
+ * and no column in the system references a shift today — `shift_id` is born
+ * with the record-tagging round. Editing hours therefore MUTATES the row, and
+ * case 53 asserts exactly that: no extra row, no new closed row. There is no
+ * test for supersede behaviour because there is no branch for one.
  */
 
 use App\Enums\UserRole;
@@ -66,9 +88,11 @@ use App\Models\Shift;
 use App\Models\User;
 use App\Services\ShiftService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
@@ -480,13 +504,25 @@ it('menerbitkan shift lintas tengah malam sebagai SATU blok, bukan dua', functio
 });
 
 /**
- * Case 9 — DISENGAJA LEWAT FACTORY, BUKAN create(). Jalur tulis menolak
- * 07:00–07:00 sebagai VALIDATION_ERROR (case 23); yang diuji di sini adalah
- * PEMBACAAN baris semacam itu, yang wajib terbaca sebagai satu blok penuh
- * 1440 menit dan bukan sebagai blok tak berdurasi yang hilang dari timeline.
+ * Case 9 — LEWAT create(), BUKAN LEWAT FACTORY (revisi spec v2 2026-10-16).
+ *
+ * Case ini DULU ditanam lewat factory justru untuk MELEWATI jalur tulis, yang
+ * saat itu menolak 07:00–07:00 tanpa syarat. Jalur tulis kini MENGHASILKAN
+ * baris ini sendiri pada line yang belum punya shift hidup lain, jadi menanam
+ * lewat factory akan melewati satu-satunya hal yang berubah — dan sebuah test
+ * yang melewati perubahannya hijau tanpa membuktikan apa pun. Cabang
+ * penolakannya (line yang sudah terisi) ada di case 23.
  */
-it('membaca satu shift 07:00–07:00 sebagai satu blok 1440 menit yang tercakup penuh', function () {
-    Shift::factory()->forProductionLine($this->lineA1)->named('Penuh')->range('07:00:00', '07:00:00')->create();
+it('menyimpan satu shift 07:00–07:00 lewat create() dan membacanya sebagai satu blok 1440 menit', function () {
+    $created = $this->service->create(shiftPayload($this->lineA1, [
+        'name' => 'Penuh',
+        'start_time' => '07:00',
+        'end_time' => '07:00',
+    ]));
+
+    // Jalur tulis TIDAK menolak, dan durasinya terbaca 1440 — bukan 0.
+    expect($created['duration_minutes'])->toBe(1440);
+    expect(Shift::whereKey($created['id'])->exists())->toBeTrue();
 
     $entry = shiftCoverageFor($this->service->listShifts($this->millA->id, $this->lineA1->id), $this->lineA1);
 
@@ -929,12 +965,38 @@ it('menegakkan keunikan nama PER LINE, bukan global', function () {
     expect(Shift::where('name', 'Pagi')->count())->toBe(2);
 });
 
-// Case 23
-it('menolak start_time sama dengan end_time sebagai VALIDATION_ERROR, bukan SHIFT_OVERLAP', function () {
+/**
+ * Case 23 — DUA CABANG, dan keduanya diuji di satu test karena yang
+ * dibuktikan justru PEMBEDAANNYA (revisi spec v2 2026-10-16, business_logic
+ * 17). Jam berimpit berarti shift 24 jam; ia sah pada line yang belum punya
+ * shift HIDUP lain dan hanya bisa berarti salah ketik pada line yang sudah
+ * terisi. Yang ditolak ditolak sebagai VALIDATION_ERROR pada key `end_time`,
+ * SENGAJA BUKAN SHIFT_OVERLAP.
+ */
+it('membaca start_time sama dengan end_time sebagai 24 jam di line kosong dan menolaknya di line terisi', function () {
+    // CABANG DITERIMA — Line 1 belum punya shift hidup sama sekali.
+    $penuh = $this->service->create(shiftPayload($this->lineA1, [
+        'name' => 'Penuh',
+        'start_time' => '07:00',
+        'end_time' => '07:00',
+    ]));
+
+    expect($penuh['duration_minutes'])->toBe(1440);
+
+    $entry = shiftCoverageFor($this->service->listShifts($this->millA->id, $this->lineA1->id), $this->lineA1);
+    expect($entry['state'])->toBe('covered');
+    expect($entry['uncovered_minutes'])->toBe(0);
+    expect(shiftBlocksOf($entry))->toHaveCount(1);
+    expect(shiftBlocksOf($entry)[0]['duration_minutes'])->toBe(1440);
+    expect(gapBlocksOf($entry))->toBe([]);
+
+    // CABANG DITOLAK — Line 2 sudah punya Pagi 07:00–15:00.
+    $this->service->create(shiftPayload($this->lineA2));
+
     $thrown = null;
 
     try {
-        $this->service->create(shiftPayload($this->lineA1, [
+        $this->service->create(shiftPayload($this->lineA2, [
             'name' => 'Nol',
             'start_time' => '07:00',
             'end_time' => '07:00',
@@ -946,17 +1008,71 @@ it('menolak start_time sama dengan end_time sebagai VALIDATION_ERROR, bukan SHIF
     expect($thrown)->not->toBeNull();
     expect($thrown->errors())->toHaveKey('end_time');
     $this->assertStringContainsString('berdurasi nol', $thrown->errors()['end_time'][0], 'pesan tidak menyebut durasi nol');
+    // BUKAN SHIFT_OVERLAP — shift 24 jam menurut definisinya tidak dapat
+    // berdampingan dengan shift mana pun, jadi di sini jam berimpit hanya
+    // bisa berarti salah ketik, dan salah ketik bukan tumpang tindih.
     expect($thrown)->not->toBeInstanceOf(ShiftOverlapException::class);
-    expect(Shift::count())->toBe(0);
+    expect(Shift::where('production_line_id', $this->lineA2->id)->count())->toBe(1);
 
     // Pemeriksaannya SESUDAH normalisasi: '07:00' dan '07:00:00' adalah jam
-    // yang sama, dan perbandingan string tidak mengetahuinya.
-    expect(fn () => $this->service->create(shiftPayload($this->lineA1, [
-        'name' => 'Nol 2',
+    // yang sama, dan perbandingan string tidak mengetahuinya. Cabang yang
+    // dipakai di sini tetap cabang penolakan, pada line yang sama.
+    $thrownNormalized = null;
+
+    try {
+        $this->service->create(shiftPayload($this->lineA2, [
+            'name' => 'Nol 2',
+            'start_time' => '07:00',
+            'end_time' => '07:00:00',
+        ]));
+    } catch (ValidationException $e) {
+        $thrownNormalized = $e;
+    }
+
+    expect($thrownNormalized)->not->toBeNull();
+    expect($thrownNormalized->errors())->toHaveKey('end_time');
+    expect(Shift::where('production_line_id', $this->lineA2->id)->count())->toBe(1);
+});
+
+/**
+ * Case 23, sisi UPDATE — satu-satunya shift HIDUP sebuah line boleh diubah
+ * menjadi 24 jam. Tanpa `$excludeId` pada lineHasOtherLiveShift(), shift itu
+ * akan menghitung DIRINYA SENDIRI sebagai "shift lain" dan perubahan ini
+ * tidak akan pernah bisa disimpan.
+ */
+it('mengizinkan satu-satunya shift hidup sebuah line diubah menjadi 24 jam', function () {
+    $only = $this->service->create(shiftPayload($this->lineA1));
+
+    $updated = $this->service->update($only['id'], [
+        'end_time' => '07:00',
+    ]);
+
+    expect($updated['duration_minutes'])->toBe(1440);
+
+    $entry = shiftCoverageFor($this->service->listShifts($this->millA->id, $this->lineA1->id), $this->lineA1);
+    expect($entry['state'])->toBe('covered');
+    expect(gapBlocksOf($entry))->toBe([]);
+});
+
+/**
+ * Case 23, sisi lanjutan — sesudah sebuah shift 24 jam ada, TIDAK ADA shift
+ * kedua yang dapat ditambahkan pada line itu, dan penolakannya kali ini
+ * MEMANG SHIFT_OVERLAP: jamnya sungguh bertindih, bukan salah ketik.
+ */
+it('menolak shift kedua pada line yang sudah ditutup penuh shift 24 jam sebagai SHIFT_OVERLAP', function () {
+    $this->service->create(shiftPayload($this->lineA1, [
+        'name' => 'Penuh',
         'start_time' => '07:00',
-        'end_time' => '07:00:00',
-    ])))->toThrow(ValidationException::class);
-    expect(Shift::count())->toBe(0);
+        'end_time' => '07:00',
+    ]));
+
+    expect(fn () => $this->service->create(shiftPayload($this->lineA1, [
+        'name' => 'Siang',
+        'start_time' => '15:00',
+        'end_time' => '23:00',
+    ])))->toThrow(ShiftOverlapException::class);
+
+    expect(Shift::where('production_line_id', $this->lineA1->id)->count())->toBe(1);
 });
 
 // Case 24
@@ -1005,7 +1121,7 @@ it('menolak production_line_id yang tidak ada di master', function () {
 
     try {
         $this->service->create(shiftPayload($this->lineA1, [
-            'production_line_id' => (string) \Illuminate\Support\Str::uuid(),
+            'production_line_id' => (string) Str::uuid(),
         ]));
     } catch (ValidationException $e) {
         $thrown = $e;
@@ -1125,7 +1241,7 @@ it('memeriksa tumpang tindih terhadap line TUJUAN ketika production_line_id ikut
 
 // Case 29
 it('melempar NOT_FOUND pada PATCH id yang tidak ada', function () {
-    expect(fn () => $this->service->update((string) \Illuminate\Support\Str::uuid(), ['name' => 'X']))
+    expect(fn () => $this->service->update((string) Str::uuid(), ['name' => 'X']))
         ->toThrow(ModelNotFoundException::class);
 });
 
@@ -1174,7 +1290,7 @@ it('mengembalikan line ke unconfigured sesudah shift terakhirnya dihapus', funct
 
 // Case 32
 it('melempar NOT_FOUND pada DELETE id yang tidak ada', function () {
-    expect(fn () => $this->service->delete((string) \Illuminate\Support\Str::uuid()))
+    expect(fn () => $this->service->delete((string) Str::uuid()))
         ->toThrow(ModelNotFoundException::class);
 });
 
@@ -1206,9 +1322,19 @@ it('tidak menerima satu pun field hari maupun masa berlaku pada jalur tulis', fu
  * Case 37 — skema tabel. Jadwal berlaku sama setiap hari (keputusan pemilik
  * produk 2026-10-15), dan ketiadaan dimensi hari DISENGAJA. Test ini ada
  * supaya "melengkapi" skema ini dengan kolom hari memerah lebih dulu.
+ *
+ * SEJAK v2 IA JUGA MENGIKAT BENTUK INDEX-NYA. `deleted_at` hadir, dan unique
+ * index (production_line_id, name) WAJIB berupa PARTIAL index `WHERE
+ * deleted_at IS NULL` — kalau ia masih penuh, sebuah 'Pagi' yang ditutup
+ * memblokir 'Pagi' penggantinya selamanya, dan gejalanya terbaca seperti bug
+ * di lapisan aplikasi padahal berasal dari index yang lupa dibuang
+ * (business_logic 28, migrasi 2026_10_16_000001).
  */
-it('tidak punya kolom hari maupun masa berlaku, dan unik pada (production_line_id, name)', function () {
-    foreach (['id', 'production_line_id', 'name', 'start_time', 'end_time', 'created_by', 'updated_by'] as $column) {
+it('punya deleted_at dan unique index PARTIAL pada (production_line_id, name), tanpa kolom hari', function () {
+    foreach ([
+        'id', 'production_line_id', 'name', 'start_time', 'end_time',
+        'created_by', 'updated_by', 'deleted_at',
+    ] as $column) {
         expect(Schema::hasColumn('shifts', $column))->toBeTrue("kolom $column tidak ada");
     }
 
@@ -1228,10 +1354,336 @@ it('tidak punya kolom hari maupun masa berlaku, dan unik pada (production_line_i
     expect($uniqueIndexes->contains(fn (array $columns) => array_values($columns) === ['production_line_id', 'name']))
         ->toBeTrue('unique index (production_line_id, name) tidak ditemukan');
 
+    // ── PARTIAL, BUKAN PENUH ────────────────────────────────────────────
+    //
+    // Schema::getIndexes() memulangkan KOLOMNYA saja dan tidak pernah
+    // menyebut predikat `WHERE`-nya, jadi sebuah unique index penuh dan
+    // sebuah partial unique index terlihat IDENTIK di atas. Satu-satunya cara
+    // membedakan keduanya adalah membaca DEFINISI index-nya dari katalog
+    // dialeknya sendiri — karena itu test ini sadar-driver alih-alih
+    // mengandalkan satu API portabel yang tidak punya jawabannya.
+    //
+    // Suite ini berjalan di SQLite in-memory sementara produksi dan basis
+    // data e2e memakai PostgreSQL, dan DDL-nya sengaja ditulis sekali untuk
+    // keduanya; keduanya dibaca di sini supaya test ini tetap mengikat di
+    // dialek mana pun ia dijalankan, bukan hanya di yang murah.
+    $driver = DB::connection()->getDriverName();
+
+    $definition = match ($driver) {
+        // sqlite_master.sql memuat pernyataan CREATE INDEX apa adanya,
+        // lengkap dengan predikatnya. (Autoindex implisit ber-sql NULL —
+        // yang ini eksplisit, jadi sql-nya terisi.)
+        'sqlite' => (string) DB::table('sqlite_master')
+            ->where('type', 'index')
+            ->where('name', 'shifts_production_line_id_name_unique')
+            ->value('sql'),
+        // pg_indexes.indexdef memuat bentuk yang sama sesudah di-parse ulang
+        // PostgreSQL: '... WHERE (deleted_at IS NULL)'.
+        'pgsql' => (string) DB::table('pg_indexes')
+            ->where('indexname', 'shifts_production_line_id_name_unique')
+            ->value('indexdef'),
+        default => '',
+    };
+
+    $this->assertNotSame(
+        '',
+        $definition,
+        "definisi index tidak terbaca pada driver '$driver' — tambahkan cabang katalognya, jangan lemahkan asersinya"
+    );
+
+    $normalized = str_replace(['(', ')'], '', strtolower($definition));
+
+    $this->assertStringContainsString(
+        'where deleted_at is null',
+        $normalized,
+        'unique index (production_line_id, name) masih PENUH: nama shift yang ditutup akan memblokir penggantinya selamanya'
+    );
+    $this->assertStringContainsString('unique', $normalized, 'index-nya tidak unique');
+
     // Tumpang tindih TIDAK dapat ditegakkan index — dua rentang beririsan
     // bukan duplikasi nilai. Penegakannya ada di lapisan aplikasi, dan unique
     // index atas jamnya justru akan SALAH: dua line boleh punya shift pada
     // jam yang sama persis.
     expect($uniqueIndexes->contains(fn (array $columns) => in_array('start_time', array_values($columns), true)))
         ->toBeFalse('jam tidak boleh dijadikan unique index');
+});
+
+// ── Soft delete (cases 46–53) ───────────────────────────────────────────
+//
+// MENGAPA SELURUH BAGIAN INI ADA. `shift_id` akan mendarat di kedelapan
+// belas tabel record di putaran penandaan berikutnya, bermakna "shift yang
+// berlaku saat operator menyimpan record". Membuang baris shift akan membuat
+// record lama kehilangan jawaban atas "record ini sebenarnya shift jam
+// berapa" — tanpa satu pun aksi yang terlihat destruktif. Karena itu DELETE
+// menutup baris, dan keempat jalur yang hidup wajib mengecualikannya.
+//
+// Baris tertutup di bawah ditanam LANGSUNG lewat ->closed(), bukan dengan
+// memanggil delete() atas baris hidup: yang diuji di sini PENGECUALIANNYA,
+// dan menanamnya lewat delete() akan menguji delete() sekali lagi.
+
+// Case 46
+it('menutup baris alih-alih membuangnya: deleted_at terisi dan withTrashed() tetap memulangkannya', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $this->service->delete($pagi->id);
+
+    // Jalur yang HIDUP tidak lagi melihatnya.
+    expect(Shift::find($pagi->id))->toBeNull();
+
+    // Barisnya MASIH ADA — itulah yang membuat laporan historis tetap
+    // terbaca ketika record kelak merujuk shift ini.
+    $closed = Shift::withTrashed()->find($pagi->id);
+
+    expect($closed)->not->toBeNull();
+    expect($closed->deleted_at)->not->toBeNull();
+    // Jamnya ikut tersimpan utuh: rujukan historis butuh jam ASLINYA, bukan
+    // hanya id-nya.
+    expect($closed->start_time)->toBe('07:00:00');
+    expect($closed->end_time)->toBe('15:00:00');
+});
+
+/**
+ * KEPUTUSAN TURUNAN, bukan permintaan spec: skema shift tidak punya kolom
+ * `deleted_by` sementara baris tertutup kini hidup selamanya, jadi tanpa
+ * stempel ini tidak ada satu pun jejak siapa yang menutupnya. `updated_by`
+ * adalah satu-satunya kolom yang tersedia untuk menyimpan jawabannya, dan ia
+ * distempel SEBELUM penutupan — sesudahnya baris itu tidak lagi terjangkau
+ * jalur yang hidup.
+ */
+it('menyetempel updated_by sebelum menutup baris, karena skema tidak punya deleted_by', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create(['updated_by' => null]);
+
+    $this->service->delete($pagi->id);
+
+    expect(Shift::withTrashed()->findOrFail($pagi->id)->updated_by)->toBe($this->admin->id);
+});
+
+// Case 47 — JALUR HIDUP 1 (daftar) dan 2 (cakupan/celah).
+it('mengecualikan shift tertutup dari daftar, dari cakupan, dan dari perhitungan celah', function () {
+    Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+    Shift::factory()->forProductionLine($this->lineA1)->malam()->create();
+    // Shift tertutup yang jamnya berada TEPAT di antara keduanya: bila ia
+    // ikut dihitung, celah 15:00–23:00 akan hilang dari payload.
+    $closed = Shift::factory()->forProductionLine($this->lineA1)->closed()->siang()->create();
+
+    $result = $this->service->listShifts($this->millA->id, $this->lineA1->id);
+
+    expect($result['data'])->toHaveCount(2);
+    expect(collect($result['data'])->pluck('id'))->not->toContain($closed->id);
+    expect(collect($result['data'])->pluck('name')->sort()->values()->all())->toBe(['Malam', 'Pagi']);
+
+    $entry = shiftCoverageFor($result, $this->lineA1);
+
+    expect($entry['shift_count'])->toBe(2);
+    expect($entry['state'])->toBe('gap');
+    expect($entry['uncovered_minutes'])->toBe(480);
+    expect(shiftBlocksOf($entry))->toHaveCount(2);
+    expect(collect(shiftBlocksOf($entry))->pluck('shift_id'))->not->toContain($closed->id);
+
+    // Celahnya dihitung PADA RENTANG shift yang tertutup itu, seolah tidak
+    // ada shift di sana.
+    $gaps = gapBlocksOf($entry);
+    expect($gaps)->toHaveCount(1);
+    expect($gaps[0]['start_offset_minutes'])->toBe(480);
+    expect($gaps[0]['duration_minutes'])->toBe(480);
+});
+
+// Case 47, lanjutan — JALUR HIDUP 3 (sumber pratinjau pada form).
+it('mengecualikan shift tertutup dari sumber pratinjau form (shiftBlocksByLine)', function () {
+    $live = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+    $closed = Shift::factory()->forProductionLine($this->lineA1)->closed()->siang()->create();
+
+    $blocks = $this->service->shiftBlocksByLine($this->millA->id);
+
+    expect($blocks)->toHaveKey($this->lineA1->id);
+
+    $ids = collect($blocks[$this->lineA1->id])->pluck('shift_id');
+
+    expect($ids->all())->toBe([$live->id]);
+    expect($ids)->not->toContain($closed->id);
+});
+
+// Case 51
+it('menandai line yang seluruh shift-nya tertutup sebagai unconfigured, bukan gap 1440 menit', function () {
+    Shift::factory()->forProductionLine($this->lineA1)->closed()->pagi()->create();
+    Shift::factory()->forProductionLine($this->lineA1)->closed()->siang()->create();
+
+    $result = $this->service->listShifts($this->millA->id, $this->lineA1->id);
+    $entry = shiftCoverageFor($result, $this->lineA1);
+
+    expect($result['data'])->toBe([]);
+    expect($entry['state'])->toBe('unconfigured');
+    expect($entry['shift_count'])->toBe(0);
+    // BUKAN 'gap' 1440: belum dikerjakan versus keputusan yang mungkin salah
+    // adalah dua arti yang berbeda, dan payload-nya yang membedakannya.
+    expect($entry['state'])->not->toBe('gap');
+    expect($entry['uncovered_minutes'])->toBe(0);
+    expect($entry['blocks'])->toBe([]);
+});
+
+/**
+ * Case 48 — JALUR HIDUP 4, YANG PALING MUDAH TERLEWAT, dan test yang paling
+ * penting di bagian ini.
+ *
+ * Bila findOverlap() berhenti mengecualikan baris tertutup, JAM yang baru
+ * saja dikosongkan tidak akan pernah dapat dipakai ulang oleh penggantinya —
+ * dan memakai ulang jam adalah justru alasan soft delete dipilih alih-alih
+ * penghapusan permanen. Kegagalannya tidak terlihat di daftar maupun di
+ * timeline; ia hanya muncul sebagai penolakan SHIFT_OVERLAP terhadap shift
+ * yang sudah tidak ada.
+ */
+it('membebaskan JAM shift yang ditutup untuk dipakai ulang oleh penggantinya', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    // Ditutup lewat jalur produksinya sendiri — yang diuji di sini adalah
+    // RANGKAIANNYA: hapus, lalu pakai ulang jamnya.
+    $this->service->delete($pagi->id);
+
+    // findOverlap() tidak lagi melihat baris itu.
+    expect($this->service->findOverlap($this->lineA1->id, '07:00', '15:00'))->toBeNull();
+
+    // Dan jamnya yang SAMA PERSIS dapat dipakai pengganti.
+    $replacement = $this->service->create(shiftPayload($this->lineA1, [
+        'name' => 'Pagi Baru',
+        'start_time' => '07:00',
+        'end_time' => '15:00',
+    ]));
+
+    expect($replacement['start_time'])->toBe('07:00');
+    expect($replacement['end_time'])->toBe('15:00');
+
+    $entry = shiftCoverageFor($this->service->listShifts($this->millA->id, $this->lineA1->id), $this->lineA1);
+    expect($entry['shift_count'])->toBe(1);
+    expect(shiftBlocksOf($entry)[0]['shift_id'])->toBe($replacement['id']);
+});
+
+/**
+ * Case 49 — NAMA yang dikosongkan juga bebas dipakai ulang, dan DUA PENEGAK
+ * harus sepakat: partial unique index `WHERE deleted_at IS NULL` di basis
+ * data, dan Rule::unique()->whereNull('deleted_at') di aplikasi. Yang kedua
+ * ditulis tangan karena Rule::unique() membangun kueri Query Builder dan
+ * karena itu TIDAK dijangkau global scope SoftDeletes — satu-satunya jalur
+ * shift di service yang luput darinya. Bila salah satu lupa, yang lebih
+ * ketatlah yang menang dan penggantian terhalang namanya sendiri.
+ */
+it('membebaskan NAMA shift yang ditutup untuk dipakai ulang oleh penggantinya', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $this->service->delete($pagi->id);
+
+    // Nama yang sama PADA LINE YANG SAMA, dan sengaja pada jam yang berbeda
+    // supaya yang terbukti benar-benar keunikan nama dan bukan tumpang
+    // tindih.
+    $replacement = $this->service->create(shiftPayload($this->lineA1, [
+        'name' => 'Pagi',
+        'start_time' => '15:00',
+        'end_time' => '23:00',
+    ]));
+
+    expect($replacement['name'])->toBe('Pagi');
+    expect(Shift::where('name', 'Pagi')->count())->toBe(1);
+    expect(Shift::withTrashed()->where('name', 'Pagi')->count())->toBe(2);
+});
+
+/**
+ * Case 50 — PENGECUALIANNYA HANYA BERLAKU BAGI BARIS TERTUTUP. Dua baris
+ * HIDUP dengan (line, name) yang sama tetap ditolak, dan ditolak oleh
+ * KEDUANYA: 422 dari lapisan aplikasi, dan galat driver dari partial unique
+ * index ketika sebuah insert langsung melewati validasinya.
+ */
+it('tetap menolak dua baris HIDUP dengan (production_line_id, name) yang sama', function () {
+    Shift::factory()->forProductionLine($this->lineA1)->closed()->pagi()->create();
+    $this->service->create(shiftPayload($this->lineA1));
+
+    // Lapisan aplikasi: 422 yang menyebut namanya.
+    $thrown = null;
+
+    try {
+        $this->service->create(shiftPayload($this->lineA1, [
+            'start_time' => '15:00',
+            'end_time' => '23:00',
+        ]));
+    } catch (ValidationException $e) {
+        $thrown = $e;
+    }
+
+    expect($thrown)->not->toBeNull();
+    expect($thrown->errors())->toHaveKey('name');
+    $this->assertStringContainsString('sudah dipakai', $thrown->errors()['name'][0], 'pesan tidak menyebut nama sudah dipakai');
+
+    // Lapisan basis data: insert LANGSUNG yang melewati validate() tetap
+    // ditolak index-nya. Tanpa asersi ini, sebuah index yang ikut
+    // terlonggarkan menjadi non-unique akan lolos diam-diam di belakang
+    // pemeriksaan aplikasi.
+    expect(fn () => Shift::factory()
+        ->forProductionLine($this->lineA1)
+        ->named('Pagi')
+        ->range('15:00:00', '23:00:00')
+        ->create())
+        ->toThrow(QueryException::class);
+
+    expect(Shift::where('production_line_id', $this->lineA1->id)->count())->toBe(1);
+});
+
+// Case 52 — baris tertutup tidak terjangkau SATU PUN jalur tulis yang hidup.
+it('melempar NOT_FOUND pada DELETE maupun PATCH shift yang sudah ditutup', function () {
+    $closed = Shift::factory()->forProductionLine($this->lineA1)->closed()->pagi()->create();
+
+    expect(fn () => $this->service->delete($closed->id))->toThrow(ModelNotFoundException::class);
+    expect(fn () => $this->service->update($closed->id, ['name' => 'Pagi Diubah']))
+        ->toThrow(ModelNotFoundException::class);
+
+    // Dan ia tidak berubah karenanya.
+    $still = Shift::withTrashed()->findOrFail($closed->id);
+    expect($still->name)->toBe('Pagi');
+    expect($still->deleted_at)->not->toBeNull();
+});
+
+/**
+ * Case 53 — PENGGANTIAN-SAAT-UBAH BELUM ADA, DAN ITU DISENGAJA
+ * (business_logic 30). Pemicunya adalah "ada record yang merujuk shift ini",
+ * dan hari ini tidak ada satu kolom pun di sistem yang merujuk shift —
+ * `shift_id` baru lahir bersama penandaan kedelapan belas tabel record. Jadi
+ * mengubah jam MEMUTASI baris, dan test ini mengikat keadaan itu supaya
+ * penggantian tidak dibangun lebih awal terhadap cabang yang tidak pernah
+ * dilewati jalur produksi mana pun.
+ */
+it('memutasi baris ketika jamnya diubah: nol baris baru dan nol baris tertutup baru', function () {
+    $pagi = $this->service->create(shiftPayload($this->lineA1));
+
+    $this->service->update($pagi['id'], ['end_time' => '16:00']);
+
+    // Jumlah baris pada line itu TERMASUK yang tertutup tidak bertambah.
+    expect(Shift::withTrashed()->where('production_line_id', $this->lineA1->id)->count())->toBe(1);
+    expect(Shift::onlyTrashed()->where('production_line_id', $this->lineA1->id)->count())->toBe(0);
+
+    // Baris yang SAMA menyimpan jam yang baru.
+    $row = Shift::findOrFail($pagi['id']);
+    expect($row->end_time)->toBe('16:00:00');
+    expect($row->start_time)->toBe('07:00:00');
+});
+
+/**
+ * Pertemuan kedua keputusan v2, dan satu-satunya tempat keduanya bersinggung:
+ * line yang SELURUH shift-nya sudah ditutup terbaca sama seperti line yang
+ * belum pernah diberi shift, sehingga ia menerima shift 24 jam kembali.
+ * Konsekuensi itu memang yang diinginkan — lineHasOtherLiveShift() tidak
+ * menghitung baris tertutup.
+ */
+it('menerima kembali shift 24 jam pada line yang seluruh shift-nya sudah ditutup', function () {
+    Shift::factory()->forProductionLine($this->lineA1)->closed()->pagi()->create();
+    Shift::factory()->forProductionLine($this->lineA1)->closed()->siang()->create();
+
+    $penuh = $this->service->create(shiftPayload($this->lineA1, [
+        'name' => 'Penuh',
+        'start_time' => '07:00',
+        'end_time' => '07:00',
+    ]));
+
+    expect($penuh['duration_minutes'])->toBe(1440);
+
+    $entry = shiftCoverageFor($this->service->listShifts($this->millA->id, $this->lineA1->id), $this->lineA1);
+    expect($entry['state'])->toBe('covered');
+    expect($entry['shift_count'])->toBe(1);
+    expect(gapBlocksOf($entry))->toBe([]);
 });

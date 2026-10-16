@@ -2,14 +2,20 @@
  * Kelola Shift per Production Line (Browser/Playwright) —
  * screen-170--kelola-shift / usecase-176--kelola-shift.
  *
- * Satu test per entri `test_scenarios` yang punya `browser_test` (ke-28-nya
+ * Satu test per entri `test_scenarios` yang punya `browser_test` (ke-33-nya
  * punya), dikelompokkan di mana satu keadaan halaman membuktikan beberapa di
- * antaranya. Nomor skenario disebut di komentar tiap test.
+ * antaranya. Nomor skenario disebut di komentar tiap test: 16 + 21, 19 + 33,
+ * 20 + 30, 29 + 31, dan 14 + 15 masing-masing satu test.
  *
  * ── PRASYARAT YANG WAJIB DIPENUHI SEBELUM SPEC INI DAPAT JALAN ──────────
  *
- * Tabel `shifts` BARU (migrasi 2026_10_15_000001_create_shifts_table) dan
- * BELUM ADA di database e2e saat spec ini ditulis. Jalankan salah satu:
+ * Tabel `shifts` (migrasi 2026_10_15_000001_create_shifts_table) DAN migrasi
+ * soft delete-nya (2026_10_16_000001_add_soft_deletes_to_shifts_table —
+ * `deleted_at` plus PARTIAL unique index `WHERE deleted_at IS NULL`) wajib
+ * sudah jalan di database e2e. Tanpa yang kedua, setiap test di bawah yang
+ * menghapus lalu memakai ulang nama akan ditolak oleh unique index yang masih
+ * PENUH, dan gejalanya terbaca seperti bug di lapisan aplikasi. Jalankan
+ * salah satu:
  *
  *   cd backend && php artisan migrate --env=e2e --force     # cukup, tidak merusak
  *   cd e2e-web && npm run db:prepare                        # reset penuh + seeder
@@ -65,19 +71,34 @@
  * sama dengan tests/support/periods.ts dan period-fixture.ts, bukan
  * mekanisme baru.
  *
- * ── SATU ASERSI YANG SENGAJA TIDAK ADA DI SINI ──────────────────────────
+ * ── REVISI SPEC v2 (2026-10-16) — DUA ATURAN YANG BERUBAH ───────────────
  *
- * Skenario 21 ("shift tunggal menutup 24 jam") TIDAK dapat dibuat lewat
- * peramban: satu-satunya rentang yang menutup 1440 menit adalah jam yang
- * BERIMPIT (07:00–07:00), dan jalur tulis menolaknya sebagai
- * VALIDATION_ERROR — resolusi yang memang dikehendaki spec (entity
- * constraint #2). Yang dapat diuji di peramban adalah DUA HAL yang memang
- * diuji di bawah: penolakan jam berimpit, dan cakupan 24 jam penuh tanpa
- * celah yang disusun dari beberapa shift. Pembacaan baris berimpit sebagai
- * SATU blok 1440 menit diasersi di tempat baris seperti itu dapat ditanam
- * lewat factory: backend/tests/Unit/Services/ShiftServiceTest.php,
- * tests/Feature/Api/KelolaShiftTest.php dan
- * tests/Feature/Livewire/KelolaShiftTest.php.
+ * 1. JAM BERIMPIT BERARTI SHIFT 24 JAM. Ia DITERIMA pada line yang belum
+ *    punya shift HIDUP lain, dan ditolak sebagai durasi nol hanya pada line
+ *    yang sudah terisi. Versi sebelumnya spec ini menyatakan skenario 21
+ *    "tidak dapat dibuat lewat peramban" dan menutup hari produksinya dengan
+ *    DUA shift; kini satu shift 07:00–07:00 disimpan lewat form apa adanya,
+ *    dan satu blok penuh selebar track-nya yang diukur. Catatan lama itu
+ *    dihapus alih-alih dibiarkan: sebuah keterangan yang menyatakan sesuatu
+ *    tidak mungkin diuji adalah cara tercepat membuat orang berikutnya
+ *    berhenti mencoba.
+ *
+ * 2. PENGHAPUSAN ADALAH SOFT DELETE. Barisnya ditutup, bukan dibuang, jadi
+ *    ketidakhadirannya di tabel dan sebagai blok timeline harus diasersi dan
+ *    bukan disimpulkan (skenario 19 + 33), dan nama serta jam yang
+ *    dikosongkan wajib dapat dipakai ulang oleh penggantinya (skenario
+ *    29 + 31) — justru alasan soft delete dipilih.
+ *
+ *    Konsekuensi untuk spec ini: clearShifts() di ./support/shifts.ts kini
+ *    MENUTUP baris alih-alih membuangnya, dan residu dari run sebelumnya
+ *    tetap tidak menghalangi karena partial unique index hanya berlaku bagi
+ *    baris hidup.
+ *
+ * PENGGANTIAN-SAAT-UBAH (business_logic 29–30) BELUM DIBANGUN dan sengaja
+ * TIDAK diuji di sini. Pemicunya "ada record yang merujuk shift ini", dan
+ * tidak ada satu kolom pun di sistem yang merujuk shift hari ini. Skenario 32
+ * karena itu mengasersi perilaku yang benar-benar ada: mengubah jam memutasi
+ * baris yang sama, dan tidak ada baris kedua yang muncul.
  */
 
 import { test, expect, type Locator, type Page } from '@playwright/test'
@@ -813,61 +834,80 @@ test.describe('Kelola Shift per Production Line', () => {
 
   // ── Skenario 16 + 21 ──────────────────────────────────────────────────
 
-  test('skenario 16 + 21 — jam berimpit ditolak menyebut durasi nol; 24 jam penuh terbaca tanpa celah', async ({ page }) => {
+  /*
+   * DUA CABANG DARI SATU ATURAN (revisi spec v2 2026-10-16, business_logic
+   * 17). Jam berimpit BERARTI shift 24 jam: ia diterima pada line yang belum
+   * punya shift HIDUP lain, dan ditolak sebagai durasi nol pada line yang
+   * sudah terisi — di sana ia hanya bisa berarti salah ketik, karena shift 24
+   * jam menurut definisinya tidak dapat berdampingan dengan shift mana pun.
+   *
+   * VERSI SEBELUMNYA SPEC INI MENYIAPKAN DIRINYA DI LINE YANG KOSONG lalu
+   * mengharapkan penolakan, dan menutup hari produksi dengan DUA shift karena
+   * satu shift 24 jam dianggap tidak mungkin dibuat lewat peramban. Keduanya
+   * kini terbalik: prasyaratnya yang berubah, dan skenario 21 akhirnya dapat
+   * dijalankan apa adanya — SATU shift, satu blok penuh.
+   */
+  test('skenario 16 + 21 — jam berimpit: ditolak di line terisi, diterima sebagai 24 jam di line kosong', async ({ page }) => {
     const problems = watchProblems(page)
     const { businessUnitId } = await openScreenAsAdmin(page)
     const lineAId = await productionLineIdByName(page, businessUnitId, LINE_A)
+    const lineBId = await productionLineIdByName(page, businessUnitId, LINE_B)
 
-    await selectMill(page, BUSINESS_UNIT)
-    await selectLineFilter(page, LINE_A)
-
-    // Skenario 16 — jam mulai dan selesai sama persis.
-    await addShiftViaUi(page, { lineName: LINE_A, name: 'Nol', start: '07:00', end: '07:00' })
-    await expectFormRejected(page)
-    await expect(page.locator('[data-testid="error-end-time"]')).toBeVisible()
-    await expect(page.locator('[data-testid="error-end-time"]')).toContainText('berdurasi nol')
-    // Penolakannya menyebut DURASI NOL, bukan tumpang tindih.
-    await expect(page.locator('[data-testid="error-end-time"]')).not.toContainText('bertindih')
-    await expect(page.locator('[data-testid="form-error"]')).toHaveCount(0)
-
-    await page.locator('.kcm-modal button:has-text("Batal")').click()
-    await expect(page.locator('[data-testid="form-name-input"]')).toHaveCount(0)
-
-    /*
-     * Skenario 21 — MENUTUP SELURUH HARI PRODUKSI. Satu shift tidak dapat
-     * melakukannya lewat peramban: satu-satunya rentang berdurasi 1440 menit
-     * adalah jam yang berimpit, dan itu baru saja ditolak — resolusi yang
-     * memang dikehendaki (entity constraint #2). Jadi hari produksinya
-     * ditutup dengan rentang yang tidak berimpit, dan yang diasersi adalah
-     * yang dijanjikan skenarionya: satu batang penuh tanpa celah, badge
-     * berbunyi tercakup 24 jam.
-     */
-    await seedShift(page, { productionLineId: lineAId, name: 'Pagi', start: '07:00', end: '19:00' })
-    await seedShift(page, { productionLineId: lineAId, name: 'Malam', start: '19:00', end: '07:00' })
+    // PRASYARAT cabang penolakan: Line A sudah punya satu shift hidup.
+    await seedShift(page, { productionLineId: lineAId, name: 'Pagi', start: '07:00', end: '15:00' })
 
     await page.goto(SHIFTS_PATH)
     await selectMill(page, BUSINESS_UNIT)
     await selectLineFilter(page, LINE_A)
 
-    await expect(badge(page, lineAId)).toHaveText('tercakup 24 jam')
+    // ── Skenario 16 — DITOLAK pada line yang sudah terisi ──────────────
+    await addShiftViaUi(page, { lineName: LINE_A, name: 'Nol', start: '07:00', end: '07:00' })
+    await expectFormRejected(page)
+
+    const endTimeError = page.locator('[data-testid="error-end-time"]')
+    await expect(endTimeError).toBeVisible()
+    await expect(endTimeError).toContainText('berdurasi nol')
+    // Penolakannya menyebut DURASI NOL, bukan tumpang tindih — dan pesan
+    // per-form (tempat tumpang tindih mendarat) tidak muncul sama sekali.
+    await expect(endTimeError).not.toContainText('bertindih')
+    await expect(page.locator('[data-testid="form-error"]')).toHaveCount(0)
+
+    await page.locator('.kcm-modal button:has-text("Batal")').click()
+    await expect(page.locator('[data-testid="form-name-input"]')).toHaveCount(0)
+
+    // ── Skenario 21 — DITERIMA pada line yang belum punya shift hidup ───
+    //
+    // Line B masih kosong (openScreenAsAdmin menyapu bersih ketiga line), jadi
+    // 07:00–07:00 di sana adalah satu-satunya cara mengungkapkan 1440 menit —
+    // dan ia tersimpan lewat FORM, jalur yang diuji.
+    await addShiftViaUi(page, { lineName: LINE_B, name: 'Penuh', start: '07:00', end: '07:00' })
+    await expectSaved(page)
+
+    await selectLineFilter(page, LINE_B)
+
+    await expect(badge(page, lineBId)).toHaveText('tercakup 24 jam')
     expect(await orderedTestIds(page, 'timeline-gap-')).toEqual([])
 
-    // Kedua blok MENUTUP seluruh track: tepi kiri yang pertama menempel ke
-    // ujung kiri, tepi kanan yang terakhir ke ujung kanan, dan keduanya
-    // bertemu di tengah — nol piksel yang tidak dimiliki shift mana pun.
+    // SATU blok, dan ia menutup SELURUH track: kedua tepinya menempel ke
+    // kedua ujungnya, lebarnya sama dengan lebar track. Diukur dari DOM —
+    // tanpa satu pun lebar piksel yang ditulis di spec ini.
     const blockIds = await orderedTestIds(page, 'timeline-block-')
-    expect(blockIds).toHaveLength(2)
+    expect(blockIds).toHaveLength(1)
 
-    const trackGeometry = await geometryOf(track(page, lineAId), 'track Line A')
-    const first = await geometryOf(page.locator(`[data-testid="timeline-block-${blockIds[0]}"]`), 'blok pertama')
-    const last = await geometryOf(page.locator(`[data-testid="timeline-block-${blockIds[1]}"]`), 'blok kedua')
+    const trackGeometry = await geometryOf(track(page, lineBId), 'track Line B')
+    const fullBlock = await geometryOf(
+      page.locator(`[data-testid="timeline-block-${blockIds[0]}"]`),
+      'blok 24 jam',
+    )
 
-    expect(Math.abs(first.left - trackGeometry.left)).toBeLessThanOrEqual(EDGE_TOLERANCE)
-    expect(Math.abs(last.right - trackGeometry.right)).toBeLessThanOrEqual(EDGE_TOLERANCE)
-    expect(Math.abs(first.right - last.left)).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    expect(Math.abs(fullBlock.left - trackGeometry.left)).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    expect(Math.abs(fullBlock.right - trackGeometry.right)).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    expect(Math.abs(fullBlock.width - trackGeometry.width)).toBeLessThanOrEqual(EDGE_TOLERANCE)
 
-    // Lebar SEBANDING durasi: 720 menit berbanding 720 menit.
-    expect(Math.abs(first.width - last.width)).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    // Dan payload-nya memang satu shift berdurasi 1440 menit, bukan dua.
+    const body = await listShifts(page, businessUnitId, lineBId)
+    expect(body.data).toHaveLength(1)
+    expect(body.data[0].duration_minutes).toBe(1440)
 
     await expectNoHorizontalPageScroll(page)
     expect(problems).toEqual([])
@@ -954,9 +994,16 @@ test.describe('Kelola Shift per Production Line', () => {
     expect(problems).toEqual([])
   })
 
-  // ── Skenario 19 ───────────────────────────────────────────────────────
+  // ── Skenario 19 + 33 ──────────────────────────────────────────────────
 
-  test('skenario 19 — hapus satu shift: badge menyebut jam celah dan ruang BERTEKSTUR muncul di posisinya', async ({ page }) => {
+  /*
+   * SKENARIO 33 ADALAH KLAIM PERAMBAN YANG SAMA, dibaca dari sisi yang lain:
+   * "shift yang ditutup tidak muncul di mana pun yang hidup". Sejak
+   * penghapusan menjadi SOFT DELETE (v2 2026-10-16) barisnya tetap ada di
+   * basis data, jadi ketidakhadirannya di tabel DAN sebagai blok timeline
+   * justru yang harus diasersi — bukan disimpulkan dari badge-nya.
+   */
+  test('skenario 19 + 33 — hapus satu shift: barisnya dan bloknya hilang, ruang BERTEKSTUR muncul di posisinya', async ({ page }) => {
     const problems = watchProblems(page)
     const { businessUnitId } = await openScreenAsAdmin(page)
     const lineAId = await productionLineIdByName(page, businessUnitId, LINE_A)
@@ -983,7 +1030,11 @@ test.describe('Kelola Shift per Production Line', () => {
       page.locator('[data-testid="confirm-delete-button"]').click(),
     ])
 
+    // Skenario 33 — HILANG DARI KEDUANYA. Barisnya masih ada di basis data
+    // (soft delete), jadi sebuah jalur yang lupa mengecualikan baris tertutup
+    // akan tetap menggambarnya di salah satu dari dua tempat ini.
     await expect(page.locator(`[data-testid="shift-row-${siangId}"]`)).toHaveCount(0)
+    await expect(page.locator(`[data-testid="timeline-block-${siangId}"]`)).toHaveCount(0)
     await expect(badge(page, lineAId)).toHaveText('ada celah 8 jam')
 
     // Blok celah muncul TEPAT di posisi yang ditinggalkan Siang (offset 480).
@@ -1005,9 +1056,15 @@ test.describe('Kelola Shift per Production Line', () => {
     expect(problems).toEqual([])
   })
 
-  // ── Skenario 20 ───────────────────────────────────────────────────────
+  // ── Skenario 20 + 30 ──────────────────────────────────────────────────
 
-  test('skenario 20 — hapus shift terakhir: badge "belum diatur" dan bloknya polos tanpa arsiran celah', async ({ page }) => {
+  /*
+   * SKENARIO 30 ADALAH SKENARIO 20 SESUDAH SOFT DELETE: sebuah line yang
+   * SELURUH shift-nya sudah ditutup wajib terbaca sama seperti line yang
+   * belum pernah diberi shift — 'belum diatur' dengan blok polos, BUKAN celah
+   * 24 jam. Keduanya satu tindakan peramban yang sama, jadi satu test.
+   */
+  test('skenario 20 + 30 — hapus shift terakhir: badge "belum diatur" dan bloknya polos tanpa arsiran celah', async ({ page }) => {
     const problems = watchProblems(page)
     const { businessUnitId } = await openScreenAsAdmin(page)
     const lineBId = await productionLineIdByName(page, businessUnitId, LINE_B)
@@ -1036,6 +1093,112 @@ test.describe('Kelola Shift per Production Line', () => {
     const emptyBackground = await emptyBlock.evaluate((element) => window.getComputedStyle(element).backgroundImage)
     expect(emptyBackground, 'blok "belum diatur" tidak boleh berarsiran').toBe('none')
     expect(await orderedTestIds(page, 'timeline-gap-')).toEqual([])
+
+    expect(problems).toEqual([])
+  })
+
+  // ── Skenario 29 + 31 ──────────────────────────────────────────────────
+
+  /*
+   * PENGGANTIAN — justru alasan soft delete dipilih alih-alih penghapusan
+   * permanen, dan karena itu diuji sebagai SATU tindakan: shift yang baru
+   * dihapus diganti dengan shift yang memakai NAMA dan JAM-nya sekaligus.
+   *
+   * Dua penegak harus sepakat agar ini berhasil. NAMA: partial unique index
+   * `WHERE deleted_at IS NULL` di basis data dan Rule::unique() di aplikasi,
+   * yang keduanya wajib mengecualikan baris tertutup. JAM: himpunan pembanding
+   * tumpang tindih, jalur yang paling mudah terlewat — bila baris tertutup
+   * ikut dibandingkan, jam yang baru dikosongkan tidak akan pernah bisa
+   * dipakai ulang, dan penolakannya akan menyebut shift yang sudah tidak
+   * terlihat di mana pun.
+   */
+  test('skenario 29 + 31 — nama DAN jam shift yang dihapus bebas dipakai ulang penggantinya', async ({ page }) => {
+    const problems = watchProblems(page)
+    const { businessUnitId } = await openScreenAsAdmin(page)
+    const lineAId = await productionLineIdByName(page, businessUnitId, LINE_A)
+
+    const pagiId = await seedShift(page, { productionLineId: lineAId, name: 'Pagi', start: '07:00', end: '15:00' })
+
+    await page.goto(SHIFTS_PATH)
+    await selectMill(page, BUSINESS_UNIT)
+    await selectLineFilter(page, LINE_A)
+
+    await page.locator(`[data-testid="delete-button-${pagiId}"]`).click()
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/livewire/update')),
+      page.locator('[data-testid="confirm-delete-button"]').click(),
+    ])
+
+    await expect(page.locator(`[data-testid="shift-row-${pagiId}"]`)).toHaveCount(0)
+    await expect(badge(page, lineAId)).toHaveText('belum diatur')
+
+    // NAMA DAN JAM yang sama persis dengan shift yang baru ditutup.
+    await addShiftViaUi(page, { lineName: LINE_A, name: 'Pagi', start: '07:00', end: '15:00' })
+    await expectSaved(page)
+
+    // Tidak ada pesan penolakan dari kedua penegaknya.
+    await expect(page.locator('[data-testid="form-error"]')).toHaveCount(0)
+    await expect(badge(page, lineAId)).toHaveText('ada celah 16 jam')
+
+    // Barisnya muncul di tabel, dan hanya SATU 'Pagi' yang hidup — baris
+    // penggantinya, bukan baris yang ditutup.
+    const body = await listShifts(page, businessUnitId, lineAId)
+    expect(body.data.filter((row) => row.name === 'Pagi')).toHaveLength(1)
+    expect(body.data[0].id).not.toBe(pagiId)
+
+    const rowId = body.data[0].id
+    await expect(page.locator(`[data-testid="shift-row-${rowId}"]`)).toBeVisible()
+    await expect(page.locator(`[data-testid="timeline-block-${rowId}"]`)).toBeVisible()
+
+    expect(problems).toEqual([])
+  })
+
+  // ── Skenario 32 ───────────────────────────────────────────────────────
+
+  /*
+   * PENGUBAHAN MEMUTASI BARIS, dan itu disengaja (business_logic 30).
+   * Penggantian-saat-ubah dipicu oleh "ada record yang merujuk shift ini", dan
+   * tidak ada satu kolom pun di sistem yang merujuk shift hari ini —
+   * `shift_id` baru lahir bersama penandaan kedelapan belas tabel record. Yang
+   * diasersi di sini karena itu adalah perilaku yang BENAR-BENAR ADA: baris
+   * yang sama menampilkan jam baru, dan tidak muncul baris kedua.
+   */
+  test('skenario 32 — mengubah jam: baris yang SAMA menampilkan jam baru, nol baris kedua', async ({ page }) => {
+    const problems = watchProblems(page)
+    const { businessUnitId } = await openScreenAsAdmin(page)
+    const lineAId = await productionLineIdByName(page, businessUnitId, LINE_A)
+
+    const pagiId = await seedShift(page, { productionLineId: lineAId, name: 'Pagi', start: '07:00', end: '15:00' })
+
+    await page.goto(SHIFTS_PATH)
+    await selectMill(page, BUSINESS_UNIT)
+    await selectLineFilter(page, LINE_A)
+
+    await expect(page.locator(`[data-testid="shift-row-${pagiId}"]`)).toContainText('15:00')
+
+    await page.locator(`[data-testid="edit-button-${pagiId}"]`).click()
+    await expect(page.locator('[data-testid="form-end-time-input"]')).toHaveValue('15:00')
+
+    await fillAndKeep(page, 'form-end-time-input', '16:00')
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/livewire/update')),
+      page.locator('[data-testid="save-button"]').click(),
+    ])
+
+    await expectSaved(page)
+
+    // BARIS YANG SAMA (id tidak berubah) dengan jam yang baru...
+    await expect(page.locator(`[data-testid="shift-row-${pagiId}"]`)).toContainText('16:00')
+
+    // ...dan NOL baris kedua, juga nol baris tertutup baru: tabelnya memuat
+    // tepat satu baris untuk line ini.
+    expect(await orderedTestIds(page, 'shift-row-')).toEqual([pagiId])
+    expect(await orderedTestIds(page, 'timeline-block-')).toEqual([pagiId])
+
+    const body = await listShifts(page, businessUnitId, lineAId)
+    expect(body.data).toHaveLength(1)
+    expect(body.data[0].id).toBe(pagiId)
+    expect(body.data[0].end_time).toBe('16:00')
 
     expect(problems).toEqual([])
   })

@@ -291,6 +291,16 @@ class KelolaShift extends Component
      * di timeline setelah penghapusan — bukan alasan untuk menolak. Line
      * yang kehilangan shift TERAKHIR-nya kembali ke keadaan 'belum diatur',
      * bukan 'celah 24 jam'.
+     *
+     * PENGHAPUSANNYA SOFT DELETE (keputusan pemilik produk 2026-10-16):
+     * barisnya ditutup, bukan dibuang. Komponen ini TIDAK BERUBAH karenanya,
+     * dan itu memang bentuk yang diinginkan — ShiftService::delete() yang
+     * memegang maknanya, sementara daftar, timeline, cakupan, dan pemilih di
+     * halaman ini sudah berhenti melihat baris tertutup lewat global scope
+     * SoftDeletes. openEditForm() dan askDelete() ikut: Shift::findOrFail()
+     * / find() tidak menjangkau baris tertutup, sehingga shift yang baru saja
+     * ditutup di tab lain menghasilkan "Shift tidak ditemukan" alih-alih form
+     * atas baris yang sudah mati.
      */
     public function confirmDelete(): void
     {

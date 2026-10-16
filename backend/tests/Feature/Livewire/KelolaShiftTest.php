@@ -10,6 +10,20 @@
  * component or the blade rather than the service. Mirrors
  * tests/Feature/Livewire/KelolaPeriodePelaporanTest.php's structure.
  *
+ * SPEC v2 (2026-10-16) — scenarios 29–33 landed with two decisions: jam
+ * berimpit now MEANS a 24-hour shift (accepted while the line holds no other
+ * live shift), and deletion is a SOFT DELETE. Their component half is the
+ * final section of this file. Scenarios 16 and 21 were REBUILT rather than
+ * relaxed: both used to set themselves up on an EMPTY line, which is now
+ * exactly the accepted case, so a test left as it was would have been
+ * asserting the rule the product owner replaced.
+ *
+ * SUPERSEDE-ON-EDIT IS NOT TESTED HERE AND HAS NO TEST ANYWHERE
+ * (business_logic 29–30). Its trigger is "a record references this shift" and
+ * no column in the system references a shift today, so editing hours MUTATES
+ * the row — scenario 32 below asserts precisely that, which is the behaviour
+ * that actually exists.
+ *
  * ── TWO SCENARIOS CANNOT BE FULLY EXPRESSED HERE, AND SAY SO ────────────
  *
  * Scenario 8 ("pratinjau menampilkan tumpang tindih sebelum simpan") and
@@ -56,6 +70,7 @@ use App\Models\Shift;
 use App\Models\User;
 use App\Services\ShiftService;
 use Illuminate\Support\Facades\DB;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -167,12 +182,12 @@ function ksShiftQueriesDuring(callable $callback): array
 
 /** Fills the create form for one line and saves it. */
 function ksFillAndSave(
-    \Livewire\Features\SupportTesting\Testable $component,
+    Testable $component,
     ProductionLine $line,
     string $name,
     string $startTime,
     string $endTime
-): \Livewire\Features\SupportTesting\Testable {
+): Testable {
     return $component
         ->call('openCreateForm')
         ->set('form.production_line_id', $line->id)
@@ -690,8 +705,17 @@ it('nama yang sama pada line berbeda: tersimpan dan muncul sebagai dua baris', f
 
 // ── Scenario 16 + 21 ────────────────────────────────────────────────────
 
-// Scenario 16: "jam mulai dan selesai sama ditolak"
-it('jam berimpit: error di bawah Jam Selesai yang menyebut durasi nol, bukan tumpang tindih', function () {
+/**
+ * Scenario 16 — DITOLAK HANYA PADA LINE YANG SUDAH PUNYA SHIFT HIDUP (revisi
+ * spec v2 2026-10-16). Versi sebelumnya test ini menyimpan jam berimpit pada
+ * line yang KOSONG dan mengharapkan penolakan; cabang itu kini DITERIMA, jadi
+ * prasyaratnya diubah alih-alih asersinya dilemahkan: Line 1 diberi Pagi
+ * 07:00–15:00 lebih dulu, sehingga jam berimpit di sana hanya bisa berarti
+ * salah ketik. Cabang diterimanya ada di test berikutnya.
+ */
+it('jam berimpit pada line yang sudah terisi: error di bawah Jam Selesai menyebut durasi nol', function () {
+    Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
     $component = Livewire::actingAs($this->admin)
         ->test(KelolaShift::class)
         ->set('businessUnitId', $this->millA->id);
@@ -700,27 +724,43 @@ it('jam berimpit: error di bawah Jam Selesai yang menyebut durasi nol, bukan tum
         ->assertHasErrors(['form.end_time'])
         ->assertSet('showForm', true)
         // BUKAN SHIFT_OVERLAP: keduanya kesalahan berbeda dengan pesan
-        // berbeda, dan yang ini per-field.
+        // berbeda, dan yang ini per-field. formErrorMessage adalah tempat
+        // pesan per-form (tumpang tindih) mendarat, jadi ia WAJIB kosong.
         ->assertSet('formErrorMessage', null)
         ->assertSeeHtml('data-testid="error-end-time"')
         ->assertSee('shift berdurasi nol');
 
-    expect(Shift::count())->toBe(0);
+    // Keterangan di bawah Jam Selesai menyatakan ATURAN BARU-nya, bukan
+    // larangan tanpa syarat versi v1 — Admin yang membaca larangan lama akan
+    // menyimpulkan shift 24 jam tidak mungkin dibuat sama sekali.
+    $this->assertStringContainsString(
+        'hanya diterima bila Production Line ini belum punya shift lain',
+        $component->html(),
+        'keterangan di bawah Jam Selesai masih menyatakan aturan v1'
+    );
+
+    expect(Shift::where('production_line_id', $this->lineA1->id)->count())->toBe(1);
 });
 
 /**
- * Scenario 21: "shift tunggal menutup 24 jam" — THE OTHER HALF of the same
- * resolved inconsistency. 07:00–07:00 is rejected on the WRITE path (above),
- * while a row that already exists READS as one full 1440-minute block. Seeded
- * through the factory on purpose, never through save().
+ * Scenario 21 — SHIFT TUNGGAL MENUTUP 24 JAM, LEWAT FORM. Baris ini DULU
+ * ditanam lewat factory justru karena save() menolaknya; sejak v2 save()
+ * MENGHASILKANNYA pada line yang belum punya shift hidup, jadi ia disimpan
+ * lewat form di sini. Menanamnya lewat factory akan melewati satu-satunya hal
+ * yang berubah.
  */
-it('baris 07:00–07:00 yang sudah ada: satu blok 1440 menit, badge tercakup 24 jam, nol blok celah', function () {
-    Shift::factory()->forProductionLine($this->lineA3)->named('Penuh')->range('07:00:00', '07:00:00')->create();
-
+it('menyimpan 07:00–07:00 lewat form pada line kosong: satu blok 1440 menit dan badge tercakup 24 jam', function () {
     $component = Livewire::actingAs($this->admin)
         ->test(KelolaShift::class)
         ->set('businessUnitId', $this->millA->id)
         ->set('productionLineId', $this->lineA3->id);
+
+    ksFillAndSave($component, $this->lineA3, 'Penuh', '07:00', '07:00')
+        ->assertHasNoErrors()
+        ->assertSet('showForm', false)
+        ->assertSet('formErrorMessage', null);
+
+    expect(Shift::where('production_line_id', $this->lineA3->id)->count())->toBe(1);
 
     $entry = collect($component->viewData('coverage'))->firstWhere('production_line_id', $this->lineA3->id);
 
@@ -1399,4 +1439,182 @@ it('menutup form mengosongkan isian dan pesan galatnya', function () {
         ->assertSet('editingId', null)
         ->assertSet('form.name', '')
         ->assertSet('formErrorMessage', null);
+});
+
+// ── Soft delete — scenarios 29–33 ───────────────────────────────────────
+//
+// SELURUH BAGIAN INI MENUTUP BARIS LEWAT ALUR LAYARNYA (askDelete →
+// confirmDelete), bukan lewat factory ->closed(): yang diuji di sini adalah
+// apa yang DILIHAT Admin sesudah menghapus. Varian yang menanam baris
+// tertutup langsung ada di tests/Unit/Services/ShiftServiceTest.php.
+
+// Scenario 29
+it('nama shift yang baru dihapus bebas dipakai ulang lewat form pada line yang sama', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(KelolaShift::class)
+        ->set('businessUnitId', $this->millA->id)
+        ->set('productionLineId', $this->lineA1->id)
+        ->call('askDelete', $pagi->id)
+        ->call('confirmDelete');
+
+    // Jamnya sengaja BERBEDA, supaya yang terbukti benar-benar keunikan nama
+    // dan bukan tumpang tindih. Tanpa pengecualian baris tertutup pada
+    // Rule::unique() DAN pada partial unique index, 'Pagi' penggantinya akan
+    // terhalang oleh 'Pagi' yang sudah tidak terlihat di mana pun.
+    ksFillAndSave($component, $this->lineA1, 'Pagi', '15:00', '23:00')
+        ->assertHasNoErrors()
+        ->assertSet('showForm', false);
+
+    expect(Shift::where('name', 'Pagi')->count())->toBe(1);
+    expect(Shift::withTrashed()->where('name', 'Pagi')->count())->toBe(2);
+});
+
+// Scenario 31
+it('jam shift yang baru dihapus bebas dipakai ulang lewat form pada line yang sama', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(KelolaShift::class)
+        ->set('businessUnitId', $this->millA->id)
+        ->set('productionLineId', $this->lineA1->id)
+        ->call('askDelete', $pagi->id)
+        ->call('confirmDelete');
+
+    // Bila baris tertutup ikut himpunan pembanding tumpang tindih, simpan ini
+    // ditolak dengan menyebut shift yang sudah tidak ada — dan jam yang baru
+    // dikosongkan tidak akan pernah bisa dipakai ulang penggantinya.
+    ksFillAndSave($component, $this->lineA1, 'Pagi Baru', '07:00', '15:00')
+        ->assertHasNoErrors()
+        ->assertSet('formErrorMessage', null)
+        ->assertSet('showForm', false);
+
+    $entry = collect($component->viewData('coverage'))->firstWhere('production_line_id', $this->lineA1->id);
+
+    expect($entry['shift_count'])->toBe(1);
+    expect($entry['blocks'][0]['label'])->toBe('Pagi Baru');
+    expect($entry['blocks'][0]['start_offset_minutes'])->toBe(0);
+});
+
+// Scenario 33
+it('shift yang dihapus hilang dari tabel, dari blok timeline, dan dari pratinjau form', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+    $siang = Shift::factory()->forProductionLine($this->lineA1)->siang()->create();
+    $malam = Shift::factory()->forProductionLine($this->lineA1)->malam()->create();
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(KelolaShift::class)
+        ->set('businessUnitId', $this->millA->id)
+        ->set('productionLineId', $this->lineA1->id)
+        ->call('askDelete', $siang->id)
+        ->call('confirmDelete');
+
+    $html = $component->html();
+
+    // Tabel: barisnya hilang, kedua tetangganya tetap.
+    expect(ksOrderedTestIds($html, 'shift-row-'))->toBe([$pagi->id, $malam->id]);
+
+    // Timeline: tidak ada blok untuk shift yang ditutup, dan celahnya
+    // dihitung pada rentangnya seolah tidak ada shift di sana.
+    expect(ksOrderedTestIds($html, 'timeline-block-'))->toBe([$pagi->id, $malam->id]);
+    expect($html)->toContain('data-testid="timeline-gap-'.$this->lineA1->id.'-480"');
+    expect(ksBadgeText($html, $this->lineA1->id))->toBe('ada celah 8 jam');
+
+    // Pratinjau pada form (shiftBlocksByLine) — JALUR HIDUP yang paling mudah
+    // terlupakan sesudah daftar dan cakupan, karena ia tidak terlihat sampai
+    // form dibuka.
+    $preview = $component->call('openCreateForm')->viewData('previewBlocks');
+
+    expect(collect($preview[$this->lineA1->id])->pluck('shift_id')->all())
+        ->toBe([$pagi->id, $malam->id]);
+});
+
+// Scenario 30
+it('line yang seluruh shift-nya sudah dihapus: badge belum diatur, BUKAN ada celah 24 jam', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA2)->pagi()->create();
+    $siang = Shift::factory()->forProductionLine($this->lineA2)->siang()->create();
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(KelolaShift::class)
+        ->set('businessUnitId', $this->millA->id)
+        ->set('productionLineId', $this->lineA2->id)
+        ->call('askDelete', $pagi->id)
+        ->call('confirmDelete')
+        ->call('askDelete', $siang->id)
+        ->call('confirmDelete');
+
+    $entry = collect($component->viewData('coverage'))->firstWhere('production_line_id', $this->lineA2->id);
+
+    expect($entry['state'])->toBe('unconfigured');
+    expect($entry['shift_count'])->toBe(0);
+    expect($entry['uncovered_minutes'])->toBe(0);
+
+    $html = $component->html();
+
+    // Dibaca dari ELEMEN badge-nya: "belum diatur" juga muncul pada kalimat
+    // penjelas di bawah batang dan pada baris catatan tabel, jadi pemindaian
+    // kontainer akan cocok di tempat yang salah.
+    expect(ksBadgeText($html, $this->lineA2->id))->toBe('belum diatur');
+    expect($html)->toContain('data-testid="timeline-empty-'.$this->lineA2->id.'"');
+    expect(ksOrderedTestIds($html, 'timeline-gap-'))->toBe([]);
+    expect(ksOrderedTestIds($html, 'shift-row-'))->toBe([]);
+});
+
+/**
+ * Scenario 32 — PENGUBAHAN MEMUTASI BARIS, dan itu disengaja
+ * (business_logic 30): penggantian-saat-ubah dipicu oleh "ada record yang
+ * merujuk shift ini", dan tidak ada satu kolom pun di sistem yang merujuk
+ * shift hari ini. Test ini mengikat perilaku yang BENAR-BENAR ADA — nol baris
+ * kedua, nol baris tertutup baru — supaya penggantian tidak dibangun lebih
+ * awal terhadap cabang yang tidak pernah dilewati.
+ */
+it('mengubah jam lewat form memutasi baris yang sama: nol baris kedua pada tabel', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(KelolaShift::class)
+        ->set('businessUnitId', $this->millA->id)
+        ->set('productionLineId', $this->lineA1->id)
+        ->call('openEditForm', $pagi->id)
+        ->set('form.end_time', '16:00')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertSet('showForm', false);
+
+    expect(Shift::withTrashed()->where('production_line_id', $this->lineA1->id)->count())->toBe(1);
+    expect(Shift::onlyTrashed()->count())->toBe(0);
+
+    // Baris YANG SAMA menampilkan jam yang baru.
+    $html = $component->html();
+
+    expect(ksOrderedTestIds($html, 'shift-row-'))->toBe([$pagi->id]);
+    expect($pagi->refresh()->end_time)->toBe('16:00:00');
+
+    $row = collect($component->viewData('shifts'))->firstWhere('id', $pagi->id);
+    expect($row['end_time'])->toBe('16:00');
+});
+
+// unit_test_cases 52 — baris tertutup tidak terjangkau jalur tulis yang hidup.
+it('menampilkan pesan ketika shift yang akan diubah atau dihapus sudah ditutup orang lain', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->closed()->pagi()->create();
+
+    Livewire::actingAs($this->admin)
+        ->test(KelolaShift::class)
+        ->set('businessUnitId', $this->millA->id)
+        ->call('askDelete', $pagi->id)
+        ->assertSet('confirmingDeleteId', null)
+        ->assertSet('deleteErrorMessage', 'Shift tidak ditemukan, mungkin sudah dihapus.')
+        ->assertSeeHtml('data-testid="delete-error"');
+
+    Livewire::actingAs($this->admin)
+        ->test(KelolaShift::class)
+        ->set('businessUnitId', $this->millA->id)
+        ->call('openEditForm', $pagi->id)
+        ->assertSet('showForm', false)
+        ->assertSet('deleteErrorMessage', 'Shift tidak ditemukan, mungkin sudah dihapus.');
+
+    // Barisnya tetap ada dan tetap tertutup — jalur yang hidup tidak
+    // menyentuhnya sama sekali.
+    expect(Shift::withTrashed()->findOrFail($pagi->id)->deleted_at)->not->toBeNull();
 });

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Shift — jadwal shift kerja PER PRODUCTION LINE
@@ -40,10 +41,31 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * datetime akan menempelkan tanggal palsu yang lalu ikut dibandingkan.
  * ShiftService::minuteOfDay() menormalkan keduanya ke menit; itu satu-satunya
  * tempat format jam dibaca.
+ *
+ * PENGHAPUSAN ADALAH SOFT DELETE (keputusan pemilik produk 2026-10-16).
+ * `deleted_at` terisi berarti shift DITUTUP: ia hilang dari daftar, dari
+ * timeline, dari perhitungan cakupan, dari pemilih pada form, dan dari
+ * himpunan pembanding tumpang tindih — tetapi barisnya tetap ada, karena
+ * `shift_id` akan mendarat di kedelapan belas tabel record dan record lama
+ * harus tetap dapat menyelesaikan rujukannya agar laporan historis tetap
+ * terbaca.
+ *
+ * KEEMPAT JALUR YANG HIDUP DIKECUALIKAN OLEH GLOBAL SCOPE trait ini, bukan
+ * oleh whereNull() yang ditebar di pemanggil — seluruhnya berangkat dari
+ * Shift::query() (lihat ShiftService). SATU pengecualian yang TIDAK dijangkau
+ * global scope: Rule::unique() membangun kueri Query Builder, bukan Eloquent,
+ * sehingga ia menambahkan whereNull('deleted_at') sendiri di
+ * ShiftService::validate() — dan partial unique index di
+ * 2026_10_16_000001 menyepakatinya di sisi basis data.
+ *
+ * `deleted_at` ADALAH SATU-SATUNYA KOLOM YANG DI-CAST di model ini. $casts
+ * tetap tidak dideklarasikan untuk start_time/end_time (alasannya di atas);
+ * deleted_at memang timestamp sungguhan, jadi penanganan trait SoftDeletes
+ * atasnya benar dan tidak menyentuh kolom jam sama sekali.
  */
 class Shift extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
         'production_line_id',

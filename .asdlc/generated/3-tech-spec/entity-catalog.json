@@ -1,8 +1,8 @@
 {
-  "ver": 23,
+  "ver": 24,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-15"
+    "updated_at": "2026-10-16"
   },
   "entities": [
     {
@@ -6756,6 +6756,12 @@
           "type": "timestamp",
           "required": true,
           "description": "Waktu record terakhir diperbarui."
+        },
+        {
+          "name": "deleted_at",
+          "type": "timestamp",
+          "required": false,
+          "description": "Penanda SOFT DELETE (2026-10-16). Terisi berarti shift ditutup: ia hilang dari daftar, timeline, perhitungan cakupan, pemilih, dan himpunan pembanding tumpang tindih — tetapi barisnya tetap ada sehingga record yang kelak menandai dirinya dengan shift itu masih dapat menyelesaikan rujukannya dan laporan historis tetap terbaca."
         }
       ],
       "relationships": [
@@ -6766,13 +6772,15 @@
         }
       ],
       "constraints": [
-        "name unik dalam satu production_line_id; nama yang sama pada line berbeda diizinkan",
-        "start_time tidak boleh sama dengan end_time — shift berdurasi nol tidak dapat menampung record apa pun",
+        "name unik dalam satu production_line_id DI ANTARA BARIS HIDUP SAJA — partial unique index `WHERE deleted_at IS NULL`. Baris tertutup dikecualikan, karena tanpa itu sebuah 'Pagi' yang ditutup akan memblokir 'Pagi' penggantinya selamanya, dan penggantian adalah justru yang paling sering terjadi. Nama yang sama pada line berbeda tetap diizinkan.",
+        "start_time sama dengan end_time BERARTI shift menutup 24 jam, dan hanya diterima bila line itu belum punya shift HIDUP lain; selebihnya ditolak sebagai durasi nol. Shift 24 jam menurut definisinya tidak dapat berdampingan dengan shift mana pun, jadi pada line yang sudah terisi jam berimpit hanya bisa berarti salah ketik. (Keputusan pemilik produk 2026-10-16, menggantikan larangan tanpa syarat di v23.)",
         "end_time boleh lebih awal daripada start_time (shift melewati tengah malam); rentangnya lalu dibaca melintasi batas hari",
         "Rentang jam tidak boleh tumpang tindih dengan Shift lain pada production_line_id yang SAMA, dengan batas INKLUSIF: shift yang berakhir tepat pada jam mulai shift lain TIDAK dianggap bertindih — itu pergantian shift yang normal",
         "Tumpang tindih diperiksa hanya DI DALAM satu Production Line; dua line boleh punya shift pada jam yang sama persis",
         "Celah antar shift pada satu line DIIZINKAN — pabrik yang tidak beroperasi 24 jam itu sah; celah ditandai di layar, bukan ditolak di data",
-        "Jadwal berlaku sama setiap hari — tidak ada kolom hari maupun masa berlaku, dan penambahannya kelak bukan perluasan entitas ini melainkan entitas penugasan regu tersendiri"
+        "Jadwal berlaku sama setiap hari — tidak ada kolom hari maupun masa berlaku, dan penambahannya kelak bukan perluasan entitas ini melainkan entitas penugasan regu tersendiri",
+        "Penghapusan adalah SOFT DELETE; baris tertutup tidak dihitung di mana pun yang hidup, termasuk saat menentukan tumpang tindih shift baru — sehingga jam yang baru dikosongkan bebas dipakai ulang penggantinya",
+        "Mengubah jam shift yang sudah dirujuk record MENGGANTIKANNYA: baris lama ditutup dengan jam aslinya, baris baru dibuat. Selama belum ada record yang merujuk, pengubahan cukup memutasi baris. Mekanisme penggantian ini BELUM AKTIF sampai `shift_id` lahir di tabel record, dan itu disengaja — pemicunya belum dapat bernilai benar"
       ],
       "test_fixture": {
         "id": "shf-001",

@@ -138,10 +138,19 @@ class ShiftController extends Controller
     }
 
     /**
-     * destroy() — DELETE /api/shifts/{id}. 404 bila tidak ada, else DELETE.
-     * Tidak ada penjagaan 'sudah dipakai record' pada putaran ini karena
-     * belum ada tabel record yang merujuk shift — lihat open_question #1
-     * business spec screen-170 dan ShiftService::delete().
+     * destroy() — DELETE /api/shifts/{id}. 404 bila tidak ada, lalu SOFT
+     * DELETE: barisnya DITUTUP, bukan dibuang (keputusan pemilik produk
+     * 2026-10-16). Responsnya tetap { data: { deleted: true } } — dari sudut
+     * pandang pemanggil shift itu memang hilang dari setiap jalur yang
+     * hidup; yang berubah adalah apa yang terjadi pada barisnya, dan itu
+     * urusan ShiftService::delete() yang menjelaskan alasannya.
+     *
+     * 404 untuk shift yang SUDAH tertutup datang dari global scope
+     * SoftDeletes, bukan dari pemeriksaan tambahan di sini.
+     *
+     * Tidak ada penjagaan 'sudah dipakai record' pada putaran ini — dan soft
+     * delete-lah yang membuatnya tidak dibutuhkan: menutup baris tidak
+     * pernah merusak rujukan record, jadi tidak ada yang perlu ditolak.
      */
     public function destroy(string $id): JsonResponse
     {

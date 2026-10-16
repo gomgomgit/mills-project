@@ -26,6 +26,12 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  *
  * TIDAK ADA STATE HARI/TANGGAL BERLAKU, dan itu disengaja — jadwal shift
  * berlaku sama setiap hari (keputusan pemilik produk 2026-10-15).
+ *
+ * BARIS TERTUTUP DITANAM LEWAT ->closed(). Sejak penghapusan menjadi soft
+ * delete (2026-10-16), satu-satunya cara membuktikan bahwa keempat jalur
+ * yang hidup mengecualikan baris tertutup adalah dengan menanam baris
+ * tertutup LANGSUNG — menanam baris hidup lalu memanggil delete() menguji
+ * delete(), bukan pengecualiannya.
  */
 class ShiftFactory extends Factory
 {
@@ -68,6 +74,26 @@ class ShiftFactory extends Factory
             'start_time' => $startTime,
             'end_time' => $endTime,
         ]);
+    }
+
+    /**
+     * Baris TERTUTUP (soft delete) — `deleted_at` terisi sejak awal.
+     *
+     * Ia harus tidak terlihat di SELURUH jalur yang hidup: daftar, cakupan,
+     * pemilih pada form, dan himpunan pembanding tumpang tindih. Pemakaian
+     * khasnya: ->closed()->named('Pagi') untuk membuktikan nama itu bebas
+     * dipakai ulang, dan ->closed()->pagi() untuk membuktikan jam 07:00–15:00
+     * bebas dipakai ulang.
+     *
+     * `deleted_at` BUKAN kolom $fillable pada model Shift, dan state ini
+     * tetap bekerja: factory Laravel membuat instance-nya di dalam
+     * Model::unguarded(), jadi mass assignment guard tidak berlaku di sini.
+     * Di luar factory — mis. $shift->update(['deleted_at' => ...]) — nilainya
+     * akan DIBUANG DIAM-DIAM; gunakan ->delete() atau state ini.
+     */
+    public function closed(): self
+    {
+        return $this->state(fn () => ['deleted_at' => now()]);
     }
 
     /** Pagi 07:00–15:00 — blok pertama hari produksi. */

@@ -47,3 +47,28 @@ Butirnya dipertahankan di `open_questions` dengan penanda TERJAWAB agar alasanny
 - Penugasan regu per hari, bila kelak dibutuhkan, adalah **entitas tersendiri** dan bukan perluasan tabel shift
 
 Tiga pertanyaan terbuka tersisa: akibat pada record bila jam shift diubah/dihapus (mendesak sebelum penandaan record mendarat), sejak kapan jadwal baru berlaku, dan perlu tidaknya penanda shift aktif saat ini.
+
+## v2 — 2026-10-16 (bump, bukan rewrite ber-ver sama: node 4-implement sudah ada di hilir)
+
+Dua keputusan pemilik produk mendarat bersamaan karena keduanya menyentuh `validate()` dan migrasi yang sama.
+
+**1. Jam berimpit = shift 24 jam, diterima HANYA bila line belum punya shift hidup lain.** Ini menutup kontradiksi v1 yang saya tulis sendiri: aturan melarang `start_time == end_time` tanpa syarat sambil menjanjikan "satu shift menutup 24 jam penuh — sah", padahal `07:00 → 07:00` adalah satu-satunya cara menulis 1440 menit. Syarat "line belum punya shift lain" membuat pembedaannya tidak ambigu secara struktur: shift 24 jam menurut definisinya tidak dapat berdampingan dengan shift mana pun, jadi pada line yang sudah terisi jam berimpit hanya bisa berarti salah ketik. Pratinjau hidup menggambar batang penuh sebelum Simpan, sehingga salah ketik pun terlihat lebih dulu.
+
+**2. Penghapusan jadi SOFT DELETE, dan pengubahan jam MENGGANTIKAN.** User mengusulkan soft delete; saya tunjukkan ia hanya menjawab separuh — memutasi baris yang sama membuat setiap record lama mendadak mengklaim milik shift berjam lain, **tanpa satu pun aksi yang terlihat destruktif**. User memilih paruh lengkapnya.
+
+### Sequencing yang saya putuskan sendiri, dan alasannya
+
+**Paruh 1 (soft delete + partial unique index) sekarang; paruh 2 (penggantian-saat-ubah) ikut putaran penandaan record.** Pemicu paruh 2 adalah "ada record yang merujuk shift ini", dan hari ini **tidak ada satu kolom pun di sistem yang merujuk shift** — `shift_id` baru lahir di putaran penandaan 18 tabel record. Membangunnya sekarang berarti menulis cabang yang tidak pernah dilewati jalur produksi mana pun dan hanya dapat dibuktikan benar terhadap stub.
+
+Skema dikerjakan sekarang justru karena **skema paling murah diubah sebelum ada data** — tabelnya masih nol baris. Aturannya ditulis tegas di `business_rules` dan `business_logic` langkah 29–30 supaya tidak perlu ditemukan ulang.
+
+### Konsekuensi yang mengikat, dan satu yang paling mudah terlewat
+
+- **Partial unique index `WHERE deleted_at IS NULL`** ← tanpa ini, 'Pagi' yang ditutup memblokir 'Pagi' penggantinya selamanya, dan penggantian justru yang paling sering terjadi. Index lama wajib di-drop lebih dulu; membiarkannya berdampingan akan tetap memblokir, dan gejalanya terbaca seperti bug aplikasi padahal berasal dari index.
+- **Himpunan pembanding tumpang tindih juga wajib mengecualikan baris tertutup** ← ini yang paling mudah terlewat di antara empat jalur. Akibatnya khas: jam yang baru saja dikosongkan tidak pernah bisa dipakai ulang penggantinya — padahal memakai ulang jam adalah justru alasan soft delete dipilih.
+- **SQLite vs PostgreSQL** ← partial unique index tidak bersintaks sama. Suite berjalan di SQLite, produksi PostgreSQL. Keunikan wajib ditegakkan juga di lapisan aplikasi (mengecualikan baris tertutup) agar dua dialek sepakat. Lihat [[project-sqlite-vs-postgres-trap]].
+- **Ini BUKAN dimensi hari maupun masa berlaku** yang ditolak 2026-10-15. Yang diversikan adalah umur DEFINISI shift, bukan jadwal yang berbeda menurut hari. Jadwalnya tetap sama setiap hari.
+
+### Dampak pada test yang sudah ada
+
+Unit case "shift tunggal menutup 24 jam" tidak lagi perlu ditanam lewat factory — jalur `create()` kini menghasilkannya. Unit case "start_time sama dengan end_time ditolak" kini bercabang menurut apakah line sudah punya shift hidup. `ShiftFactory` tetap berguna untuk menanam baris tertutup.

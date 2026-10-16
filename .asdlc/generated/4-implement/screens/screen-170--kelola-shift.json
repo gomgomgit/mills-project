@@ -1,5 +1,5 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-16"
@@ -11,23 +11,23 @@
   "test_results": {
     "unit": {
       "run_at": "2026-10-16T00:00:00Z",
-      "passed": 55,
+      "passed": 68,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
       "run_at": "2026-10-16T00:00:00Z",
-      "passed": 31,
+      "passed": 38,
       "failed": 0
     },
     "component": {
       "run_at": "2026-10-16T00:00:00Z",
-      "passed": 39,
+      "passed": 45,
       "failed": 0
     },
     "browser": {
       "run_at": "2026-10-16T00:00:00Z",
-      "passed": 28,
+      "passed": 30,
       "failed": 0
     }
   },
@@ -41,7 +41,8 @@
     "backend/database/factories/ShiftFactory.php",
     "backend/routes/api.php",
     "backend/routes/web.php",
-    "backend/resources/views/components/layouts/app.blade.php"
+    "backend/resources/views/components/layouts/app.blade.php",
+    "backend/database/migrations/2026_10_16_000001_add_soft_deletes_to_shifts_table.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/ShiftServiceTest.php",
@@ -74,13 +75,22 @@
     "Entri sidebar ditambahkan ke components/layouts/app.blade.php, berpenjaga RouteAccess::allows('master-data.shifts'). Tanpa entri itu layar hanya dapat dicapai dengan mengetik URL, sementara spec bisnis menyebut pintu masuknya lewat menu. Berkas ini permukaan bersama — blast radius-nya tests/Feature/WebAccessTest.php, dan keempat belas test-nya diperiksa lolos termasuk ketiga yang mengasersi isi sidebar per peran.",
     "Keamanan basis data: DB dev mill_smart_log TIDAK PERNAH dikontak — diverifikasi sendiri sesudahnya bahwa jumlah migrasinya tetap 90 dan tabel shifts TIDAK ADA di sana. backend/phpunit.xml memaku sqlite :memory: sehingga ketiga suite PHP secara struktural tidak dapat menjangkaunya. Endpoint identitas e2e diverifikasi dua kali mengembalikan {env: e2e, database: mill_smart_log_e2e}.",
     "PERUBAHAN LINGKUNGAN: `php artisan migrate --env=e2e --force` dijalankan terhadap mill_smart_log_e2e SAJA (diperiksa lebih dulu dengan --pretend: DDL PostgreSQL bersih, unique index pada (production_line_id, name), tanpa constraint tumpang tindih di level DB). Tidak destruktif, data fixture utuh.",
-    "Server `php artisan serve --env=e2e --port=8001` yang ditinggalkan agen SUDAH DIHENTIKAN; port 8001 bersih."
+    "Server `php artisan serve --env=e2e --port=8001` yang ditinggalkan agen SUDAH DIHENTIKAN; port 8001 bersih.",
+    "REVISI v2 (2026-10-16) — dua keputusan pemilik produk mendarat bersamaan karena keduanya menyentuh validate() dan migrasi yang sama: jam berimpit kini berarti shift 24 jam (diterima bila line belum punya shift hidup lain), dan penghapusan menjadi soft delete. Suite backend 5741 → 5767, direkonsiliasi eksplisit: nol test lama dihapus, 5 direvisi di tempat, 26 ditambahkan (13 unit + 7 API + 6 Livewire). Diverifikasi sendiri: 5767 lolos / 0 gagal / 34.679 asersi / exit 0.",
+    "JALUR YANG BERBAHAYA BUKAN YANG DIANTISIPASI. Brief memperingatkan empat jalur yang wajib mengecualikan baris tertutup; ketiganya — listShifts(), shiftBlocksByLine(), dan findOverlap() — ternyata SUDAH tertangani global scope SoftDeletes, dibuktikan dengan membuang SQL asli lewat toSql() dan bukan dengan menalar. coverageEntry() tertutup secara transitif karena ia tidak pernah mengkueri, hanya menerima koleksi yang sudah tersaring. Yang TIDAK tertangani: Rule::unique('shifts','name') membangun query lewat Query Builder, bukan Eloquent, sehingga global scope tidak pernah berlaku padanya — ia butuh whereNull('deleted_at') eksplisit. Tanpa itu lapisan aplikasi akan LEBIH KETAT daripada partial index-nya: 'Pagi' yang ditutup tetap memblokir penggantinya, dan gejalanya terbaca seperti bug index padahal berasal dari validator.",
+    "TIDAK PERLU CABANG PER-DRIVER. Brief mengantisipasi partial unique index butuh sintaks berbeda di SQLite dan PostgreSQL. Ternyata `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL` sah VERBATIM di keduanya — diverifikasi, bukan diandaikan, lewat probe PostgreSQL sekali pakai yang dibuat lalu dihapus. Urutan up(): softDeletes() → dropUnique(index lama) → CREATE UNIQUE INDEX partial. Index lama dibuang LEBIH DULU; membiarkan keduanya berdampingan tetap memblokir nama yang dipakai ulang.",
+    "Asersi partial index sadar-dialek, bukan khusus SQLite: Schema::getIndexes() memulangkan kolom tetapi TIDAK PERNAH predikat WHERE-nya, sehingga index penuh dan index partial tampak identik lewatnya. Test membaca katalog dialeknya sendiri (sqlite_master.sql / pg_indexes.indexdef) dan mengasersi keduanya unique DAN ber-where deleted_at is null; driver tak dikenal GAGAL DENGAN KERAS sambil memberi tahu orang berikutnya untuk menambah cabang alih-alih melemahkan asersinya. Satu test pendamping membuktikan index-nya benar-benar MENEGAKKAN lewat insert factory yang melewati validate().",
+    "durationMinutes() SUDAH memulangkan 1440 untuk jam berimpit sejak v1 ((end−start+1440) % 1440 dengan 0 → DAY_MINUTES), dan pratinjau Alpine di klien sudah punya aturan `diff === 0 ? 1440` yang sama. Jadi perilaku 'batang penuh sebelum Simpan' yang menjadi dasar keputusan produk ini sudah bekerja tanpa perubahan matematika waktu apa pun.",
+    "Komponen Livewire dan controller API TIDAK butuh perubahan perilaku sama sekali — delete() yang memegang maknanya, dan global scope membuang baris tertutup dari setiap pembacaan. Keduanya hanya disunting docblock-nya.",
+    "deleted_at sengaja TIDAK dimasukkan ke $fillable, sehingga update(['deleted_at' => ...]) yang nyasar menjadi no-op alih-alih penutupan tak terlihat.",
+    "Penggantian-saat-ubah TIDAK dibangun, sesuai rancangan. Mengubah jam masih memutasi baris. business_logic 29 menyatakan aturannya dan business_logic 30 menyatakan ia belum aktif — keduanya bersama-sama konsisten dengan unit case yang menegaskan pengubahan memutasi baris, dan kesengajaan itu dicatat di docblock tiap berkas test supaya tidak terbaca sebagai kelalaian.",
+    "Keamanan DB dev: nol penulisan, seeding, maupun migrasi oleh agen. Satu-satunya migrate terhadap basis data nyata berlingkup ganda (--env=e2e --path=...). Migrasi soft delete lalu SAYA terapkan ke dev secara berlingkup atas instruksi user, diverifikasi sebelum dan sesudah: 91 → 92 migrasi (bukan 93), deleted_at ada, app_name MASIH ADA sehingga migrasi destruktifnya tetap tertunda, dan pg_indexes mengonfirmasi tepat satu index dengan predikat WHERE (deleted_at IS NULL)."
   ],
   "deferred_items": [],
   "known_issues": [
     {
-      "description": "SHIFT 24 JAM TIDAK DAPAT DIBUAT LEWAT API MAUPUN FORM — dan sebabnya BUG SPEC YANG SAYA TULIS SENDIRI, menunggu keputusan produk. Aturan bisnis melarang start_time == end_time sambil menambahkan kalimat yang tidak koheren bahwa 'shift 24 jam harus ditulis sebagai satu shift yang menutup seluruh hari, bukan sebagai jam yang berimpit' — padahal 07:00 → 07:00 ADALAH jam berimpit dan tidak ada cara lain menuliskan 1440 menit. Edge case dan satu unit case mengandaikannya bisa; satu unit case lain melarangnya. Implementasi memilih resolusi koheren: validate() menolak jam berimpit, durationMinutes() membaca modulo 0 sebagai 1440 sehingga baris yang terlanjur ada tetap tergambar penuh. Akibatnya shift 24 jam hanya dapat ditanam lewat factory, dan itulah cara ketiga suite backend mengasersinya. Dua jalan: (A) terima jam berimpit HANYA ketika line belum punya shift lain — tidak ambigu secara struktur, dan pratinjau hidup menggambar batang penuh sebelum Simpan sehingga salah ketik terlihat lebih dulu; atau (B) tetap tolak, dan edge case serta unit case yang menjanjikan 24 jam DICABUT dari artefak. Rekomendasi: A.",
-      "severity": "major"
+      "description": "TERJAWAB 2026-10-16 — shift 24 jam KINI DAPAT DIBUAT lewat API maupun form. Bug spec v1 yang saya tulis sendiri (melarang jam berimpit tanpa syarat sambil menjanjikan shift 24 jam itu sah) sudah ditutup oleh keputusan pemilik produk: jam berimpit BERARTI shift 24 jam dan diterima bila line belum punya shift HIDUP lain; pada line yang sudah terisi ia ditolak sebagai durasi nol, karena shift 24 jam tidak dapat berdampingan dengan shift mana pun. Unit case 'shift tunggal menutup 24 jam' tidak lagi perlu ditanam lewat factory. Dicatat di sini agar riwayatnya tidak hilang.",
+      "severity": "minor"
     },
     {
       "description": "Shift yang melintasi batas hari produksi 07:00 (mis. 05:00–09:00) TERPOTONG di layar. Diterbitkan sebagai SATU blok dengan start_offset_minutes 1320 dan durasi 240, sehingga 120 menit terakhirnya jatuh melewati tepi kanan track (overflow hidden). Memecahnya akan melanggar aturan 'satu blok utuh', jadi pemotongan adalah konsekuensi yang diterima. Hanya terjangkau pada line yang jadwalnya memang tidak selaras hari produksi — persis keadaan yang diperingatkan starts_at_production_day false.",
@@ -112,6 +122,22 @@
     },
     {
       "description": "Coverage tidak terukur — tidak ada xdebug maupun pcov. Angka 0 pada test_results berarti 'tidak terukur', bukan 'nol tercakup'; bukan alasan menurunkan status ke partial.",
+      "severity": "minor"
+    },
+    {
+      "description": "tests/Postgres/ belum punya satu pun kasus shift. Slice PG membuktikan DDL migrasinya BERJALAN di PostgreSQL, tetapi bukti PERILAKU partial index di PG hanya datang dari suite browser yang berjalan terhadap mill_smart_log_e2e — 1,2 menit. Satu kasus di tests/Postgres/ akan memberi penjaga 1,7 detik untuk hal yang sama. Ditandai, belum dikerjakan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Basis data e2e akan menumpuk baris shifts tertutup tanpa batas lintas putaran, karena clearShifts() kini melakukan soft delete. Tidak berbahaya (partial index dan pengecualian tumpang tindih membuatnya tak terlihat), tetapi pertumbuhannya tidak berbatas di basis data test.",
+      "severity": "minor"
+    },
+    {
+      "description": "down() pada migrasi soft delete GAGAL DENGAN KERAS bila nama sebuah baris tertutup sudah dipakai ulang — mengembalikan unique index penuh akan menabrak duplikat. Disengaja dan didokumentasikan di migrasinya: PostgreSQL menggulung balik seluruh upaya lewat DDL transaksional alih-alih meninggalkan index separuh terbongkar. Bukan kehilangan data diam-diam.",
+      "severity": "minor"
+    },
+    {
+      "description": "e2e-web tidak punya kompiler TypeScript (tanpa tsconfig.json, paket typescript tidak terpasang), sehingga `tsc --noEmit` tidak tersedia. Spec browser divalidasi lewat `playwright test --list` (30 test terenumerasi) plus putaran hijau penuh — itu menangkap galat parse dan runtime, tetapi bukan galat tipe.",
       "severity": "minor"
     }
   ]

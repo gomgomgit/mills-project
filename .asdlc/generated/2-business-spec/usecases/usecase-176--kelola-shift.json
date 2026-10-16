@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-15"
+    "updated_at": "2026-10-16"
   },
   "id": "usecase-176--kelola-shift",
   "name": "Kelola Shift per Production Line",
@@ -188,7 +188,9 @@
       "name": "Jam mulai dan selesai sama",
       "trigger": "Pada langkah 9, kedua jam diisi dengan nilai yang sama",
       "steps": [
-        "Simpan ditolak — shift berdurasi nol tidak dapat menampung record apa pun"
+        "Bila line itu BELUM punya shift lain — diterima sebagai shift yang menutup 24 jam penuh",
+        "Bila line itu SUDAH punya shift lain — ditolak sebagai durasi nol, karena shift 24 jam tidak dapat berdampingan dengan shift mana pun",
+        "Pratinjau hidup menggambar batang penuh sebelum Simpan, sehingga salah ketik terlihat lebih dulu"
       ]
     },
     {
@@ -212,7 +214,8 @@
       "trigger": "Pada langkah 11, Admin menghapus satu shift dari line yang tadinya tercakup penuh",
       "steps": [
         "Penghapusan diizinkan setelah konfirmasi inline yang menyebut nama shift dan line-nya",
-        "Celah yang dihasilkannya ditampilkan pada timeline setelah penghapusan"
+        "Penghapusannya SOFT DELETE — baris ditutup, bukan dibuang",
+        "Shift itu hilang dari tabel, timeline, dan perhitungan cakupan, dan celah yang dihasilkannya ditampilkan"
       ]
     },
     {
@@ -253,6 +256,39 @@
         "Timeline tetap terbaca",
         "Label jam DIJARANGKAN, bukan diperkecil di bawah 14px"
       ]
+    },
+    {
+      "name": "Membuat shift bernama sama dengan yang sudah ditutup",
+      "trigger": "Pada langkah 9, nama yang dipakai sama dengan shift yang sudah di-soft-delete pada line itu",
+      "steps": [
+        "Diterima — keunikan nama mengecualikan baris yang sudah ditutup",
+        "Tanpa pengecualian itu penggantian akan terhalang namanya sendiri"
+      ]
+    },
+    {
+      "name": "Line hanya punya shift yang sudah ditutup",
+      "trigger": "Pada langkah 5, seluruh shift sebuah line sudah di-soft-delete",
+      "steps": [
+        "Line itu dinyatakan 'belum diatur'",
+        "Sama seperti line yang memang belum pernah diberi shift — shift tertutup tidak dihitung di mana pun yang hidup"
+      ]
+    },
+    {
+      "name": "Shift tertutup tidak ikut diperiksa tumpang tindih",
+      "trigger": "Pada langkah 9, jam shift baru bertindih dengan shift yang sudah ditutup",
+      "steps": [
+        "Diterima — shift tertutup tidak ikut himpunan pembanding",
+        "Jamnya bebas dipakai ulang oleh shift penggantinya"
+      ]
+    },
+    {
+      "name": "Mengubah jam shift yang belum dirujuk record",
+      "trigger": "Pada langkah 11, Admin mengubah jam sementara belum ada record yang menandai dirinya dengan shift itu",
+      "steps": [
+        "Barisnya dimutasi langsung tanpa penggantian",
+        "Salah ketik di hari pertama karena itu tetap dapat diperbaiki tanpa meninggalkan jejak",
+        "Ini perilaku yang berlaku di putaran ini, karena belum ada kolom yang merujuk shift"
+      ]
     }
   ],
   "business_rules": [
@@ -260,7 +296,7 @@
     "Shift melekat pada Production Line, bukan pada mill",
     "Mill wajib dipilih lebih dulu, dan mengganti mill mengosongkan filter line",
     "Nama shift wajib diisi dan unik dalam satu Production Line; dua line berbeda boleh punya nama shift yang sama",
-    "Jam mulai dan jam selesai wajib diisi dan tidak boleh sama",
+    "Jam mulai dan jam selesai wajib diisi; jam yang SAMA berarti shift menutup 24 jam dan hanya diterima bila line itu belum punya shift lain, selebihnya ditolak sebagai durasi nol",
     "Jam selesai boleh lebih awal daripada jam mulai — shift melewati tengah malam, ditampilkan '+1'",
     "Tumpang tindih pada satu line ditolak dengan batas inklusif; shift yang berakhir tepat pada jam mulai shift lain tidak dianggap bertindih",
     "Tumpang tindih hanya diperiksa di dalam satu Production Line",
@@ -275,7 +311,12 @@
     "Line tanpa shift dinyatakan 'belum diatur', bukan 'celah 24 jam'",
     "Layar ini tidak mengatur jarak waktu sinkronisasi, dan menyebutkan di mana ia diatur",
     "Field waktu menerima pengetikan manual maupun picker, keduanya",
-    "Seluruh teks minimal 14px, termasuk label jam pada sumbu timeline"
+    "Seluruh teks minimal 14px, termasuk label jam pada sumbu timeline",
+    "Penghapusan shift adalah soft delete — barisnya ditutup, bukan dibuang, sehingga record yang kelak merujuknya tetap dapat menyelesaikan rujukannya",
+    "Shift tertutup tidak muncul di tabel, timeline, perhitungan cakupan, maupun pemeriksaan tumpang tindih",
+    "Keunikan nama per line mengecualikan shift yang sudah ditutup",
+    "Mengubah jam shift yang sudah dirujuk record menggantikannya: baris lama ditutup dengan jam aslinya, baris baru dibuat. Selama belum ada record yang merujuk, pengubahan cukup memutasi baris. Mengubah nama saja tidak pernah menggantikan apa pun",
+    "Penggantian-saat-ubah belum aktif di putaran ini karena belum ada kolom yang merujuk shift; mekanismenya mendarat bersama penandaan record"
   ],
   "bdd_scenarios": [
     {
@@ -369,10 +410,10 @@
       "then": "Diterima — keduanya shift yang berbeda, dan nama yang sama di dua line adalah hal yang normal di lapangan"
     },
     {
-      "scenario": "Kelola Shift per Production Line — jam mulai dan selesai sama ditolak",
-      "given": "Form Tambah Shift terbuka untuk Line 1",
-      "when": "Admin mengisi jam mulai dan jam selesai dengan nilai yang sama persis lalu menyimpan",
-      "then": "Simpan ditolak — shift berdurasi nol tidak dapat menampung record apa pun"
+      "scenario": "Kelola Shift per Production Line — jam mulai dan selesai sama ditolak bila line sudah punya shift lain",
+      "given": "Line 1 sudah punya shift Pagi 07:00–15:00",
+      "when": "Admin menyimpan shift baru pada Line 1 dengan jam mulai dan jam selesai yang sama persis",
+      "then": "Simpan ditolak sebagai durasi nol — shift 24 jam tidak dapat berdampingan dengan shift mana pun, jadi pada line yang sudah terisi jam berimpit hanya bisa berarti salah ketik"
     },
     {
       "scenario": "Kelola Shift per Production Line — mengubah shift sehingga bertindih",
@@ -390,7 +431,7 @@
       "scenario": "Kelola Shift per Production Line — menghapus shift membesarkan celah",
       "given": "Line 1 tercakup penuh 24 jam oleh tiga shift",
       "when": "Admin menghapus shift Siang dan menyetujui konfirmasi inline yang menyebut nama shift dan line-nya",
-      "then": "Shift terhapus, status cakupan Line 1 berubah menjadi ada celah delapan jam, dan celahnya terlihat sebagai ruang kosong bertekstur pada timeline"
+      "then": "Shift ditutup dengan SOFT DELETE — barisnya tetap ada tetapi hilang dari tabel, timeline, dan perhitungan cakupan; status Line 1 berubah menjadi ada celah delapan jam dan celahnya terlihat sebagai ruang bertekstur"
     },
     {
       "scenario": "Kelola Shift per Production Line — menghapus seluruh shift sebuah line",
@@ -400,9 +441,9 @@
     },
     {
       "scenario": "Kelola Shift per Production Line — shift tunggal menutup 24 jam",
-      "given": "Line 3 belum punya shift",
-      "when": "Admin menyimpan satu shift yang menutup seluruh hari produksi, 07:00 sampai 07:00 keesokan hari",
-      "then": "Sah — timeline menampilkan satu blok penuh tanpa celah dan status cakupannya berbunyi tercakup 24 jam"
+      "given": "Line 3 belum punya satu pun shift",
+      "when": "Admin menyimpan shift dengan jam mulai dan jam selesai yang sama persis, 07:00 — 07:00",
+      "then": "Diterima sebagai shift yang menutup seluruh hari produksi karena line itu belum punya shift lain; timeline menampilkan satu blok penuh berdurasi 1440 menit tanpa celah, badge berbunyi tercakup 24 jam, dan pratinjau di form sudah menggambar batang penuh itu sebelum Simpan ditekan"
     },
     {
       "scenario": "Kelola Shift per Production Line — mengganti mill mengosongkan filter line",
@@ -445,6 +486,36 @@
       "given": "Pengguna berperan Supervisor, Mill Management, lalu Operator",
       "when": "Masing-masing mencoba membuka Kelola Shift",
       "then": "Ketiganya ditolak — layar ini Admin saja, sama seperti seluruh master lain di modul Master Data"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — membuat shift bernama sama dengan yang sudah ditutup",
+      "given": "Line 1 punya shift 'Pagi' yang sudah dihapus (ditutup)",
+      "when": "Admin menyimpan shift baru bernama 'Pagi' pada Line 1",
+      "then": "Diterima — keunikan nama per line mengecualikan baris yang sudah ditutup; tanpa pengecualian itu penggantian akan terhalang namanya sendiri, padahal penggantian justru yang paling sering terjadi"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — line hanya punya shift yang sudah ditutup",
+      "given": "Seluruh shift Line 2 sudah dihapus",
+      "when": "Admin membaca batang Line 2",
+      "then": "Line 2 dinyatakan 'belum diatur', sama seperti line yang memang belum pernah diberi shift — shift tertutup tidak dihitung di mana pun yang hidup"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — shift tertutup tidak ikut diperiksa tumpang tindih",
+      "given": "Line 1 punya shift 'Pagi' 07:00–15:00 yang sudah ditutup",
+      "when": "Admin menyimpan shift baru pada Line 1 dengan jam 07:00–15:00",
+      "then": "Diterima — shift tertutup tidak ikut himpunan pembanding, sehingga jamnya bebas dipakai ulang oleh penggantinya"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — mengubah jam shift yang belum dirujuk record",
+      "given": "Sebuah shift ada dan belum ada satu pun record yang menandai dirinya dengan shift itu",
+      "when": "Admin mengubah jam shift tersebut",
+      "then": "Barisnya dimutasi langsung tanpa membuat baris pengganti, sehingga salah ketik di hari pertama dapat diperbaiki tanpa meninggalkan jejak — inilah perilaku yang berlaku selama belum ada kolom yang merujuk shift"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — shift yang ditutup tidak muncul di mana pun yang hidup",
+      "given": "Line 1 punya dua shift hidup dan satu shift yang sudah ditutup",
+      "when": "Admin membaca tabel, timeline, badge cakupan, dan pemilih pada form",
+      "then": "Shift yang ditutup tidak muncul sebagai baris tabel, tidak muncul sebagai blok timeline, tidak ikut menghitung cakupan maupun celah, dan tidak ikut diperiksa saat menentukan tumpang tindih — hanya dua shift hidup yang terhitung"
     }
   ],
   "related_screen_ids": [

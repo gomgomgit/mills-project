@@ -24,6 +24,14 @@
  * below rather than silently dropped. Plus unit_test_cases 36 and 43, whose
  * subject is the ROUTE TABLE itself and therefore belongs here.
  *
+ * SPEC v2 (2026-10-16) added scenarios 29–33 and unit_test_cases 46–53: jam
+ * berimpit now MEANS a 24-hour shift (accepted while the line has no other
+ * live shift), and DELETE is a SOFT DELETE. Both landed together because both
+ * touch validate() and the same migration. Their API-surface half is the final
+ * section of this file, and the two tests whose setup assumed the OLD
+ * unconditional rejection were rebuilt rather than relaxed — their old
+ * fixtures sat on an EMPTY line, which is now precisely the accepted case.
+ *
  * ── PLACEHOLDER IDs IN THE SPEC ARE NOT LITERAL-SAFE ────────────────────
  *
  * The scenarios send `production_line_id: "pl-001"` / `"pl-003"` and
@@ -535,18 +543,24 @@ it('menerima nama shift yang sama pada Production Line yang berbeda', function (
 // ── Scenario 16 + 21 ────────────────────────────────────────────────────
 
 /**
- * Scenarios 16 and 21 are the TWO HALVES OF ONE RESOLVED INCONSISTENCY, and
- * they are tested as such:
+ * Scenario 16 — JAM BERIMPIT DITOLAK HANYA PADA LINE YANG SUDAH TERISI
+ * (revisi spec v2 2026-10-16, business_logic 17).
  *
- *  - WRITE PATH: 07:00–07:00 is rejected as VALIDATION_ERROR (entity
- *    constraint #2, scenario 16 and scenario 21's api_test), never as
- *    SHIFT_OVERLAP — a zero-duration shift cannot hold a record.
- *  - READ PATH: durationMinutes() reads an equal pair as 1440, so a row
- *    inserted directly (factory/model) renders as ONE full `covered` block
- *    (scenario 21's component_test). That half is seeded through the factory,
- *    deliberately NOT through the API.
+ * Versi sebelumnya test ini menolak jam berimpit TANPA SYARAT dan menyiapkan
+ * dirinya pada line yang KOSONG — yang justru cabang yang kini diterima.
+ * Prasyaratnya karena itu diubah, bukan asersinya dilemahkan: Line 1 diberi
+ * Pagi 07:00–15:00 lebih dulu, sehingga jam berimpit di sana hanya bisa
+ * berarti salah ketik. Cabang diterimanya ada di test berikutnya.
+ *
+ * KODENYA VALIDATION_ERROR PADA KEY `end_time`, BUKAN SHIFT_OVERLAP. Keduanya
+ * kesalahan berbeda dengan pesan berbeda: satu per-field dan satu per-form,
+ * dan Admin memperlakukan keduanya berbeda pula.
  */
-it('menolak 422 VALIDATION_ERROR ketika jam mulai sama dengan jam selesai, bukan SHIFT_OVERLAP', function () {
+it('menolak 422 VALIDATION_ERROR jam berimpit pada line yang sudah punya shift, bukan SHIFT_OVERLAP', function () {
+    $this->actingAs($this->admin, 'web')
+        ->postJson('/api/shifts', shiftApiPayload($this->lineA1))
+        ->assertOk();
+
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/shifts', shiftApiPayload($this->lineA1, [
         'name' => 'Nol',
         'start_time' => '07:00',
@@ -563,21 +577,33 @@ it('menolak 422 VALIDATION_ERROR ketika jam mulai sama dengan jam selesai, bukan
         'pesan tidak menyebut durasi nol'
     );
 
-    // Scenario 21's api_test sends the same thing on 'pl-003' (Line 3): same
-    // answer, and it must not depend on which line it is.
-    $this->actingAs($this->admin, 'web')->postJson('/api/shifts', shiftApiPayload($this->lineA3, [
+    // Pemeriksaannya SESUDAH normalisasi: '07:00' dan '07:00:00' adalah jam
+    // yang sama, dan perbandingan string tidak mengetahuinya.
+    $this->actingAs($this->admin, 'web')->postJson('/api/shifts', shiftApiPayload($this->lineA1, [
+        'name' => 'Nol 2',
+        'start_time' => '07:00',
+        'end_time' => '07:00:00',
+    ]))->assertStatus(422)->assertJsonPath('code', 'VALIDATION_ERROR');
+
+    expect(Shift::count())->toBe(1);
+});
+
+/**
+ * Scenario 21 — SHIFT TUNGGAL MENUTUP 24 JAM, LEWAT API.
+ *
+ * Baris ini DULU ditanam lewat factory justru karena jalur tulis menolaknya;
+ * sejak v2 jalur tulis MENGHASILKANNYA, jadi ia dibuat lewat POST di sini.
+ * Menanamnya lewat factory akan melewati satu-satunya hal yang berubah.
+ */
+it('menerima POST 07:00–07:00 pada line kosong dan membacanya sebagai satu blok 1440 menit', function () {
+    $created = $this->actingAs($this->admin, 'web')->postJson('/api/shifts', shiftApiPayload($this->lineA3, [
         'name' => 'Penuh',
         'start_time' => '07:00',
         'end_time' => '07:00',
-    ]))->assertStatus(422)->assertJsonPath('code', 'VALIDATION_ERROR');
+    ]));
 
-    expect(Shift::count())->toBe(0);
-});
-
-it('membaca baris 07:00–07:00 yang sudah ada sebagai satu blok 1440 menit tercakup penuh', function () {
-    // DIBUAT LEWAT FACTORY, bukan lewat API: jalur tulis menolaknya (test di
-    // atas), dan yang diuji di sini adalah PEMBACAANNYA.
-    Shift::factory()->forProductionLine($this->lineA3)->named('Penuh')->range('07:00:00', '07:00:00')->create();
+    $created->assertOk();
+    $created->assertJsonPath('data.duration_minutes', 1440);
 
     $body = $this->actingAs($this->admin, 'web')
         ->getJson("/api/shifts?business_unit_id={$this->millA->id}&production_line_id={$this->lineA3->id}")
@@ -592,6 +618,15 @@ it('membaca baris 07:00–07:00 yang sudah ada sebagai satu blok 1440 menit terc
     expect($entry['blocks'][0]['kind'])->toBe('shift');
     expect($entry['blocks'][0]['duration_minutes'])->toBe(1440);
     expect(collect($entry['blocks'])->where('kind', 'gap'))->toHaveCount(0);
+
+    // Dan sesudahnya TIDAK ADA shift kedua yang dapat ditambahkan pada line
+    // itu — kali ini penolakannya MEMANG SHIFT_OVERLAP, karena jamnya sungguh
+    // bertindih.
+    $this->actingAs($this->admin, 'web')->postJson('/api/shifts', shiftApiPayload($this->lineA3, [
+        'name' => 'Siang',
+        'start_time' => '15:00',
+        'end_time' => '23:00',
+    ]))->assertStatus(422)->assertJsonPath('code', 'SHIFT_OVERLAP');
 });
 
 // ── Scenario 17 ─────────────────────────────────────────────────────────
@@ -1023,4 +1058,164 @@ it('menerbitkan cakupan yang identik dengan hasil ShiftService, tanpa hitungan k
     expect($fromApi['coverage'])->toBe($fromService['coverage']);
     expect($fromApi['data'])->toBe($fromService['data']);
     expect($fromApi['meta']['total'])->toBe($fromService['meta']['total']);
+});
+
+// ── Soft delete — scenarios 29–33, unit_test_cases 46–52 ────────────────
+//
+// SETIAP TEST DI BAGIAN INI MENUTUP BARIS LEWAT DELETE /api/shifts/{id},
+// bukan lewat factory ->closed(). Yang diuji di sini adalah PERMUKAAN API:
+// apa yang dijawab rutenya, dan apa yang muncul pada GET sesudahnya. Varian
+// yang menanam baris tertutup langsung — untuk membuktikan pengecualian tanpa
+// ikut menguji delete() — ada di tests/Unit/Services/ShiftServiceTest.php.
+
+// unit_test_cases 46
+it('DELETE adalah soft delete: barisnya masih ada dengan deleted_at terisi', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $this->actingAs($this->admin, 'web')
+        ->deleteJson("/api/shifts/{$pagi->id}")
+        ->assertStatus(200)
+        ->assertJsonPath('data.deleted', true);
+
+    // Jalur yang HIDUP tidak lagi melihatnya...
+    expect(Shift::find($pagi->id))->toBeNull();
+
+    // ...tetapi barisnya MASIH ADA, dan itulah yang membuat record yang kelak
+    // merujuk shift ini tetap dapat menyelesaikan rujukannya.
+    $closed = Shift::withTrashed()->find($pagi->id);
+
+    expect($closed)->not->toBeNull();
+    expect($closed->deleted_at)->not->toBeNull();
+    expect($closed->start_time)->toBe('07:00:00');
+});
+
+// Scenario 33 / unit_test_cases 47
+it('tidak memuat shift yang sudah dihapus pada daftar maupun pada perhitungan cakupan', function () {
+    Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+    $siang = Shift::factory()->forProductionLine($this->lineA1)->siang()->create();
+    Shift::factory()->forProductionLine($this->lineA1)->malam()->create();
+
+    $this->actingAs($this->admin, 'web')->deleteJson("/api/shifts/{$siang->id}")->assertStatus(200);
+
+    $body = $this->actingAs($this->admin, 'web')
+        ->getJson("/api/shifts?business_unit_id={$this->millA->id}&production_line_id={$this->lineA1->id}")
+        ->assertOk()
+        ->json();
+
+    expect($body['data'])->toHaveCount(2);
+    expect(collect($body['data'])->pluck('id'))->not->toContain($siang->id);
+
+    $entry = apiCoverageFor($body, $this->lineA1);
+
+    expect($entry['shift_count'])->toBe(2);
+    expect(collect($entry['blocks'])->pluck('shift_id'))->not->toContain($siang->id);
+    // Celahnya dihitung PADA RENTANG shift yang ditutup itu, seolah tidak ada
+    // shift di sana.
+    expect($entry['state'])->toBe('gap');
+    expect($entry['uncovered_minutes'])->toBe(480);
+});
+
+// Scenario 31 / unit_test_cases 48 — JAM yang dikosongkan bebas dipakai ulang.
+it('menerima shift baru dengan JAM yang sama persis dengan shift yang sudah dihapus', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $this->actingAs($this->admin, 'web')->deleteJson("/api/shifts/{$pagi->id}")->assertStatus(200);
+
+    // Bila baris tertutup ikut himpunan pembanding tumpang tindih, POST ini
+    // akan dijawab 422 SHIFT_OVERLAP terhadap shift yang sudah tidak ada —
+    // dan jam yang baru dikosongkan tidak akan pernah bisa dipakai ulang.
+    $response = $this->actingAs($this->admin, 'web')->postJson('/api/shifts', shiftApiPayload($this->lineA1, [
+        'name' => 'Pagi Baru',
+        'start_time' => '07:00',
+        'end_time' => '15:00',
+    ]));
+
+    $response->assertOk();
+    expect($response->json('code'))->not->toBe('SHIFT_OVERLAP');
+    $response->assertJsonPath('data.start_time', '07:00');
+    $response->assertJsonPath('data.end_time', '15:00');
+});
+
+// Scenario 29 / unit_test_cases 49 — NAMA yang dikosongkan bebas dipakai ulang.
+it('menerima shift baru dengan NAMA yang sama dengan shift yang sudah dihapus pada line itu', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $this->actingAs($this->admin, 'web')->deleteJson("/api/shifts/{$pagi->id}")->assertStatus(200);
+
+    // Jamnya sengaja BERBEDA, supaya yang terbukti benar-benar keunikan nama
+    // dan bukan tumpang tindih. Partial unique index `WHERE deleted_at IS
+    // NULL` dan Rule::unique() di aplikasi harus sepakat di sini — kalau
+    // salah satu lupa mengecualikan baris tertutup, penggantian terhalang
+    // namanya sendiri.
+    $this->actingAs($this->admin, 'web')->postJson('/api/shifts', shiftApiPayload($this->lineA1, [
+        'name' => 'Pagi',
+        'start_time' => '15:00',
+        'end_time' => '23:00',
+    ]))->assertOk()->assertJsonPath('data.name', 'Pagi');
+
+    expect(Shift::where('name', 'Pagi')->count())->toBe(1);
+    expect(Shift::withTrashed()->where('name', 'Pagi')->count())->toBe(2);
+});
+
+// Scenario 30 / unit_test_cases 51
+it('mengembalikan line yang seluruh shift-nya sudah dihapus ke unconfigured, bukan gap 1440', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA2)->pagi()->create();
+    $siang = Shift::factory()->forProductionLine($this->lineA2)->siang()->create();
+
+    foreach ([$pagi, $siang] as $shift) {
+        $this->actingAs($this->admin, 'web')->deleteJson("/api/shifts/{$shift->id}")->assertStatus(200);
+    }
+
+    $body = $this->actingAs($this->admin, 'web')
+        ->getJson("/api/shifts?business_unit_id={$this->millA->id}&production_line_id={$this->lineA2->id}")
+        ->assertOk()
+        ->json();
+
+    $entry = apiCoverageFor($body, $this->lineA2);
+
+    expect($body['data'])->toBe([]);
+    expect($entry['state'])->toBe('unconfigured');
+    expect($entry['shift_count'])->toBe(0);
+    expect($entry['uncovered_minutes'])->toBe(0);
+    expect($entry['blocks'])->toBe([]);
+});
+
+// unit_test_cases 52 — baris tertutup tidak terjangkau jalur yang hidup.
+it('menjawab 404 NOT_FOUND pada DELETE dan PATCH shift yang sudah dihapus', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    $this->actingAs($this->admin, 'web')->deleteJson("/api/shifts/{$pagi->id}")->assertStatus(200);
+
+    $again = $this->actingAs($this->admin, 'web')->deleteJson("/api/shifts/{$pagi->id}");
+    $again->assertStatus(404);
+    $again->assertJsonPath('code', 'NOT_FOUND');
+
+    $patch = $this->actingAs($this->admin, 'web')->patchJson("/api/shifts/{$pagi->id}", ['name' => 'Pagi Diubah']);
+    $patch->assertStatus(404);
+    $patch->assertJsonPath('code', 'NOT_FOUND');
+
+    // Dan ia tidak berubah karenanya.
+    expect(Shift::withTrashed()->findOrFail($pagi->id)->name)->toBe('Pagi');
+});
+
+/**
+ * Scenario 32 / unit_test_cases 53 — PENGGANTIAN-SAAT-UBAH BELUM ADA, dan
+ * itu disengaja (business_logic 30): pemicunya "ada record yang merujuk shift
+ * ini", dan tidak ada satu kolom pun di sistem yang merujuk shift hari ini.
+ * PATCH karena itu MEMUTASI baris, dan test ini mengikat keadaan itu — nol
+ * baris baru, nol baris tertutup baru.
+ */
+it('tidak menambah baris ketika PATCH mengubah jam sebuah shift', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
+
+    // Langkah api_test skenario 32 apa adanya: kedua jamnya dikirim.
+    $this->actingAs($this->admin, 'web')
+        ->patchJson("/api/shifts/{$pagi->id}", ['start_time' => '08:00', 'end_time' => '16:00'])
+        ->assertOk()
+        ->assertJsonPath('data.id', $pagi->id)
+        ->assertJsonPath('data.start_time', '08:00')
+        ->assertJsonPath('data.end_time', '16:00');
+
+    expect(Shift::withTrashed()->where('production_line_id', $this->lineA1->id)->count())->toBe(1);
+    expect(Shift::onlyTrashed()->count())->toBe(0);
 });

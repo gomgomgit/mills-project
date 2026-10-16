@@ -1,0 +1,148 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-16"
+  },
+  "id": "screen-160--laporan-process-water-web",
+  "name": "Laporan Process Water (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Process Water (pengolahan air) di web — laporan kondisi, bukan laporan keluaran. Yang dicatat stasiun ini adalah apakah air yang masuk ke boiler layak dipakai: aliran air baku dan air jernih, pH dan kesadahan keluaran softener, dosis kimia, serta suhu, pH, dan TDS air umpan boiler.\n\nSEMBILAN KOLOM UKUR, dikelompokkan menjadi EMPAT blok berjudul mengikuti rantai pengolahannya: Aliran Air (air baku dan air jernih), Softener (pH masuk dan kesadahan keluar), Dosis Kimia (alum dan polimer), dan Air Umpan Boiler (suhu, pH, TDS). Pengelompokan ini mengikuti urutan air mengalir di lapangan, bukan urutan kolom di basis data — sehingga pembaca yang menelusuri sebuah penyimpangan dapat bergerak mundur ke tahap sebelumnya.\n\nTIDAK ADA SATU PUN KOLOM KATEGORIS DI STASIUN INI, DAN INI PEMBEDA TERPENTING DARI LAPORAN SEBELUMNYA. `action_taken_status` bertipe teks bebas tanpa himpunan nilai tertutup — MESKI NAMANYA MENGANDUNG KATA 'STATUS'. Ia karena itu diterbitkan sebagai REKAP TEKS, bukan sebagai sebaran jumlah slot per nilai. Memperlakukannya seperti kolom status Engine Room atau Effluent Plant akan menghasilkan sebaran atas teks bebas, yang berarti setiap kalimat berbeda menjadi 'nilai' tersendiri dan sebarannya menjadi daftar kalimat berjumlah satu-satu.\n\nBARIS TERISI DIHITUNG ATAS SEBELAS KOLOM, BUKAN TIGA BELAS. Baris detail stasiun ini membawa tiga belas kolom, tetapi `shift` dan `inspector_id` adalah kolom IDENTITAS, bukan kolom pembacaan — dan itu dinyatakan eksplisit di docblock service, bukan ditebak. Keduanya tidak ikut menentukan apakah sebuah slot terisi. Berbeda dari Engine Room, yang menghitung seluruh dua puluh tujuh kolomnya termasuk kedua kolom teksnya.\n\nREKAP PER INSPECTOR. Tiap slot membawa `inspector_id`, kolom yang tidak dimiliki stasiun bergrid lain. Laporan menerbitkan berapa slot yang diisi tiap inspector sepanjang periode — bukan untuk menilai orang, melainkan karena kelengkapan pencatatan adalah pokok layar ini dan slot yang kosong selalu punya pemilik yang dapat ditanyai.\n\nKOLOM `shift` SENGAJA TIDAK DITERBITKAN. Kolom teks bebas itu ada di basis data tetapi KOSONG di seluruh baris, dan ia sudah dijadwalkan diganti relasi ke master Shift (screen-170) pada putaran penandaan record. Menerbitkannya sekarang berarti menerbitkan kolom kosong yang akan berubah arti; laporan per shift datang bersama penandaan itu.\n\nYANG TIDAK ADA: kolom downtime, dan tabel master target. Ketiadaan master target menuntut pernyataan yang sama kerasnya dengan di Engine Room, karena pH dan TDS air umpan boiler punya batas yang dikenal SANGAT luas di luar aplikasi — sehingga godaan menandai penyimpangan besar justru di sini, dan ambang yang diturunkan dari data periode akan dibaca sebagai batas keselamatan boiler padahal hanya turunan statistik.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Process Water",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "usecase_ids": [
+    "usecase-166--laporan-process-water-web"
+  ],
+  "test_priority": "high",
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Process Water",
+    "Pemilih Mill — hanya bagi Admin; peran terikat mill melihat nama mill akunnya sebagai keterangan",
+    "Pemilih Production Line (wajib) — sebelum line dipilih tidak ada satu angka pun yang ditampilkan",
+    "Kelengkapan pencatatan, dirender DI ATAS seluruh angka lain: slot terisi dibanding yang diharapkan, jumlah unit Process Water, hari terhitung, dan 24 slot kanonis per unit per hari",
+    "Keterangan bahwa penyebut hari berhenti di HARI INI bila periode masih berjalan; atau '—' dengan 'belum ada slot yang diharapkan' bila slot diharapkan nol",
+    "Keterangan bahwa satu slot dianggap terisi bila minimal satu dari SEBELAS kolom pembacaan terisi — dan bahwa `shift` serta `inspector_id` TIDAK termasuk, karena keduanya kolom identitas bukan kolom pembacaan",
+    "Blok Aliran Air — dua kartu: aliran air baku (m³/jam) dan aliran air jernih (m³/jam)",
+    "Blok Softener — dua kartu: pH masuk softener dan kesadahan keluaran softener (ppm)",
+    "Blok Dosis Kimia — dua kartu: dosis alum (kg/jam) dan dosis polimer (g/jam)",
+    "Blok Air Umpan Boiler — tiga kartu: suhu tangki (°C), pH air umpan, dan TDS (ppm)",
+    "Pada setiap kartu: terendah, rata-rata, tertinggi, beserta jumlah pembacaan yang mendasarinya — masing-masing dari sembilan kartu punya penyebutnya sendiri",
+    "PERNYATAAN KETIADAAN PENANDAAN DI LUAR BATAS, dirender UTUH tanpa diringkas: stasiun ini tidak punya master target, dan meski pH serta TDS air umpan boiler punya batas yang dikenal luas di luar aplikasi, laporan ini tidak menurunkan ambang apa pun dari data periode",
+    "Tren harian aliran air baku rata-rata per tanggal",
+    "Rekap Catatan Tindakan — daftar isi kolom action_taken_status yang tidak kosong beserta tanggal dan slot waktunya, DITERBITKAN SEBAGAI TEKS bukan sebagai sebaran kategoris",
+    "Keterangan mengapa catatan tindakan diperlakukan sebagai teks meski namanya menyebut 'status': kolomnya teks bebas tanpa himpunan nilai tertutup, sehingga sebaran atas isinya akan menghasilkan satu nilai per kalimat yang berbeda",
+    "Rekap Temuan — bentuk yang sama, pada bagian TERPISAH; satu slot dapat muncul di kedua rekap dan itu bukan penghitungan ganda",
+    "Rekap per Inspector — satu baris per inspector_id: jumlah slot yang diisinya sepanjang periode, beserta baris 'tidak tercatat' untuk slot terisi yang inspector-nya kosong",
+    "Keterangan bahwa rekap per inspector ada untuk menelusuri slot yang belum terisi, bukan untuk menilai orang",
+    "Rekap per unit Process Water — satu baris per process_water_id bila line punya lebih dari satu unit",
+    "Rekap harian yang dapat dibuka dan ditutup — satu baris per tanggal beserta baris total periode",
+    "Keterangan bahwa layar ini tidak memuat bagian downtime, karena stasiun ini tidak mencatatnya",
+    "Keterangan bahwa kolom `shift` tidak diterbitkan di layar ini, beserta alasannya — kolomnya kosong dan sudah dijadwalkan diganti relasi ke master Shift, sehingga laporan per shift datang bersama penandaan itu",
+    "Keterangan bila periode tidak memuat data, dengan kelengkapan pencatatan TETAP ditampilkan",
+    "Tombol Ekspor CSV dan Ekspor Excel (.xlsx sungguhan) — hanya tampil setelah Production Line dipilih",
+    "Petunjuk 'Geser mendatar untuk melihat seluruh tanggal' di bawah tren harian bila periode memuat lebih dari 10 tanggal"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill yang dilihat. Hanya bagi Admin yang tidak terikat satu mill.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan production line yang dilihat. Wajib dipilih sebelum angka dan tombol ekspor tampil.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap",
+      "description": "Menyembunyikan atau menampilkan rekap per inspector, per unit, dan rekap harian. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode (cakupan line terpilih) sebagai CSV atau Excel (.xlsx sungguhan), satu baris per slot. Kolom Periode, Mill, dan Production Line diulang di setiap baris, disusul kolom konteks record, lalu ke-13 kolom detail termasuk inspector_id. Slot waktu HH:MM, sel kosong tetap kosong. Selama berkas disiapkan kedua tombol terkunci sesaat dan tombol yang diklik menampilkan 'Mengekspor…'",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor dan Mill Management terikat pada mill di akunnya; Admin tidak terikat sehingga ia memilih.",
+    "Operator tidak punya akses ke layar web ini. Jalur laporan Process Water bagi Operator ada di mobile (screen-161).",
+    "Production Line WAJIB dipilih lebih dulu. Selama belum dipilih layar tidak menampilkan SATU ANGKA PUN, dan tidak menampilkan angka seluruh mill sebagai penggantinya.",
+    "Mengganti mill MENGOSONGKAN pilihan periode dan pilihan Production Line — sebuah periode maupun sebuah line milik tepat satu mill.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Process Water.",
+    "Status periode tidak membatasi apa pun. Periode tertutup tetap dapat dilihat dan diekspor.",
+    "Rentang periode inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "SETIAP metrik dihitung dari pembacaan yang terisi untuk metrik ITU SENDIRI. Kesembilan kolom ukur nullable dan terisi saling bebas, sehingga satu penyebut bersama akan salah untuk setidaknya delapan di antaranya.",
+    "SATU SLOT DIANGGAP TERISI BILA MINIMAL SATU DARI SEBELAS KOLOM PEMBACAAN TERISI — bukan tiga belas. `shift` dan `inspector_id` adalah kolom identitas/konteks dan dikecualikan dari pemeriksaan itu, dan pengecualian tersebut dinyatakan eksplisit di docblock service, bukan ditebak. Ini BERBEDA dari Engine Room yang menghitung seluruh dua puluh tujuh kolomnya.",
+    "Karena kesebelas kolom pembacaan itu mencakup kedua kolom teks, jumlah slot terisi dapat MELEBIHI jumlah pembacaan setiap kartu ukur — dan itu dinyatakan di layar, bukan dikoreksi.",
+    "Jumlah pembacaan yang mendasari setiap angka ditampilkan berdampingan dengan angkanya. Rata-rata dari tiga pembacaan dan rata-rata dari tiga ratus tidak boleh terlihat sama meyakinkan.",
+    "`action_taken_status` DITERBITKAN SEBAGAI REKAP TEKS, BUKAN SEBAGAI SEBARAN KATEGORIS, meski namanya menyebut 'status'. Kolomnya teks bebas tanpa himpunan nilai tertutup; sebaran atas isinya akan menghasilkan satu 'nilai' per kalimat yang berbeda, dan daftar kalimat berjumlah satu-satu bukan sebaran.",
+    "Catatan tindakan dan temuan adalah dua kolom teks bebas yang diterbitkan pada DUA BAGIAN TERPISAH. Keduanya tidak pernah dirata-rata maupun digrafikkan, dan satu slot yang mengisi kedua-duanya muncul pada kedua rekap tanpa itu berarti penghitungan ganda.",
+    "Rekap per inspector menghitung slot yang diisi tiap `inspector_id`, dengan baris terpisah untuk slot terisi yang kolom inspector-nya kosong. Ia ada untuk menelusuri slot yang belum terisi, bukan untuk menilai orang — dan maksud itu dinyatakan di layar.",
+    "Kolom `shift` TIDAK diterbitkan di layar ini. Ia kosong di seluruh baris dan sudah dijadwalkan diganti relasi ke master Shift pada putaran penandaan record; menerbitkan kolom kosong yang akan berubah arti lebih buruk daripada tidak menerbitkannya. Alasan itu dinyatakan di layar supaya ketiadaannya tidak terbaca sebagai kelalaian.",
+    "Stasiun ini tidak mencatat downtime, sehingga laporan ini tidak punya blok downtime. Ketiadaannya disengaja dan dinyatakan di layar.",
+    "TIDAK ADA penandaan nilai di luar batas untuk metrik mana pun, dan keterangannya dirender UTUH tanpa diringkas. Stasiun ini tidak punya master target, dan meski pH serta TDS air umpan boiler punya batas yang dikenal luas di luar aplikasi, menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas keselamatan boiler padahal hanya turunan statistik.",
+    "Kesembilan kartu dikelompokkan menjadi empat blok berjudul mengikuti rantai pengolahan air — Aliran Air, Softener, Dosis Kimia, Air Umpan Boiler — bukan mengikuti urutan kolom di basis data, sehingga pembaca yang menelusuri penyimpangan dapat bergerak mundur ke tahap sebelumnya.",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki, dan dirender di atas seluruh angka lain.",
+    "Kelengkapan pencatatan untuk periode yang MASIH BERJALAN dihitung hanya sampai hari ini. Periode yang belum mulai menghasilkan nol slot yang diharapkan dan tampil '—', bukan 0,0%.",
+    "Ekspor Excel adalah berkas .xlsx sungguhan yang dapat dibuka Excel. Isi kolom kedua format sama, dan keduanya memuat ke-13 kolom detail termasuk `inspector_id` — ekspor adalah rincian mentah, jadi pengecualian `shift`/`inspector_id` dari pemeriksaan slot terisi tidak berarti keduanya dibuang dari berkas.",
+    "Seluruh agregasi dihitung di server; layar merender apa yang diterbitkan tanpa menghitung ulang."
+  ],
+  "edge_cases": [
+    "Periode tidak memuat satu pun pembacaan — seluruh angka ditampilkan tidak tersedia dengan keterangan belum ada data, bukan sebagai nol, dan kelengkapan pencatatan tetap tampil.",
+    "Sebuah metrik tidak pernah diisi sepanjang periode walau metrik lain terisi — kartunya tetap ada dengan 'tidak tersedia' dan jumlah pembacaan nol.",
+    "Satu slot hanya mengisi kolom teks bebas tanpa satu pun kolom ukur — slot itu terhitung terisi karena kedua kolom teks termasuk dalam kesebelas kolom pembacaan, tetapi tidak menambah penyebut kartu ukur mana pun, sehingga jumlah slot terisi melebihi setiap penyebut kartu.",
+    "Satu slot hanya mengisi `shift` dan/atau `inspector_id` tanpa satu pun kolom pembacaan — slot itu TIDAK terhitung terisi, karena kedua kolom itu kolom identitas. Ini kebalikan dari kasus di atas dan keduanya harus dibedakan.",
+    "Kedua kolom teks bebas kosong sepanjang periode — kedua rekap menampilkan keterangan tidak ada catatan, bukan tabel kosong tanpa penjelasan.",
+    "Satu slot mengisi catatan tindakan DAN temuan sekaligus — muncul pada kedua rekap, dan itu benar.",
+    "Isi `action_taken_status` berulang sama persis pada banyak slot — tetap diterbitkan sebagai daftar teks per slot, bukan dikelompokkan menjadi sebaran; mengelompokkannya akan membuat kolom teks bebas tampak kategoris padahal bukan.",
+    "Seluruh slot terisi tidak mencatat `inspector_id` — rekap per inspector menampilkan satu baris 'tidak tercatat' berisi seluruh slot itu, bukan rekap kosong.",
+    "Satu inspector mengisi seluruh slot periode — rekap per inspector menampilkan satu baris, dan itu sah.",
+    "Line punya lebih dari satu unit Process Water — angka periode menggabungkan seluruh unit, rekap per unit menunjukkan sebarannya, dan unit tanpa pembacaan tetap muncul dengan jumlah pembacaan nol.",
+    "Kelengkapan pencatatan sangat rendah — angka tetap ditampilkan tetapi kelengkapannya menonjol di atas seluruh angka lain.",
+    "Periode masih berjalan — penyebut hari berhenti di hari ini dan hal itu dinyatakan.",
+    "Periode belum mulai atau belum ada unit tercatat sehingga slot diharapkan nol — kelengkapan tampil '—' dengan 'belum ada slot yang diharapkan', bukan 0,0%.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Production Line belum dipilih — tidak ada satu angka pun, termasuk tidak menampilkan angka seluruh mill sebagai penggantinya.",
+    "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Mill belum punya satu pun periode yang mencakup Process Water — pemilih periode kosong dengan arahan menghubungi Admin.",
+    "Periode tertutup — laporan tampil penuh, status tertutup ditampilkan, ekspor tetap dapat dijalankan.",
+    "Nilai pH atau TDS jauh di luar batas yang dikenal umum — ditampilkan apa adanya tanpa penanda apa pun, dan keterangan ketiadaan penandaan tetap terlihat utuh.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca, dan tabelnya menggulir mendatar di dalam kartunya sendiri."
+  ],
+  "open_questions": [
+    "`action_taken_status` BERTIPE TEKS BEBAS MESKI NAMANYA MENYEBUT 'STATUS', dan itu kemungkinan besar bukan yang dimaksudkan saat kolom ini dirancang. Dua kolom bernama serupa di stasiun lain — diesel_gen_1_status di Engine Room, biogas_flare_status di Effluent Plant — keduanya enum dengan himpunan nilai tertutup. Bila kolom ini memang dimaksudkan kategoris (mis. 'sudah ditangani' / 'belum' / 'dalam pengerjaan'), ia layak dijadikan enum lewat migrasi, dan laporan ini lalu menerbitkannya sebagai sebaran alih-alih rekap teks. Selama ia masih teks bebas, sebaran atas isinya akan menghasilkan satu 'nilai' per kalimat yang berbeda. Laporan ini memperlakukannya sebagai teks — perlakuan yang aman di bawah kedua bacaan — dan menyatakan pilihan itu di layar.",
+    "`inspector_id` BERTIPE STRING POLOS, bukan relasi ke tabel User, sehingga laporan ini menampilkan nilainya apa adanya tanpa dapat memulangkan nama orangnya. Bila yang diisi di lapangan adalah NIK atau kode pegawai yang punya padanan di master User, rekap per inspector akan jauh lebih berguna bila menampilkan nama — dan itu menuntut keputusan apakah kolom ini dijadikan FK lewat migrasi. Selama belum, laporan menampilkan kodenya mentah dan tidak menebak-nebak pemetaannya.",
+    "APAKAH LAPORAN INI PERLU MENUNGGU PENANDAAN SHIFT? Layar ini dibangun sekarang tanpa dimensi shift, sementara putaran berikutnya akan menambahkan `shift_id` pada kedelapan belas tabel record — termasuk `process_water_records`. Sesudah itu, laporan per shift menjadi mungkin dan layar ini kemungkinan perlu ditinjau ulang untuk menambahkan pengelompokan per shift. Membangunnya sekarang tetap dipilih karena laporan periode berguna dengan sendirinya dan menunda sepuluh layar demi satu fitur yang belum diputuskan sepenuhnya akan menghentikan seluruh seri."
+  ]
+}

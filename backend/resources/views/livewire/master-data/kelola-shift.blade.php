@@ -610,10 +610,18 @@
                             x-on:input="endTime = $event.target.value"
                             data-testid="form-end-time-input"
                         >
+                        {{-- Jam berimpit BERARTI shift 24 jam (keputusan pemilik produk
+                             2026-10-16): '07:00 — 07:00' adalah satu-satunya cara mengungkapkan
+                             1440 menit. Ia hanya sah pada line yang belum punya shift lain —
+                             pada line yang sudah terisi ia hanya bisa berarti salah ketik,
+                             karena shift 24 jam tidak dapat berdampingan dengan shift mana
+                             pun. Pratinjau di bawah sudah menggambar batang penuh untuk jam
+                             berimpit, jadi salah ketik pun terlihat sebelum Simpan ditekan. --}}
                         <p class="ks-note">
                             Boleh lebih awal daripada Jam Mulai — itu berarti shift melewati tengah malam
-                            (23:00 — 07:00 +1). Yang tidak boleh adalah jam yang berimpit: shift berdurasi nol
-                            tidak dapat menampung record.
+                            (23:00 — 07:00 +1). Jam yang berimpit (07:00 — 07:00) berarti shift menutup
+                            24 jam, dan hanya diterima bila Production Line ini belum punya shift lain:
+                            shift 24 jam tidak dapat berdampingan dengan shift mana pun.
                         </p>
                         @error('form.end_time')
                             <p class="ks-field-error" data-testid="error-end-time">{{ $message }}</p>

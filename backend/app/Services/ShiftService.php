@@ -78,6 +78,30 @@ use Illuminate\Validation\ValidationException;
  * membuat blade dapat membedakannya di layar (celah berarsir, belum diatur
  * polos).
  *
+ * ── SHIFT TERTUTUP: SOFT DELETE, DAN EMPAT JALUR YANG MENGECUALIKANNYA ──
+ *
+ * Penghapusan menutup baris alih-alih membuangnya (keputusan pemilik produk
+ * 2026-10-16) — lihat {@see delete()}. EMPAT jalur yang hidup WAJIB
+ * mengecualikan baris tertutup, dan keempatnya memang sudah dikecualikan
+ * oleh GLOBAL SCOPE SoftDeletes karena semuanya berangkat dari
+ * `Shift::query()`:
+ *
+ *  1. DAFTAR — {@see listShifts()}
+ *  2. CAKUPAN/CELAH — {@see listShifts()} memberi {@see coverageEntry()}
+ *     koleksi yang sudah tersaring; coverageEntry() sendiri tidak pernah
+ *     mengkueri, jadi ia tidak dapat menarik baris tertutup
+ *  3. SUMBER PRATINJAU PADA FORM — {@see shiftBlocksByLine()}
+ *  4. HIMPUNAN PEMBANDING TUMPANG TINDIH — {@see findOverlap()}
+ *
+ * YANG KEEMPAT PALING MUDAH TERLEWAT, dan kegagalannya khas: jam yang baru
+ * saja dikosongkan tidak akan pernah bisa dipakai ulang oleh penggantinya —
+ * padahal MEMAKAI ULANG JAM adalah justru alasan soft delete dipilih.
+ *
+ * SATU jalur shift di kelas ini TIDAK dijangkau global scope: Rule::unique()
+ * di {@see validate()} membangun kueri Query Builder, bukan Eloquent, jadi ia
+ * menambahkan whereNull('deleted_at') sendiri. Partial unique index di
+ * migrasi 2026_10_16_000001 menyepakatinya di sisi basis data.
+ *
  * ── JADWAL BERLAKU SAMA SETIAP HARI ─────────────────────────────────────
  *
  * Tidak ada parameter tanggal, hari, maupun masa berlaku pada satu pun
@@ -146,13 +170,15 @@ class ShiftService
      * Durasi shift dalam menit, memperhitungkan lintasan tengah malam:
      * 23:00→07:00 menghasilkan 480, bukan negatif dan bukan nol.
      *
-     * JAM YANG BERIMPIT DIBACA SEBAGAI SATU HARI PENUH (1440), bukan nol.
-     * Itu HANYA berlaku untuk pembacaan data yang sudah ada — jalur tulis
-     * menolak start_time == end_time sebagai VALIDATION_ERROR (lihat
-     * validate()), karena shift berdurasi nol tidak dapat menampung record.
-     * Pembacaannya tetap 1440 supaya baris semacam itu — mis. dibuat
-     * factory di test cakupan — terbaca sebagai satu blok penuh dan bukan
-     * blok tak berdurasi yang menghilang dari timeline.
+     * JAM YANG BERIMPIT DIBACA SEBAGAI SATU HARI PENUH (1440), bukan nol —
+     * dan sejak 2026-10-16 itu BUKAN LAGI hanya pembacaan defensif atas
+     * data yang ditanam factory: `07:00 → 07:00` adalah SATU-SATUNYA cara
+     * mengungkapkan shift yang menutup 1440 menit, dan jalur tulis kini
+     * menerimanya bila line itu belum punya shift HIDUP lain (lihat
+     * validate()). Modulo 0 yang dibaca 1440 itulah yang membuat shift 24
+     * jam menghasilkan satu blok berdurasi penuh di segmentsFor(),
+     * coverageEntry(), shiftBlock(), dan pratinjau klien sekaligus — tanpa
+     * satu pun dari keempatnya perlu mengenal kasus khususnya.
      */
     public static function durationMinutes(string $startTime, string $endTime): int
     {
@@ -346,6 +372,12 @@ class ShiftService
             ];
         }
 
+        // JALUR HIDUP 1 (daftar) DAN 2 (cakupan/celah). Baris tertutup
+        // dikecualikan oleh global scope SoftDeletes model Shift — tidak ada
+        // whereNull() di sini, dan menambahkannya hanya akan menduplikasi
+        // apa yang sudah ditempelkan scope itu pada SQL-nya. coverageEntry()
+        // di bawah memakai koleksi yang SAMA, jadi cakupan dan daftar tidak
+        // mungkin berbeda isi.
         $shiftsByLine = Shift::query()
             ->whereIn('production_line_id', $lines->modelKeys())
             ->get()
@@ -412,6 +444,10 @@ class ShiftService
             $blocks[(string) $lineId] = [];
         }
 
+        // JALUR HIDUP 3 (sumber pratinjau pada form). Baris tertutup
+        // dikecualikan oleh global scope SoftDeletes: pratinjau tidak boleh
+        // menggambar blok untuk shift yang sudah ditutup, karena jam itu
+        // justru sudah bebas dipakai ulang.
         $shifts = $this->orderShifts(
             Shift::query()->whereIn('production_line_id', $lineIds)->get()
         );
@@ -434,7 +470,11 @@ class ShiftService
         $shiftCount = $lineShifts->count();
 
         if ($shiftCount === 0) {
-            // BELUM DIATUR — dan sengaja BUKAN 'gap' 1440 menit. Nol blok
+            // BELUM DIATUR — dan sengaja BUKAN 'gap' 1440 menit. Line yang
+            // SELURUH shift-nya sudah ditutup mendarat di cabang ini juga,
+            // dan itu benar: shift tertutup tidak dihitung di mana pun yang
+            // hidup, jadi line itu tak dapat dibedakan dari line yang belum
+            // pernah diberi shift — dan tidak perlu dibedakan. Nol blok
             // diterbitkan: blok "belum diatur" di layar adalah keputusan
             // TAMPILAN (polos, tanpa arsiran celah), bukan sebuah celah yang
             // ditemukan di data. uncovered_minutes 0 supaya tidak ada badge
@@ -585,16 +625,40 @@ class ShiftService
     }
 
     /**
-     * delete() — DELETE /api/shifts/{id}. 404 bila tidak ada, lalu DELETE.
+     * delete() — DELETE /api/shifts/{id}. 404 bila tidak ada, lalu SOFT
+     * DELETE: barisnya DITUTUP, bukan dibuang (keputusan pemilik produk
+     * 2026-10-16).
      *
-     * TIDAK ADA PENJAGAAN "sudah dipakai record" pada putaran ini karena
-     * belum ada tabel record yang merujuk shift. Begitu `shift_id` mendarat
-     * di ke-18 tabel record, pertanyaan itu harus dijawab lebih dulu —
-     * open_question #1 business spec screen-170 menyimpan tiga jalan yang
-     * masuk akal beserta akibatnya.
+     * ALASANNYA BUKAN KEHATI-HATIAN UMUM. `shift_id` akan mendarat di
+     * kedelapan belas tabel record di putaran penandaan berikutnya,
+     * bermakna "shift yang berlaku saat operator menyimpan record".
+     * Membuang baris shift membuat record lama kehilangan jawaban atas
+     * "record ini sebenarnya shift jam berapa", dan laporan historisnya
+     * berhenti terbaca — tanpa satu pun aksi yang terlihat destruktif.
+     * Dengan baris yang ditutup, rujukan itu tetap dapat diselesaikan
+     * selamanya.
+     *
+     * TIDAK ADA PENJAGAAN "sudah dipakai record" pada putaran ini, dan
+     * justru soft delete inilah yang membuat penjagaan itu tidak
+     * dibutuhkan: menutup baris tidak pernah merusak rujukan, jadi tidak ada
+     * yang perlu ditolak.
+     *
+     * `->delete()` DI SINI SUDAH BERARTI SOFT DELETE — trait SoftDeletes
+     * pada model Shift mengubah maknanya menjadi mengisi `deleted_at`, tanpa
+     * satu pun pemanggil perlu berubah. 404 untuk shift yang SUDAH tertutup
+     * pun datang gratis dari global scope-nya: findOrFail() tidak melihat
+     * baris tertutup (edge case "DELETE pada shift yang sudah ditutup").
+     *
+     * `updated_by` DISTEMPEL SEBELUM PENUTUPAN. Skema shift tidak punya
+     * kolom `deleted_by`, sementara baris tertutup kini hidup selamanya —
+     * tanpa stempel ini tidak ada jejak siapa yang menutupnya. Spec tidak
+     * menyebutkannya; ini keputusan turunan, dan `updated_by` adalah
+     * satu-satunya kolom yang tersedia untuk menyimpan jawabannya.
      *
      * Menghapus shift SELALU membesarkan celah; akibatnya ditampilkan di
-     * timeline sesudah penghapusan, dan itu bukan alasan untuk menolak.
+     * timeline sesudah penghapusan, dan itu bukan alasan untuk menolak. Line
+     * yang kehilangan shift TERAKHIR-nya kembali ke 'unconfigured' — bukan
+     * 'gap' 1440 — karena coverageEntry() menghitung dari shift HIDUP saja.
      *
      * @throws ModelNotFoundException
      */
@@ -602,7 +666,11 @@ class ShiftService
     {
         $this->guardAdmin();
 
-        Shift::findOrFail($id)->delete();
+        $shift = Shift::findOrFail($id);
+
+        $shift->update(['updated_by' => auth()->id()]);
+
+        $shift->delete();
     }
 
     /**
@@ -630,6 +698,11 @@ class ShiftService
             self::durationMinutes($startTime, $endTime)
         );
 
+        // JALUR HIDUP 4 — YANG PALING MUDAH TERLEWAT. Baris tertutup TIDAK
+        // ikut dibandingkan (global scope SoftDeletes). Bila ia ikut, jam
+        // yang baru saja dikosongkan tidak akan pernah bisa dipakai ulang
+        // oleh shift penggantinya — dan memakai ulang jam adalah justru
+        // alasan soft delete dipilih.
         $others = Shift::query()
             ->where('production_line_id', $productionLineId)
             ->when($excludeId !== null, fn ($query) => $query->where('id', '<>', $excludeId))
@@ -753,6 +826,29 @@ class ShiftService
     }
 
     /**
+     * Apakah `$productionLineId` masih punya shift HIDUP selain
+     * `$excludeId`? Satu-satunya pemakainya adalah pembedaan jam berimpit:
+     * shift 24 jam hanya sah pada line yang kosong.
+     *
+     * BARIS TERTUTUP TIDAK DIHITUNG, dan itu bukan kebetulan — ia
+     * dikecualikan oleh global scope SoftDeletes karena kueri ini berangkat
+     * dari Shift::query(). Konsekuensinya memang yang diinginkan: line yang
+     * seluruh shift-nya sudah ditutup kembali menerima shift 24 jam, sama
+     * seperti line yang belum pernah diberi shift.
+     *
+     * `$excludeId` menjaga agar sebuah shift tidak menghitung DIRINYA
+     * SENDIRI sebagai "shift lain" — tanpa itu, mengubah satu-satunya shift
+     * sebuah line menjadi 24 jam tidak akan pernah bisa disimpan.
+     */
+    protected function lineHasOtherLiveShift(string $productionLineId, ?string $excludeId): bool
+    {
+        return Shift::query()
+            ->where('production_line_id', $productionLineId)
+            ->when($excludeId !== null, fn ($query) => $query->where('id', '<>', $excludeId))
+            ->exists();
+    }
+
+    /**
      * Validasi jalur tulis. Mengembalikan atribut yang SUDAH dinormalkan ke
      * 'H:i:s' sehingga kolom TIME menerima bentuk yang sama di PostgreSQL
      * maupun SQLite.
@@ -763,10 +859,26 @@ class ShiftService
      * UUID akan memicu SQLSTATE 22P02 di PostgreSQL, padahal id itu memang
      * sudah ditolak oleh rule-nya sendiri.
      *
-     * JAM BERIMPIT DITOLAK DI SINI sebagai VALIDATION_ERROR, bukan sebagai
-     * SHIFT_OVERLAP — keduanya kesalahan yang berbeda dan pesannya pun
-     * berbeda. Pemeriksaannya dilakukan SESUDAH normalisasi, karena '07:00'
-     * dan '07:00:00' adalah jam yang sama dan perbandingan string tidak
+     * KEUNIKAN MENGECUALIKAN BARIS TERTUTUP, DAN PENGECUALIAN ITU DITULIS
+     * TANGAN. Rule::unique() membangun kueri Query Builder, bukan Eloquent,
+     * sehingga GLOBAL SCOPE SoftDeletes TIDAK BERLAKU PADANYA — satu-satunya
+     * jalur shift di seluruh service ini yang tidak dijangkau scope itu.
+     * Tanpa whereNull('deleted_at') di bawah, sebuah 'Pagi' yang ditutup akan
+     * memblokir 'Pagi' penggantinya selamanya padahal partial unique index
+     * (2026_10_16_000001) mengizinkannya — dua penegak yang berselisih, dan
+     * yang lebih ketatlah yang menang.
+     *
+     * JAM BERIMPIT BERARTI SHIFT 24 JAM (keputusan pemilik produk
+     * 2026-10-16, menggantikan larangan tanpa syarat di v1 yang tidak dapat
+     * benar bersamaan dengan janji "shift 24 jam itu sah"). `07:00 → 07:00`
+     * adalah satu-satunya cara mengungkapkan 1440 menit, jadi ia DITERIMA —
+     * tetapi HANYA pada line yang belum punya shift HIDUP lain. Pada line
+     * yang sudah terisi ia ditolak sebagai VALIDATION_ERROR durasi nol, dan
+     * SENGAJA BUKAN SHIFT_OVERLAP: shift 24 jam menurut definisinya tidak
+     * dapat berdampingan dengan shift mana pun, jadi di situ jam berimpit
+     * hanya bisa berarti salah ketik — dan salah ketik bukan tumpang tindih.
+     * Pemeriksaannya dilakukan SESUDAH normalisasi, karena '07:00' dan
+     * '07:00:00' adalah jam yang sama dan perbandingan string tidak
      * mengetahuinya.
      *
      * @param  array<string, mixed>  $data
@@ -789,7 +901,11 @@ class ShiftService
 
         if (is_string($productionLineId) && Str::isUuid($productionLineId)) {
             $nameUniqueRule = Rule::unique('shifts', 'name')
-                ->where(fn ($query) => $query->where('production_line_id', $productionLineId));
+                ->where(fn ($query) => $query
+                    ->where('production_line_id', $productionLineId)
+                    // Baris tertutup tidak memblokir nama penggantinya;
+                    // Rule::unique() tidak melihat global scope SoftDeletes.
+                    ->whereNull('deleted_at'));
 
             if ($excludeId !== null) {
                 $nameUniqueRule = $nameUniqueRule->ignore($excludeId);
@@ -830,10 +946,22 @@ class ShiftService
         $validated['start_time'] = $this->normalizeTime($validated['start_time']);
         $validated['end_time'] = $this->normalizeTime($validated['end_time']);
 
-        if (self::minuteOfDay($validated['start_time']) === self::minuteOfDay($validated['end_time'])) {
+        if (self::minuteOfDay($validated['start_time']) === self::minuteOfDay($validated['end_time'])
+            && $this->lineHasOtherLiveShift($validated['production_line_id'], $excludeId)) {
+            // Jam berimpit pada line yang SUDAH terisi: ditolak sebagai
+            // durasi nol. Pada line yang masih kosong cabang ini tidak
+            // dijalankan sama sekali dan shift 24 jam-nya tersimpan —
+            // durationMinutes() membaca modulo 0 sebagai 1440, sehingga ia
+            // menggambar satu blok penuh tanpa celah.
             throw ValidationException::withMessages([
-                'end_time' => 'Jam Selesai tidak boleh sama dengan Jam Mulai — shift berdurasi nol '
-                    .'tidak dapat menampung record apa pun.',
+                // Frasa "berdurasi nol" DIPERTAHANKAN: spec v2 tetap menyebut
+                // "pesan durasi nol" untuk cabang ini (business_logic 17,
+                // edge case "start_time == end_time"), dan itu memang yang
+                // dibaca Admin — pada line yang sudah terisi, jam berimpit
+                // hanya bisa berarti salah ketik.
+                'end_time' => 'Jam Selesai hanya boleh sama dengan Jam Mulai bila Production Line ini '
+                    .'belum punya shift lain; di sini ia terbaca sebagai shift berdurasi nol. Shift 24 '
+                    .'jam tidak dapat berdampingan dengan shift mana pun.',
             ]);
         }
 

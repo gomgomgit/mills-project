@@ -1,0 +1,541 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-16"
+  },
+  "id": "usecase-166--laporan-process-water-web",
+  "name": "Lihat Laporan Periode Process Water (Web)",
+  "description": "Pengguna web memilih Production Line lalu periode pelaporan, dan membaca kondisi pengolahan air sepanjang periode itu — apakah air yang masuk ke boiler layak dipakai. Sembilan metrik ukur dalam empat blok mengikuti rantai pengolahan (Aliran Air, Softener, Dosis Kimia, Air Umpan Boiler), dua rekap teks bebas terpisah, rekap per inspector, dan kelengkapan pencatatan di atas segalanya. Stasiun ini TIDAK punya satu pun kolom kategoris: `action_taken_status` bertipe teks bebas meski namanya menyebut 'status', sehingga ia diterbitkan sebagai rekap teks dan bukan sebaran. Baris terisi dihitung atas sebelas kolom pembacaan — `shift` dan `inspector_id` adalah kolom identitas dan dikecualikan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+    "Mill sudah punya minimal satu Production Line",
+    "Mill sudah punya minimal satu periode pelaporan yang mencakup stasiun Process Water"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka layar Laporan Process Water dari pemilih stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Sistem menetapkan mill dari akun pengguna; khusus Admin, sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih Production Line; selama line belum dipilih tidak ada satu angka pun yang ditampilkan dan tombol ekspor belum tampil"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Process Water pada mill itu"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Sistem menghitung setiap metrik dari pembacaan yang terisi untuk metrik itu sendiri, beserta jumlah pembacaannya masing-masing"
+    },
+    {
+      "step": 7,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan kelengkapan pencatatan DI ATAS seluruh angka lain, beserta keterangan bahwa slot terisi dihitung atas sebelas kolom pembacaan dan bahwa shift serta inspector_id dikecualikan"
+    },
+    {
+      "step": 8,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan empat blok berjudul mengikuti rantai pengolahan air, berisi sembilan kartu metrik dengan terendah, rata-rata, tertinggi, dan penyebutnya sendiri"
+    },
+    {
+      "step": 9,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan tren harian aliran air baku rata-rata per tanggal"
+    },
+    {
+      "step": 10,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan Rekap Catatan Tindakan dan Rekap Temuan pada dua bagian terpisah, keduanya sebagai TEKS bukan sebagai sebaran"
+    },
+    {
+      "step": 11,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan rekap per inspector, rekap per unit Process Water, dan rekap harian"
+    },
+    {
+      "step": 12,
+      "actor": "actor-supervisor",
+      "description": "Sistem menyatakan ketiadaan blok downtime, ketiadaan penandaan nilai di luar batas, dan alasan kolom shift tidak diterbitkan — ketiganya utuh tanpa diringkas"
+    },
+    {
+      "step": 13,
+      "actor": "actor-supervisor",
+      "description": "Pengguna dapat mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV atau Excel"
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rekap periode yang dipilih untuk Production Line yang dipilih",
+    "Pengguna mengetahui seberapa lengkap pencatatannya sebelum mempercayai angkanya",
+    "Pengguna mengetahui slot mana yang belum terisi dan siapa inspector yang dapat ditanyai",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "alternative_flows": [
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 3, pengguna belum memilih Production Line",
+      "steps": [
+        "Tidak ada satu angka pun yang ditampilkan",
+        "Sistem tidak menampilkan angka seluruh mill sebagai penggantinya",
+        "Tombol ekspor belum tampil",
+        "Penjagaannya ada di fungsi pemuatan, sehingga jalur coba-lagi dan ganti-periode ikut terlindung"
+      ]
+    },
+    {
+      "name": "Admin memilih mill lebih dulu",
+      "trigger": "Pada langkah 2, pengguna berperan Admin",
+      "steps": [
+        "Sistem menampilkan pemilih Mill",
+        "Angka tidak ditampilkan sampai mill dipilih"
+      ]
+    },
+    {
+      "name": "Admin mengganti mill",
+      "trigger": "Pada langkah 2, Admin mengganti mill sesudah periode dan line terpilih",
+      "steps": [
+        "Pilihan periode DAN Production Line dikosongkan",
+        "Keduanya milik tepat satu mill, jadi membawanya ke mill lain akan menampilkan galat untuk sesuatu yang tidak dilakukan pengguna"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode",
+      "trigger": "Pada langkah 4, mill tidak punya periode yang mencakup Process Water",
+      "steps": [
+        "Pemilih periode kosong",
+        "Arahan menghubungi Admin ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 6, periode tidak memuat satu pun pembacaan",
+      "steps": [
+        "Seluruh metrik ditampilkan tidak tersedia, bukan nol",
+        "Kelengkapan pencatatan TETAP ditampilkan"
+      ]
+    },
+    {
+      "name": "Sebuah metrik tidak pernah diisi",
+      "trigger": "Pada langkah 8, satu dari sembilan metrik kosong sepanjang periode",
+      "steps": [
+        "Kartunya tetap dirender dengan 'tidak tersedia' dan penyebut nol",
+        "Ia tidak hilang dari bloknya"
+      ]
+    },
+    {
+      "name": "Satu slot hanya mengisi kolom teks bebas",
+      "trigger": "Pada langkah 7, sebuah slot mengisi catatan tindakan atau temuan tanpa satu pun kolom ukur",
+      "steps": [
+        "Slot itu TERHITUNG terisi, karena kedua kolom teks termasuk dalam kesebelas kolom pembacaan",
+        "Tidak menambah penyebut kartu ukur mana pun",
+        "Jumlah slot terisi karena itu dapat melebihi setiap penyebut kartu"
+      ]
+    },
+    {
+      "name": "Satu slot hanya mengisi shift atau inspector_id",
+      "trigger": "Pada langkah 7, sebuah slot hanya mengisi kolom identitas tanpa satu pun kolom pembacaan",
+      "steps": [
+        "Slot itu TIDAK terhitung terisi",
+        "Kebalikan dari kasus kolom teks bebas, dan keduanya harus dibedakan",
+        "Pengecualian ini dinyatakan eksplisit di docblock service, bukan ditebak"
+      ]
+    },
+    {
+      "name": "Isi catatan tindakan berulang sama persis",
+      "trigger": "Pada langkah 10, nilai action_taken_status sama pada banyak slot",
+      "steps": [
+        "Tetap diterbitkan sebagai daftar teks per slot",
+        "TIDAK dikelompokkan menjadi sebaran — mengelompokkannya membuat kolom teks bebas tampak kategoris padahal bukan"
+      ]
+    },
+    {
+      "name": "Kedua kolom teks bebas kosong",
+      "trigger": "Pada langkah 10, tidak ada catatan tindakan maupun temuan sepanjang periode",
+      "steps": [
+        "Kedua rekap menampilkan keterangan tidak ada catatan",
+        "Keduanya tetap berjudul terpisah"
+      ]
+    },
+    {
+      "name": "Satu slot mengisi catatan tindakan dan temuan sekaligus",
+      "trigger": "Pada langkah 10, sebuah slot mengisi kedua kolom teks",
+      "steps": [
+        "Slot itu muncul pada kedua rekap",
+        "Itu bukan penghitungan ganda"
+      ]
+    },
+    {
+      "name": "Seluruh slot tidak mencatat inspector",
+      "trigger": "Pada langkah 11, tidak satu slot pun mengisi inspector_id",
+      "steps": [
+        "Rekap per inspector menampilkan satu baris 'tidak tercatat' berisi seluruh slot terisi",
+        "Bukan rekap kosong tanpa penjelasan"
+      ]
+    },
+    {
+      "name": "Satu inspector mengisi seluruh periode",
+      "trigger": "Pada langkah 11, hanya satu inspector_id muncul",
+      "steps": [
+        "Rekap menampilkan satu baris",
+        "Itu sah dan tidak ditandai sebagai apa pun"
+      ]
+    },
+    {
+      "name": "Line punya beberapa unit Process Water",
+      "trigger": "Pada langkah 11, terdapat lebih dari satu unit pada line itu",
+      "steps": [
+        "Angka periode menggabungkan seluruh unit",
+        "Rekap per unit menampilkan sebarannya",
+        "Unit tanpa pembacaan tetap muncul dengan penyebut nol"
+      ]
+    },
+    {
+      "name": "Pencatatan sangat tidak lengkap",
+      "trigger": "Pada langkah 7, hanya sebagian kecil slot terisi",
+      "steps": [
+        "Angka tetap ditampilkan",
+        "Kelengkapan menonjol di atas seluruh angka lain"
+      ]
+    },
+    {
+      "name": "Periode masih berjalan",
+      "trigger": "Pada langkah 7, tanggal akhir periode masih di masa depan",
+      "steps": [
+        "Slot yang diharapkan dihitung hanya sampai hari ini",
+        "Keterangannya dirender"
+      ]
+    },
+    {
+      "name": "Tidak ada slot yang diharapkan",
+      "trigger": "Pada langkah 7, periode belum mulai atau belum ada unit tercatat",
+      "steps": [
+        "Kelengkapan tampil sebagai tanda hubung",
+        "Sistem menyatakan belum ada slot yang diharapkan",
+        "Bukan 0,0%"
+      ]
+    },
+    {
+      "name": "Nilai pH atau TDS jauh di luar batas umum",
+      "trigger": "Pada langkah 8, nilai air umpan boiler jauh dari nominal yang dikenal luas",
+      "steps": [
+        "Ditampilkan apa adanya tanpa penanda apa pun",
+        "Keterangan ketiadaan penandaan tetap terlihat utuh",
+        "Stasiun ini tidak punya master target, dan ambang tidak diturunkan dari data periode"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun terikat mill tetapi mill-nya kosong",
+      "steps": [
+        "Pesan menghubungi Admin ditampilkan",
+        "Daftar seluruh mill tidak ditawarkan"
+      ]
+    },
+    {
+      "name": "Mencoba melihat mill lain",
+      "trigger": "Pada langkah 6, permintaan membawa mill selain mill pada akun",
+      "steps": [
+        "Server mengabaikan nilai itu dan memakai mill pada akun",
+        "Periode milik mill lain tidak dapat dibuka"
+      ]
+    },
+    {
+      "name": "Mencoba melihat line mill lain",
+      "trigger": "Pada langkah 3, permintaan membawa line yang bukan milik mill yang berlaku",
+      "steps": [
+        "Permintaan ditolak",
+        "Tidak ada angka milik line lain yang terlihat"
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka layar web ini",
+      "trigger": "Pada langkah 1, pengguna berperan Operator",
+      "steps": [
+        "Akses ditolak pada rute web",
+        "Jalur laporan Process Water bagi Operator ada di mobile (screen-161), dan ketiga rute API data memang menerimanya"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 5, pengguna memilih periode berstatus tertutup",
+      "steps": [
+        "Laporan tetap tampil penuh",
+        "Status tertutup ditampilkan",
+        "Ekspor tetap dapat dijalankan"
+      ]
+    },
+    {
+      "name": "Pengguna mencari kolom shift di laporan",
+      "trigger": "Pada langkah 12, pengguna mencari pengelompokan atau kolom shift",
+      "steps": [
+        "Layar menyatakan kolom shift tidak diterbitkan beserta alasannya",
+        "Kolomnya kosong dan sudah dijadwalkan diganti relasi ke master Shift",
+        "Laporan per shift datang bersama penandaan record itu"
+      ]
+    },
+    {
+      "name": "Rekap harian panjang",
+      "trigger": "Pada langkah 11, periode cukup panjang sehingga rekap hariannya puluhan baris",
+      "steps": [
+        "Rekap dapat ditutup",
+        "Tabelnya menggulir mendatar di dalam kartunya sendiri",
+        "Halaman itu sendiri tidak menggulir mendatar"
+      ]
+    },
+    {
+      "name": "Ekspor tetap memuat shift dan inspector_id",
+      "trigger": "Pada langkah 13, pengguna mengunduh berkas ekspor",
+      "steps": [
+        "Berkas memuat ke-13 kolom detail termasuk inspector_id",
+        "Pengecualian kedua kolom identitas dari pemeriksaan slot terisi TIDAK berarti keduanya dibuang dari berkas — ekspor adalah rincian mentah"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar hanya membaca",
+    "Pengguna hanya melihat data mill-nya sendiri; Admin memilih",
+    "Operator tidak punya akses layar web ini; jalurnya di mobile (screen-161)",
+    "Production Line wajib dipilih lebih dulu, tanpa jalur mundur ke angka seluruh mill",
+    "Mengganti mill mengosongkan periode dan Production Line",
+    "Daftar periode hanya yang mencakup Process Water",
+    "Status periode tidak membatasi pembacaan maupun ekspor",
+    "Rentang periode inklusif di kedua ujung",
+    "Setiap metrik punya penyebutnya sendiri",
+    "Slot terisi dihitung atas SEBELAS kolom pembacaan; shift dan inspector_id dikecualikan karena kolom identitas",
+    "Slot terisi dapat melebihi penyebut kartu ukur karena kedua kolom teks termasuk dalam kesebelas kolom itu",
+    "Jumlah pembacaan ditampilkan berdampingan dengan angkanya",
+    "action_taken_status diterbitkan sebagai rekap TEKS, bukan sebaran kategoris, meski namanya menyebut 'status'",
+    "Dua kolom teks bebas pada dua bagian terpisah; satu slot dapat muncul di keduanya",
+    "Rekap per inspector ada untuk menelusuri slot kosong, bukan menilai orang, dan maksud itu dinyatakan",
+    "Kolom shift tidak diterbitkan, dan alasannya dinyatakan di layar",
+    "Tidak ada blok downtime, dan ketiadaannya dinyatakan",
+    "Tidak ada penandaan di luar batas, dan keterangannya dirender utuh",
+    "Sembilan kartu dikelompokkan empat blok mengikuti rantai pengolahan air",
+    "Kelengkapan dirender di atas seluruh angka lain",
+    "Kelengkapan periode berjalan dihitung sampai hari ini; expected nol tampil '—'",
+    "Ekspor memuat ke-13 kolom detail termasuk inspector_id; .xlsx sungguhan",
+    "Seluruh agregasi di server"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "given": "Supervisor terikat mill A, mill itu punya Production Line dan periode yang mencakup Process Water dengan pembacaan terkumpul",
+      "when": "Pengguna membuka layar, memilih Production Line, lalu memilih periode",
+      "then": "Layar menampilkan kelengkapan pencatatan paling atas, empat blok berjudul berisi sembilan kartu metrik dengan terendah/rata-rata/tertinggi dan penyebut masing-masing, tren harian aliran air baku, dua rekap teks bebas yang terpisah, rekap per inspector, rekap per unit, dan rekap harian — tanpa pemilih mill, tanpa satu pun sebaran kategoris, dan tanpa satu pun data stasiun berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — berhasil sebagai Admin",
+      "given": "Admin tidak terikat mill mana pun",
+      "when": "Admin memilih mill, lalu Production Line, lalu periode",
+      "then": "Pemilih Mill dirender, daftar periode hanya memuat periode milik mill yang dipilih, dan isi laporannya identik dengan peran terikat mill"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — Production Line belum dipilih",
+      "given": "Mill sudah ditetapkan tetapi belum ada Production Line yang dipilih",
+      "when": "Pengguna membuka layar, lalu mengganti periode, lalu menekan aksi coba lagi",
+      "then": "Pada ketiga percobaan tidak ada satu angka pun yang dirender, tidak ada angka seluruh mill sebagai penggantinya, dan tombol ekspor tidak tampil — penjagaannya di fungsi pemuatan sehingga ketiga jalur itu terlindung sekaligus"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — Admin memilih mill lebih dulu",
+      "given": "Pengguna berperan Admin dan belum memilih mill",
+      "when": "Admin membuka layar",
+      "then": "Pemilih Mill dan arahan memilih mill terlihat, dan tidak ada angka laporan yang dirender"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — Admin mengganti mill",
+      "given": "Admin sudah memilih mill A beserta line dan periode sehingga laporan tampil",
+      "when": "Admin mengganti mill ke mill B",
+      "then": "Pilihan periode dan Production Line dikosongkan, daftar periode dimuat ulang untuk mill B, dan tidak ada laporan mill B yang terisi diam-diam"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — mill belum punya periode",
+      "given": "Mill tidak punya satu pun periode yang mencakup Process Water",
+      "when": "Pengguna membuka pemilih periode",
+      "then": "Pemilih periode kosong, arahan menghubungi Admin terlihat, dan tidak ada angka laporan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — periode tanpa data",
+      "given": "Periode yang dipilih tidak memuat satu pun pembacaan",
+      "when": "Pengguna memilih periode itu",
+      "then": "Kesembilan kartu menampilkan tidak tersedia dengan penyebut nol — bukan angka nol — kelengkapan pencatatan TETAP dirender, dan tren harian tidak menggambar garis nol"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — sebuah metrik tidak pernah diisi",
+      "given": "Periode mengisi delapan kolom ukur sementara TDS air umpan boiler kosong sepanjang periode",
+      "when": "Pengguna menelusuri keempat blok",
+      "then": "Kartu TDS tetap dirender dengan tidak tersedia dan penyebut nol, tetap berada di dalam blok Air Umpan Boiler, dan delapan kartu lain menampilkan angka dengan penyebutnya masing-masing yang berbeda"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — satu slot hanya mengisi kolom teks bebas",
+      "given": "Periode memuat lima slot yang hanya mengisi catatan tindakan atau temuan dan dua slot yang mengisi kolom ukur",
+      "when": "Pengguna membandingkan jumlah slot terisi dengan penyebut tiap kartu",
+      "then": "Jumlah slot terisi bernilai tujuh sementara penyebut terbesar di antara sembilan kartu bernilai dua — kedua kolom teks termasuk dalam kesebelas kolom pembacaan — dan keterangan sebabnya dirender di blok kelengkapan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — satu slot hanya mengisi shift atau inspector_id",
+      "given": "Sebuah slot hanya mengisi inspector_id tanpa satu pun dari kesebelas kolom pembacaan",
+      "when": "Pengguna membaca blok kelengkapan",
+      "then": "Slot itu TIDAK terhitung terisi — kebalikan dari slot yang hanya mengisi kolom teks bebas — karena shift dan inspector_id adalah kolom identitas yang dikecualikan secara eksplisit dari pemeriksaan slot terisi"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — catatan tindakan diterbitkan sebagai teks bukan sebaran",
+      "given": "Periode memuat nilai action_taken_status berupa kalimat-kalimat bebas yang berbeda-beda",
+      "when": "Pengguna membaca Rekap Catatan Tindakan",
+      "then": "Isinya dirender sebagai daftar teks per slot beserta tanggal dan slot waktunya, dan TIDAK ada satu pun elemen sebaran kategoris di layar — kolomnya teks bebas tanpa himpunan nilai tertutup meski namanya menyebut 'status', dan keterangan pilihan itu terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — isi catatan tindakan berulang sama persis",
+      "given": "Nilai action_taken_status yang sama persis muncul pada dua puluh slot",
+      "when": "Pengguna membaca Rekap Catatan Tindakan",
+      "then": "Kedua puluh slot itu tetap dirender sebagai dua puluh entri teks, tidak dikelompokkan menjadi satu baris berjumlah dua puluh — mengelompokkannya akan membuat kolom teks bebas tampak kategoris padahal bukan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — kedua kolom teks bebas kosong",
+      "given": "Periode tidak memuat satu pun catatan tindakan maupun temuan",
+      "when": "Pengguna menggulir ke kedua rekap",
+      "then": "Kedua rekap tetap berjudul terpisah dan masing-masing menampilkan keterangan tidak ada catatan, bukan tabel kosong tanpa penjelasan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — satu slot mengisi catatan tindakan dan temuan sekaligus",
+      "given": "Sebuah slot mengisi action_taken_status dan findings sekaligus",
+      "when": "Pengguna membaca kedua rekap",
+      "then": "Slot yang sama muncul sekali di masing-masing rekap, tidak ada daftar gabungan, dan jumlah slot terisi tidak bertambah dua"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — seluruh slot tidak mencatat inspector",
+      "given": "Delapan belas slot terisi dan tidak satu pun mengisi inspector_id",
+      "when": "Pengguna membuka rekap per inspector",
+      "then": "Rekap menampilkan satu baris 'tidak tercatat' berisi delapan belas slot — bukan rekap kosong — dan keterangan bahwa rekap ini untuk menelusuri slot kosong dan bukan menilai orang tetap terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — satu inspector mengisi seluruh periode",
+      "given": "Hanya satu inspector_id yang muncul sepanjang periode",
+      "when": "Pengguna membuka rekap per inspector",
+      "then": "Rekap menampilkan satu baris dengan jumlah slotnya, dan tidak ada penanda apa pun — itu keadaan yang sah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — line punya beberapa unit Process Water",
+      "given": "Line terpilih punya dua unit Process Water dan salah satunya tanpa pembacaan",
+      "when": "Pengguna membuka rekap per unit",
+      "then": "Angka periode menggabungkan kedua unit, rekap memuat dua baris, dan baris unit tanpa pembacaan tetap muncul dengan penyebut nol alih-alih dihilangkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — pencatatan sangat tidak lengkap",
+      "given": "Hanya sebagian kecil slot terisi sepanjang periode",
+      "when": "Pengguna membuka laporan",
+      "then": "Blok kelengkapan dirender sebelum kartu metrik pertama dan persentase rendahnya terlihat lebih dulu; angka metrik tetap dirender beserta penyebut kecilnya masing-masing"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — periode masih berjalan",
+      "given": "Periode 1–30 bulan ini sementara hari ini tanggal 10 dan hari-hari yang lewat terisi penuh",
+      "when": "Pengguna membaca blok kelengkapan",
+      "then": "Penyebut hari berhenti di hari ini sehingga persentasenya tinggi, keterangannya dirender, dan hari yang belum terjadi tidak menurunkan persentase"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — tidak ada slot yang diharapkan",
+      "given": "Periode belum mulai, atau line belum punya satu pun unit Process Water",
+      "when": "Pengguna membaca blok kelengkapan",
+      "then": "Tanda hubung dirender beserta 'belum ada slot yang diharapkan'; teks 0,0% tidak muncul"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — nilai pH atau TDS jauh di luar batas umum",
+      "given": "Periode memuat pH air umpan boiler 4,2 dan TDS 6000 ppm yang jauh dari nominal yang dikenal luas",
+      "when": "Pengguna menelusuri keempat blok",
+      "then": "Kedua nilai ditampilkan apa adanya tanpa satu pun penanda peringatan, pelanggaran, atau di luar batas, dan keterangan ketiadaan penandaan dirender UTUH — stasiun ini tidak punya master target dan ambang tidak diturunkan dari data periode"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — akun belum terhubung ke mill",
+      "given": "Akun Supervisor terikat mill tetapi business_unit_id-nya kosong",
+      "when": "Pengguna membuka layar",
+      "then": "Pesan menghubungi Admin terlihat, pemilih Mill TIDAK dirender sehingga daftar seluruh mill tidak ditawarkan, dan tidak ada angka laporan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — mencoba melihat mill lain",
+      "given": "Supervisor terikat mill A",
+      "when": "Permintaan laporan dikirim dengan membawa business_unit_id mill B, lalu dicoba membuka periode milik mill B",
+      "then": "Angka yang tampil tetap milik mill A karena nilai kiriman dibuang, dan periode milik mill B ditolak"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — mencoba melihat line mill lain",
+      "given": "Supervisor terikat mill A",
+      "when": "Permintaan dikirim dengan production_line_id milik mill B",
+      "then": "Permintaan ditolak dan tidak ada satu angka pun milik line mill B yang terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — Operator mencoba membuka layar web ini",
+      "given": "Pengguna berperan Station Operator",
+      "when": "Operator membuka rute web laporan Process Water secara langsung",
+      "then": "Halaman menolak akses dan tidak ada angka laporan yang terlihat, sementara permintaan ke ketiga rute API data dari akun yang sama tetap berhasil karena jalur Operator ada di layar mobile screen-161"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — periode tertutup",
+      "given": "Mill punya periode Process Water berstatus tertutup dengan pembacaan terkumpul",
+      "when": "Pengguna memilih periode itu lalu menekan Ekspor CSV",
+      "then": "Laporan tampil penuh dengan badge status tertutup, dan unduhan CSV berhasil dimulai — status periode tidak membatasi pembacaan maupun ekspor"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — pengguna mencari kolom shift di laporan",
+      "given": "Laporan termuat penuh",
+      "when": "Pengguna mencari pengelompokan atau kolom shift",
+      "then": "Layar menyatakan kolom shift tidak diterbitkan beserta alasannya — kolomnya kosong dan sudah dijadwalkan diganti relasi ke master Shift — sehingga ketiadaannya tidak terbaca sebagai kelalaian"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — rentang periode inklusif di kedua ujung",
+      "given": "Periode 2026-03-01..2026-03-31 memuat pembacaan tepat pada kedua tanggal ujung, ditambah record pada 2026-02-28 dan 2026-04-01",
+      "when": "Pengguna membaca rekap harian lalu mengunduh CSV",
+      "then": "Kedua record ujung ikut terhitung di seluruh kartu, kelengkapan, rekap harian, dan berkas CSV; kedua record di luar rentang tidak muncul di mana pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — setiap kartu punya penyebutnya sendiri",
+      "given": "Periode di mana sebagian slot hanya mengisi kolom aliran air sementara kolom softener dan air umpan boiler dikosongkan",
+      "when": "Pengguna menelusuri keempat blok",
+      "then": "Penyebut berbeda-beda antar kartu dan tiap rata-rata setara rata-rata baris non-null kartu itu sendiri — tidak ada satu penyebut bersama, dan metrik yang jarang diisi tidak mengempis ke arah nol"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — ekspor tetap memuat shift dan inspector_id",
+      "given": "Periode terisi dan Production Line terpilih",
+      "when": "Pengguna mengunduh berkas Excel lalu CSV dan membandingkan header kolomnya",
+      "then": "Kedua berkas memuat ke-13 kolom detail termasuk inspector_id dan shift — pengecualian kedua kolom identitas dari pemeriksaan slot terisi TIDAK berarti keduanya dibuang dari berkas, karena ekspor adalah rincian mentah; berkas Excel terbuka tanpa peringatan format"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — laporan tidak memuat blok downtime",
+      "given": "Periode memuat pembacaan lengkap",
+      "when": "Pengguna menelusuri halaman dari atas sampai bawah lalu memeriksa header CSV",
+      "then": "Tidak ada bagian maupun kolom downtime di halaman dan di berkas, dan keterangan bahwa stasiun ini tidak mencatat downtime terlihat sehingga tidak terbaca sebagai bagian yang gagal dimuat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — rekap harian panjang",
+      "given": "Periode berdurasi tiga puluh satu hari",
+      "when": "Pengguna membuka rekap harian, menggulirnya mendatar, lalu menutupnya",
+      "then": "Rekap dapat ditutup, tabelnya menggulir mendatar DI DALAM kartunya sendiri, dan halaman itu sendiri tidak pernah menggulir mendatar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Process Water (Web) — layar hanya membaca",
+      "given": "Laporan termuat penuh dengan kedua rekap teks, rekap per inspector, dan rekap harian",
+      "when": "Pengguna menelusuri seluruh bagian lalu menutup halaman dan memeriksa data stasiun",
+      "then": "Tidak ada kontrol tulis yang terlihat, tidak ada permintaan POST/PUT/PATCH/DELETE yang terkirim, dan jumlah serta isi record Process Water tidak berubah"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-160--laporan-process-water-web"
+  ]
+}

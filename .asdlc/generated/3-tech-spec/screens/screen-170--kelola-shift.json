@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-15"
+    "updated_at": "2026-10-16"
   },
   "id": "screen-170--kelola-shift",
   "name": "Kelola Shift",
@@ -368,7 +368,7 @@
         {
           "method": "DELETE",
           "path": "/api/shifts/{id}",
-          "description": "Menghapus shift. Tidak ada penjagaan 'sudah dipakai record' pada putaran ini karena belum ada record yang merujuk shift — lihat open_question #1 pada business spec",
+          "description": "Menghapus shift — SOFT DELETE: barisnya ditutup (`deleted_at` terisi), bukan dibuang, sehingga record yang kelak merujuknya tetap dapat menyelesaikan rujukannya. Didaftarkan SESUDAH seluruh rute literal. Tidak ada penjagaan 'sudah dipakai record' di putaran ini karena belum ada kolom yang merujuk shift",
           "auth_required": true,
           "request": {
             "path_params": [
@@ -429,7 +429,7 @@
         "14. Pada PATCH yang mengubah production_line_id, pemeriksaan tumpang tindih dijalankan terhadap shift di line TUJUAN, bukan line asal.",
         "15. Pesan SHIFT_OVERLAP menyebut nama shift yang bertindih DAN rentang jam tindihannya. Pesan yang hanya berbunyi 'jam bertindih' memaksa Admin mencari sendiri di antara belasan baris.",
         "16. Nama unik diperiksa dalam satu production_line_id, bukan global. Dua line boleh punya shift bernama sama.",
-        "17. start_time == end_time ditolak sebagai VALIDATION_ERROR, bukan SHIFT_OVERLAP — keduanya kesalahan yang berbeda dan pesannya pun berbeda.",
+        "17. start_time == end_time BERARTI SHIFT 24 JAM, dan hanya diterima bila line itu belum punya shift HIDUP lain; selebihnya ditolak sebagai VALIDATION_ERROR dengan pesan durasi nol — bukan SHIFT_OVERLAP, karena keduanya kesalahan berbeda. Pembedaannya tidak ambigu: shift 24 jam menurut definisinya tidak dapat berdampingan dengan shift mana pun, jadi pada line yang sudah terisi jam berimpit hanya bisa berarti salah ketik. `durationMinutes()` membaca modulo 0 sebagai 1440, sehingga shift 24 jam menghasilkan satu blok berdurasi penuh. (Keputusan pemilik produk 2026-10-16, menggantikan aturan v1 yang menolak jam berimpit tanpa syarat.)",
         "18. `state` bernilai 'unconfigured' HANYA ketika line tidak punya satu pun shift, dan itu BUKAN 'gap' dengan uncovered_minutes 1440. Keduanya berbeda artinya: belum dikerjakan versus keputusan yang mungkin salah — dan membedakannya di payload adalah yang membuat blade dapat membedakannya di layar.",
         "19. `starts_at_production_day` false adalah PERINGATAN, bukan penolakan. Simpan tidak pernah ditolak karena union shift tidak dimulai 07:00; menolaknya akan memaksa pabrik yang jadwalnya memang tidak selaras mengarang shift yang tidak mereka jalankan.",
         "20. Celah TIDAK PERNAH ditolak di lapisan data. Ia diterbitkan sebagai blok ber-kind 'gap' beserta durasinya, dan layar yang membuatnya terlihat.",
@@ -437,7 +437,12 @@
         "22. Komponen Livewire memakai service yang SAMA dengan controller API, sehingga halaman dan API tidak mungkin berbeda hasil hitungan cakupannya.",
         "23. mount() memanggil abort_unless atas peran admin — lapisan kedua di atas middleware rute, mengikuti pola screen-128.",
         "24. Pratinjau timeline di dalam form dihitung di KLIEN dari nilai yang sedang diketik, karena ia harus bergerak sebelum ada permintaan jaringan. Itu satu-satunya perhitungan cakupan di sisi klien, dan ia BUKAN sumber kebenaran — penolakan tetap datang dari server saat Simpan, dan pratinjau memakai rumus offset-dari-07:00 yang sama persis.",
-        "25. Mengganti mill mengosongkan filter Production Line: sebuah line milik tepat satu mill, jadi membawanya ke mill lain akan menampilkan galat untuk sesuatu yang tidak dilakukan Admin."
+        "25. Mengganti mill mengosongkan filter Production Line: sebuah line milik tepat satu mill, jadi membawanya ke mill lain akan menampilkan galat untuk sesuatu yang tidak dilakukan Admin.",
+        "26. PENGHAPUSAN ADALAH SOFT DELETE. Tabel `shifts` memperoleh `deleted_at`, model memakai `SoftDeletes`, dan DELETE menutup baris alih-alih membuangnya — sehingga record yang kelak menandai dirinya dengan shift itu tetap dapat menyelesaikan rujukannya dan laporan historis tetap terbaca.",
+        "27. SELURUH JALUR YANG HIDUP MENGECUALIKAN BARIS TERTUTUP: daftar, perhitungan cakupan dan celah, pemilih pada form, DAN himpunan pembanding tumpang tindih. Yang terakhir itu yang paling mudah terlewat — bila shift tertutup ikut dibandingkan, jam yang baru saja dikosongkan tidak akan pernah bisa dipakai ulang oleh penggantinya.",
+        "28. UNIQUE INDEX `(production_line_id, name)` DIGANTI PARTIAL UNIQUE INDEX yang hanya berlaku `WHERE deleted_at IS NULL`. Tanpa itu, sebuah 'Pagi' yang ditutup akan memblokir 'Pagi' penggantinya selamanya — dan penggantian adalah justru yang paling sering terjadi. PostgreSQL mendukungnya langsung; pemeriksaan keunikan di lapisan aplikasi juga wajib mengecualikan baris tertutup agar keduanya sepakat.",
+        "29. MENGUBAH JAM SHIFT YANG SUDAH DIRUJUK RECORD MENGGANTIKANNYA: baris lama ditutup dengan jam aslinya, baris baru dibuat dengan jam baru. Selama belum ada record yang merujuk, pengubahan cukup memutasi baris. Mengubah NAMA saja tidak pernah menggantikan apa pun.",
+        "30. PENGGANTIAN-SAAT-UBAH BELUM AKTIF DI PUTARAN INI. Hari ini tidak ada satu kolom pun di sistem yang merujuk shift — `shift_id` baru lahir di putaran penandaan delapan belas tabel record — sehingga pemicunya selalu bernilai salah dan pengubahan selalu memutasi baris. Mekanismenya mendarat bersama penandaan itu. Jangan membangun cabang yang tidak pernah dilewati jalur produksi mana pun: yang dibangun sekarang adalah soft delete dan partial index-nya, karena SKEMA paling murah diubah sebelum ada data, sementara perilaku penggantian menunggu pemicunya benar-benar ada."
       ],
       "data_operations": [
         {
@@ -519,7 +524,7 @@
         },
         {
           "condition": "start_time == end_time",
-          "handling": "422 VALIDATION_ERROR — bukan SHIFT_OVERLAP; shift berdurasi nol tidak dapat menampung record"
+          "handling": "Bila line belum punya shift HIDUP lain → diterima sebagai shift 24 jam, satu blok berdurasi 1440, state 'covered'. Bila line sudah punya shift hidup lain → 422 VALIDATION_ERROR dengan pesan durasi nol, BUKAN SHIFT_OVERLAP"
         },
         {
           "condition": "Nama shift bentrok di dalam satu line",
@@ -539,7 +544,7 @@
         },
         {
           "condition": "Menghapus shift terakhir sebuah line",
-          "handling": "Berhasil; coverage line itu berubah menjadi 'unconfigured', bukan 'gap' 1440 menit"
+          "handling": "Soft delete berhasil; coverage line itu menjadi 'unconfigured' dengan shift_count 0 — bukan 'gap' 1440. Baris tertutupnya tetap tersimpan dan tidak dihitung di mana pun yang hidup"
         },
         {
           "condition": "Menghapus shift dari line yang tadinya tercakup penuh",
@@ -564,6 +569,26 @@
         {
           "condition": "Jam diketik separuh pada pratinjau klien",
           "handling": "Pratinjau menahan diri dan tidak menggambar blok; tidak ada permintaan jaringan yang terkirim sampai Simpan"
+        },
+        {
+          "condition": "Membuat shift bernama sama dengan shift yang sudah ditutup pada line yang sama",
+          "handling": "Diterima — partial unique index dan pemeriksaan keunikan di aplikasi sama-sama mengecualikan baris tertutup"
+        },
+        {
+          "condition": "Membuat shift berjam sama dengan shift yang sudah ditutup",
+          "handling": "Diterima — shift tertutup tidak ikut himpunan pembanding tumpang tindih, sehingga jamnya bebas dipakai ulang penggantinya"
+        },
+        {
+          "condition": "Line hanya punya shift yang sudah ditutup",
+          "handling": "state 'unconfigured' dengan shift_count 0, sama seperti line yang belum pernah diberi shift"
+        },
+        {
+          "condition": "Mengubah jam menjadi berimpit pada line yang punya shift hidup lain",
+          "handling": "422 VALIDATION_ERROR durasi nol — aturan yang sama dengan saat membuat"
+        },
+        {
+          "condition": "DELETE pada shift yang sudah ditutup",
+          "handling": "404 NOT_FOUND — baris tertutup tidak terjangkau jalur yang hidup"
         }
       ],
       "business_rules_applied": [
@@ -634,9 +659,9 @@
           "expect": "coverage[].blocks memuat tepat satu blok ber-kind 'shift' untuk shift itu dengan duration_minutes 480; crosses_midnight true; TIDAK ada dua blok di kedua ujung sumbu"
         },
         {
-          "description": "shift tunggal menutup 24 jam",
-          "given": "Satu shift 07:00–07:00 pada sebuah line",
-          "expect": "state 'covered', uncovered_minutes 0, satu blok berdurasi 1440, nol blok gap"
+          "description": "shift tunggal menutup 24 jam, dibuat lewat jalur yang sah",
+          "given": "Line yang belum punya shift hidup, lalu disimpan satu shift 07:00–07:00 lewat create()",
+          "expect": "Tersimpan tanpa penolakan; state 'covered', uncovered_minutes 0, satu blok berdurasi 1440, nol blok gap. Tidak perlu ditanam lewat factory — jalur API dan form dapat menghasilkannya"
         },
         {
           "description": "cakupan penuh oleh tiga shift",
@@ -704,9 +729,9 @@
           "expect": "Menyimpan 'Pagi' lagi pada Line 1 → 422 VALIDATION_ERROR menyebut nama itu sudah dipakai; menyimpan 'Pagi' pada Line 2 BERHASIL"
         },
         {
-          "description": "start_time sama dengan end_time ditolak sebagai VALIDATION_ERROR",
-          "given": "Admin menyimpan shift 07:00–07:00 yang dimaksudkan berdurasi nol",
-          "expect": "422 VALIDATION_ERROR, BUKAN SHIFT_OVERLAP — keduanya kesalahan berbeda dengan pesan berbeda"
+          "description": "start_time == end_time: diterima sebagai 24 jam bila line kosong, ditolak bila line sudah terisi",
+          "given": "Line A belum punya shift hidup; Line B sudah punya Pagi 07:00–15:00",
+          "expect": "Menyimpan 07:00–07:00 pada Line A BERHASIL dan menghasilkan satu blok berdurasi 1440 dengan state 'covered'; menyimpan 07:00–07:00 pada Line B → 422 VALIDATION_ERROR dengan pesan durasi nol, BUKAN SHIFT_OVERLAP"
         },
         {
           "description": "field wajib absen ditolak",
@@ -817,6 +842,46 @@
           "description": "jumlah jam celah ditampilkan angkanya",
           "given": "uncovered_minutes 240",
           "expect": "Badge menampilkan 'ada celah 4 jam' — angka jamnya disebut, bukan hanya 'ada celah'"
+        },
+        {
+          "description": "DELETE adalah soft delete, bukan penghapusan permanen",
+          "given": "Sebuah shift dihapus lewat delete()",
+          "expect": "Barisnya MASIH ADA di tabel dengan deleted_at terisi; `Shift::withTrashed()->find($id)` memulangkan baris, sementara `Shift::find($id)` memulangkan null"
+        },
+        {
+          "description": "shift tertutup dikecualikan dari daftar, cakupan, dan celah",
+          "given": "Line punya dua shift hidup dan satu shift tertutup yang jamnya berada di antara keduanya",
+          "expect": "data memuat dua entri; coverage menghitung celah pada rentang shift yang tertutup itu seolah tidak ada shift di sana; shift_count bernilai 2"
+        },
+        {
+          "description": "shift tertutup dikecualikan dari himpunan pembanding tumpang tindih",
+          "given": "Line punya shift tertutup 07:00–15:00",
+          "expect": "Menyimpan shift baru 07:00–15:00 pada line itu BERHASIL — bila baris tertutup ikut dibandingkan, jam yang baru dikosongkan tidak akan pernah dapat dipakai ulang"
+        },
+        {
+          "description": "keunikan nama mengecualikan shift tertutup",
+          "given": "Line punya shift tertutup bernama 'Pagi'",
+          "expect": "Menyimpan 'Pagi' baru pada line itu BERHASIL; partial unique index `WHERE deleted_at IS NULL` tidak menghalanginya, dan pemeriksaan keunikan di aplikasi memberi jawaban yang sama"
+        },
+        {
+          "description": "partial unique index tetap menegakkan keunikan di antara baris hidup",
+          "given": "Line punya shift hidup bernama 'Pagi'",
+          "expect": "Menyimpan 'Pagi' kedua pada line itu → 422 VALIDATION_ERROR; pengecualian hanya berlaku bagi baris tertutup, bukan melonggarkan aturannya"
+        },
+        {
+          "description": "line yang hanya punya shift tertutup bernilai unconfigured",
+          "given": "Seluruh shift sebuah line sudah ditutup",
+          "expect": "state 'unconfigured' dengan shift_count 0 — bukan 'gap' 1440 dan bukan 'covered'"
+        },
+        {
+          "description": "DELETE pada shift yang sudah ditutup memulangkan 404",
+          "given": "Sebuah shift sudah di-soft-delete lalu dihapus lagi",
+          "expect": "404 NOT_FOUND — baris tertutup tidak terjangkau jalur yang hidup"
+        },
+        {
+          "description": "mengubah jam memutasi baris selama belum ada record yang merujuk",
+          "given": "Sebuah shift tanpa record yang merujuknya, jamnya diubah lewat update()",
+          "expect": "Jumlah baris shift pada line itu TIDAK bertambah dan tidak ada baris tertutup baru — pengubahan memutasi baris, karena penggantian baru aktif ketika ada record yang merujuk, dan belum ada kolom semacam itu di sistem hari ini"
         }
       ]
     }
@@ -852,7 +917,13 @@
     "Spec browser mengasersi INVARIAN geometris yang diukur dari DOM: urutan blok timeline sama dengan urutan baris tabel, blok shift melewati tengah malam adalah SATU elemen yang menempel ke ujung kanan track, lebar blok sebanding durasinya, dan halaman tidak menggulir mendatar. Jangan memaku lebar piksel — ia bergantung lebar viewport.",
     "Asersi label pendek pada badge status wajib menyasar elemennya, bukan memindai teks kontainer — 'belum diatur' muncul juga di kalimat penjelas di bawah batang, jadi pemindaian kontainer akan cocok pada tempat yang salah.",
     "Migrasi create_shifts_table: production_line_id FK NOT NULL dengan cascade mengikuti pola tabel anak Production Line lain, name string, start_time dan end_time bertipe TIME, plus created_by/updated_by/timestamps. Unique index pada (production_line_id, name). Tumpang tindih TIDAK dapat ditegakkan unique index — ia ditegakkan di lapisan aplikasi, sama seperti aturan tumpang tindih rentang tanggal pada Periode Pelaporan.",
-    "Jangan menambahkan kolom hari, tanggal berlaku, maupun pola bergilir. Jadwal berlaku sama setiap hari — keputusan pemilik produk 2026-10-15 — dan ketiadaan itu disengaja, bukan kelalaian yang perlu dilengkapi."
+    "Jangan menambahkan kolom hari, tanggal berlaku, maupun pola bergilir. Jadwal berlaku sama setiap hari — keputusan pemilik produk 2026-10-15 — dan ketiadaan itu disengaja, bukan kelalaian yang perlu dilengkapi.",
+    "REVISI v2 (2026-10-16) — dua keputusan pemilik produk yang mendarat bersamaan karena keduanya menyentuh `validate()` dan migrasi yang sama. (1) Jam berimpit kini BERARTI shift 24 jam dan diterima bila line belum punya shift hidup lain; selebihnya tetap ditolak sebagai durasi nol. Ini menutup kontradiksi v1 yang melarang jam berimpit tanpa syarat sambil menjanjikan shift 24 jam itu sah. (2) Penghapusan menjadi SOFT DELETE.",
+    "Migrasi kedua yang dibutuhkan: tambahkan `deleted_at` ke `shifts`, DAN ganti unique index `(production_line_id, name)` menjadi PARTIAL unique index `WHERE deleted_at IS NULL`. Keduanya dalam satu migrasi. Index lama harus di-drop lebih dulu — membiarkannya berdampingan dengan yang partial akan tetap memblokir nama yang dipakai ulang, dan gejalanya akan terbaca seperti bug di lapisan aplikasi padahal berasal dari index.",
+    "SQLite tidak mendukung partial unique index dengan sintaks yang sama seperti PostgreSQL. Suite backend berjalan di SQLite in-memory sementara produksi PostgreSQL — jebakan yang sudah terdokumentasi di proyek ini. Pastikan migrasinya jalan di KEDUANYA, dan bila sintaksnya harus berbeda, tegakkan keunikannya juga di lapisan aplikasi (mengecualikan baris tertutup) sehingga perilakunya sama di dua dialek. Jalankan probe terhadap PostgreSQL sekali pakai seperti yang dilakukan putaran sebelumnya.",
+    "Empat jalur yang WAJIB mengecualikan baris tertutup: daftar, perhitungan cakupan/celah, pemilih pada form, dan HIMPUNAN PEMBANDING TUMPANG TINDIH. Yang terakhir paling mudah terlewat, dan akibatnya khas: jam yang baru saja dikosongkan tidak pernah bisa dipakai ulang oleh penggantinya, padahal memakai ulang jam adalah justru alasan soft delete dipilih.",
+    "JANGAN membangun penggantian-saat-ubah di putaran ini. Pemicunya 'ada record yang merujuk shift ini', dan tidak ada satu kolom pun di sistem yang merujuk shift hari ini. Membangunnya sekarang berarti menulis cabang yang tidak pernah dilewati jalur produksi mana pun dan hanya dapat dibuktikan benar terhadap stub. Aturannya sudah ditulis di business spec dan di business_logic langkah 29–30 supaya tidak perlu ditemukan ulang ketika penandaan record mendarat.",
+    "Test yang sudah ada dan akan BERUBAH HASILNYA: unit case 'shift tunggal menutup 24 jam' tidak lagi perlu ditanam lewat factory — jalur create() kini menghasilkannya — dan unit case 'start_time sama dengan end_time ditolak' kini bercabang menurut apakah line sudah punya shift hidup. `ShiftFactory` tetap berguna untuk menanam baris tertutup."
   ],
   "test_scenarios": [
     {
@@ -1307,7 +1378,7 @@
       }
     },
     {
-      "scenario_ref": "Kelola Shift per Production Line — jam mulai dan selesai sama ditolak",
+      "scenario_ref": "Kelola Shift per Production Line — jam mulai dan selesai sama ditolak bila line sudah punya shift lain",
       "usecase_id": "usecase-176--kelola-shift",
       "api_test": [
         {
@@ -1328,8 +1399,8 @@
       ],
       "component_test": {
         "component": "KelolaShift",
-        "action": "Isi jam mulai dan jam selesai dengan nilai yang sama persis lalu simpan",
-        "assert": "422 VALIDATION_ERROR — BUKAN SHIFT_OVERLAP; keduanya kesalahan berbeda dengan pesan berbeda, dan shift berdurasi nol tidak dapat menampung record"
+        "action": "Line 1 sudah punya Pagi 07:00–15:00; isi jam mulai dan jam selesai dengan nilai yang sama persis lalu simpan",
+        "assert": "422 VALIDATION_ERROR dengan pesan durasi nol — BUKAN SHIFT_OVERLAP; pada line yang sudah punya shift hidup, jam berimpit hanya bisa berarti salah ketik karena shift 24 jam tidak dapat berdampingan dengan shift mana pun"
       },
       "browser_test": {
         "route": "/master-data/shifts",
@@ -1424,7 +1495,7 @@
       "component_test": {
         "component": "KelolaShift",
         "action": "Line 1 tercakup penuh oleh tiga shift; hapus Siang dan setujui konfirmasi inline",
-        "assert": "Konfirmasi inline menyebut nama shift DAN line-nya; sesudah dihapus state berubah dari 'covered' menjadi 'gap' dengan uncovered_minutes 480, dan satu blok ber-kind 'gap' muncul di posisi yang ditinggalkannya"
+        "assert": "Konfirmasi inline menyebut nama shift DAN line-nya; penghapusannya SOFT DELETE sehingga barisnya masih ada dengan deleted_at terisi sementara Shift::find() memulangkan null; state berubah dari 'covered' menjadi 'gap' dengan uncovered_minutes 480 dan satu blok 'gap' muncul di posisi yang ditinggalkannya"
       },
       "browser_test": {
         "route": "/master-data/shifts",
@@ -1480,8 +1551,8 @@
       ],
       "component_test": {
         "component": "KelolaShift",
-        "action": "Coba menutup 24 jam dengan satu shift; perhatikan bahwa 07:00–07:00 ditolak sebagai durasi nol",
-        "assert": "Jam yang berimpit DITOLAK sebagai VALIDATION_ERROR; menutup 24 jam dengan satu shift karena itu ditulis sebagai rentang yang tidak berimpit, dan payload-nya menghasilkan satu blok berdurasi 1440 dengan state 'covered' tanpa blok gap"
+        "action": "Line 3 belum punya shift hidup; simpan satu shift 07:00–07:00 lewat jalur create()",
+        "assert": "Tersimpan tanpa penolakan karena line itu belum punya shift lain; coverage menghasilkan satu blok berdurasi 1440 dengan state 'covered' dan nol blok gap; pratinjau di form sudah menggambar batang penuh sebelum Simpan ditekan"
       },
       "browser_test": {
         "route": "/master-data/shifts",
@@ -1661,6 +1732,155 @@
         "route": "/master-data/shifts",
         "action": "Masuk sebagai Supervisor, Mill Management, lalu Operator dan buka rute itu langsung",
         "assert": "Ketiganya ditolak oleh middleware role dan tidak mendarat di layar; nol data shift terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — membuat shift bernama sama dengan yang sudah ditutup",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-001",
+            "name": "Pagi",
+            "start_time": "07:00",
+            "end_time": "15:00"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 punya shift 'Pagi' yang sudah di-soft-delete; simpan shift baru bernama 'Pagi' pada Line 1",
+        "assert": "BERHASIL — partial unique index `WHERE deleted_at IS NULL` dan pemeriksaan keunikan di aplikasi sama-sama mengecualikan baris tertutup; tanpa itu penggantian akan terhalang namanya sendiri"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Hapus sebuah shift lalu buat shift baru dengan nama yang sama pada line yang sama",
+        "assert": "Tersimpan tanpa penolakan dan barisnya muncul di tabel"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — line hanya punya shift yang sudah ditutup",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001",
+            "production_line_id": "pl-002"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Seluruh shift Line 2 sudah ditutup; muat ulang daftar",
+        "assert": "state Line 2 'unconfigured' dengan shift_count 0 — BUKAN 'gap' 1440 dan bukan 'covered'; data tidak memuat satu pun baris milik line itu"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Hapus seluruh shift sebuah line lalu baca batangnya",
+        "assert": "Badge berbunyi 'belum diatur' dan bloknya polos tanpa arsiran celah"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — shift tertutup tidak ikut diperiksa tumpang tindih",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "production_line_id": "pl-001",
+            "name": "Pagi Baru",
+            "start_time": "07:00",
+            "end_time": "15:00"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 punya shift tertutup 07:00–15:00; simpan shift baru dengan jam yang sama persis",
+        "assert": "BERHASIL — shift tertutup tidak ikut himpunan pembanding. Bila ia ikut dibandingkan, jam yang baru saja dikosongkan tidak akan pernah dapat dipakai ulang oleh penggantinya, padahal memakai ulang jam adalah justru alasan soft delete dipilih"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Hapus sebuah shift lalu buat shift baru dengan jam yang sama",
+        "assert": "Tersimpan tanpa pesan tumpang tindih"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — mengubah jam shift yang belum dirujuk record",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/shifts/{id}"
+          },
+          "request_example": {
+            "start_time": "08:00",
+            "end_time": "16:00"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Ubah jam sebuah shift yang belum dirujuk record mana pun, lalu hitung baris shift pada line itu termasuk yang tertutup",
+        "assert": "Jumlah baris TIDAK bertambah dan tidak ada baris tertutup baru — pengubahan memutasi baris, karena penggantian baru aktif ketika ada record yang merujuk dan belum ada kolom semacam itu di sistem hari ini"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Ubah jam sebuah shift lalu periksa tabelnya",
+        "assert": "Baris yang sama menampilkan jam baru; tidak muncul baris kedua"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — shift yang ditutup tidak muncul di mana pun yang hidup",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shifts"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001",
+            "production_line_id": "pl-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Line 1 punya dua shift hidup dan satu shift tertutup yang jamnya berada di antara keduanya; baca data, coverage, dan pemilih pada form",
+        "assert": "data memuat dua entri; coverage menghitung celah pada rentang shift tertutup itu seolah tidak ada shift di sana; shift_count 2; shift tertutup tidak muncul sebagai blok timeline maupun sebagai opsi di form"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Hapus shift tengah lalu baca tabel, batang, dan badge cakupan",
+        "assert": "Shift yang dihapus tidak terlihat di tabel maupun sebagai blok, dan badge cakupan kini menyebut jumlah jam celah"
       }
     }
   ]

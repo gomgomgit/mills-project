@@ -36,3 +36,29 @@ Agen benar tidak mengeskalasinya sebagai `spec_mismatch`: implementasi yang kohe
 - **Ambang 14px** — 13 deklarasi font-size, semuanya `--font-size-sm` (14px) atau `--font-size-base` (16px); nol `--font-size-xs`, nol literal px, nol literal warna. Pada viewport sempit label sumbu **dijarangkan** (`display:none` pada tick sekunder), bukan diperkecil.
 - **Perbedaan arsiran dibaca dari CSS terkompilasi**: `backgroundImage` blok celah wajib memuat `gradient`, blok "belum diatur" wajib persis `none`.
 - **Badge dibaca lewat elemen badge-nya**, dan satu test membuktikan "belum diatur" muncul lebih dari sekali di halaman — justru itu sebabnya pemindaian kontainer dilarang.
+
+## v2 — 2026-10-16 (revisi soft delete + shift 24 jam)
+
+Spec v2 diimplementasikan. Suite 5741 → **5767** (nol test lama dihapus, 5 direvisi di tempat, 26 ditambahkan), diverifikasi sendiri.
+
+### Dua dugaan saya yang ternyata keliru — dan ini yang paling berharga dari putaran ini
+
+- **Jalur berbahayanya bukan empat yang saya peringatkan.** Saya menulis bahwa daftar, cakupan, pemilih, dan himpunan pembanding tumpang tindih semuanya wajib mengecualikan baris tertutup, dengan `findOverlap()` sebagai yang paling mudah terlewat. Ternyata **ketiganya sudah tertangani global scope SoftDeletes** — dibuktikan dengan membuang SQL asli lewat `toSql()`, bukan dengan menalar. Yang **tidak** tertangani justru yang tidak saya sebut: `Rule::unique('shifts','name')` membangun query lewat **Query Builder**, bukan Eloquent, sehingga global scope tidak pernah berlaku padanya. Tanpa `whereNull('deleted_at')` eksplisit, lapisan aplikasi jadi LEBIH KETAT daripada partial index-nya, dan gejalanya terbaca sebagai bug index padahal berasal dari validator.
+- **Tidak perlu cabang per-driver.** Saya mengantisipasi partial unique index butuh sintaks berbeda SQLite vs PostgreSQL dan menulis itu sebagai jebakan di brief. Ternyata DDL-nya sah **verbatim di keduanya**, diverifikasi lewat probe PostgreSQL sekali pakai. Jebakan SQLite-vs-PostgreSQL nyata di proyek ini, tapi tidak mengenai kasus ini.
+
+### Turunan agent yang saya terima
+
+- **`updated_by` dicap sebelum baris ditutup** ← spec dan katalog sama-sama diam, dan tidak ada kolom `deleted_by`. Karena baris tertutup kini hidup selamanya, tanpa ini tidak ada jejak SIAPA yang menutupnya. Harganya satu `UPDATE` tambahan di jalur hapus, diikat satu test khusus.
+- **Kata-kata konfirmasi hapus tidak diubah** ← aturan bisnis hanya menuntut ia menyebut nama shift dan line-nya, dan itu sudah dipenuhi. Bahwa barisnya *ditutup, bukan dibuang* sengaja TIDAK ditampilkan ke Admin karena tidak ada teks spec yang memintanya. Bila penutupan ingin terlihat, itu perubahan tersendiri.
+- **`lineHasOtherLiveShift()` `protected`, bukan public** ← hanya terlatih lewat `create()`/`update()`; kopling lebih baik, tapi test yang ingin mengujinya terpisah perlu tahu.
+- **Satu test lebih ketat daripada spec** ← spec hanya meminta 422 untuk nama ganda yang hidup; test juga mengasersi `QueryException` di level DB, sehingga index yang tanpa sengaja dilonggarkan menjadi non-unique tidak bisa lolos selamanya di balik pemeriksaan aplikasi. Saya terima: itu memperkuat, bukan mengada-ada.
+- **Dua skenario e2e digabung ke dua skenario lain** yang keadaan halamannya sama, dengan judul diubah dan asersi yang kurang ditambahkan, alih-alih menduplikasi setup. Keterlacakannya dijaga lewat judul dan komentar.
+- **`deleted_at` tidak dimasukkan `$fillable`** ← `update(['deleted_at' => ...])` yang nyasar jadi no-op alih-alih penutupan tak terlihat.
+
+### Koreksi atas pembacaan agen
+
+Agen melaporkan `business_logic` 29–30 "menggambarkan mekanisme yang dibantah test case spec-nya sendiri". Itu salah baca: butir **30 adalah penyelaras butir 29** — ia menyatakan penggantian-saat-ubah belum aktif di putaran ini. Jadi 29 aturannya, 30 penundaannya, dan unit case yang menegaskan pengubahan memutasi baris menggambarkan perilaku yang berlaku sekarang. Spec-nya konsisten. Hasil kerjanya tetap benar — ia tidak membangun penggantian itu.
+
+### Catatan DB dev
+
+Migrasi soft delete diterapkan ke `mill_smart_log` oleh SAYA, berlingkup `--path=`, atas instruksi user ("jalankan migrasi shifts saja, app_name tunda dulu" — ini juga migrasi shifts). Diverifikasi sebelum dan sesudah: 91 → 92 migrasi (bukan 93), `deleted_at` ada, `app_name` MASIH ADA sehingga migrasi destruktifnya tetap tertunda, dan `pg_indexes` mengonfirmasi tepat satu index ber-predikat `WHERE (deleted_at IS NULL)`. Tanpa penerapan ini halaman Kelola Shift di dev akan error pada setiap kueri shift, karena global scope memancarkan `deleted_at is null` terhadap kolom yang tidak ada.

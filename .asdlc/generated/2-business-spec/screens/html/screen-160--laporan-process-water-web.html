@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Process Water (Web) | Mills Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* ============================================================================
+       Kosakata `md-*` bersama — SALINAN STRUKTURAL dari
+       backend/resources/views/dashboard/partials/report-styles.blade.php, kosakata
+       yang sama dipakai Daily Mill Report dan tiga belas laporan periode yang sudah
+       ada. Acuan terdekat berkas ini adalah
+       screen-158--laporan-engine-room-web.html (Engine Room).
+
+       Mock ini tidak bisa meng-@include partial Blade, jadi kelas yang dipakai
+       disalin ke sini. DUA bedanya dari partial:
+
+       (1) Seluruh nilai warna, radius, dan shadow diambil dari design-tokens.css
+           lewat variabel — tidak ada satu pun literal warna di berkas ini.
+
+       (2) LANTAI UKURAN HURUF 14px. uiux-spec menuntut
+           accessibility.text_content.min_font_size = 14px. report-styles.blade.php
+           MELANGGARnya hari ini — teks terkecilnya jatuh ke 10px, 11px, dan 12px —
+           dan screen-156 serta screen-158 ikut menyalin pelanggaran itu lewat
+           var(--font-size-xs), yang resolve ke --font-size-caption = 12px, plus
+           `<small>` yang jatuh ke bawaan peramban 0,8em. Berkas ini TIDAK menyalin
+           pola itu: --font-size-xs dan --font-size-caption tidak dipakai sama sekali,
+           dan teks terkecil di sini adalah var(--font-size-sm) = 14px. Konsekuensinya
+           tabel rekap jadi lebih lebar — itu diselesaikan dengan MENGURANGI isi
+           (kolom lebih sedikit, label lebih pendek) dan dengan gulir di dalam kartu,
+           bukan dengan mengecilkan huruf.
+
+       TIDAK ADA kosakata baru yang dikarang kecuali satu: `md-field__context`, untuk
+       menampilkan nama mill yang TERIKAT akun sebagai keterangan — bukan sebagai
+       <input> disabled/readonly, yang dilarang component_patterns 'web-form-input'.
+       Kotak keterangan di partial bernama `md-threshold`; di sini ia dinamai
+       `md-note` justru supaya tidak terbaca sebagai penanda ambang — stasiun ini
+       tidak punya ambang apa pun (lihat pernyataan di layar).
+
+       NOL PENANDA DI LUAR BATAS: tidak ada satu kelas, modifier, atau nuansa
+       peringatan pada nilai mana pun. Modifier bernuansa peringatan di
+       report-styles (`--warn` pada md-param/md-status/md-tank, `--low`/`--off` pada
+       md-trendchart__col, dan seluruh keluarga md-outlier) sengaja TIDAK disalin ke
+       sini. Tidak satu pun angka di layar ini boleh terlihat ‘aman’ atau ‘bahaya’.
+       ============================================================================ */
+
+    .md {
+      --md-brand: var(--color-brand);
+      --md-brand-dark: var(--color-brand-hover);
+      --md-brand-soft: color-mix(in srgb, var(--color-brand) 12%, var(--color-background));
+      --md-ink: var(--color-text-primary);
+      --md-muted: var(--color-text-muted);
+      --md-line: var(--color-border);
+      --md-card: var(--color-background);
+      --md-soft: color-mix(in srgb, var(--color-surface) 70%, var(--color-background));
+      --md-track: color-mix(in srgb, var(--color-brand) 8%, var(--color-surface));
+      /* LANTAI 14px — satu-satunya ukuran terkecil yang dipakai berkas ini */
+      --md-fine: var(--font-size-sm);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+      margin-bottom: var(--space-xl);
+      min-width: 0;
+      color: var(--md-ink);
+    }
+    /* `<small>` bawaan peramban = 0,8em -> 12,8px di dalam teks 16px dan 11,2px di
+       dalam teks 14px. Keduanya di bawah lantai, jadi ukurannya DIKUNCI ke 14px.
+       Diperiksa pada hasil render lewat getComputedStyle, bukan pada sumbernya. */
+    .md small { font-size: var(--md-fine); font-weight: 500; color: var(--md-muted); }
+    .md code { font-family: ui-monospace, monospace; font-size: inherit; }
+    .md b, .md strong { font-weight: 700; }
+
+    /* ---------- md-hero ---------- */
+    .md-hero {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: var(--space-md);
+      padding: var(--space-lg) var(--space-xl);
+      border-radius: var(--radius-modal);
+      color: var(--color-background);
+      background:
+        radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--color-brand) 72%, var(--color-background)) 0%, transparent 55%),
+        linear-gradient(135deg, var(--color-brand-hover) 0%, var(--color-brand) 60%, color-mix(in srgb, var(--color-brand) 88%, var(--color-background)) 100%);
+    }
+    .md-hero::after {
+      content: '';
+      position: absolute;
+      right: calc(var(--space-2xl) * -1.25);
+      bottom: calc(var(--space-2xl) * -1.6);
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      border: var(--space-xl) solid color-mix(in srgb, var(--color-background) 7%, transparent);
+    }
+    .md-hero__main { position: relative; z-index: 1; min-width: 0; }
+    .md-hero__eyebrow {
+      margin: 0 0 var(--space-xs);
+      font-size: var(--md-fine);
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      opacity: .9;
+    }
+    .md-hero__title { margin: 0; font-size: var(--font-size-h1); font-weight: var(--font-weight-h1); letter-spacing: -.01em; line-height: 1.2; }
+    .md-hero__subtitle { margin: var(--space-xs) 0 0; font-size: var(--font-size-sm); opacity: .9; }
+    .md-hero__meta { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+
+    /* ---------- md-chip ---------- */
+    .md-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: 7px var(--space-sm);
+      border-radius: var(--radius-chip);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      background: color-mix(in srgb, var(--color-background) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--color-background) 28%, transparent);
+    }
+    .md-chip svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .md-chip--date { background: color-mix(in srgb, var(--color-background) 16%, transparent); }
+    .md-chip--status { text-transform: uppercase; letter-spacing: .05em; }
+
+    /* ---------- md-filters ---------- */
+    .md-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: var(--space-sm) var(--space-md);
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-modal);
+      padding: var(--space-md) var(--space-lg);
+      box-shadow: var(--shadow-card);
+    }
+    .md-field { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; flex: 1 1 260px; }
+    .md-field__label { font-size: var(--md-fine); font-weight: 600; color: var(--md-muted); display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+    .md-field__control {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 10px var(--space-sm);
+      font: inherit;
+      font-size: var(--font-size-sm);
+      color: var(--md-ink);
+      background: var(--color-background);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-button);
+      min-height: var(--space-touch_target_min);
+    }
+    .md-field__control:focus { outline: 2px solid var(--md-brand); outline-offset: 2px; border-color: var(--md-brand); }
+    /* KOSAKATA BARU (satu-satunya) — nama mill yang TERIKAT akun ditampilkan sebagai
+       KETERANGAN, bukan sebagai <input> disabled/readonly. Aturan tata letak dan
+       tipografi murni; tidak membawa nilai warna/radius/shadow baru. */
+    .md-field__context {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      box-sizing: border-box;
+      min-height: var(--space-touch_target_min);
+      padding: 10px var(--space-sm);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--md-ink);
+      background: var(--md-soft);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-button);
+    }
+    .md-field__context svg { width: 17px; height: 17px; flex-shrink: 0; color: var(--md-brand); }
+    .md-filters__actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-left: auto; }
+    .md-filters__hint { flex: 1 1 100%; margin: 0; font-size: var(--md-fine); line-height: 1.6; color: var(--md-muted); }
+    .md-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 10px var(--space-md);
+      border-radius: var(--radius-button);
+      border: 1px solid var(--md-line);
+      background: var(--color-background);
+      color: var(--md-ink);
+      font: inherit;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      min-height: var(--space-touch_target_min);
+    }
+    .md-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .md-btn:hover { border-color: var(--md-brand); color: var(--md-brand-dark); }
+    .md-btn--primary { background: var(--md-brand); border-color: var(--md-brand); color: var(--color-background); }
+    .md-btn--primary:hover { background: var(--md-brand-dark); border-color: var(--md-brand-dark); color: var(--color-background); }
+
+    /* ---------- md-pill ---------- */
+    .md-pill {
+      display: inline-block;
+      padding: 3px var(--space-sm);
+      border-radius: var(--radius-chip);
+      background: var(--md-brand-soft);
+      color: var(--md-brand-dark);
+      font-size: var(--md-fine);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    /* ---------- md-kpis ---------- */
+    .md-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .md-kpis--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .md-kpis--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .md-kpi {
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-card);
+      padding: var(--space-md);
+      box-shadow: var(--shadow-card);
+      transition: box-shadow .15s, transform .15s;
+      min-width: 0;
+    }
+    .md-kpi:hover { box-shadow: var(--shadow-dropdown); transform: translateY(-1px); }
+    .md-kpi__top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-sm); }
+    .md-kpi__label { font-size: var(--font-size-sm); font-weight: 700; color: var(--md-muted); min-width: 0; line-height: 1.4; }
+    .md-kpi__icon {
+      display: grid;
+      place-items: center;
+      width: var(--space-xl);
+      height: var(--space-xl);
+      border-radius: var(--radius-button);
+      background: var(--md-brand-soft);
+      color: var(--md-brand);
+      flex-shrink: 0;
+    }
+    .md-kpi__icon svg { width: 18px; height: 18px; }
+    .md-kpi__value {
+      margin: var(--space-sm) 0 2px;
+      font-size: var(--font-size-h2);
+      font-weight: var(--font-weight-h1);
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+    .md-kpi__value span { font-size: var(--md-fine); font-weight: 600; color: var(--md-muted); letter-spacing: normal; }
+    .md-kpi__meta { margin: 0 0 var(--space-sm); font-size: var(--md-fine); color: var(--md-muted); font-variant-numeric: tabular-nums; }
+    .md-kpi__foot { margin: var(--space-xs) 0 0; font-size: var(--md-fine); line-height: 1.5; color: var(--md-muted); }
+
+    /* ---------- md-bar ---------- */
+    .md-bar { position: relative; height: var(--space-sm); border-radius: var(--radius-chip); background: var(--md-track); overflow: hidden; }
+    .md-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--color-brand) 82%, var(--color-background)), var(--color-brand));
+    }
+    .md-bar--lg { height: 12px; }
+
+    /* ---------- md-row / md-card ---------- */
+    .md-row { display: grid; gap: var(--space-lg); align-items: stretch; }
+    .md-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .md-card {
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-modal);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-card);
+      min-width: 0;
+    }
+    .md-card__head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: var(--space-xs) var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+    .md-card__head h2, .md-card__head h3 { margin: 0; font-size: var(--font-size-lg); font-weight: 700; }
+    .md-card__hint { font-size: var(--md-fine); color: var(--md-muted); }
+
+    /* ---------- md-budget (kartu kelengkapan pencatatan) ---------- */
+    .md-budget { display: flex; flex-direction: column; gap: var(--space-md); }
+    .md-budget__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'label pct' 'bar bar'; gap: 6px var(--space-sm); }
+    .md-budget__label { grid-area: label; display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-xs) var(--space-sm); font-size: var(--font-size-sm); font-weight: 600; }
+    .md-budget__nums { font-size: var(--font-size-sm); font-weight: 500; color: var(--md-muted); font-variant-numeric: tabular-nums; }
+    .md-budget__nums strong { color: var(--md-ink); }
+    .md-budget__row .md-bar { grid-area: bar; }
+    .md-budget__pct { grid-area: pct; font-size: var(--font-size-h2); font-weight: 700; color: var(--md-brand-dark); font-variant-numeric: tabular-nums; line-height: 1; }
+
+    /* ---------- md-trendchart ---------- */
+    .md-trendchart {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-xs);
+      min-height: 184px;
+      height: 212px;
+      padding-bottom: var(--space-xs);
+      overflow-x: auto;
+    }
+    .md-trendchart__col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 5px;
+      flex: 1 1 0;
+      min-width: 52px;
+      height: 100%;
+    }
+    .md-trendchart__val { font-size: var(--md-fine); font-weight: 700; color: var(--md-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    /* Batang hidup di dalam TRACK-nya sendiri, bukan langsung di dalam kolom.
+       Sebabnya terukur: bila batang menjadi anak langsung kolom, `height: 86%`
+       dihitung atas tinggi KOLOM (208px) lalu flexbox MENYUSUTKANNYA kembali ke
+       ruang yang tersisa sesudah label nilai dan label tanggal (156px) — sehingga
+       setiap nilai di atas ~75% dirender pada tinggi yang SAMA. Audit pada hasil
+       render menemukan enam batang berbeda (78%, 82%, 86%, 89%, 93%, 100%) sama-sama
+       setinggi 156px, yaitu puncak grafik yang rata dan tren yang hilang. Track ini
+       mengambil tepat ruang sisanya (flex: 1 1 auto, min-height: 0), jadi persentase
+       batang dihitung atas ruang yang benar-benar tersedia dan tidak pernah dijepit.
+       Aturan TATA LETAK murni. */
+    .md-trendchart__track { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+    .md-trendchart__bar {
+      flex: 0 0 auto;
+      width: 100%;
+      max-width: 38px;
+      min-height: var(--space-xs);
+      border-radius: var(--radius-input) var(--radius-input) calc(var(--radius-input) / 2) calc(var(--radius-input) / 2);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--color-brand) 82%, var(--color-background)), var(--color-brand));
+    }
+    .md-trendchart__lbl { font-size: var(--md-fine); color: var(--md-muted); white-space: nowrap; }
+    /* tiap kolom selebar labelnya supaya nilai 14px tidak bertumpuk — TATA LETAK murni */
+    .md-trendchart--days { gap: var(--space-xs); }
+    .md-trendchart--days .md-trendchart__col { flex: 1 0 56px; min-width: 56px; }
+
+    /* ---------- md-scrollhint ---------- */
+    .md-scrollhint { display: flex; align-items: flex-start; gap: 6px; margin: var(--space-sm) 0 0; font-size: var(--md-fine); line-height: 1.6; color: var(--md-muted); }
+    .md-scrollhint svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 3px; }
+
+    /* ---------- md-legend ---------- */
+    .md-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-sm) var(--space-md);
+      margin-top: 14px;
+      font-size: var(--md-fine);
+      line-height: 1.6;
+      color: var(--md-muted);
+      list-style: none;
+      padding: 0;
+    }
+    .md-legend__item { display: inline-flex; align-items: center; gap: var(--space-xs); }
+
+    /* ---------- md-note (kotak keterangan — BUKAN penanda ambang) ---------- */
+    .md-note {
+      display: flex;
+      gap: var(--space-sm);
+      margin-top: 14px;
+      padding: var(--space-sm) 14px;
+      border-radius: var(--radius-card);
+      background: var(--md-soft);
+      color: var(--md-ink);
+      font-size: var(--md-fine);
+      line-height: 1.65;
+    }
+    .md-note b { color: var(--md-ink); }
+    .md-note svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--md-brand); margin-top: 3px; }
+
+    /* ---------- md-notes (rekap teks bebas) ---------- */
+    .md-notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .md-notes__item {
+      padding: 14px;
+      border-left: 3px solid var(--md-brand);
+      background: var(--md-soft);
+      border-radius: 0 var(--radius-card) var(--radius-card) 0;
+      min-width: 0;
+    }
+    .md-notes__item p { margin: var(--space-sm) 0 0; font-size: var(--font-size-sm); line-height: 1.55; color: var(--md-ink); }
+
+    /* ---------- md-details + md-table ---------- */
+    .md-details { background: var(--md-card); border: 1px solid var(--md-line); border-radius: var(--radius-modal); overflow: hidden; box-shadow: var(--shadow-card); }
+    .md-details > summary {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-xs) var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+      min-height: var(--space-touch_target_min);
+    }
+    .md-details > summary::-webkit-details-marker { display: none; }
+    .md-details > summary::after {
+      content: '';
+      width: 9px;
+      height: 9px;
+      border-right: 2px solid var(--md-muted);
+      border-bottom: 2px solid var(--md-muted);
+      transform: rotate(45deg);
+      margin-left: auto;
+      flex-shrink: 0;
+      transition: transform .15s;
+    }
+    .md-details[open] > summary::after { transform: rotate(-135deg); }
+    .md-details > summary small { font-size: var(--md-fine); font-weight: 500; }
+    .md-details[open] > summary { border-bottom: 1px solid var(--md-line); }
+    .md-details > .md-note { margin: 0; border-radius: 0; }
+
+    .md-recap { padding: var(--space-lg); background: var(--md-soft); overflow-x: auto; }
+    .md-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; }
+    .md-table th, .md-table td { padding: var(--space-sm); text-align: right; border-bottom: 1px solid var(--md-line); white-space: nowrap; }
+    .md-table th:first-child, .md-table td:first-child { text-align: left; }
+    .md-table thead th { font-size: var(--md-fine); font-weight: 700; color: var(--md-muted); background: var(--md-track); white-space: normal; vertical-align: bottom; line-height: 1.35; min-width: 76px; }
+    .md-table tfoot td { font-weight: 700; background: var(--md-track); border-bottom: none; }
+    .md-table .is-muted { color: var(--md-muted); }
+
+    /* TATA LETAK murni: panel md-recap yang bersarang di dalam md-card ditarik
+       sampai tepi kartu, supaya tabelnya menggulir mendatar DI DALAM kartunya
+       sendiri dan HALAMAN tidak pernah punya gulir mendatar. */
+    .md-card > .md-recap { margin: 0 calc(var(--space-lg) * -1) calc(var(--space-lg) * -1); border-radius: 0 0 var(--radius-modal) var(--radius-modal); }
+    .md-card > .md-recap:not(:last-child) { margin-bottom: 0; border-radius: 0; }
+
+    /* ---------- responsif (mengikuti report-styles) ---------- */
+    @media (max-width: 1180px) {
+      .md-kpis, .md-kpis--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 1024px) {
+      .md-row--2 { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 767px) {
+      .md { gap: 14px; }
+      .md-hero { padding: var(--space-md); border-radius: var(--radius-card); }
+      .md-hero__title { font-size: var(--font-size-h2); }
+      .md-kpis, .md-kpis--3, .md-kpis--2 { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+      .md-kpi { padding: var(--space-sm) var(--space-sm) var(--space-md); }
+      .md-kpi__value { font-size: var(--font-size-h3); }
+      .md-kpi__icon { width: 28px; height: 28px; }
+      .md-card { padding: var(--space-md); border-radius: var(--radius-card); }
+      .md-card > .md-recap { margin: 0 calc(var(--space-md) * -1) calc(var(--space-md) * -1); border-radius: 0 0 var(--radius-card) var(--radius-card); }
+      .md-filters { padding: 14px; border-radius: var(--radius-card); }
+      .md-field { flex: 1 1 100%; }
+      .md-filters__actions { margin-left: 0; width: 100%; }
+      .md-btn { flex: 1 1 auto; }
+      .md-budget__pct { font-size: var(--font-size-h3); }
+      .md-notes { grid-template-columns: minmax(0, 1fr); }
+      .md-recap { padding: var(--space-sm); }
+      /* ukuran huruf tabel TIDAK diturunkan di layar sempit — lantai 14px tetap
+         berlaku; tabelnya yang menggulir, bukan hurufnya yang dikecilkan. */
+      .md-details > summary { padding: var(--space-md); font-size: var(--font-size-body); }
+    }
+
+    /* ---------- catatan aktor (khusus mock, bukan bagian UI) ---------- */
+    .mock-actors {
+      font-size: var(--font-size-sm);
+      color: var(--color-muted-foreground);
+      font-style: italic;
+      margin-top: var(--space-lg);
+      line-height: 1.6;
+    }
+    .md-details > .md-note + .md-note { border-top: 1px solid var(--md-line); }
+
+    /* Lantai 14px juga ditegakkan pada tombol hamburger dari shell.css. Peramban
+       memberi <button> ukuran bawaannya sendiri (Chrome: 13,3333px), dan nilai itu
+       menetes ke ikon di dalamnya. Tombol itu memang belum membawa teks — labelnya
+       aria-label — tetapi audit getComputedStyle tetap menemukan 13,3333px di sana,
+       jadi ukurannya dikunci ke token. Aturan TIPOGRAFI murni; ukuran ikon sendiri
+       ditentukan atribut width/height, jadi tidak ada yang berubah secara visual. */
+    .hamburger-btn { font-size: var(--font-size-sm); }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="label">Mills Smart Log</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#"><span class="label">Dashboard</span></a>
+        <a class="nav-item" href="#"><span class="label">Data Stasiun</span></a>
+        <a class="nav-item active" href="#"><span class="label">Laporan Stasiun</span></a>
+        <a class="nav-item" href="#"><span class="label">Pengaturan Akun</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-start">
+          <button class="hamburger-btn" type="button" aria-label="Buka menu navigasi">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <div class="topbar-title">Laporan Stasiun &gt; Process Water</div>
+        </div>
+        <div class="topbar-end">
+          <span>Supervisor &middot; PKS Sungai Bahar</span>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="md">
+
+          <!-- ============ 1. Hero periode ============ -->
+          <section class="md-hero">
+            <div class="md-hero__main">
+              <p class="md-hero__eyebrow">Laporan Periode &middot; Stasiun Process Water</p>
+              <h1 class="md-hero__title">Periode Oktober 2026</h1>
+              <p class="md-hero__subtitle">PKS Sungai Bahar &middot; Line B &middot; 01 &ndash; 20 Okt 2026 (20 hari, masih berjalan &mdash; dibaca 16 Okt 2026)</p>
+            </div>
+            <div class="md-hero__meta">
+              <span class="md-chip md-chip--date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 01 &ndash; 20 Okt 2026</span>
+              <span class="md-chip md-chip--date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M6 20V9l6-5 6 5v11"/><path d="M10 20v-5h4v5"/></svg> 2 unit Process Water</span>
+              <span class="md-chip md-chip--date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h7v12H3zM14 6h7v12h-7z"/><path d="M10 12h4"/></svg> Line B</span>
+              <span class="md-chip md-chip--status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="4" y="11" width="16" height="10" rx="2"/></svg> Periode Terbuka</span>
+            </div>
+          </section>
+
+          <!-- ============ 2. Bar filter - Mill (KETERANGAN, peran terikat mill) . Line (wajib) . Periode ============ -->
+          <section class="md-filters">
+            <div class="md-field">
+              <span class="md-field__label">Mill <span class="md-pill">terikat akun</span></span>
+              <span class="md-field__context"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M6 20V9l6-5 6 5v11"/><path d="M10 20v-5h4v5"/></svg> PKS Sungai Bahar</span>
+            </div>
+
+            <div class="md-field">
+              <label class="md-field__label" for="f-line">Production Line <strong>(wajib)</strong></label>
+              <select class="md-field__control" id="f-line">
+                <option>&mdash; Pilih Line &mdash;</option>
+                <option>Line A</option>
+                <option selected>Line B</option>
+              </select>
+            </div>
+
+            <div class="md-field">
+              <label class="md-field__label" for="f-periode">Periode Pelaporan <span class="md-pill">Terbuka</span></label>
+              <select class="md-field__control" id="f-periode">
+                <option>&mdash; Pilih Periode &mdash;</option>
+                <option selected>Periode Oktober &middot; 01&ndash;20 Okt 2026 &middot; Terbuka</option>
+                <option>Periode September II &middot; 16&ndash;30 Sep 2026 &middot; Tertutup</option>
+                <option>Periode September I &middot; 01&ndash;15 Sep 2026 &middot; Tertutup</option>
+              </select>
+            </div>
+
+            <div class="md-filters__actions">
+              <button class="md-btn md-btn--primary" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg> Ekspor CSV</button>
+              <button class="md-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M9 13l6 5M15 13l-6 5"/></svg> Ekspor Excel</button>
+            </div>
+
+            <p class="md-filters__hint">Akun ini <b>terikat satu mill</b>, jadi nama mill tampil sebagai <b>keterangan</b> &mdash; bukan sebagai pemilih, dan bukan sebagai input yang dikunci. Pemilih Mill hanya muncul di posisi yang sama bagi Admin, yang tidak terikat mill; mengganti mill di sana mengosongkan pilihan periode <em>dan</em> pilihan Production Line, karena sebuah periode maupun sebuah line milik tepat satu mill. <b>Production Line wajib dipilih lebih dulu</b> &mdash; sebelum itu tidak ada satu angka pun yang ditampilkan, dan angka seluruh mill tidak dipakai sebagai penggantinya; kedua tombol ekspor pun baru tampil sesudahnya. Daftar periode hanya memuat periode yang mencakup Process Water, dan periode tertutup tetap dapat dilihat serta diekspor. Ekspor memuat satu baris per slot waktu beserta <b>ke-13 kolom detail, termasuk <code>shift</code> dan <code>inspector_id</code></b> &mdash; ekspor adalah rincian mentah, jadi pengecualian kedua kolom itu dari pemeriksaan slot terisi tidak berarti keduanya dibuang dari berkas.</p>
+          </section>
+
+          <!-- ============ 3. Kelengkapan pencatatan - DI ATAS seluruh angka lain ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h2>Kelengkapan Pencatatan</h2>
+              <span class="md-card__hint">Baca ini lebih dulu &mdash; sembilan metrik di bawah bersandar padanya</span>
+            </header>
+            <div class="md-budget">
+              <div class="md-budget__row">
+                <div class="md-budget__label">
+                  <span>Slot waktu terisi sepanjang periode</span>
+                  <span class="md-budget__nums"><strong>352</strong> dari 768 slot</span>
+                </div>
+                <span class="md-budget__pct">45,8%</span>
+                <div class="md-bar md-bar--lg"><span style="width: 45.833%"></span></div>
+              </div>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+              <span><b>Dihitung sampai HARI INI, karena periode masih berjalan</b> — 16 dari 20 hari periode sudah lewat. Hari yang belum terjadi tidak mungkin tercatat, jadi tidak ikut menjadi penyebut. <small>Slot yang diharapkan = 2 unit Process Water &times; 24 slot kanonis per unit per hari &times; 16 hari (sampai hari ini) = 768.</small> Seluruh angka di bawah dihitung dari <b>pembacaan yang ada</b>, bukan dari periode penuh — 416 slot yang tidak terisi <b>tidak</b> diperlakukan sebagai nol, melainkan tidak ikut dihitung. Bila periode belum mulai atau belum ada unit tercatat sehingga slot yang diharapkan nol, persentasenya tampil &lsquo;&mdash;&rsquo; dengan keterangan &lsquo;belum ada slot yang diharapkan&rsquo; — <b>bukan 0,0%</b>.</span>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+              <span><b>Satu slot dianggap terisi bila minimal satu dari SEBELAS kolom pembacaan terisi — bukan tiga belas.</b> Baris detail stasiun ini membawa tiga belas kolom, tetapi <code>shift</code> dan <code>inspector_id</code> adalah <b>kolom identitas, bukan kolom pembacaan</b>, dan keduanya <b>dikecualikan</b> dari pemeriksaan itu. Pengecualian tersebut dinyatakan eksplisit di docblock service, bukan ditebak. Ini <b>berbeda dari Engine Room</b>, yang menghitung seluruh dua puluh tujuh kolomnya. Akibatnya satu slot yang hanya mengisi <code>shift</code> dan/atau <code>inspector_id</code> <b>tidak</b> terhitung terisi. <small>Kebalikannya juga berlaku dan harus dibedakan: satu slot yang hanya mengisi kolom teks bebas tanpa satu pun kolom ukur <b>tetap</b> terhitung terisi, karena kedua kolom teks termasuk dalam kesebelas kolom pembacaan.</small> Karena kesebelas kolom itu mencakup kedua kolom teks, <b>jumlah slot terisi dapat MELEBIHI penyebut setiap kartu metrik</b> — dan di periode ini memang begitu: <b>352 slot terisi</b>, sementara penyebut terbesar di antara sembilan metrik hanya <b>341 pembacaan</b> (aliran air baku) dan yang terkecil yang masih menerbitkan angka <b>241 pembacaan</b> (TDS air umpan boiler). Selisihnya <b>bukan galat dan tidak dikoreksi</b>, melainkan dinyatakan di sini. Kesembilan kolom ukur nullable dan terisi saling bebas, jadi <b>setiap metrik menerbitkan penyebutnya sendiri</b> — satu penyebut bersama akan salah untuk setidaknya delapan di antaranya.</span>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Bila periode ternyata tidak memuat <b>satu pun</b> pembacaan, seluruh angka di bawah ditampilkan <b>tidak tersedia</b> dengan keterangan belum ada data — <b>bukan sebagai nol</b> — dan <b>kartu kelengkapan pencatatan ini tetap ditampilkan</b>. Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki, dan karena itu ia dirender <b>di atas</b> seluruh angka lain, bukan di bawahnya.</span>
+            </div>
+          </section>
+
+          <!-- ============ 4. Blok 1 - ALIRAN AIR (hulu rantai) ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h2>1 &middot; Aliran Air</h2>
+              <span class="md-card__hint">2 metrik &middot; hulu rantai pengolahan</span>
+            </header>
+            <div class="md-kpis md-kpis--2">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Aliran Air Baku</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8c3-3 6-3 9 0s6 3 9 0"/><path d="M3 14c3-3 6-3 9 0s6 3 9 0"/><path d="M3 20c3-3 6-3 9 0s6 3 9 0"/></svg></span>
+              </div>
+              <p class="md-kpi__value">117,9 <span>m³/jam rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 109,4 &middot; tertinggi 124,2</p>
+              <p class="md-kpi__foot">dari <b>341 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Penyebut TERBESAR di antara sembilan metrik — 341 pembacaan. Air baku hampir selalu ikut dicatat karena ia hulu seluruh rantai.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Aliran Air Jernih</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 10.5a6 6 0 0 1-12 0C6 9.5 12 3 12 3z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">104,2 <span>m³/jam rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 96,8 &middot; tertinggi 109,8</p>
+              <p class="md-kpi__foot">dari <b>328 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>13 pembacaan lebih sedikit daripada air baku; satu slot boleh mengisi aliran baku lalu mengosongkan aliran jernih.</small></p>
+            </article>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h11l-3-3M17 17H6l3 3"/></svg>
+              <span>Kesembilan kartu dikelompokkan menjadi <b>empat blok berjudul yang mengikuti rantai pengolahan air</b> — <b>1 Aliran Air &rarr; 2 Softener &rarr; 3 Dosis Kimia &rarr; 4 Air Umpan Boiler</b> — bukan mengikuti urutan kolom di basis data. Urutannya bekerja: pembaca yang menemukan angka air umpan boiler yang tidak ia harapkan dapat <b>bergerak mundur ke tahap sebelumnya</b> — dosis kimia, lalu softener, lalu aliran air baku — tanpa perlu tahu nama kolom mana pun. Urutan kolom di basis data tidak punya arti operasional dan tidak dipakai di layar ini.</span>
+            </div>
+          </section>
+
+          <!-- ============ 5. Blok 2 SOFTENER + Blok 3 DOSIS KIMIA ============ -->
+          <div class="md-row md-row--2">
+            <section class="md-card">
+              <header class="md-card__head">
+                <h2>2 &middot; Softener</h2>
+                <span class="md-card__hint">2 metrik &middot; pH di masukan, kesadahan di keluaran</span>
+              </header>
+              <div class="md-kpis md-kpis--2">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">pH Masuk Softener</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v10a4 4 0 1 0 8 0V3"/><path d="M5 3h10M8 7h4"/><path d="M18 14h3M19.5 12.5v3"/></svg></span>
+              </div>
+              <p class="md-kpi__value">7,18 <span>rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 6,94 &middot; tertinggi 7,31</p>
+              <p class="md-kpi__foot">dari <b>307 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Tanpa satuan. Diukur di MASUKAN softener — pasangannya di keluaran adalah kesadahan, bukan pH.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Kesadahan Keluaran Softener</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="M12 7c3 0 5-2 5-4-3 0-5 2-5 4z"/><path d="M12 7c-3 0-5-2-5-4 3 0 5 2 5 4z"/><path d="M12 14c3 0 5-2 5-4-3 0-5 2-5 4z"/><path d="M12 14c-3 0-5-2-5-4 3 0 5 2 5 4z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">tidak tersedia</p>
+              <p class="md-kpi__meta">terendah &mdash; &middot; tertinggi &mdash;</p>
+              <p class="md-kpi__foot">dari <b>0 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Tidak pernah diisi sepanjang periode. Kartunya tetap ada dengan <b>nol pembacaan</b>, bukan dihapus dari layar — lihat Rekap Temuan 07 Okt 2026: reagen titrasi habis.</small></p>
+            </article>
+              </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span><b>Kesadahan keluaran softener tidak pernah diisi sepanjang periode ini</b>, dan kartunya <b>tetap ada</b> dengan &lsquo;tidak tersedia&rsquo; serta <b>nol pembacaan</b> — bukan dihapus dari layar. Kartu yang hilang tidak dapat dibedakan dari kartu yang belum pernah ada; kartu berpenyebut nol menyatakan dengan tepat bahwa <b>kolomnya ada dan belum terisi</b>. Penyebabnya terbaca di Rekap Temuan 07 Okt 2026 &middot; 11:00: reagen titrasi habis. <small>Kedua kartu blok ini mengukur dua hal yang berbeda di dua titik yang berbeda — pH di MASUKAN softener, kesadahan di KELUARAN — jadi keduanya tidak saling menggantikan dan penyebutnya tidak dipinjamkan: 307 pembacaan melawan 0.</small></span>
+            </div>
+            </section>
+
+            <section class="md-card">
+              <header class="md-card__head">
+                <h2>3 &middot; Dosis Kimia</h2>
+                <span class="md-card__hint">2 metrik &middot; dua satuan berbeda</span>
+              </header>
+              <div class="md-kpis md-kpis--2">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Dosis Alum</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6v6l4 9a2 2 0 0 1-1.8 3H6.8A2 2 0 0 1 5 18l4-9z"/><path d="M7 15h10"/></svg></span>
+              </div>
+              <p class="md-kpi__value">12,3 <span>kg/jam rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 10,8 &middot; tertinggi 13,2</p>
+              <p class="md-kpi__foot">dari <b>289 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Dosis koagulan untuk bak pengendap, di hulu softener. Penyebutnya sendiri, tidak diwarisi dari aliran air jernih.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Dosis Polimer</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="5"/><path d="M12 8V4h5"/><path d="M7 20h10"/></svg></span>
+              </div>
+              <p class="md-kpi__value">418 <span>g/jam rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 372 &middot; tertinggi 448</p>
+              <p class="md-kpi__foot">dari <b>263 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Satuannya <b>g/jam</b>, bukan kg/jam seperti alum — dua satuan berbeda dalam satu blok, dan keduanya ditulis apa adanya dari nama kolomnya.</small></p>
+            </article>
+              </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6v6l4 9a2 2 0 0 1-1.8 3H6.8A2 2 0 0 1 5 18l4-9z"/><path d="M7 15h10"/></svg>
+              <span><b>Dua satuan berbeda dalam satu blok, dan keduanya ditulis apa adanya:</b> alum dalam <b>kg/jam</b>, polimer dalam <b>g/jam</b>. Keduanya <b>tidak</b> disamakan ke satu satuan demi kerapian — besaran dosis polimer memang tiga orde lebih kecil daripada alum, dan menuliskannya sebagai 0,42 kg/jam akan menyembunyikan ketelitian yang dicatat di lapangan. Keduanya juga <b>tidak dijumlahkan</b>: &lsquo;total dosis kimia&rsquo; bukan besaran yang punya arti.</span>
+            </div>
+            </section>
+          </div>
+
+          <!-- ============ 6. Blok 4 AIR UMPAN BOILER + pernyataan ketiadaan penandaan (UTUH) ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h2>4 &middot; Air Umpan Boiler</h2>
+              <span class="md-card__hint">3 metrik &middot; hilir rantai &mdash; pertanyaan pokok stasiun ini</span>
+            </header>
+            <div class="md-kpis md-kpis--3">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Suhu Tangki Air Umpan</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg></span>
+              </div>
+              <p class="md-kpi__value">88,3 <span>°C rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 84,8 &middot; tertinggi 90,2</p>
+              <p class="md-kpi__foot">dari <b>318 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Suhu tangki air umpan, bukan suhu boiler. Hilir dari seluruh tahap di atasnya.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">pH Air Umpan Boiler</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v10a4 4 0 1 0 8 0V3"/><path d="M5 3h10M8 7h4"/><path d="M18 14h3M19.5 12.5v3"/></svg></span>
+              </div>
+              <p class="md-kpi__value">10,39 <span>rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 10,02 &middot; tertinggi 10,61</p>
+              <p class="md-kpi__foot">dari <b>296 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Metrik dengan batas yang dikenal luas DI LUAR aplikasi ini — dan tetap tidak ditandai. Lihat pernyataan di bawah blok ini.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">TDS Air Umpan Boiler</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="9" r="1.4"/><circle cx="14" cy="13" r="1.4"/><circle cx="10" cy="16" r="1.4"/><circle cx="16" cy="7" r="1.4"/><rect x="3" y="3" width="18" height="18" rx="3"/></svg></span>
+              </div>
+              <p class="md-kpi__value">1.243 <span>ppm rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 1.096 &middot; tertinggi 1.340</p>
+              <p class="md-kpi__foot">dari <b>241 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Penyebut TERKECIL di antara delapan metrik yang menerbitkan angka — 241 pembacaan. Satu slot pada 10 Okt 2026 terbaca 1.480 ppm; ditampilkan apa adanya di ekspor, tanpa penanda.</small></p>
+            </article>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 4v5c0 5-3.8 8.4-9 9.9C6.8 20.4 3 17 3 12V7z"/><path d="M12 8v4M12 15h.01"/></svg>
+              <span><b>TIDAK ADA satu pun nilai di layar ini yang ditandai di luar batas, dan pernyataan ini dirender UTUH tanpa diringkas.</b> Stasiun Process Water <b>tidak punya tabel master target</b> — tidak ada satu baris acuan yang bisa dibandingkan dengan satu pun dari sembilan metrik di atas, baik per unit maupun per line. Dan justru di sinilah godaan menandai paling besar di antara seluruh laporan stasiun: <b>pH air umpan boiler dan TDS air umpan boiler punya batas yang dikenal SANGAT luas DI LUAR aplikasi ini</b> — setiap pedoman air umpan boiler memuat angkanya, dan hampir setiap pembaca laporan ini sudah membawa angka itu di kepalanya. Menurunkan ambang dari <b>data periode ini sendiri</b> — rata-rata &plusmn; dua simpangan baku, atau persentil atas pembacaan yang ada — akan menghasilkan garis yang terlihat berwibawa, lalu <b>dibaca sebagai batas keselamatan boiler</b>, padahal ia hanya <b>turunan statistik</b> dari pencatatan yang sepanjang periode ini baru 45,8% lengkap. Ambang semacam itu akan ikut bergeser setiap kali kelengkapan pencatatan berubah, dan itu bukan sifat yang boleh dimiliki sebuah batas keselamatan. Karena itu kesembilan angka ditampilkan <b>apa adanya</b>: tanpa warna peringatan, tanpa ikon, tanpa kata &lsquo;tinggi&rsquo; atau &lsquo;rendah&rsquo;, dan tanpa satu pun sel yang ditandai — <b>termasuk nilai yang jauh di luar batas yang dikenal umum</b>, seperti TDS 1.480 ppm pada satu slot di 10 Okt 2026, yang tetap tampil polos di berkas ekspor dan di Rekap Temuan. Penilaian layak atau tidak layak tetap di tangan pembacanya, dan laporan ini tidak berpura-pura memilikinya.</span>
+            </div>
+          </section>
+
+          <!-- ============ 7. Tren harian aliran air baku ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h2>Tren Harian Aliran Air Baku</h2>
+              <span class="md-card__hint"><b>Rata-rata per tanggal</b>, dalam m&sup3;/jam &middot; 16 tanggal berdata</span>
+            </header>
+            <div class="md-trendchart md-trendchart--days">
+                <div class="md-trendchart__col"><span class="md-trendchart__val">116,8</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 64%"></div></div><span class="md-trendchart__lbl">01</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">121,4</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 86%"></div></div><span class="md-trendchart__lbl">02</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">112,6</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 44%"></div></div><span class="md-trendchart__lbl">03</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">124,2</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 100%"></div></div><span class="md-trendchart__lbl">04</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">115,3</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 57%"></div></div><span class="md-trendchart__lbl">05</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">119,7</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 78%"></div></div><span class="md-trendchart__lbl">06</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">109,4</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 28%"></div></div><span class="md-trendchart__lbl">07</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">122,8</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 93%"></div></div><span class="md-trendchart__lbl">08</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">118,1</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 70%"></div></div><span class="md-trendchart__lbl">09</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">120,6</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 82%"></div></div><span class="md-trendchart__lbl">10</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">110,8</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 35%"></div></div><span class="md-trendchart__lbl">11</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">115,9</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 60%"></div></div><span class="md-trendchart__lbl">12</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">121,9</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 89%"></div></div><span class="md-trendchart__lbl">13</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">114,2</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 51%"></div></div><span class="md-trendchart__lbl">14</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">119,0</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 75%"></div></div><span class="md-trendchart__lbl">15</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">117,3</span><div class="md-trendchart__track"><div class="md-trendchart__bar" style="height: 66%"></div></div><span class="md-trendchart__lbl">16</span></div>
+            </div>
+            <p class="md-scrollhint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg> Geser mendatar untuk melihat seluruh tanggal &mdash; periode ini memuat 16 tanggal berdata (lebih dari 10). Grafiknya menggulir di dalam kartunya sendiri; halaman tidak menggulir mendatar.</p>
+            <ul class="md-legend">
+              <li class="md-legend__item">Terendah 109,4 m&sup3;/jam (07 Okt 2026) &middot; tertinggi 124,2 m&sup3;/jam (04 Okt 2026)</li>
+              <li class="md-legend__item">Rata-rata periode 117,9 m&sup3;/jam, berbobot 341 pembacaan</li>
+              <li class="md-legend__item"><small>Sumbu tegak tidak dimulai dari nol &mdash; batang membandingkan tanggal, bukan besaran mutlak. Tidak ada batang yang ditandai di luar batas.</small></li>
+            </ul>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Seri ini memuat <b>rata-rata aliran air baku per tanggal</b> — sah dirata-ratakan karena aliran adalah besaran sesaat per slot, bukan angka meter kumulatif. Aliran air baku dipilih untuk digrafikkan karena ia <b>hulu seluruh rantai</b> dan punya penyebut terbesar (341 pembacaan), jadi bentuk grafiknya paling sedikit dipengaruhi oleh slot yang tidak terisi. <small>Tanggal yang tidak punya pembacaan sama sekali tidak digambar sebagai batang nol — ia tidak digambar.</small></span>
+            </div>
+          </section>
+
+          <!-- ============ 8a. Rekap Catatan Tindakan - TEKS, bukan sebaran ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h2>Rekap Catatan Tindakan</h2>
+              <span class="md-card__hint">6 slot mengisi kolom <code>action_taken_status</code> sepanjang periode</span>
+            </header>
+            <div class="md-notes">
+              <div class="md-notes__item">
+                <span class="md-pill">02 Okt 2026 &middot; 06:00</span>
+                <p>Regenerasi softener A dijalankan, resin dibilas 40 menit.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">04 Okt 2026 &middot; 14:00</span>
+                <p>Dosis alum dinaikkan mengikuti air baku yang keruh sesudah hujan.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">07 Okt 2026 &middot; 11:00</span>
+                <p>Sudah ditangani</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">09 Okt 2026 &middot; 22:00</span>
+                <p>Sudah ditangani</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">11 Okt 2026 &middot; 08:00</span>
+                <p>Pompa dosing polimer dibersihkan, selang isap diganti.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">14 Okt 2026 &middot; 19:00</span>
+                <p>Blowdown tangki air umpan boiler, endapan dibuang.</p>
+              </div>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
+              <span><b><code>action_taken_status</code> diterbitkan sebagai REKAP TEKS, bukan sebagai sebaran jumlah slot per nilai — meski namanya menyebut &lsquo;status&rsquo;.</b> Kolomnya <b>teks bebas tanpa himpunan nilai tertutup</b>. Dua kolom bernama serupa di stasiun lain memang enum — <code>diesel_gen_1_status</code> di Engine Room dan <code>biogas_flare_status</code> di Effluent Plant, keduanya Run / Standby / Off — dan keduanya memang diterbitkan sebagai sebaran. <b>Yang ini bukan.</b> Sebaran atas teks bebas menghasilkan <b>satu &lsquo;nilai&rsquo; per kalimat yang berbeda</b>, dan daftar kalimat berjumlah satu-satu bukan sebaran — ia hanya daftar yang sama, disusun ulang sampai tampak seperti data kategoris. Perhatikan dua baris <b>&lsquo;Sudah ditangani&rsquo;</b> (07 Okt &middot; 11:00 dan 09 Okt &middot; 22:00): kalimat sependek itulah yang membuat kolom ini terlihat kategoris. Keduanya <b>tetap dua baris</b> di sini, bukan satu baris berjumlah 2 — karena yang sama persis hari ini belum tentu sama persis besok. <b>Tidak ada satu pun blok sebaran di layar ini</b>, dan itu pembeda terpenting laporan Process Water dari Engine Room dan Effluent Plant, yang keduanya memang punya. Isi kolom ini ditampilkan apa adanya beserta tanggal dan slot waktunya, <b>tidak pernah dirata-rata maupun digrafikkan</b>. Bila sepanjang periode tidak ada satu pun catatan, bagian ini menampilkan keterangan tidak ada catatan — bukan tabel kosong tanpa penjelasan.</span>
+            </div>
+          </section>
+
+          <!-- ============ 8b. Rekap Temuan - bagian TERPISAH ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h2>Rekap Temuan</h2>
+              <span class="md-card__hint">5 slot mengisi kolom <code>findings</code> sepanjang periode</span>
+            </header>
+            <div class="md-notes">
+              <div class="md-notes__item">
+                <span class="md-pill">03 Okt 2026 &middot; 03:00</span>
+                <p>Air baku berwarna sesudah hujan malam; bak pengendap keruh sampai pagi.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">07 Okt 2026 &middot; 11:00</span>
+                <p>pH masuk softener turun di bawah 7,0 sejak dini hari. Kesadahan keluaran tidak dapat diuji — reagen titrasi habis.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">10 Okt 2026 &middot; 16:00</span>
+                <p>TDS air umpan boiler terbaca 1.480 ppm pada slot ini; dicatat apa adanya.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">12 Okt 2026 &middot; 05:00</span>
+                <p>Stok alum tinggal satu palet; permintaan pembelian diajukan ke gudang.</p>
+              </div>
+              <div class="md-notes__item">
+                <span class="md-pill">15 Okt 2026 &middot; 13:00</span>
+                <p>Flow meter air jernih macet menunjuk nol; pembacaan DIKOSONGKAN, tidak diisi nol.</p>
+              </div>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>
+              <span>Bagian ini menjawab <b>apa yang ditemukan</b> — pertanyaan yang berbeda dari Rekap Catatan Tindakan, yang menjawab <b>apa yang dikerjakan</b>. Karena itu keduanya <b>dua bagian terpisah</b> dan tidak pernah disatukan. Slot <b>07 Okt 2026 &middot; 11:00</b> mengisi kedua kolom sekaligus sehingga <b>muncul pada kedua rekap</b>; itu benar, <b>bukan penghitungan ganda</b> — menyatukan keduanya justru akan menghitung slot itu dua kali di dalam satu daftar. Pada slot itu kesadahan keluaran tidak dapat diuji karena reagen habis (temuan), dan pada slot yang sama catatan tindakannya hanya berbunyi &lsquo;Sudah ditangani&rsquo;. <small>Keduanya tidak pernah dirata-rata maupun digrafikkan. Bila kedua kolom teks kosong sepanjang periode, kedua bagian menampilkan keterangan tidak ada catatan.</small></span>
+            </div>
+          </section>
+
+          <!-- ============ 9. Rekap per Inspector ============ -->
+          <details class="md-details" open>
+            <summary>
+              Rekap per Inspector
+              <small>4 inspector + satu baris &lsquo;tidak tercatat&rsquo; &middot; dasar 352 slot terisi &middot; klik untuk menutup</small>
+            </summary>
+            <div class="md-recap">
+              <table class="md-table">
+                <thead>
+                  <tr><th scope="col">inspector_id</th><th scope="col">Slot terisi</th><th scope="col">Porsi dari slot terisi</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>1180734</code></td><td>118</td><td>33,5%</td></tr>
+                  <tr><td><code>1190215</code></td><td>96</td><td>27,3%</td></tr>
+                  <tr><td><code>1201044</code></td><td>74</td><td>21,0%</td></tr>
+                  <tr><td><code>OP-07</code></td><td>33</td><td>9,4%</td></tr>
+                  <tr><td><span class="is-muted">tidak tercatat</span></td><td><span class="is-muted">31</span></td><td><span class="is-muted">8,8%</span></td></tr>
+                </tbody>
+                <tfoot>
+                  <tr><td>Seluruh slot terisi</td><td>352</td><td>100,0%</td></tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 5.3a3 3 0 0 1 0 5.4"/><path d="M18 20a6 6 0 0 0-3-5.2"/></svg>
+              <span><b>Rekap ini ada untuk menelusuri slot yang BELUM terisi — bukan untuk menilai orang.</b> Kelengkapan pencatatan adalah pokok layar ini, dan slot yang kosong selalu punya pemilik yang dapat ditanyai; itu seluruh gunanya. Angka di kolom &lsquo;slot terisi&rsquo; <b>bukan nilai kinerja</b>: ia tidak memperhitungkan panjang penugasan, jumlah unit yang dijaga, hari libur, maupun slot yang memang bukan jatahnya — jadi membandingkan dua inspector lewat angka ini akan salah, dan laporan ini <b>tidak</b> mengurutkan, memberi peringkat, atau menandai siapa pun.</span>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Baris <b>&lsquo;tidak tercatat&rsquo;</b> memuat 31 slot yang <b>terisi</b> tetapi kolom inspector-nya kosong. Slot itu <b>tetap terhitung</b> pada kelengkapan di atas, karena <code>inspector_id</code> kolom identitas dan tidak ikut menentukan apakah sebuah slot terisi. Baris itu <b>tidak pernah</b> digabungkan ke salah satu inspector. <small><code>inspector_id</code> bertipe <b>string polos, bukan relasi ke tabel User</b>, jadi kodenya ditampilkan mentah dan laporan ini tidak dapat memulangkan nama orangnya — perhatikan formatnya pun belum seragam (<code>1180734</code> melawan <code>OP-07</code>). Laporan tidak menebak-nebak pemetaannya. Bila seluruh slot terisi ternyata tidak mencatat inspector, rekap ini menampilkan satu baris &lsquo;tidak tercatat&rsquo; berisi seluruh slot itu — bukan rekap kosong; dan bila satu inspector mengisi seluruh periode, satu baris saja adalah hasil yang sah.</small></span>
+            </div>
+          </details>
+
+          <!-- ============ 10. Rekap per unit Process Water ============ -->
+          <details class="md-details" open>
+            <summary>
+              Rekap per Unit Process Water
+              <small>2 unit &middot; angka periode di atas menggabungkan keduanya &middot; 12 kolom, menggulir mendatar di dalam kartunya &middot; klik untuk menutup</small>
+            </summary>
+            <div class="md-recap">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Unit Process Water</th>
+                    <th scope="col">Hari tercatat</th>
+                    <th scope="col">Slot terisi</th>
+                    <th scope="col">Aliran Air Baku (m³/jam)</th>
+                    <th scope="col">Aliran Air Jernih (m³/jam)</th>
+                    <th scope="col">pH Masuk Softener</th>
+                    <th scope="col">Kesadahan Keluaran Softener (ppm)</th>
+                    <th scope="col">Dosis Alum (kg/jam)</th>
+                    <th scope="col">Dosis Polimer (g/jam)</th>
+                    <th scope="col">Suhu Tangki Air Umpan (°C)</th>
+                    <th scope="col">pH Air Umpan Boiler</th>
+                    <th scope="col">TDS Air Umpan Boiler (ppm)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>PW-01</td><td>16</td><td>192</td><td>119,3 <small>(n=186)</small></td><td>105,1 <small>(n=179)</small></td><td>7,21 <small>(n=167)</small></td><td><span class="is-muted">&mdash;</span> <small>(n=0)</small></td><td>12,2 <small>(n=158)</small></td><td>411 <small>(n=143)</small></td><td>88,8 <small>(n=173)</small></td><td>10,42 <small>(n=161)</small></td><td>1.226 <small>(n=131)</small></td></tr>
+                  <tr><td>PW-02</td><td>16</td><td>160</td><td>116,2 <small>(n=155)</small></td><td>103,0 <small>(n=149)</small></td><td>7,14 <small>(n=140)</small></td><td><span class="is-muted">&mdash;</span> <small>(n=0)</small></td><td>12,5 <small>(n=131)</small></td><td>426 <small>(n=120)</small></td><td>87,6 <small>(n=145)</small></td><td>10,35 <small>(n=135)</small></td><td>1.264 <small>(n=110)</small></td></tr>
+                </tbody>
+                <tfoot>
+                  <tr><td>Gabungan 2 unit</td><td>16</td><td>352</td><td>117,9 <small>(n=341)</small></td><td>104,2 <small>(n=328)</small></td><td>7,18 <small>(n=307)</small></td><td><span class="is-muted">&mdash;</span> <small>(n=0)</small></td><td>12,3 <small>(n=289)</small></td><td>418 <small>(n=263)</small></td><td>88,3 <small>(n=318)</small></td><td>10,39 <small>(n=296)</small></td><td>1.243 <small>(n=241)</small></td></tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Angka periode di seluruh kartu di atas <b>menggabungkan kedua unit</b>; tabel ini menunjukkan sebarannya. Unit yang tidak punya pembacaan sama sekali <b>tetap muncul</b> dengan jumlah pembacaan nol. Kolom kesadahan keluaran softener &lsquo;&mdash;&rsquo; pada kedua unit, karena kolom itu tidak terisi di mana pun sepanjang periode. <small>Nilai per unit diturunkan supaya (n&#8321;&middot;v&#8321; + n&#8322;&middot;v&#8322;) / (n&#8321;+n&#8322;) tepat sama dengan rata-rata periode, lalu keduanya dibulatkan ke presisi tampilan. Pembulatan itu membuat rekomposisi dari angka yang TERCETAK bisa menyimpang pada digit terakhir; angka gabungan adalah yang dihitung dari pembacaan, bukan dari dua nilai unit yang sudah dibulatkan. Tabel ini membawa 12 kolom dan menggulir mendatar <b>di dalam kartunya sendiri</b> — halaman tidak pernah menggulir mendatar.</small></span>
+            </div>
+          </details>
+
+          <!-- ============ 11. Rekap harian (tertutup secara bawaan) ============ -->
+          <details class="md-details">
+            <summary>
+              Rekap Harian
+              <small>16 baris &middot; 01 &ndash; 16 Okt 2026 (sampai hari ini) &middot; 11 kolom, menggulir mendatar di dalam kartunya &middot; klik untuk membuka</small>
+            </summary>
+            <div class="md-recap">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tanggal</th>
+                    <th scope="col">Slot terisi</th>
+                    <th scope="col">Aliran Air Baku (m³/jam)</th>
+                    <th scope="col">Aliran Air Jernih (m³/jam)</th>
+                    <th scope="col">pH Masuk Softener</th>
+                    <th scope="col">Kesadahan Keluaran Softener (ppm)</th>
+                    <th scope="col">Dosis Alum (kg/jam)</th>
+                    <th scope="col">Dosis Polimer (g/jam)</th>
+                    <th scope="col">Suhu Tangki Air Umpan (°C)</th>
+                    <th scope="col">pH Air Umpan Boiler</th>
+                    <th scope="col">TDS Air Umpan Boiler (ppm)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>01 Okt 2026</td><td>22</td><td>116,8</td><td>103,1</td><td>7,18</td><td><span class="is-muted">&mdash;</span></td><td>12,1</td><td>412</td><td>88,2</td><td>10,38</td><td>1.232</td></tr>
+                  <tr><td>02 Okt 2026</td><td>25</td><td>121,4</td><td>107,2</td><td>7,26</td><td><span class="is-muted">&mdash;</span></td><td>12,8</td><td>436</td><td>89,4</td><td>10,52</td><td>1.296</td></tr>
+                  <tr><td>03 Okt 2026</td><td>19</td><td>112,6</td><td>99,4</td><td>7,05</td><td><span class="is-muted">&mdash;</span></td><td>11,4</td><td>388</td><td>86,1</td><td>10,14</td><td>1.148</td></tr>
+                  <tr><td>04 Okt 2026</td><td>26</td><td>124,2</td><td>109,8</td><td>7,31</td><td><span class="is-muted">&mdash;</span></td><td>13,2</td><td>448</td><td>90,2</td><td>10,61</td><td>1.340</td></tr>
+                  <tr><td>05 Okt 2026</td><td>21</td><td>115,3</td><td>101,9</td><td>7,12</td><td><span class="is-muted">&mdash;</span></td><td>11,9</td><td>404</td><td>87,6</td><td>10,29</td><td>1.204</td></tr>
+                  <tr><td>06 Okt 2026</td><td>23</td><td>119,7</td><td>105,6</td><td>7,22</td><td><span class="is-muted">&mdash;</span></td><td>12,5</td><td>424</td><td>88,9</td><td>10,45</td><td>1.264</td></tr>
+                  <tr><td>07 Okt 2026</td><td>18</td><td>109,4</td><td>96,8</td><td>6,94</td><td><span class="is-muted">&mdash;</span></td><td>10,8</td><td>372</td><td>84,8</td><td>10,02</td><td>1.096</td></tr>
+                  <tr><td>08 Okt 2026</td><td>25</td><td>122,8</td><td>108,4</td><td>7,29</td><td><span class="is-muted">&mdash;</span></td><td>13,0</td><td>442</td><td>89,8</td><td>10,57</td><td>1.320</td></tr>
+                  <tr><td>09 Okt 2026</td><td>22</td><td>118,1</td><td>104,2</td><td>7,20</td><td><span class="is-muted">&mdash;</span></td><td>12,4</td><td>420</td><td>88,6</td><td>10,41</td><td>1.248</td></tr>
+                  <tr><td>10 Okt 2026</td><td>24</td><td>120,6</td><td>106,5</td><td>7,24</td><td><span class="is-muted">&mdash;</span></td><td>12,7</td><td>432</td><td>89,1</td><td>10,49</td><td>1.284</td></tr>
+                  <tr><td>11 Okt 2026</td><td>17</td><td>110,8</td><td>98,1</td><td>6,99</td><td><span class="is-muted">&mdash;</span></td><td>11,1</td><td>380</td><td>85,4</td><td>10,08</td><td>1.124</td></tr>
+                  <tr><td>12 Okt 2026</td><td>21</td><td>115,9</td><td>102,4</td><td>7,14</td><td><span class="is-muted">&mdash;</span></td><td>12,0</td><td>408</td><td>87,9</td><td>10,33</td><td>1.216</td></tr>
+                  <tr><td>13 Okt 2026</td><td>25</td><td>121,9</td><td>107,8</td><td>7,28</td><td><span class="is-muted">&mdash;</span></td><td>12,9</td><td>440</td><td>89,6</td><td>10,54</td><td>1.308</td></tr>
+                  <tr><td>14 Okt 2026</td><td>20</td><td>114,2</td><td>100,7</td><td>7,08</td><td><span class="is-muted">&mdash;</span></td><td>11,7</td><td>396</td><td>86,8</td><td>10,21</td><td>1.172</td></tr>
+                  <tr><td>15 Okt 2026</td><td>23</td><td>119,0</td><td>105,0</td><td>7,21</td><td><span class="is-muted">&mdash;</span></td><td>12,6</td><td>428</td><td>88,8</td><td>10,46</td><td>1.272</td></tr>
+                  <tr><td>16 Okt 2026</td><td>21</td><td>117,3</td><td>103,6</td><td>7,16</td><td><span class="is-muted">&mdash;</span></td><td>12,3</td><td>416</td><td>88,4</td><td>10,36</td><td>1.240</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr><td>Total periode</td><td>352 <small>dari 768</small></td><td>117,9 <small>(n=341)</small></td><td>104,2 <small>(n=328)</small></td><td>7,18 <small>(n=307)</small></td><td><span class="is-muted">&mdash;</span> <small>(n=0)</small></td><td>12,3 <small>(n=289)</small></td><td>418 <small>(n=263)</small></td><td>88,3 <small>(n=318)</small></td><td>10,39 <small>(n=296)</small></td><td>1.243 <small>(n=241)</small></td></tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Satu baris per tanggal, ditutup secara bawaan supaya halaman tetap terbaca pada periode yang panjang — membuka dan menutupnya <b>murni penyingkapan</b> dan tidak memicu permintaan data apa pun. Baris <b>Total periode</b> menerbitkan rata-rata berbobot beserta penyebut tiap metrik, dan penyebut itu <b>berbeda satu dari yang lain</b>. <small>Angka per tanggal adalah rata-rata harian metrik itu sendiri; kolom kesadahan tetap &lsquo;&mdash;&rsquo; di seluruh baris. Tabel ini menggulir mendatar di dalam kartunya sendiri.</small></span>
+            </div>
+          </details>
+
+          <!-- ============ 12. Yang TIDAK diterbitkan - dan alasannya ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h2>Yang Tidak Diterbitkan di Layar Ini</h2>
+              <span class="md-card__hint">Ketiadaan yang disengaja, dinyatakan supaya tidak terbaca sebagai kelalaian</span>
+            </header>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
+              <span><b>Layar ini tidak memuat bagian downtime, dan ketiadaannya disengaja.</b> Stasiun Process Water <b>tidak mencatat downtime sama sekali</b> — tidak ada satu kolom pun yang bisa diterbitkan, jadi tidak ada blok yang dikosongkan maupun diisi nol. Ketiadaan itu dinyatakan di sini supaya tidak terbaca sebagai bagian yang terlewat saat laporan ini dibandingkan dengan laporan stasiun lain yang memang punya blok downtime.</span>
+            </div>
+            <div class="md-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>
+              <span><b>Kolom <code>shift</code> tidak diterbitkan di layar ini, dan ketiadaannya disengaja.</b> Kolom teks bebas itu ada di <code>process_water_records</code> tetapi <b>kosong di seluruh baris</b>, dan ia <b>sudah dijadwalkan diganti relasi ke master Shift</b> pada putaran penandaan record. Menerbitkannya sekarang berarti menerbitkan kolom kosong yang <b>akan berubah arti</b> begitu relasi itu masuk — pembaca yang hari ini belajar membacanya sebagai teks bebas harus belajar ulang besok, dan itu lebih buruk daripada tidak menerbitkannya. Karena itu <b>laporan per shift datang bersama putaran penandaan itu</b>, bukan sebelumnya. <small>Konsekuensinya juga sudah tampak di atas: <code>shift</code> dan <code>inspector_id</code> adalah dua kolom yang dikecualikan dari pemeriksaan slot terisi, sehingga baris detail membawa 13 kolom tetapi yang dihitung hanya sebelas. Keduanya tetap ikut di berkas ekspor.</small></span>
+            </div>
+          </section>
+
+        </div>
+
+        <p class="mock-actors">
+          Actors: Supervisor, Mill Management, Admin &nbsp;&middot;&nbsp;
+          Entry points: Menu sidebar &lsquo;Laporan Stasiun&rsquo; &rarr; pilih stasiun Process Water, Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih
+        </p>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

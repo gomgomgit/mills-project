@@ -1,12 +1,12 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-16"
   },
   "id": "usecase-176--kelola-shift",
   "name": "Kelola Shift per Production Line",
-  "description": "Admin memilih mill, lalu mendefinisikan shift pada tiap Production Line milik mill itu — nama, jam mulai, jam selesai. Layar menampilkan timeline 24 jam per line yang dimulai 07:00 mengikuti awal hari produksi, sehingga cakupan dan celah terlihat sebagai bentuk alih-alih harus dihitung dari tabel. Tumpang tindih antar shift pada satu line ditolak dengan batas inklusif; celah diizinkan tetapi ditandai beserta jumlah jamnya. Shift melewati tengah malam adalah bentuk normal dan ditampilkan '23:00 — 07:00 +1'. Pratinjau timeline di dalam form bergerak saat jam diketik, sehingga tumpang tindih terlihat sebelum Simpan ditekan.",
+  "description": "Admin memilih mill, lalu mendefinisikan shift pada tiap Production Line milik mill itu — nama, jam mulai, jam selesai. Layar menampilkan timeline 24 jam per line yang dimulai 00:00 dan berakhir 24:00, sehingga cakupan dan celah terlihat sebagai bentuk alih-alih harus dihitung dari tabel. Titik awal sumbu adalah soal menggambar, bukan soal aturan: cakupan dan deteksi tumpang tindih tidak bergantung padanya. Tumpang tindih antar shift pada satu line ditolak dengan batas inklusif; celah diizinkan tetapi ditandai beserta jumlah jamnya. Shift melewati tengah malam adalah bentuk normal — ditulis '23:00 — 07:00 +1' pada tabel dan digambar sebagai dua segmen bertaut di kedua tepi batang, sehingga tidak ada bagiannya yang hilang. Pratinjau timeline di dalam form bergerak saat jam diketik, memakai rumus offset dan fungsi segmentasi yang sama, sehingga tumpang tindih terlihat sebelum Simpan ditekan.",
   "actors": [
     "actor-admin"
   ],
@@ -34,7 +34,7 @@
     {
       "step": 4,
       "actor": "actor-admin",
-      "description": "Sistem menampilkan timeline 24 jam per line, dimulai 07:00 dan berakhir 06:00 keesokan hari, dengan blok shift di atasnya"
+      "description": "Sistem menampilkan timeline 24 jam per line, dimulai 00:00 dan berakhir 24:00, dengan blok shift di atasnya — shift yang melintasi tengah malam tergambar sebagai dua segmen bertaut di kedua tepi"
     },
     {
       "step": 5,
@@ -112,12 +112,12 @@
       ]
     },
     {
-      "name": "Cakupan penuh tetapi tidak selaras hari produksi",
-      "trigger": "Pada langkah 5, union shift menutup 24 jam tetapi tidak dimulai 07:00",
+      "name": "Cakupan penuh berapa pun jam mulainya",
+      "trigger": "Pada langkah 5, union shift menutup 24 jam dengan jam mulai apa pun",
       "steps": [
         "Cakupan dinyatakan penuh",
-        "Peringatan ketidakselarasan dengan awal hari produksi tetap ditampilkan",
-        "Simpan TIDAK ditolak"
+        "Tidak ada peringatan keselarasan hari produksi — penandaan itu sudah dicabut",
+        "Simpan tidak ditolak"
       ]
     },
     {
@@ -125,8 +125,9 @@
       "trigger": "Pada langkah 7, Admin mengisi jam selesai lebih awal daripada jam mulai",
       "steps": [
         "Diterima sebagai bentuk normal",
-        "Ditampilkan '23:00 — 07:00 +1' pada tabel maupun timeline",
-        "Pada timeline ia digambar sebagai satu blok utuh, bukan dua potongan"
+        "Ditampilkan '23:00 — 07:00 +1' pada tabel",
+        "Pada timeline ia digambar sebagai DUA SEGMEN BERTAUT — potongan 23:00–24:00 di tepi kanan dan potongan 00:00–07:00 di tepi kiri — dengan label pada potongan yang lebih panjang dan penanda bahwa keduanya satu shift",
+        "Tidak ada bagian shift yang terpotong hilang dari batang"
       ]
     },
     {
@@ -289,6 +290,15 @@
         "Salah ketik di hari pertama karena itu tetap dapat diperbaiki tanpa meninggalkan jejak",
         "Ini perilaku yang berlaku di putaran ini, karena belum ada kolom yang merujuk shift"
       ]
+    },
+    {
+      "name": "Pratinjau shift yang melewati tengah malam",
+      "trigger": "Pada langkah 7, jam yang diketik membuat shift melintasi titik awal sumbu",
+      "steps": [
+        "Pratinjau menggambar kandidat sebagai dua segmen, sama seperti timeline ringkasan",
+        "Penanda tumpang tindih digambar dari segmen yang sama dengan kandidatnya",
+        "Kedua gambar itu sinkron — tidak ada blok yang melewati tepi lalu terpotong diam-diam"
+      ]
     }
   ],
   "business_rules": [
@@ -302,8 +312,8 @@
     "Tumpang tindih hanya diperiksa di dalam satu Production Line",
     "Shift yang sedang diubah tidak dihitung bertindih dengan dirinya sendiri",
     "Celah diizinkan tetapi ditandai beserta jumlah jamnya",
-    "Union shift yang tidak dimulai 07:00 ditandai tetapi tidak ditolak",
-    "Timeline dimulai 07:00 mengikuti awal hari produksi",
+    "Titik awal sumbu timeline adalah soal menggambar, bukan soal aturan — cakupan, tumpang tindih, dan penandaan record tidak bergantung padanya; tidak ada penandaan keselarasan hari produksi di layar ini",
+    "Timeline dimulai 00:00 dan berakhir 24:00, mengikuti cara Admin membaca jam",
     "Urutan tampil diturunkan dari jam mulai, bukan dari kolom urutan manual maupun abjad",
     "Urutan baris tabel dan urutan blok timeline wajib sama",
     "Pratinjau timeline di dalam form bergerak saat jam diketik dan menampilkan tumpang tindih sebelum Simpan",
@@ -316,7 +326,9 @@
     "Shift tertutup tidak muncul di tabel, timeline, perhitungan cakupan, maupun pemeriksaan tumpang tindih",
     "Keunikan nama per line mengecualikan shift yang sudah ditutup",
     "Mengubah jam shift yang sudah dirujuk record menggantikannya: baris lama ditutup dengan jam aslinya, baris baru dibuat. Selama belum ada record yang merujuk, pengubahan cukup memutasi baris. Mengubah nama saja tidak pernah menggantikan apa pun",
-    "Penggantian-saat-ubah belum aktif di putaran ini karena belum ada kolom yang merujuk shift; mekanismenya mendarat bersama penandaan record"
+    "Penggantian-saat-ubah belum aktif di putaran ini karena belum ada kolom yang merujuk shift; mekanismenya mendarat bersama penandaan record",
+    "Shift yang melintasi titik awal sumbu digambar sebagai dua segmen bertaut pada batang yang sama — potongan akhir di tepi kanan, potongan awal di tepi kiri — berlaku untuk timeline ringkasan maupun pratinjau di dalam form",
+    "Penanda tumpang tindih pada pratinjau digambar dari segmen yang sama dengan blok kandidatnya, sehingga satu gambar tidak memuat dua hal dengan dasar berbeda"
   ],
   "bdd_scenarios": [
     {
@@ -350,16 +362,16 @@
       "then": "Timeline merender satu batang per line sehingga halaman menjadi panjang, dan itu diterima karena memilih 'semua' adalah tindakan audit yang disengaja; filter satu line tetap tersedia"
     },
     {
-      "scenario": "Kelola Shift per Production Line — cakupan penuh tetapi tidak selaras hari produksi",
-      "given": "Line 1 punya tiga shift yang union-nya menutup 24 jam tetapi dimulai 06:00, bukan 07:00",
+      "scenario": "Kelola Shift per Production Line — cakupan penuh berapa pun jam mulainya",
+      "given": "Line 1 punya tiga shift yang union-nya menutup 24 jam dan dimulai 06:00",
       "when": "Admin membaca timeline Line 1",
-      "then": "Cakupan dinyatakan penuh, peringatan bahwa jadwalnya tidak selaras dengan awal hari produksi 07:00 tetap ditampilkan, dan tidak ada yang ditolak"
+      "then": "Cakupan dinyatakan penuh, tidak ada peringatan keselarasan hari produksi di mana pun pada layar, dan tidak ada yang ditolak"
     },
     {
-      "scenario": "Kelola Shift per Production Line — shift melewati tengah malam",
+      "scenario": "Kelola Shift per Production Line — shift melewati tengah malam digambar dua segmen",
       "given": "Line 1 sudah punya shift Pagi dan Siang sampai 23:00",
       "when": "Admin menambahkan shift 'Malam' dengan jam 23:00 sampai 07:00",
-      "then": "Diterima sebagai bentuk normal, ditulis '23:00 — 07:00 +1' pada tabel dan timeline, dan digambar sebagai SATU blok utuh pada timeline karena batangnya dimulai 07:00 — bukan dua potongan di kedua ujung"
+      "then": "Diterima sebagai bentuk normal, ditulis '23:00 — 07:00 +1' pada tabel, dan pada timeline tergambar sebagai DUA segmen bertaut — satu potongan menempel tepi kanan dan satu menempel tepi kiri — dengan label pada potongan yang lebih panjang"
     },
     {
       "scenario": "Kelola Shift per Production Line — pratinjau menampilkan tumpang tindih sebelum simpan",
@@ -467,7 +479,7 @@
       "scenario": "Kelola Shift per Production Line — urutan tabel dan timeline selalu sama",
       "given": "Line 1 punya shift yang ditambahkan dengan urutan acak: Malam lebih dulu, lalu Pagi, lalu Siang",
       "when": "Admin membaca timeline dan tabel Line 1",
-      "then": "Keduanya terurut sama mengikuti jam mulai relatif awal hari produksi — Pagi, Siang, Malam — bukan urutan penambahan dan bukan abjad nama"
+      "then": "Keduanya terurut sama mengikuti jam mulai pada sumbu 00:00 — Pagi, Siang, Malam — bukan urutan penambahan dan bukan abjad nama"
     },
     {
       "scenario": "Kelola Shift per Production Line — status cakupan terbaca tanpa warna",
@@ -516,6 +528,18 @@
       "given": "Line 1 punya dua shift hidup dan satu shift yang sudah ditutup",
       "when": "Admin membaca tabel, timeline, badge cakupan, dan pemilih pada form",
       "then": "Shift yang ditutup tidak muncul sebagai baris tabel, tidak muncul sebagai blok timeline, tidak ikut menghitung cakupan maupun celah, dan tidak ikut diperiksa saat menentukan tumpang tindih — hanya dua shift hidup yang terhitung"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — pratinjau shift lintas tengah malam sinkron dengan penanda tumpang tindihnya",
+      "given": "Line 1 sudah punya shift 02:00–10:00 dan Admin sedang membuka form tambah shift pada line itu",
+      "when": "Admin mengetik jam mulai 22:00 dan jam selesai 06:00",
+      "then": "Pratinjau menggambar kandidat sebagai dua segmen — 22:00–24:00 dan 00:00–06:00 — dan penanda tumpang tindih 02:00–06:00 jatuh di dalam segmen kiri, bukan di luar blok yang tergambar"
+    },
+    {
+      "scenario": "Kelola Shift per Production Line — shift 24 jam tidak terpecah",
+      "given": "Line 2 belum punya shift",
+      "when": "Admin menyimpan shift 'Harian' dengan jam mulai dan jam selesai 06:00",
+      "then": "Shift tergambar sebagai satu segmen selebar batang penuh, bukan dua potongan, karena ia menutupi titik awal sumbu alih-alih melintasinya"
     }
   ],
   "related_screen_ids": [

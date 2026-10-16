@@ -44,10 +44,17 @@ export interface ShiftBlock {
   kind: 'shift' | 'gap'
   shift_id: string | null
   label: string | null
+  /** Menit-ke-dalam-hari, 0..1440, diukur dari 00:00. */
   start_offset_minutes: number
   duration_minutes: number
   time_label: string
+  /** true pada KEDUA potongan shift yang melintasi titik awal sumbu. */
   crosses_midnight: boolean
+  /** 0 = potongan tempat shift DIMULAI; 1 hanya ada pada shift lintas-batas. */
+  segment_index: number
+  segment_count: number
+  /** Potongan terpanjang — tempat nama shift ditulis. */
+  is_label_segment: boolean
 }
 
 export interface ShiftRow {
@@ -71,7 +78,6 @@ export interface CoverageRow {
   state: 'covered' | 'gap' | 'unconfigured'
   uncovered_minutes: number
   uncovered_hours_text: string
-  starts_at_production_day: boolean
   blocks: ShiftBlock[]
 }
 

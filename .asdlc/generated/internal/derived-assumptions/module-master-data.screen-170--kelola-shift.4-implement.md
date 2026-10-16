@@ -62,3 +62,18 @@ Agen melaporkan `business_logic` 29–30 "menggambarkan mekanisme yang dibantah 
 ### Catatan DB dev
 
 Migrasi soft delete diterapkan ke `mill_smart_log` oleh SAYA, berlingkup `--path=`, atas instruksi user ("jalankan migrasi shifts saja, app_name tunda dulu" — ini juga migrasi shifts). Diverifikasi sebelum dan sesudah: 91 → 92 migrasi (bukan 93), `deleted_at` ada, `app_name` MASIH ADA sehingga migrasi destruktifnya tetap tertunda, dan `pg_indexes` mengonfirmasi tepat satu index ber-predikat `WHERE (deleted_at IS NULL)`. Tanpa penerapan ini halaman Kelola Shift di dev akan error pada setiap kueri shift, karena global scope memancarkan `deleted_at is null` terhadap kolom yang tidak ada.
+
+## v3 — 2026-10-16
+
+Perbaikan cacat tampilan + dua perubahan rancangan yang menyertainya. Yang saya turunkan sendiri di putaran ini, dan alasannya:
+
+- **`segment_index` / `segment_count` / `is_label_segment` pada tiap blok** ← blade butuh dasar EKSPLISIT untuk menautkan pasangan potongan dan memilih tempat label. Menebaknya dari offset adalah logika tampilan yang menyamar sebagai data, dan ia akan ditebak ulang (berbeda) oleh pemakai berikutnya.
+- **Tanpa glyph panah pada potongan kedua.** Saya sempat menulis `↳` lalu mencabutnya: pada sumbu 00:00 potongan yang AWAL justru berada di tepi KANAN, jadi penanda berarah menunjuk ke arah yang salah. Yang menautkan keduanya adalah **nama dan rentang jam yang sama persis**; yang membedakan hanya bobot huruf.
+- **Shift 24 jam TIDAK mendapat kasus khusus** ← 07:00–07:00 pada sumbu 00:00 keluar sebagai dua segmen bertaut yang menutup batang penuh. Kasus khusus hanya menambah cabang yang dapat salah sementara hasil gambarnya sama.
+- **Urutan tabel dibandingkan pada `segment_index` 0, bukan pada seluruh blok** ← urutan seluruh blok tidak dapat sama dengan urutan tabel pada sumbu linier MANA PUN begitu sebuah shift punya potongan di kedua tepi. Aturannya tidak dilanggar; yang berubah adalah apa yang diukur untuk membuktikannya.
+- **Pratinjau dua jalur, dan tracknya dua kali lebih tinggi** ← ditemukan dari POTRET PERAMBAN sesudah segmentasi benar, bukan dari test. Tinggi jalur dinaikkan sampai dua baris teks 14px muat UTUH di jalur bawah meski isinya digeser naik oleh pita tindihan; teks yang terpotong setengah huruf sama saja dengan teks yang tidak ada.
+- **Penanda tindihan jadi PITA tepi bawah, bukan blok setinggi penuh** ← ketika kandidat bertindih seluruhnya, blok setinggi penuh mengubur label kandidatnya sendiri.
+
+### Yang paling layak diingat dari putaran ini
+
+**Test hijau tidak membuktikan tampilan benar, dan di sini 181 di antaranya hijau sementara sepertiga shift malam terpotong.** Setiap asersi geometri v2 menanyakan "apakah bloknya ada, terlihat, menempel tepi kanan" — ketiganya tetap benar untuk blok yang dipotong `overflow: hidden`. Satu pertanyaan yang tak satu pun ajukan membedakan keduanya: **adakah blok yang digambar di luar track-nya.** Asersi itu kini ada di tiga lapis dan ia menutup KELASNYA. Lihat [[feedback-vacuous-assertions]], [[feedback-design-quality-bar]], [[feedback-mocked-query-tests]].

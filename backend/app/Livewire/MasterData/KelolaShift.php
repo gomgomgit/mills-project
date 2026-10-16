@@ -21,7 +21,7 @@ use Livewire\Component;
  * App\Http\Controllers\Api\ShiftController — sehingga halaman dan API tidak
  * mungkin berbeda hasil hitungan cakupannya. CAKUPAN TIDAK DIHITUNG DI
  * BLADE: server menerbitkan coverage[].blocks berisi posisi dan durasi tiap
- * blok dalam menit dari 07:00, dan blade hanya memetakan menit ke persen.
+ * blok dalam menit dari 00:00, dan blade hanya memetakan menit ke persen.
  *
  * GATE PERAN DUA LAPIS DI JALUR WEB. routes/web.php menjaga rutenya dengan
  * 'auth' + 'role:admin' (EnsureRole::forbidden() → halaman 403 sebelum
@@ -46,9 +46,10 @@ use Livewire\Component;
  * nilai yang sedang diketik — satu-satunya perhitungan cakupan di sisi
  * klien, karena ia harus bergerak sebelum ada permintaan jaringan. Ia BUKAN
  * sumber kebenaran: penolakan tetap datang dari server saat Simpan, dan
- * pratinjau memakai rumus offset-dari-07:00 yang sama persis (blok shift
- * yang sudah ada diambil dari ShiftService::shiftBlocksByLine(), bukan
- * dihitung ulang di JavaScript).
+ * pratinjau memakai rumus offset-dari-00:00 DAN fungsi segmentasi yang sama
+ * persis, sehingga blok kandidat dan penanda tindihannya digambar dari segmen
+ * yang sama (blok shift yang sudah ada diambil dari
+ * ShiftService::shiftBlocksByLine(), bukan dihitung ulang di JavaScript).
  *
  * VALIDASI HANYA PUNYA SATU SUMBER. Tidak ada cermin aturan di komponen ini:
  * save() memanggil service dan memetakan ValidationException-nya ke kunci

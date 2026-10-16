@@ -12,10 +12,10 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  *
  * screen-170--kelola-shift test infrastructure.
  *
- * Default-nya shift "Pagi" 07:00–15:00 pada Production Line baru — yaitu
- * shift yang dimulai TEPAT di awal hari produksi, sehingga sebuah line yang
- * hanya berisi satu shift default punya cakupan yang mudah diprediksi
- * (gap 16 jam, starts_at_production_day true).
+ * Default-nya shift "Pagi" 07:00–15:00 pada Production Line baru, sehingga
+ * sebuah line yang hanya berisi satu shift default punya cakupan yang mudah
+ * diprediksi: celah 16 jam, dan pada sumbu 00:00 celah itu melintasi titik
+ * nol sehingga ia keluar sebagai DUA blok gap — 00:00–07:00 dan 15:00–24:00.
  *
  * JAM DISIMPAN SEBAGAI 'H:i:s'. Kolomnya TIME: PostgreSQL memulangkannya
  * 'HH:MM:SS' sementara SQLite memulangkan apa pun yang tersimpan, jadi

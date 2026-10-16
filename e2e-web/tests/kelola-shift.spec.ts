@@ -83,6 +83,25 @@
  *    tidak mungkin diuji adalah cara tercepat membuat orang berikutnya
  *    berhenti mencoba.
  *
+ * ── REVISI SPEC v3 (2026-10-16) — SUMBU 00:00 DAN BLOK BERSEGMEN ───────
+ *
+ * Pemilik produk memakai layar ini dan melaporkan pratinjau yang berantakan
+ * serta tampilan yang tidak sesuai begitu jam melewati 07:00. Akarnya BUKAN
+ * titik awal sumbu: blok digambar sebagai SATU rentang utuh, sehingga shift
+ * yang melintasi titik awal digambar `left+width` melewati tepi kanan track
+ * ber-`overflow: hidden` lalu DIPOTONG DIAM-DIAM, sementara sisanya di tepi
+ * kiri tidak pernah tergambar. Tiga hal berubah, dan hanya yang pertama
+ * adalah perbaikan cacat:
+ *
+ * 1. BLOK DIGAMBAR SEBAGAI SEGMEN. Shift yang melintasi titik awal sumbu
+ *    menjadi DUA elemen ber-`data-testid` sama dan `data-segment-index`
+ *    berbeda. Asersi v2 "satu elemen yang menempel ujung kanan" justru
+ *    MELOLOSKAN blok terpotong — elemen terpotong memang satu dan memang
+ *    menempel ujung kanan. Penggantinya mengukur bahwa tak ada blok yang
+ *    tepi kanannya melewati tepi kanan track.
+ * 2. SUMBU DIMULAI 00:00, bukan 07:00 — murni pilihan menggambar.
+ * 3. PERINGATAN "tidak dimulai 07:00" DICABUT seluruhnya.
+ *
  * 2. PENGHAPUSAN ADALAH SOFT DELETE. Barisnya ditutup, bukan dibuang, jadi
  *    ketidakhadirannya di tabel dan sebagai blok timeline harus diasersi dan
  *    bukan disimpulkan (skenario 19 + 33), dan nama serta jam yang
@@ -140,6 +159,9 @@ interface Geometry {
   left: number
   right: number
   width: number
+  top: number
+  bottom: number
+  height: number
 }
 
 async function geometryOf(locator: Locator, label: string): Promise<Geometry> {
@@ -147,7 +169,14 @@ async function geometryOf(locator: Locator, label: string): Promise<Geometry> {
 
   expect(box, `${label}: elemen tidak punya kotak (tidak terlihat?)`).not.toBeNull()
 
-  return { left: box!.x, right: box!.x + box!.width, width: box!.width }
+  return {
+    left: box!.x,
+    right: box!.x + box!.width,
+    width: box!.width,
+    top: box!.y,
+    bottom: box!.y + box!.height,
+    height: box!.height,
+  }
 }
 
 /** Login sebagai Admin, sapu bersih shift, lalu buka layarnya. */
@@ -223,6 +252,72 @@ function track(page: Page, lineId: string): Locator {
 }
 
 /**
+ * SATU potongan blok sebuah shift. Shift yang melewati tengah malam punya DUA
+ * elemen ber-`data-testid` yang sama — sengaja sama, supaya potongan sebuah
+ * shift dapat DIHITUNG — jadi locator yang hanya memakai data-testid akan
+ * melanggar mode strict Playwright. `data-segment-index` 0 selalu potongan
+ * tempat shift itu DIMULAI.
+ */
+function blockSegment(page: Page, shiftId: string, segmentIndex = 0): Locator {
+  return page.locator(
+    `[data-testid="timeline-block-${shiftId}"][data-segment-index="${segmentIndex}"]`,
+  )
+}
+
+/**
+ * Id shift dari potongan tempat tiap shift DIMULAI, IN DOCUMENT ORDER.
+ *
+ * Inilah urutan yang dibandingkan dengan urutan baris tabel. Urutan SELURUH
+ * elemen blok tidak lagi sama dengannya sejak sumbu dimulai 00:00: shift yang
+ * melewati tengah malam menyumbang potongan kedua di tepi KIRI batang. Itu
+ * tidak dapat dihindari oleh sumbu linier mana pun — yang dapat dipilih
+ * hanyalah shift mana yang terpecah.
+ */
+async function orderedStartBlockIds(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    return Array.from(
+      document.querySelectorAll('[data-testid^="timeline-block-"][data-segment-index="0"]'),
+    ).map((element) => (element.getAttribute('data-testid') ?? '').slice('timeline-block-'.length))
+  })
+}
+
+/**
+ * NOL blok yang tepi kanannya melewati tepi kanan track — diukur dari DOM,
+ * untuk SETIAP blok pada SETIAP batang.
+ *
+ * Asersi inilah yang memerah terhadap implementasi sebelum v3. `overflow:
+ * hidden` membuat blok yang melewati tepi tetap TERLIHAT dan tetap menempel
+ * ujung kanan, jadi asersi "ada, terlihat, menempel ujung kanan" menghijau
+ * justru pada halaman yang cacat; yang membedakan keduanya hanya geometri
+ * yang diukur.
+ */
+async function expectNoBlockPastTrackEdge(page: Page): Promise<void> {
+  const offenders = await page.evaluate(() => {
+    const found: string[] = []
+
+    document.querySelectorAll('[data-testid^="timeline-track-"]').forEach((trackElement) => {
+      const trackBox = trackElement.getBoundingClientRect()
+
+      trackElement.querySelectorAll('.ks-block').forEach((block) => {
+        const box = block.getBoundingClientRect()
+
+        if (box.right > trackBox.right + 1 || box.left < trackBox.left - 1) {
+          found.push(
+            `${block.getAttribute('data-testid') ?? block.className}: ` +
+              `[${Math.round(box.left)}, ${Math.round(box.right)}] vs track ` +
+              `[${Math.round(trackBox.left)}, ${Math.round(trackBox.right)}]`,
+          )
+        }
+      })
+    })
+
+    return found
+  })
+
+  expect(offenders, 'ada blok yang digambar di luar track dan dipotong overflow hidden').toEqual([])
+}
+
+/**
  * Setiap elemen yang MENAMPILKAN TEKS di dalam layar ini beserta ukuran
  * fontnya — hanya elemen dengan teks langsung, hanya yang terlihat.
  * Ambangnya 14px (uiux_spec.accessibility.text_content.min_font_size), dan
@@ -294,7 +389,7 @@ test.describe('Kelola Shift per Production Line', () => {
 
   // ── Skenario 1 ────────────────────────────────────────────────────────
 
-  test('skenario 1 — menambah Pagi 07:00–15:00: blok menempel ke ujung KIRI track, badge menyebut jam celah', async ({ page }) => {
+  test('skenario 1 — menambah Pagi 07:00–15:00: blok jatuh di 07:00 pada sumbu 00:00, badge menyebut jam celah', async ({ page }) => {
     const problems = watchProblems(page)
     const { businessUnitId } = await openScreenAsAdmin(page)
     const lineAId = await productionLineIdByName(page, businessUnitId, LINE_A)
@@ -305,29 +400,40 @@ test.describe('Kelola Shift per Production Line', () => {
     await addShiftViaUi(page, { lineName: LINE_A, name: 'Pagi', start: '07:00', end: '15:00' })
     await expectSaved(page)
 
-    const [shiftId] = await orderedTestIds(page, 'timeline-block-')
+    const [shiftId] = await orderedStartBlockIds(page)
 
     expect(shiftId, 'blok Pagi tidak dirender').toBeTruthy()
 
-    const blockGeometry = await geometryOf(page.locator(`[data-testid="timeline-block-${shiftId}"]`), 'blok Pagi')
+    // SATU potongan: 07:00–15:00 tidak melintasi titik awal sumbu.
+    await expect(page.locator(`[data-testid="timeline-block-${shiftId}"]`)).toHaveCount(1)
+
+    const blockGeometry = await geometryOf(blockSegment(page, shiftId), 'blok Pagi')
     const trackGeometry = await geometryOf(track(page, lineAId), 'track Line A')
 
-    // MENEMPEL KE UJUNG KIRI: 07:00 adalah offset 0 pada batang yang dimulai
-    // 07:00. Diukur, bukan disimpulkan dari atribut style.
-    expect(
-      Math.abs(blockGeometry.left - trackGeometry.left),
-      `blok Pagi tidak menempel ke ujung kiri (${blockGeometry.left} vs ${trackGeometry.left})`,
-    ).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    // JATUH DI 07:00 PADA SUMBU 00:00 — yaitu 420/1440 = 29,17% dari tepi
+    // kiri, BUKAN menempel ke tepi itu. Diukur sebagai rasio, bukan
+    // disimpulkan dari atribut style dan tanpa satu pun lebar piksel.
+    const startRatio = (blockGeometry.left - trackGeometry.left) / trackGeometry.width
+
+    expect(startRatio, `blok Pagi tidak jatuh di 07:00 (rasio ${startRatio})`).toBeGreaterThan(0.27)
+    expect(startRatio).toBeLessThan(0.31)
 
     // 480 dari 1440 menit — sepertiga batang.
     expect(blockGeometry.width / trackGeometry.width).toBeGreaterThan(0.30)
     expect(blockGeometry.width / trackGeometry.width).toBeLessThan(0.36)
+
+    // Sumbunya memang dimulai 00:00 dan berakhir 24:00 — disasar pada ELEMEN
+    // labelnya, karena '00:00' dapat muncul pula di kolom jam pada tabel.
+    await expect(page.locator('[data-testid="axis-tick-start"]').first()).toHaveText('00:00')
+    await expect(page.locator('[data-testid="axis-tick-end"]').first()).toHaveText('24:00')
 
     // Badge-nya ELEMEN sendiri, dan angka jam celahnya DISEBUT.
     await expect(badge(page, lineAId)).toHaveText('ada celah 16 jam')
 
     // Baris tabelnya muncul, dan urutannya sama dengan urutan blok.
     expect(await orderedTestIds(page, 'shift-row-')).toEqual([shiftId])
+
+    await expectNoBlockPastTrackEdge(page)
 
     await expectNoHorizontalPageScroll(page)
     expect(problems).toEqual([])
@@ -426,7 +532,7 @@ test.describe('Kelola Shift per Production Line', () => {
 
   // ── Skenario 6 ────────────────────────────────────────────────────────
 
-  test('skenario 6 — cakupan 24 jam yang dimulai 06:00: badge tercakup penuh DAN peringatan ketidakselarasan', async ({ page }) => {
+  test('skenario 6 — cakupan 24 jam yang dimulai 06:00: badge tercakup penuh dan NOL peringatan ketidakselarasan', async ({ page }) => {
     const problems = watchProblems(page)
     const { businessUnitId } = await openScreenAsAdmin(page)
     const lineAId = await productionLineIdByName(page, businessUnitId, LINE_A)
@@ -441,15 +547,22 @@ test.describe('Kelola Shift per Production Line', () => {
 
     await expect(badge(page, lineAId)).toHaveText('tercakup 24 jam')
 
-    // PERINGATAN, BUKAN PENOLAKAN — dan ia terlihat DI DEKAT batangnya.
-    const note = page.locator(`[data-testid="misaligned-note-${lineAId}"]`)
-    await expect(note).toBeVisible()
-    await expect(note).toContainText('tidak dimulai 07:00')
-    await expect(note).toContainText('peringatan')
+    // PERINGATANNYA DICABUT (v3, "dibuang saja"). Diasersi atas TESTID blok
+    // peringatannya — bukan atas prosanya, karena '07:00' masih muncul di
+    // keterangan field Jam Selesai dan sebuah pemindaian teks akan mencocoki
+    // tempat yang salah.
+    await expect(page.locator(`[data-testid="misaligned-note-${lineAId}"]`)).toHaveCount(0)
+    await expect(page.locator('[data-testid^="misaligned-note-"]')).toHaveCount(0)
 
     // Nol blok celah: union-nya memang menutup 24 jam.
     expect(await orderedTestIds(page, 'timeline-gap-')).toEqual([])
-    expect(await orderedTestIds(page, 'timeline-block-')).toHaveLength(3)
+
+    // TIGA shift, dan Regu C (22:00–06:00) melewati tengah malam sehingga ia
+    // menyumbang DUA potongan: empat elemen, tiga jam-mulai.
+    expect(await orderedTestIds(page, 'timeline-block-')).toHaveLength(4)
+    expect(await orderedStartBlockIds(page)).toHaveLength(3)
+
+    await expectNoBlockPastTrackEdge(page)
 
     await expectNoHorizontalPageScroll(page)
     expect(problems).toEqual([])
@@ -457,7 +570,7 @@ test.describe('Kelola Shift per Production Line', () => {
 
   // ── Skenario 7 ────────────────────────────────────────────────────────
 
-  test('skenario 7 — Malam 23:00–07:00: SATU elemen, tepi kanannya menempel ke ujung kanan track', async ({ page }) => {
+  test('skenario 7 — Malam 23:00–07:00: DUA potongan bertaut di kedua tepi track, nol yang terpotong', async ({ page }) => {
     const problems = watchProblems(page)
     const { businessUnitId } = await openScreenAsAdmin(page)
     const lineAId = await productionLineIdByName(page, businessUnitId, LINE_A)
@@ -468,30 +581,49 @@ test.describe('Kelola Shift per Production Line', () => {
     await addShiftViaUi(page, { lineName: LINE_A, name: 'Malam', start: '23:00', end: '07:00' })
     await expectSaved(page)
 
-    const blockIds = await orderedTestIds(page, 'timeline-block-')
+    const [shiftId] = await orderedStartBlockIds(page)
 
-    // SATU elemen, bukan dua potongan di kedua ujung — itu yang dibeli oleh
-    // batang yang dimulai 07:00.
-    expect(blockIds, 'shift lintas tengah malam harus satu elemen').toHaveLength(1)
+    expect(shiftId, 'blok Malam tidak dirender').toBeTruthy()
 
-    const blockGeometry = await geometryOf(
-      page.locator(`[data-testid="timeline-block-${blockIds[0]}"]`),
-      'blok Malam',
-    )
+    // DUA elemen ber-data-testid sama: potongan 23:00–24:00 (segment 0, tempat
+    // shift ini dimulai) dan potongan 00:00–07:00 (segment 1).
+    await expect(page.locator(`[data-testid="timeline-block-${shiftId}"]`)).toHaveCount(2)
+
+    const startPiece = await geometryOf(blockSegment(page, shiftId, 0), 'potongan 23:00–24:00')
+    const wrapPiece = await geometryOf(blockSegment(page, shiftId, 1), 'potongan 00:00–07:00')
     const trackGeometry = await geometryOf(track(page, lineAId), 'track Line A')
 
+    // Potongan pertama menempel tepi KANAN, yang kedua menempel tepi KIRI.
     expect(
-      Math.abs(blockGeometry.right - trackGeometry.right),
-      `blok Malam tidak menempel ke ujung kanan (${blockGeometry.right} vs ${trackGeometry.right})`,
+      Math.abs(startPiece.right - trackGeometry.right),
+      `potongan 23:00–24:00 tidak menempel tepi kanan (${startPiece.right} vs ${trackGeometry.right})`,
+    ).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    expect(
+      Math.abs(wrapPiece.left - trackGeometry.left),
+      `potongan 00:00–07:00 tidak menempel tepi kiri (${wrapPiece.left} vs ${trackGeometry.left})`,
     ).toBeLessThanOrEqual(EDGE_TOLERANCE)
 
-    // Dan ia TIDAK juga menempel ke ujung kiri: tidak ada potongan kedua.
-    expect(blockGeometry.left - trackGeometry.left).toBeGreaterThan(trackGeometry.width * 0.5)
+    // JUMLAH LEBAR KEDUANYA sebanding 480 menit dari 1440 — sepertiga batang.
+    // Inilah yang membuktikan tidak ada menit yang hilang: sebelum v3, 420
+    // dari 480 menit dipotong diam-diam oleh overflow hidden.
+    const combinedRatio = (startPiece.width + wrapPiece.width) / trackGeometry.width
+
+    expect(combinedRatio, `jumlah lebar kedua potongan tidak sebanding durasi (${combinedRatio})`).toBeGreaterThan(0.30)
+    expect(combinedRatio).toBeLessThan(0.36)
+
+    // Dan potongan 00:00–07:00 memang yang lebih lebar (420 menit vs 60).
+    expect(wrapPiece.width).toBeGreaterThan(startPiece.width)
+
+    // ASERSI YANG MEMERAH TERHADAP IMPLEMENTASI LAMA: nol blok di luar track.
+    await expectNoBlockPastTrackEdge(page)
 
     // Label '+1' supaya jam selesai yang lebih kecil tidak terbaca sebagai
-    // salah input — pada blok maupun pada barisnya.
-    await expect(page.locator(`[data-testid="timeline-block-${blockIds[0]}"]`)).toContainText('23:00 — 07:00 +1')
-    await expect(page.locator(`[data-testid="shift-row-${blockIds[0]}"]`)).toContainText('07:00 +1')
+    // salah input — pada KEDUA potongan dan pada barisnya, dan label yang
+    // sama pada keduanya itulah yang memberi tahu pembaca mereka satu shift.
+    await expect(blockSegment(page, shiftId, 0)).toContainText('23:00 — 07:00 +1')
+    await expect(blockSegment(page, shiftId, 1)).toContainText('23:00 — 07:00 +1')
+    await expect(blockSegment(page, shiftId, 1)).toContainText('Malam')
+    await expect(page.locator(`[data-testid="shift-row-${shiftId}"]`)).toContainText('07:00 +1')
 
     await expectNoHorizontalPageScroll(page)
     expect(problems).toEqual([])
@@ -535,6 +667,31 @@ test.describe('Kelola Shift per Production Line', () => {
     // satu putaran server pun.
     await expect(page.locator('[data-testid="preview-candidate"]')).toBeVisible()
     await expect(page.locator('[data-testid="preview-conflict"]')).toBeVisible()
+
+    // DUA JALUR, bukan satu (v3). Shift yang sudah ada di jalur atas, kandidat
+    // di jalur bawah, dan keduanya TIDAK berpotongan secara vertikal — kalau
+    // berpotongan, nama dan jam kandidat tertumpuk persis di atas nama dan jam
+    // shift yang ditimpanya, dan dua teks pada satu titik itulah yang
+    // dilaporkan sebagai berantakan. Diukur dari DOM.
+    const previewExisting = await geometryOf(
+      page.locator('[data-testid="preview-track"] .ks-block-shift').first(),
+      'blok shift yang sudah ada di pratinjau',
+    )
+    const previewCandidate = await geometryOf(
+      page.locator('[data-testid="preview-candidate"]').first(),
+      'blok kandidat',
+    )
+
+    expect(
+      previewCandidate.top,
+      `jalur kandidat menimpa jalur shift yang sudah ada (${previewCandidate.top} < ${previewExisting.bottom})`,
+    ).toBeGreaterThanOrEqual(previewExisting.bottom - 1)
+
+    // Dan keduanya memang menempati rentang MENDATAR yang beririsan — kalau
+    // tidak, asersi di atas lolos karena mereka berjauhan, bukan karena
+    // jalurnya terpisah.
+    expect(previewCandidate.left).toBeLessThan(previewExisting.right)
+    expect(previewCandidate.right).toBeGreaterThan(previewExisting.left)
     await expect(page.locator('[data-testid="preview-conflict-note"]')).toContainText('Bertindih dengan shift Pagi')
     await expect(page.locator('[data-testid="preview-conflict-note"]')).toContainText('14:00')
     await expect(page.locator('[data-testid="preview-conflict-note"]')).toContainText('15:00')
@@ -737,12 +894,12 @@ test.describe('Kelola Shift per Production Line', () => {
     await addShiftViaUi(page, { lineName: LINE_A, name: 'Siang', start: '15:00', end: '23:00' })
     await expectSaved(page)
 
-    const blockIds = await orderedTestIds(page, 'timeline-block-')
+    const blockIds = await orderedStartBlockIds(page)
     expect(blockIds).toHaveLength(2)
     expect(blockIds[0]).toBe(pagiId)
 
-    const first = await geometryOf(page.locator(`[data-testid="timeline-block-${blockIds[0]}"]`), 'blok Pagi')
-    const second = await geometryOf(page.locator(`[data-testid="timeline-block-${blockIds[1]}"]`), 'blok Siang')
+    const first = await geometryOf(blockSegment(page, blockIds[0]), 'blok Pagi')
+    const second = await geometryOf(blockSegment(page, blockIds[1]), 'blok Siang')
 
     // BERSEBELAHAN: tepi kanan yang pertama bertemu tepi kiri yang kedua.
     expect(
@@ -754,10 +911,17 @@ test.describe('Kelola Shift per Production Line', () => {
     // durasi, diuji sebagai RASIO dan bukan sebagai piksel.
     expect(Math.abs(first.width - second.width)).toBeLessThanOrEqual(EDGE_TOLERANCE)
 
-    // Nol celah DI ANTARA keduanya: satu-satunya celah ada di belakang
-    // keduanya (23:00 → 07:00), yaitu pada offset 960.
-    expect(await orderedTestIds(page, 'timeline-gap-')).toEqual([`${lineAId}-960`])
+    // Nol celah DI ANTARA keduanya. Satu-satunya celah ada di belakang
+    // keduanya (23:00 → 07:00), dan pada sumbu 00:00 celah itu melintasi
+    // titik awal sehingga ia pun tergambar sebagai DUA potongan: 00:00–07:00
+    // (offset 0) dan 23:00–24:00 (offset 1380). Keduanya 480 menit bersama.
+    expect(await orderedTestIds(page, 'timeline-gap-')).toEqual([
+      `${lineAId}-0`,
+      `${lineAId}-1380`,
+    ])
     await expect(badge(page, lineAId)).toHaveText('ada celah 8 jam')
+
+    await expectNoBlockPastTrackEdge(page)
 
     expect(problems).toEqual([])
   })
@@ -888,23 +1052,31 @@ test.describe('Kelola Shift per Production Line', () => {
     await expect(badge(page, lineBId)).toHaveText('tercakup 24 jam')
     expect(await orderedTestIds(page, 'timeline-gap-')).toEqual([])
 
-    // SATU blok, dan ia menutup SELURUH track: kedua tepinya menempel ke
-    // kedua ujungnya, lebarnya sama dengan lebar track. Diukur dari DOM —
-    // tanpa satu pun lebar piksel yang ditulis di spec ini.
-    const blockIds = await orderedTestIds(page, 'timeline-block-')
-    expect(blockIds).toHaveLength(1)
+    // SATU SHIFT yang menutup SELURUH track. Pada sumbu 00:00 ia melintasi
+    // titik awal (07:00 → 07:00), jadi ia tergambar sebagai DUA potongan
+    // bertaut — dan keduanya BERSAMA-SAMA menutup batang penuh tanpa celah
+    // dan tanpa melewati tepinya. Diukur dari DOM, tanpa satu pun lebar
+    // piksel yang ditulis di spec ini.
+    const [fullShiftId] = await orderedStartBlockIds(page)
+    expect(fullShiftId).toBeTruthy()
+    await expect(page.locator(`[data-testid="timeline-block-${fullShiftId}"]`)).toHaveCount(2)
 
     const trackGeometry = await geometryOf(track(page, lineBId), 'track Line B')
-    const fullBlock = await geometryOf(
-      page.locator(`[data-testid="timeline-block-${blockIds[0]}"]`),
-      'blok 24 jam',
-    )
+    const pieceA = await geometryOf(blockSegment(page, fullShiftId, 0), 'potongan 07:00–24:00')
+    const pieceB = await geometryOf(blockSegment(page, fullShiftId, 1), 'potongan 00:00–07:00')
 
-    expect(Math.abs(fullBlock.left - trackGeometry.left)).toBeLessThanOrEqual(EDGE_TOLERANCE)
-    expect(Math.abs(fullBlock.right - trackGeometry.right)).toBeLessThanOrEqual(EDGE_TOLERANCE)
-    expect(Math.abs(fullBlock.width - trackGeometry.width)).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    // Tepi terluar keduanya menempel ke kedua ujung track…
+    expect(Math.abs(pieceB.left - trackGeometry.left)).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    expect(Math.abs(pieceA.right - trackGeometry.right)).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    // …mereka BERTAUT di tengah (tepi kanan yang satu = tepi kiri yang lain)…
+    expect(Math.abs(pieceB.right - pieceA.left)).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    // …dan jumlah lebarnya = lebar track.
+    expect(Math.abs(pieceA.width + pieceB.width - trackGeometry.width)).toBeLessThanOrEqual(EDGE_TOLERANCE)
 
-    // Dan payload-nya memang satu shift berdurasi 1440 menit, bukan dua.
+    await expectNoBlockPastTrackEdge(page)
+
+    // Dan payload-nya memang SATU shift berdurasi 1440 menit, bukan dua
+    // shift — yang dua adalah potongan gambarnya, bukan barisnya.
     const body = await listShifts(page, businessUnitId, lineBId)
     expect(body.data).toHaveLength(1)
     expect(body.data[0].duration_minutes).toBe(1440)
@@ -1018,7 +1190,7 @@ test.describe('Kelola Shift per Production Line', () => {
 
     await expect(badge(page, lineAId)).toHaveText('tercakup 24 jam')
 
-    const siangGeometry = await geometryOf(page.locator(`[data-testid="timeline-block-${siangId}"]`), 'blok Siang')
+    const siangGeometry = await geometryOf(blockSegment(page, siangId), 'blok Siang')
 
     // Konfirmasi inline menyebut nama shift DAN line-nya.
     await page.locator(`[data-testid="delete-button-${siangId}"]`).click()
@@ -1037,8 +1209,9 @@ test.describe('Kelola Shift per Production Line', () => {
     await expect(page.locator(`[data-testid="timeline-block-${siangId}"]`)).toHaveCount(0)
     await expect(badge(page, lineAId)).toHaveText('ada celah 8 jam')
 
-    // Blok celah muncul TEPAT di posisi yang ditinggalkan Siang (offset 480).
-    const gapBlock = page.locator(`[data-testid="timeline-gap-${lineAId}-480"]`)
+    // Blok celah muncul TEPAT di posisi yang ditinggalkan Siang — 15:00 pada
+    // sumbu 00:00 adalah offset 900.
+    const gapBlock = page.locator(`[data-testid="timeline-gap-${lineAId}-900"]`)
     await expect(gapBlock).toBeVisible()
 
     const gapGeometry = await geometryOf(gapBlock, 'blok celah')
@@ -1051,7 +1224,9 @@ test.describe('Kelola Shift per Production Line', () => {
     expect(gapBackground, 'blok celah tidak berarsiran').toContain('gradient')
 
     // Shift yang masih ada tetap di tempatnya.
-    await expect(page.locator(`[data-testid="timeline-block-${pagiId}"]`)).toBeVisible()
+    await expect(blockSegment(page, pagiId)).toBeVisible()
+
+    await expectNoBlockPastTrackEdge(page)
 
     expect(problems).toEqual([])
   })
@@ -1193,7 +1368,7 @@ test.describe('Kelola Shift per Production Line', () => {
     // ...dan NOL baris kedua, juga nol baris tertutup baru: tabelnya memuat
     // tepat satu baris untuk line ini.
     expect(await orderedTestIds(page, 'shift-row-')).toEqual([pagiId])
-    expect(await orderedTestIds(page, 'timeline-block-')).toEqual([pagiId])
+    expect(await orderedStartBlockIds(page)).toEqual([pagiId])
 
     const body = await listShifts(page, businessUnitId, lineAId)
     expect(body.data).toHaveLength(1)
@@ -1374,26 +1549,40 @@ test.describe('Kelola Shift per Production Line', () => {
 
     const expected = [pagiId, siangId, malamId]
 
-    // KEDUANYA DIBACA DARI DOM, lalu dibandingkan.
-    expect(await orderedTestIds(page, 'timeline-block-')).toEqual(expected)
+    // KEDUANYA DIBACA DARI DOM, lalu dibandingkan — pada potongan tempat tiap
+    // shift DIMULAI. Malam melewati tengah malam, jadi potongan keduanya
+    // jatuh di tepi kiri batang dan urutan SELURUH elemen blok adalah
+    // [Malam, Pagi, Siang, Malam]. Menuntutnya sama dengan urutan tabel hanya
+    // bisa dilakukan dengan berhenti menggambar potongan itu — yang justru
+    // cacat yang baru diperbaiki.
+    expect(await orderedStartBlockIds(page)).toEqual(expected)
     expect(await orderedTestIds(page, 'shift-row-')).toEqual(expected)
+    expect(await orderedTestIds(page, 'timeline-block-')).toEqual([malamId, pagiId, siangId, malamId])
 
     // Bukan urutan penambahan, dan bukan abjad nama.
     expect(await orderedTestIds(page, 'shift-row-')).not.toEqual([malamId, pagiId, siangId])
 
     // LEBAR SEBANDING DURASI, diuji sebagai RASIO: Pagi 480 menit, Siang 240
-    // menit, Malam 480 menit.
-    const pagi = await geometryOf(page.locator(`[data-testid="timeline-block-${pagiId}"]`), 'blok Pagi')
-    const siang = await geometryOf(page.locator(`[data-testid="timeline-block-${siangId}"]`), 'blok Siang')
-    const malam = await geometryOf(page.locator(`[data-testid="timeline-block-${malamId}"]`), 'blok Malam')
+    // menit, Malam 480 menit TERBAGI DUA POTONGAN — jadi yang dibandingkan
+    // dengan Pagi adalah JUMLAH lebar kedua potongan Malam.
+    const pagi = await geometryOf(blockSegment(page, pagiId), 'blok Pagi')
+    const siang = await geometryOf(blockSegment(page, siangId), 'blok Siang')
+    const malamStart = await geometryOf(blockSegment(page, malamId, 0), 'potongan 23:00–24:00')
+    const malamWrap = await geometryOf(blockSegment(page, malamId, 1), 'potongan 00:00–07:00')
 
     expect(pagi.width / siang.width).toBeGreaterThan(1.9)
     expect(pagi.width / siang.width).toBeLessThan(2.1)
-    expect(Math.abs(pagi.width - malam.width)).toBeLessThanOrEqual(EDGE_TOLERANCE)
+    expect(Math.abs(pagi.width - (malamStart.width + malamWrap.width))).toBeLessThanOrEqual(EDGE_TOLERANCE)
 
-    // Dan posisinya naik searah dengan urutannya.
+    // Dan posisi jam-mulai naik searah dengan urutannya.
     expect(pagi.left).toBeLessThan(siang.left)
-    expect(siang.left).toBeLessThan(malam.left)
+    expect(siang.left).toBeLessThan(malamStart.left)
+
+    // Potongan lanjutan Malam berada di SEBELAH KIRI Pagi — bukan kekeliruan
+    // urutan, melainkan konsekuensi sumbu yang dimulai 00:00.
+    expect(malamWrap.left).toBeLessThan(pagi.left)
+
+    await expectNoBlockPastTrackEdge(page)
 
     expect(problems).toEqual([])
   })

@@ -31,3 +31,18 @@ Diturunkan dari spec bisnis screen-170 + pola `screen-128--kelola-periode-pelapo
 - **Asersi badge status menyasar ELEMEN badge, bukan memindai kontainer** ← 'belum diatur' muncul juga di kalimat penjelas di bawah batang, jadi pemindaian kontainer akan cocok di tempat yang salah. Lihat [[feedback-vacuous-assertions]].
 - **Spec browser mengasersi invarian GEOMETRIS yang diukur dari DOM** (urutan blok = urutan baris, blok melewati tengah malam adalah SATU elemen yang menempel ujung kanan, lebar sebanding durasi, nol gulir mendatar halaman) dan tidak memaku lebar piksel ← lebar bergantung viewport.
 - 45 `unit_test_cases` · 28 `test_scenarios` (satu per bdd, berurutan, diverifikasi cocok persis) · 25 business_logic · 22 edge_case_handling · 17 implementation_notes ← seluruhnya turunan agent.
+
+## v3 — 2026-10-16
+
+Tiga butir v2 di atas ditarik, dan saya tulis penariknya di sini supaya alasan lamanya tidak dipanen ulang oleh orang berikutnya:
+
+- ~~Offset diukur dari 07:00~~ → **diukur dari 00:00** (menit-ke-dalam-hari). Keputusan pemilik produk. Titik awal sumbu adalah soal menggambar; cakupan, tumpang tindih, dan penandaan record tidak bergantung padanya.
+- ~~Shift lintas tengah malam dipecah dua HANYA di perhitungan tumpang tindih, tidak pernah di payload~~ → **satu fungsi segmentasi, DUA pemakai**: perhitungan tumpang tindih DAN penerbitan blok. Butir v2 itu adalah penyebab langsung cacat yang dilaporkan: blok dengan `start_offset + duration > 1440` digambar melewati tepi track ber-`overflow: hidden` dan dipotong diam-diam, sementara potongan tepi kirinya tidak pernah digambar.
+- ~~`starts_at_production_day` adalah peringatan, bukan penolakan~~ → **kuncinya dicabut**, bukan diperhalus.
+
+### Turunan agent yang baru di v3
+
+- **`segment_index` dan `crosses_midnight` pada kedua segmen** ← blade butuh dasar eksplisit untuk menautkan pasangan segmen dan memilih tempat labelnya; menebaknya dari offset adalah logika tampilan yang menyamar sebagai data.
+- **`position` pindah ke sumbu 00:00** ← wajib agar urutan tabel dan urutan blok tidak berselisih oleh konstruksi.
+- **Tiga unit case baru**: invarian "nol blok melewati 1440" atas SETIAP blok, gap tersegmentasi, dan shift 24 jam yang tidak mulai 00:00.
+- **Asersi browser baru**: tidak ada blok yang tepi kanannya melewati tepi kanan track, diukur dari DOM. Inilah asersi yang memerah terhadap implementasi lama — asersi v2 ("blok melewati tengah malam adalah SATU elemen yang menempel ujung kanan") justru **meloloskan** blok terpotong, karena elemen terpotong memang satu dan memang menempel ujung kanan.

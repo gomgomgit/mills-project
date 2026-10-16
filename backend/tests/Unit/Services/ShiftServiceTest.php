@@ -218,6 +218,62 @@ function gapBlocksOf(array $entry): array
     return collect($entry['blocks'])->where('kind', 'gap')->values()->all();
 }
 
+/**
+ * Blok tempat sebuah shift DIMULAI — `segment_index` 0, yang menurut
+ * konstruksi selalu berawal tepat di offset jam mulainya.
+ *
+ * Dipakai untuk membandingkan urutan tabel dengan urutan timeline. Sejak
+ * sumbu dimulai 00:00 (v3), shift yang melewati tengah malam punya DUA
+ * potongan dan potongan keduanya jatuh di tepi KIRI batang — jadi urutan
+ * seluruh blok tidak lagi sama dengan urutan baris tabel, dan memaksakannya
+ * sama hanya bisa dilakukan dengan mengarang. Yang MASIH berlaku, dan yang
+ * memang dimaksud aturannya, adalah urutan JAM MULAI shift-nya.
+ *
+ * @param  array<string, mixed>  $entry
+ * @return list<array<string, mixed>>
+ */
+function startingShiftBlocksOf(array $entry): array
+{
+    return collect($entry['blocks'])
+        ->where('kind', 'shift')
+        ->where('segment_index', 0)
+        ->values()
+        ->all();
+}
+
+/**
+ * INVARIAN PAYLOAD v3, diasersi atas SETIAP blok di SETIAP line: tidak ada
+ * blok yang melewati tepi sumbu.
+ *
+ * Satu asersi menyeluruh ini menutup SELURUH kelas cacat yang dilaporkan
+ * pemilik produk 2026-10-16 — bukan hanya kasus yang kebetulan ditulis. Blok
+ * yang start_offset + duration-nya lebih dari 1440 digambar `left+width`
+ * melewati tepi kanan `.ks-track` yang ber-`overflow: hidden`, sehingga ia
+ * DIPOTONG DIAM-DIAM sementara sisanya di tepi kiri tidak pernah tergambar.
+ * Implementasi satu-blok sebelum v3 memerah di sini.
+ *
+ * @param  array<string, mixed>  $entry
+ */
+function expectNoBlockPastAxisEnd(array $entry): void
+{
+    foreach ($entry['blocks'] as $block) {
+        $end = $block['start_offset_minutes'] + $block['duration_minutes'];
+
+        expect($block['start_offset_minutes'])->toBeGreaterThanOrEqual(0);
+        expect($block['duration_minutes'])->toBeGreaterThan(0);
+        expect($end)->toBeLessThanOrEqual(
+            ShiftService::DAY_MINUTES,
+            sprintf(
+                'blok %s mulai %d durasi %d berakhir di %d — melewati tepi sumbu dan akan dipotong overflow hidden',
+                $block['label'] ?? '(tanpa label)',
+                $block['start_offset_minutes'],
+                $block['duration_minutes'],
+                $end
+            )
+        );
+    }
+}
+
 // ── Peran (cases 1, 2) ──────────────────────────────────────────────────
 
 // Case 1 — THREE roles, SIX surfaces, and zero shift queries on each.
@@ -283,21 +339,23 @@ it('menolak tanpa sesi sebelum satu kueri shift pun berjalan', function () {
     expect($queries)->toBe([]);
 });
 
-// ── Rumus menit — SUMBU 0..1440 RELATIF 07:00 (case 7) ──────────────────
+// ── Rumus menit — SUMBU 0..1440 DARI 00:00 (case 7) ─────────────────────
 
-// Case 7 (formula half)
-it('mengukur offset dari 07:00 dan bukan dari tengah malam', function () {
-    expect(ShiftService::PRODUCTION_DAY_START_MINUTE)->toBe(420);
+// Case 7 (formula half) — REVISI v3 2026-10-16: titik nol 07:00 → 00:00.
+it('mengukur offset dari 00:00, dan 07:00 jatuh di menit 420', function () {
     expect(ShiftService::DAY_MINUTES)->toBe(1440);
 
-    expect(ShiftService::offsetFromProductionDayStart('07:00'))->toBe(0);
-    expect(ShiftService::offsetFromProductionDayStart('15:00'))->toBe(480);
-    expect(ShiftService::offsetFromProductionDayStart('23:00'))->toBe(960);
-    expect(ShiftService::offsetFromProductionDayStart('06:00'))->toBe(1380);
-    // 07:00 the next day is 1440, which as an OFFSET wraps back to 0 — the
-    // axis is half-open at its right end, and that is what keeps a shift
-    // starting at 07:00 from being drawn off the end of the track.
-    expect(ShiftService::offsetFromProductionDayStart('07:00:00'))->toBe(0);
+    expect(ShiftService::offsetOnAxis('00:00'))->toBe(0);
+    expect(ShiftService::offsetOnAxis('07:00'))->toBe(420);
+    expect(ShiftService::offsetOnAxis('15:00'))->toBe(900);
+    expect(ShiftService::offsetOnAxis('23:00'))->toBe(1380);
+    expect(ShiftService::offsetOnAxis('06:00'))->toBe(360);
+
+    // Offset adalah PERAN (posisi pada sumbu gambar), minuteOfDay adalah
+    // pembacaan format. Keduanya kini bernilai sama, dan nilai itulah yang
+    // diasersi — bukan bahwa keduanya fungsi yang sama, karena yang pertama
+    // sudah sekali berubah dan dapat berubah lagi.
+    expect(ShiftService::offsetOnAxis('23:00:00'))->toBe(1380);
 
     // Both column shapes read the same: PostgreSQL returns TIME as 'HH:MM:SS'
     // while SQLite returns whatever was stored.
@@ -305,11 +363,18 @@ it('mengukur offset dari 07:00 dan bukan dari tengah malam', function () {
     expect(ShiftService::minuteOfDay('23:00:00'))->toBe(1380);
     expect(ShiftService::displayTime('23:00:00'))->toBe('23:00');
 
-    expect(ShiftService::timeFromOffset(0))->toBe('07:00');
-    expect(ShiftService::timeFromOffset(480))->toBe('15:00');
-    expect(ShiftService::timeFromOffset(960))->toBe('23:00');
-    expect(ShiftService::timeFromOffset(1380))->toBe('06:00');
-    expect(ShiftService::timeFromOffset(1440))->toBe('07:00');
+    expect(ShiftService::timeFromOffset(0))->toBe('00:00');
+    expect(ShiftService::timeFromOffset(420))->toBe('07:00');
+    expect(ShiftService::timeFromOffset(900))->toBe('15:00');
+    expect(ShiftService::timeFromOffset(1380))->toBe('23:00');
+    // Tepi kanan sumbu dibaca sebagai 00:00 — label celah '22:00–00:00'
+    // adalah bentuk yang benar untuk celah yang berakhir di tepi batang.
+    expect(ShiftService::timeFromOffset(1440))->toBe('00:00');
+
+    // Konstanta 420 TIDAK ADA LAGI di kelas ini: awal hari produksi 07:00
+    // adalah urusan kisi slot stasiun bergrid, bukan urusan shift.
+    expect(method_exists(ShiftService::class, 'offsetFromProductionDayStart'))->toBeFalse();
+    expect(defined(ShiftService::class.'::PRODUCTION_DAY_START_MINUTE'))->toBeFalse();
 });
 
 it('menghitung durasi melintasi tengah malam, dan membaca jam berimpit sebagai 1440', function () {
@@ -325,13 +390,20 @@ it('menghitung durasi melintasi tengah malam, dan membaca jam berimpit sebagai 1
     expect(ShiftService::durationMinutes('23:00', '23:00:00'))->toBe(1440);
 });
 
-it('memecah shift lintas batas hari produksi HANYA di dalam perhitungan', function () {
+it('memecah shift yang melintasi titik nol sumbu, dan hanya yang melintasinya', function () {
     // 07:00–15:00 → satu segmen.
+    expect(ShiftService::segmentsFor(420, 480))->toBe([[420, 900]]);
+    // 00:00–08:00 → satu segmen yang berawal tepat di titik nol.
     expect(ShiftService::segmentsFor(0, 480))->toBe([[0, 480]]);
-    // 23:00–07:00 → masih SATU segmen: ia berhenti tepat di 1440.
+    // 16:00–24:00 → satu segmen yang berakhir tepat di tepi kanan.
     expect(ShiftService::segmentsFor(960, 480))->toBe([[960, 1440]]);
-    // 05:00–09:00 → melewati batas hari produksi, jadi DUA segmen.
-    expect(ShiftService::segmentsFor(1320, 240))->toBe([[1320, 1440], [0, 120]]);
+    // 23:00–07:00 → MELINTASI titik nol, jadi DUA segmen.
+    expect(ShiftService::segmentsFor(1380, 480))->toBe([[1380, 1440], [0, 420]]);
+    // Shift 24 jam yang tidak mulai 00:00 → dua segmen yang bersama-sama
+    // menutup seluruh sumbu, tanpa satu pun kasus khusus di fungsinya.
+    expect(ShiftService::segmentsFor(420, 1440))->toBe([[420, 1440], [0, 420]]);
+    // Shift 24 jam yang mulai 00:00 → satu segmen selebar sumbu penuh.
+    expect(ShiftService::segmentsFor(0, 1440))->toBe([[0, 1440]]);
 });
 
 it('menghitung irisan nol untuk rentang yang hanya bersentuhan di ujung', function () {
@@ -452,7 +524,7 @@ it('memuat seluruh line mill itu ketika production_line_id absen', function () {
 });
 
 // Case 7 (payload half)
-it('menerbitkan start_offset_minutes dan duration_minutes dari sumbu 07:00', function () {
+it('menerbitkan start_offset_minutes dan duration_minutes dari sumbu 00:00', function () {
     Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
     Shift::factory()->forProductionLine($this->lineA2)->malam()->create();
 
@@ -461,14 +533,14 @@ it('menerbitkan start_offset_minutes dan duration_minutes dari sumbu 07:00', fun
     $pagi = collect($result['data'])->firstWhere('name', 'Pagi');
     $malam = collect($result['data'])->firstWhere('name', 'Malam');
 
-    expect($pagi['start_offset_minutes'])->toBe(0);
+    expect($pagi['start_offset_minutes'])->toBe(420);
     expect($pagi['duration_minutes'])->toBe(480);
     expect($pagi['crosses_midnight'])->toBeFalse();
     expect($pagi['start_time'])->toBe('07:00');
     expect($pagi['end_time'])->toBe('15:00');
     expect($pagi['time_label'])->toBe('07:00 — 15:00');
 
-    expect($malam['start_offset_minutes'])->toBe(960);
+    expect($malam['start_offset_minutes'])->toBe(1380);
     expect($malam['duration_minutes'])->toBe(480);
     expect($malam['crosses_midnight'])->toBeTrue();
     // Jam selesai yang lebih kecil ditulis '+1' supaya tidak terbaca sebagai
@@ -479,28 +551,51 @@ it('menerbitkan start_offset_minutes dan duration_minutes dari sumbu 07:00', fun
     expect($malam['duration_hours_text'])->toBe('8');
 });
 
-// Case 8
-it('menerbitkan shift lintas tengah malam sebagai SATU blok, bukan dua', function () {
+/**
+ * Case 8 — REVISI v3 2026-10-16, dan asersinya DIBALIK dari v2.
+ *
+ * v2 menuntut SATU blok berdurasi utuh. Tuntutan itulah cacatnya: satu blok
+ * 23:00–07:00 pada sumbu 00:00 berarti start 1380 + durasi 480 = 1860, dan
+ * blade menggambarnya `left:95,8%;width:33,3%` — melewati tepi kanan
+ * `.ks-track` yang ber-`overflow: hidden`, sehingga 420 menit terakhirnya
+ * DIPOTONG DIAM-DIAM dan tidak pernah tergambar di tepi kiri. Cacat itu ada
+ * pula pada sumbu 07:00, hanya korbannya berbeda (shift yang melintasi 07:00).
+ */
+it('menerbitkan shift lintas tengah malam sebagai DUA segmen bertaut, bukan satu blok', function () {
     $malam = Shift::factory()->forProductionLine($this->lineA1)->malam()->create();
 
     $entry = shiftCoverageFor($this->service->listShifts($this->millA->id, $this->lineA1->id), $this->lineA1);
 
     $blocks = shiftBlocksOf($entry);
 
-    expect($blocks)->toHaveCount(1);
-    expect($blocks[0]['shift_id'])->toBe($malam->id);
-    expect($blocks[0]['start_offset_minutes'])->toBe(960);
-    expect($blocks[0]['duration_minutes'])->toBe(480);
-    expect($blocks[0]['crosses_midnight'])->toBeTrue();
+    expect($blocks)->toHaveCount(2);
+    expect(array_column($blocks, 'shift_id'))->toBe([$malam->id, $malam->id]);
 
-    // TIDAK ada blok kedua di ujung kiri sumbu — memecahnya di payload akan
-    // membuat blade menggambar dua potongan di kedua ujung batang.
-    expect(collect($entry['blocks'])->where('start_offset_minutes', 0)->where('kind', 'shift'))
-        ->toHaveCount(0);
+    // Urut offset: potongan tepi KIRI lebih dulu di payload, meski secara jam
+    // ia potongan KEDUA — karena itulah segment_index ada.
+    expect($blocks[0]['start_offset_minutes'])->toBe(0);
+    expect($blocks[0]['duration_minutes'])->toBe(420);
+    expect($blocks[0]['segment_index'])->toBe(1);
 
-    // Blok itu berhenti TEPAT di ujung kanan sumbu.
-    expect($blocks[0]['start_offset_minutes'] + $blocks[0]['duration_minutes'])
-        ->toBe(ShiftService::DAY_MINUTES);
+    expect($blocks[1]['start_offset_minutes'])->toBe(1380);
+    expect($blocks[1]['duration_minutes'])->toBe(60);
+    expect($blocks[1]['segment_index'])->toBe(0);
+
+    // Jumlah durasi kedua segmen = durasi shift. Tak ada menit yang hilang
+    // dan tak ada yang dihitung dua kali.
+    expect(array_sum(array_column($blocks, 'duration_minutes')))->toBe(480);
+
+    // crosses_midnight TRUE pada KEDUANYA — tanpa itu blade kehilangan dasar
+    // untuk menandai keduanya satu shift.
+    expect(array_column($blocks, 'crosses_midnight'))->toBe([true, true]);
+    expect(array_column($blocks, 'segment_count'))->toBe([2, 2]);
+
+    // Label pada potongan yang LEBIH PANJANG (420 menit), supaya namanya
+    // terbaca alih-alih terpotong di potongan 60 menit.
+    expect(array_column($blocks, 'is_label_segment'))->toBe([true, false]);
+
+    // Dan inilah asersi yang memerah terhadap implementasi v2.
+    expectNoBlockPastAxisEnd($entry);
 });
 
 /**
@@ -529,9 +624,20 @@ it('menyimpan satu shift 07:00–07:00 lewat create() dan membacanya sebagai sat
     expect($entry['state'])->toBe('covered');
     expect($entry['uncovered_minutes'])->toBe(0);
     expect($entry['shift_count'])->toBe(1);
-    expect(shiftBlocksOf($entry))->toHaveCount(1);
-    expect(shiftBlocksOf($entry)[0]['duration_minutes'])->toBe(1440);
     expect(gapBlocksOf($entry))->toBe([]);
+
+    // Pada sumbu 00:00 shift 07:00–07:00 MELINTASI titik nol, jadi ia keluar
+    // sebagai dua segmen bertaut — dan keduanya bersama-sama menutup setiap
+    // menit sumbu. Tidak ada kasus khusus untuk "satu blok penuh": kasus
+    // khusus hanya menambah cabang yang dapat salah, sementara batang yang
+    // tergambar sama penuhnya.
+    $blocks = shiftBlocksOf($entry);
+
+    expect($blocks)->toHaveCount(2);
+    expect(array_sum(array_column($blocks, 'duration_minutes')))->toBe(1440);
+    expect(array_column($blocks, 'start_offset_minutes'))->toBe([0, 420]);
+    expect(array_column($blocks, 'duration_minutes'))->toBe([420, 1020]);
+    expectNoBlockPastAxisEnd($entry);
 });
 
 // Case 10
@@ -546,11 +652,20 @@ it('melaporkan cakupan penuh oleh tiga shift tanpa satu pun blok gap', function 
     expect($entry['uncovered_minutes'])->toBe(0);
     expect($entry['uncovered_hours_text'])->toBe('0');
     expect($entry['shift_count'])->toBe(3);
-    expect($entry['starts_at_production_day'])->toBeTrue();
     expect(gapBlocksOf($entry))->toBe([]);
 
-    expect(array_column(shiftBlocksOf($entry), 'label'))->toBe(['Pagi', 'Siang', 'Malam']);
-    expect(array_column(shiftBlocksOf($entry), 'start_offset_minutes'))->toBe([0, 480, 960]);
+    // EMPAT blok untuk TIGA shift: Malam menyumbang dua segmen, dan yang
+    // kedua jatuh di tepi kiri batang. Payload urut offset, jadi urutannya
+    // mulai dari potongan Malam itu.
+    expect(array_column(shiftBlocksOf($entry), 'label'))->toBe(['Malam', 'Pagi', 'Siang', 'Malam']);
+    expect(array_column(shiftBlocksOf($entry), 'start_offset_minutes'))->toBe([0, 420, 900, 1380]);
+    expect(array_column(shiftBlocksOf($entry), 'duration_minutes'))->toBe([420, 480, 480, 60]);
+
+    // Urutan JAM MULAI — yang memang dimaksud aturan "urutan tabel dan
+    // timeline selalu sama" — tetap Pagi, Siang, Malam.
+    expect(array_column(startingShiftBlocksOf($entry), 'label'))->toBe(['Pagi', 'Siang', 'Malam']);
+
+    expectNoBlockPastAxisEnd($entry);
 });
 
 // Case 11
@@ -568,13 +683,15 @@ it('menerbitkan celah sebagai blok ber-kind gap dengan offset dan durasinya', fu
     $gaps = gapBlocksOf($entry);
 
     expect($gaps)->toHaveCount(1);
-    expect($gaps[0]['start_offset_minutes'])->toBe(480);
+    expect($gaps[0]['start_offset_minutes'])->toBe(900);
     expect($gaps[0]['duration_minutes'])->toBe(240);
     expect($gaps[0]['shift_id'])->toBeNull();
     expect($gaps[0]['time_label'])->toBe('15:00–19:00');
 
-    // Blok tersusun urut offset, jadi celahnya memang DI ANTARA kedua shift.
-    expect(array_column($entry['blocks'], 'kind'))->toBe(['shift', 'gap', 'shift']);
+    // Blok tersusun urut offset: potongan Malam di tepi kiri (00:00–07:00),
+    // Pagi, celah, lalu potongan Malam yang mulai 19:00.
+    expect(array_column($entry['blocks'], 'kind'))->toBe(['shift', 'shift', 'gap', 'shift']);
+    expectNoBlockPastAxisEnd($entry);
 });
 
 // Case 12
@@ -615,23 +732,63 @@ it('menandai line tanpa shift sebagai unconfigured, bukan gap 1440 menit', funct
     expect(shiftCoverageFor($result, $this->lineA1)['uncovered_minutes'])->toBe(960);
 });
 
-// Case 14
-it('menandai starts_at_production_day false ketika union 24 jam tidak dimulai 07:00', function () {
+/**
+ * Case 14 — REVISI v3 2026-10-16: `starts_at_production_day` DICABUT
+ * ("dibuang saja", pemilik produk). Keselarasan jadwal shift dengan awal hari
+ * produksi 07:00 tidak memengaruhi apa pun secara fungsional, sehingga
+ * menandainya hanya menanam kecemasan tanpa tindakan yang dapat diambil.
+ *
+ * KETIADAANNYA DIASERSI ATAS NAMA KUNCI, lewat penelusur rekursif — bukan
+ * dengan memindai teks payload. Payload ini memuat prosa (label, time_label),
+ * dan sebuah pemindaian teks akan memerah terhadap kode yang justru benar
+ * begitu ada label yang menyebut "hari produksi". Pelajaran yang sama sudah
+ * dibayar di laporan Engine Room.
+ */
+it('tidak menerbitkan kunci starts_at_production_day di mana pun pada payload', function () {
     Shift::factory()->forProductionLine($this->lineA1)->named('A')->range('06:00:00', '14:00:00')->create();
     Shift::factory()->forProductionLine($this->lineA1)->named('B')->range('14:00:00', '22:00:00')->create();
     Shift::factory()->forProductionLine($this->lineA1)->named('C')->range('22:00:00', '06:00:00')->create();
 
-    $entry = shiftCoverageFor($this->service->listShifts($this->millA->id, $this->lineA1->id), $this->lineA1);
+    $result = $this->service->listShifts($this->millA->id, $this->lineA1->id);
+    $entry = shiftCoverageFor($result, $this->lineA1);
 
+    // Cakupan penuh dinyatakan tanpa syarat tambahan apa pun tentang jam
+    // berapa jadwalnya dimulai.
     expect($entry['state'])->toBe('covered');
     expect($entry['uncovered_minutes'])->toBe(0);
-    // PERINGATAN, BUKAN PENOLAKAN — ketiga shift tersimpan apa adanya.
-    expect($entry['starts_at_production_day'])->toBeFalse();
     expect(Shift::count())->toBe(3);
+
+    $walk = function (mixed $node) use (&$walk): array {
+        $found = [];
+
+        if (is_array($node)) {
+            foreach ($node as $key => $value) {
+                if (is_string($key)) {
+                    $found[] = $key;
+                }
+
+                $found = array_merge($found, $walk($value));
+            }
+        }
+
+        return $found;
+    };
+
+    $keys = $walk($result);
+
+    // Penelusurnya benar-benar menelusuri — kalau tidak, asersi ketiadaan di
+    // bawahnya lolos tanpa membuktikan apa pun.
+    expect($keys)->toContain('blocks');
+    expect($keys)->toContain('start_offset_minutes');
+    expect($keys)->not->toContain('starts_at_production_day');
+
+    // Dan juga tidak muncul sebagai kunci pada line yang belum diatur.
+    $unconfigured = shiftCoverageFor($this->service->listShifts($this->millA->id), $this->lineA2);
+    expect(array_keys($unconfigured))->not->toContain('starts_at_production_day');
 });
 
 // Case 15
-it('menurunkan position dari jam mulai relatif 07:00, bukan dari urutan penambahan', function () {
+it('menurunkan position dari jam mulai pada sumbu 00:00, bukan dari urutan penambahan', function () {
     // Urutan penambahan SENGAJA acak, dan nama abjadnya pun tidak selaras
     // dengan urutan jamnya.
     Shift::factory()->forProductionLine($this->lineA1)->malam()->create();
@@ -660,11 +817,22 @@ it('memakai satu nilai position yang sama untuk urutan data dan urutan blocks', 
     $entry = shiftCoverageFor($result, $this->lineA1);
 
     $dataIds = array_column($result['data'], 'id');
-    $blockIds = array_column(shiftBlocksOf($entry), 'shift_id');
 
-    expect($blockIds)->toBe($dataIds);
+    // DIBANDINGKAN PADA BLOK TEMPAT SHIFT DIMULAI, bukan pada seluruh blok.
+    // Sejak sumbu dimulai 00:00, Malam punya potongan kedua di tepi kiri
+    // batang, jadi urutan seluruh blok memang tidak lagi sama dengan urutan
+    // baris tabel — dan tidak bisa sama pada sumbu linier mana pun. Yang
+    // dimaksud aturannya, dan yang masih berlaku, adalah urutan jam mulainya.
+    expect(array_column(startingShiftBlocksOf($entry), 'shift_id'))->toBe($dataIds);
+
     // Dan keduanya memang urut position, bukan sekadar kebetulan sama.
     expect(array_column($result['data'], 'position'))->toBe([0, 1, 2]);
+
+    // Potongan tambahan itu memang ada, dan ia milik shift yang sama —
+    // asersi di atas tidak lolos karena potongannya hilang.
+    expect(shiftBlocksOf($entry))->toHaveCount(4);
+    expect(collect(shiftBlocksOf($entry))->where('segment_index', 1)->pluck('shift_id')->all())
+        ->toBe([$dataIds[2]]);
 });
 
 // Case 33
@@ -748,11 +916,21 @@ it('memulangkan blok shift seluruh line mill untuk pratinjau, termasuk line tanp
 
     // Bentuknya sama persis dengan coverage[].blocks ber-kind 'shift', supaya
     // pratinjau memakai angka yang sama dengan yang nanti diterbitkan server.
-    expect($blocks[$this->lineA1->id])->toHaveCount(1);
-    expect($blocks[$this->lineA1->id][0]['kind'])->toBe('shift');
-    expect($blocks[$this->lineA1->id][0]['start_offset_minutes'])->toBe(960);
-    expect($blocks[$this->lineA1->id][0]['duration_minutes'])->toBe(480);
-    expect($blocks[$this->lineA1->id][0]['crosses_midnight'])->toBeTrue();
+    // Termasuk SEGMENTASINYA: Malam 23:00–07:00 keluar sebagai dua potongan
+    // di sini juga, karena pratinjau menggambar blok yang sudah ada dari
+    // daftar ini — bila di sini ia utuh sementara di coverage tersegmentasi,
+    // satu layar akan memuat dua dasar yang berbeda, dan itulah cacat v2.
+    expect($blocks[$this->lineA1->id])->toHaveCount(2);
+    expect(array_column($blocks[$this->lineA1->id], 'kind'))->toBe(['shift', 'shift']);
+    expect(array_column($blocks[$this->lineA1->id], 'start_offset_minutes'))->toBe([1380, 0]);
+    expect(array_column($blocks[$this->lineA1->id], 'duration_minutes'))->toBe([60, 420]);
+    expect(array_column($blocks[$this->lineA1->id], 'segment_index'))->toBe([0, 1]);
+    expect(array_column($blocks[$this->lineA1->id], 'crosses_midnight'))->toBe([true, true]);
+
+    foreach ($blocks[$this->lineA1->id] as $block) {
+        expect($block['start_offset_minutes'] + $block['duration_minutes'])
+            ->toBeLessThanOrEqual(ShiftService::DAY_MINUTES);
+    }
 
     // Mill wajib dipilih di sini juga.
     expect(fn () => $this->service->shiftBlocksByLine(null))->toThrow(ValidationException::class);
@@ -780,10 +958,17 @@ it('menerima pergantian shift berimpit karena irisannya nol menit', function () 
     expect($created['name'])->toBe('Siang');
     expect(Shift::count())->toBe(2);
 
-    // Dua blok bersebelahan, nol blok gap di antaranya.
+    // Dua blok bersebelahan, NOL blok gap di antaranya — yang tersisa hanya
+    // celah 23:00–07:00, dan pada sumbu 00:00 celah itu melintasi titik nol
+    // sehingga ia pun keluar sebagai DUA potongan di kedua tepi batang.
     $entry = shiftCoverageFor($this->service->listShifts($this->millA->id, $this->lineA1->id), $this->lineA1);
-    expect(array_column($entry['blocks'], 'kind'))->toBe(['shift', 'shift', 'gap']);
-    expect(gapBlocksOf($entry)[0]['start_offset_minutes'])->toBe(960);
+    expect(array_column($entry['blocks'], 'kind'))->toBe(['gap', 'shift', 'shift', 'gap']);
+    expect(array_column($entry['blocks'], 'start_offset_minutes'))->toBe([0, 420, 900, 1380]);
+    expect($entry['uncovered_minutes'])->toBe(480);
+    expect(array_column(gapBlocksOf($entry), 'duration_minutes'))->toBe([420, 60]);
+    // Tidak ada celah di ANTARA Pagi dan Siang — itu yang dibuktikan di sini.
+    expect(collect(gapBlocksOf($entry))->firstWhere('start_offset_minutes', 900))->toBeNull();
+    expectNoBlockPastAxisEnd($entry);
 
     // Dan juga ke arah sebaliknya: shift yang BERAKHIR tepat di jam mulai
     // shift yang sudah ada.
@@ -798,8 +983,9 @@ it('menolak tumpang tindih satu menit dan menyebut nama shift serta rentang satu
 
     expect($overlap)->not->toBeNull();
     expect($overlap['shift']->name)->toBe('Pagi');
-    expect($overlap['start_offset_minutes'])->toBe(479);
-    expect($overlap['end_offset_minutes'])->toBe(480);
+    // 14:59 → 899, 15:00 → 900 pada sumbu menit-ke-dalam-hari.
+    expect($overlap['start_offset_minutes'])->toBe(899);
+    expect($overlap['end_offset_minutes'])->toBe(900);
 
     $thrown = null;
 
@@ -837,9 +1023,10 @@ it('mendeteksi tumpang tindih pada shift yang melewati tengah malam', function (
 
     expect($overlap)->not->toBeNull();
     expect($overlap['shift']->name)->toBe('Malam');
-    // 02:00 → offset 1140, 05:00 → 1320. Diukur di sumbu menit relatif 07:00.
-    expect($overlap['start_offset_minutes'])->toBe(1140);
-    expect($overlap['end_offset_minutes'])->toBe(1320);
+    // 02:00 → 120, 05:00 → 300, dan keduanya jatuh di dalam segmen Malam
+    // yang kedua: [0, 420]. Sumbunya menit-ke-dalam-hari.
+    expect($overlap['start_offset_minutes'])->toBe(120);
+    expect($overlap['end_offset_minutes'])->toBe(300);
 
     expect(fn () => $this->service->create(shiftPayload($this->lineA1, [
         'name' => 'Dini',
@@ -879,11 +1066,14 @@ it('perbandingan string jam TIDAK dipakai — kasus jebakan', function () {
 
     expect($overlap)->not->toBeNull();
     expect($overlap['shift']->name)->toBe('Malam');
-    // 01:00 → offset 1080, 03:00 → 1200: seluruh kandidat (120 menit)
-    // tertanam di dalam segmen Malam [960, 1440].
-    expect($overlap['start_offset_minutes'])->toBe(1080);
-    expect($overlap['end_offset_minutes'])->toBe(1200);
-    expect(ShiftService::intersectionMinutes([960, 1440], [1080, 1200]))->toBe(120);
+    // 01:00 → 60, 03:00 → 180: seluruh kandidat (120 menit) tertanam di dalam
+    // segmen Malam yang kedua, [0, 420].
+    expect($overlap['start_offset_minutes'])->toBe(60);
+    expect($overlap['end_offset_minutes'])->toBe(180);
+    expect(ShiftService::intersectionMinutes([0, 420], [60, 180]))->toBe(120);
+    // Dan segmen PERTAMA Malam, [1380, 1440], tidak beririsan dengannya —
+    // jadi jawabannya memang datang dari segmentasi, bukan dari kebetulan.
+    expect(ShiftService::intersectionMinutes([1380, 1440], [60, 180]))->toBe(0);
 
     $thrown = null;
 
@@ -927,12 +1117,14 @@ it('menyebut shift pembanding dengan offset terkecil ketika ada beberapa tindiha
     Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
     Shift::factory()->forProductionLine($this->lineA1)->siang()->create();
 
-    // 08:00–20:00 menindih Pagi (offset 60..480) DAN Siang (480..780).
+    // 08:00–20:00 (offset 480..1200) menindih Pagi (420..900) DAN Siang (900..1380).
     $overlap = $this->service->findOverlap($this->lineA1->id, '08:00', '20:00');
 
     expect($overlap['shift']->name)->toBe('Pagi');
-    expect($overlap['start_offset_minutes'])->toBe(60);
-    expect($overlap['end_offset_minutes'])->toBe(480);
+    // Tindihan dengan Pagi dimulai 480 (08:00) dan yang dengan Siang 900
+    // (15:00); yang disebut adalah yang offset-nya TERKECIL.
+    expect($overlap['start_offset_minutes'])->toBe(480);
+    expect($overlap['end_offset_minutes'])->toBe(900);
 });
 
 // ── Validasi tulis (cases 22, 23, 24, 25) ───────────────────────────────
@@ -986,9 +1178,11 @@ it('membaca start_time sama dengan end_time sebagai 24 jam di line kosong dan me
     $entry = shiftCoverageFor($this->service->listShifts($this->millA->id, $this->lineA1->id), $this->lineA1);
     expect($entry['state'])->toBe('covered');
     expect($entry['uncovered_minutes'])->toBe(0);
-    expect(shiftBlocksOf($entry))->toHaveCount(1);
-    expect(shiftBlocksOf($entry)[0]['duration_minutes'])->toBe(1440);
     expect(gapBlocksOf($entry))->toBe([]);
+    // 07:00–07:00 melintasi titik nol sumbu, jadi dua segmen bertaut yang
+    // bersama-sama menutup setiap menit sumbu — batang penuh, tanpa celah.
+    expect(array_sum(array_column(shiftBlocksOf($entry), 'duration_minutes')))->toBe(1440);
+    expectNoBlockPastAxisEnd($entry);
 
     // CABANG DITOLAK — Line 2 sudah punya Pagi 07:00–15:00.
     $this->service->create(shiftPayload($this->lineA2));
@@ -1266,8 +1460,8 @@ it('mengubah cakupan dari covered menjadi gap sesudah satu shift dihapus', funct
 
     $gaps = gapBlocksOf($entry);
     expect($gaps)->toHaveCount(1);
-    // Tepat di posisi yang ditinggalkan Siang (15:00 → offset 480).
-    expect($gaps[0]['start_offset_minutes'])->toBe(480);
+    // Tepat di posisi yang ditinggalkan Siang (15:00 → offset 900).
+    expect($gaps[0]['start_offset_minutes'])->toBe(900);
     expect($gaps[0]['duration_minutes'])->toBe(480);
 });
 
@@ -1477,14 +1671,16 @@ it('mengecualikan shift tertutup dari daftar, dari cakupan, dan dari perhitungan
     expect($entry['shift_count'])->toBe(2);
     expect($entry['state'])->toBe('gap');
     expect($entry['uncovered_minutes'])->toBe(480);
-    expect(shiftBlocksOf($entry))->toHaveCount(2);
+    // TIGA blok untuk DUA shift: Malam menyumbang dua segmen.
+    expect(shiftBlocksOf($entry))->toHaveCount(3);
+    expect(startingShiftBlocksOf($entry))->toHaveCount(2);
     expect(collect(shiftBlocksOf($entry))->pluck('shift_id'))->not->toContain($closed->id);
 
     // Celahnya dihitung PADA RENTANG shift yang tertutup itu, seolah tidak
     // ada shift di sana.
     $gaps = gapBlocksOf($entry);
     expect($gaps)->toHaveCount(1);
-    expect($gaps[0]['start_offset_minutes'])->toBe(480);
+    expect($gaps[0]['start_offset_minutes'])->toBe(900);
     expect($gaps[0]['duration_minutes'])->toBe(480);
 });
 

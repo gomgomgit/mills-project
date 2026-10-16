@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-16"
@@ -196,7 +196,7 @@
                   "end_time": "string HH:MM",
                   "crosses_midnight": "boolean — end_time < start_time",
                   "duration_minutes": "integer — dihitung server dengan memperhitungkan lintasan tengah malam",
-                  "position": "integer — urutan pada hari produksi, diturunkan dari start_time relatif 07:00; dipakai blade untuk mengurutkan tabel DAN blok timeline dari satu sumber yang sama"
+                  "position": "integer — urutan tampil, diturunkan dari menit-ke-dalam-hari start_time (titik awal 00:00, SAMA dengan sumbu timeline); dipakai blade untuk mengurutkan tabel DAN blok timeline dari satu sumber yang sama"
                 }
               ],
               "coverage": [
@@ -206,14 +206,15 @@
                   "shift_count": "integer",
                   "state": "string — 'covered' | 'gap' | 'unconfigured'; 'unconfigured' hanya ketika shift_count 0, dan ia BUKAN 'gap' 24 jam",
                   "uncovered_minutes": "integer",
-                  "starts_at_production_day": "boolean — false bila union shift tidak dimulai 07:00; peringatan, bukan penolakan",
                   "blocks": [
                     {
                       "kind": "string — 'shift' | 'gap'",
                       "shift_id": "uuid|null",
                       "label": "string|null",
-                      "start_offset_minutes": "integer — diukur dari 07:00, 0..1440",
-                      "duration_minutes": "integer"
+                      "crosses_midnight": "boolean — true pada KEDUA segmen sebuah shift yang melintasi titik awal sumbu, supaya blade dapat menandai keduanya satu shift",
+                      "segment_index": "integer — 0 atau 1; 1 hanya ada pada shift lintas-batas, dan blade menaruh label pada segmen yang durasinya lebih besar",
+                      "start_offset_minutes": "integer — menit-ke-dalam-hari, 0..1440, diukur dari 00:00",
+                      "duration_minutes": "integer — start_offset_minutes + duration_minutes WAJIB <= 1440 pada setiap blok; shift lintas-batas menerbitkan dua blok, bukan satu blok yang melewati tepi"
                     }
                   ]
                 }
@@ -417,13 +418,13 @@
         "2. URUTAN PENDAFTARAN RUTE ADALAH BAGIAN DARI KONTRAK, BUKAN GAYA. /shifts/business-units/options dan /shifts/production-lines/options WAJIB terdaftar SEBELUM /shifts/{id}; bila tidak, Laravel mencocokkan keduanya sebagai {id} dan menjawab 404 untuk rute yang jelas-jelas ada. Jebakan ini sudah terjadi dan terdokumentasi di routes/api.php untuk /periods/business-units/options — di sini ia diulang dengan sengaja sebagai aturan, bukan ditemukan ulang.",
         "3. Mill WAJIB dipilih. Admin tidak terikat satu mill, jadi tidak ada nilai yang dapat diturunkan dari akun; business_unit_id absen → 422 dan NOL kueri shift berjalan.",
         "4. production_line_id OPSIONAL pada daftar — berbeda dari layar laporan tempat line wajib. Alasannya berbeda pula: laporan menghasilkan ANGKA GABUNGAN yang tidak bermakna bila mencampur line, sementara layar ini menampilkan DAFTAR yang setiap barisnya menyebut line-nya sendiri, dan 'semua line' justru pemakaian audit yang disengaja.",
-        "5. CAKUPAN DIHITUNG DI SERVER, bukan di blade. Server menerbitkan `coverage[].blocks` berisi posisi dan durasi tiap blok dalam MENIT DARI 07:00, sehingga blade cukup menggambar persentase. Alasannya bukan kerapian: perhitungan yang sama akan dibutuhkan lagi oleh gerbang sinkronisasi dan oleh penandaan shift pada record, dan tiga penghitung yang berdiri sendiri akan berselisih.",
-        "6. Offset diukur dari 07:00, bukan dari 00:00. Hari produksi dimulai 07:00 — kisi slot kanonis seluruh stasiun bergrid berjalan (7+i)%24 — jadi `start_offset_minutes` 0 berarti 07:00 dan 1440 berarti 07:00 keesokan hari. Mengukurnya dari tengah malam akan membelah shift malam menjadi dua blok di kedua ujung batang.",
-        "7. Shift melewati tengah malam diterbitkan sebagai SATU blok dengan durasi utuh, bukan dua. `crosses_midnight` true hanya menerangkan bentuknya kepada pembaca; ia tidak memecah bloknya.",
-        "8. `position` diturunkan server dari start_time relatif 07:00 dan dipakai blade untuk mengurutkan TABEL maupun BLOK TIMELINE. Satu sumber urutan untuk dua tampilan — dua pengurutan yang berdiri sendiri adalah cara tercepat membuat keduanya berselisih.",
+        "5. CAKUPAN DIHITUNG DI SERVER, bukan di blade. Server menerbitkan `coverage[].blocks` berisi posisi dan durasi tiap blok dalam MENIT DARI 00:00, sehingga blade cukup menggambar persentase. Alasannya bukan kerapian: perhitungan yang sama akan dibutuhkan lagi oleh gerbang sinkronisasi dan oleh penandaan shift pada record, dan tiga penghitung yang berdiri sendiri akan berselisih.",
+        "6. Offset diukur dari 00:00, bukan dari 07:00 — `start_offset_minutes` adalah menit-ke-dalam-hari dari jam mulainya, jadi 420 berarti 07:00. (Keputusan pemilik produk 2026-10-16, menggantikan aturan v2 yang mengukurnya dari 07:00.) Titik awal sumbu adalah soal MENGGAMBAR, bukan soal aturan: cakupan 24 jam, deteksi tumpang tindih, dan penandaan record kelak tidak satu pun bergantung padanya — penandaan record memakai jam perangkat, bukan sumbu layar ini. Layar ini editor master data, bukan layar laporan, sehingga sumbunya mengikuti cara Admin membaca jam. Argumen v2 bahwa 00:00 'membelah shift malam menjadi dua blok' sudah tidak berlaku: titik awal MANA PUN membelah shift yang melintasinya, dan yang berubah hanya shift mana yang terbelah; lihat langkah 7.",
+        "7. Shift yang MELINTASI titik awal sumbu diterbitkan sebagai DUA blok bersegmen, bukan satu — potongan akhir (start_offset .. 1440) dan potongan awal (0 .. sisa) — keduanya menyandang `shift_id` yang sama dan `crosses_midnight` true, sehingga blade dapat menggambar keduanya dan menandainya satu shift. (Menggantikan aturan v2 'SATU blok dengan durasi utuh'. Aturan lama menerbitkan satu blok yang start_offset + duration-nya LEBIH BESAR dari 1440, dan blade menggambarnya dengan left+width melewati tepi kanan track yang ber-overflow hidden — sisanya DIPOTONG DIAM-DIAM dan potongan di tepi kiri tidak pernah tergambar. Itu cacat yang dilaporkan pemilik produk 2026-10-16, dan ia akan tetap ada pada titik awal 07:00 untuk shift mana pun yang melintasi 07:00.) Nol blok boleh punya start_offset_minutes + duration_minutes > 1440; itu invarian payload, dan ia dapat diasersi atas setiap blok.",
+        "8. `position` diturunkan server dari start_time relatif 00:00 — titik awal yang SAMA dengan sumbu timeline — dan dipakai blade untuk mengurutkan TABEL maupun BLOK TIMELINE. Satu sumber urutan untuk dua tampilan. Titik awalnya wajib sama dengan sumbu, kalau tidak urutan baris tabel akan berbeda dari urutan blok yang tergambar, dan aturan 'urutan tabel dan timeline wajib sama' akan dilanggar oleh konstruksi.",
         "9. Deteksi tumpang tindih memakai batas INKLUSIF: dua rentang dianggap bertindih bila irisannya LEBIH BESAR dari nol menit. Shift yang berakhir tepat pada jam mulai shift lain beririsan nol menit, jadi ia tidak bertindih — itu pergantian shift yang normal.",
-        "10. Perbandingan rentang dilakukan pada SUMBU MENIT 0..1440 relatif 07:00, bukan pada string jam. Membandingkan '23:00' dengan '07:00' sebagai string akan menyimpulkan yang pertama lebih besar dan karenanya rentangnya kosong — dan hasil salahnya terlihat masuk akal. Ini kelas kesalahan yang sama dengan cacat pengurutan slot di laporan Engine Room.",
-        "11. Shift yang melewati tengah malam dipecah menjadi dua segmen HANYA DI DALAM perhitungan tumpang tindih (0..1440 dan segmen yang melewati batas), tidak pernah pada payload maupun tampilan.",
+        "10. Perbandingan rentang dilakukan pada SUMBU MENIT 0..1440 (menit-ke-dalam-hari), bukan pada string jam. Membandingkan '23:00' dengan '07:00' sebagai string akan menyimpulkan yang pertama lebih besar dan karenanya rentangnya kosong — dan hasil salahnya terlihat masuk akal. Ini kelas kesalahan yang sama dengan cacat pengurutan slot di laporan Engine Room.",
+        "11. SEGMENTASI SHIFT LINTAS-BATAS DIPAKAI DI DUA TEMPAT, bukan satu: perhitungan tumpang tindih DAN penerbitan blok untuk digambar. Satu fungsi, dua pemakai. Pada v2 ia hanya dipakai perhitungan tumpang tindih sementara blok digambar dari satu rentang utuh — dan itulah sebabnya penanda tindihan pada pratinjau tergambar benar sementara blok kandidatnya terpotong: satu gambar memuat dua hal dengan dasar berbeda.",
         "12. Tumpang tindih diperiksa hanya di dalam satu production_line_id. Dua line boleh punya shift pada jam yang sama persis.",
         "13. Pada PATCH, shift yang sedang diubah DIKECUALIKAN dari himpunan pembanding — kalau tidak, setiap perubahan akan bertindih dengan dirinya sendiri dan tidak ada yang pernah bisa disimpan.",
         "14. Pada PATCH yang mengubah production_line_id, pemeriksaan tumpang tindih dijalankan terhadap shift di line TUJUAN, bukan line asal.",
@@ -431,12 +432,12 @@
         "16. Nama unik diperiksa dalam satu production_line_id, bukan global. Dua line boleh punya shift bernama sama.",
         "17. start_time == end_time BERARTI SHIFT 24 JAM, dan hanya diterima bila line itu belum punya shift HIDUP lain; selebihnya ditolak sebagai VALIDATION_ERROR dengan pesan durasi nol — bukan SHIFT_OVERLAP, karena keduanya kesalahan berbeda. Pembedaannya tidak ambigu: shift 24 jam menurut definisinya tidak dapat berdampingan dengan shift mana pun, jadi pada line yang sudah terisi jam berimpit hanya bisa berarti salah ketik. `durationMinutes()` membaca modulo 0 sebagai 1440, sehingga shift 24 jam menghasilkan satu blok berdurasi penuh. (Keputusan pemilik produk 2026-10-16, menggantikan aturan v1 yang menolak jam berimpit tanpa syarat.)",
         "18. `state` bernilai 'unconfigured' HANYA ketika line tidak punya satu pun shift, dan itu BUKAN 'gap' dengan uncovered_minutes 1440. Keduanya berbeda artinya: belum dikerjakan versus keputusan yang mungkin salah — dan membedakannya di payload adalah yang membuat blade dapat membedakannya di layar.",
-        "19. `starts_at_production_day` false adalah PERINGATAN, bukan penolakan. Simpan tidak pernah ditolak karena union shift tidak dimulai 07:00; menolaknya akan memaksa pabrik yang jadwalnya memang tidak selaras mengarang shift yang tidak mereka jalankan.",
+        "19. `starts_at_production_day` DICABUT dari payload, dan tidak ada penggantinya. Keselarasan jadwal shift dengan awal hari produksi 07:00 tidak memengaruhi apa pun secara fungsional — kisi 07:00 adalah urusan baris slot stasiun bergrid, bukan urusan shift — sehingga menandainya hanya menanam kecemasan tanpa tindakan yang dapat diambil. (Keputusan pemilik produk 2026-10-16: 'dibuang saja'.) Test yang mengasersi ketiadaannya wajib memeriksa NAMA KUNCI lewat penelusur rekursif atas payload, bukan memindai teks JSON — kata 'hari produksi' masih muncul di prosa lain.",
         "20. Celah TIDAK PERNAH ditolak di lapisan data. Ia diterbitkan sebagai blok ber-kind 'gap' beserta durasinya, dan layar yang membuatnya terlihat.",
         "21. Jadwal berlaku SAMA SETIAP HARI (keputusan pemilik produk 2026-10-15). Tidak ada kolom hari, tidak ada masa berlaku, dan tidak ada parameter tanggal pada satu pun endpoint di atas. Ketiadaan itu disengaja dan dicatat supaya tidak terbaca sebagai kelalaian lalu 'dilengkapi' oleh orang berikutnya.",
         "22. Komponen Livewire memakai service yang SAMA dengan controller API, sehingga halaman dan API tidak mungkin berbeda hasil hitungan cakupannya.",
         "23. mount() memanggil abort_unless atas peran admin — lapisan kedua di atas middleware rute, mengikuti pola screen-128.",
-        "24. Pratinjau timeline di dalam form dihitung di KLIEN dari nilai yang sedang diketik, karena ia harus bergerak sebelum ada permintaan jaringan. Itu satu-satunya perhitungan cakupan di sisi klien, dan ia BUKAN sumber kebenaran — penolakan tetap datang dari server saat Simpan, dan pratinjau memakai rumus offset-dari-07:00 yang sama persis.",
+        "24. Pratinjau timeline di dalam form dihitung di KLIEN dari nilai yang sedang diketik, karena ia harus bergerak sebelum ada permintaan jaringan. Itu satu-satunya perhitungan cakupan di sisi klien, dan ia BUKAN sumber kebenaran — penolakan tetap datang dari server saat Simpan. Pratinjau wajib memakai rumus offset-dari-00:00 DAN fungsi segmentasi yang sama persis dengan yang dipakai menggambar blok tersimpan: blok kandidat dan penanda tindihannya digambar dari segmen yang sama, sehingga keduanya tidak mungkin berselisih.",
         "25. Mengganti mill mengosongkan filter Production Line: sebuah line milik tepat satu mill, jadi membawanya ke mill lain akan menampilkan galat untuk sesuatu yang tidak dilakukan Admin.",
         "26. PENGHAPUSAN ADALAH SOFT DELETE. Tabel `shifts` memperoleh `deleted_at`, model memakai `SoftDeletes`, dan DELETE menutup baris alih-alih membuangnya — sehingga record yang kelak menandai dirinya dengan shift itu tetap dapat menyelesaikan rujukannya dan laporan historis tetap terbaca.",
         "27. SELURUH JALUR YANG HIDUP MENGECUALIKAN BARIS TERTUTUP: daftar, perhitungan cakupan dan celah, pemilih pada form, DAN himpunan pembanding tumpang tindih. Yang terakhir itu yang paling mudah terlewat — bila shift tertutup ikut dibandingkan, jam yang baru saja dikosongkan tidak akan pernah bisa dipakai ulang oleh penggantinya.",
@@ -503,16 +504,16 @@
           "handling": "422 VALIDATION_ERROR — bukan 403, karena dari sudut pandang Admin itu parameter yang keliru, bukan penolakan akses"
         },
         {
-          "condition": "Union shift menutup 24 jam tetapi tidak dimulai 07:00",
-          "handling": "state 'covered' dengan uncovered_minutes 0, tetapi starts_at_production_day false; blade menampilkan peringatan dan tidak menolak apa pun"
+          "condition": "Union shift menutup 24 jam dengan jam mulai apa pun",
+          "handling": "state 'covered' dengan uncovered_minutes 0; TIDAK ada penanda keselarasan hari produksi di payload maupun di layar — kunci `starts_at_production_day` sudah dicabut"
         },
         {
-          "condition": "Shift melewati tengah malam",
-          "handling": "Diterbitkan sebagai SATU blok dengan durasi utuh dan crosses_midnight true; dipecah dua hanya di dalam perhitungan tumpang tindih, tidak pernah di payload"
+          "condition": "Shift melewati titik awal sumbu (end_time < start_time)",
+          "handling": "Diterbitkan sebagai DUA blok bersegmen dengan `shift_id` sama dan crosses_midnight true — (start_offset..1440) dan (0..sisa); `duration_minutes` kedua blok dijumlahkan sama dengan durasi shift; nol blok melewati tepi 1440"
         },
         {
           "condition": "Satu shift menutup 24 jam penuh",
-          "handling": "state 'covered', satu blok berdurasi 1440 menit, nol blok gap"
+          "handling": "state 'covered', nol blok gap. Bila jam mulainya 00:00 → satu blok (0, 1440). Bila bukan → dua blok bersegmen yang bersama-sama menutup batang penuh, mengikuti aturan segmentasi yang sama tanpa kasus khusus"
         },
         {
           "condition": "Shift berakhir tepat pada jam mulai shift lain",
@@ -524,7 +525,7 @@
         },
         {
           "condition": "start_time == end_time",
-          "handling": "Bila line belum punya shift HIDUP lain → diterima sebagai shift 24 jam, satu blok berdurasi 1440, state 'covered'. Bila line sudah punya shift hidup lain → 422 VALIDATION_ERROR dengan pesan durasi nol, BUKAN SHIFT_OVERLAP"
+          "handling": "Bila line belum punya shift HIDUP lain → diterima sebagai shift 24 jam; blok-bloknya menutup batang penuh (satu blok bila mulai 00:00, dua blok bersegmen bila bukan), state 'covered'. Bila line sudah punya shift hidup lain → 422 VALIDATION_ERROR dengan pesan durasi nol, BUKAN SHIFT_OVERLAP"
         },
         {
           "condition": "Nama shift bentrok di dalam satu line",
@@ -605,9 +606,9 @@
         "Memindahkan shift memeriksa terhadap line tujuan",
         "Pesan tumpang tindih menyebut shift pembanding dan rentang jamnya",
         "Celah diizinkan dan diterbitkan sebagai blok, tidak pernah ditolak di data",
-        "Union yang tidak dimulai 07:00 ditandai, tidak ditolak",
+        "Tidak ada penandaan keselarasan hari produksi — titik awal sumbu adalah soal menggambar, bukan soal aturan",
         "state 'unconfigured' berbeda dari 'gap' 1440 menit",
-        "Offset diukur dari 07:00, bukan dari tengah malam",
+        "Offset diukur dari 00:00 (menit-ke-dalam-hari), dan shift yang melintasi titik awal diterbitkan sebagai dua blok bersegmen",
         "Perbandingan rentang pada sumbu menit, bukan pada string jam",
         "position diturunkan server dan dipakai untuk mengurutkan tabel maupun timeline",
         "Cakupan dihitung di server; pratinjau klien bukan sumber kebenaran",
@@ -649,14 +650,14 @@
           "expect": "coverage memuat tiga entri, satu per line; data memuat seluruh shift ketiganya"
         },
         {
-          "description": "offset diukur dari 07:00, bukan dari tengah malam",
+          "description": "offset diukur dari 00:00, bukan dari 07:00",
           "given": "Shift 07:00–15:00 pada sebuah line",
-          "expect": "start_offset_minutes 0 dan duration_minutes 480; shift 23:00–07:00 menghasilkan start_offset_minutes 960 dan duration_minutes 480"
+          "expect": "start_offset_minutes 420 dan duration_minutes 480 — bukan 0/480 seperti pada sumbu 07:00"
         },
         {
-          "description": "shift melewati tengah malam adalah SATU blok, bukan dua",
+          "description": "shift melewati tengah malam adalah DUA blok bersegmen, bukan satu",
           "given": "Shift 23:00–07:00",
-          "expect": "coverage[].blocks memuat tepat satu blok ber-kind 'shift' untuk shift itu dengan duration_minutes 480; crosses_midnight true; TIDAK ada dua blok di kedua ujung sumbu"
+          "expect": "coverage[].blocks memuat TEPAT DUA blok ber-kind 'shift' dengan shift_id shift itu: (start_offset_minutes 1380, duration_minutes 60) dan (start_offset_minutes 0, duration_minutes 420); crosses_midnight true pada keduanya; jumlah durasi 480; dan NOL blok dengan start_offset_minutes + duration_minutes > 1440 — asersi terakhir itu yang memerahkan implementasi satu-blok lama"
         },
         {
           "description": "shift tunggal menutup 24 jam, dibuat lewat jalur yang sah",
@@ -664,9 +665,9 @@
           "expect": "Tersimpan tanpa penolakan; state 'covered', uncovered_minutes 0, satu blok berdurasi 1440, nol blok gap. Tidak perlu ditanam lewat factory — jalur API dan form dapat menghasilkannya"
         },
         {
-          "description": "cakupan penuh oleh tiga shift",
+          "description": "cakupan penuh oleh tiga shift pada sumbu 00:00",
           "given": "Pagi 07–15, Siang 15–23, Malam 23–07",
-          "expect": "state 'covered', uncovered_minutes 0, tiga blok 'shift' berurutan tanpa blok gap di antaranya, starts_at_production_day true"
+          "expect": "state 'covered', uncovered_minutes 0, nol blok gap, dan EMPAT blok 'shift' — Malam menyumbang dua segmen (1380,60) dan (0,420) — terurut menaik menurut start_offset_minutes: (0,420) Malam, (420,480) Pagi, (900,480) Siang, (1380,60) Malam"
         },
         {
           "description": "celah diterbitkan sebagai blok ber-kind gap",
@@ -684,14 +685,14 @@
           "expect": "state 'unconfigured' dengan shift_count 0; state BUKAN 'gap' dan uncovered_minutes tidak dilaporkan sebagai 1440"
         },
         {
-          "description": "starts_at_production_day false ketika union tidak mulai 07:00",
-          "given": "Union shift menutup 24 jam tetapi dimulai 06:00",
-          "expect": "state 'covered' dengan uncovered_minutes 0, tetapi starts_at_production_day false; tidak ada penolakan"
+          "description": "`starts_at_production_day` tidak ada lagi di payload mana pun",
+          "given": "Line yang union shift-nya menutup 24 jam tetapi dimulai 06:00",
+          "expect": "state 'covered' dengan uncovered_minutes 0 dan TIDAK ADA kunci bernama `starts_at_production_day` di seluruh payload. Periksa dengan penelusur rekursif atas NAMA KUNCI, bukan dengan memindai teks json_encode — prosa lain di payload masih menyebut hari produksi, sehingga pemindaian teks akan memerah terhadap kode yang justru benar"
         },
         {
-          "description": "position diturunkan dari start_time relatif 07:00",
-          "given": "Shift ditambahkan dengan urutan acak: Malam dulu, lalu Pagi, lalu Siang",
-          "expect": "position Pagi < Siang < Malam; urutan itu mengikuti jam mulai relatif 07:00, bukan urutan penambahan dan bukan abjad nama"
+          "description": "position diturunkan dari start_time relatif 00:00 — titik awal yang sama dengan sumbu",
+          "given": "Shift ditambahkan dengan urutan acak: Malam 23:00 dulu, lalu Pagi 07:00, lalu Siang 15:00",
+          "expect": "position Pagi < Siang < Malam, mengikuti menit-ke-dalam-hari jam mulainya (420 < 900 < 1380) — bukan urutan penambahan dan bukan abjad nama. Urutan ini wajib sama dengan urutan blok yang digambar pada sumbu 00:00"
         },
         {
           "description": "urutan data dan urutan blocks memakai position yang sama",
@@ -711,7 +712,7 @@
         {
           "description": "tumpang tindih terdeteksi pada shift yang melewati tengah malam",
           "given": "Line sudah punya Malam 23:00–07:00",
-          "expect": "Menyimpan shift 02:00–05:00 → 422 SHIFT_OVERLAP; perbandingannya di sumbu menit relatif 07:00, bukan pada string jam yang akan menyimpulkan rentang Malam kosong"
+          "expect": "Menyimpan shift 02:00–05:00 → 422 SHIFT_OVERLAP; perbandingannya di sumbu menit-ke-dalam-hari dengan Malam dipecah dua segmen, bukan pada string jam yang akan menyimpulkan rentang Malam kosong"
         },
         {
           "description": "perbandingan string jam TIDAK dipakai — kasus jebakan",
@@ -819,9 +820,9 @@
           "expect": "Blade tidak memanggil fungsi pengurutan apa pun atas jam; ia memakai urutan dari respons untuk kedua tampilan"
         },
         {
-          "description": "pratinjau klien memakai rumus offset yang sama dengan server",
+          "description": "pratinjau klien memakai rumus offset DAN segmentasi yang sama dengan server",
           "given": "Jam 23:00–07:00 diketik di form",
-          "expect": "Pratinjau menempatkan blok pada offset 960 berdurasi 480 — sama persis dengan yang akan diterbitkan server sesudah disimpan"
+          "expect": "Pratinjau menggambar DUA segmen — (1380,60) dan (0,420) — sama persis dengan blok yang akan diterbitkan server sesudah disimpan; nol segmen melewati tepi kanan track"
         },
         {
           "description": "pratinjau menahan diri saat jam belum valid",
@@ -882,6 +883,21 @@
           "description": "mengubah jam memutasi baris selama belum ada record yang merujuk",
           "given": "Sebuah shift tanpa record yang merujuknya, jamnya diubah lewat update()",
           "expect": "Jumlah baris shift pada line itu TIDAK bertambah dan tidak ada baris tertutup baru — pengubahan memutasi baris, karena penggantian baru aktif ketika ada record yang merujuk, dan belum ada kolom semacam itu di sistem hari ini"
+        },
+        {
+          "description": "invarian payload: nol blok melewati tepi sumbu",
+          "given": "Sebuah line dengan campuran shift biasa, shift lintas tengah malam, dan celah",
+          "expect": "Untuk SETIAP blok pada SETIAP line di payload: start_offset_minutes >= 0, duration_minutes > 0, dan start_offset_minutes + duration_minutes <= 1440. Satu asersi menyeluruh ini menutup seluruh kelas cacat 'blok terpotong oleh overflow hidden', bukan hanya kasus yang kebetulan ditulis"
+        },
+        {
+          "description": "blok gap juga tersegmentasi pada sumbu 00:00",
+          "given": "Line hanya punya shift 02:00–22:00",
+          "expect": "Dua blok gap — (0,120) dan (1320,120) — bukan satu blok gap melewati tepi; uncovered_minutes 240"
+        },
+        {
+          "description": "shift 24 jam yang tidak mulai 00:00 menutup batang penuh",
+          "given": "Line kosong lalu disimpan shift 07:00–07:00",
+          "expect": "state 'covered', nol blok gap, dan blok-bloknya — (420,1020) dan (0,420) — berjumlah durasi 1440 serta menutup setiap menit sumbu tanpa tumpang tindih"
         }
       ]
     }
@@ -903,18 +919,18 @@
   "implementation_notes": [
     "Berkas: app/Livewire/MasterData/KelolaShift.php, app/Services/ShiftService.php, app/Http/Controllers/Api/ShiftController.php, app/Models/Shift.php, resources/views/livewire/master-data/kelola-shift.blade.php, satu migrasi create_shifts_table, routes/web.php, routes/api.php.",
     "URUTAN PENDAFTARAN RUTE API ADALAH BAGIAN DARI KONTRAK. /shifts/business-units/options dan /shifts/production-lines/options wajib terdaftar SEBELUM /shifts/{id}. Jebakan ini sudah pernah terjadi dan terdokumentasi di routes/api.php untuk /periods/business-units/options — bila terbalik, rute literalnya menjawab 404 padahal jelas-jelas ada.",
-    "Perbandingan rentang WAJIB di sumbu menit 0..1440 relatif 07:00, bukan pada string jam. Membandingkan '23:00' dengan '07:00' sebagai string menyimpulkan rentangnya kosong, dan hasil salahnya terlihat masuk akal — kelas kesalahan yang sama dengan cacat pengurutan slot di laporan Engine Room yang baru diperbaiki. Tanam kasus jebakan shift melewati tengah malam di test sejak awal.",
-    "Shift melewati tengah malam dipecah dua HANYA di dalam perhitungan tumpang tindih; payload dan tampilan selalu satu blok utuh. Memecahnya di payload akan membuat blade menggambar dua potongan di kedua ujung batang — persis yang dihindari dengan memulai timeline di 07:00.",
+    "Perbandingan rentang WAJIB di sumbu menit-ke-dalam-hari 0..1440, bukan pada string jam. Membandingkan '23:00' dengan '07:00' sebagai string menyimpulkan rentangnya kosong, dan hasil salahnya terlihat masuk akal — kelas kesalahan yang sama dengan cacat pengurutan slot di laporan Engine Room. Tanam kasus jebakan shift melewati tengah malam di test sejak awal.",
+    "SATU fungsi segmentasi, DUA pemakai: perhitungan tumpang tindih dan penerbitan blok untuk digambar. Shift yang melintasi titik awal sumbu menghasilkan dua blok — (start_offset..1440) dan (0..sisa) — dan payload tidak boleh memuat satu pun blok yang start_offset + duration-nya melewati 1440. Pada v2 segmentasi hanya dipakai perhitungan tumpang tindih sementara blok diterbitkan utuh; blade menggambarnya dengan left+width melewati tepi track ber-overflow hidden, sisanya dipotong diam-diam, dan potongan tepi kiri tidak pernah tergambar.",
     "Cakupan dihitung sekali di ShiftService dan dipakai controller API maupun komponen Livewire. Jangan menghitungnya lagi di blade: perhitungan yang sama akan dibutuhkan gerbang sinkronisasi dan penandaan shift pada record, dan tiga penghitung yang berdiri sendiri akan berselisih.",
-    "Timeline digambar dari coverage[].blocks dengan persentase = start_offset_minutes/1440 dan width = duration_minutes/1440. Blade tidak menghitung jam sama sekali — ia hanya memetakan menit ke persen.",
-    "Pratinjau di dalam form adalah SATU-SATUNYA perhitungan cakupan di klien, dan ia bukan sumber kebenaran — penolakan tetap datang dari server. Pratinjau wajib memakai rumus offset-dari-07:00 yang sama persis, kalau tidak ia akan menggambar posisi yang berbeda dari yang nanti tersimpan.",
+    "Timeline digambar dari coverage[].blocks dengan left = start_offset_minutes/1440 dan width = duration_minutes/1440, sumbu 00:00..24:00. Blade tidak menghitung jam sama sekali — ia hanya memetakan menit ke persen — dan karena setiap blok dijamin tidak melewati 1440, tidak ada lagi yang dapat terpotong oleh overflow hidden.",
+    "Pratinjau di dalam form adalah SATU-SATUNYA perhitungan cakupan di klien, dan ia bukan sumber kebenaran — penolakan tetap datang dari server. Pratinjau wajib memakai rumus offset-dari-00:00 DAN fungsi segmentasi yang sama persis, termasuk untuk penanda tumpang tindihnya: pada v2 blok kandidat digambar utuh sementara penanda tindihan digambar dari irisan yang sudah tersegmentasi, dan satu gambar yang memuat dua dasar berbeda itulah yang terbaca sebagai berantakan.",
     "Mock HTML yang disetujui ada di .asdlc/generated/2-business-spec/screens/html/screen-170--kelola-shift.html — ikuti urutan bagian, label, dan hierarki visualnya. Mock itu memakai aset bersama Phase 1 dan sudah diverifikasi: nol kelas tanpa definisi, nol literal warna, minimum 14px di seluruh elemen, dan nol gulir mendatar halaman pada 13 lebar.",
     "SELURUH TEKS MINIMAL 14px, termasuk label jam pada sumbu timeline. Bila ruang tidak cukup, label DIJARANGKAN bukan diperkecil. Ambang ini dari uiux_spec.accessibility.text_content.min_font_size, dan ia justru dilanggar CSS laporan bersama hari ini (report-styles.blade.php: .md small tanpa font-size → 10px) — layar baru tidak boleh mengulanginya.",
     "Tiap kelas CSS yang dipakai markup WAJIB punya definisi. Periksa pada CSS HASIL COMPILE, bukan pada sumbernya — di kelola-machinery.blade.php lima kelas tanpa definisi lolos 25 test Livewire dan 19 spec browser, karena test menguji perilaku sementara yang rusak adalah tampilan.",
     "Field waktu menerima pengetikan manual MAUPUN picker, keduanya, dan tidak ada input yang dinonaktifkan — aturan form web yang sudah berlaku di proyek ini.",
     "Celah pada timeline dirender dengan tekstur, bukan ruang putih. Ruang putih terbaca sebagai latar kartu dan bukan sebagai temuan; keadaan 'belum diatur' justru TANPA tekstur, supaya keduanya tidak tertukar.",
     "Status cakupan dirender sebagai KATA pada badge-nya ('tercakup 24 jam' / 'ada celah N jam' / 'belum diatur'), bukan hanya warna. Asersi test menyasar teks badge itu, bukan kelas warnanya.",
-    "Spec browser mengasersi INVARIAN geometris yang diukur dari DOM: urutan blok timeline sama dengan urutan baris tabel, blok shift melewati tengah malam adalah SATU elemen yang menempel ke ujung kanan track, lebar blok sebanding durasinya, dan halaman tidak menggulir mendatar. Jangan memaku lebar piksel — ia bergantung lebar viewport.",
+    "Spec browser mengasersi INVARIAN geometris yang diukur dari DOM: urutan blok timeline sama dengan urutan baris tabel, lebar blok sebanding durasinya, halaman tidak menggulir mendatar, dan — untuk shift lintas tengah malam — blok ber-shift_id sama berjumlah DUA, satu menempel tepi kanan track dan satu menempel tepi kiri, dengan jumlah lebar keduanya sebanding durasi shift. Tambahan yang memerahkan cacat lama: ukur bahwa tidak ada blok yang right-edge-nya melewati right-edge track. Jangan memaku lebar piksel — ia bergantung lebar viewport.",
     "Asersi label pendek pada badge status wajib menyasar elemennya, bukan memindai teks kontainer — 'belum diatur' muncul juga di kalimat penjelas di bawah batang, jadi pemindaian kontainer akan cocok pada tempat yang salah.",
     "Migrasi create_shifts_table: production_line_id FK NOT NULL dengan cascade mengikuti pola tabel anak Production Line lain, name string, start_time dan end_time bertipe TIME, plus created_by/updated_by/timestamps. Unique index pada (production_line_id, name). Tumpang tindih TIDAK dapat ditegakkan unique index — ia ditegakkan di lapisan aplikasi, sama seperti aturan tumpang tindih rentang tanggal pada Periode Pelaporan.",
     "Jangan menambahkan kolom hari, tanggal berlaku, maupun pola bergilir. Jadwal berlaku sama setiap hari — keputusan pemilik produk 2026-10-15 — dan ketiadaan itu disengaja, bukan kelalaian yang perlu dilengkapi.",
@@ -923,7 +939,8 @@
     "SQLite tidak mendukung partial unique index dengan sintaks yang sama seperti PostgreSQL. Suite backend berjalan di SQLite in-memory sementara produksi PostgreSQL — jebakan yang sudah terdokumentasi di proyek ini. Pastikan migrasinya jalan di KEDUANYA, dan bila sintaksnya harus berbeda, tegakkan keunikannya juga di lapisan aplikasi (mengecualikan baris tertutup) sehingga perilakunya sama di dua dialek. Jalankan probe terhadap PostgreSQL sekali pakai seperti yang dilakukan putaran sebelumnya.",
     "Empat jalur yang WAJIB mengecualikan baris tertutup: daftar, perhitungan cakupan/celah, pemilih pada form, dan HIMPUNAN PEMBANDING TUMPANG TINDIH. Yang terakhir paling mudah terlewat, dan akibatnya khas: jam yang baru saja dikosongkan tidak pernah bisa dipakai ulang oleh penggantinya, padahal memakai ulang jam adalah justru alasan soft delete dipilih.",
     "JANGAN membangun penggantian-saat-ubah di putaran ini. Pemicunya 'ada record yang merujuk shift ini', dan tidak ada satu kolom pun di sistem yang merujuk shift hari ini. Membangunnya sekarang berarti menulis cabang yang tidak pernah dilewati jalur produksi mana pun dan hanya dapat dibuktikan benar terhadap stub. Aturannya sudah ditulis di business spec dan di business_logic langkah 29–30 supaya tidak perlu ditemukan ulang ketika penandaan record mendarat.",
-    "Test yang sudah ada dan akan BERUBAH HASILNYA: unit case 'shift tunggal menutup 24 jam' tidak lagi perlu ditanam lewat factory — jalur create() kini menghasilkannya — dan unit case 'start_time sama dengan end_time ditolak' kini bercabang menurut apakah line sudah punya shift hidup. `ShiftFactory` tetap berguna untuk menanam baris tertutup."
+    "Test yang sudah ada dan akan BERUBAH HASILNYA: unit case 'shift tunggal menutup 24 jam' tidak lagi perlu ditanam lewat factory — jalur create() kini menghasilkannya — dan unit case 'start_time sama dengan end_time ditolak' kini bercabang menurut apakah line sudah punya shift hidup. `ShiftFactory` tetap berguna untuk menanam baris tertutup.",
+    "REVISI v3 (2026-10-16) — cacat tampilan timeline yang dilaporkan pemilik produk setelah memakai layar ini, beserta satu perubahan rancangan yang menyertainya. Tiga bagian, dan hanya yang pertama adalah perbaikan cacat: (1) BLOK DIGAMBAR SEBAGAI SEGMEN di server maupun di pratinjau klien — ini perbaikan sebenarnya, dan ia menghilangkan pemotongan pada titik awal MANA PUN. (2) Titik awal sumbu 07:00 → 00:00, murni pilihan menggambar. (3) `starts_at_production_day` dan peringatan 'tidak dimulai 07:00' DICABUT seluruhnya — payload, blade, test, dan spec. Berkas yang berubah: ShiftService (segmentasi + offset + cabut kunci), kelola-shift.blade.php (segmentsFor dipakai untuk menggambar, label sumbu 00:00, cabut blok peringatan), test unit/komponen/browser terkait. Jangan hanya mengganti titik awalnya: tanpa bagian (1) cacatnya pindah dari shift malam ke shift pagi, tidak hilang."
   ],
   "test_scenarios": [
     {
@@ -1102,7 +1119,7 @@
       }
     },
     {
-      "scenario_ref": "Kelola Shift per Production Line — cakupan penuh tetapi tidak selaras hari produksi",
+      "scenario_ref": "Kelola Shift per Production Line — cakupan penuh berapa pun jam mulainya",
       "usecase_id": "usecase-176--kelola-shift",
       "api_test": [
         {
@@ -1122,16 +1139,16 @@
       "component_test": {
         "component": "KelolaShift",
         "action": "Mount dengan line yang union shift-nya menutup 24 jam tetapi dimulai 06:00",
-        "assert": "state 'covered' dengan uncovered_minutes 0, starts_at_production_day false; peringatan ketidakselarasan dengan awal hari produksi dirender; nol penolakan"
+        "assert": "state 'covered' dengan uncovered_minutes 0; TIDAK ADA kunci bernama `starts_at_production_day` di payload — diperiksa atas nama kunci lewat penelusur rekursif, bukan atas teks payload; nol peringatan keselarasan dirender; nol penolakan"
       },
       "browser_test": {
         "route": "/master-data/shifts",
         "action": "Baca batang line tersebut",
-        "assert": "Badge berbunyi tercakup penuh dan peringatan ketidakselarasan tetap terlihat di dekatnya"
+        "assert": "Badge berbunyi tercakup penuh dan tidak ada peringatan keselarasan hari produksi di mana pun pada kartu line itu"
       }
     },
     {
-      "scenario_ref": "Kelola Shift per Production Line — shift melewati tengah malam",
+      "scenario_ref": "Kelola Shift per Production Line — shift melewati tengah malam digambar dua segmen",
       "usecase_id": "usecase-176--kelola-shift",
       "api_test": [
         {
@@ -1153,12 +1170,12 @@
       "component_test": {
         "component": "KelolaShift",
         "action": "Simpan shift Malam 23:00–07:00 lalu periksa payload cakupan dan DOM",
-        "assert": "Diterima; coverage memuat TEPAT SATU blok untuk Malam dengan start_offset_minutes 960 dan duration_minutes 480, crosses_midnight true; label ditulis '23:00 — 07:00 +1' pada tabel maupun blok"
+        "assert": "Diterima; coverage memuat TEPAT DUA blok ber-shift_id Malam — (1380,60) dan (0,420) — crosses_midnight true pada keduanya, jumlah durasi 480, dan nol blok yang start_offset + duration-nya melewati 1440; label ditulis '23:00 — 07:00 +1' pada tabel dan pada segmen yang lebih panjang"
       },
       "browser_test": {
         "route": "/master-data/shifts",
-        "action": "Tambahkan shift Malam 23:00–07:00 lalu periksa batangnya",
-        "assert": "Elemen blok Malam berjumlah SATU dan tepi kanannya menempel ke ujung kanan track — bukan dua potongan di kedua ujung; itu yang dibeli oleh batang yang dimulai 07:00"
+        "action": "Tambahkan shift Malam 23:00–07:00 lalu ukur batangnya dari DOM",
+        "assert": "Elemen blok ber-shift_id Malam berjumlah DUA: satu menempel tepi kanan track dan satu menempel tepi kiri; jumlah lebar keduanya sebanding 480 menit; dan tidak ada blok yang tepi kanannya melewati tepi kanan track — asersi terakhir itu yang memerah terhadap implementasi satu-blok lama yang dipotong overflow hidden"
       }
     },
     {
@@ -1168,7 +1185,7 @@
       "component_test": {
         "component": "KelolaShift",
         "action": "Line 1 sudah punya Pagi 07:00–15:00; buka form Tambah Shift untuk Line 1 dan ketik jam mulai 14:00",
-        "assert": "Pratinjau menandai rentang 14:00–15:00 sebagai bertindih saat itu juga; NOL permintaan jaringan terkirim; Simpan belum pernah ditekan"
+        "assert": "Pratinjau menandai rentang 14:00–15:00 sebagai bertindih saat itu juga; penanda itu jatuh DI DALAM blok kandidat yang tergambar, bukan di luarnya — keduanya berasal dari segmen yang sama; NOL permintaan jaringan terkirim; Simpan belum pernah ditekan"
       },
       "browser_test": {
         "route": "/master-data/shifts",
@@ -1556,8 +1573,8 @@
       },
       "browser_test": {
         "route": "/master-data/shifts",
-        "action": "Buat satu shift yang menutup seluruh hari produksi lalu baca batangnya",
-        "assert": "Satu blok penuh terlihat tanpa celah, dan badge berbunyi tercakup 24 jam"
+        "action": "Buat satu shift yang menutup 24 jam lalu ukur batangnya dari DOM",
+        "assert": "Blok-bloknya bersama-sama menutup lebar track tanpa celah dan tanpa melewati tepi kanannya, dan badge berbunyi tercakup 24 jam"
       }
     },
     {
@@ -1881,6 +1898,21 @@
         "route": "/master-data/shifts",
         "action": "Hapus shift tengah lalu baca tabel, batang, dan badge cakupan",
         "assert": "Shift yang dihapus tidak terlihat di tabel maupun sebagai blok, dan badge cakupan kini menyebut jumlah jam celah"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Shift per Production Line — sumbu timeline dimulai 00:00",
+      "usecase_id": "usecase-176--kelola-shift",
+      "api_test": [],
+      "component_test": {
+        "component": "KelolaShift",
+        "action": "Mount dengan line yang punya shift 07:00–15:00",
+        "assert": "Label sumbu paling kiri berbunyi 00:00 dan paling kanan 24:00; blok shift itu ber-start_offset_minutes 420, bukan 0"
+      },
+      "browser_test": {
+        "route": "/master-data/shifts",
+        "action": "Baca label sumbu timeline",
+        "assert": "Label pertama 00:00 dan terakhir 24:00 — disasar pada elemen labelnya, bukan dengan memindai teks kartu, karena '00:00' dapat muncul pula pada kolom jam di tabel"
       }
     }
   ]

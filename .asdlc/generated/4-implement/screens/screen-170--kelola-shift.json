@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-16"
@@ -10,23 +10,23 @@
   "status": "complete",
   "test_results": {
     "unit": {
-      "run_at": "2026-10-16T00:00:00Z",
+      "run_at": "2026-10-16T11:30:00Z",
       "passed": 68,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-10-16T00:00:00Z",
+      "run_at": "2026-10-16T11:30:00Z",
       "passed": 38,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-10-16T00:00:00Z",
+      "run_at": "2026-10-16T11:30:00Z",
       "passed": 45,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-10-16T00:00:00Z",
+      "run_at": "2026-10-16T11:45:00Z",
       "passed": 30,
       "failed": 0
     }
@@ -61,7 +61,7 @@
     "Layar pertama fitur Shift per Production Line. Backend + web saja; mobile/ nol tersentuh (delapan entri mobile yang belum tercommit adalah sisa screen-159 dari putaran sebelumnya, diverifikasi identik di awal dan akhir).",
     "Suite backend diverifikasi SENDIRI sesudah agen melapor: 5741 lolos / 0 gagal / 34.511 asersi / exit 0 — baseline 5616 ditambah tepat 125 test baru (55 unit + 31 API + 39 Livewire). Browser 28/28 dengan 1 worker, fullyParallel false, retries 0, jadi tidak ada kelulusan yang tertutup percobaan ulang.",
     "SUMBU MENIT, BUKAN STRING JAM — jebakan utama layar ini dan ia terjaga di tiga lapis. Kasus jebakan (01:00–03:00 lawan 23:00–07:00 yang sudah ada) diasersi di unit (findOverlap tidak null, jendela persis 1080/1200, create() melempar), API (422 SHIFT_OVERLAP), dan Livewire (pesan form menyebut 'Malam'). Agen membuktikan test itu benar-benar memerahkan implementasi string-compare lewat simulasi terpisah: '01:00' < '07:00' && '23:00' < '03:00' menyimpulkan tidak bertindih, sementara sumbu menit menemukan irisan 120 menit. Unit test-nya juga mengasersi perbandingan string yang menyesatkan itu sendiri sehingga jebakannya mendokumentasikan dirinya.",
-    "Offset dari 07:00: 07:00 → 0, 15:00 → 480, 23:00 → 960, 06:00 → 1380, timeFromOffset(1440) → '07:00'. Shift melewati tengah malam adalah SATU blok dengan durasi utuh dan crosses_midnight true di payload, serta tepat satu elemen DOM yang menempel ke tepi kanan track dengan tepi kirinya melewati titik tengah — pecahan kedua di sisi kiri akan menjatuhkan test.",
+    "Offset diukur dari 00:00 sejak v3 (sebelumnya 07:00): 00:00 → 0, 07:00 → 420, 15:00 → 900, 23:00 → 1380, timeFromOffset(1440) → '00:00'. SHIFT YANG MELINTASI TITIK NOL SUMBU DITERBITKAN SEBAGAI DUA BLOK BERSEGMEN ber-`shift_id` sama — (1380,60) dan (0,420) untuk 23:00–07:00 — dengan `segment_index`, `segment_count`, dan `is_label_segment` pada tiap blok, dan `crosses_midnight` true pada KEDUANYA. Asersi v2 ('tepat satu elemen DOM yang menempel tepi kanan') adalah yang membiarkan cacatnya hidup: elemen yang terpotong overflow hidden memang satu dan memang menempel tepi kanan, jadi asersi itu menghijau justru pada halaman yang cacat. Penggantinya mengukur bahwa NOL blok melewati tepi track, atas setiap blok di setiap batang.",
     "Tumpang tindih = irisan KETAT lebih besar dari nol. Batas nol menit DITERIMA di keempat lapis (browser mengukur kedua blok bersebelahan tanpa blok celah di antaranya); tindihan satu menit DITOLAK dengan pesan menyebut 14:59–15:00. Per line saja. PATCH mengecualikan shift yang diubah dari himpunannya sendiri; memindahkan line memeriksa line tujuan.",
     "Cakupan dihitung SEKALI di ShiftService. Test API membandingkan coverage DAN data respons HTTP terhadap ShiftService::listShifts(); test Livewire membandingkan viewData('coverage') terhadap body API sekaligus terhadap service. Satu test terpisah mengasersi blade tidak melakukan pengurutan (sortBy/usort) maupun aritmetika waktu (strtotime/Carbon::/diffInMinutes), dan bahwa $pct() masih membagi dengan 14,4.",
     "Kelas CSS diperiksa terhadap CSS HASIL COMPILE — view:cache, token class diekstrak dari view terkompilasi dengan interpolasi Blade dibuang, selektor dikumpulkan dari blok <style> view yang benar-benar dikirim halaman ini. Hasil: 72 kelas dipakai, NOL tanpa definisi; view:clear dijalankan sesudahnya. Dan pemeriksaan ini kini DITEGAKKAN PERMANEN oleh suite Livewire atas 48 kelas ks- — jadi kelas cacat kelola-machinery sekarang menjadi test, bukan kebiasaan.",
@@ -84,7 +84,13 @@
     "Komponen Livewire dan controller API TIDAK butuh perubahan perilaku sama sekali — delete() yang memegang maknanya, dan global scope membuang baris tertutup dari setiap pembacaan. Keduanya hanya disunting docblock-nya.",
     "deleted_at sengaja TIDAK dimasukkan ke $fillable, sehingga update(['deleted_at' => ...]) yang nyasar menjadi no-op alih-alih penutupan tak terlihat.",
     "Penggantian-saat-ubah TIDAK dibangun, sesuai rancangan. Mengubah jam masih memutasi baris. business_logic 29 menyatakan aturannya dan business_logic 30 menyatakan ia belum aktif — keduanya bersama-sama konsisten dengan unit case yang menegaskan pengubahan memutasi baris, dan kesengajaan itu dicatat di docblock tiap berkas test supaya tidak terbaca sebagai kelalaian.",
-    "Keamanan DB dev: nol penulisan, seeding, maupun migrasi oleh agen. Satu-satunya migrate terhadap basis data nyata berlingkup ganda (--env=e2e --path=...). Migrasi soft delete lalu SAYA terapkan ke dev secara berlingkup atas instruksi user, diverifikasi sebelum dan sesudah: 91 → 92 migrasi (bukan 93), deleted_at ada, app_name MASIH ADA sehingga migrasi destruktifnya tetap tertunda, dan pg_indexes mengonfirmasi tepat satu index dengan predikat WHERE (deleted_at IS NULL)."
+    "Keamanan DB dev: nol penulisan, seeding, maupun migrasi oleh agen. Satu-satunya migrate terhadap basis data nyata berlingkup ganda (--env=e2e --path=...). Migrasi soft delete lalu SAYA terapkan ke dev secara berlingkup atas instruksi user, diverifikasi sebelum dan sesudah: 91 → 92 migrasi (bukan 93), deleted_at ada, app_name MASIH ADA sehingga migrasi destruktifnya tetap tertunda, dan pg_indexes mengonfirmasi tepat satu index dengan predikat WHERE (deleted_at IS NULL).",
+    "REVISI v3 (2026-10-16) — cacat tampilan timeline yang dilaporkan pemilik produk setelah memakai layar ini: *\"pratinjau saat tambah shift masih berantakan, dan ketika melewati jam 07.00 tampilan tidak sesuai\"*. AKARNYA BUKAN TITIK AWAL SUMBU. `segmentsFor()` sudah ada sejak v1 tetapi hanya dipakai perhitungan tumpang tindih; untuk MENGGAMBAR, blok dipakai utuh sebagai satu `{start, duration}`, sehingga blok dengan start+duration > 1440 digambar `left+width` melewati tepi kanan `.ks-track` yang ber-`overflow: hidden` dan DIPOTONG DIAM-DIAM, sementara sisanya di tepi kiri tidak pernah tergambar. Penanda tumpang tindih pada pratinjau justru benar karena ia digambar dari irisan segmen yang sudah terklampir — satu gambar memuat dua hal dengan dasar berbeda, dan itulah yang terbaca sebagai berantakan. Mengganti titik awal saja hanya MEMINDAHKAN korbannya dari shift yang melintasi 07:00 ke shift malam.",
+    "Tiga perubahan v3, dan hanya yang pertama perbaikan cacat: (1) satu fungsi segmentasi, DUA pemakai — perhitungan tumpang tindih DAN penerbitan blok, di server maupun di pratinjau klien; (2) titik nol sumbu 07:00 → 00:00, murni pilihan menggambar (keputusan pemilik produk; argumen 'hari produksi' yang saya tulis di v1 saya tarik — layar ini editor master data, cakupan invarian terhadap pergeseran sumbu, dan penandaan record memakai jam perangkat); (3) `starts_at_production_day` dan peringatan 'tidak dimulai 07:00' dicabut seluruhnya dari payload, blade, test, dan spec.",
+    "DUA JALUR DI PRATINJAU — perbaikan kedua, dan ia ditemukan dari POTRET PERAMBAN, bukan dari test. Sesudah segmentasi benar, pratinjau masih berantakan: shift yang sudah ada dan kandidat digambar di jalur yang sama, jadi ketika kandidat menempati rentang yang sudah terisi — yang justru PALING SERING, karena itulah saat pratinjau dibutuhkan — nama dan jam kandidat tertumpuk persis di atas nama dan jam shift yang ditimpanya. Sekarang shift yang ada di jalur atas, kandidat di jalur bawah, track pratinjau dua kali lebih tinggi agar tiap jalur tetap memuat dua baris teks 14px utuh, dan penanda tindihan menjadi PITA di tepi bawah jalur kandidat alih-alih blok setinggi penuh yang mengubur labelnya sendiri. Sebuah asersi browser baru mengukur kedua jalur tidak berpotongan secara vertikal sementara rentang mendatarnya beririsan — tanpa klausa kedua itu, asersinya lolos karena keduanya berjauhan dan bukan karena jalurnya terpisah.",
+    "YANG MENANGKAP CACAT INI BUKAN TEST — dan itu butir terpenting di sini. 151 test PHP dan 30 spec browser hijau di v2 sementara layarnya memotong sepertiga shift malam, karena setiap asersi geometrinya menanyakan 'apakah bloknya ada, terlihat, dan menempel tepi kanan' — ketiganya tetap benar untuk blok yang terpotong. Yang membedakan halaman benar dari halaman cacat hanya SATU pertanyaan yang tak satu pun test ajukan: apakah ada blok yang digambar di luar track-nya. Asersi itu kini ada di tiga lapis (unit `expectNoBlockPastAxisEnd`, API atas setiap blok payload, browser `expectNoBlockPastTrackEdge` yang mengukur dari DOM), dan ia menutup KELASNYA alih-alih kasusnya. Lihat juga [[feedback-vacuous-assertions]] dan [[feedback-design-quality-bar]].",
+    "`position` ikut pindah ke sumbu 00:00, dan itu WAJIB bukan pilihan: aturan 'urutan baris tabel = urutan blok timeline' akan dilanggar oleh konstruksi bila urutan diturunkan dari titik nol yang berbeda dari sumbu gambarnya. Aturan itu sendiri diperhalus — ia kini dibandingkan pada potongan tempat tiap shift DIMULAI (`segment_index` 0), karena urutan SELURUH elemen blok memang tidak dapat sama dengan urutan tabel pada sumbu linier mana pun begitu sebuah shift punya potongan di kedua tepi.",
+    "Verifikasi v3: 151 test PHP shift (68 unit + 38 API + 45 Livewire) hijau, dan 30 spec browser hijau dijalankan terhadap peramban sungguhan di :8001 — termasuk asersi geometri baru. Dua potret layar dikirim ke pemilik produk sebagai bukti tampilan, bukan hanya angka test hijau. Mock HTML Phase 2 ikut diperbarui ke sumbu 00:00 dan blok bersegmen, dan diperiksa nol kelas CSS tanpa definisi."
   ],
   "deferred_items": [],
   "known_issues": [

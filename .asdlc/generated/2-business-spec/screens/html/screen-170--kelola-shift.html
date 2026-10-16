@@ -41,7 +41,7 @@
     /* ---- Timeline ------------------------------------------------------- */
     /* The card scrolls its own track horizontally; the page never does. */
     .ks-scroll { overflow-x: auto; }
-    /* Minimum track width: wide enough that (a) the '03:00 +1' and '06:00 +1'
+    /* Minimum track width: wide enough that (a) the axis labels every 4 hours
        labels never touch and (b) the 4-hour gap block still fits its own caption.
        Below this the card scrolls — the page never does. */
     .ks-timeline-inner { min-width: 800px; }
@@ -113,6 +113,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .ks-block-name--continued { font-weight: var(--font-weight-body); }
     .ks-block-time {
       font-size: var(--font-size-sm);
       white-space: nowrap;
@@ -262,23 +263,23 @@
           <div class="card-header">Cakupan Shift per Production Line — Kilang Sawit Tenang</div>
           <div class="card-body">
             <p class="ks-note">
-              <strong>Hari produksi berjalan 07:00 sampai 06:00 keesokan hari</strong>, mengikuti kisi slot
-              waktu yang dipakai seluruh stasiun bergrid — karena itu batang di bawah dimulai 07:00, bukan
-              tengah malam. Shift yang melewati tengah malam (ditulis <strong>23:00 — 07:00 +1</strong>)
-              tergambar sebagai satu blok utuh di ujung kanan batang, bukan dua potongan di kedua ujungnya.
+              <strong>Batang di bawah berjalan 00:00 sampai 24:00.</strong> Shift yang melewati tengah malam
+              (ditulis <strong>23:00 — 07:00 +1</strong>) tergambar sebagai <strong>dua potongan bertaut</strong>
+              — ujung kanan batang lalu dilanjutkan di ujung kirinya — dan keduanya satu shift yang sama,
+              bukan dua shift terpisah. Nama shift ditulis pada potongan yang lebih panjang.
             </p>
 
             <div class="ks-scroll">
               <div class="ks-timeline-inner">
 
                 <div class="ks-axis">
-                  <span class="ks-axis-tick ks-axis-tick--start" style="left:0">07:00</span>
-                  <span class="ks-axis-tick ks-axis-tick--secondary" style="left:16.6667%">11:00</span>
-                  <span class="ks-axis-tick" style="left:33.3333%">15:00</span>
-                  <span class="ks-axis-tick" style="left:50%">19:00</span>
-                  <span class="ks-axis-tick" style="left:66.6667%">23:00</span>
-                  <span class="ks-axis-tick ks-axis-tick--secondary" style="left:83.3333%">03:00 +1</span>
-                  <span class="ks-axis-tick ks-axis-tick--end" style="left:95.8333%">06:00 +1</span>
+                  <span class="ks-axis-tick ks-axis-tick--start" style="left:0">00:00</span>
+                  <span class="ks-axis-tick ks-axis-tick--secondary" style="left:16.6667%">04:00</span>
+                  <span class="ks-axis-tick" style="left:33.3333%">08:00</span>
+                  <span class="ks-axis-tick" style="left:50%">12:00</span>
+                  <span class="ks-axis-tick" style="left:66.6667%">16:00</span>
+                  <span class="ks-axis-tick ks-axis-tick--secondary" style="left:83.3333%">20:00</span>
+                  <span class="ks-axis-tick ks-axis-tick--end" style="left:100%">24:00</span>
                 </div>
 
                 <!-- Line 1 — tercakup penuh -->
@@ -291,16 +292,20 @@
                     </span>
                   </div>
                   <div class="ks-track">
-                    <div class="ks-block ks-block-shift" style="left:0;width:33.3333%">
+                    <div class="ks-block ks-block-shift" style="left:0;width:29.1667%" title="Malam · 23:00 — 07:00 +1">
+                      <span class="ks-block-name">Malam</span>
+                      <span class="ks-block-time">23:00 — 07:00 +1</span>
+                    </div>
+                    <div class="ks-block ks-block-shift" style="left:29.1667%;width:33.3333%" title="Pagi · 07:00 — 15:00">
                       <span class="ks-block-name">Pagi</span>
                       <span class="ks-block-time">07:00 — 15:00</span>
                     </div>
-                    <div class="ks-block ks-block-shift" style="left:33.3333%;width:33.3333%">
+                    <div class="ks-block ks-block-shift" style="left:62.5%;width:33.3333%" title="Siang · 15:00 — 23:00">
                       <span class="ks-block-name">Siang</span>
                       <span class="ks-block-time">15:00 — 23:00</span>
                     </div>
-                    <div class="ks-block ks-block-shift" style="left:66.6667%;width:33.3333%">
-                      <span class="ks-block-name">Malam</span>
+                    <div class="ks-block ks-block-shift" style="left:95.8333%;width:4.1667%" title="Malam · 23:00 — 07:00 +1">
+                      <span class="ks-block-name ks-block-name--continued">Malam</span>
                       <span class="ks-block-time">23:00 — 07:00 +1</span>
                     </div>
                   </div>
@@ -316,16 +321,20 @@
                     </span>
                   </div>
                   <div class="ks-track">
-                    <div class="ks-block ks-block-shift" style="left:0;width:33.3333%">
+                    <div class="ks-block ks-block-shift" style="left:0;width:29.1667%" title="Malam · 19:00 — 07:00 +1">
+                      <span class="ks-block-name">Malam</span>
+                      <span class="ks-block-time">19:00 — 07:00 +1</span>
+                    </div>
+                    <div class="ks-block ks-block-shift" style="left:29.1667%;width:33.3333%" title="Pagi · 07:00 — 15:00">
                       <span class="ks-block-name">Pagi</span>
                       <span class="ks-block-time">07:00 — 15:00</span>
                     </div>
-                    <div class="ks-block ks-block-gap" style="left:33.3333%;width:16.6667%">
+                    <div class="ks-block ks-block-gap" style="left:62.5%;width:16.6667%">
                       <span class="ks-block-name">Celah 4 jam</span>
                       <span class="ks-block-time">15:00–19:00</span>
                     </div>
-                    <div class="ks-block ks-block-shift" style="left:50%;width:50%">
-                      <span class="ks-block-name">Malam</span>
+                    <div class="ks-block ks-block-shift" style="left:79.1667%;width:20.8333%" title="Malam · 19:00 — 07:00 +1">
+                      <span class="ks-block-name ks-block-name--continued">Malam</span>
                       <span class="ks-block-time">19:00 — 07:00 +1</span>
                     </div>
                   </div>
@@ -363,6 +372,7 @@
               <span class="ks-legend-item"><span class="ks-swatch ks-swatch-shift"></span>Shift</span>
               <span class="ks-legend-item"><span class="ks-swatch ks-swatch-gap"></span>Celah — tidak dimiliki shift mana pun</span>
               <span class="ks-legend-item"><span class="ks-swatch ks-swatch-empty"></span>Belum diatur</span>
+              <span class="ks-legend-item">Shift yang melewati tengah malam tergambar sebagai dua potongan di kedua tepi — nama dan rentang jamnya sama</span>
             </div>
           </div>
         </div>
@@ -462,8 +472,8 @@
           <div class="card-footer">
             <div class="ks-pagination">
               <span class="ks-note">
-                Menampilkan 5 dari 5 shift pada 3 Production Line. Urutannya mengikuti jam mulai relatif
-                awal hari produksi — sama dengan urutan blok pada timeline.
+                Menampilkan 5 dari 5 shift pada 3 Production Line. Urutannya mengikuti jam mulai pada
+                sumbu yang sama dengan timeline — sama dengan urutan potongan tempat tiap shift dimulai.
               </span>
               <span class="ks-pagination-pages">
                 <button class="btn btn-outline btn-sm" type="button">Sebelumnya</button>

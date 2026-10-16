@@ -72,3 +72,32 @@ Skema dikerjakan sekarang justru karena **skema paling murah diubah sebelum ada 
 ### Dampak pada test yang sudah ada
 
 Unit case "shift tunggal menutup 24 jam" tidak lagi perlu ditanam lewat factory — jalur `create()` kini menghasilkannya. Unit case "start_time sama dengan end_time ditolak" kini bercabang menurut apakah line sudah punya shift hidup. `ShiftFactory` tetap berguna untuk menanam baris tertutup.
+
+## v3 — 2026-10-16
+
+Pemilik produk memakai `/master-data/shifts` dan melaporkan: *"pratinjau saat tambah shift masih berantakan, dan ketika melewati jam 07.00 tampilan tidak sesuai, sebaiknya menurut gw untuk tampilan overview dan jadwal line dimulai dari 00:00"*. Lalu, soal peringatan ketidakselarasan hari produksi: *"dibuang saja"*.
+
+### Yang DINYATAKAN user (bukan asumsi)
+
+1. **Sumbu timeline dimulai 00:00**, untuk overview maupun jadwal per line.
+2. **Peringatan "jadwal line ini tidak dimulai 07:00" dicabut** — seluruhnya, bukan diperhalus.
+
+### Akar cacat yang saya temukan, dan ia BUKAN soal titik awal
+
+`kelola-shift.blade.php` sudah punya `segmentsFor()` yang memecah shift lintas-batas menjadi dua — **tetapi hanya untuk perhitungan tumpang tindih**. Untuk MENGGAMBAR, blok kandidat di form maupun blok tersimpan dipakai sebagai satu `{start, duration}` dengan `left: pct(start)%; width: pct(duration)%`. Ketika `start + duration > 1440`, blok itu melewati tepi kanan track dan `.ks-track { overflow: hidden }` **memotongnya diam-diam**, sementara sisa shift di tepi kiri tidak pernah digambar. Penanda tumpang tindih justru benar, karena ia digambar dari irisan segmen yang sudah terklampir. **Satu gambar yang memuat dua hal dengan dasar berbeda** — itulah yang terbaca sebagai "berantakan".
+
+**Konsekuensi yang menentukan urutan perbaikan:** titik awal 07:00 tidak menyebabkan cacat ini dan 00:00 tidak menyembuhkannya. Mengganti titik awal saja hanya MEMINDAHKAN cacatnya dari shift yang melintasi 07:00 ke shift yang melintasi tengah malam. Karena itu perbaikan sebenarnya adalah **menggambar dari segmen**, dan ia dikerjakan lebih dulu.
+
+### Satu argumen saya sendiri yang saya tarik
+
+Saya pernah menuliskan sumbu 07:00 sebagai konsekuensi hari produksi — bahwa tengah malam "memotong hari produksi di tengah". Itu lebih lemah daripada cara saya menyajikannya, dan saya sampaikan begitu ke user: layar ini **editor master data, bukan layar laporan**; matematika cakupan 24 jam tidak bergantung pada titik awal; dan penandaan `shift_id` pada record memakai **jam perangkat**, bukan sumbu layar ini. Titik awal murni pilihan menggambar, dan Admin membaca jam dari 00:00. Keputusan user benar atas alasan yang benar.
+
+### Asumsi yang SAYA turunkan di v3 ini
+
+- **`segment_index` ditambahkan pada blok** ← supaya blade dapat menaruh label pada segmen yang lebih panjang dan menandai keduanya satu shift, tanpa menebak dari offset.
+- **`crosses_midnight` true pada KEDUA segmen** ← bila hanya satu, blade kehilangan dasar untuk menautkan pasangannya.
+- **`position` ikut pindah ke sumbu 00:00** ← wajib, bukan pilihan: aturan "urutan baris tabel dan urutan blok timeline wajib sama" akan dilanggar oleh konstruksi bila urutannya diturunkan dari titik awal yang berbeda dari sumbu gambarnya.
+- **Blok gap juga tersegmentasi** ← konsistensi; sebuah celah 22:00–02:00 punya persoalan tepi yang sama persis.
+- **Shift 24 jam tidak mendapat kasus khusus** ← 07:00–07:00 pada sumbu 00:00 menghasilkan dua segmen bertaut yang bersama-sama menutup batang penuh. Kasus khusus untuk "satu blok penuh" hanya menambah cabang yang dapat salah, sementara hasil gambarnya sama.
+- **Invarian payload "nol blok melewati 1440"** ← satu asersi menyeluruh atas setiap blok, dipilih justru supaya ia menutup seluruh kelas cacat ini alih-alih kasus-kasus yang kebetulan ditulis. Lihat [[feedback-vacuous-assertions]].
+- **Ketiadaan `starts_at_production_day` diasersi atas NAMA KUNCI lewat penelusur rekursif**, bukan dengan memindai teks payload ← prosa lain di payload masih menyebut hari produksi, sehingga pemindaian teks akan memerah terhadap kode yang justru benar. Pelajaran yang sama sudah dibayar di laporan Engine Room.

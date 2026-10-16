@@ -9,23 +9,34 @@
      * pola panel-di-atas-tabel yang sama dengan Kelola Periode Pelaporan.
      *
      * BLADE TIDAK MENGHITUNG JAM SAMA SEKALI. Seluruh cakupan datang dari
-     * ShiftService (coverage[].blocks, dalam MENIT DARI 07:00); satu-satunya
+     * ShiftService (coverage[].blocks, dalam MENIT DARI 00:00); satu-satunya
      * aritmetika di berkas ini adalah $pct() — menit menjadi persen. Jangan
      * menurunkan ulang durasi, celah, maupun urutan di sini: perhitungan yang
      * sama akan dibutuhkan gerbang sinkronisasi dan penandaan shift pada
      * record, dan tiga penghitung yang berdiri sendiri akan berselisih.
      *
      * URUTAN DIBACA DARI RESPONS, TIDAK DIURUTKAN DI SINI. $shifts sudah
-     * terurut (nama line, lalu `position` yang diturunkan dari jam mulai
-     * relatif 07:00) dan coverage[].blocks sudah terurut offset — keduanya
-     * dari satu nilai yang sama, sehingga URUTAN BARIS TABEL dan URUTAN BLOK
-     * TIMELINE tidak dapat berselisih. Sebuah spec browser mengukur invarian
-     * itu dari DOM.
+     * terurut (nama line, lalu `position` yang diturunkan dari jam mulai pada
+     * sumbu yang SAMA dengan timeline) dan coverage[].blocks sudah terurut
+     * offset — keduanya dari satu nilai yang sama, sehingga URUTAN BARIS TABEL
+     * dan URUTAN BLOK TIMELINE tidak dapat berselisih. Sebuah spec browser
+     * mengukur invarian itu dari DOM.
      *
-     * TIMELINE DIMULAI 07:00. Hari produksi pabrik ini berjalan 07:00 sampai
-     * 06:00 keesokan hari, jadi shift malam (23:00–07:00) tergambar sebagai
-     * SATU blok utuh yang menempel ke ujung kanan batang — bukan dua potongan
-     * di kedua ujungnya, yang akan terjadi bila batangnya dimulai tengah malam.
+     * TIMELINE DIMULAI 00:00 (v3, 2026-10-16). Titik awalnya soal MENGGAMBAR,
+     * bukan soal aturan — cakupan dan tumpang tindih invarian terhadapnya,
+     * dan penandaan shift pada record memakai jam perangkat — jadi ia
+     * mengikuti cara Admin membaca jam.
+     *
+     * SHIFT YANG MELINTASI TITIK AWAL DIGAMBAR SEBAGAI DUA SEGMEN BERTAUT,
+     * satu menempel tepi kanan dan satu menempel tepi kiri, keduanya
+     * ber-`shift_id` sama dan label pada yang lebih panjang. Server yang
+     * memecahnya; blade hanya menggambar apa yang diterbitkan. Inilah
+     * perbaikan sebenarnya dari cacat yang dilaporkan 2026-10-16: sebelum
+     * ini, satu blok utuh digambar `left+width` melewati tepi kanan track
+     * ber-`overflow: hidden` dan DIPOTONG DIAM-DIAM, sementara sisanya di tepi
+     * kiri tidak pernah tergambar. Titik awal mana pun memecah shift yang
+     * melintasinya, jadi memindahkan titik awal saja tidak akan menyembuhkan
+     * apa pun — hanya memindahkan korbannya.
      *
      * SELURUH TEKS MINIMAL 14px, termasuk label jam pada sumbunya. Bila ruang
      * tidak cukup, label DIJARANGKAN (.ks-axis-tick--secondary disembunyikan),
@@ -160,26 +171,26 @@
             </div>
             <div class="card-body">
                 <p class="ks-note">
-                    <strong>Hari produksi berjalan 07:00 sampai 06:00 keesokan hari</strong>, mengikuti kisi slot
-                    waktu yang dipakai seluruh stasiun bergrid — karena itu batang di bawah dimulai 07:00, bukan
-                    tengah malam. Shift yang melewati tengah malam (ditulis <strong>23:00 — 07:00 +1</strong>)
-                    tergambar sebagai satu blok utuh di ujung kanan batang, bukan dua potongan di kedua ujungnya.
+                    <strong>Batang di bawah berjalan 00:00 sampai 24:00.</strong> Shift yang melewati tengah malam
+                    (ditulis <strong>23:00 — 07:00 +1</strong>) tergambar sebagai <strong>dua potongan bertaut</strong>
+                    — ujung kanan batang lalu dilanjutkan di ujung kirinya — dan keduanya satu shift yang sama,
+                    bukan dua shift terpisah. Nama shift ditulis pada potongan yang lebih panjang.
                 </p>
 
                 <div class="ks-scroll">
                     <div class="ks-timeline-inner">
 
-                        {{-- Sumbu jam. Tetap 07:00 → 06:00+1 karena batangnya memang
-                             selalu satu hari produksi; label bertanda --secondary
-                             DIJARANGKAN di lebar sempit, tidak diperkecil. --}}
+                        {{-- Sumbu jam 00:00 → 24:00, tiap 4 jam, selaras dengan garis
+                             kisi .ks-track. Label bertanda --secondary DIJARANGKAN di
+                             lebar sempit, tidak diperkecil. --}}
                         <div class="ks-axis">
-                            <span class="ks-axis-tick ks-axis-tick--start" style="left:0">07:00</span>
-                            <span class="ks-axis-tick ks-axis-tick--secondary" style="left:16.6667%">11:00</span>
-                            <span class="ks-axis-tick" style="left:33.3333%">15:00</span>
-                            <span class="ks-axis-tick" style="left:50%">19:00</span>
-                            <span class="ks-axis-tick" style="left:66.6667%">23:00</span>
-                            <span class="ks-axis-tick ks-axis-tick--secondary" style="left:83.3333%">03:00 +1</span>
-                            <span class="ks-axis-tick ks-axis-tick--end" style="left:95.8333%">06:00 +1</span>
+                            <span class="ks-axis-tick ks-axis-tick--start" style="left:0" data-testid="axis-tick-start">00:00</span>
+                            <span class="ks-axis-tick ks-axis-tick--secondary" style="left:16.6667%">04:00</span>
+                            <span class="ks-axis-tick" style="left:33.3333%">08:00</span>
+                            <span class="ks-axis-tick" style="left:50%">12:00</span>
+                            <span class="ks-axis-tick" style="left:66.6667%">16:00</span>
+                            <span class="ks-axis-tick ks-axis-tick--secondary" style="left:83.3333%">20:00</span>
+                            <span class="ks-axis-tick ks-axis-tick--end" style="left:100%" data-testid="axis-tick-end">24:00</span>
                         </div>
 
                         @foreach ($coverage as $line)
@@ -222,13 +233,30 @@
                                     @else
                                         @foreach ($line['blocks'] as $block)
                                             @if ($block['kind'] === 'shift')
+                                                {{-- DUA SEGMEN, SATU shift_id: data-testid-nya sengaja
+                                                     SAMA pada keduanya supaya asersi dapat MENGHITUNG
+                                                     potongan sebuah shift; wire:key dibedakan karena ia
+                                                     wajib unik.
+
+                                                     KEDUA potongan menyebut NAMA dan RENTANG JAM yang
+                                                     sama — itulah yang memberi tahu pembaca bahwa mereka
+                                                     satu shift, dan itu sebabnya tidak dipakai glyph
+                                                     panah: pada sumbu 00:00 potongan yang AWAL justru
+                                                     berada di tepi KANAN, sehingga penanda berarah akan
+                                                     menunjuk ke arah yang salah. Yang dibedakan hanya
+                                                     bobot hurufnya: tebal pada potongan yang lebih
+                                                     panjang (server yang memilih, lihat
+                                                     ShiftService::shiftBlocks()). --}}
                                                 <div
                                                     class="ks-block ks-block-shift"
                                                     style="left:{{ $pct($block['start_offset_minutes']) }}%;width:{{ $pct($block['duration_minutes']) }}%"
-                                                    wire:key="block-{{ $block['shift_id'] }}"
+                                                    wire:key="block-{{ $block['shift_id'] }}-{{ $block['segment_index'] }}"
                                                     data-testid="timeline-block-{{ $block['shift_id'] }}"
+                                                    data-segment-index="{{ $block['segment_index'] }}"
+                                                    data-segment-count="{{ $block['segment_count'] }}"
+                                                    title="{{ $block['label'] }} · {{ $block['time_label'] }}"
                                                 >
-                                                    <span class="ks-block-name">{{ $block['label'] }}</span>
+                                                    <span class="ks-block-name @unless ($block['is_label_segment']) ks-block-name--continued @endunless">{{ $block['label'] }}</span>
                                                     <span class="ks-block-time">{{ $block['time_label'] }}</span>
                                                 </div>
                                             @else
@@ -260,13 +288,6 @@
                                     </p>
                                 @endif
 
-                                @if ($line['shift_count'] > 0 && ! $line['starts_at_production_day'])
-                                    <p class="ks-note" data-testid="misaligned-note-{{ $line['production_line_id'] }}">
-                                        <strong>Jadwal line ini tidak dimulai 07:00.</strong> Hari produksi dimulai jam itu,
-                                        jadi ketidakselarasannya ditandai — tetapi ini <strong>peringatan, bukan
-                                        penolakan</strong>: jadwal yang memang tidak selaras tetap tersimpan apa adanya.
-                                    </p>
-                                @endif
                             </div>
                         @endforeach
 
@@ -277,6 +298,7 @@
                     <span class="ks-legend-item"><span class="ks-swatch ks-swatch-shift"></span>Shift</span>
                     <span class="ks-legend-item"><span class="ks-swatch ks-swatch-gap"></span>Celah — tidak dimiliki shift mana pun</span>
                     <span class="ks-legend-item"><span class="ks-swatch ks-swatch-empty"></span>Belum diatur</span>
+                    <span class="ks-legend-item">Shift yang melewati tengah malam tergambar sebagai dua potongan di kedua tepi — nama dan rentang jamnya sama</span>
                 </div>
             </div>
         </div>
@@ -451,13 +473,19 @@
                     PRATINJAU HIDUP — SATU-SATUNYA perhitungan cakupan di sisi
                     klien, dan ia BUKAN sumber kebenaran: penolakan tetap datang
                     dari server saat Simpan. Rumusnya SAMA PERSIS dengan
-                    ShiftService (offset = (menit - 420 + 1440) % 1440, durasi =
-                    (selesai - mulai + 1440) % 1440 dengan 0 dibaca 1440, tindihan
-                    = irisan > 0 menit), dan blok shift yang sudah ada datang dari
-                    ShiftService::shiftBlocksByLine() — tidak dihitung ulang di
-                    JavaScript. Nol permintaan jaringan terkirim selama mengetik:
-                    field-nya wire:model biasa (deferred), jadi tidak ada round-trip
-                    sampai Simpan ditekan.
+                    ShiftService (offset = menit-ke-dalam-hari, durasi = (selesai -
+                    mulai + 1440) % 1440 dengan 0 dibaca 1440, segmentasi di titik
+                    1440, tindihan = irisan > 0 menit), dan blok shift yang sudah
+                    ada datang dari ShiftService::shiftBlocksByLine() — tidak
+                    dihitung ulang di JavaScript. Nol permintaan jaringan terkirim
+                    selama mengetik: field-nya wire:model biasa (deferred), jadi
+                    tidak ada round-trip sampai Simpan ditekan.
+
+                    BLOK KANDIDAT DAN PENANDA TINDIHANNYA DIGAMBAR DARI SEGMEN YANG
+                    SAMA (v3). Sampai v2 kandidat digambar sebagai satu rentang utuh
+                    sementara penandanya digambar dari irisan yang sudah
+                    tersegmentasi — satu gambar memuat dua dasar berbeda, dan itulah
+                    yang terbaca sebagai berantakan oleh pemilik produk.
                 --}}
                 x-data="{
                     lines: @js($previewBlocks),
@@ -473,7 +501,7 @@
                         return ((parseInt(parts[0], 10) % 24) * 60) + parseInt(parts[1], 10);
                     },
                     offsetOf(value) {
-                        return (this.minuteOfDay(value) - 420 + 1440) % 1440;
+                        return this.minuteOfDay(value);
                     },
                     durationOf(start, end) {
                         const diff = (this.minuteOfDay(end) - this.minuteOfDay(start) + 1440) % 1440;
@@ -483,7 +511,7 @@
                         return (minutes / 14.4).toFixed(4);
                     },
                     timeFromOffset(offset) {
-                        const minute = (420 + offset) % 1440;
+                        const minute = offset % 1440;
                         return String(Math.floor(minute / 60)).padStart(2, '0') + ':' + String(minute % 60).padStart(2, '0');
                     },
                     segmentsFor(start, duration) {
@@ -496,7 +524,11 @@
                     get candidate() {
                         if (! this.lineId) { return null; }
                         if (! this.isValidTime(this.startTime) || ! this.isValidTime(this.endTime)) { return null; }
-                        if (this.minuteOfDay(this.startTime) === this.minuteOfDay(this.endTime)) { return null; }
+                        /* JAM BERIMPIT TETAP DIGAMBAR: sejak 2026-10-16 ia BERARTI
+                           shift 24 jam dan diterima bila line belum punya shift lain,
+                           jadi menahan pratinjaunya akan menyembunyikan justru bentuk
+                           yang paling perlu dilihat sebelum Simpan. durationOf()
+                           membaca modulo 0 sebagai 1440, sehingga batangnya penuh. */
                         const start = this.offsetOf(this.startTime);
                         const duration = this.durationOf(this.startTime, this.endTime);
                         const crosses = this.minuteOfDay(this.endTime) < this.minuteOfDay(this.startTime);
@@ -505,6 +537,23 @@
                             duration: duration,
                             label: this.startTime.slice(0, 5) + ' \u2014 ' + this.endTime.slice(0, 5) + (crosses ? ' +1' : '')
                         };
+                    },
+                    /* Segmen blok kandidat — DASAR YANG SAMA dengan conflicts di
+                       bawah, dan itu seluruh inti perbaikan v3. `is_label_segment`
+                       menunjuk segmen terpanjang, meniru ShiftService::shiftBlocks()
+                       termasuk cara memecah seri (yang pertama menang). */
+                    get candidateSegments() {
+                        const candidate = this.candidate;
+                        if (! candidate) { return []; }
+                        const segments = this.segmentsFor(candidate.start, candidate.duration);
+                        const longest = Math.max(...segments.map((segment) => segment[1] - segment[0]));
+                        let labelled = false;
+                        return segments.map((segment) => {
+                            const duration = segment[1] - segment[0];
+                            const isLabel = ! labelled && duration === longest;
+                            if (isLabel) { labelled = true; }
+                            return { start: segment[0], duration: duration, is_label_segment: isLabel };
+                        });
                     },
                     get conflicts() {
                         const candidate = this.candidate;
@@ -633,41 +682,57 @@
                     <p class="ks-note">
                         <strong>Pratinjau</strong> — batang di bawah bergerak saat jam diketik, sehingga tumpang
                         tindih dan celah terlihat sebelum Simpan ditekan. Penolakan tetap datang dari server.
+                        <strong>Jalur atas</strong> adalah shift yang sudah ada pada line itu;
+                        <strong>jalur bawah</strong> adalah shift yang sedang diketik, dan pita merah bergaris
+                        di tepi bawahnya menandai rentang yang bertindih.
                     </p>
 
                     <div class="ks-scroll">
                         <div class="ks-timeline-inner">
                             <div class="ks-axis">
-                                <span class="ks-axis-tick ks-axis-tick--start" style="left:0">07:00</span>
-                                <span class="ks-axis-tick ks-axis-tick--secondary" style="left:16.6667%">11:00</span>
-                                <span class="ks-axis-tick" style="left:33.3333%">15:00</span>
-                                <span class="ks-axis-tick" style="left:50%">19:00</span>
-                                <span class="ks-axis-tick" style="left:66.6667%">23:00</span>
-                                <span class="ks-axis-tick ks-axis-tick--secondary" style="left:83.3333%">03:00 +1</span>
-                                <span class="ks-axis-tick ks-axis-tick--end" style="left:95.8333%">06:00 +1</span>
+                                <span class="ks-axis-tick ks-axis-tick--start" style="left:0" data-testid="axis-tick-start">00:00</span>
+                                <span class="ks-axis-tick ks-axis-tick--secondary" style="left:16.6667%">04:00</span>
+                                <span class="ks-axis-tick" style="left:33.3333%">08:00</span>
+                                <span class="ks-axis-tick" style="left:50%">12:00</span>
+                                <span class="ks-axis-tick" style="left:66.6667%">16:00</span>
+                                <span class="ks-axis-tick ks-axis-tick--secondary" style="left:83.3333%">20:00</span>
+                                <span class="ks-axis-tick ks-axis-tick--end" style="left:100%" data-testid="axis-tick-end">24:00</span>
                             </div>
 
                             <div class="ks-track" data-testid="preview-track">
-                                <template x-for="block in existingBlocks" x-bind:key="block.shift_id">
+                                <template x-for="block in existingBlocks" x-bind:key="block.shift_id + '-' + block.segment_index">
                                     <div
                                         class="ks-block ks-block-shift"
                                         x-bind:style="'left:' + pct(block.start_offset_minutes) + '%;width:' + pct(block.duration_minutes) + '%'"
+                                        x-bind:title="block.label + ' · ' + block.time_label"
                                     >
-                                        <span class="ks-block-name" x-text="block.label"></span>
+                                        <span
+                                            class="ks-block-name"
+                                            x-bind:class="block.is_label_segment ? '' : 'ks-block-name--continued'"
+                                            x-text="block.label"
+                                        ></span>
                                         <span class="ks-block-time" x-text="block.time_label"></span>
                                     </div>
                                 </template>
 
                                 {{-- Jam yang baru terisi separuh: pratinjau MENAHAN DIRI
                                      alih-alih menggambar blok yang salah, dan tidak
-                                     menampilkan galat sampai Admin selesai mengetik. --}}
-                                <template x-if="candidate">
+                                     menampilkan galat sampai Admin selesai mengetik.
+                                     Begitu jamnya lengkap, kandidat digambar dari
+                                     segmen — data-testid sengaja SAMA pada kedua
+                                     potongan supaya asersi dapat menghitungnya. --}}
+                                <template x-for="(segment, index) in candidateSegments" x-bind:key="index">
                                     <div
                                         class="ks-block ks-block-candidate"
-                                        x-bind:style="'left:' + pct(candidate.start) + '%;width:' + pct(candidate.duration) + '%'"
+                                        x-bind:style="'left:' + pct(segment.start) + '%;width:' + pct(segment.duration) + '%'"
                                         data-testid="preview-candidate"
+                                        x-bind:data-segment-index="index"
+                                        x-bind:title="'Shift ini · ' + candidate.label"
                                     >
-                                        <span class="ks-block-name">Shift ini</span>
+                                        <span
+                                            class="ks-block-name"
+                                            x-bind:class="segment.is_label_segment ? '' : 'ks-block-name--continued'"
+                                        >Shift ini</span>
                                         <span class="ks-block-time" x-text="candidate.label"></span>
                                     </div>
                                 </template>
@@ -769,10 +834,12 @@
         /* Kartu menggulir track-nya sendiri secara mendatar; HALAMAN tidak
            pernah menggulir mendatar. */
         .ks-scroll { overflow-x: auto; }
-        /* Lebar minimum track: cukup lebar agar (a) label '03:00 +1' dan
-           '06:00 +1' tidak pernah bersentuhan dan (b) blok celah 4 jam masih
-           memuat keterangannya. Di bawah ini kartunya menggulir — halamannya
-           tidak pernah. */
+        /* Lebar minimum track: cukup lebar agar (a) label sumbu tiap 4 jam
+           tidak pernah bersentuhan, (b) blok celah 4 jam masih memuat
+           keterangannya, dan (c) potongan lanjutan shift lintas tengah malam
+           yang sempit (mis. 23:00–24:00, satu jam = 4,17%) masih tergambar
+           sebagai bidang yang terlihat, bukan garis. Di bawah ini kartunya
+           menggulir — halamannya tidak pernah. */
         .ks-timeline-inner { min-width: 800px; }
 
         .ks-axis {
@@ -852,6 +919,12 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+        /* Potongan KEDUA sebuah shift yang melewati tengah malam — dibedakan
+           HANYA dengan bobot huruf, bukan dengan opacity dan bukan dengan ukuran
+           yang lebih kecil: keduanya akan menurunkan keterbacaan di bawah ambang
+           14px yang berlaku di layar ini. Ukuran dan warnanya tetap sama dengan
+           .ks-block-name. */
+        .ks-block-name--continued { font-weight: var(--font-weight-body); }
 
         .ks-block-shift {
             background: var(--color-brand);
@@ -955,14 +1028,48 @@
         }
         /* Blok kandidat: shift yang sedang diketik, dibedakan dari shift yang
            sudah tersimpan dengan garis putus-putus — bukan hanya warna. */
+        /* ── DUA JALUR DI PRATINJAU ────────────────────────────────────
+           Shift yang SUDAH ADA di jalur atas, shift yang SEDANG DIKETIK di
+           jalur bawah. Sebelum v3 keduanya digambar di jalur yang sama, jadi
+           ketika kandidat menempati rentang yang sudah terisi — yang justru
+           PALING SERING, karena itulah saat Admin perlu melihat pratinjaunya —
+           nama dan jam kandidat tertumpuk persis di atas nama dan jam shift
+           yang ditimpanya. Dua teks pada satu titik itulah yang terbaca
+           sebagai berantakan, dan tidak ada warna atau transparansi yang
+           dapat memperbaikinya; yang memperbaikinya adalah memberi masing
+           -masing jalurnya sendiri. */
+        .ks-preview .ks-track {
+            /* Dua jalur, dan masing-masing tetap memuat dua baris teks 14px
+               UTUH — termasuk di jalur bawah, yang isinya digeser naik oleh
+               pita tindihan. Teks yang terpotong setengah huruf sama saja
+               dengan teks yang tidak ada. */
+            height: calc(2 * (var(--space-2xl) + var(--space-xl)));
+        }
+        .ks-preview .ks-track .ks-block-shift { bottom: 50%; }
+        /* Isi kandidat diberi ruang di bawahnya supaya nama dan jamnya tidak
+           tertimpa pita tindihan yang menempel di tepi bawah jalur ini. */
+        .ks-preview .ks-block-candidate {
+            top: 50%;
+            padding-bottom: calc(var(--space-lg) + var(--space-xs));
+        }
+
         .ks-block-candidate {
             background: color-mix(in srgb, var(--color-brand) 25%, transparent);
             border: 2px dashed var(--color-brand);
             color: var(--color-foreground);
         }
         /* Jendela tindihan: digambar DI ATAS kedua blok, sehingga rentang yang
-           bertabrakan terlihat sebagai bentuk dan bukan hanya sebagai pesan. */
+           bertabrakan terlihat sebagai bentuk dan bukan hanya sebagai pesan.
+
+           PITA DI TEPI BAWAH, BUKAN BLOK SETINGGI PENUH (v3). Ketika kandidat
+           bertindih SELURUHNYA — yang justru paling lazim pada shift lintas
+           tengah malam — pita setinggi penuh mengubur nama dan jam kandidatnya
+           sendiri, dan batang yang labelnya terkubur itulah yang terbaca
+           sebagai berantakan. Rentangnya tetap tergambar sebagai bentuk; yang
+           berubah hanya tingginya, sehingga teks di atasnya tetap terbaca. */
         .ks-block-conflict {
+            top: auto;
+            height: calc(var(--space-md) + var(--space-xs));
             background-color: color-mix(in srgb, var(--color-destructive) 30%, transparent);
             background-image: repeating-linear-gradient(
                 45deg,

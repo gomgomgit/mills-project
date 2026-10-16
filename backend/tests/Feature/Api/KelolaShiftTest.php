@@ -123,6 +123,34 @@ function apiCoverageFor(array $body, ProductionLine $line): array
     return $entry;
 }
 
+/**
+ * SELURUH nama kunci di dalam sebuah payload, serekursif isinya.
+ *
+ * Dipakai untuk mengasersi KETIADAAN sebuah kunci. Memindai teks
+ * `json_encode` untuk hal yang sama gagal terhadap kode yang justru benar,
+ * karena payload ini memuat prosa — label celah dan `time_label` — yang dapat
+ * memuat kata apa pun. Asersikan atas NAMA KUNCI, bukan atas teks payload.
+ *
+ * @param  array<mixed>  $payload
+ * @return list<string>
+ */
+function apiKeyNamesOf(array $payload): array
+{
+    $found = [];
+
+    foreach ($payload as $key => $value) {
+        if (is_string($key)) {
+            $found[] = $key;
+        }
+
+        if (is_array($value)) {
+            $found = array_merge($found, apiKeyNamesOf($value));
+        }
+    }
+
+    return $found;
+}
+
 // ── Scenario 1 ──────────────────────────────────────────────────────────
 
 // Scenario 1: "berhasil menambahkan shift" — four steps, in order.
@@ -169,7 +197,7 @@ it('berhasil: options mill, options line, POST shift, lalu menemukannya pada daf
         ]],
         'coverage' => [[
             'production_line_id', 'production_line_name', 'shift_count', 'state',
-            'uncovered_minutes', 'starts_at_production_day', 'blocks',
+            'uncovered_minutes', 'blocks',
         ]],
         'meta' => ['page', 'per_page', 'total'],
     ]);
@@ -177,7 +205,8 @@ it('berhasil: options mill, options line, POST shift, lalu menemukannya pada daf
     $list->assertJsonPath('data.0.name', 'Pagi');
     $list->assertJsonPath('data.0.production_line_name', 'Line 1');
     $list->assertJsonPath('data.0.position', 0);
-    $list->assertJsonPath('data.0.start_offset_minutes', 0);
+    // Pagi 07:00 pada sumbu 00:00 → menit 420.
+    $list->assertJsonPath('data.0.start_offset_minutes', 420);
 
     // Satu entri cakupan per line mill itu — ketiganya, bukan hanya yang
     // punya shift.
@@ -297,11 +326,16 @@ it('menerima production_line_id yang absen sebagai seluruh line mill itu', funct
 
 // ── Scenario 6 ──────────────────────────────────────────────────────────
 
-// Scenario 6: "cakupan penuh tetapi tidak selaras hari produksi".
+// Scenario 6 (REVISI v3 2026-10-16): "cakupan penuh berapa pun jam mulainya".
+// Kunci `starts_at_production_day` DICABUT — keselarasan dengan awal hari
+// produksi tidak memengaruhi apa pun secara fungsional. Ketiadaannya diasersi
+// atas NAMA KUNCI, bukan atas teks payload: payload ini memuat prosa (label
+// celah, time_label), jadi pemindaian teks akan memerah terhadap kode yang
+// justru benar begitu ada label yang menyebut "hari produksi".
 // `production_line_id: "pl-001"` diganti UUID nyata — literalnya 422 by
 // design (edge_case 5), jadi mengirimnya dan menuntut 200 justru akan
 // mengasersi kebalikan kontraknya.
-it('melaporkan covered dengan starts_at_production_day false ketika union dimulai 06:00', function () {
+it('melaporkan covered tanpa kunci starts_at_production_day ketika union dimulai 06:00', function () {
     Shift::factory()->forProductionLine($this->lineA1)->named('A')->range('06:00:00', '14:00:00')->create();
     Shift::factory()->forProductionLine($this->lineA1)->named('B')->range('14:00:00', '22:00:00')->create();
     Shift::factory()->forProductionLine($this->lineA1)->named('C')->range('22:00:00', '06:00:00')->create();
@@ -315,9 +349,16 @@ it('melaporkan covered dengan starts_at_production_day false ketika union dimula
 
     expect($entry['state'])->toBe('covered');
     expect($entry['uncovered_minutes'])->toBe(0);
-    // PERINGATAN, BUKAN PENOLAKAN — ketiga shift tersimpan apa adanya.
-    expect($entry['starts_at_production_day'])->toBeFalse();
     expect(Shift::count())->toBe(3);
+
+    // Diasersi atas NAMA KUNCI, dan penelusurnya dibuktikan menelusuri lebih
+    // dulu — kalau tidak, asersi ketiadaan di bawahnya lolos tanpa
+    // membuktikan apa pun.
+    $keys = apiKeyNamesOf($body);
+
+    expect($keys)->toContain('blocks');
+    expect($keys)->toContain('uncovered_minutes');
+    expect($keys)->not->toContain('starts_at_production_day');
 
     // Filter satu line berarti satu entri cakupan.
     expect($body['coverage'])->toHaveCount(1);
@@ -326,7 +367,7 @@ it('melaporkan covered dengan starts_at_production_day false ketika union dimula
 // ── Scenario 7 ──────────────────────────────────────────────────────────
 
 // Scenario 7: "shift melewati tengah malam"
-it('menerima shift 23:00–07:00 dan menerbitkannya sebagai SATU blok di ujung kanan sumbu', function () {
+it('menerima shift 23:00–07:00 dan menerbitkannya sebagai DUA segmen di kedua tepi sumbu', function () {
     $create = $this->actingAs($this->admin, 'web')->postJson('/api/shifts', shiftApiPayload($this->lineA1, [
         'name' => 'Malam',
         'start_time' => '23:00',
@@ -346,19 +387,33 @@ it('menerima shift 23:00–07:00 dan menerbitkannya sebagai SATU blok di ujung k
     $entry = apiCoverageFor($body, $this->lineA1);
     $shiftBlocks = collect($entry['blocks'])->where('kind', 'shift')->values();
 
-    // TEPAT SATU blok, bukan dua potongan di kedua ujung sumbu.
-    expect($shiftBlocks)->toHaveCount(1);
-    expect($shiftBlocks[0]['shift_id'])->toBe($shiftId);
-    expect($shiftBlocks[0]['start_offset_minutes'])->toBe(960);
-    expect($shiftBlocks[0]['duration_minutes'])->toBe(480);
-    expect($shiftBlocks[0]['crosses_midnight'])->toBeTrue();
-    // Dan ia berhenti TEPAT di ujung kanan sumbu.
-    expect($shiftBlocks[0]['start_offset_minutes'] + $shiftBlocks[0]['duration_minutes'])
+    // TEPAT DUA potongan, keduanya milik shift yang sama, satu menempel tepi
+    // kiri dan satu menempel tepi kanan sumbu.
+    expect($shiftBlocks)->toHaveCount(2);
+    expect($shiftBlocks->pluck('shift_id')->all())->toBe([$shiftId, $shiftId]);
+    expect($shiftBlocks->pluck('start_offset_minutes')->all())->toBe([0, 1380]);
+    expect($shiftBlocks->pluck('duration_minutes')->all())->toBe([420, 60]);
+    expect($shiftBlocks->pluck('segment_index')->all())->toBe([1, 0]);
+    expect($shiftBlocks->pluck('crosses_midnight')->all())->toBe([true, true]);
+    expect($shiftBlocks->sum('duration_minutes'))->toBe(480);
+    // Potongan pertama berawal TEPAT di tepi kiri; yang kedua berhenti TEPAT
+    // di tepi kanan. Tidak ada menit shift yang berada di luar sumbu.
+    expect($shiftBlocks[1]['start_offset_minutes'] + $shiftBlocks[1]['duration_minutes'])
         ->toBe(ShiftService::DAY_MINUTES);
 
-    // Label '23:00 — 07:00 +1' pada baris tabel MAUPUN blok, supaya jam
-    // selesai yang lebih kecil tidak terbaca sebagai salah input.
-    expect($shiftBlocks[0]['time_label'])->toBe('23:00 — 07:00 +1');
+    // INVARIAN v3 atas SETIAP blok: tak satu pun melewati tepi sumbu. Inilah
+    // asersi yang memerah terhadap implementasi satu-blok sebelum v3, yang
+    // menerbitkan 1380 + 480 = 1860 lalu dipotong diam-diam oleh overflow
+    // hidden pada track-nya.
+    foreach ($entry['blocks'] as $block) {
+        expect($block['start_offset_minutes'] + $block['duration_minutes'])
+            ->toBeLessThanOrEqual(ShiftService::DAY_MINUTES);
+    }
+
+    // Label '23:00 — 07:00 +1' pada baris tabel MAUPUN kedua potongan, supaya
+    // jam selesai yang lebih kecil tidak terbaca sebagai salah input dan
+    // kedua potongan terbaca sebagai satu shift.
+    expect($shiftBlocks->pluck('time_label')->unique()->all())->toBe(['23:00 — 07:00 +1']);
     expect($body['data'][0]['time_label'])->toBe('23:00 — 07:00 +1');
     expect($body['data'][0]['crosses_midnight'])->toBeTrue();
 });
@@ -433,13 +488,16 @@ it('menerima shift yang mulai tepat saat shift sebelumnya berakhir', function ()
         ->getJson("/api/shifts?business_unit_id={$this->millA->id}&production_line_id={$this->lineA1->id}")
         ->json();
 
-    // Dua blok BERSEBELAHAN tanpa blok gap di antaranya — celahnya hanya yang
-    // di belakang keduanya (23:00 → 07:00).
+    // Dua blok shift BERSEBELAHAN tanpa blok gap di antaranya. Celahnya hanya
+    // yang di belakang keduanya (23:00 → 07:00), dan pada sumbu 00:00 celah
+    // itu melintasi titik nol sehingga ia pun keluar sebagai dua potongan.
     $entry = apiCoverageFor($body, $this->lineA1);
-    expect(array_column($entry['blocks'], 'kind'))->toBe(['shift', 'shift', 'gap']);
-    expect($entry['blocks'][0]['duration_minutes'])->toBe(480);
-    expect($entry['blocks'][1]['start_offset_minutes'])->toBe(480);
-    expect($entry['blocks'][2]['start_offset_minutes'])->toBe(960);
+    expect(array_column($entry['blocks'], 'kind'))->toBe(['gap', 'shift', 'shift', 'gap']);
+    expect(array_column($entry['blocks'], 'start_offset_minutes'))->toBe([0, 420, 900, 1380]);
+    expect(array_column($entry['blocks'], 'duration_minutes'))->toBe([420, 480, 480, 60]);
+    // Yang penting: NOL celah di antara Pagi dan Siang.
+    expect(collect($entry['blocks'])->where('kind', 'gap')->where('start_offset_minutes', 900))
+        ->toHaveCount(0);
 });
 
 // ── Scenario 13 ─────────────────────────────────────────────────────────
@@ -595,7 +653,7 @@ it('menolak 422 VALIDATION_ERROR jam berimpit pada line yang sudah punya shift, 
  * sejak v2 jalur tulis MENGHASILKANNYA, jadi ia dibuat lewat POST di sini.
  * Menanamnya lewat factory akan melewati satu-satunya hal yang berubah.
  */
-it('menerima POST 07:00–07:00 pada line kosong dan membacanya sebagai satu blok 1440 menit', function () {
+it('menerima POST 07:00–07:00 pada line kosong dan membacanya sebagai batang penuh 1440 menit', function () {
     $created = $this->actingAs($this->admin, 'web')->postJson('/api/shifts', shiftApiPayload($this->lineA3, [
         'name' => 'Penuh',
         'start_time' => '07:00',
@@ -614,10 +672,14 @@ it('menerima POST 07:00–07:00 pada line kosong dan membacanya sebagai satu blo
 
     expect($entry['state'])->toBe('covered');
     expect($entry['uncovered_minutes'])->toBe(0);
-    expect($entry['blocks'])->toHaveCount(1);
-    expect($entry['blocks'][0]['kind'])->toBe('shift');
-    expect($entry['blocks'][0]['duration_minutes'])->toBe(1440);
     expect(collect($entry['blocks'])->where('kind', 'gap'))->toHaveCount(0);
+    // 07:00–07:00 MELINTASI titik nol sumbu, jadi dua potongan bertaut yang
+    // bersama-sama menutup setiap menit batang — tanpa kasus khusus di kode.
+    expect($entry['blocks'])->toHaveCount(2);
+    expect(array_column($entry['blocks'], 'kind'))->toBe(['shift', 'shift']);
+    expect(array_column($entry['blocks'], 'start_offset_minutes'))->toBe([0, 420]);
+    expect(array_column($entry['blocks'], 'duration_minutes'))->toBe([420, 1020]);
+    expect(array_sum(array_column($entry['blocks'], 'duration_minutes')))->toBe(1440);
 
     // Dan sesudahnya TIDAK ADA shift kedua yang dapat ditambahkan pada line
     // itu — kali ini penolakannya MEMANG SHIFT_OVERLAP, karena jamnya sungguh
@@ -741,8 +803,8 @@ it('menghapus satu shift lalu cakupan line itu berubah dari covered menjadi gap'
 
     $gaps = collect($entry['blocks'])->where('kind', 'gap')->values();
     expect($gaps)->toHaveCount(1);
-    // Tepat di posisi yang ditinggalkan Siang (15:00 → offset 480).
-    expect($gaps[0]['start_offset_minutes'])->toBe(480);
+    // Tepat di posisi yang ditinggalkan Siang (15:00 → offset 900).
+    expect($gaps[0]['start_offset_minutes'])->toBe(900);
     expect($gaps[0]['duration_minutes'])->toBe(480);
 });
 
@@ -852,10 +914,23 @@ it('menurunkan urutan data dan urutan blok dari satu nilai position yang sama', 
     expect(array_column($body['data'], 'name'))->toBe(['Pagi', 'Siang', 'Malam']);
     expect(array_column($body['data'], 'position'))->toBe([0, 1, 2]);
 
+    // DIBANDINGKAN PADA BLOK TEMPAT SHIFT DIMULAI (segment_index 0). Sejak
+    // sumbu dimulai 00:00, Malam punya potongan kedua di tepi kiri batang,
+    // jadi urutan SELURUH blok tidak lagi sama dengan urutan baris tabel —
+    // dan tidak bisa sama pada sumbu linier mana pun. Yang dimaksud
+    // aturannya, dan yang masih berlaku, adalah urutan jam mulainya.
     $entry = apiCoverageFor($body, $this->lineA1);
-    $blockIds = collect($entry['blocks'])->where('kind', 'shift')->pluck('shift_id')->all();
+    $startBlockIds = collect($entry['blocks'])
+        ->where('kind', 'shift')
+        ->where('segment_index', 0)
+        ->pluck('shift_id')
+        ->all();
 
-    expect($blockIds)->toBe(array_column($body['data'], 'id'));
+    expect($startBlockIds)->toBe(array_column($body['data'], 'id'));
+
+    // Potongan tambahan itu memang ada — asersi di atas tidak lolos karena
+    // potongannya hilang.
+    expect(collect($entry['blocks'])->where('kind', 'shift'))->toHaveCount(4);
 });
 
 // ── Scenario 28 ─────────────────────────────────────────────────────────

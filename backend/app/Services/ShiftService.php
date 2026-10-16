@@ -27,26 +27,44 @@ use Illuminate\Validation\ValidationException;
  * KelolaShift) — sama seperti PeriodService/ProductionLineService — sehingga
  * halaman web dan API tidak mungkin berbeda hasil hitungan cakupannya.
  *
- * ── SUMBU MENIT 0..1440 RELATIF 07:00, BUKAN STRING JAM ──────────────────
+ * ── SUMBU MENIT 0..1440 (MENIT-KE-DALAM-HARI), BUKAN STRING JAM ──────────
  *
- * SELURUH perbandingan rentang di kelas ini dilakukan pada menit, dan 07:00
- * adalah titik nol. Dua alasan, keduanya mengikat:
+ * SELURUH perbandingan rentang di kelas ini dilakukan pada menit, dengan
+ * 00:00 sebagai titik nol. Dua hal yang terpisah, dan memisahkannya penting:
  *
  *  1. STRING JAM MENIPU. '23:00' > '07:00' sebagai perbandingan string
  *     menyimpulkan rentang shift malam KOSONG, sehingga shift malam tidak
  *     pernah terdeteksi bertindih — dan hasil salahnya terlihat masuk akal.
  *     Ini kelas kesalahan yang sama dengan cacat pengurutan slot di laporan
  *     Engine Room. Unit test "perbandingan string jam TIDAK dipakai — kasus
- *     jebakan" ada justru untuk memerahkan implementasi seperti itu.
- *  2. HARI PRODUKSI DIMULAI 07:00. Kisi slot waktu kanonis seluruh stasiun
- *     bergrid berjalan (7+i)%24, jadi `start_offset_minutes` 0 berarti 07:00
- *     dan 1440 berarti 07:00 keesokan hari. Mengukur offset dari tengah
- *     malam akan membelah shift malam menjadi dua blok di KEDUA UJUNG
- *     batang timeline — persis yang dihindari dengan memulai batangnya 07:00.
+ *     jebakan" ada justru untuk memerahkan implementasi seperti itu. Alasan
+ *     ini MENGIKAT, dan ia tidak bergantung pada titik nol mana pun.
+ *  2. TITIK NOL ADALAH SOAL MENGGAMBAR, BUKAN SOAL ATURAN. Cakupan 24 jam,
+ *     deteksi tumpang tindih, dan penandaan shift pada record tidak satu pun
+ *     bergantung padanya: cakupan dan tindihan invarian terhadap pergeseran
+ *     sumbu, dan penandaan record memakai jam PERANGKAT saat operator
+ *     menyimpan — bukan sumbu layar ini. Jadi titik nol mengikuti cara Admin
+ *     membaca jam: 00:00. (v3, keputusan pemilik produk 2026-10-16. v1–v2
+ *     memakai 07:00 dengan alasan "supaya shift malam tidak terbelah dua";
+ *     alasan itu keliru sebagai pembenaran, karena titik nol MANA PUN
+ *     membelah shift yang melintasinya — yang dapat dipilih hanyalah shift
+ *     mana yang terbelah. Yang perlu diperbaiki adalah cara MENGGAMBARnya.)
  *
- * Shift yang melewati batas hari produksi dipecah menjadi dua segmen HANYA
- * di dalam perhitungan tumpang tindih dan cakupan ({@see segmentsFor()});
- * payload dan tampilan SELALU satu blok utuh dengan durasi penuh.
+ * ── SHIFT LINTAS-BATAS: SATU FUNGSI SEGMENTASI, DUA PEMAKAI ──────────────
+ *
+ * {@see segmentsFor()} memecah shift yang melintasi titik nol menjadi dua
+ * segmen, dan ia dipakai di DUA tempat: perhitungan tumpang tindih/cakupan
+ * DAN penerbitan blok untuk digambar ({@see shiftBlocks()}). Sampai v2 ia
+ * hanya dipakai yang pertama sementara blok diterbitkan utuh — sehingga blok
+ * dengan start_offset + duration > 1440 digambar melewati tepi kanan track
+ * yang ber-`overflow: hidden` dan DIPOTONG DIAM-DIAM, sementara potongan di
+ * tepi kiri tidak pernah tergambar sama sekali. Itu cacat yang dilaporkan
+ * pemilik produk 2026-10-16, dan inilah invarian yang menutup kelasnya:
+ *
+ *     NOL blok boleh punya start_offset_minutes + duration_minutes > 1440.
+ *
+ * Ia diasersi atas SETIAP blok di SETIAP line, bukan atas kasus yang
+ * kebetulan ditulis — satu asersi menyeluruh menutup seluruh kelasnya.
  *
  * ── TUMPANG TINDIH DITOLAK, CELAH DIIZINKAN TAPI DITANDAI ────────────────
  *
@@ -60,7 +78,7 @@ use Illuminate\Validation\ValidationException;
  *
  * ── CAKUPAN DIHITUNG DI SINI, SEKALI ────────────────────────────────────
  *
- * `coverage[]` berisi posisi dan durasi tiap blok dalam MENIT DARI 07:00,
+ * `coverage[]` berisi posisi dan durasi tiap blok dalam MENIT DARI 00:00,
  * sehingga blade cukup memetakan menit ke persen (left =
  * start_offset_minutes/1440, width = duration_minutes/1440) dan tidak
  * menghitung jam sama sekali. Alasannya bukan kerapian: perhitungan yang
@@ -118,10 +136,7 @@ use Illuminate\Validation\ValidationException;
  */
 class ShiftService
 {
-    /** 07:00 — awal hari produksi, titik nol seluruh offset di kelas ini. */
-    public const PRODUCTION_DAY_START_MINUTE = 420;
-
-    /** Panjang satu hari produksi dalam menit (07:00 → 07:00 keesokan hari). */
+    /** Panjang satu hari dalam menit — panjang sumbu timeline 00:00 → 24:00. */
     public const DAY_MINUTES = 1440;
 
     /**
@@ -157,13 +172,18 @@ class ShiftService
     }
 
     /**
-     * Offset dari AWAL HARI PRODUKSI (07:00), 0..1439. 07:00 → 0, 15:00 →
-     * 480, 23:00 → 960, 06:00 → 1380.
+     * Offset sebuah jam pada SUMBU TIMELINE, 0..1439 — dan sejak v3 sumbu itu
+     * dimulai 00:00, sehingga nilainya sama dengan menit-ke-dalam-hari.
+     *
+     * Fungsi ini tetap ada meski kini hanya meneruskan ke minuteOfDay(): ia
+     * menamai PERAN nilainya (posisi pada sumbu gambar — sesuatu yang sudah
+     * sekali berubah dan dapat berubah lagi) dan memisahkan peran itu dari
+     * pembacaan format jam, yang tidak akan berubah. Pemakai yang butuh
+     * posisi gambar memanggil yang ini, bukan minuteOfDay() langsung.
      */
-    public static function offsetFromProductionDayStart(string $time): int
+    public static function offsetOnAxis(string $time): int
     {
-        return (self::minuteOfDay($time) - self::PRODUCTION_DAY_START_MINUTE + self::DAY_MINUTES)
-            % self::DAY_MINUTES;
+        return self::minuteOfDay($time);
     }
 
     /**
@@ -176,9 +196,12 @@ class ShiftService
      * mengungkapkan shift yang menutup 1440 menit, dan jalur tulis kini
      * menerimanya bila line itu belum punya shift HIDUP lain (lihat
      * validate()). Modulo 0 yang dibaca 1440 itulah yang membuat shift 24
-     * jam menghasilkan satu blok berdurasi penuh di segmentsFor(),
-     * coverageEntry(), shiftBlock(), dan pratinjau klien sekaligus — tanpa
-     * satu pun dari keempatnya perlu mengenal kasus khususnya.
+     * jam menutup SELURUH sumbu di segmentsFor(), coverageEntry(),
+     * shiftBlocks(), dan pratinjau klien sekaligus — tanpa satu pun dari
+     * keempatnya perlu mengenal kasus khususnya. Pada sumbu 00:00 ia keluar
+     * sebagai satu blok bila mulai 00:00 dan dua segmen bertaut bila tidak;
+     * keduanya menutup setiap menit sumbu, dan tak satu pun butuh cabang
+     * khusus — justru itu sebabnya kasus khusus tidak ditulis.
      */
     public static function durationMinutes(string $startTime, string $endTime): int
     {
@@ -188,10 +211,10 @@ class ShiftService
         return $diff === 0 ? self::DAY_MINUTES : $diff;
     }
 
-    /** Jam 'HH:MM' dari sebuah offset hari produksi (0 → '07:00'). */
+    /** Jam 'HH:MM' dari sebuah offset pada sumbu (0 → '00:00', 1440 → '00:00'). */
     public static function timeFromOffset(int $offset): string
     {
-        $minuteOfDay = (self::PRODUCTION_DAY_START_MINUTE + $offset) % self::DAY_MINUTES;
+        $minuteOfDay = $offset % self::DAY_MINUTES;
 
         return sprintf('%02d:%02d', intdiv($minuteOfDay, 60), $minuteOfDay % 60);
     }
@@ -205,13 +228,15 @@ class ShiftService
     }
 
     /**
-     * Segmen-segmen sebuah shift pada sumbu 0..1440 relatif 07:00 — SATU
-     * segmen bila ia tidak melewati batas hari produksi, DUA bila ia
-     * melewatinya (mis. 05:00–09:00 → [1320,1440] dan [0,120]).
+     * Segmen-segmen sebuah shift pada sumbu 0..1440 — SATU segmen bila ia
+     * tidak melintasi titik nol sumbu, DUA bila ia melintasinya (mis.
+     * 23:00–07:00 → [1380,1440] dan [0,420]).
      *
-     * PEMECAHAN INI HANYA HIDUP DI DALAM PERHITUNGAN. Payload dan tampilan
-     * selalu satu blok utuh: memecahnya di payload akan membuat blade
-     * menggambar dua potongan di kedua ujung batang.
+     * DIPAKAI DI DUA TEMPAT, dan itulah yang penting: perhitungan tumpang
+     * tindih/cakupan DAN penerbitan blok untuk digambar ({@see
+     * shiftBlocks()}). Pratinjau klien di blade memakai salinan rumus yang
+     * sama persis — bila yang ini berubah, yang di sana wajib berubah
+     * bersamanya, dan sebuah unit test memaku parity-nya.
      *
      * @return list<array{0: int, 1: int}>
      */
@@ -453,7 +478,9 @@ class ShiftService
         );
 
         foreach ($shifts as $shift) {
-            $blocks[(string) $shift->production_line_id][] = $this->shiftBlock($shift);
+            foreach ($this->shiftBlocks($shift) as $block) {
+                $blocks[(string) $shift->production_line_id][] = $block;
+            }
         }
 
         return $blocks;
@@ -486,7 +513,6 @@ class ShiftService
                 'state' => 'unconfigured',
                 'uncovered_minutes' => 0,
                 'uncovered_hours_text' => '0',
-                'starts_at_production_day' => true,
                 'blocks' => [],
             ];
         }
@@ -494,12 +520,17 @@ class ShiftService
         $blocks = [];
         $segments = [];
 
+        // BLOK DAN SEGMEN ADALAH HAL YANG SAMA sejak v3 — satu daftar, satu
+        // dasar. Sampai v2 blok diterbitkan utuh sementara segmen dihitung
+        // terpisah untuk komplemen celah, dan dua dasar dalam satu gambar
+        // itulah yang terbaca sebagai berantakan di layar.
         foreach ($lineShifts as $shift) {
-            $block = $this->shiftBlock($shift);
-            $blocks[] = $block;
-
-            foreach (self::segmentsFor($block['start_offset_minutes'], $block['duration_minutes']) as $segment) {
-                $segments[] = $segment;
+            foreach ($this->shiftBlocks($shift) as $block) {
+                $blocks[] = $block;
+                $segments[] = [
+                    $block['start_offset_minutes'],
+                    $block['start_offset_minutes'] + $block['duration_minutes'],
+                ];
             }
         }
 
@@ -517,6 +548,12 @@ class ShiftService
                 'duration_minutes' => $duration,
                 'time_label' => self::timeFromOffset($gap[0]).'–'.self::timeFromOffset($gap[1]),
                 'crosses_midnight' => false,
+                // Celah tidak pernah melintasi tepi sumbu: complementSegments()
+                // bekerja di dalam [0, 1440], jadi celah 22:00–02:00 keluar
+                // sebagai DUA celah dan masing-masing sudah satu segmen.
+                'segment_index' => 0,
+                'segment_count' => 1,
+                'is_label_segment' => true,
             ];
         }
 
@@ -529,13 +566,12 @@ class ShiftService
             'state' => $uncoveredMinutes === 0 ? 'covered' : 'gap',
             'uncovered_minutes' => $uncoveredMinutes,
             'uncovered_hours_text' => $this->hoursText($uncoveredMinutes),
-            // PERINGATAN, BUKAN PENOLAKAN: union shift yang tidak dimulai
-            // 07:00 layak diperingatkan karena hari produksi dimulai jam itu,
-            // tetapi menolaknya akan memaksa pabrik yang jadwalnya memang
-            // tidak selaras mengarang shift yang tidak mereka jalankan.
-            'starts_at_production_day' => $lineShifts->contains(
-                fn (Shift $shift) => self::offsetFromProductionDayStart($shift->start_time) === 0
-            ),
+            // `starts_at_production_day` DICABUT di v3 ("dibuang saja",
+            // pemilik produk 2026-10-16). Keselarasan jadwal shift dengan
+            // awal hari produksi 07:00 tidak memengaruhi apa pun secara
+            // fungsional — kisi 07:00 adalah urusan baris slot stasiun
+            // bergrid, bukan urusan shift — sehingga menandainya hanya
+            // menanam kecemasan tanpa tindakan yang dapat diambil.
             'blocks' => array_values($blocks),
         ];
     }
@@ -694,7 +730,7 @@ class ShiftService
         ?string $excludeId = null
     ): ?array {
         $candidateSegments = self::segmentsFor(
-            self::offsetFromProductionDayStart($startTime),
+            self::offsetOnAxis($startTime),
             self::durationMinutes($startTime, $endTime)
         );
 
@@ -712,7 +748,7 @@ class ShiftService
 
         foreach ($others as $other) {
             $otherSegments = self::segmentsFor(
-                self::offsetFromProductionDayStart($other->start_time),
+                self::offsetOnAxis($other->start_time),
                 self::durationMinutes($other->start_time, $other->end_time)
             );
 
@@ -1015,7 +1051,7 @@ class ShiftService
     {
         return $shifts
             ->sortBy(fn (Shift $shift) => [
-                self::offsetFromProductionDayStart($shift->start_time),
+                self::offsetOnAxis($shift->start_time),
                 $shift->name,
             ])
             ->values();
@@ -1023,10 +1059,12 @@ class ShiftService
 
     /**
      * Satu entri data[] — kontrak respons daftar. `position` diturunkan
-     * SERVER dari jam mulai relatif 07:00 dan dipakai blade untuk
-     * mengurutkan TABEL maupun BLOK TIMELINE: satu sumber urutan untuk dua
-     * tampilan, karena dua pengurutan yang berdiri sendiri adalah cara
-     * tercepat membuat keduanya berselisih.
+     * SERVER dari jam mulai pada SUMBU YANG SAMA dengan timeline (00:00) dan
+     * dipakai blade untuk mengurutkan TABEL maupun BLOK TIMELINE: satu sumber
+     * urutan untuk dua tampilan. Titik nolnya wajib sama dengan sumbu gambar
+     * — kalau tidak, urutan baris tabel akan berbeda dari urutan blok yang
+     * tergambar, dan aturan "urutan tabel dan timeline selalu sama" dilanggar
+     * oleh konstruksi alih-alih oleh kekeliruan.
      *
      * @return array<string, mixed>
      */
@@ -1046,7 +1084,7 @@ class ShiftService
             'duration_hours_text' => $this->hoursText(
                 self::durationMinutes($shift->start_time, $shift->end_time)
             ),
-            'start_offset_minutes' => self::offsetFromProductionDayStart($shift->start_time),
+            'start_offset_minutes' => self::offsetOnAxis($shift->start_time),
             'position' => $position,
             'time_label' => $this->rangeLabel($shift),
         ];
@@ -1071,23 +1109,50 @@ class ShiftService
     }
 
     /**
-     * Satu blok 'shift' pada timeline — SATU blok dengan durasi utuh, juga
-     * ketika ia melewati tengah malam. `crosses_midnight` hanya menerangkan
-     * bentuknya kepada pembaca; ia tidak memecah bloknya.
+     * Blok-blok 'shift' pada timeline — SATU bila shift tidak melintasi titik
+     * nol sumbu, DUA bila ia melintasinya. Keduanya menyandang `shift_id` dan
+     * `crosses_midnight` yang sama, sehingga blade dapat menggambar keduanya
+     * dan menandainya SATU shift.
      *
-     * @return array<string, mixed>
+     * `is_label_segment` menunjuk segmen YANG LEBIH PANJANG, dan ia dihitung
+     * di sini alih-alih ditebak blade dari offset: memilih tempat label
+     * adalah keputusan yang butuh kedua durasi sekaligus, dan menebaknya di
+     * tampilan adalah logika yang menyamar sebagai data.
+     *
+     * INVARIAN: setiap blok memenuhi start_offset_minutes + duration_minutes
+     * <= 1440. Itulah yang membuat tidak ada lagi yang dapat terpotong oleh
+     * `overflow: hidden` pada track-nya.
+     *
+     * @return list<array<string, mixed>>
      */
-    protected function shiftBlock(Shift $shift): array
+    protected function shiftBlocks(Shift $shift): array
     {
-        return [
-            'kind' => 'shift',
-            'shift_id' => $shift->id,
-            'label' => $shift->name,
-            'start_offset_minutes' => self::offsetFromProductionDayStart($shift->start_time),
-            'duration_minutes' => self::durationMinutes($shift->start_time, $shift->end_time),
-            'time_label' => $this->rangeLabel($shift),
-            'crosses_midnight' => $this->crossesMidnight($shift),
-        ];
+        $segments = self::segmentsFor(
+            self::offsetOnAxis($shift->start_time),
+            self::durationMinutes($shift->start_time, $shift->end_time)
+        );
+
+        $durations = array_map(fn (array $segment) => $segment[1] - $segment[0], $segments);
+        $labelIndex = (int) array_search(max($durations), $durations, true);
+
+        $blocks = [];
+
+        foreach ($segments as $index => $segment) {
+            $blocks[] = [
+                'kind' => 'shift',
+                'shift_id' => $shift->id,
+                'label' => $shift->name,
+                'start_offset_minutes' => $segment[0],
+                'duration_minutes' => $segment[1] - $segment[0],
+                'time_label' => $this->rangeLabel($shift),
+                'crosses_midnight' => $this->crossesMidnight($shift),
+                'segment_index' => $index,
+                'segment_count' => count($segments),
+                'is_label_segment' => $index === $labelIndex,
+            ];
+        }
+
+        return $blocks;
     }
 
     /**

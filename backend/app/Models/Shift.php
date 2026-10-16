@@ -31,8 +31,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * JANGAN PERNAH MEMBANDINGKAN KEDUA KOLOM INI SEBAGAI STRING: '23:00' >
  * '07:00' sebagai string menyimpulkan rentangnya kosong, dan hasil salahnya
  * terlihat masuk akal. Seluruh perbandingan rentang hidup di
- * {@see ShiftService} pada SUMBU MENIT 0..1440 relatif 07:00
- * (awal hari produksi) — satu penghitung, dipakai controller API maupun
+ * {@see ShiftService} pada SUMBU MENIT 0..1440 (menit-ke-dalam-hari,
+ * titik nol 00:00) — satu penghitung, dipakai controller API maupun
  * komponen Livewire.
  *
  * `start_time`/`end_time` DIBIARKAN SEBAGAI STRING, bukan di-cast ke

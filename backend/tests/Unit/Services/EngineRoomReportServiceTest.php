@@ -2797,10 +2797,18 @@ it('case 75 — REPORT_ROUTES memetakan engine-room, dan posisinya mengikuti sor
     // URUTANNYA LOAD-BEARING: peta ini harus tetap urut menurut
     // station_types.sort_order, karena layar pemilih stasiun membandingkan
     // urutannya dengan urutan master. engine-room di 120 — di belakang
-    // depricarping (110), di depan storage-tank (140).
+    // depricarping (110), di depan process-water (130).
+    //
+    // PENERUSNYA DIPERBARUI 2026-10-16 (screen-160--laporan-process-water-web):
+    // dulu storage-tank (140), karena dulu itulah entri berikutnya yang ada.
+    // Entri 'process-water' DISISIPKAN di antara keduanya — sort_order 130 —
+    // bukan di-append, jadi asersi inilah yang menjadi salah, dan entri
+    // barunya yang benar. Asersi ini memang dirancang gugur ketika sebuah
+    // laporan stasiun baru mendarat di antara dua entri yang sudah ada;
+    // memperbaruinya adalah perawatan, bukan pelemahan.
     $codes = array_keys(StationReportService::REPORT_ROUTES);
     $at = array_search(StationTypeEnum::EngineRoom->value, $codes, true);
 
     expect($codes[$at - 1])->toBe(StationTypeEnum::Depricarping->value);
-    expect($codes[$at + 1])->toBe(StationTypeEnum::StorageTank->value);
+    expect($codes[$at + 1])->toBe(StationTypeEnum::ProcessWater->value);
 });

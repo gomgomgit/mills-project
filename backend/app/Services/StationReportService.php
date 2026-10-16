@@ -158,6 +158,18 @@ class StationReportService
         // this one line the report exists, every one of its own tests passes,
         // and the tile stays greyed out.
         StationTypeEnum::EngineRoom->value => 'reports.engine-room',
+        // screen-160--laporan-process-water-web. BETWEEN engine-room and
+        // storage-tank, and NOT appended: station_types.sort_order puts
+        // process-water at 130 — behind engine-room (120), ahead of
+        // storage-tank (140) — and the ordering of this map is load-bearing,
+        // see the note below. Verified against the station_types table, not
+        // inferred from the enum's declaration order. Note the key is
+        // 'process-water' WITH A HYPHEN, which is what
+        // StationTypeEnum::ProcessWater->value holds; a snake_case key would
+        // compile, look right, and never match a master row. Without this one
+        // line the report exists, every one of its own tests passes, and the
+        // tile stays greyed out.
+        StationTypeEnum::ProcessWater->value => 'reports.process-water',
         StationTypeEnum::StorageTank->value => 'reports.storage-tank',
     ];
 

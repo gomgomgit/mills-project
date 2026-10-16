@@ -360,14 +360,22 @@ it('stations: menandai report_available=true dan mengisi report_path hanya untuk
 
 // Case 16
 it('stations: stasiun yang laporannya belum dibangun tetap ada, dengan report_available=false dan report_path null', function () {
-    // CONTOH "LAPORAN BELUM DIBANGUN" DIPINDAHKAN THRESHING -> PROCESS WATER
-    // pada 2026-10-06, ketika screen-148 membuat laporan Threshing. Contohnya
-    // dipindahkan, BUKAN dihapus: bila Process Water pun suatu saat dibuatkan
-    // laporan, test ini akan gagal lagi — dan itu benar, karena ia memaksa
-    // contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
+    // CONTOH "LAPORAN BELUM DIBANGUN" DIPINDAHKAN DUA KALI, dan keduanya
+    // dengan alasan yang sama: THRESHING -> PROCESS WATER pada 2026-10-06
+    // (screen-148 membuat laporan Threshing), lalu PROCESS WATER ->
+    // SOLID WASTE DISPOSAL pada 2026-10-16 (screen-160 membuat laporan
+    // Process Water). Contohnya DIPINDAHKAN, BUKAN dihapus: bila Solid Waste
+    // Disposal pun suatu saat dibuatkan laporan, test ini akan gagal lagi —
+    // dan itu benar, karena ia memaksa contohnya diperbarui alih-alih
+    // diam-diam menjadi selalu hijau.
+    //
+    // Jenis stasiun yang (per 2026-10-16) masih belum punya entri
+    // REPORT_ROUTES: solid-waste-disposal (150), kernel-dispatch (160),
+    // cpo-dispatch (170), process-quality-control (180). Yang dipakai di sini
+    // yang pertama.
     stationReportMaster([
         ['sterilizer', 'Sterilizer', 40],
-        ['process-water', 'Process Water', 130],
+        ['solid-waste-disposal', 'Solid Waste Disposal', 150],
     ]);
 
     $this->actingAs($this->supervisorA);
@@ -376,10 +384,10 @@ it('stations: stasiun yang laporannya belum dibangun tetap ada, dengan report_av
 
     // Not dropped for being unbuilt — the screen greys it out rather than
     // hiding it, so the feature's coverage reads as it really is.
-    expect($stations)->toHaveKey('process-water');
-    expect($stations['process-water']['report_available'])->toBeFalse();
-    expect($stations['process-water']['report_path'])->toBeNull();
-    expect($stations['process-water']['name'])->toBe('Process Water');
+    expect($stations)->toHaveKey('solid-waste-disposal');
+    expect($stations['solid-waste-disposal']['report_available'])->toBeFalse();
+    expect($stations['solid-waste-disposal']['report_path'])->toBeNull();
+    expect($stations['solid-waste-disposal']['name'])->toBe('Solid Waste Disposal');
 });
 
 // Case 17
@@ -404,8 +412,9 @@ it('stations: mengembalikan hasil sukses lengkap ketika semua prasyarat terpenuh
         ['sterilizer', 'Sterilizer', 40],
         // Pembawa separuh "laporan belum dibangun" pada case ini. Dulu
         // threshing (sort_order 50), dipindahkan 2026-10-06 ketika screen-148
-        // membuat laporannya.
-        ['process-water', 'Process Water', 130],
+        // membuat laporannya; lalu process-water (130), dipindahkan 2026-10-16
+        // ketika screen-160 membuat laporannya.
+        ['solid-waste-disposal', 'Solid Waste Disposal', 150],
         ['other', 'Other', 190],
     ]);
 
@@ -423,7 +432,7 @@ it('stations: mengembalikan hasil sukses lengkap ketika semua prasyarat terpenuh
     expect(array_keys($result['stations'][0]))
         ->toBe(['code', 'name', 'sort_order', 'report_available', 'report_path']);
     expect(array_column($result['stations'], 'code'))
-        ->toBe(['weighbridge', 'sterilizer', 'process-water']);
+        ->toBe(['weighbridge', 'sterilizer', 'solid-waste-disposal']);
 
     $byCode = collect($result['stations'])->keyBy('code');
 
@@ -444,12 +453,19 @@ it('stations: mengembalikan hasil sukses lengkap ketika semua prasyarat terpenuh
     expect($byCode['weighbridge']['report_path'])
         ->toContain('business_unit_id='.$this->businessUnitA->id);
 
-    // The unbuilt-report half of this case is now carried by process-water,
-    // which has no REPORT_ROUTES entry — so "greyed out rather than hidden" is
-    // still asserted here and not merely in case 16. It carried threshing
-    // until 2026-10-06, when screen-148 built that report; moving the example
-    // rather than deleting it is what keeps this half of the case alive.
-    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('process-water');
-    expect($byCode['process-water']['report_available'])->toBeFalse();
-    expect($byCode['process-water']['report_path'])->toBeNull();
+    // The unbuilt-report half of this case is now carried by
+    // solid-waste-disposal, which has no REPORT_ROUTES entry — so "greyed out
+    // rather than hidden" is still asserted here and not merely in case 16. It
+    // carried threshing until 2026-10-06 (screen-148 built that report), then
+    // process-water until 2026-10-16 (screen-160 built that one); moving the
+    // example rather than deleting it is what keeps this half of the case
+    // alive.
+    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('solid-waste-disposal');
+    expect($byCode['solid-waste-disposal']['report_available'])->toBeFalse();
+    expect($byCode['solid-waste-disposal']['report_path'])->toBeNull();
+
+    // Dan contoh yang baru saja ditinggalkan kini memang TERBANGUN — tanpa
+    // baris ini, pemindahan contohnya bisa terjadi tanpa ada yang membuktikan
+    // sebabnya.
+    expect(StationReportService::REPORT_ROUTES)->toHaveKey('process-water');
 });

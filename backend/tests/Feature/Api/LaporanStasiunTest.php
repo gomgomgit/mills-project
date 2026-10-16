@@ -201,22 +201,47 @@ it('akun tanpa mill: 422 VALIDATION_ERROR dan respons tidak memuat daftar mill (
 // =====================================================================
 // Scenario: "menekan stasiun yang belum tersedia"
 // =====================================================================
-it('stasiun belum tersedia: process-water dikembalikan dengan report_available false dan report_path null', function () {
-    // CONTOHNYA DIPINDAHKAN THRESHING -> PROCESS WATER pada 2026-10-06, ketika
-    // screen-148 membuat laporan Threshing. Dipindahkan, bukan dihapus: bila
-    // Process Water pun dibuatkan laporan, test ini gagal lagi — dan itu benar.
+it('stasiun belum tersedia: solid-waste-disposal dikembalikan dengan report_available false dan report_path null', function () {
+    // CONTOH "LAPORAN BELUM DIBANGUN" SUDAH DIPINDAHKAN DUA KALI, keduanya
+    // dengan alasan yang sama: THRESHING -> PROCESS WATER pada 2026-10-06
+    // (screen-148 membuat laporan Threshing), lalu PROCESS WATER -> SOLID
+    // WASTE DISPOSAL pada 2026-10-16 (screen-160 membuat laporan Process
+    // Water). DIPINDAHKAN, BUKAN DIHAPUS: bila Solid Waste Disposal pun
+    // dibuatkan laporan, test ini gagal lagi — dan itu benar, karena ia
+    // memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
+    //
+    // Sisa jenis stasiun tanpa entri REPORT_ROUTES per 2026-10-16:
+    // solid-waste-disposal (150), kernel-dispatch (160), cpo-dispatch (170),
+    // process-quality-control (180). Sesudah keempatnya berlaporan, contoh
+    // ini HABIS dan test harus ditulis ulang dengan kode fiktif yang
+    // disuntikkan — bukan dibiarkan menghijau tanpa pembawa.
+    // Alasan pemindahannya DIASERSI, bukan sekadar dikomentari: yang membuat
+    // sebuah kode layak jadi contoh adalah ketiadaannya di REPORT_ROUTES.
+    expect(StationReportService::REPORT_ROUTES)->toHaveKey('process-water');
+    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('solid-waste-disposal');
+
     // Step 1 — GET /api/station-reports/stations
     $stations = $this->actingAs($this->supervisor, 'web')->getJson('/api/station-reports/stations');
 
     $stations->assertStatus(200);
 
-    $unbuilt = collect($stations->json('data.stations'))->firstWhere('code', 'process-water');
+    $rows = collect($stations->json('data.stations'));
+    $unbuilt = $rows->firstWhere('code', 'solid-waste-disposal');
 
     // Present, so the screen can render it — but with no destination at
     // all, which is why the tile has no href and nothing to click.
     expect($unbuilt)->not->toBeNull();
     expect($unbuilt['report_available'])->toBeFalse();
     expect($unbuilt['report_path'])->toBeNull();
+
+    // Dan Process Water kini SEBALIKNYA — pasangan inilah yang membuktikan
+    // payload berubah ketika laporannya mendarat, bukan sekadar bahwa ada
+    // satu baris report_available=false di suatu tempat.
+    $built = $rows->firstWhere('code', 'process-water');
+
+    expect($built)->not->toBeNull();
+    expect($built['report_available'])->toBeTrue();
+    expect($built['report_path'])->not->toBeNull();
 });
 
 // =====================================================================

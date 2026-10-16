@@ -1,8 +1,8 @@
 {
-  "ver": 80,
+  "ver": 81,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-14"
+    "updated_at": "2026-10-16"
   },
   "endpoints": [
     {
@@ -2526,6 +2526,59 @@
       "description": "Unduhan CSV/Excel Laporan Engine Room — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, unit engine room, status, catatan) diulang verbatim di setiap baris, memuat ke-27 kolom READING_FIELDS: 23 kolom ukur, kedua kolom status genset, dan kedua kolom teks bebas. Pemetaan label: kolom 'Status' konteks lewat ExportValue::status() (status RECORD — Tersimpan/Tersinkron), kedua kolom status genset lewat ExportValue::option() (Display::OPTION_LABELS — Run/Standby/Off) sehingga identik dengan layar Detail; kedua pemeta bernama mirip dan tidak boleh ditukar. `daily_energy_export_kwh` diekspor APA ADANYA per slot — ekspor adalah rincian mentah, jadi perlakuan 'nilai terakhir per tanggal' berlaku pada /summary saja. Excel adalah .xlsx SUNGGUHAN lewat SheetWriter. Batas 50.000 dihitung atas BARIS SLOT bukan record — satu record dapat menghasilkan 24 baris. Gate peran, resolusi mill, resolusi line, pemeriksaan format, dan pemeriksaan batas berjalan EAGER sebelum aliran dimulai, supaya 403/422 tidak sampai ke klien sebagai unduhan berhasil yang kosong. Bukan respons JSON.",
       "screen_id": "screen-158--laporan-engine-room-web",
       "usecase_id": "usecase-164--laporan-engine-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-water-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Process Water — ADMIN SAJA. 403 untuk Operator, Supervisor, dan Mill Management, ditegakkan DI DALAM service dan bukan oleh middleware — justru karena middleware prefix ini menerima keempat peran demi ketiga rute data di bawahnya, sehingga penjaga di middleware tidak akan menutup rute ini. Master kosong adalah jawaban sah: [] dengan 200, bukan 404.",
+      "screen_id": "screen-160--laporan-process-water-web",
+      "usecase_id": "usecase-166--laporan-process-water-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-water-reports/periods",
+      "description": "Daftar Periode Pelaporan yang punya baris period_stations berjenis 'process-water' pada satu mill; status per baris period_stations, dan periode tertutup maupun draft ikut tercantum — laporan ini tidak menyaring status. business_unit_id WAJIB bagi Admin (422 bila absen) dan DIABAIKAN bagi peran terikat mill termasuk Operator — diabaikan, bukan divalidasi. production_line_id sengaja bukan parameter: periode milik mill, bukan milik line. Operator diterima sejak commit pertama, dan pelebaran itu menempatkannya pada cabang TERIKAT-MILL resolveBusinessUnit() — bukan hanya di daftar peran, yang akan menjatuhkannya ke cabang Admin tempat business_unit_id kiriman klien dihormati, yang berarti kebocoran lintas mill.",
+      "screen_id": "screen-160--laporan-process-water-web",
+      "usecase_id": "usecase-166--laporan-process-water-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-water-reports/summary",
+      "description": "Seluruh angka Laporan Process Water untuk satu periode pada satu Production Line. SEMBILAN kolom ukur numerik, masing-masing min/avg/max dengan penyebutnya sendiri, diterbitkan pada kunci `metrics` yang berisi TEPAT sembilan kunci. DUA kolom teks bebas (`action_taken_status`, `findings`) diterbitkan sebagai dua daftar kejadian per slot pada `text_entries` — TIDAK PERNAH dikelompokkan menjadi sebaran kategoris, karena `action_taken_status` adalah TEKS BEBAS (terbukti tiga cara: input type=text di web, label bergaris miring 'Action Taken/Status' di mobile, nol entri Display::OPTION_LABELS). Payload karenanya TIDAK memuat satu pun kunci bernama status_distribution, known_values, counts, distribution, value_counts, maupun by_status — ketiadaan itu diasersi atas NAMA KUNCI lewat penelusur rekursif, bukan atas teks payload. REKAP PER-INSPECTOR diterbitkan untuk LAYAR (bukan hanya ekspor) dengan KODE MENTAH tanpa join dan tanpa pencarian nama — keputusan pemilik produk 2026-10-16, menyimpang sadar dari preseden Storage Tank; baris `not_recorded` berdiri sendiri, porsi memakai recorded_slots, dan urutannya menurut KODE bukan menurut jumlah slot supaya ia tidak menjadi peringkat orang. Kolom `shift` TIDAK diterbitkan di payload sama sekali — ia hanya ada di ekspor. Kelengkapan dihitung atas SEBELAS READING_FIELDS (sembilan numerik + kedua teks bebas; `shift` dan `inspector_id` adalah kolom identitas dan dikecualikan oleh isRowFilled() yang DIPINJAM dari ProcessWaterRecordService), sehingga filled_slots dapat MELEBIHI penyebut setiap metrik — dan kedua angka itu dicetak berdampingan di layar beserta kalimat yang menyatakannya. TANPA blok downtime dan TANPA penandaan nilai di luar batas: stasiun ini tidak punya master target, dan sebabnya dinyatakan di layar. Seluruh agregasi di PHP; nol agregat SQL. period_id dan production_line_id KEDUANYA WAJIB; line maupun periode milik mill lain → 403.",
+      "screen_id": "screen-160--laporan-process-water-web",
+      "usecase_id": "usecase-166--laporan-process-water-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-water-reports/export",
+      "description": "Unduhan CSV/Excel Laporan Process Water — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, unit, status, catatan) diulang verbatim di setiap baris, memuat KETIGA BELAS kolom DETAIL_FIELDS dalam urutan DETAIL_FIELDS: sembilan kolom ukur, kedua kolom teks bebas, DAN kedua kolom identitas `shift` serta `inspector_id` — keduanya ADA DI EKSPOR meski `shift` tidak pernah muncul di layar. 21 kolom seluruhnya: 7 konteks + Slot Waktu + 13 detail, berlabel SAMA PERSIS dengan layar Detail dan Data Browser. Pemetaan label: kolom 'Status' konteks lewat ExportValue::status() (status RECORD — Tersimpan/Tersinkron); ExportValue::option() TIDAK DIPAKAI di mana pun pada layar ini, karena stasiun ini tidak punya satu pun kolom enum pengukuran — dan asersinya membuang komentar lebih dulu lewat token_get_all(), sebab frasa yang membuktikan klaim itu muncul verbatim di docblock-nya. Excel adalah .xlsx SUNGGUHAN lewat SheetWriter. Batas 50.000 dihitung atas BARIS SLOT bukan record. Gate peran, resolusi mill, resolusi line, pemeriksaan format, dan pemeriksaan batas berjalan EAGER sebelum aliran dimulai. Format kosong/absen → CSV ditetapkan DI CONTROLLER (`?? 'csv'` atas nilai query yang sudah di-trim); service sendiri memakai parameter default, sehingga export($period, '') melempar ValidationException — pembedaan yang diasersi di lapisan masing-masing. Bukan respons JSON.",
+      "screen_id": "screen-160--laporan-process-water-web",
+      "usecase_id": "usecase-166--laporan-process-water-web",
       "auth_required": true,
       "actor_ids": [
         "actor-supervisor",

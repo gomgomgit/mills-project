@@ -1,0 +1,94 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-16"
+  },
+  "id": "screen-160--laporan-process-water-web",
+  "name": "Laporan Process Water (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-16T05:01:08Z",
+      "passed": 52,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-16T05:01:11Z",
+      "passed": 34,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-16T05:01:13Z",
+      "passed": 37,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-16T05:05:54Z",
+      "passed": 18,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/ProcessWaterReportService.php",
+    "backend/app/Http/Controllers/Api/ProcessWaterReportController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/app/Services/ProcessWaterRecordService.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ProcessWaterReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanProcessWaterTest.php",
+    "backend/tests/Feature/Livewire/LaporanProcessWaterTest.php",
+    "backend/tests/Unit/Services/EngineRoomReportServiceTest.php",
+    "backend/tests/Unit/Services/StationReportServiceTest.php",
+    "backend/tests/Feature/Livewire/LaporanStasiunTest.php",
+    "backend/tests/Feature/Api/LaporanStasiunTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanProcessWater.php",
+    "backend/resources/views/livewire/dashboard/laporan-process-water.blade.php",
+    "backend/resources/views/dashboard/laporan-process-water.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "e2e-web/tests/laporan-process-water.spec.ts"
+  ],
+  "implementation_notes": [
+    "Laporan periode stasiun ke-14 dari 18. Suite backend DIVERIFIKASI SENDIRI sesudah agen melapor: 5890 lolos / 0 gagal / 36.553 asersi / exit 0, dan angkanya rekonsiliasi persis — baseline 5767 + 52 unit + 34 API + 37 Livewire = 5890, tanpa sisa. Browser 18/18 dengan 1 worker, retries 0, dan KEEMPAT `test.skip` bersyarat di dalamnya TIDAK TERAMBIL (periode e2e bersama memang membawa slot Process Water terisi di PL Mill A), jadi invarian rekap inspector, per-unit, dan gulir mendatar benar-benar dijalankan.",
+    "RIAKNYA ENAM ASERSI DI EMPAT BERKAS, BUKAN SATU — dan brief yang saya tulis sendiri hanya menyebut satu. Agen menemukan kategori kedua, melaporkannya, lalu BERHENTI alih-alih menafsir ulang larangan saya: tiga asersi dibiarkan merah karena memperbaikinya berarti menyunting `LaporanStasiunTest.php` yang saya larang eksplisit, satu di antaranya di berkas (`tests/Feature/Api/LaporanStasiunTest.php`) yang brief saya tidak pernah sebut. Berhenti di situ adalah keputusan yang benar. KETIGANYA SAYA PERBAIKI SENDIRI sesudahnya — larangan itu milik saya, bukan milik pemilik produk, jadi sayalah yang boleh mencabutnya.",
+    "KATEGORI RIAK YANG TERLEWAT, dan cara menemukannya lain kali. (A) Asersi TETANGGA pada REPORT_ROUTES — ditemukan oleh `grep -rn 'at + 1\\]\\|at - 1\\]' backend/tests`, satu asersi di EngineRoomReportServiceTest. (B) Test yang memakai kode stasiun ini sebagai CONTOH 'laporan belum dibangun' — lima asersi, dan grep (A) mustahil menemukannya karena bentuknya tidak menyebut urutan sama sekali; satu-satunya yang menghubungkannya adalah KODENYA. Grep yang benar sepele: `grep -rln '<kode-stasiun>' backend/tests`, buang berkas milik stasiun itu sendiri, sisanya blast radius-nya. Tech-spec screen-160 sudah dikoreksi (v2) supaya screen-161 dan empat jenis stasiun terakhir mewarisi angka yang benar.",
+    "PERBAIKAN KATEGORI (B): contohnya DIPINDAHKAN ke `solid-waste-disposal` (sort_order 150, masih belum berlaporan), bukan dihapus — konsisten di kelima asersi. Dua hal ditambahkan supaya pemindahan berikutnya tidak perlu ditemukan ulang lewat test merah: (1) ALASAN pindahnya diasersi, bukan dikomentari — `expect(REPORT_ROUTES)->toHaveKey('process-water')` dan `->not->toHaveKey('solid-waste-disposal')`; (2) PASANGAN POSITIFNYA diasersi — tile dan payload Process Water kini AKTIF. Tanpa (2), test hanya membuktikan ada satu tile nonaktif di suatu tempat, bukan bahwa tile berubah keadaan ketika laporannya mendarat.",
+    "TENGGAT YANG SEKARANG TERLIHAT: contoh ini sudah dipindahkan TIGA KALI (threshing → process-water 2026-10-06 → solid-waste-disposal 2026-10-16). Sisa pembawa tinggal empat: solid-waste-disposal (150), kernel-dispatch (160), cpo-dispatch (170), process-quality-control (180) — persis empat jenis stasiun terakhir yang akan dibuatkan laporan. Sesudah keempatnya mendarat, contohnya HABIS dan test-test itu wajib ditulis ulang dengan kode fiktif yang disuntikkan, kalau tidak ia menghijau tanpa pembawa. Paling murah dikerjakan sekarang, bukan pada layar terakhir.",
+    "SEBELAS KOLOM, BUKAN TIGA BELAS. `isRowFilled()` DIPINJAM dari ProcessWaterRecordService lewat `$detail->only(READING_FIELDS)`, tidak ditulis ulang — `shift` dan `inspector_id` adalah kolom identitas dan dikecualikan. Konsekuensinya berpasangan dan berlawanan: slot yang hanya berisi teks bebas (`findings` / `action_taken_status`) TERHITUNG terisi; slot yang hanya berisi shift/inspector TIDAK. Unit case 17 menanam kedua kasus itu dalam satu record dan menuntut `filled_slots === 1`; case 17b membuktikan fixture-nya memang membedakan dengan menjalankan aturan 11-kolom dan 13-kolom berdampingan pada baris yang sama (1 lawan 2), sehingga ia benar-benar akan memerahkan implementasi 13-kolom.",
+    "TIGA PERUBAHAN VISIBILITY, bukan dua. `READING_FIELDS` dan `isRowFilled()` → public seperti sibling-nya, PLUS `DETAIL_FIELDS` → public: ekspor wajib menerbitkan 13 kolom DALAM URUTAN `DETAIL_FIELDS`, dan itu tak terbaca selagi protected. Alternatifnya — mendaftar ulang 13 nama kolom di report service — adalah duplikasi yang justru dilarang spec untuk `READING_FIELDS`. Tiap perubahan membawa docblock yang menyatakan alasannya.",
+    "KETIADAAN DIASERSI ATAS NAMA KUNCI, BUKAN ATAS TEKS PAYLOAD — pelajaran Engine Room diterapkan sejak awal di sini. Penelusur rekursif mencocokkan nama kunci utuh (`status_distribution`, `downtime`, `shift`, `known_values`, `counts`, `by_status`), dan case 27 memaku urutan kunci tingkat atas sehingga tidak ada yang bisa menyelinap masuk. Prosa payload sengaja MENGHINDARI token yang ketiadaannya diasersi, sementara nama kolom sungguhan hidup di LAYAR — tempat spec memang memintanya sebagai `<code>shift</code>` dan `<code>inspector_id</code>`.",
+    "`ExportValue::option()` TIDAK DIPAKAI, dan asersinya membuang komentar lebih dulu lewat `token_get_all()` — karena frasa 'Tidak ada ::option() di layar ini' memang muncul verbatim di empat docblock yang justru membuktikan klaimnya. Grep mentah akan memerah pada prosa yang benar. Pembedaan status-vs-option dari keputusan 2026-10-14 tetap berlaku: `status()` untuk status record, `option()` untuk kolom enum pengukuran — dan stasiun ini tidak punya satu pun kolom enum pengukuran.",
+    "REKAP PER-INSPECTOR DITAMPILKAN DI LAYAR dengan KODE MENTAH (keputusan pemilik produk 2026-10-16, menyimpang sadar dari preseden Storage Tank yang hanya mengekspornya). Nol join, nol pencarian nama — diasersi atas query log. Invarian browser (h): `jumlah baris + not_recorded === recorded_slots === filled_slots`, dan sel pertama tiap baris wajib sama dengan `data-inspector-id` miliknya sendiri — DIAMBIL PER `<td>`, tidak pernah dipindai sebagai substring halaman, karena kode seperti `1180734` cocok di mana saja. Baris diurutkan menurut KODE (SORT_NATURAL), bukan menurut jumlah slot: mengurutkan menurut volume akan menjadikannya peringkat orang, yang justru dilarang spec — dan kunci urutnya dinyatakan di catatan layar.",
+    "`shift` ADA DI EKSPOR, TIDAK ADA DI LAYAR — diasersi di tiga lapis: ketiadaan di payload atas nama kunci; ketiadaan di layar atas testid, `[data-shift]`, DAN `<th>Shift</th>`, ditambah asersi bahwa nilai tersimpan 'Shift Malam' tidak muncul di mana pun pada halaman; kehadiran di ekspor lewat `EXPORT_HEADER[8] === 'Shift'` beserta sel barisnya. Layar punya kartu khusus 'Yang Tidak Diterbitkan di Layar Ini' (`no-shift-note`) yang menyatakan alasannya kepada manusia.",
+    "SELURUH AGREGASI DI PHP — satu query + eager load; nol `selectRaw`/`DB::raw`/`whereRaw`/`havingRaw`/`orderByRaw`, nol `AVG|MIN|MAX|GROUP BY` SQL terhadap tabel process_water. Case 38 TIDAK dapat melarang `groupBy(` di sumbernya: agregasinya justru memakai `Collection::groupBy('date')` dan `groupBy('process_water_id')` di PHP, yang memang seluruh maksud aturannya. Draf pertama melarangnya dan benar-benar memerah; versi sekarang melarang hanya ejaan SQL-raw dan terpisah mengasersi nol agregat SQL, sambil mengasersi kedua panggilan Collection itu ADA.",
+    "`''` → `null` untuk kesembilan kolom numerik di `rowOf()` — string kosong yang di-cast ke float menjadi `0.0` dan menyeret rata-rata turun. Jebakan PostgreSQL yang sudah terdokumentasi di proyek ini. `whereDate` inklusif dua ujung, bukan `where`.",
+    "FILTER LINE DIASERSI DENGAN STASIUN YANG DIPINDAH KE LINE LAIN DI MILL YANG SAMA — SQL wajib memuat `process_water_records.production_line_id = ?` dan TIDAK memuat `stations.production_line_id`. Tanpa fixture yang dipindah, kedua implementasi itu menjawab sama dan asersinya tidak membuktikan apa pun. Lihat isolasi Production Line: tiga kebocoran cakupan sudah pernah terbukti di proyek ini.",
+    "Kebocoran lintas-mill diasersi sebagai KASUS SENDIRI: Operator/Supervisor/MillManagement yang mengirim id mill B tetap mendapat data mill A dengan status 200, dan CSV-nya tidak pernah memuat 'Mill Beta' maupun 'PW-B'. Operator ditambahkan di TIGA tempat sekaligus — daftar peran pada rute, `guardAccess()`, dan cabang terikat-mill pada `resolveBusinessUnit()`; melewatkan yang ketiga menghasilkan 403 yang tampak benar bagi dua peran lain.",
+    "KELAS CSS: `.md-explain`, bukan `.md-note` yang digambar mock. Di partial produksi `.md-note` adalah inline-flex 12px satu baris — paragraf di dalamnya runtuh jadi satu baris. `.md-explain` adalah kelas produksi dengan peran visual yang digambar mock, dan itu yang dipakai screen-133/156/158. Pembungkus `.md-trendchart__track` milik mock DIBUANG karena tak punya definisi di partial terkompilasi; engine-room menaruh `__bar` langsung di `__col`, yang grid `auto 1fr auto`-nya sudah menyediakan track. Hasil akhir: tata letak mock, kosakata kelas produksi.",
+    "AMBANG 14px SENGAJA TIDAK DITEGAKKAN di layar ini, dan tidak ada asersi 14px yang ditulis — `report-styles.blade.php` bersama masih memuat 10/11/12px dan menyentuhnya akan mengubah 12–13 layar laporan sekaligus. Akibatnya layar ini terbaca lebih padat daripada mock-nya. Itu utang yang dinyatakan, bukan cacat yang tersembunyi.",
+    "INVARIAN GULIR MENDATAR DICABANGKAN, bukan dipaku satu arah. Rekap harian stasiun ini 11 kolom (engine-room 25), jadi `scrollWidth > clientWidth` TIDAK dijamin pada viewport lebar dan memakunya akan memerahkan tabel yang baik-baik saja. Yang diasersi tanpa syarat: `getComputedStyle(wrapper).overflowX === 'auto'` — pemeriksaan CSS HASIL COMPILE, karena kelas tanpa definisi menjawab `visible` — dan `document.scrollingElement` tidak pernah menggulir mendatar, diperiksa sebelum buka, sesudah buka, sesudah wrapper digulir sampai ujung, dan sesudah tutup.",
+    "`metrics` tepat 9 kunci dan `text_entries` tepat 2 — `_note` semu yang digambar `success_schema` TIDAK diterbitkan, karena `unit_test_cases` menuntut tepat 9. Catatan itu pindah ke `_note_absences` / `coverage._note_filled_rule` di tingkat atas. `inspector_id` di-trim tepi sebelum dikelompokkan; yang hanya berisi spasi jatuh ke `not_recorded`; nol case-folding dan nol pemetaan — dua baris untuk satu kode akan meniadakan guna rekapnya.",
+    "Seluruh tanggal fixture dipaku lewat `->onDate()` — flake factory tersarang bertanggal acak yang sudah terbukti di proyek ini. Spec browser memakai `waitForURL(url => url.pathname === …)`, bukan `toHaveURL('**/x')` yang tidak pernah cocok dengan baseURL. Server e2e sementara pada :8001 sudah dihentikan; server dev :8000 (PID 19242) tidak pernah dikontak. DB dev TIDAK PERNAH disentuh: nol migrate, nol seeding, dan `2026_10_12_000001_remove_app_name_and_logo_from_mill_settings_table` tetap Pending — diverifikasi sendiri sesudahnya (92 migrasi, kolom app_name masih ada). `git status --porcelain mobile/` kosong di awal dan di akhir.",
+    "COVERAGE 0 BERARTI TIDAK TERUKUR, bukan nol tercakup — `php -m` tidak memuat xdebug maupun pcov pada PHP 8.5.4, jadi `--min` tidak pernah ditegakkan di proyek ini. Bukan alasan menurunkan status.",
+    "Suite Pest berjalan di SQLite in-memory; perilaku `whereDate`, `lower()+LIKE`, dan `'' → null` di PostgreSQL hanya dibuktikan oleh 18 spec Playwright terhadap `mill_smart_log_e2e`. Caveat yang sama berlaku untuk setiap layar laporan di proyek ini."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Spec `case 48` berbunyi 'format kosong jatuh ke csv', padahal `export()` punya `string $format = 'csv'` sebagai PARAMETER DEFAULT, bukan fallback string-kosong: `export($period, '')` melempar ValidationException. Controller-lah yang memasok default (`?? 'csv'` atas nilai query yang sudah di-trim). Test mengasersi di lapisan yang memegang perilakunya — service: 'pdf' → 422; HTTP: format kosong/absen → CSV. Ketidaktepatan kata-kata spec, bukan cacat; dilaporkan alih-alih dicocoki diam-diam.",
+      "severity": "minor"
+    },
+    {
+      "description": "Layar ini terbaca lebih padat daripada mock-nya karena ambang 14px sengaja tidak ditegakkan — `report-styles.blade.php` bersama masih memuat deklarasi 10/11/12px (`.md small` tanpa font-size → 10px; baris 115 dan 177 berukuran 11px/12px). Menaikkannya menyentuh 12–13 layar laporan sekaligus, jadi ia dikerjakan sebagai satu putaran tersendiri. Verifikasi 14px milik mock TIDAK berlaku untuk layar ini.",
+      "severity": "minor"
+    }
+  ]
+}

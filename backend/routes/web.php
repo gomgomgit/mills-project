@@ -9,6 +9,7 @@ use App\Livewire\Dashboard\LaporanGrading;
 use App\Livewire\Dashboard\LaporanDepricarping;
 use App\Livewire\Dashboard\LaporanEffluentPlant;
 use App\Livewire\Dashboard\LaporanEngineRoom;
+use App\Livewire\Dashboard\LaporanProcessWater;
 use App\Livewire\Dashboard\LaporanKernelPlant;
 use App\Livewire\Dashboard\LaporanPressing;
 use App\Livewire\Dashboard\LaporanThreshing;
@@ -1078,5 +1079,35 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/engine-room', LaporanEngineRoom::class)
     ->name('reports.engine-room');
+
+// screen-160--laporan-process-water-web (Laporan Periode Process Water).
+//
+// Supervisor / Mill Management / Admin only. OPERATOR IS REFUSED HERE EVEN
+// THOUGH THE API ADMITS IT FROM THE FIRST COMMIT: the three data routes under
+// /api/process-water-reports admit Operator because
+// screen-161--laporan-process-water-mobile is built in the same series and is
+// their legitimate caller — and admitting a role on the API must NOT widen the
+// web screen. This web route and LaporanProcessWater::canAccess() deliberately
+// stay closed, which is why canAccess() keeps its own role list instead of
+// borrowing ProcessWaterReportService::guardAccess(); if it ever delegates,
+// this web screen silently opens to Operator.
+//
+// Route is /reports/process-water, NOT /laporan/process-water — the repo's
+// convention for report screens is the English /reports/* prefix
+// (/reports/management, /reports/stations, /reports/boiler-room,
+// /reports/kernel-plant, /reports/effluent-plant, /reports/engine-room), and no
+// route in this file uses /laporan. It is also distinct from the DATA screens
+// for the same station, which live under /data/process-water (browser),
+// /data/process-water/create (input form, screen-112),
+// /data/process-water/{id} and /data/process-water/{id}/edit — this report
+// reads what those screens write and never writes anything itself.
+//
+// Reachable from the UI ONLY through the Process Water tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES now
+// maps the 'process-water' code to this route name. Without that one line the
+// report exists, every test here passes, and the screen stays unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/process-water', LaporanProcessWater::class)
+    ->name('reports.process-water');
 
 // === ASDLC_ROUTES_END ===

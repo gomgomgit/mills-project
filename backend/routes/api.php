@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\PeriodController;
 use App\Http\Controllers\Api\PressingRecordController;
 use App\Http\Controllers\Api\ProcessQualityControlRecordController;
 use App\Http\Controllers\Api\ProcessWaterRecordController;
+use App\Http\Controllers\Api\ProcessWaterReportController;
 use App\Http\Controllers\Api\ProductionLineController;
 use App\Http\Controllers\Api\RecordVerificationController;
 use App\Http\Controllers\Api\RecordVerificationStatusController;
@@ -1609,6 +1610,58 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/engine-room-reports/periods', [EngineRoomReportController::class, 'periods']);
     Route::get('/engine-room-reports/summary', [EngineRoomReportController::class, 'summary']);
     Route::get('/engine-room-reports/export', [EngineRoomReportController::class, 'export']);
+});
+
+// === LAPORAN PERIODE PROCESS WATER (screen-160 web + screen-161 mobile) ===
+// Same four-endpoint shape and the same role list as the Grading / Kernel
+// Plant / Effluent Plant / Engine Room prefixes above — `operator` INCLUDED.
+//
+// OPERATOR IS ADMITTED FROM THE FIRST COMMIT HERE, the same choice as
+// screen-158 directly above and for the same reason: the mobile twin
+// screen-161--laporan-process-water-mobile is built in the SAME series as this
+// web screen, so its legitimate Operator caller exists from the start — the
+// Grading / Kernel Plant / Engine Room precedent, not the Weighbridge /
+// Effluent Plant one where the web screen landed first and the widening had to
+// be done as a follow-up. Choosing the first precedent avoids an expensive
+// ripple of inverted assertions and re-edited artifact fields.
+//
+// THE ADMISSION IS ONE CHANGE IN THREE PLACES, NOT THREE CHANGES: this role
+// list, ProcessWaterReportService::guardAccess(), AND the MILL-BOUND branch of
+// ProcessWaterReportService::resolveBusinessUnit(). Doing the first two only
+// drops Operator into the Admin branch, where a client-supplied
+// business_unit_id IS honoured — an Operator could then read ANY mill's
+// report. That is a cross-mill leak, not a display defect.
+//
+// WHAT STAYS CLOSED STAYS CLOSED: /business-units/options refuses anyone but
+// Admin with 403 — Operator, Supervisor and Mill Management alike — raised
+// inside ProcessWaterReportService rather than by this middleware, PRECISELY
+// because this list admits four roles for the sake of the three data routes,
+// so a guard placed here would not close that route at all. The WEB route
+// /reports/process-water is NOT widened either: admitting Operator on the API
+// for the mobile twin must not widen the web screen.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for every mill-bound role — Operator, Supervisor and Mill Management
+// alike (ProcessWaterReportService::resolveBusinessUnit) — probing another mill
+// still returns 200 with the caller's own data, on purpose: a 403 would confirm
+// the other mill exists. The real cross-mill guards are on production_line_id
+// (resolveProductionLine) and period_id (authorizePeriod), and both DO answer
+// 403.
+//
+// /summary carries NO categorical-distribution key, NO downtime key, NO
+// threshold key and NO per-shift dimension — four deliberate absences, each
+// with its own reason, all four stated on the screen. /export still carries
+// ALL THIRTEEN detail columns including `shift` and `inspector_id`, because the
+// export is the raw detail.
+//
+// The production-line OPTION LIST is NOT duplicated here: GET
+// /api/production-lines/options-for-report (built for screen-135) is reused
+// verbatim.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/process-water-reports/business-units/options', [ProcessWaterReportController::class, 'businessUnitOptions']);
+    Route::get('/process-water-reports/periods', [ProcessWaterReportController::class, 'periods']);
+    Route::get('/process-water-reports/summary', [ProcessWaterReportController::class, 'summary']);
+    Route::get('/process-water-reports/export', [ProcessWaterReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

@@ -26,3 +26,40 @@ Tidak ada wawancara. User berkata "lanjutkan laporan yang belum"; Process Water 
 - **TIDAK ADA penandaan di luar batas, keterangannya dirender utuh** ← diverifikasi tidak ada master target. Yang khas: pH dan TDS air umpan boiler punya batas yang dikenal SANGAT luas di luar aplikasi, jadi godaan menandai paling besar justru di sini — sama persis dengan situasi 50 Hz di Engine Room.
 - **Operator diterima pada ketiga rute API data sejak commit pertama** ← presedens Grading/Kernel Plant/Engine Room, karena screen-161 menyusul langsung. Rute web tetap tertutup.
 - `test_priority` `high` · 25 info · 23 aturan · 20 edge case · 3 pertanyaan terbuka · 26 alternative flow · 33 bdd scenario ← seluruhnya turunan agent.
+
+### Koreksi di tempat, 2026-10-16 (ber-`ver` sama — node 3-tech-spec belum ada di hilir)
+
+**Pertanyaan terbuka #2 (`inspector_id`) TERJAWAB pemilik produk:** isinya **teks bebas**, tidak merujuk master mana pun, **dan tidak apa untuk ditampilkan**.
+
+Dua hal yang dikunci:
+
+1. Laporan menampilkan **kode mentah**, tidak pernah mencoba memulangkan nama orang — tidak ada pemetaan untuk ditebak, jadi tidak ada yang perlu diputuskan lagi di Phase 3.
+2. **Rekap per inspector tetap tampil di layar** — dan ini **penyimpangan sadar dari preseden Storage Tank**.
+
+**Preseden yang saya temukan setelah user bertanya "dimana ada inspector id":** `StorageTankReportService` sudah memutuskan hal ini untuk `inspector_name` dan keputusannya tegas di docblock-nya — *"DELIBERATELY ABSENT, and the absence is asserted: … `inspector_name` / `findings` are NEVER aggregated into min/avg/max. They appear only in the export."* Jadi rancangan awal saya (rekap di layar) **berlawanan dengan laporan yang sudah terbangun**, dan saya tidak menyadarinya saat menulis v1.
+
+Saya angkat penyimpangan itu ke user alih-alih diam-diam melanjutkannya, dan condong ke mengikuti preseden — bukan karena rekapnya tidak berguna, tetapi karena menyimpang dari preseden **tanpa alasan yang dinyatakan** adalah cara spec mulai tidak konsisten antar laporan. User memilih menampilkannya. Sekarang penyimpangan itu punya alasan yang dinyatakan pemilik produk, dan itulah yang membedakannya dari ketidakkonsistenan.
+
+**Pemetaan kolom sejenis di seluruh sistem, hasil pembacaan langsung** (hanya 3 dari 18 tabel detail punya kolom semacam ini, dan ketiganya menamainya berbeda):
+
+| Tabel | Kolom | Perlakuan laporan |
+|---|---|---|
+| `process_water_details` | `inspector_id` | rekap di layar (screen-160, keputusan 2026-10-16) |
+| `process_quality_control_details` | `qc_inspector_id` | belum ada laporan — keputusan yang sama berlaku saat screen-168 dibangun |
+| `storage_tank_details` | `inspector_name` | ekspor saja (screen-133, sudah terbangun) |
+
+> Catatan metode: `grep` awal atas `inspector_id` juga mengenai Engine Room, Boiler Room, Clarification, dan Effluent Plant — seluruhnya **palsu**, berasal dari docblock yang justru menyatakan *"NO identifying/context columns (no shift/inspector_id equivalent)"*. Pola kecocokan-palsu yang sama dengan `grep` kolom berangka sebelumnya di berkas ini.
+
+**Masih terbuka:** pertanyaan #1 (`action_taken_status` kategoris atau teks bebas). Perlakuan saat ini — rekap teks — aman di bawah kedua bacaan, jadi ia tidak memblokir Phase 3.
+
+**Pertanyaan terbuka #1 (`action_taken_status`) TERJAWAB 2026-10-16 — teks bebas, biarkan untuk sekarang.** Tiga bukti terpisah menyepakatinya, dan ketiganya dibaca langsung setelah user bertanya "action_taken_status ada dimana?":
+
+1. **Form web merendernya `<input type="text">`**, bersebelahan dan identik perlakuannya dengan `findings`. Bukan `<select>`, nol `<option>`.
+2. **Label form mobile berbunyi `"Action Taken/Status"` — dengan garis miring.** Itu label majemuk "Tindakan yang Diambil / Status", sehingga kata "status" adalah paruh kedua sebuah frasa, bukan penanda himpunan nilai. Inilah bukti yang paling menentukan, dan ia tidak akan ketemu tanpa membuka formnya.
+3. **Kolomnya hanya ada di satu tabel** di seluruh sistem, dan kerabat terdekatnya — `action_taken_maintenance_remark` di `engine_room_details` — dinamai **"remark"**. Nol entri `Display::OPTION_LABELS` untuk keduanya.
+
+Jadi perlakuan rekap-teks di v1 benar, dan sekarang ia bersandar pada bukti alih-alih pada "aman di bawah kedua bacaan". Yang tetap berlaku: isi berulang sama persis TIDAK dikelompokkan menjadi sebaran.
+
+User menambahkan "untuk sekarang", jadi ini bukan penutupan permanen: bila kolomnya kelak dijadikan enum, laporan ini dan setiap laporan lain yang dibangun di atas perlakuan teks perlu ditinjau ulang — dan ongkosnya naik seiring bertambahnya layar.
+
+**Seluruh pertanyaan yang memblokir Phase 3 kini terjawab.** Yang tersisa (#3, apakah layar ini perlu ditinjau ulang sesudah penandaan shift mendarat) tidak memblokir apa pun.

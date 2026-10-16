@@ -63,14 +63,37 @@ class ProcessWaterRecordService
 
     protected const FORM_FIELDS = ['process_water_id', 'date', 'note'];
 
-    protected const READING_FIELDS = [
+    /**
+     * DIBUKA KE `public` UNTUK LAPORAN PERIODE (screen-160). Definisi
+     * KESEBELAS kolom ini DIPINJAM oleh ProcessWaterReportService alih-alih
+     * ditulis ulang di sana — menulisnya ulang adalah cara laporan dan
+     * formulir mulai berbeda pendapat tentang apa yang tercatat, dan di
+     * stasiun ini kesalahannya sudah menunggu: baris detail membawa TIGA
+     * BELAS kolom, jadi daftar yang diturunkan ulang dari skema hampir pasti
+     * menghitung ketiga belasnya. `shift` dan `inspector_id` SENGAJA TIDAK
+     * ADA di sini (lihat isRowFilled() dan docblock kelas). Enam sibling
+     * (BoilerRoom, KernelPlant, Clarification, StorageTank, EffluentPlant,
+     * EngineRoom) sudah public untuk alasan yang sama persis.
+     */
+    public const READING_FIELDS = [
         'raw_water_flow_m3h', 'clarified_water_flow_m3h', 'softener_inlet_ph',
         'softener_outlet_hardness_ppm', 'alum_dosing_kgh', 'polymer_dosing_gh',
         'boiler_feed_tank_temp_c', 'boiler_feed_water_ph', 'boiler_feed_tds_ppm',
         'action_taken_status', 'findings',
     ];
 
-    protected const DETAIL_FIELDS = ['shift', 'inspector_id', ...self::READING_FIELDS];
+    /**
+     * KETIGA BELAS kolom baris detail, dan DIBUKA KE `public` UNTUK EKSPOR
+     * LAPORAN PERIODE (screen-160) bersama READING_FIELDS di atas.
+     *
+     * EKSPOR MEMBAWA KETIGA BELASNYA, kedua kolom identitas termasuk:
+     * pengecualian `shift`/`inspector_id` dari pemeriksaan slot terisi
+     * BUKAN alasan membuangnya dari berkas, karena ekspor adalah rincian
+     * MENTAH. ProcessWaterReportService membaca urutan kolomnya dari sini
+     * supaya berkas ekspor laporan dan berkas ekspor Data Browser tidak
+     * pernah mengeja urutan yang berbeda.
+     */
+    public const DETAIL_FIELDS = ['shift', 'inspector_id', ...self::READING_FIELDS];
 
     /**
      * The 24 canonical hourly time-slot labels, in order: 07:00, 08:00,
@@ -294,8 +317,18 @@ class ProcessWaterRecordService
      * A row counts as "filled" when at least one of its READING_FIELDS
      * (excludes `shift`/`inspector_id`, which are context/identifying
      * columns, not readings) is non-null/non-empty.
+     *
+     * ELEVEN COLUMNS, NOT THIRTEEN — and that is the whole reason this method
+     * was OPENED TO `public` for the period report (screen-160):
+     * ProcessWaterReportService BORROWS this check instead of re-deriving it,
+     * because a re-derivation from the schema would count all thirteen and the
+     * report would then disagree with the input form about what was recorded.
+     * Two opposite consequences follow and must stay distinguishable: a slot
+     * that filled only `action_taken_status` or `findings` IS filled (both
+     * text columns are among the eleven), while a slot that filled only
+     * `shift` and/or `inspector_id` is NOT.
      */
-    protected function isRowFilled(array $row): bool
+    public function isRowFilled(array $row): bool
     {
         foreach (self::READING_FIELDS as $field) {
             $value = $row[$field] ?? null;

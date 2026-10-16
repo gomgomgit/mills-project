@@ -240,16 +240,39 @@ it('akun tanpa mill: pesan hubungi Admin, tanpa pemilih mill dan tanpa grid (gag
 // Scenario: "menekan stasiun yang belum tersedia"
 // =====================================================================
 it('tile belum tersedia: berkelas disabled, aria-disabled, tanpa href dan tanpa wire:click', function () {
-    // CONTOHNYA DIPINDAHKAN THRESHING -> PROCESS WATER pada 2026-10-06, ketika
-    // screen-148 membuat laporan Threshing. Dipindahkan, bukan dihapus: bila
-    // Process Water pun dibuatkan laporan, test ini gagal lagi — dan itu benar.
+    // CONTOH "LAPORAN BELUM DIBANGUN" SUDAH DIPINDAHKAN DUA KALI, keduanya
+    // dengan alasan yang sama: THRESHING -> PROCESS WATER pada 2026-10-06
+    // (screen-148 membuat laporan Threshing), lalu PROCESS WATER -> SOLID
+    // WASTE DISPOSAL pada 2026-10-16 (screen-160 membuat laporan Process
+    // Water). DIPINDAHKAN, BUKAN DIHAPUS: bila Solid Waste Disposal pun
+    // dibuatkan laporan, test ini gagal lagi — dan itu benar, karena ia
+    // memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
+    //
+    // Sisa jenis stasiun tanpa entri REPORT_ROUTES per 2026-10-16:
+    // solid-waste-disposal (150), kernel-dispatch (160), cpo-dispatch (170),
+    // process-quality-control (180). Sesudah keempatnya berlaporan, contoh
+    // ini HABIS dan test harus ditulis ulang dengan kode fiktif yang
+    // disuntikkan — bukan dibiarkan menghijau tanpa pembawa.
+    // Alasan pemindahannya DIASERSI, bukan sekadar dikomentari: yang membuat
+    // sebuah kode layak jadi contoh adalah ketiadaannya di REPORT_ROUTES.
+    expect(StationReportService::REPORT_ROUTES)->toHaveKey('process-water');
+    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('solid-waste-disposal');
+
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanStasiun::class)
         ->set('productionLineId', (string) $this->lineA->id)
-        ->assertSeeHtml('data-testid="station-tile-process-water"')
+        ->assertSeeHtml('data-testid="station-tile-solid-waste-disposal"')
         ->html();
 
-    $unbuilt = laporanStasiunTileMarkup($html, 'process-water');
+    $unbuilt = laporanStasiunTileMarkup($html, 'solid-waste-disposal');
+
+    // Dan Process Water kini AKTIF — pasangan inilah yang membuktikan tile
+    // berubah keadaan ketika laporannya mendarat, bukan sekadar bahwa ada
+    // satu tile nonaktif di suatu tempat.
+    $built = laporanStasiunTileMarkup($html, 'process-water');
+
+    expect($built)->toContain('href=');
+    expect($built)->not->toContain('station-tile disabled');
 
     expect($unbuilt)->not->toBe('');
     expect($unbuilt)->toContain('station-tile disabled');
@@ -393,9 +416,12 @@ it('belum dibangun tetap tampil: jumlah tile mengikuti master, hanya sterilizer 
     expect($codes)->toHaveCount(StationType::where('code', '<>', 'other')->count());
 
     $sterilizer = laporanStasiunTileMarkup($html, 'sterilizer');
-    // Contoh "belum dibangun" dipindahkan threshing -> process-water pada
-    // 2026-10-06 (screen-148 membuat laporan Threshing).
-    $unbuilt = laporanStasiunTileMarkup($html, 'process-water');
+    // Contoh "belum dibangun" dipindahkan dua kali: threshing -> process-water
+    // (2026-10-06, screen-148), lalu process-water -> solid-waste-disposal
+    // (2026-10-16, screen-160). Lihat keterangan panjangnya pada skenario
+    // "menekan stasiun yang belum tersedia".
+    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('solid-waste-disposal');
+    $unbuilt = laporanStasiunTileMarkup($html, 'solid-waste-disposal');
 
     expect($sterilizer)->toContain('href=');
     expect($sterilizer)->not->toContain('disabled');

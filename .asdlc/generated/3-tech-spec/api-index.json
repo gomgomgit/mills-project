@@ -1,8 +1,8 @@
 {
-  "ver": 82,
+  "ver": 83,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-16"
+    "updated_at": "2026-10-18"
   },
   "endpoints": [
     {
@@ -2599,6 +2599,59 @@
         "actor-supervisor",
         "actor-mill-management",
         "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/solid-waste-disposal-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Solid Waste Disposal — ADMIN SAJA. 403 untuk Operator, Supervisor dan Mill Management, ditegakkan DI DALAM service dan bukan oleh middleware — justru karena middleware prefix ini menerima keempat peran demi ketiga rute data di bawahnya, sehingga penjaga di middleware tidak akan menutup rute ini saja. Master kosong adalah jawaban sah: [] dengan 200, bukan 404.",
+      "screen_id": "screen-162--laporan-solid-waste-disposal-web",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/solid-waste-disposal-reports/periods",
+      "description": "Daftar Periode Pelaporan yang punya baris period_stations berjenis 'solid-waste-disposal' pada satu mill. Periode tertutup maupun draft IKUT tercantum — laporan ini tidak menyaring status. business_unit_id WAJIB bagi Admin (422 bila absen) dan DIABAIKAN bagi peran terikat mill termasuk Operator — diabaikan, bukan divalidasi, karena menolaknya membocorkan keberadaan mill lain lewat perbedaan respons. production_line_id sengaja bukan parameter: periode milik mill, bukan milik line. Operator diterima SEJAK COMMIT PERTAMA, dan pelebaran itu menempatkannya pada cabang TERIKAT-MILL resolveBusinessUnit() — bukan hanya di daftar peran, yang akan menjatuhkannya ke cabang Admin tempat business_unit_id kiriman klien dihormati, yang berarti kebocoran lintas mill.",
+      "screen_id": "screen-162--laporan-solid-waste-disposal-web",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/solid-waste-disposal-reports/summary",
+      "description": "Seluruh angka Laporan Solid Waste Disposal untuk satu periode pada satu Production Line. LAPORAN PER-TRANSAKSI, BUKAN BERGRID: satu baris detail adalah SATU MUATAN KELUAR berkunci `event_date`, tanpa READING_FIELDS dan tanpa 24 slot jam — sehingga preseden bentuknya adalah Weighbridge (screen-143) dan Grading (screen-146), bukan Process Water. `loads` membawa load_count, net_weight_total/avg dengan net_weight_load_count DITERBITKAN sebagai penyebut, dan missing_net_weight_load_count yang ditonjolkan tersendiri — net_weight_mt adalah kolom TURUNAN SERVICE (gross − tare), jadi null-nya berarti PENIMBANGAN BELUM SELESAI, bukan 'lupa diisi'. EMPAT rekap kategoris (by_waste_type, by_source_station, by_disposal_site, by_purpose_end_use), masing-masing dengan baris `value: null` ('tidak tercatat') TERSENDIRI dan SELALU terakhir, urut nilai alfabetis bukan urut jumlah, dan masing-masing baris menerbitkan penyebutnya sendiri. NOL JOIN dan nol pemetaan master — keempat kolom itu teks bebas, dan menerjemahkannya berarti mengarang pemetaan yang tidak ada. `compliance` membawa missing_gate_pass_count dan missing_seal_count sebagai JEJAK KEPATUHAN, bukan ukuran produksi, dengan prosa yang menyatakannya. TIDAK ADA blok hourly, busiest_hour, maupun empty_hour_count SAMA SEKALI — tabel detail hanya membawa event_date tanpa satu pun kolom waktu, sehingga sebaran per jam BUKAN fitur yang ditunda melainkan bukan sesuatu yang dapat dihitung; ketiadaan itu diasersi atas NAMA KUNCI payload, bukan atas prosa layar, karena _note_no_hourly justru memuat kata-katanya. undated_load_count menghitung baris tanpa event_date — baris itu masuk load_count dan keempat rekap tetapi TIDAK masuk daily[], sehingga penjumlahan harian boleh KURANG dari total, dan selisih itu diterbitkan alih-alih disembunyikan. daily[] berisi satu entri per hari BERMUATAN, bukan per hari kalender; daily_total dijumlahkan dari daily[] bukan disalin dari loads. completeness mengukur HARI lewat ReportPeriodDays::counted. Kolom `shift` TIDAK diterbitkan di payload maupun layar — hanya di ekspor — karena ia teks bebas pada tabel detail dan bukan FK ke `shifts`. TANPA blok downtime dan TANPA penandaan nilai di luar batas; keduanya dinyatakan di layar. Record draft ikut terhitung dan draft_load_count menyatakan berapa. period_id dan production_line_id KEDUANYA WAJIB; line maupun periode milik mill lain → 403.",
+      "screen_id": "screen-162--laporan-solid-waste-disposal-web",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/solid-waste-disposal-reports/export",
+      "description": "Unduhan CSV/Excel Laporan Solid Waste Disposal — SATU BARIS PER MUATAN, dengan kolom konteks (nama periode, mill, line, tanggal record, status) DIULANG VERBATIM di setiap baris, disusul seluruh kolom detail termasuk `shift`, gate_pass_number, seal_number dan operator_id. Label kolom mengikuti layar Detail stasiun ini, bukan nama kolom database. Excel adalah .xlsx SUNGGUHAN lewat SheetWriter, bukan CSV berekstensi .xlsx. format 'csv'|'xlsx'; nilai lain → 422, dan default 'csv' ditetapkan controller atas nilai query yang sudah di-trim. Gate peran, resolusi mill/line, pemeriksaan format dan batas 50.000 baris berjalan EAGER — seluruhnya sebelum satu byte pun dialirkan, karena galat sesudah header terkirim mendarat sebagai berkas rusak dan bukan sebagai pesan. Bukan respons JSON.",
+      "screen_id": "screen-162--laporan-solid-waste-disposal-web",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
       ]
     }
   ]

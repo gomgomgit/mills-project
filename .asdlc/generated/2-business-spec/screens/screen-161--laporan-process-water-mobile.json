@@ -1,0 +1,157 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-17"
+  },
+  "id": "screen-161--laporan-process-water-mobile",
+  "name": "Laporan Process Water (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Versi mobile dari Laporan Process Water (screen-160). Isi laporannya SAMA PERSIS — keempat endpoint /api/process-water-reports/* dipakai ulang apa adanya, sehingga web, API, dan ponsel tidak mungkin berselisih tentang satu angka pun. Yang berubah hanyalah bentuknya pada layar sempit.\n\nSEMBILAN KARTU — GULIR TERPENDEK di antara laporan kondisi bergrid 24 slot. Engine Room mobile punya dua puluh tiga dan Effluent Plant empat belas; di sini sembilan. Justru karena pendek, pengelompokannya tetap dipertahankan: EMPAT blok berjudul mengikuti rantai pengolahan air — Aliran Air, Softener, Dosis Kimia, Air Umpan Boiler — PERSIS seperti web. Pengelompokan yang sama di kedua platform berarti pembaca yang berpindah dari ponsel ke web tidak perlu mempelajari ulang peta halamannya.\n\nSATUAN WAJIB TERCETAK DI SETIAP KARTU, dan di layar ini tuntutan itu lebih keras daripada di web. Dosis alum (kg/jam) dan dosis polimer (g/jam) berada dalam blok yang sama dan keduanya bernama 'dosis'; di web keduanya berdampingan sehingga satuannya terbaca sekaligus, di ponsel pembaca melihat satu kartu pada satu waktu dan kedekatan itu hilang. Angka 2,5 tanpa satuan pada kartu kedua akan dibaca dengan skala kartu pertama — dan kedua skala itu berbeda seribu kali.\n\nTIDAK ADA SATU PUN KOLOM KATEGORIS DI STASIUN INI, dan ini pembeda terpenting dari Engine Room mobile yang persis sebelumnya. `action_taken_status` bertipe TEKS BEBAS meski namanya menyebut 'status', jadi ia diterbitkan sebagai REKAP TEKS — bukan sebaran jumlah slot per nilai. Layar ini karena itu TIDAK punya satu pun daftar sebaran, dan ketiadaan itu disengaja: menyalin bentuk sebaran dari laporan sebelumnya akan menghasilkan satu 'nilai' per kalimat yang berbeda.\n\nBARIS TERISI DIHITUNG ATAS SEBELAS KOLOM, BUKAN TIGA BELAS. `shift` dan `inspector_id` adalah kolom identitas, bukan kolom pembacaan, dan dikecualikan — berbeda dari Engine Room yang menghitung seluruh dua puluh tujuh kolomnya termasuk kedua kolom teksnya. Konsekuensinya berpasangan dan berlawanan, dan keduanya harus terbaca di layar sempit: slot yang hanya berisi teks bebas TERHITUNG terisi, sementara slot yang hanya berisi shift/inspector TIDAK.\n\nREKAP PER INSPECTOR TAMPIL DI LAYAR dengan kode mentah — penyimpangan sadar dari Storage Tank yang menerbitkan kolom sejenis hanya di ekspor, diminta pemilik produk 2026-10-16. Di ponsel ia menumpuk menjadi kartu, bukan tabel bergulir mendatar.\n\nYANG TIDAK ADA: pemilih Mill (kedua aktornya terikat mill akunnya), blok downtime, penandaan nilai di luar batas, sebaran kategoris apa pun, kolom `shift` di layar, dan ekspor .xlsx — WebView ponsel tidak membukanya, jadi hanya CSV.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Reporting (screen-141) → tekan tile Process Water",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "usecase_ids": [
+    "usecase-167--laporan-process-water-mobile"
+  ],
+  "test_priority": "high",
+  "information_displayed": [
+    "Pemilih Production Line (wajib) — line milik mill akun; bila perangkat sudah mengingat line terakhir dari Daftar Stasiun, ia terpilih otomatis",
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Process Water, dengan badge status periode terpilih",
+    "Nama mill akun sebagai keterangan, TANPA pemilih Mill",
+    "Kelengkapan pencatatan, dirender PALING ATAS sebelum satu kartu pun: slot terisi dibanding yang diharapkan, jumlah unit Process Water, hari terhitung, 24 slot per unit per hari",
+    "Keterangan bahwa penyebut hari berhenti di HARI INI bila periode masih berjalan; atau '—' dengan 'belum ada slot yang diharapkan' bila slot diharapkan nol",
+    "Keterangan bahwa satu slot dianggap terisi bila minimal satu dari SEBELAS kolom pembacaan terisi — dan bahwa `shift` serta `inspector_id` TIDAK termasuk karena keduanya kolom identitas — sehingga jumlah slot terisi dapat MELEBIHI penyebut setiap kartu, dan itu benar",
+    "Blok Aliran Air — dua kartu: aliran air baku (m³/jam) dan aliran air jernih (m³/jam)",
+    "Blok Softener — dua kartu: pH masuk softener (tanpa satuan) dan kesadahan keluaran softener (ppm)",
+    "Blok Dosis Kimia — dua kartu: dosis alum (kg/jam) dan dosis polimer (g/jam), SATUAN TERCETAK PADA KEDUANYA karena skalanya berbeda seribu kali dan di ponsel keduanya tidak pernah berdampingan",
+    "Blok Air Umpan Boiler — tiga kartu: suhu tangki (°C), pH air umpan (tanpa satuan), dan TDS (ppm)",
+    "Pada SETIAP kartu: terendah, rata-rata, tertinggi berdampingan, ditambah jumlah pembacaan yang mendasarinya — masing-masing dari sembilan kartu punya penyebutnya sendiri",
+    "PERNYATAAN KETIADAAN PENANDAAN DI LUAR BATAS, dirender UTUH tanpa dipendekkan meski layarnya sempit: stasiun ini tidak punya master target, dan meski pH serta TDS air umpan boiler punya batas yang dikenal luas di luar aplikasi, laporan ini tidak menurunkan ambang apa pun dari data periode",
+    "Tren harian aliran air baku rata-rata per tanggal",
+    "Rekap Catatan Tindakan — daftar isi kolom action_taken_status yang tidak kosong beserta tanggal dan slot waktunya, DITERBITKAN SEBAGAI TEKS",
+    "Keterangan mengapa catatan tindakan diperlakukan sebagai teks meski namanya menyebut 'status': kolomnya teks bebas tanpa himpunan nilai tertutup",
+    "Rekap Temuan — bentuk yang sama, pada bagian TERPISAH; satu slot dapat muncul di kedua rekap dan itu bukan penghitungan ganda",
+    "Rekap per Inspector — satu baris per inspector_id beserta baris 'tidak tercatat', KODE MENTAH apa adanya, menumpuk menjadi kartu di lebar ponsel",
+    "Keterangan bahwa rekap per inspector ada untuk menelusuri slot yang belum terisi, bukan untuk menilai orang",
+    "Rekap per unit Process Water — satu baris per process_water_id bila line punya lebih dari satu unit",
+    "Rekap harian yang dapat dibuka dan ditutup — satu baris per tanggal beserta baris total periode, MENUMPUK MENJADI KARTU di lebar ponsel",
+    "Keterangan bahwa layar ini tidak memuat bagian downtime, karena stasiun ini tidak mencatatnya",
+    "Keterangan bahwa kolom `shift` tidak diterbitkan di layar ini beserta alasannya",
+    "Keterangan bila periode tidak memuat data, dengan kelengkapan pencatatan TETAP ditampilkan",
+    "Tombol Ekspor CSV — hanya tampil setelah Production Line dipilih. TIDAK ADA tombol Ekspor Excel: WebView ponsel tidak membuka .xlsx",
+    "Keadaan memuat, keadaan galat jaringan dengan aksi coba lagi, dan keadaan luring yang menyatakan laporan perlu jaringan"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan line yang dilihat. Wajib dipilih sebelum angka dan tombol ekspor tampil.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap",
+      "description": "Menyembunyikan atau menampilkan rekap per inspector, per unit, dan rekap harian. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Ekspor CSV",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode (cakupan line terpilih) sebagai CSV, satu baris per slot, memuat ke-13 kolom detail termasuk `shift` dan `inspector_id`. Hanya CSV — .xlsx tidak tersedia di WebView ponsel. Ekspor adalah rincian mentah, jadi pengecualian `shift`/`inspector_id` dari pemeriksaan slot terisi tidak berarti keduanya dibuang dari berkas.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Coba lagi",
+      "description": "Mengulang permintaan setelah galat jaringan. Penjagaan Production Line berlaku pada jalur ini juga.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Isi laporan IDENTIK dengan screen-160. Keempat endpoint /api/process-water-reports/* dipakai ulang apa adanya; ponsel tidak punya jalur hitungnya sendiri. NOL endpoint baru dibangun untuk layar ini.",
+    "PONSEL TIDAK MENGHITUNG APA PUN. Seluruh agregasi — rata-rata, min, maks, penyebut, kelengkapan, rekap per inspector, rekap per unit — datang dari server dan dirender apa adanya. Termasuk tidak mengubah satuan: satuan dicetak sebagaimana diterbitkan server, tidak dipetakan ulang di klien.",
+    "Hanya Operator dan Supervisor yang punya layar ini. Mill Management dan Admin tidak — jalur mereka ada di web (screen-160). Yang menahan keduanya adalah otorisasi sisi server plus ketiadaan jalur mobile, BUKAN penjaga peran di router: router mobile hanya punya guard SESI dan tidak ada satu rute pun yang membawa daftar peran.",
+    "TIDAK ADA pemilih Mill. Kedua aktornya terikat business_unit_id akunnya, dan nilai mill dari klien tidak pernah dipakai. Endpoint pemilih mill (/business-units/options) TETAP menjawab 403 bagi keduanya, dan layar ini memang tidak pernah memanggilnya.",
+    "Production Line WAJIB dipilih lebih dulu. Selama belum dipilih layar tidak menampilkan SATU ANGKA PUN, dan tidak menampilkan angka seluruh mill sebagai penggantinya.",
+    "Penjagaan Production Line ada di FUNGSI PEMUATAN, bukan di template. Template yang menyembunyikan angka tetap membiarkan permintaan terkirim; penjagaan di fungsi pemuatan ikut melindungi jalur ganti-periode dan jalur coba-lagi.",
+    "Line yang terakhir dipilih pengguna di Daftar Stasiun dipakai sebagai pilihan awal, dibaca dari penyimpanan perangkat dengan KUNCI YANG SAMA PERSIS seperti yang ditulis Daftar Stasiun. Kunci yang berbeda akan terkompilasi, terlihat benar, dan tidak pernah cocok.",
+    "Pembacaan penyimpanan perangkat dibungkus try/catch: pada mode privat penyimpanan dapat melempar, dan itu tidak boleh mematahkan layar — cukup jatuh ke keadaan 'belum ada line terpilih'.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Process Water.",
+    "Status periode tidak membatasi apa pun. Periode tertutup tetap dapat dilihat dan diekspor.",
+    "Rentang periode inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "SETIAP kartu menampilkan penyebutnya SENDIRI. Kesembilan kolom ukur nullable dan terisi saling bebas; penyebut yang sama pada kesembilan kartu adalah cacat — dan di ponsel cacat itu LEBIH sulit terlihat daripada di web, karena kartunya tidak pernah berdampingan.",
+    "Kesembilan kartu dikelompokkan menjadi EMPAT blok berjudul yang SAMA PERSIS dengan web — Aliran Air, Softener, Dosis Kimia, Air Umpan Boiler. Keempat blok dibiarkan TERBUKA, tidak dilipat: melipatnya menyembunyikan penyebut tiap kartu, dan penyebut itulah yang paling perlu dilihat.",
+    "SATUAN TERCETAK PADA SETIAP KARTU YANG PUNYA SATUAN, dan pada blok Dosis Kimia itu mengikat: alum kg/jam dan polimer g/jam berada di blok yang sama, keduanya bernama 'dosis', dan skalanya berbeda seribu kali. Di ponsel keduanya tidak pernah terlihat bersamaan, jadi angka tanpa satuan akan dibaca dengan skala kartu sebelumnya.",
+    "pH TIDAK DIBERI SATUAN, dan itu bukan kelalaian — pH memang besaran tanpa satuan. Memberinya satuan karangan demi keseragaman akan menyatakan sesuatu yang tidak benar.",
+    "`action_taken_status` DITERBITKAN SEBAGAI REKAP TEKS, BUKAN SEBAGAI SEBARAN KATEGORIS, meski namanya menyebut 'status'. Layar ini karena itu TIDAK punya satu pun daftar sebaran — berbeda dari Engine Room mobile yang persis sebelumnya dan punya dua. Menyalin bentuk sebaran dari laporan sebelumnya akan menghasilkan satu 'nilai' per kalimat yang berbeda.",
+    "Catatan tindakan dan temuan adalah dua kolom teks bebas yang diterbitkan pada DUA BAGIAN TERPISAH. Keduanya tidak pernah dirata-rata maupun digrafikkan, dan satu slot yang mengisi kedua-duanya muncul pada kedua rekap tanpa itu berarti penghitungan ganda.",
+    "Rekap per inspector menampilkan `inspector_id` MENTAH apa adanya dan tidak pernah mencoba memulangkan nama orang — isinya teks bebas yang tidak merujuk master mana pun, jadi tidak ada pemetaan untuk ditebak. Baris 'tidak tercatat' berdiri sendiri. Ia ada untuk menelusuri slot yang belum terisi, bukan untuk menilai orang, dan maksud itu dinyatakan di layar.",
+    "Kolom `shift` TIDAK diterbitkan di layar ini, hanya di ekspor. Alasannya dinyatakan di layar supaya ketiadaannya tidak terbaca sebagai kelalaian.",
+    "SATU SLOT DIANGGAP TERISI BILA MINIMAL SATU DARI SEBELAS KOLOM PEMBACAAN TERISI — bukan tiga belas. Konsekuensinya berpasangan dan berlawanan: slot yang HANYA berisi teks bebas terhitung terisi, sementara slot yang HANYA berisi shift/inspector TIDAK. Keduanya harus dapat dibedakan pembaca.",
+    "Karena kesebelas kolom itu mencakup kedua kolom teks, jumlah slot terisi dapat MELEBIHI jumlah pembacaan setiap kartu ukur — dan itu dinyatakan di blok kelengkapan, bukan dikoreksi.",
+    "Stasiun ini tidak mencatat downtime, sehingga laporan ini tidak punya blok downtime. Ketiadaannya disengaja dan dinyatakan.",
+    "TIDAK ADA penandaan nilai di luar batas, dan keterangannya dirender UTUH — tidak dipendekkan, tidak dilipat, tidak dipotong dengan elipsis demi lebar layar. Keterangan yang dipotong di tengah berhenti menerangkan apa pun.",
+    "Kelengkapan pencatatan dirender PALING ATAS, sebelum satu kartu pun. Di layar sempit ia satu-satunya bagian yang pasti terlihat tanpa menggulir, dan ia menentukan apakah angka di bawahnya layak dipercaya.",
+    "Kelengkapan untuk periode yang MASIH BERJALAN dihitung hanya sampai hari ini. Periode yang belum mulai menghasilkan nol slot yang diharapkan dan tampil '—', bukan 0,0%.",
+    "Ekspor hanya CSV. Tidak ada ekspor .xlsx dan tombolnya pun tidak dirender, karena WebView ponsel tidak membukanya — menyediakan tombol yang menghasilkan berkas tak terbuka lebih buruk daripada tidak menyediakannya.",
+    "Seluruh tabel rekap MENUMPUK MENJADI KARTU di lebar ponsel (satu kartu per baris, tiap sel berlabel) alih-alih menggulir mendatar. Konvensi itu ditegakkan global oleh v-stacked-table + stacked-table.css dan lahir dari temuan QA LP-M-02/LP-M-03.",
+    "Layar ini perlu jaringan. Ia tidak menyimpan hasil laporan ke penyimpanan lokal dan tidak punya mode luring — keadaan luring dinyatakan apa adanya, bukan ditampilkan sebagai angka basi tanpa penanda."
+  ],
+  "edge_cases": [
+    "Periode tidak memuat satu pun pembacaan — seluruh kartu menampilkan tidak tersedia dengan penyebut nol, bukan nol, dan kelengkapan pencatatan tetap tampil.",
+    "Sebuah kartu tidak pernah diisi sepanjang periode walau kartu lain terisi — kartunya tetap ada dengan 'tidak tersedia' dan penyebut nol, tidak dihilangkan dari bloknya.",
+    "Satu slot hanya mengisi kolom teks bebas tanpa satu pun kolom ukur — slot itu TERHITUNG terisi karena kedua kolom teks termasuk dalam kesebelas kolom pembacaan, tetapi tidak menambah penyebut kartu mana pun, sehingga jumlah slot terisi melebihi setiap penyebut. Itu benar dan dinyatakan di blok kelengkapan.",
+    "Satu slot hanya mengisi `shift` dan/atau `inspector_id` tanpa satu pun kolom pembacaan — slot itu TIDAK terhitung terisi. Ini kebalikan dari kasus di atas, dan keduanya harus dapat dibedakan pembaca.",
+    "Kedua kolom teks bebas kosong sepanjang periode — kedua rekap menampilkan keterangan tidak ada catatan, bukan daftar kosong tanpa penjelasan.",
+    "Satu slot mengisi catatan tindakan DAN temuan sekaligus — muncul pada kedua rekap, dan itu benar.",
+    "Isi `action_taken_status` berulang sama persis pada banyak slot — tetap diterbitkan sebagai daftar teks per slot, bukan dikelompokkan menjadi sebaran.",
+    "Teks catatan atau temuan sangat panjang — dibungkus pada layar sempit, bukan dipotong, dan tidak mendorong lebar halaman sehingga halaman tidak menggulir mendatar.",
+    "Seluruh slot terisi tidak mencatat `inspector_id` — rekap per inspector menampilkan satu baris 'tidak tercatat' berisi seluruh slot itu, bukan rekap kosong.",
+    "Satu inspector mengisi seluruh slot periode — rekap per inspector menampilkan satu baris, dan itu sah.",
+    "Sebuah `inspector_id` berupa kode panjang atau mengandung spasi — ditampilkan apa adanya tanpa dipotong, dan tidak pernah dicoba dipetakan ke nama.",
+    "Dosis alum dan dosis polimer terisi dengan angka yang mirip — keduanya tampil apa adanya pada kartu masing-masing DENGAN SATUANNYA, dan laporan tidak membandingkan keduanya; skalanya berbeda seribu kali sehingga perbandingannya tidak bermakna.",
+    "Nilai pH atau TDS jauh di luar batas yang dikenal umum — ditampilkan apa adanya tanpa penanda apa pun, dan keterangan ketiadaan penandaan tetap terlihat utuh.",
+    "Line punya lebih dari satu unit Process Water — angka periode menggabungkan seluruh unit, rekap per unit menunjukkan sebarannya, dan unit tanpa pembacaan tetap muncul dengan penyebut nol.",
+    "Kelengkapan pencatatan sangat rendah — angka tetap ditampilkan, dan blok kelengkapan yang berada paling atas memastikan pembaca melihatnya sebelum satu kartu pun.",
+    "Periode masih berjalan — penyebut hari berhenti di hari ini dan hal itu dinyatakan.",
+    "Periode belum mulai atau belum ada unit tercatat sehingga slot diharapkan nol — kelengkapan tampil '—' dengan 'belum ada slot yang diharapkan', bukan 0,0%.",
+    "Production Line belum dipilih — tidak ada satu angka pun, tombol ekspor tidak dirender, dan tidak ada permintaan ringkasan yang terkirim karena penjagaannya di fungsi pemuatan.",
+    "Perangkat belum pernah mengingat Production Line — layar meminta memilih line, bukan memilih line pertama secara diam-diam.",
+    "Penyimpanan perangkat melempar (mode privat) — layar jatuh ke keadaan 'belum ada line terpilih' dan tetap berfungsi.",
+    "Line yang diingat perangkat ternyata milik mill lain atau sudah tidak ada — server mengabaikannya dan layar meminta memilih line, bukan menampilkan angka mill lain.",
+    "Akun Operator atau Supervisor yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Mill belum punya satu pun periode yang mencakup Process Water — pemilih periode kosong dengan arahan menghubungi Admin.",
+    "Periode tertutup — laporan tampil penuh, status tertutup ditampilkan, ekspor CSV tetap dapat dijalankan.",
+    "Jaringan gagal di tengah pemuatan — keadaan galat dengan aksi coba lagi; penjagaan Production Line tetap berlaku pada jalur coba lagi itu.",
+    "Perangkat luring — layar menyatakan laporan perlu jaringan, bukan menampilkan angka basi tanpa penanda dan bukan diam.",
+    "Mill Management atau Admin membuka rute mobile ini — ditahan oleh otorisasi sisi server plus ketiadaan jalur mobile bagi keduanya, bukan oleh penjaga peran di klien; jalur mereka ada di web (screen-160).",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar gulirnya tetap terkendali, dan rekapnya MENUMPUK MENJADI KARTU di lebar ponsel alih-alih menggulir mendatar."
+  ],
+  "open_questions": [
+    "Ketiga pertanyaan terbuka screen-160 BERLAKU UTUH di sini dan tidak diulang sebagai pertanyaan baru, karena ketiganya sifat DATA-nya bukan sifat platformnya: (1) `action_taken_status` sudah TERJAWAB teks bebas dengan tiga bukti terpisah — keputusan pemilik produk 2026-10-16 'biarkan teks bebas untuk sekarang'; (2) `inspector_id` sudah TERJAWAB teks bebas dan boleh ditampilkan — keputusan pemilik produk yang sama; (3) ketiadaan master target untuk pH dan TDS air umpan boiler yang batasnya dikenal luas di luar aplikasi. Layar ini menyatakan ketidakpastian yang sama di tempat yang sama.",
+    "SUDAH TIDAK BERLAKU, dicatat agar riwayatnya terbaca: screen-160 menyimpan pertanyaan 'apakah laporan ini perlu menunggu penandaan shift?'. Penandaan `shift_id` pada ke-18 tabel record SUDAH MENDARAT 2026-10-16 (commit 4ece80d) beserta tampilannya di Detail dan Data Browser (563ae9e). Yang BELUM ada adalah pengelompokan laporan periode menurut shift — di web maupun di ponsel. Layar ini karena itu tetap dibangun tanpa dimensi shift, dan peninjauan ulang untuk menambahkan pengelompokan per shift berlaku SAMA untuk screen-160 dan screen-161 sekaligus; keduanya akan ditinjau bersama, bukan satu per satu."
+  ]
+}

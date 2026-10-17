@@ -70,13 +70,37 @@ const AVAILABLE_STATION = 'sterilizer'
 /**
  * A station whose report is not built yet — the disabled-tile fixture.
  *
- * DIPINDAHKAN THRESHING -> PROCESS WATER pada 2026-10-06, ketika screen-148
- * membuat laporan Threshing dan tile-nya menjadi aktif. Contohnya dipindahkan,
- * BUKAN dihapus: bila Process Water pun suatu saat dibuatkan laporan, test
- * yang memakai konstanta ini akan gagal lagi — dan itu benar, karena ia
- * memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
+ * DIPINDAHKAN THRESHING -> PROCESS WATER pada 2026-10-06 (screen-148), lalu
+ * PROCESS WATER -> PROCESS QUALITY CONTROL pada 2026-10-18. Contohnya
+ * dipindahkan, BUKAN dihapus: bila stasiun ini pun suatu saat dibuatkan
+ * laporan, test yang memakai konstanta ini akan gagal lagi — dan itu benar,
+ * karena ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu
+ * hijau.
+ *
+ * PEMINDAHAN 2026-10-18 ADALAH PERBAIKAN YANG TERTUNGGAK, bukan bagian dari
+ * pekerjaan hari ini. screen-160 membuat laporan Process Water pada
+ * 2026-10-16 dan menambahkan entri REPORT_ROUTES-nya, tetapi konstanta DI
+ * SINI tidak ikut dipindahkan — sehingga sejak saat itu berkas ini
+ * mengasersikan tile yang justru sudah aktif sebagai nonaktif. Test unit
+ * padanannya (StationReportServiceTest case 16 & 18) memang ikut dipindahkan
+ * saat itu; yang terlewat hanya sisi browser. Pelajarannya: riak "contoh
+ * stasiun belum berlaporan" ada di DUA tempat, dan grep atas kode stasiunnya
+ * — bukan atas urutan daftarnya — yang menemukan keduanya.
+ *
+ * MENGAPA LANGSUNG KE YANG TERAKHIR (sort_order 180) dan bukan ke
+ * kernel-dispatch (160) yang berikutnya: keempat stasiun tanpa laporan
+ * sedang dibangun berurutan (screen-162/164/166/168), jadi contoh mana pun
+ * selain yang terakhir akan basi lagi dalam hitungan hari.
+ *
+ * DAN SESUDAH screen-168, TIDAK ADA LAGI STASIUN YANG BELUM BERLAPORAN.
+ * Konstanta ini tidak akan punya kandidat nyata, dan asersi yang
+ * memakainya harus BERUBAH BENTUK — bukan dipindahkan lagi: ia harus
+ * menyuntikkan jenis stasiun fiktif ke master (seperti yang dilakukan
+ * StationReportServiceTest dengan stationReportMaster()), karena di
+ * browser masternya nyata. Itu pekerjaan screen-168, dan dicatat di sini
+ * supaya tidak ditemukan sebagai kejutan.
  */
-const UNAVAILABLE_STATION = 'process-water'
+const UNAVAILABLE_STATION = 'process-quality-control'
 
 async function openReports(page: Page, username: string): Promise<void> {
   await login(page, username, PASSWORD)

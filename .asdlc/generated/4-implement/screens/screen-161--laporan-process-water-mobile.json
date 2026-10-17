@@ -1,0 +1,78 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-161--laporan-process-water-mobile",
+  "name": "Laporan Process Water (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-17T22:17:46Z",
+      "passed": 44,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-17T22:17:46Z",
+      "passed": 111,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-18T00:58:00Z",
+      "passed": 36,
+      "failed": 0
+    }
+  },
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/processWaterReportRepo.ts",
+    "mobile/src/views/LaporanProcessWaterView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/processWaterReportRepo.spec.ts",
+    "mobile/tests/LaporanProcessWaterView.spec.ts",
+    "mobile/tests/e2e/laporan-process-water.spec.ts",
+    "mobile/tests/ReportingPilihStasiunView.spec.ts"
+  ],
+  "implementation_notes": [
+    "NOL BERKAS BACKEND DISENTUH, dan itu rancangan bukan kebetulan. Keempat endpoint /api/process-water-reports/* dipakai ULANG apa adanya dari screen-160; Operator sudah diterima di ketiga rute data sejak commit pertama screen-160 justru supaya layar ini tidak perlu melebarkan izin apa pun. Pola yang sama sudah terbukti pada screen-158/159. Konsekuensinya tidak ada integration test di sini — bukan karena dilewatkan, melainkan karena tidak ada kontrak baru untuk diuji.",
+    "SKEMA /summary DI TECH-SPEC TIDAK COCOK DENGAN ENDPOINT NYATA, dan endpoint-nya TIDAK diubah. Server menerbitkan `coverage.coverage_percent`, `reading_count`, `inspector_recap` sebagai OBJEK `{entries, not_recorded, recorded_slots}`, `text_entries[*].text`, `daily[].metrics_avg`; tech-spec menamai hal yang sama `percent`, `count`, `inspector_recap` sebagai ARRAY, `value`, `daily[].raw_water_flow_avg`. Penyelesaiannya: repo meneruskan body APA ADANYA (nol kunci dibuang, nol default disuntikkan, sehingga fixture penuh deep-equal dengan hasil parse), dan view MEMILIH antara kedua kosakata lewat helper bernama. Memilih adalah membaca — tidak ada angka baru yang lahir. Layar bekerja terhadap backend hidup maupun fixture berbentuk-spec, dan kedua jalur diuji.",
+    "`metrics[*]` TIDAK punya field `unit` di payload nyata, sehingga 'satuan berasal dari field unit pada respons' tidak dapat dipenuhi sendirian. Satuan datang dari tabel statis METRIC_META yang disalin VERBATIM dari `$metrikMeta` di blade web, dengan nilai server MENANG bila ada (null eksplisit dihormati sebagai 'tanpa satuan', bukan diperlakukan sebagai hilang). Tidak ada fungsi pemetaan satuan di mana pun — `kg/jam` dan `g/jam` adalah label statis yang ditulis tangan, bukan hasil transformasi. Kedua kartu pH membawa `unit: null` dan merender NOL elemen satuan. Nilai `digits` (1,1,2,1,1,0,1,2,0) juga disalin verbatim, sehingga polimer dan TDS tampil tanpa desimal persis seperti di web.",
+    "KUNCI METRIK ADA DALAM DUA EJAAN (`alum_dosing_kgh`/`alum_dose`, `boiler_feed_water_ph`/`boiler_feed_ph`). Alias di METRIC_META menunjuk OBJEK YANG SAMA, sehingga keduanya tidak dapat menyimpang. Kedua ejaan testid ada dan keduanya diasersi.",
+    "LURING MENUTUP ANGKANYA, bukan sekadar menambah spanduk — penyimpangan sadar dari preseden Engine Room: `bootstrap()` kembali sebelum permintaan apa pun ketika `navigator.onLine === false`, sehingga nol kartu metrik terender di samping pernyataan 'memerlukan jaringan'.",
+    "`has_data` BUKAN gerbang render (berbeda dari Engine Room) — skema di tech-spec tidak memuatnya, jadi menggerbanginya akan membuat fixture berbentuk-spec menyembunyikan ketiga rekap.",
+    "Ketiga rekap memakai CollapsibleSection, terlipat secara bawaan lewat `v-show` — isinya ADA di DOM untuk asersi komponen tetapi perlu klik pada uji browser.",
+    "RIAK KE `ReportingPilihStasiunView.spec.ts` — di luar daftar berkas, dan disengaja. Menambahkan entri REPORT_ROUTES membuat asersi spec itu SALAH: ia memakai 'process-water' sebagai contoh utama 'belum ada laporan mobile' di ±20 tempat, termasuk docblock-nya sendiri, fixture THREE_STATIONS, asersi urutan tile, dan dua test perilaku yang mengasersikan kalimat 'Laporan Process Water belum tersedia di aplikasi mobile.'. Ini kategori riak KEDUA yang sudah pernah dibayar proyek ini — yang ditemukan dengan grep KODE STASIUNNYA, bukan dengan memeriksa urutan. Diperbaiki menurut konvensi berkas itu sendiri (pakai sort_order tertinggi yang belum dipakai sebagai contoh): process-quality-control (180), cpo-dispatch (170) dan kernel-dispatch (160) ketiganya sudah terpakai di sana; solid-waste-disposal (150) nol kemunculan. Murni penggantian contoh — nol asersi dilemahkan atau dihapus; keempat asersi pesan tetap kesetaraan `toBe`. 39/39 hijau. Spec saudaranya `tests/e2e/reporting-pilih-stasiun.spec.ts` tidak perlu diubah: ia memilih tile nonaktif secara dinamis dan tidak menuliskan kode stasiun mana pun.",
+    "DUA JEBAKAN LINGKUNGAN yang akan menghasilkan test hijau-tapi-hampa. (1) `vi.spyOn(window.localStorage, 'getItem')` menerima NOL panggilan di jsdom karena localStorage dibungkus Proxy — diverifikasi: spy pada instance 0 panggilan, spy pada `Storage.prototype` 1 panggilan. Kedua test localStorage memakai `Storage.prototype`. (2) Wrapper yang di-mount WAJIB di-unmount pada `afterEach`, sebab layar ini mendaftarkan listener `online`/`offline` dan wrapper yang bocor menghitung ganda `fetchPeriods`.",
+    "EMPAT ASERSI PRESEDEN MEMERAHKAN LAYAR YANG BENAR dan disesuaikan dengan alasannya dicatat di berkas, bukan disalin buta: `not.toContain('xlsx'/'excel')` seluruh-view gagal karena prosa wajib berbunyi 'tidak ada tombol Ekspor Excel' (ketiadaan Excel diasersikan lewat TESTID dan role sebagai gantinya — dan sapuan `body.innerText` untuk 'excel' di laporan-engine-room.spec.ts TIDAK boleh disalin ke sini); penyaring testid sebaran harus sama dengan `['pw-no-distribution-note']`, bukan `[]`; `not.toMatch(/ganda|digabung/)` gagal pada prosa wajib; `pw-daily-total` memuat `(n=21)` sehingga `not.toContain('21')` telanjang gagal.",
+    "TIGA KASUS UJI TECH-SPEC TIDAK DAPAT DIIMPLEMENTASIKAN SEPERTI TERTULIS dan diganti dengan kontrak yang sebenarnya, didokumentasikan di berkas: case 54 mengandaikan penolakan router berbasis peran (router mobile hanya punya satu penjaga global `meta.public`; tidak ada rute yang membawa peran), case 55 mengimpor REPORT_ROUTES (sebuah const lokal yang tidak diekspor di dalam `<script setup>` — diaudit lewat sumber yang komentarnya dilucuti), dan case 11–18 dinamai 'repo' tetapi sebenarnya menguji logika penjagaan/resolusi line di tingkat VIEW.",
+    "DUA KEGAGALAN UJI BROWSER PADA PUTARAN PERTAMA, keduanya cacat SPEC bukan cacat layar, dan keduanya diperbaiki di spec. (1) Stub CSV mengarang header-nya sendiri — 'Tanggal Mulai'/'Tanggal Selesai'/'Catatan Periode', kesembilan label ukur diterjemahkan ke bahasa Indonesia, dan Shift+Inspector diletakkan di UJUNG — menghasilkan 22 kolom sementara asersinya menuntut 21. Yang benar adalah ASERSINYA: `ProcessWaterReportService::EXPORT_HEADER` punya tepat 21 kolom dengan satu 'Tanggal' dan Shift+Inspector ID tepat sesudah 'Slot Waktu'. Stub disalin ulang verbatim dari sumbernya. YANG LAYAK DICATAT: menyesuaikan angka 21 menjadi 22 akan membuat seluruh berkas hijau sambil membuktikan NOL hal tentang berkas yang sungguh diunduh pengguna — layar ini mengunduh dari endpoint ASLI, bukan dari stub. Sebuah stub hanya sekuat kesetiaannya pada yang ia tiru, dan kesetiaan itu tidak dijaga oleh apa pun selain disalin. (2) Skenario 24 memanggil `context.setOffline(true)` lalu `page.reload()` — yang memutus jaringan pada tingkat BROWSER sehingga dokumen dan bundle-nya sendiri gagal diambil dari Vite dev server: navigasinya mati dengan ERR_INTERNET_DISCONNECTED dan aplikasinya TIDAK PERNAH dijalankan. Yang teruji begitu bukan penjagaan layar ini melainkan kemampuan Chromium memuat halaman tanpa jaringan. Diganti dengan memalsukan `navigator.onLine` lewat `addInitScript` — sinyal yang BENAR-BENAR dibaca layar ini (LaporanProcessWaterView.vue:499) — sehingga dokumennya tetap terambil, aplikasinya boot, lalu menolak meminta apa pun. Stub API sengaja tetap terpasang supaya penolakan itu DAPAT dibantah oleh `state.hits.summary`.",
+    "Sesudah kedua perbaikan itu: 36/36 uji browser hijau, tanpa menyentuh satu baris pun kode implementasi."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Coverage unit TIDAK TERUKUR, bukan 0 maupun gagal. Tidak ada provider coverage terpasang (package.json tanpa coverage/istanbul/c8; node_modules/@vitest/ tanpa coverage-*; vite.config.ts tanpa blok test.coverage). Ditetapkan secara statis — `--coverage` sengaja TIDAK dijalankan karena vitest 1.5 akan menawarkan memasang paket, dan memasang dilarang. Ambang `unit_test.coverage_threshold = 80` harus diperlakukan sebagai BELUM DINILAI, bukan gagal. Status TIDAK diturunkan karenanya: nol yang tidak terukur bukan nol yang nyata, dan itu jebakan yang sudah pernah dibayar proyek ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "Kolam kandidat 'belum ada laporan mobile' di ReportingPilihStasiunView.spec.ts HABIS. Dengan solid-waste-disposal terpakai, keempat kode tersisa (150/160/170/180) sudah semuanya dipakai sebagai contoh di sana. Docblock-nya kini mencatat bahwa pemindahan berikutnya harus MENYUNTIKKAN kode stasiun FIKTIF alih-alih mengejar yang nyata. Catat juga: artefak screen-162--laporan-solid-waste-disposal-web sudah ada di pohon kerja — begitu pasangan mobile-nya (screen-163) dibuat, spec itu akan memerah lagi.",
+      "severity": "minor"
+    },
+    {
+      "description": "Satu putaran hijau tidak dapat MEMBANTAH asersi hampa di spec-spec baru; ia hanya menetapkan tidak ada yang merah. Audit itu pertanyaan tinjauan kode, bukan pertanyaan test runner.",
+      "severity": "minor"
+    }
+  ]
+}

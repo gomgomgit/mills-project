@@ -1,0 +1,1967 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-162--laporan-solid-waste-disposal-web",
+  "name": "Laporan Solid Waste Disposal (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/solid-waste-disposal (Livewire, layout app; terdaftar di routes/web.php)",
+  "auth_requirement": "authenticated — sesi web. Aktor: Supervisor, Mill Management, Admin. Operator DITOLAK di rute web; jalurnya di mobile (screen-163).",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id kiriman klien DIABAIKAN, bukan divalidasi"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat mill, sehingga ia MEMILIH — dan hanya ia yang melihat pemilih Mill"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Ditolak di rute web. Tetapi ketiga rute DATA menerimanya sejak commit pertama, justru supaya screen-163 (mobile) tidak perlu melebarkan akses apa pun — pola yang sama dengan screen-160/161."
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "solid-waste-disposal-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "solid-waste-disposal-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "usecase_name": "Lihat Laporan Periode Solid Waste Disposal (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/solid-waste-disposal-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — ADMIN SAJA, ditegakkan DI DALAM service dan bukan oleh middleware, karena middleware prefix ini menerima keempat peran demi ketiga rute data di bawahnya. Master kosong adalah jawaban sah: [] dengan 200.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/solid-waste-disposal-reports/periods",
+          "description": "Periode yang punya baris period_stations berjenis 'solid-waste-disposal' pada satu mill. Periode tertutup maupun draft IKUT tercantum — laporan ini tidak menyaring status. business_unit_id WAJIB bagi Admin, DIABAIKAN bagi peran terikat mill termasuk Operator.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "WAJIB bagi Admin (422 bila absen); DIABAIKAN — bukan divalidasi — bagi peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string (draft|open|closed)",
+                  "station_type": "string — selalu 'solid-waste-disposal'",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "business_unit_id absen bagi Admin, atau akun terikat mill yang business_unit_id-nya NULL"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar keempatnya"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/solid-waste-disposal-reports/summary",
+          "description": "SELURUH angka laporan untuk satu periode pada satu Production Line. period_id dan production_line_id KEDUANYA wajib. Satu baris detail adalah SATU MUATAN KELUAR — laporan per-transaksi, bukan grid slot waktu.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — laporan ini menghasilkan ANGKA GABUNGAN yang tidak bermakna bila mencampur line"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya dihormati bagi Admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string"
+              },
+              "loads": {
+                "load_count": "integer — seluruh muatan periode, termasuk yang belum selesai ditimbang",
+                "net_weight_total": "float|null — null ketika NOL muatan punya netto; BUKAN 0",
+                "net_weight_avg": "float|null — penyebutnya net_weight_load_count, bukan load_count",
+                "net_weight_load_count": "integer — PENYEBUT yang dicetak di samping rata-rata",
+                "missing_net_weight_load_count": "integer — muatan yang netto-nya null karena bruto atau tara belum terisi; penimbangan BELUM SELESAI, dan angka ini ditonjolkan tersendiri"
+              },
+              "by_waste_type": [
+                {
+                  "value": "string|null — null berarti baris 'tidak tercatat', SELALU di posisi terakhir",
+                  "load_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_load_count": "integer — penyebut rata-rata BARIS INI; diterbitkan supaya tiap baris rekap dapat diperiksa sendiri, bukan hanya totalnya",
+                  "net_weight_avg": "float|null — null ketika net_weight_load_count baris ini 0"
+                }
+              ],
+              "by_source_station": [
+                {
+                  "value": "string|null",
+                  "load_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_load_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_disposal_site": [
+                {
+                  "value": "string|null",
+                  "load_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_load_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_purpose_end_use": [
+                {
+                  "value": "string|null",
+                  "load_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_load_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "compliance": {
+                "missing_gate_pass_count": "integer — baris yang `gate_pass_no`-nya null atau kosong setelah trim",
+                "missing_seal_count": "integer — baris yang `security_seal_no`-nya null atau kosong setelah trim",
+                "_note": "string — prosa yang menyatakan keduanya jejak kepatuhan (dokumen angkut yang tidak terbit), bukan ukuran produksi"
+              },
+              "draft_load_count": "integer — muatan draft TETAP terhitung di seluruh angka di atas",
+              "undated_load_count": "integer — muatan yang event_date-nya kosong sehingga tidak dapat ditempatkan pada periode mana pun",
+              "daily": [
+                {
+                  "date": "date",
+                  "load_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_load_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "daily_total": {
+                "load_count": "integer",
+                "net_weight_total": "float|null",
+                "net_weight_load_count": "integer",
+                "net_weight_avg": "float|null",
+                "_note": "string — dijumlahkan dari daily[], BUKAN disalin dari blok loads; keduanya memang dapat berbeda sebesar baris undated"
+              },
+              "completeness": {
+                "days_in_period": "integer",
+                "days_with_load": "integer",
+                "days_counted": "integer — ReportPeriodDays::counted; = days_in_period untuk periode selesai, start..hari ini (WIB) untuk periode berjalan, 0 bila belum mulai",
+                "percent": "number|null — null ketika days_counted 0; blade mencetak '—', bukan 0,0%"
+              },
+              "text_entries": {
+                "findings": [
+                  {
+                    "date": "date",
+                    "value": "string"
+                  }
+                ],
+                "remarks": [
+                  {
+                    "date": "date",
+                    "value": "string"
+                  }
+                ]
+              },
+              "_note_no_hourly": "string — prosa yang menyatakan sebaran per jam TIDAK DAPAT dibuat karena baris detail hanya membawa event_date tanpa kolom waktu. Dirender UTUH.",
+              "_note_shift_not_published": "string — prosa yang menyatakan kolom shift bertipe teks bebas, tidak disebar, dan tidak ditampilkan di layar; tetap ada di ekspor",
+              "_note_absences": "string — prosa yang menyatakan ketiadaan blok downtime dan ketiadaan penandaan nilai di luar batas"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/solid-waste-disposal-reports/export",
+          "description": "Unduhan CSV/Excel — SATU BARIS PER MUATAN, dengan kolom konteks (periode, mill, line) diulang verbatim di setiap baris, disusul SELURUH kolom detail termasuk `shift`, nomor gate pass, nomor segel, dan id operator. Excel adalah .xlsx SUNGGUHAN lewat SheetWriter. Gate peran, resolusi mill/line, pemeriksaan format dan batas berjalan EAGER sebelum aliran dimulai. Bukan respons JSON.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "'csv' atau 'xlsx'; nilai lain → 422. Default ditetapkan CONTROLLER atas nilai query yang sudah di-trim."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_": "Aliran CSV atau .xlsx, bukan JSON."
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen, format tidak dikenal, atau batas 50.000 baris terlampaui"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain — ditolak sebelum aliran dimulai"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "GATE PERAN. Keempat rute berada di bawah middleware yang menerima Supervisor, Mill Management, Admin DAN Station Operator. Operator diterima SEJAK COMMIT PERTAMA — bukan ditambahkan nanti — justru supaya screen-163 (mobile) tidak perlu melebarkan akses apa pun. Rute /business-units/options adalah pengecualiannya: ia menolak non-admin dengan 403, dan penolakan itu ditegakkan DI DALAM service, bukan oleh middleware, karena middleware yang sama melayani ketiga rute data lainnya.",
+        "RESOLUSI MILL. Bagi Supervisor, Mill Management dan Operator, business_unit_id diambil dari akun dan parameter query kiriman DIABAIKAN — bukan divalidasi, bukan ditolak. Membandingkannya lalu menolak akan membocorkan keberadaan mill lain lewat perbedaan 403 dan 200. Bagi Admin, business_unit_id WAJIB; absennya 422. Akun terikat mill yang business_unit_id-nya NULL juga 422 — keadaan data master yang rusak, bukan izin yang kurang.",
+        "RESOLUSI PERIODE. Periode dimuat berdasarkan id, lalu business_unit_id-nya dibandingkan dengan mill hasil langkah sebelumnya; tidak cocok → 403. Status periode TIDAK diperiksa: laporan ini menerima draft, open maupun closed. Jenis stasiun periode juga tidak dipaksa — penyaring sebenarnya adalah period_stations, lihat langkah berikutnya.",
+        "RESOLUSI LINE. production_line_id WAJIB dan divalidasi milik mill yang sama; tidak cocok → 403. Tidak ada mode 'semua line': angka laporan ini adalah AGREGAT, dan menjumlahkan muatan dua line menghasilkan bilangan yang tidak dimiliki siapa pun. Pilihan ini sama dengan kelima laporan stasiun sebelumnya dan merupakan konsekuensi langsung dari isolasi Production Line.",
+        "LINGKUP BARIS. Record induk disaring: production_line_id = line terpilih, DAN station.station_type = 'solid-waste-disposal', DAN date BERADA DI DALAM [period.start_date, period.end_date]. Penyaring tanggal memakai kolom `date` pada INDUK, bukan event_date pada detail — keduanya dapat berbeda, dan yang menentukan keanggotaan periode adalah induknya. (Perbedaan itu sendiri dihitung dan diterbitkan; lihat langkah undated_load_count.)",
+        "SATUAN HITUNG ADALAH BARIS DETAIL, BUKAN RECORD. Satu record induk Solid Waste Disposal membawa BANYAK baris detail, satu per muatan keluar. Seluruh angka pada blok `loads` dihitung atas baris detail yang ter-flatten dari record-record di langkah sebelumnya. Inilah perbedaan bentuk yang paling menentukan terhadap screen-160/161 (Process Water), yang menghitung atas 24 slot jam per hari; di sini tidak ada slot, dan jumlah baris per hari sepenuhnya bebas.",
+        "EAGER LOAD. Record dimuat dengan relasi `details` dan `station` sekaligus (with(['details', 'station'])). Tanpa ini, satu periode 31 hari menghasilkan satu query per record untuk detailnya — pola N+1 yang sudah pernah lolos ke produksi pada laporan sebelumnya. Test integrasi menghitung query dan diverifikasi NON-VAKUM dengan sengaja melepas eager load terlebih dahulu.",
+        "load_count = jumlah SELURUH baris detail dalam lingkup, termasuk baris yang netto-nya kosong dan termasuk baris milik record berstatus draft. Ia adalah 'berapa muatan keluar pada periode ini', dan muatan yang penimbangannya belum selesai tetap muatan.",
+        "net_weight_total DAN net_weight_avg DIHITUNG HANYA ATAS BARIS YANG net_weight_mt-nya NON-NULL. net_weight_load_count adalah jumlah baris tersebut dan DITERBITKAN sebagai penyebut — bukan disembunyikan — karena rata-rata atas penyebut yang tak terlihat adalah angka yang tidak dapat diperiksa siapa pun. Ketika net_weight_load_count = 0, keduanya null, BUKAN 0: nol muatan bertimbang berarti 'tidak diketahui', sedangkan 0 MT berarti 'tidak ada beban terangkut'.",
+        "missing_net_weight_load_count = load_count − net_weight_load_count. Angka ini DITONJOLKAN TERSENDIRI, bukan diselipkan sebagai catatan kaki, karena artinya operasional dan tajam: net_weight_mt adalah kolom TURUNAN SERVICE (bruto − tara), jadi null-nya tidak berarti 'lupa diisi' melainkan PENIMBANGAN BELUM SELESAI — kendaraannya sudah ditimbang kotor tetapi belum kembali untuk ditimbang kosong, atau sebaliknya. Itu pekerjaan yang menggantung, bukan data yang kurang rapi.",
+        "EMPAT REKAP KATEGORIS, masing-masing dengan bentuk yang sama: by_waste_type, by_source_station, by_disposal_site, by_purpose_end_use. Tiap entri membawa value, load_count dan net_weight_total. Nilai dikelompokkan APA ADANYA sebagai teks — NOL JOIN, nol pemetaan ke master, nol penerjemahan. Keempat kolom itu teks bebas pada tabel detail; menerjemahkannya berarti mengarang pemetaan yang tidak ada, dan pemetaan yang salah lebih buruk daripada kode mentah yang jujur.",
+        "EMPAT REKAP KATEGORIS, masing-masing dengan bentuk yang sama: by_waste_type (kolom `solid_waste_type`), by_source_station (`source_station`), by_disposal_site (`disposal_utilization_site`), by_purpose_end_use (`purpose_end_use`). Nama kunci payload sengaja LEBIH PENDEK daripada nama kolomnya — pemetaannya dinyatakan di sini supaya tidak ditebak saat implementasi. Tiap entri membawa value, load_count, net_weight_total, net_weight_load_count dan net_weight_avg. Nilai dikelompokkan APA ADANYA sebagai teks — NOL JOIN, nol pemetaan ke master, nol penerjemahan. Keempat kolom itu teks bebas pada tabel detail; menerjemahkannya berarti mengarang pemetaan yang tidak ada, dan pemetaan yang salah lebih buruk daripada kode mentah yang jujur.",
+        "URUTAN TIAP REKAP: net_weight_total DESC, lalu load_count DESC, lalu value ASC sebagai pemutus seri yang deterministik — dengan null terakhir DI ANTARA YANG SERI, bukan terakhir tanpa syarat. KOREKSI 2026-10-18: versi pertama tech-spec ini menuliskan 'abjad, null selalu terakhir', dan itu SALAH — ia bertentangan dengan business-spec dan usecase-168 yang keduanya menyatakan urut jumlah terbesar ('yang dicari pembaca adalah ke mana sebagian besar limbah pergi'), dan bertentangan dengan preseden kode: WeighbridgeReportService::groupedBreakdownOf() sudah mengurutkan tepat seperti ini untuk by_origin/by_destination. Tiga sumber melawan satu, dan yang satu itu milik saya. Konsekuensi yang ikut terkoreksi: sekelompok muatan tanpa lokasi pembuangan tercatat tetapi bertonase besar MUNCUL DI ATAS, bukan terkubur di baris terakhir — dan itu benar, karena 300 MT yang tidak diketahui tujuannya adalah justru baris yang paling perlu dibaca. Null diurutkan sebagai 0.0 UNTUK PENGURUTAN SAJA; di payload ia tetap null, sebab 'belum pernah ditimbang' bukan 'ditimbang nol'.",
+        "compliance.missing_gate_pass_count dan missing_seal_count masing-masing menghitung baris detail yang `gate_pass_no` / `security_seal_no`-nya null atau string kosong setelah trim. (Nama kolomnya `gate_pass_no` dan `security_seal_no` — BUKAN `gate_pass_number`/`seal_number` seperti yang tertulis di versi pertama spec ini; dibaca dari migrasi 2026_08_31_000003, bukan ditebak dari nama kunci payload.) Keduanya diterbitkan sebagai JEJAK KEPATUHAN, bukan ukuran produksi, dan blok ini membawa prosa yang menyatakannya — supaya tidak terbaca sebagai 'kualitas data' melainkan sebagai dokumen angkut yang tidak terbit.",
+        "undated_load_count menghitung baris detail yang event_date-nya NULL. Baris seperti ini tidak dapat ditempatkan pada hari mana pun, sehingga ia MASUK ke load_count dan ke keempat rekap kategoris tetapi TIDAK MASUK ke `daily[]`. Konsekuensinya penjumlahan daily[].load_count dapat KURANG dari load_count — dan karena selisih yang tak dijelaskan selalu dicurigai sebagai bug, angka ini diterbitkan dan dicetak berdampingan dengan totalnya, beserta kalimat yang menyatakan hubungan keduanya.",
+        "daily[] berisi SATU ENTRI PER HARI YANG PUNYA MUATAN, bukan satu entri per hari kalender. Periode 31 hari dengan muatan pada 9 hari menghasilkan 9 entri. Hari tanpa muatan sengaja TIDAK dibuatkan baris nol: laporan ini per-transaksi, dan hari tanpa pengangkutan adalah keadaan normal — mencetak 22 baris nol akan mengubur sembilan baris yang berarti. (Berbeda dari laporan bergrid, yang justru WAJIB memunculkan slot kosongnya.) Urut tanggal naik.",
+        "daily_total menjumlahkan seluruh entri daily[] — BUKAN menyalin nilai dari blok loads. Keduanya memang dapat berbeda, tepatnya sebesar baris undated, dan perbedaan itu adalah informasi. Menyalin akan menyembunyikannya.",
+        "completeness mengukur HARI, bukan kolom: days_with_load dibagi days_counted. days_counted berasal dari ReportPeriodDays::counted — sama persis dengan kelima laporan sebelumnya — sehingga periode yang masih berjalan tidak dihukum atas hari yang belum datang: penyebutnya start_date..hari ini (WIB), bukan panjang periode. Periode yang belum mulai memberi days_counted = 0, dan percent menjadi NULL (blade mencetak '—'), bukan 0,0% yang akan terbaca sebagai kegagalan.",
+        "TIDAK ADA BLOK hourly SAMA SEKALI, DAN INI KEPUTUSAN YANG DINYATAKAN. Baris detail Solid Waste Disposal hanya membawa event_date — tidak ada satu pun kolom waktu. Sebaran per jam karenanya BUKAN fitur yang ditunda melainkan BUKAN SESUATU YANG DAPAT DIHITUNG. Payload membawa _note_no_hourly dan layar mencetaknya UTUH, supaya ketiadaannya tidak dibaca sebagai blok yang lupa dibuat — dan supaya tidak ada yang menambahkannya kemudian dengan menebak jam dari created_at, yang berarti menebak dari waktu input. (Bandingkan: screen-166/167 cpo-dispatch MEMILIKI time_in/time_out, sehingga di sana sebaran jam justru wajib.)",
+        "text_entries memisahkan findings dan remarks menjadi DUA DAFTAR KEJADIAN, masing-masing {date, value}, urut tanggal. Keduanya TEKS BEBAS, sehingga tidak disebar menjadi rekap kategoris — itu akan memperlakukan prosa sebagai enum. Entri kosong/whitespace dibuang. Daftar yang kosong dicetak sebagai pernyataan 'tidak ada', bukan dihilangkan dari layar.",
+        "KOLOM `shift` TIDAK DITERBITKAN di payload maupun layar — hanya di ekspor. Ia bertipe teks bebas pada tabel detail (bukan FK ke `shifts`), sehingga menyebarnya berarti mengelompokkan ejaan, bukan shift. Ini berbeda dan terpisah dari kolom `shift_id` baru pada tabel INDUK; pengelompokan per shift yang sungguhan adalah pekerjaan tersendiri yang berlaku untuk seluruh 18 stasiun sekaligus, bukan ditempelkan di satu laporan.",
+        "TANPA PENANDAAN NILAI DI LUAR BATAS, dan TANPA blok downtime. Stasiun ini tidak punya master target/ambang apa pun, dan tabelnya tidak punya kolom downtime. Keduanya dinyatakan di layar lewat _note_absences — sebab blok yang hilang tanpa penjelasan selalu dibaca sebagai blok yang belum dibuat.",
+        "EKSPOR: SATU BARIS PER MUATAN, kolom konteks (nama periode, mill, line, tanggal record, status) DIULANG VERBATIM di setiap baris, disusul SELURUH kolom detail — event_date, `shift`, weighbridge_ticket_no, vehicle_no, driver_name, solid_waste_type, source_station, gross_weight_mt, tare_weight_mt, net_weight_mt, disposal_utilization_site, purpose_end_use, gate_pass_no, security_seal_no, operator_id, remarks, findings. Tujuh belas kolom, didaftar lengkap di sini karena tiga di antaranya (weighbridge_ticket_no, vehicle_no, driver_name) tidak muncul di satu pun angka layar dan karenanya paling mudah tertinggal dari ekspor. Label kolom mengikuti layar Detail stasiun ini, bukan nama kolom database. Gate peran, resolusi mill/line, pemeriksaan format dan batas 50.000 baris berjalan EAGER — seluruhnya SEBELUM satu byte pun dialirkan — karena galat yang terjadi setelah header terkirim mendarat sebagai berkas rusak, bukan sebagai pesan.",
+        "TIAP BARIS REKAP MENERBITKAN PENYEBUTNYA SENDIRI. Keempat rekap kategoris dan daily[] masing-masing membawa net_weight_load_count dan net_weight_avg di SETIAP BARIS, bukan hanya di blok loads di atasnya. Alasannya sama dengan alasan penyebut global diterbitkan, hanya satu tingkat lebih dalam: tanpa itu, satu baris rekap yang rata-ratanya aneh tidak dapat diperiksa tanpa mengunduh ekspor. Konsekuensinya net_weight_avg sebuah baris adalah null ketika baris itu tidak punya satu pun muatan bertimbang — sekalipun baris lain punya."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "solid-waste-disposal-record",
+          "operation": "SELECT",
+          "description": "Induk muatan: station_id, production_line_id, date, status, catatan. Disaring per periode dan per line."
+        },
+        {
+          "entity_id": "solid-waste-disposal-detail",
+          "operation": "SELECT",
+          "description": "SATU BARIS PER MUATAN KELUAR, berkunci event_date (TANPA kolom waktu). Membawa bruto/tara/netto MT, empat kolom kategoris, dua nomor jejak kepatuhan, id operator, dan dua kolom teks bebas."
+        },
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Pemilih periode dan rentang tanggal laporan."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih Production Line; wajib dipilih sebelum satu angka pun."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Periode punya baris period_stations 'solid-waste-disposal' tetapi NOL record di line terpilih",
+          "handling": "200 dengan kerangka lengkap: load_count 0, net_weight_total/avg NULL (bukan 0), keempat rekap [], daily [], completeness.percent 0.0 bila days_counted > 0. Layar mencetak keadaan kosong yang menyebut periode dan line — bukan layar putih dan bukan galat. Ini keadaan NYATA hari ini: ketiga tabel detail per-transaksi yang belum berlaporan punya nol baris di dev."
+        },
+        {
+          "condition": "Seluruh muatan punya net_weight_mt NULL",
+          "handling": "net_weight_total dan net_weight_avg NULL, net_weight_load_count 0, missing_net_weight_load_count = load_count. Layar mencetak '—' untuk kedua angka berat DAN menonjolkan bahwa seluruh penimbangan belum selesai. Tidak pernah 0,00 MT — itu akan terbaca sebagai 'tidak ada beban'."
+        },
+        {
+          "condition": "Sebagian muatan punya netto, sebagian tidak",
+          "handling": "Rata-rata memakai penyebut net_weight_load_count, dan penyebut itu DICETAK di samping angkanya. Tanpa itu, rata-rata 12 muatan atas 40 muatan tampak seperti rata-rata 40 muatan."
+        },
+        {
+          "condition": "event_date NULL pada sebagian baris detail",
+          "handling": "Baris tetap masuk load_count, blok loads dan keempat rekap; TIDAK masuk daily[]. undated_load_count menghitungnya dan dicetak berdampingan dengan total, beserta kalimat yang menjelaskan mengapa penjumlahan harian lebih kecil."
+        },
+        {
+          "condition": "event_date berada DI LUAR rentang periode (induknya di dalam)",
+          "handling": "Baris TETAP terhitung — keanggotaan periode ditentukan oleh `date` pada induk, dan itulah yang dipakai pengguna saat menyimpan. daily[] akan memuat tanggal di luar rentang periode, dan itu DIBIARKAN APA ADANYA: menyembunyikannya akan membuat total tidak cocok dengan rincian harian."
+        },
+        {
+          "condition": "Keempat kolom kategoris NULL atau string kosong pada sebagian baris",
+          "handling": "Dikelompokkan ke satu entri value = null per rekap, dicetak 'tidak tercatat', SELALU di baris terakhir. String kosong dan whitespace di-trim lalu diperlakukan sama dengan null — dua baris terpisah untuk '' dan null akan membagi satu keadaan menjadi dua."
+        },
+        {
+          "condition": "Satu nilai kategoris berbeda hanya pada huruf besar/kecil atau spasi ('TPA Utara' vs 'tpa utara')",
+          "handling": "DIBIARKAN sebagai dua entri terpisah — hanya spasi di ujung yang di-trim. Menyatukan berdasarkan case berarti memutuskan keduanya hal yang sama, dan kolom teks bebas tidak menjamin itu. Keadaan ini DINYATAKAN di layar sebagai kemungkinan, supaya pembaca mengenalinya saat melihatnya."
+        },
+        {
+          "condition": "Periode belum mulai (start_date > hari ini)",
+          "handling": "days_counted = 0, completeness.percent NULL, layar mencetak '—' dan kalimat 'periode belum dimulai'. Membagi dengan nol tidak pernah terjadi karena penyebutnya diperiksa sebelum pembagian, bukan di-rescue setelahnya."
+        },
+        {
+          "condition": "Periode berjalan (end_date > hari ini)",
+          "handling": "days_counted = start_date..hari ini (WIB). Periode 31 hari pada hari ke-9 dengan muatan 9 hari memberi 100%, bukan 29%. Zona waktu WIB diambil dari config aplikasi, bukan dari waktu server."
+        },
+        {
+          "condition": "Record berstatus draft ikut dalam lingkup",
+          "handling": "Ikut terhitung di SELURUH angka, dan draft_load_count menyatakan berapa banyak. Pembaca diberi tahu, bukan dilindungi."
+        },
+        {
+          "condition": "Admin tidak menyertakan business_unit_id",
+          "handling": "422 VALIDATION_ERROR dengan pesan berbahasa Indonesia yang menyebut parameter yang kurang. Tidak ada mill default, dan tidak ada 'mill pertama' — memilihkan mill untuk Admin berarti menampilkan angka milik pabrik yang tidak ia maksud."
+        },
+        {
+          "condition": "Peran terikat mill mengirim business_unit_id milik mill lain",
+          "handling": "Parameter DIABAIKAN tanpa galat; laporan terbit untuk mill akunnya. Menolaknya dengan 403 membocorkan keberadaan mill itu lewat perbedaan respons."
+        },
+        {
+          "condition": "Akun terikat mill tetapi business_unit_id-nya NULL di DB",
+          "handling": "422, bukan 403. Ini master yang rusak, bukan izin yang kurang, dan pesannya mengatakan demikian supaya yang menerimanya tahu harus menghubungi Admin, bukan meminta hak akses."
+        },
+        {
+          "condition": "production_line_id absen",
+          "handling": "422. Tidak ada fallback ke 'line pertama' dan tidak ada mode semua-line: agregat lintas line adalah angka yang tidak dimiliki siapa pun. Ini kebocoran cakupan yang sudah pernah terjadi tiga kali di proyek ini."
+        },
+        {
+          "condition": "production_line_id milik mill lain",
+          "handling": "403 — di sini DITOLAK, bukan diabaikan, karena line adalah parameter yang pengguna PILIH secara sadar, bukan konteks yang diturunkan dari akunnya."
+        },
+        {
+          "condition": "Operator membuka URL web /reports/solid-waste-disposal",
+          "handling": "403 pada rute WEB. Ketiga rute data API tetap menerimanya — itu memang jalur yang dipakai screen-163."
+        },
+        {
+          "condition": "Non-admin memanggil /business-units/options langsung",
+          "handling": "403 dari dalam service. Middleware tidak dapat menolaknya karena prefix yang sama melayani ketiga rute data yang memang menerima keempat peran."
+        },
+        {
+          "condition": "format=pdf atau nilai tak dikenal pada /export",
+          "handling": "422 sebelum aliran dimulai. Nilai di-trim lebih dulu, lalu dibandingkan dengan daftar tertutup; default 'csv' ditetapkan controller atas nilai yang sudah di-trim, bukan atas query mentah."
+        },
+        {
+          "condition": "Ekspor melampaui 50.000 baris",
+          "handling": "422 dengan pesan yang menyebut batasnya dan menyarankan mempersempit periode. Diperiksa EAGER — setelah header terkirim, galat mendarat sebagai berkas rusak."
+        },
+        {
+          "condition": "Master business unit kosong (Admin, nol mill)",
+          "handling": "200 dengan data []. Bukan 404 dan bukan galat: 'belum ada mill' adalah jawaban yang sah atas 'mill apa saja yang ada'."
+        }
+      ],
+      "business_rules_applied": [
+        "Isolasi Production Line: line WAJIB dipilih, tidak ada agregat lintas line",
+        "Isolasi business unit: diturunkan dari akun bagi peran terikat mill, dipilih oleh Admin",
+        "Laporan tidak menyaring status periode — draft, open dan closed sama-sama terbaca",
+        "Satuan hitung adalah baris detail (satu muatan), bukan record induk",
+        "net_weight_mt adalah kolom turunan service; null berarti penimbangan belum selesai",
+        "Rata-rata selalu diterbitkan bersama penyebutnya",
+        "Nol pengukuran menghasilkan null, bukan 0",
+        "Setiap rekap kategoris punya baris 'tidak tercatat' tersendiri",
+        "Nilai kategoris dikelompokkan apa adanya — nol join, nol pemetaan master",
+        "Record draft ikut terhitung dan jumlahnya dinyatakan",
+        "Kelengkapan diukur atas hari yang sudah berjalan (ReportPeriodDays::counted)",
+        "Kolom shift bertipe teks bebas — tidak disebar, tidak ditampilkan, tetap diekspor",
+        "Ekspor: satu baris per detail, konteks diulang, label mengikuti layar Detail",
+        "Ketiadaan sebuah blok dinyatakan di layar beserta sebabnya"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "businessUnitOptions menolak non-admin dengan 403 dari DALAM service",
+          "given": "User berperan Supervisor; diulang untuk Mill Management dan Station Operator; tiga-tiganya diterima middleware prefix ini",
+          "expect": "throw ForbiddenException kode FORBIDDEN untuk ketiga peran. Asersi tambahan: penolakan datang dari service, bukan middleware — service dipanggil LANGSUNG tanpa HTTP kernel dan tetap menolak"
+        },
+        {
+          "description": "businessUnitOptions mengembalikan seluruh mill bagi Admin; master kosong mengembalikan [] bukan galat",
+          "given": "User Admin (business_unit_id null). Varian A: tiga BusinessUnit disemai dengan nama 'Mill C','Mill A','Mill B'. Varian B: nol BusinessUnit",
+          "expect": "Varian A: tiga entri {id,name} urut nama naik. Varian B: array KOSONG dan tidak ada exception — 'belum ada mill' adalah jawaban sah, bukan 404"
+        },
+        {
+          "description": "periods menolak 422 ketika Admin tidak menyertakan business_unit_id",
+          "given": "User Admin; params tanpa kunci business_unit_id",
+          "expect": "throw ValidationException kode VALIDATION_ERROR; pesan berbahasa Indonesia MENYEBUT nama parameter yang kurang. Tidak ada mill default dan tidak ada 'mill pertama' yang dipilihkan"
+        },
+        {
+          "description": "business_unit_id kiriman DIABAIKAN bagi peran terikat mill — bukan 403",
+          "given": "Supervisor terikat mill-A; params business_unit_id = id mill-B yang benar-benar ada dan punya periode SWD sendiri",
+          "expect": "TIDAK ada exception. Hasil berisi periode mill-A saja; nol periode mill-B. Asersi negatif eksplisit: id periode mill-B tidak ada di hasil — menolak dengan 403 akan membocorkan keberadaan mill-B lewat perbedaan respons"
+        },
+        {
+          "description": "Akun terikat mill yang business_unit_id-nya NULL di DB menghasilkan 422, BUKAN 403",
+          "given": "Supervisor dengan business_unit_id = null di DB; params tanpa business_unit_id",
+          "expect": "throw ValidationException kode VALIDATION_ERROR (asersi atas KELAS exception dan kode, bukan hanya atas pesan); pesan mengarahkan menghubungi Admin. Bukan ForbiddenException — ini master yang rusak, bukan izin yang kurang"
+        },
+        {
+          "description": "periods hanya memuat periode yang punya baris period_stations berjenis 'solid-waste-disposal'",
+          "given": "Satu mill dengan tiga periode: P1 punya period_station 'solid-waste-disposal', P2 hanya 'weighbridge', P3 punya 'solid-waste-disposal' DAN 'weighbridge'. Tanggal ketiganya disemai eksplisit",
+          "expect": "Tepat dua entri: P1 dan P3. P2 tidak ada. Setiap entri membawa station_type literal 'solid-waste-disposal' dan station_type_label terisi non-kosong"
+        },
+        {
+          "description": "periods TIDAK menyaring status periode — draft, open dan closed sama-sama terbaca",
+          "given": "Tiga periode SWD pada satu mill berstatus 'draft', 'open', 'closed', tanggal disemai eksplisit",
+          "expect": "Ketiganya ADA di hasil; himpunan status pada hasil tepat sama dengan {draft, open, closed}. Asersi atas himpunan, bukan atas jumlah saja"
+        },
+        {
+          "description": "periods mengembalikan [] ketika mill tidak punya satu pun periode SWD",
+          "given": "Mill dengan dua periode yang keduanya hanya mendaftarkan stasiun lain",
+          "expect": "Array kosong, tanpa exception. Pemilih periode kosong adalah keadaan yang dilaporkan, bukan galat"
+        },
+        {
+          "description": "summary menolak 422 ketika period_id absen",
+          "given": "Supervisor terikat mill-A; params hanya production_line_id",
+          "expect": "throw ValidationException kode VALIDATION_ERROR menyebut period_id"
+        },
+        {
+          "description": "summary menolak 422 ketika production_line_id absen — tanpa fallback 'line pertama' dan tanpa mode semua-line",
+          "given": "Supervisor terikat mill-A; params hanya period_id; mill-A punya DUA production line yang masing-masing bermuatan",
+          "expect": "throw ValidationException kode VALIDATION_ERROR menyebut production_line_id. Asersi tambahan: TIDAK ada payload yang terbit — agregat lintas line adalah angka yang tidak dimiliki siapa pun, dan ini kebocoran cakupan yang sudah tiga kali terjadi di proyek ini"
+        },
+        {
+          "description": "summary menolak 403 ketika periode milik mill lain",
+          "given": "Supervisor terikat mill-A; period_id milik mill-B; production_line_id milik mill-A",
+          "expect": "throw ForbiddenException kode FORBIDDEN; tidak satu angka pun terhitung"
+        },
+        {
+          "description": "summary menolak 403 ketika production_line_id milik mill lain — DITOLAK, bukan diabaikan",
+          "given": "Supervisor terikat mill-A; period_id milik mill-A; production_line_id milik mill-B",
+          "expect": "throw ForbiddenException kode FORBIDDEN. Kontras yang diasersikan bersama case business_unit_id-diabaikan: line adalah parameter yang pengguna PILIH sadar, business_unit_id adalah konteks yang diturunkan dari akun — perlakuannya memang berbeda dan bedanya disengaja"
+        },
+        {
+          "description": "summary menghitung normal untuk periode berstatus draft maupun closed",
+          "given": "Dua periode SWD, satu 'draft' satu 'closed', masing-masing dengan 4 baris detail bertanggal eksplisit di dalam rentangnya",
+          "expect": "Kedua panggilan mengembalikan loads.load_count = 4 dan period.status yang sesuai. Status periode TIDAK pernah diperiksa sebagai gate — tidak ada exception pada keduanya"
+        },
+        {
+          "description": "load_count menghitung BARIS DETAIL, bukan record induk",
+          "given": "SATU record induk SWD bertanggal eksplisit di dalam periode pada line terpilih, membawa 5 baris detail",
+          "expect": "loads.load_count = 5, bukan 1. Ini perbedaan bentuk terpenting terhadap laporan bergrid — asersi harus atas angka 5 secara harfiah"
+        },
+        {
+          "description": "Lingkup baris menyingkirkan record stasiun lain dan record line lain",
+          "given": "Pada periode dan tanggal yang sama: record SWD di line-1 (3 detail), record SWD di line-2 (4 detail), record weighbridge di line-1 (5 detail). Dipanggil untuk line-1",
+          "expect": "loads.load_count = 3. Asersi negatif: angka 7, 8 dan 12 tidak pernah muncul — penyaring station.station_type DAN production_line_id keduanya aktif"
+        },
+        {
+          "description": "Keanggotaan periode ditentukan kolom `date` pada INDUK, inklusif di kedua ujung",
+          "given": "Periode 2019-03-01..2019-03-31 (tanggal eksplisit). Record A date=2019-03-01 (2 detail), record B date=2019-03-31 (2 detail), record C date=2019-02-28 tetapi SELURUH detail-nya ber-event_date 2019-03-10",
+          "expect": "loads.load_count = 4. Record C DIKECUALIKAN meski event_date detail-nya di dalam rentang — penyaring tanggal memakai induk, dan kedua ujung rentang ikut terhitung. Perbandingan tanggal memakai whereDate(), bukan where(): suite di SQLite, produksi PostgreSQL"
+        },
+        {
+          "description": "Satu line dengan LEBIH DARI SATU unit stasiun SWD digabung tepat sekali",
+          "given": "Line-1 punya dua unit stasiun berjenis 'solid-waste-disposal'; unit-1 punya record dengan 3 detail, unit-2 punya record dengan 2 detail, keduanya bertanggal eksplisit di dalam periode",
+          "expect": "loads.load_count = 5 — tidak 3 (satu unit terlewat) dan tidak 10 (join ganda). Pembaca membaca satu angka per line, bukan per unit"
+        },
+        {
+          "description": "net_weight_total dan net_weight_avg dihitung HANYA atas baris ber-net_weight_mt non-null; net_weight_load_count DITERBITKAN sebagai penyebut",
+          "given": "10 baris detail bertanggal eksplisit: 7 ber-net_weight_mt (2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0 → total 14.0), 3 ber-netto null",
+          "expect": "loads.net_weight_total = 14.0; loads.net_weight_avg = 2.0; loads.net_weight_load_count = 7 dan kunci itu ADA di payload (array_key_exists) — rata-rata atas penyebut yang tak terlihat adalah angka yang tidak dapat diperiksa siapa pun"
+        },
+        {
+          "description": "net_weight_load_count = 0 memberi net_weight_total dan net_weight_avg NULL, BUKAN 0",
+          "given": "6 baris detail bertanggal eksplisit, SELURUHNYA ber-net_weight_mt null (bruto atau tara belum terisi)",
+          "expect": "net_weight_total === null DAN net_weight_avg === null (asersi identitas null, bukan falsy — 0.0 harus MEMBUAT TEST MERAH); net_weight_load_count = 0; load_count tetap 6. Nol muatan bertimbang berarti 'tidak diketahui'; 0 MT berarti 'tidak ada beban terangkut'"
+        },
+        {
+          "description": "Penyebut rata-rata adalah net_weight_load_count, bukan load_count",
+          "given": "10 baris detail bertanggal eksplisit; 6 ber-netto dengan total 30.0 MT; 4 ber-netto null",
+          "expect": "net_weight_avg = 5.0 (30.0/6), BUKAN 3.0 (30.0/10). net_weight_load_count = 6, load_count = 10. Ketiga angka harus dapat direkonsiliasi pembaca"
+        },
+        {
+          "description": "missing_net_weight_load_count = load_count − net_weight_load_count",
+          "given": "Payload hasil case 10-muatan/6-bertimbang di atas, dan varian kedua dengan 6 muatan/0 bertimbang",
+          "expect": "Varian A: missing_net_weight_load_count = 4. Varian B: = 6, yaitu sama dengan load_count. Diasersikan sebagai ANGKA TERSENDIRI di payload, bukan diturunkan pembaca — artinya PENIMBANGAN BELUM SELESAI, bukan 'lupa diisi'"
+        },
+        {
+          "description": "Keempat rekap kategoris mengelompokkan nilai APA ADANYA sebagai teks; nilai yang muncul sekali tetap berbaris sendiri dan tidak pernah dilipat menjadi 'lainnya'",
+          "given": "Baris detail dengan solid_waste_type: 'Fiber' x4, 'Shell' x2, 'Boiler Ash' x1; source_station/disposal_utilization_site/purpose_end_use disemai serupa. Nol master, nol tabel pemetaan",
+          "expect": "by_waste_type memuat TIGA entri — 'Fiber'(4), 'Shell'(2), 'Boiler Ash'(1) — dengan value persis string mentahnya, tanpa pelabelan dan tanpa join. Tidak ada entri bernama 'lainnya'/'Others' di rekap mana pun"
+        },
+        {
+          "description": "Baris 'tidak tercatat' (value null) ADA sebagai entri tersendiri di keempat rekap, dan posisinya ditentukan tonasenya — tidak dipaku di baris terakhir",
+          "given": "Baris detail yang sebagian mengosongkan masing-masing dari keempat kolom kategoris (`solid_waste_type`, `source_station`, `disposal_utilization_site`, `purpose_end_use`); pada keempatnya kelompok null disemai BERTONASE PALING BESAR, dan ada nilai non-null yang alfabetnya sesudah null-nya muncul (mis. 'Zinc Scrap') supaya posisi null benar-benar diuji dan bukan kebetulan",
+          "expect": "Untuk keempat rekap: ada tepat satu entri dengan value === null, dan entri itu berada di INDEKS 0 karena net_weight_total-nya terbesar — diasersikan sebagai index(value === null) === 0, BUKAN sebagai 'ada di dalam daftar' dan BUKAN sebagai count()-1. Asersi negatif eksplisit untuk keempatnya: entri null TIDAK berada di indeks terakhir. 'Tidak tercatat' adalah satu kelompok seperti yang lain; ia hanya jatuh terakhir ketika SERI dengan tetangganya pada net_weight_total DAN load_count, karena di situlah pemutus seri value ASC menempatkan null paling belakang"
+        },
+        {
+          "description": "Penjumlahan load_count tiap rekap SAMA DENGAN loads.load_count — asersi yang menangkap baris null yang dibuang",
+          "given": "12 baris detail bertanggal eksplisit; pada setiap kolom kategoris sebagian baris bernilai dan sebagian null",
+          "expect": "Untuk KEEMPAT rekap: array_sum(column(load_count)) === loads.load_count === 12. Diasersikan untuk keempatnya secara terpisah dengan $this->assertSame dan pesan yang menamai rekapnya — bila baris null dibuang, selisihnya tak akan dijelaskan apa pun kepada pembaca"
+        },
+        {
+          "description": "String kosong dan whitespace di kolom kategoris di-trim lalu diperlakukan SAMA DENGAN null — satu entri, bukan dua",
+          "given": "6 baris detail: 2 ber-solid_waste_type null, 2 ber-solid_waste_type '' (string kosong), 2 ber-solid_waste_type '   ' (hanya spasi)",
+          "expect": "by_waste_type memuat TEPAT SATU entri, value === null, load_count = 6. Asersi negatif: tidak ada entri dengan value '' maupun '   ' — dua baris terpisah akan membagi satu keadaan menjadi dua"
+        },
+        {
+          "description": "Nilai yang berbeda hanya pada huruf besar/kecil TETAP dua entri terpisah",
+          "given": "Baris detail dengan disposal_utilization_site: 'TPA Utara' x2, 'tpa utara' x3, dan ' TPA Utara ' x1 (berspasi tepi)",
+          "expect": "by_disposal_site memuat DUA entri: 'TPA Utara' dengan load_count 3 (spasi tepi di-trim sehingga bergabung) dan 'tpa utara' dengan load_count 3. Hanya spasi ujung yang di-trim; case TIDAK dinormalkan — kolom teks bebas tidak menjamin keduanya hal yang sama"
+        },
+        {
+          "description": "Urutan rekap: net_weight_total DESC, lalu load_count DESC, lalu value ASC sebagai pemutus seri — null terakhir HANYA di antara yang seri",
+          "given": "`solid_waste_type` disemai dalam urutan insert yang SENGAJA berbeda dari urutan alfabetis dan dari urutan jumlah: 'Boiler Ash' 1 baris netto 40.0; null 2 baris netto total 30.0; 'Fiber' 4 baris netto total 10.0; 'Shell' 2 baris netto total 10.0; 'Zinc Scrap' 2 baris netto total 10.0 (seri sempurna dengan 'Shell' pada net_weight_total DAN load_count)",
+          "expect": "Urutan value pada by_waste_type: ['Boiler Ash' (40.0), null (30.0), 'Fiber' (10.0, 4 muatan), 'Shell' (10.0, 2 muatan), 'Zinc Scrap' (10.0, 2 muatan)]. Empat asersi terpisah: (a) net_weight_total menurun monoton di sepanjang daftar; (b) 'Fiber' mendahului 'Shell' dan 'Zinc Scrap' karena load_count-nya lebih besar walau netto-nya seri; (c) 'Shell' mendahului 'Zinc Scrap' karena pemutus seri value ASC bekerja setelah kedua kunci pertama seri; (d) EKSPLISIT — kelompok null yang bertonase besar berada di indeks 1, DI ATAS tiga entri bernilai, dan tidak terkubur di baris terakhir; assertNotSame(count()-1, index(null)). Netto null diurutkan sebagai 0.0 untuk PENGURUTAN SAJA; di payload net_weight_total entri yang tidak pernah tertimbang tetap null, bukan 0. Urutan ini sama persis dengan WeighbridgeReportService::groupedBreakdownOf() (by_origin/by_destination) — preseden kode, bukan tafsir. Tanpa usort eksplisit, PostgreSQL tidak menjanjikan urutan apa pun"
+        },
+        {
+          "description": "Sebuah kolom kategoris kosong pada SELURUH muatan menghasilkan satu baris 'tidak tercatat' berisi seluruh muatan, bukan rekap kosong",
+          "given": "9 baris detail bertanggal eksplisit, purpose_end_use null atau '' pada SEMUANYA",
+          "expect": "by_purpose_end_use berisi TEPAT SATU entri: value null, load_count 9, net_weight_total = jumlah netto non-null baris-baris itu. Rekapnya BUKAN [] — rekap kosong membuat pembaca mengira bagian laporan itu tidak ada"
+        },
+        {
+          "description": "net_weight_total per entri rekap menjumlahkan HANYA netto non-null",
+          "given": "solid_waste_type 'Fiber' pada 4 baris: netto 1.5, 2.5, null, null",
+          "expect": "Entri 'Fiber': load_count = 4, net_weight_total = 4.0. Baris ber-netto null ikut dihitung sebagai MUATAN tetapi tidak menambah berat — dan tidak diperlakukan sebagai 0 di dalam rata-rata mana pun"
+        },
+        {
+          "description": "compliance.missing_gate_pass_count dan missing_seal_count menghitung null DAN string kosong setelah trim; nol tetap diterbitkan",
+          "given": "Varian A: 8 baris — gate_pass_no: 3 null, 2 '', 1 '  ', 2 terisi; security_seal_no: 5 null, 3 terisi. Varian B: 8 baris dengan kedua nomor terisi non-kosong seluruhnya",
+          "expect": "Varian A: missing_gate_pass_count = 6, missing_seal_count = 5. Varian B: keduanya = 0 dan KEDUA KUNCI TETAP ADA di payload (array_key_exists) — nol itu yang memberi tahu pembaca pemeriksaannya memang berjalan. Keduanya berada di blok compliance, TIDAK di dalam blok loads, dan compliance._note terisi string non-kosong"
+        },
+        {
+          "description": "draft ikut terhitung di seluruh angka, dan draft_load_count menyatakan berapa",
+          "given": "Dua record induk bertanggal eksplisit di dalam periode: R1 status 'draft' dengan 3 detail, R2 status final dengan 5 detail; keduanya ber-netto terisi",
+          "expect": "load_count = 8; net_weight_load_count = 8; keempat rekap menjumlah 8; draft_load_count = 3. Asersi negatif: load_count BUKAN 5 — tidak satu pun bagian laporan menyaring draft keluar. Pembaca diberi tahu, bukan dilindungi"
+        },
+        {
+          "description": "undated_load_count menghitung baris ber-event_date NULL; baris itu MASUK load_count dan keempat rekap tetapi TIDAK masuk daily[]",
+          "given": "10 baris detail pada record bertanggal eksplisit di dalam periode: 7 ber-event_date terisi (tersebar di 3 hari), 3 ber-event_date NULL, keempat kolom kategoris terisi pada kesepuluhnya",
+          "expect": "undated_load_count = 3; load_count = 10; penjumlahan load_count keempat rekap = 10; sedangkan tidak satu entri daily[] pun memuat ketiga baris itu — daily[] hanya punya 3 entri dengan total load_count 7"
+        },
+        {
+          "description": "Penjumlahan daily[].load_count boleh KURANG dari load_count, tepat sebesar undated_load_count",
+          "given": "Payload hasil case di atas",
+          "expect": "array_sum(daily[].load_count) = 7 = load_count(10) − undated_load_count(3). Diasersikan sebagai IDENTITAS, bukan sebagai 'kurang dari' — selisih yang tak dijelaskan tidak dapat dibedakan dari cacat"
+        },
+        {
+          "description": "daily[] berisi satu entri per hari BERMUATAN, bukan per hari kalender; urut tanggal naik",
+          "given": "Periode 2019-03-01..2019-03-31 (31 hari, tanggal eksplisit). Baris detail ber-event_date hanya pada 9 hari berbeda, sebagian hari membawa 2-3 muatan; event_date disemai dalam urutan insert yang diacak",
+          "expect": "count(daily) === 9 — TEPAT 9, bukan 31. Asersi jumlah entri ini WAJIB. Tidak ada entri ber-load_count 0. Daftar date urut naik. Hari tanpa pengangkutan sengaja tidak dibuatkan baris nol: 22 baris nol akan mengubur 9 baris yang berarti"
+        },
+        {
+          "description": "event_date DI LUAR rentang periode tetap terhitung dan tetap muncul di daily[] apa adanya",
+          "given": "Periode 2019-03-01..2019-03-31. Satu record induk date=2019-03-20 (di dalam rentang) yang salah satu detail-nya ber-event_date 2019-04-05 (di luar rentang)",
+          "expect": "Baris itu ikut di load_count dan di keempat rekap; daily[] MEMUAT entri bertanggal 2019-04-05. Tidak disembunyikan dan tidak dipindahkan — menyembunyikannya membuat total tidak cocok dengan rincian harian"
+        },
+        {
+          "description": "daily_total DIJUMLAHKAN dari daily[], bukan disalin dari blok loads",
+          "given": "Payload dengan load_count 10, undated_load_count 3, net_weight_total 20.0 yang 4.0 di antaranya milik baris undated",
+          "expect": "daily_total.load_count = 7 dan daily_total.net_weight_total = 16.0 — keduanya BERBEDA dari blok loads, dan perbedaan itu adalah informasi. Asersi eksplisit: daily_total.load_count !== loads.load_count pada fixture ini. Menyalin akan menyembunyikannya"
+        },
+        {
+          "description": "completeness untuk periode yang BELUM MULAI: days_counted 0 dan percent NULL",
+          "given": "Hari ini dibekukan ke 2019-03-01 (Carbon::setTestNow, zona WIB dari config app, bukan waktu server). Periode 2019-04-01..2019-04-30; nol muatan",
+          "expect": "completeness.days_counted = 0; completeness.percent === null (identitas null — 0.0 harus merah, sebab 0,0% terbaca sebagai kelalaian pencatatan); days_in_period = 30. Pembagian dengan nol tidak pernah terjadi karena penyebut diperiksa SEBELUM pembagian, bukan di-rescue sesudahnya"
+        },
+        {
+          "description": "completeness untuk periode BERJALAN memakai penyebut start..hari ini, bukan panjang periode; periode selesai memakai panjang periode",
+          "given": "Varian A (berjalan): hari ini dibekukan ke 2019-03-09 WIB, periode 2019-03-01..2019-03-31, muatan pada 9 hari 2019-03-01..2019-03-09. Varian B (selesai): hari ini 2019-04-15, periode 2019-03-01..2019-03-31, muatan pada 9 hari",
+          "expect": "Varian A: days_counted = 9, days_with_load = 9, percent = 100.0 — BUKAN 29.0; periode berjalan tidak dihukum atas hari yang belum datang. Varian B: days_counted = 31 = days_in_period, percent ≈ 29.0. Nilai days_counted berasal dari ReportPeriodDays::counted apa adanya, tidak dihitung ulang lokal"
+        },
+        {
+          "description": "text_entries memisahkan findings dan remarks menjadi dua daftar {date,value} urut tanggal; entri kosong dibuang; satu muatan boleh muncul di keduanya",
+          "given": "Baris detail bertanggal eksplisit: D1 mengisi findings DAN remarks sekaligus; D2 mengisi findings saja; D3 ber-findings '   ' dan remarks null; tanggal disemai tidak urut",
+          "expect": "text_entries.findings berisi 2 entri (D1, D2) urut tanggal naik; text_entries.remarks berisi 1 entri (D1). D1 muncul di KEDUA daftar dan itu benar, bukan penghitungan ganda. D3 tidak muncul di mana pun. Keduanya daftar kejadian bertanggal — nol pelabelan kategoris atas prosa"
+        },
+        {
+          "description": "Payload TIDAK punya kunci hourly, busiest_hour, empty_hour_count maupun shift — diasersikan ATAS NAMA KUNCI, bukan atas prosa",
+          "given": "Payload summary lengkap dengan data, hasil fixture mana pun di atas",
+          "expect": "$this->assertArrayNotHasKey untuk 'hourly', 'busiest_hour', 'empty_hour_count' dan 'shift' pada akar payload, DAN rekursif atas seluruh sub-array (blok loads, daily, compliance, completeness). JEBAKAN YANG WAJIB DIHINDARI DAN SUDAH TERBUKTI DI PROYEK INI: jangan pernah mengasersikan ketiadaan ini dengan mencari string 'jam'/'Sebaran'/'shift' pada payload atau pada HTML — _note_no_hourly dan _note_shift_not_published justru MEMUAT kata-kata itu, sehingga asersi berbasis prosa akan cocok dengan kalimat yang menyatakan ketiadaannya dan lolos tanpa membuktikan apa pun. Pada case yang sama: _note_no_hourly, _note_shift_not_published dan _note_absences masing-masing ADA dan berisi string non-kosong"
+        },
+        {
+          "description": "Periode tanpa satu pun record pada line terpilih mengembalikan kerangka lengkap, bukan galat dan bukan nol di mana-mana",
+          "given": "Periode 2019-03-01..2019-03-31 dengan baris period_stations 'solid-waste-disposal'; nol record SWD pada line terpilih; hari ini dibekukan ke 2019-04-15. Ini keadaan NYATA di dev — solid_waste_disposal_details nol baris",
+          "expect": "Tidak ada exception. load_count = 0; net_weight_total === null dan net_weight_avg === null (bukan 0); net_weight_load_count = 0; missing_net_weight_load_count = 0; keempat rekap === []; daily === []; daily_total.load_count = 0; draft_load_count = 0; undated_load_count = 0; completeness.days_counted = 31, days_with_load = 0, percent = 0.0; text_entries.findings = [] dan remarks = []; ketiga kunci _note tetap ada"
+        },
+        {
+          "description": "Baris ekspor: SATU BARIS PER DETAIL, kolom konteks diulang verbatim, seluruh kolom detail termasuk shift/gate_pass/seal/operator_id ikut",
+          "given": "Dua record induk bertanggal eksplisit: R1 (3 detail), R2 (2 detail), pada periode dan line yang sama; shift terisi teks bebas berbeda-beda",
+          "expect": "Tepat 5 baris data (di luar header). Pada kelima baris, kolom nama periode, nama mill, nama line, tanggal record dan status berisi nilai yang SAMA PERSIS untuk baris-baris dari induk yang sama (dibandingkan string demi string, bukan sekadar 'ada'). Header memuat kolom shift, nomor gate pass, nomor segel dan id operator — berlawanan dengan payload /summary yang TIDAK punya kunci shift. Label kolom mengikuti layar Detail stasiun ini, bukan nama kolom database. Kolom enum pengukuran dicetak lewat ExportValue::option(), bukan status() — status() adalah status RECORD"
+        },
+        {
+          "description": "Ekspor menolak 422 untuk format tak dikenal SEBELUM satu byte pun dialirkan; nilai di-trim lebih dulu lalu default 'csv' ditetapkan atas nilai yang sudah di-trim",
+          "given": "Params valid dengan format='pdf'; varian: format='  ' (hanya spasi), format absen, format=' csv ', format='CSV'",
+          "expect": "format='pdf' → ValidationException VALIDATION_ERROR, dan TIDAK ada response stream yang terbentuk (diasersikan: pemeriksaan terjadi sebelum writer dibuat — galat setelah header terkirim mendarat sebagai berkas rusak, bukan sebagai pesan). format absen dan '  ' → csv. ' csv ' → csv. Perbandingan terhadap daftar tertutup {csv,xlsx}"
+        },
+        {
+          "description": "Ekspor menolak 422 EAGER ketika melampaui 50.000 baris",
+          "given": "Jumlah baris detail dalam lingkup di-stub ke 50.001 (hitungan, bukan 50.001 baris sungguhan)",
+          "expect": "ValidationException VALIDATION_ERROR; pesan MENYEBUT angka batasnya dan menyarankan mempersempit periode; nol baris dialirkan. Pada 50.000 tepat: ekspor BERJALAN — batasnya inklusif dan harus diuji pada kedua sisinya"
+        },
+        {
+          "description": "Ekspor xlsx menghasilkan workbook .xlsx SUNGGUHAN lewat SheetWriter, bukan CSV berekstensi .xlsx",
+          "given": "Params valid dengan format='xlsx' dan 3 baris detail",
+          "expect": "Byte awal berkas adalah signature ZIP (PK\\x03\\x04) dan berkas dapat dibuka sebagai arsip yang memuat xl/worksheets/sheet1.xml — BUKAN diasersikan lewat nama berkas atau Content-Type saja. Gate peran, resolusi mill/line, format dan batas 50.000 sudah berjalan seluruhnya sebelum writer dibuka"
+        },
+        {
+          "description": "StationReportService::REPORT_ROUTES memuat kunci 'solid-waste-disposal' BERTANDA HUBUNG",
+          "given": "Konstanta REPORT_ROUTES dibaca langsung",
+          "expect": "array_key_exists('solid-waste-disposal', REPORT_ROUTES) true dan nilainya 'reports.solid-waste-disposal'. Asersi negatif: kunci 'solid_waste_disposal' (snake_case) TIDAK ADA — kunci snake_case akan ter-compile, terlihat benar, dan tidak pernah cocok dengan satu baris master pun; tanpa baris ini laporannya ada, seluruh test-nya sendiri lolos, dan tile-nya tetap kelabu"
+        },
+        {
+          "description": "array_keys(REPORT_ROUTES) tetap urut sort_order station_types, dengan 'solid-waste-disposal' di POSISI TERAKHIR",
+          "given": "Master station_types disemai dari tabel (bukan dari urutan deklarasi enum), termasuk storage-tank sort_order 140 dan solid-waste-disposal sort_order 150",
+          "expect": "array_keys(REPORT_ROUTES) sama persis dengan daftar kode station_types yang punya laporan, diurutkan menurut sort_order dari query; indeks 'solid-waste-disposal' = count()-1, tepat SESUDAH 'storage-tank'. Diverifikasi dari tabel station_types, BUKAN dari urutan deklarasi enum"
+        },
+        {
+          "description": "Contoh 'stasiun belum berlaporan' pada StationReportServiceTest dipindahkan ke kode fiktif, bukan ke stasiun nyata berikutnya",
+          "given": "StationReportServiceTest case 16 dan case 18 — lima asersi yang hari ini memakai 'solid-waste-disposal' sebagai pembawa report_available=false; test itu menyemai master sendiri lewat stationReportMaster()",
+          "expect": "Kelima asersi memakai kode FIKTIF yang disuntikkan ke master test (mis. ['zz-stasiun-fiktif','Stasiun Fiktif',999]) yang tidak akan pernah mendapat entri REPORT_ROUTES, dan report_available untuk 'solid-waste-disposal' kini true. Memindahkannya ke kernel-dispatch akan basi lagi saat screen-164 — riak ini ditemukan dengan grep atas KODE STASIUN di seluruh tests/ dan e2e-web/, bukan dengan memeriksa urutan daftar"
+        }
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Pintu masuk satu-satunya. Tile Solid Waste Disposal baru menyala setelah StationReportService::REPORT_ROUTES ditambah entri 'solid-waste-disposal' => 'reports.solid-waste-disposal'. Entri itu DISISIPKAN setelah storage-tank (140) dan sebelum kernel-dispatch (160), karena sort_order-nya 150 dan urutan map itu load-bearing. RIAKNYA DUA KATEGORI — lihat implementation_notes."
+    },
+    {
+      "screen_id": "screen-143--laporan-weighbridge-web",
+      "reason": "Pola laporan PER-TRANSAKSI yang diikuti layar ini: bentuk success_schema, pemisahan 'jumlah transaksi' dari 'transaksi yang beratnya terisi', penonjolan transaksi yang penimbangannya belum selesai, dan kelengkapan berbasis hari-bertransaksi. BUKAN screen-160 (Process Water), yang bergrid 24 slot."
+    },
+    {
+      "screen_id": "screen-163--laporan-solid-waste-disposal-mobile",
+      "reason": "Pasangan mobile. Ketiga rute data di sini menerima Operator SEJAK COMMIT PERTAMA justru supaya layar mobile tidak perlu melebarkan akses apa pun — pola yang sudah terbukti pada screen-158/159 dan screen-160/161."
+    }
+  ],
+  "implementation_notes": [
+    "BENTUK LAPORANNYA PER-TRANSAKSI, BUKAN BERGRID — dan ini keputusan arsitektur, bukan selera tampilan. Lima laporan stasiun terakhir (threshing, pressing, engine-room, process-water dan seterusnya) memakai GRID 24 SLOT: tabel detailnya punya READING_FIELDS dan satu baris per jam, sehingga slot kosong WAJIB dimunculkan. Tabel solid_waste_disposal_details TIDAK punya READING_FIELDS; barisnya adalah satu MUATAN KELUAR, berkunci event_date, dan jumlahnya per hari sepenuhnya bebas. Precedent-nya karena itu screen-143 (Weighbridge) dan screen-146 (Grading), bukan screen-160. Menyalin dari screen-160 akan menghasilkan laporan yang memaksa transaksi ke dalam 24 kotak yang tidak pernah ada.",
+    "KONSEKUENSI LANGSUNG DARI BENTUK ITU: hari tanpa muatan TIDAK dibuatkan baris nol di daily[]. Pada laporan bergrid, slot kosong adalah informasi (jam yang tidak dicatat). Di sini hari tanpa pengangkutan adalah keadaan normal, dan 22 baris nol akan mengubur 9 baris yang berarti. Jangan 'memperbaikinya' menjadi satu baris per hari kalender.",
+    "ENTRI REPORT_ROUTES DI-APPEND DI AKHIR, setelah storage-tank. Ini satu-satunya laporan sejauh ini yang benar-benar append: station_types.sort_order menempatkan solid-waste-disposal di 150, di belakang storage-tank (140) yang hari ini entri terakhir. Verifikasi dari tabel station_types, BUKAN dari urutan deklarasi enum. Kuncinya 'solid-waste-disposal' BERTANDA HUBUNG — kunci snake_case akan ter-compile, terlihat benar, dan tidak pernah cocok dengan satu baris master pun. Tanpa satu baris ini laporannya ada, seluruh test-nya sendiri lolos, dan tile-nya tetap kelabu.",
+    "RIAK 'CONTOH STASIUN BELUM BERLAPORAN' ADA DI DUA TEMPAT, DAN STASIUN INILAH PEMBAWANYA SEKARANG — jadi keduanya WAJIB dipindahkan oleh pekerjaan ini, bukan nanti. (1) backend/tests/Unit/Services/StationReportServiceTest.php case 16 dan case 18: lima asersi memakai 'solid-waste-disposal' sebagai pembawa 'report_available false'. Test itu menyemai master sendiri lewat stationReportMaster(), sehingga perbaikan yang BENAR DAN TERAKHIR adalah MENYUNTIKKAN KODE FIKTIF (mis. ['zz-stasiun-fiktif', 'Stasiun Fiktif', 999]) yang tidak akan pernah mendapat entri REPORT_ROUTES — bukan memindahkannya ke kernel-dispatch, yang akan basi lagi saat screen-164. (2) e2e-web/tests/laporan-stasiun.spec.ts konstanta UNAVAILABLE_STATION; di browser masternya NYATA, sehingga suntikan kode fiktif belum mungkin dan contohnya harus berupa stasiun nyata yang belum berlaporan.",
+    "DI SPEC BROWSER, UNAVAILABLE_STATION SUDAH BASI SEBELUM PEKERJAAN INI DIMULAI. screen-160 menambahkan entri REPORT_ROUTES untuk process-water pada 2026-10-16 dan memindahkan contoh di test unit, tetapi tidak memindahkan konstanta di e2e-web — sehingga sejak saat itu berkas itu mengasersikan tile yang sudah aktif sebagai nonaktif. Diperbaiki 2026-10-18 ke process-quality-control (180), yaitu yang TERAKHIR dari empat yang belum berlaporan, supaya tidak basi lagi sampai screen-168. Pelajaran prosesnya dicatat: riak ini tidak ditemukan dengan memeriksa urutan daftar, melainkan dengan grep atas KODE STASIUNNYA di seluruh tests/ dan e2e-web/.",
+    "DAN SESUDAH screen-168 TIDAK ADA LAGI KANDIDATNYA. Keempat stasiun tanpa laporan (solid-waste-disposal 150, kernel-dispatch 160, cpo-dispatch 170, process-quality-control 180) sedang dibangun berurutan. Begitu yang terakhir selesai, asersi 'tile nonaktif' di browser harus BERUBAH BENTUK — menyuntikkan jenis stasiun fiktif ke master browser — bukan dipindahkan lagi. Dicatat di sini dan di berkas spec-nya supaya tidak ditemukan sebagai kejutan.",
+    "net_weight_mt ADALAH KOLOM TURUNAN SERVICE, bukan masukan pengguna: SolidWasteDisposalRecordService menghitungnya dari gross_weight_mt − tare_weight_mt. Konsekuensinya tajam dan harus terbawa ke layar: null-nya BUKAN 'lupa diisi' melainkan PENIMBANGAN BELUM SELESAI. Kalimat di layar harus mengatakan itu, bukan 'data tidak lengkap'.",
+    "PENYEBUT RATA-RATA DITERBITKAN DAN DICETAK. Pola yang sama sudah diperlukan tiga kali di laporan sebelumnya dan setiap kali dilewatkan pada percobaan pertama. Rata-rata 12 muatan atas 40 muatan tanpa penyebut yang terlihat adalah angka yang tidak dapat diperiksa siapa pun.",
+    "NOL PENGUKURAN → null, BUKAN 0. Diperiksa di service, bukan di-rescue di blade: 0,00 MT berarti 'tidak ada beban terangkut', sementara yang dimaksud adalah 'tidak diketahui'. Blade mencetak '—'.",
+    "KEEMPAT REKAP KATEGORIS: NOL JOIN. waste_type, source_station, disposal_site dan purpose_end_use adalah TEKS BEBAS pada tabel detail — bukan FK, bukan enum. Menerjemahkannya ke label berarti mengarang pemetaan yang tidak ada di mana pun, dan pemetaan yang salah lebih buruk daripada kode mentah yang jujur. Urut nilai alfabetis dengan baris null SELALU terakhir — bukan urut jumlah, supaya posisi sebuah nilai tidak berpindah antar periode.",
+    "SPEC BISNIS LAYAR INI PERNAH MEMUAT KONTRADIKSI YANG SAYA SENDIRI TULIS: satu entri menjanjikan dua kelompok 'dibuang vs dimanfaatkan' dari purpose_end_use, sementara open question saya sendiri pada artefak yang sama melarang menebak pemetaannya. Diperbaiki menjadi rekap per-nilai yang berdampingan dengan total, tanpa pengelompokan. Dicatat karena bentuk kesalahannya akan terulang: sebuah janji di satu entri dapat bertentangan dengan larangan di entri lain pada artefak yang sama, dan tidak ada yang memeriksanya selain membaca ulang keseluruhannya.",
+    "compliance BUKAN 'kualitas data'. missing_gate_pass_count dan missing_seal_count adalah DOKUMEN ANGKUT YANG TIDAK TERBIT — jejak kepatuhan, bukan ukuran produksi. Blok ini membawa prosanya sendiri supaya tidak terbaca sebagai metrik, dan tidak boleh digabung ke dalam blok loads.",
+    "undated_load_count DICETAK BERDAMPINGAN DENGAN TOTALNYA, beserta kalimat yang menyatakan hubungan keduanya. Tanpa itu, penjumlahan daily[] yang lebih kecil daripada load_count akan selalu dicurigai sebagai bug — dan kecurigaan itu wajar, karena selisih tanpa penjelasan tidak dapat dibedakan dari cacat.",
+    "TANPA BLOK hourly, DAN SEBABNYA DICETAK DI LAYAR. Tabel detail hanya membawa event_date; tidak ada satu pun kolom waktu. Ini BUKAN fitur yang ditunda. Prosa di layar ada justru untuk mencegah seseorang menambahkannya kemudian dengan menebak jam dari created_at — yang berarti menebak dari waktu input, bukan waktu kejadian. Bandingkan screen-166/167 (cpo-dispatch): ia PUNYA time_in/time_out, jadi di sana sebaran jam justru wajib ada.",
+    "ReportPeriodDays::counted DIPAKAI APA ADANYA — jangan menghitung ulang panjang periode secara lokal. Ia sudah menangani periode berjalan (start..hari ini WIB) dan periode yang belum mulai (0), dan kelima laporan sebelumnya bergantung pada perilaku yang sama. Menghitung lokal akan menghukum periode berjalan atas hari yang belum datang.",
+    "EAGER LOAD details DAN station SEKALIGUS. Pola N+1 pernah lolos ke produksi pada laporan sebelumnya. Test integrasinya menghitung query DAN dibuktikan non-vakum dengan sengaja melepas eager load dulu untuk melihatnya memerah — sebuah asersi jumlah query yang belum pernah merah tidak membuktikan apa pun.",
+    "SQLite vs PostgreSQL: suite PHP berjalan di SQLite in-memory, produksi dan e2e di PostgreSQL. Untuk laporan ini artinya: pakai whereDate() bukan where() untuk perbandingan tanggal, lower()+LIKE bukan ILIKE, dan jangan mengandalkan urutan default tanpa ORDER BY — PostgreSQL tidak menjanjikannya. Bukti DDL yang sungguhan hanya datang dari e2e.",
+    "SheetWriter DIPAKAI ULANG untuk .xlsx; jangan menamai CSV berekstensi .xlsx. Seluruh gate (peran, mill, line, format, batas 50.000 baris) berjalan EAGER sebelum satu byte pun dialirkan — galat sesudah header terkirim mendarat sebagai berkas rusak, bukan sebagai pesan.",
+    "LABEL KOLOM EKSPOR MENGIKUTI LAYAR DETAIL stasiun ini, bukan nama kolom database; dan kolom konteks DIULANG VERBATIM di setiap baris. Konvensi proyek, sudah berlaku di seluruh ekspor laporan.",
+    "ExportValue: kolom enum pengukuran dicetak lewat option(), bukan status(). status() adalah status RECORD. Berlaku DI MANA PUN termasuk layar laporan (keputusan user 2026-10-14), dan blade MENDELEGASIKAN ke helper itu alih-alih menyalin logikanya.",
+    "Rute web /reports/solid-waste-disposal menolak Operator, sementara ketiga rute data API menerimanya SEJAK COMMIT PERTAMA. Itu bukan kelonggaran yang tertinggal — itu yang membuat screen-163 (mobile) nanti tidak perlu menyentuh satu baris pun kode izin. Pola yang sama sudah terbukti pada screen-158/159 dan screen-160/161.",
+    "GATE /business-units/options ADA DI DALAM SERVICE, bukan di middleware. Middleware pada prefix ini harus menerima keempat peran demi ketiga rute data, sehingga ia secara struktural tidak dapat menolak non-admin di satu rute saja.",
+    "CSS: setiap kelas yang dipakai markup WAJIB punya definisi — diperiksa pada hasil COMPILE, bukan pada sumbernya. Delapan belas kelas tanpa definisi hampir ikut terkirim pada pekerjaan sebelumnya dan hanya tertangkap karena definisinya diperiksa sebelum melanjutkan.",
+    "ASERSI YANG TIDAK MEMBUKTIKAN APA PUN — tiga bentuk yang sudah terbukti di proyek ini dan harus dihindari di sini: (1) expect()->toContain($a, $b) memperlakukan argumen kedua sebagai needle kedua, bukan pesan; pakai $this->assertContains(). (2) assertSee untuk cacat TAMPILAN tidak membuktikan apa pun — markup dapat benar sementara hasilnya terpotong induknya. (3) Mengasersikan KETIADAAN atas nama kunci akan cocok dengan prosa yang justru MENYATAKAN ketiadaan itu — persis yang terjadi saat memeriksa mock screen-161 untuk 'Sebaran' dan 'Excel'.",
+    "FLAKE PABRIK TERSARANG: factory record stasiun di proyek ini dapat membuat record stasiun LAIN bertanggal acak (GradingRecordFactory membuat WeighbridgeRecord). Asersi bentuk 'tepat N muatan hari ini' karenanya dapat gagal ~1:30 tanpa ada hubungannya dengan urutan test. Semai tanggal secara eksplisit.",
+    "MOCK HTML-nya LEBIH BAIK daripada success_schema versi pertama saya dalam satu hal, dan spec-nya yang mengalah: keempat tabel rekap di mock punya kolom 'Muatan netto terisi' dan 'Rata-rata/muatan (MT)' PER BARIS, sementara skema pertama saya hanya menerbitkan penyebut di tingkat global. Mock yang benar — aturan 'rata-rata selalu bersama penyebutnya' berlaku di tiap tingkat, bukan hanya di tingkat teratas. Skema diperbaiki, bukan mock-nya.",
+    "DAN MOCK-NYA KURANG SATU HAL: ia tidak menampilkan undated_load_count — muatan yang event_date-nya kosong. Padahal justru itu satu-satunya sebab penjumlahan daily[] boleh lebih kecil daripada load_count. TECH-SPEC YANG OTORITATIF, bukan mock: implementasi WAJIB mencetaknya berdampingan dengan total beserta kalimat yang menjelaskan hubungan keduanya, meskipun mock tidak memperlihatkan tempatnya. Dicatat karena bentuk kesalahan ini akan terulang — sebuah mock yang rapi dan lengkap secara visual tetap dapat kehilangan satu angka yang hanya ada di spec, dan tidak ada yang memeriksanya selain membandingkan keduanya baris per baris.",
+    "URUTAN SECTION mengikuti mock (purpose_end_use ditonjolkan lebih dulu, lalu tiga rekap lainnya dikelompokkan) — bukan urutan daftar di api_contracts, yang struktural dan tidak membawa maksud tampilan apa pun. Dua urutan berbeda untuk dua keperluan berbeda; keduanya sengaja dan tidak perlu disamakan.",
+    "Mock diverifikasi NOL kelas CSS tanpa definisi (91 kelas dipakai, diperiksa terhadap design-tokens.css + components.css + shell.css — ketiganya di .asdlc/generated/1-foundation/uiux-spec/assets/). Pemeriksaan pertama saya melaporkan 14 kelas tanpa definisi dan itu SALAH: glob jalur asset saya tidak cocok, sehingga shell.css tidak ikut dibaca dan seluruh kosakata shell (app-shell, sidebar, topbar, nav-item …) tampak tak terdefinisi. Jalur yang benar diambil dari atribut href di mock itu sendiri, bukan ditebak — dan sebuah audit yang jalurnya salah melaporkan cacat palsu dengan nada yang sama persis seperti cacat sungguhan.",
+    "KOMPONEN LIVEWIRE-NYA `App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal` dengan view `livewire.dashboard.laporan-solid-waste-disposal` — mengikuti kelima belas laporan yang sudah ada (LaporanWeighbridge, LaporanProcessWater, …), BUKAN `App\\Livewire\\Reports\\SolidWasteDisposalReport`. Dicatat karena nama itu tidak disebut di satu artefak pun dan karenanya akan ditebak; tebakan yang wajar pun salah di sini.",
+    "NAMA KOLOM DB BERBEDA DARI NAMA KUNCI PAYLOAD, dan versi pertama spec ini salah menuliskan dua di antaranya. Yang benar, dibaca dari migrasi 2026_08_31_000003_create_solid_waste_disposal_details_table.php: `solid_waste_type`, `source_station`, `disposal_utilization_site`, `purpose_end_use`, `gate_pass_no`, `security_seal_no`, `operator_id`, `remarks`, `findings` — bukan `gate_pass_number` maupun `seal_number`. Kunci payload sengaja lebih pendek (by_waste_type, by_disposal_site), dan pemetaannya kini dinyatakan di business_logic alih-alih disisakan untuk ditebak.",
+    "TIGA KOLOM DETAIL TIDAK MUNCUL DI SATU ANGKA LAYAR PUN: weighbridge_ticket_no, vehicle_no, driver_name. Ketiganya WAJIB ada di ekspor — ekspor adalah rincian mentah — dan justru karena tidak punya pembaca di layar, ketiganya yang paling mudah tertinggal. Didaftar lengkap di business_logic ekspor supaya daftar itu dapat diasersikan, bukan diingat.",
+    "KONTRADIKSI URUTAN REKAP YANG SAYA SENDIRI TULIS, DAN BAGAIMANA IA DISELESAIKAN. Tech-spec v1 saya menuliskan 'urut abjad, null selalu terakhir'; business-spec dan usecase-168 keduanya menuliskan 'urut jumlah terbesar'. Yang menyelesaikannya bukan penalaran melainkan PRESEDEN KODE: WeighbridgeReportService::groupedBreakdownOf() mengurutkan net_weight_total DESC → trip_count DESC → nilai ASC, dengan null terakhir di antara yang seri saja. Tech-spec yang dikoreksi. PELAJARAN PROSESNYA yang lebih penting daripada keputusannya: ini kontradiksi KETIGA yang saya tulis sendiri antar artefak pada satu layar — dan ketiganya ditemukan oleh pembaca lain (agen penurun spesifikasi uji), bukan oleh saya saat menulisnya. Artefak yang ditulis berurutan tidak saling memeriksa; yang memeriksanya hanya seseorang yang membaca ketiganya sekaligus untuk satu keperluan.",
+    "PRASYARAT FIXTURE BROWSER — DIVERIFIKASI LANGSUNG DI KEDUA DATABASE PADA 2026-10-18, bukan diasumsikan. `mill_smart_log_e2e`: 2 solid_waste_disposal_records, 2 detail, 3 baris period_stations 'solid-waste-disposal'. `mill_smart_log` (dev): 0 record, 0 detail, 2 baris period_stations. Jadi uji browser MEMANG punya data di e2e — BrowserTestFixtureSeeder sudah membuatnya (± baris 795) — dan TIDAK perlu diperluas. Sebuah laporan agen sebelumnya menyatakan 'nol baris di dev DAN di e2e' dan itu salah untuk e2e; perbedaannya menentukan, karena ia memutuskan antara menguji keadaan-kosong dan menguji angka sungguhan.",
+    "DAN PERIODE PRASYARATNYA MEMANG MENCAKUPNYA: `e2e-web/tests/support/period-fixture.ts` memakai FIXTURE_START = '2020-01-01' sampai hari-ini+7, sementara record fixture bertanggal 2025-03-10 (FILTER_RECORD_DATE) — jadi `seedOpenPeriodForForms(browser, 'solid-waste-disposal')` di beforeAll menghasilkan periode yang BENAR-BENAR memuat muatan itu. Tanpa hook itu, pemilih periode kosong dan beforeAll MENGGANTUNG alih-alih gagal (lihat komentar di laporan-process-water.spec.ts ± baris 293). Pola yang sama persis dipakai keenam spec laporan sebelumnya.",
+    "BENTUK FIXTURE ITU MEMBATASI APA YANG DAPAT DIASERSIKAN DI BROWSER, dan ini membatalkan satu asersi yang tertulis di test_scenarios. Kedua baris detail di e2e: event_date = record.date = 2025-03-10, status induk `draft_ongoing`, net_weight_mt = 5, dan KEEMPAT kolom kategoris NULL, gate_pass_no NULL, security_seal_no NULL. Konsekuensinya setiap rekap kategoris hanya punya SATU baris — baris null itu sendiri — sehingga asersi apa pun tentang POSISI baris null (di atas / bukan di baris terakhir) VAKUM di browser: satu baris selalu baris pertama dan sekaligus terakhir. Asersi urutan itu hanya bermakna di unit test, tempat fixture-nya dapat disusun. Spec browser harus menyemai barisnya sendiri bila ingin menguji urutan, atau tidak mengasersikannya sama sekali — jangan membiarkannya tampak teruji.",
+    "SEBALIKNYA, FIXTURE ITU JUSTRU IDEAL untuk tiga hal yang lain sekaligus, dan ketiganya layak diasersikan di browser: (1) baris 'tidak tercatat' BENAR-BENAR dirender pada keempat rekap; (2) compliance menghitung muatan tanpa gate pass dan tanpa segel — keduanya kosong pada seluruh baris fixture; (3) record `draft_ongoing` IKUT terhitung dan draft_load_count menyatakannya. Ketiganya jalur yang paling mudah ditulis salah dan paling jarang punya data nyata untuk mengujinya.",
+    "JUMLAH MUATAN DI BROWSER TIDAK BOLEH DIASERSIKAN PERSIS. Spec `form-solid-waste-disposal.spec.ts` MENULIS record baru pada DB e2e yang sama, sehingga jumlahnya bergantung pada spec mana yang sudah berjalan lebih dulu dan pada urutan paralelisasi Playwright. Asersi 'tepat N muatan' akan hijau sendiri dan merah bila urutannya berubah. Pakai ≥ 1 dan sifat strukturalnya; angka persisnya milik unit test.",
+    "CATATAN TURUNAN YANG HANYA TERLIHAT DARI DATA NYATA: kedua baris fixture punya net_weight_mt = 5 sementara gross_weight_mt dan tare_weight_mt KEDUANYA NULL. Itu sah dan tidak bertentangan dengan 'net adalah kolom turunan service': turunannya terjadi di SolidWasteDisposalRecordService, dan seeder menulis lewat updateOrCreate yang melewatinya. Artinya laporan ini TIDAK BOLEH menghitung ulang netto dari bruto−tara — ia membaca net_weight_mt apa adanya. Menghitung ulang akan mengubah 5 MT menjadi null pada data yang ada hari ini."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — sukses sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor terikat mill-A; business_unit_id tidak dikirim"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data.0.id}}",
+            "production_line_id": "<line mill-A>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); set productionLineId lalu periodId; muatan disemai eksplisit bertanggal di dalam periode, sebagian ber-netto null",
+        "assert": "Blok terbit: jumlah muatan, total netto, rata-rata netto DENGAN penyebut net_weight_load_count tercetak di elemen yang sama, missing_net_weight_load_count sebagai angka tersendiri, keempat rekap kategoris, kedua penghitung compliance, rekap harian + baris total, tren, dua bagian terpisah findings/remarks, draft_load_count, completeness. _note_no_hourly, _note_shift_not_published dan _note_absences dirender UTUH. Pemilih Mill TIDAK dirender bagi peran terikat mill. assertSet atas data yang dipublikasikan komponen, bukan assertSee atas prosa"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: muatan tersimpan dari BrowserTestFixtureSeeder (lihat prasyarat fixture). Login Supervisor, pilih Production Line, pilih periode lajur masa lalu",
+        "assert": "Angka utama tampil; penyebut rata-rata terlihat di dalam kartu rata-rata (disasarkan ke testid kartunya, bukan ke halaman); keempat rekap punya baris. Nol permintaan tulis — bandingkan jumlah record sebelum dan sesudah"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — Operator mencoba membuka layar web ini",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/reports/solid-waste-disposal"
+          },
+          "request_example": {
+            "_given": "Sesi Station Operator; ini rute WEB, bukan API"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Station Operator yang SAMA; business_unit_id tidak dikirim"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "<line mill akun Operator>",
+            "_given": "Sesi Station Operator"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "<line mill akun Operator>",
+            "format": "csv",
+            "_given": "Sesi Station Operator; seluruh params valid"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 5,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/business-units/options"
+          },
+          "request_example": {
+            "_given": "Sesi Station Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Livewire::actingAs(operator)->test(komponen)",
+        "assert": "Status 403 dari middleware rute web; nol data terpublikasi — nol periode, nol line, nol angka pada state komponen (diasersikan atas state, bukan atas HTML)"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "Tidak butuh muatan tersimpan. Login Operator, buka URL langsung",
+        "assert": "Halaman 403; URL tidak berisi laporan (regex, bukan glob); tidak ada tabel rekap di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/business-units/options"
+          },
+          "request_example": {
+            "_given": "Sesi Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Admin; business_unit_id TIDAK dikirim"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}",
+            "_given": "Sesi Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step3.data.0.id}}",
+            "production_line_id": "<line mill itu>",
+            "business_unit_id": "{{step1.data.0.id}}",
+            "_given": "Sesi Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Livewire::actingAs(admin)->test(komponen) tanpa memilih apa pun, lalu set businessUnitId, lalu productionLineId, lalu periodId",
+        "assert": "Sebelum mill dipilih: pemilih Mill dirender, daftar line DAN daftar periode keduanya kosong, nol angka. Sesudah ketiganya dipilih: payload yang sama bentuknya seperti peran terikat mill, dan business_unit.id pada payload sama dengan mill yang dipilih Admin"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: muatan tersimpan pada mill fixture. Login Admin, pilih mill, pilih line, pilih periode",
+        "assert": "Pemilih Mill hanya terlihat bagi Admin; sebelum mill dipilih nol kartu angka di DOM; sesudahnya nama mill terpilih tampil di header laporan (disasarkan ke elemen header)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — Admin mengganti mill setelah periode dan line terpilih",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode mill-A>",
+            "production_line_id": "<line mill-A>",
+            "business_unit_id": "<mill-A>",
+            "_given": "Sesi Admin; period_id + production_line_id milik mill-A dan business_unit_id mill-A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "<mill-B>",
+            "period_id": "<periode mill-A>",
+            "production_line_id": "<line mill-A>",
+            "_given": "Sesi Admin; business_unit_id=mill-B TETAPI period_id dan production_line_id masih milik mill-A — membuktikan pilihan basi memang ditolak server, bukan hanya dikosongkan di UI"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<mill-B>",
+            "_given": "Sesi Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Admin dengan businessUnitId=mill-A, productionLineId dan periodId terpilih serta angka tampil; lalu set businessUnitId=mill-B",
+        "assert": "periodId DAN productionLineId keduanya menjadi null (assertSet null, bukan assertDontSee); daftar line dan daftar periode dimuat ulang berisi milik mill-B saja; payload angka menjadi kosong — tidak satu nilai angka mill-A pun tertinggal di state; arahan memilih Production Line kembali dirender"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: muatan tersimpan pada DUA mill fixture. Login Admin, pilih mill-A + line + periode sampai angka tampil, lalu ganti mill ke mill-B",
+        "assert": "Kartu angka hilang dari DOM (bukan hanya tersembunyi — periksa count() setelah menunggu); pemilih periode dan pemilih line kosong; nilai angka mill-A yang unik (disemai sengaja, mis. 777 muatan) tidak ada di mana pun di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor dengan business_unit_id NULL di DB"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/business-units/options"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor yang sama (business_unit_id NULL di DB) — membuktikan daftar seluruh mill TIDAK ditawarkan sebagai jalan keluar"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Livewire::actingAs(supervisor ber-business_unit_id null)->test(komponen)",
+        "assert": "Pesan menghubungi Admin dirender; pemilih Mill TIDAK dirender; nol angka; nol opsi mill pada state. 422 bukan 403 — pesannya mengatakan master yang rusak, bukan izin yang kurang"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: akun fixture Supervisor ber-business_unit_id NULL (perlu ditambahkan ke BrowserTestFixtureSeeder). Tidak butuh muatan tersimpan",
+        "assert": "Pesan arahan tampil di elemen notifikasi; select Mill tidak ada di DOM; nol kartu angka"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — Production Line belum dipilih",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<valid>",
+            "_given": "Sesi Supervisor; production_line_id TIDAK dikirim; mill punya DUA line yang keduanya bermuatan"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/export"
+          },
+          "request_example": {
+            "period_id": "<valid>",
+            "format": "csv",
+            "_given": "Sesi Supervisor; production_line_id TIDAK dikirim"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Supervisor; set periodId saja, productionLineId dibiarkan null",
+        "assert": "Nol angka terpublikasi; arahan memilih Production Line dirender; tombol Ekspor CSV dan Ekspor Excel BELUM ADA di DOM (assertDontSeeHtml atas atribut wire:click ekspor, bukan atas kata 'Ekspor' yang juga muncul di prosa); dan tidak ada angka gabungan dua line — angka total kedua line (disemai berbeda, mis. 11 dan 7) tidak muncul sebagai 18 di mana pun"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: dua line fixture, salah satunya bermuatan. Login Supervisor, pilih periode, JANGAN pilih line",
+        "assert": "Arahan memilih line tampil; nol kartu angka di DOM; kedua tombol ekspor tidak ada (count()===0 setelah menunggu arahan tampil)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — mill belum punya periode yang mencakup Solid Waste Disposal",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor pada mill yang punya dua periode, keduanya hanya mendaftarkan stasiun lain"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Supervisor pada mill tanpa periode SWD; pilih Production Line",
+        "assert": "Daftar periode === [] (assertSet atas state); arahan menghubungi Admin untuk pembuatan periode dirender; nol angka. Dibedakan dari keadaan 'periode tanpa data': yang kosong di sini adalah PEMILIHNYA"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: mill fixture kedua yang periodenya tidak mendaftarkan solid-waste-disposal (Admin memilihnya). Tidak butuh muatan",
+        "assert": "Select periode punya nol option data; pesan arahan tampil di elemen notifikasi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — periode tanpa data",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode 2019-03-01..2019-03-31 yang punya period_station solid-waste-disposal>",
+            "production_line_id": "<line terpilih tanpa satu pun record>",
+            "_given": "Sesi Supervisor; periode 2019-03-01..2019-03-31 ber-period_station SWD, line terpilih tanpa satu pun record"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Pilih line dan periode yang nol record; hari ini dibekukan ke 2019-04-15",
+        "assert": "load_count 0; net_weight_total dan net_weight_avg === null sehingga blade mencetak '—' (asersi atas nilai null di state, DAN atas '—' yang disasarkan ke elemen kartu berat — '—' terlalu pendek untuk diasersikan atas halaman); keempat rekap [] dengan keadaan kosong bernarasi yang menyebut nama periode dan nama line; daily []; completeness TETAP dirender dengan days_counted 31 supaya pembaca tahu berapa hari seharusnya terisi; nol grafik kosong di DOM"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "Tidak butuh muatan tersimpan — ini justru keadaan dev hari ini. PRASYARAT: baris period_stations 'solid-waste-disposal' pada periode lajur masa lalu. Login Supervisor, pilih line, pilih periode",
+        "assert": "Keadaan kosong menyebut nama periode dan nama line (disasarkan ke elemen keadaan-kosong); kartu berat berisi '—' bukan '0,00'; blok kelengkapan tetap ada; nol elemen canvas/svg grafik"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — seluruh muatan periode belum selesai ditimbang",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; periode dengan 6 baris detail bertanggal eksplisit, SELURUHNYA ber-net_weight_mt null"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai 6 muatan tanpa netto pada periode dan line terpilih",
+        "assert": "net_weight_total === null dan net_weight_avg === null; net_weight_load_count 0; load_count 6; missing_net_weight_load_count 6 dan ditonjolkan sebagai kartu tersendiri (bukan catatan kaki); kedua angka berat mencetak '—' di dalam kartunya masing-masing, NEVER '0,00 MT'. Kalimat di layar berbunyi penimbangan belum selesai, bukan 'data tidak lengkap'"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture seeder menyemai 6 detail tanpa gross/tare pada lajur masa lalu. Buka laporan periode itu",
+        "assert": "Kartu total dan rata-rata berisi '—'; kartu 'penimbangan belum selesai' berisi 6; kartu jumlah muatan juga 6 — pembaca dapat membedakan 'muatannya ada' dari 'beratnya belum ada', dan ketiga kartu diasersikan per testid"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — sebagian muatan belum selesai ditimbang",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; 10 detail: 6 ber-netto total 30.0, 4 ber-netto null (sebagian hanya bruto, sebagian hanya tara)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai 10 muatan: 6 bertimbang penuh (total 30.0 MT), 2 hanya bruto, 2 hanya tara",
+        "assert": "net_weight_total 30.0; net_weight_avg 5.0 (bukan 3.0); net_weight_load_count 6 tercetak DI DALAM elemen kartu rata-rata; load_count 10; missing_net_weight_load_count 4 sebagai kartu tersendiri. Bruto/tara kosong TIDAK diperlakukan sebagai 0 — muatan itu hilang dari rata-rata, tidak menurunkannya"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture seeder dengan campuran 6 bertimbang / 4 belum. Buka laporan",
+        "assert": "Rata-rata menampilkan 5,00 dan penyebut 6 berada di dalam kartu yang sama (getByTestId('kartu-rata-netto').getByText('6')); kartu belum-selesai berisi 4; jumlah muatan 10"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — sebuah kolom pengelompokan kosong pada seluruh muatan",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; 9 detail ber-purpose_end_use null atau '' seluruhnya, kolom kategoris lain terisi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai 9 muatan tanpa purpose_end_use",
+        "assert": "by_purpose_end_use berisi TEPAT satu entri value null, load_count 9 — bukan []; blade mencetaknya 'tidak tercatat'; rekap itu TETAP dirender dan tetap berdampingan dengan angka total; penjumlahan load_count rekap = 9 = load_count"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture seeder menyemai 9 detail dengan purpose_end_use null. Buka laporan, cari kartu rekap tujuan penggunaan akhir",
+        "assert": "Kartu rekap ADA (count()===1), bukan hilang; punya tepat satu baris tabel; baris itu berlabel 'tidak tercatat' dan ber-load_count 9. Menyembunyikan rekapnya membuat pembaca mengira bagian laporan itu tidak ada"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — nilai kategoris langka atau hanya berbeda besar-kecil huruf",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; disposal_utilization_site: 'TPA Utara' x2, 'tpa utara' x3, ' TPA Utara ' x1, dan 'Zinc Scrap' x1 (muncul sekali)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai nilai kategoris yang berbeda case, berspasi tepi, dan satu nilai berfrekuensi 1",
+        "assert": "by_disposal_site punya entri 'TPA Utara'(3, spasi tepi bergabung) DAN 'tpa utara'(3) sebagai DUA entri terpisah; 'Zinc Scrap' punya barisnya sendiri dengan load_count 1; nol entri bernama 'lainnya'. Normalisasi case TIDAK terjadi — gejala data master yang perlu dirapikan harus TERLIHAT"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture seeder menyemai varian case. Buka laporan, baca tabel rekap lokasi",
+        "assert": "Tabel memuat baris 'TPA Utara' dan baris 'tpa utara' sebagai dua baris berbeda — dibandingkan atas textContent sel yang case-sensitive, bukan atas pencarian teks yang mungkin case-insensitive"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — jejak kepatuhan tidak lengkap atau lengkap seluruhnya",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-1>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; periode-1 dengan 8 detail: gate_pass_no 3 null + 2 '' + 1 '  ' + 2 terisi; security_seal_no 5 null + 3 terisi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-2>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; periode-2 dengan 8 detail, kedua nomor (gate_pass_no dan security_seal_no) terisi non-kosong seluruhnya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Render untuk kedua periode secara berurutan",
+        "assert": "Periode-1: missing_gate_pass_count 6, missing_seal_count 5, disajikan sebagai TEMUAN (bukan galat/alert error). Periode-2: keduanya 0 dan KEDUA kunci tetap dirender — nol itu yang memberi tahu pemeriksaannya berjalan. Pada keduanya: nol rata-rata, nol min/max, nol pengurutan dan nol grafik atas kedua nomor — diasersikan dengan assertArrayNotHasKey atas kunci seperti avg_gate_pass/gate_pass_chart di seluruh payload, bukan atas prosa"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: dua periode fixture dengan kelengkapan kepatuhan berbeda. Buka keduanya",
+        "assert": "Kedua penghitung terlihat di kartu compliance pada KEDUA periode (termasuk saat nilainya 0); kartu compliance terpisah dari kartu muatan; nol elemen grafik di dalam kartu compliance"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — rekap temuan dan catatan kosong atau terisi keduanya",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-1>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; periode-1 dengan findings dan remarks kosong/whitespace seluruhnya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode-2>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; periode-2 di mana satu detail mengisi findings DAN remarks sekaligus"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Render kedua periode",
+        "assert": "Periode-1: findings [] dan remarks [], keduanya dirender sebagai keterangan 'tidak ada catatan' — bukan tabel kosong dan bukan bagian yang hilang. Periode-2: muatan yang mengisi keduanya muncul di KEDUA daftar beserta tanggalnya, dan itu benar. Kedua rekap selalu pada dua bagian terpisah — diasersikan atas dua container testid berbeda, bukan atas satu blok"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture dengan satu detail yang mengisi findings dan remarks. Buka laporan",
+        "assert": "Dua section terpisah ada di DOM; teks temuan yang disemai muncul di section temuan DAN teks catatan di section catatan; keduanya tidak tertukar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — line punya lebih dari satu unit Solid Waste Disposal",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line-1>",
+            "_given": "Sesi Supervisor; line-1 punya dua unit stasiun SWD: unit-1 3 detail, unit-2 2 detail, tanggal eksplisit"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai dua unit stasiun SWD pada satu line",
+        "assert": "load_count 5 — bukan 3 (unit terlewat) dan bukan 10 (join ganda). Nol pengelompokan per unit di payload; pembaca membaca satu angka per line"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture dengan dua unit SWD pada satu line, masing-masing bermuatan. Buka laporan",
+        "assert": "Kartu jumlah muatan berisi gabungan kedua unit; tidak ada pemilih atau tab per unit di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — periode masih berjalan atau belum mulai",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode 2019-03-01..2019-03-31>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; hari ini dibekukan 2019-03-09 WIB; periode 2019-03-01..2019-03-31 dengan muatan pada 9 hari"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode 2019-04-01..2019-04-30>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; hari ini 2019-03-09; periode 2019-04-01..2019-04-30, nol muatan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Carbon::setTestNow ke 2019-03-09 (zona WIB dari config app, bukan waktu server); render kedua periode",
+        "assert": "Berjalan: days_counted 9, days_with_load 9, percent 100.0 (bukan 29.0) dan layar menyatakan penyebut berhenti di hari ini. Belum mulai: days_counted 0, percent === null, blade mencetak '—' di dalam kartu kelengkapan beserta keterangan 'periode belum dimulai' — BUKAN 0,0% yang terbaca sebagai kelalaian. Angka lain tetap dihitung atas data yang ada"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: lajur masa lalu membuat seluruh periode fixture SUDAH SELESAI, sehingga keadaan 'berjalan' dan 'belum mulai' TIDAK dapat dicapai di browser tanpa periode fixture tambahan bertanggal masa depan — dan periode masa depan tidak dapat memuat record karena EVENT_DATE_MAX_DAYS_AHEAD=1. Yang dapat diuji di browser: periode fixture masa depan TANPA muatan",
+        "assert": "Kartu kelengkapan berisi '—' (disasarkan ke testid kartu kelengkapan) beserta keterangannya, bukan '0,0%'. Keadaan 'berjalan' dibuktikan di component test dengan setTestNow, bukan di browser"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — periode berstatus tertutup",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor; mill punya periode SWD berstatus closed"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode closed>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode closed>",
+            "production_line_id": "<line terpilih>",
+            "format": "csv",
+            "_given": "Sesi Supervisor"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Pilih periode berstatus closed yang punya data",
+        "assert": "Laporan tampil PENUH — seluruh angka, keempat rekap, compliance, rekap harian, tren, kelengkapan — sama seperti periode terbuka; period.status 'closed' dirender sebagai keterangan; kedua tombol ekspor tetap ada. Status periode tidak membatasi apa pun"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: periode fixture berstatus closed dengan muatan di lajur masa lalu. Buka laporan, klik Ekspor CSV",
+        "assert": "Keterangan status tertutup tampil di header; unduhan terjadi (tunggu event download) dan berkasnya ber-nama .csv dengan baris data > 0"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — seluruh muatan berstatus draft",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; seluruh record pada periode dan line berstatus draft, 7 detail bertanggal eksplisit"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai 7 detail milik record draft seluruhnya",
+        "assert": "load_count 7; draft_load_count 7 — keduanya sama; keempat rekap, compliance, daily dan net total semuanya terhitung penuh dan tidak satu pun menyaring draft keluar (asersi negatif: tidak ada angka 0 pada blok mana pun yang disebabkan status draft); kartu draft dirender sehingga pembaca langsung tahu seluruh laporan berdiri di atas data yang belum final"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture menyemai record draft dengan detail. Buka laporan",
+        "assert": "Kartu jumlah draft dan kartu jumlah muatan berisi angka yang sama; label 'Draft' disasarkan ke elemen kartunya (label pendek — jangan diasersikan atas seluruh halaman, karena 'Draft' juga muncul di pemilih periode)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — rekap harian sangat panjang",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode 2019-03-01..2019-03-31>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; periode 2019-03-01..2019-03-31 dengan muatan pada 9 hari dari 31 — tanggal disemai eksplisit"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai muatan pada 9 hari berbeda dalam periode 31 hari; lalu panggil aksi tutup/buka rekap",
+        "assert": "count(daily) === 9 TEPAT — bukan 31, dan asersi jumlah entri ini WAJIB; tidak ada entri ber-load_count 0; urut tanggal naik. Menutup/membuka rekap TIDAK memicu permintaan data — bandingkan payload angka sebelum dan sesudah aksi, identik; dan jumlah query DB selama aksi itu NOL (DB::listen dihitung, bukan diasumsikan)"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture dengan muatan pada 9 hari dalam periode 31 hari. Buka laporan, tutup rekap harian, buka kembali",
+        "assert": "Tabel harian punya tepat 9 baris data (count() setelah menunggu baris pertama render). Gulir mendatar dibuktikan GEOMETRIS: scrollWidth > clientWidth pada container kartu DAN boundingBox tabel tidak melebihi boundingBox induk kartunya — toBeVisible/assertSee TIDAK membuktikan cacat tampilan ini. Setelah tutup-buka, angka utama tidak berubah dan nol permintaan jaringan baru (route interception counter)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — berat bersih diturunkan service dan netto null berarti penimbangan belum selesai",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; 10 detail: 7 ber-gross_weight_mt dan tare_weight_mt terisi sehingga net_weight_mt terhitung, 3 hanya bruto atau hanya tara sehingga netto null"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai 10 muatan seperti di atas; netto ditulis oleh SolidWasteDisposalRecordService, bukan diisi factory secara manual",
+        "assert": "Laporan MEMBACA net_weight_mt apa adanya dan tidak menghitungnya ulang — diasersikan dengan menyemai satu baris yang net_weight_mt-nya SENGAJA tidak sama dengan bruto−tara dan memastikan laporan memakai nilai kolomnya, bukan hasil hitung ulang. Ketiga baris null dikecualikan dari total dan rata-rata; missing_net_weight_load_count 3 ditonjolkan sebagai kartu, bukan catatan kaki; rata-rata tidak tertarik ke bawah — bandingkan terhadap nilai yang akan muncul bila null dianggap 0 dan pastikan BERBEDA"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture 10 muatan, 7 bertimbang. Buka laporan",
+        "assert": "Kartu belum-selesai berisi 3 dan kalimatnya berbunyi penimbangan belum selesai (bukan 'data tidak lengkap'); rata-rata sama dengan total/7"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — penyebut rata-rata adalah jumlah muatan yang netto-nya terisi dan dicetak di sampingnya",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; 10 detail, hanya 6 ber-netto terisi dengan total 30.0 MT"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai 10 muatan, 6 bertimbang total 30.0 MT",
+        "assert": "net_weight_avg 5.0 (30.0/6), BUKAN 3.0 (30.0/10); kunci net_weight_load_count ADA di payload dengan nilai 6; load_count 10; missing_net_weight_load_count 4. Ketiga angka dapat direkonsiliasi pembaca (10 = 6 + 4) dan asersi itu ditulis sebagai identitas"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture 10 muatan / 6 bertimbang. Buka laporan",
+        "assert": "Angka 6 berada DI DALAM elemen kartu rata-rata (getByTestId('kartu-rata-netto').getByText('6')) — bukan di mana pun di halaman, sebab '6' juga muncul sebagai angka lain; rata-rata dari 6 muatan tidak boleh terlihat sama meyakinkan dengan rata-rata dari 600"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — rekap per tujuan penggunaan akhir dirender berdampingan dengan angka total",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; muatan dengan beberapa nilai purpose_end_use berbeda"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai purpose_end_use dengan 3 nilai berbeda; render seluruh blade",
+        "assert": "by_purpose_end_use dirender BERDAMPINGAN dengan kartu angka total — diasersikan secara STRUKTURAL: node rekap purpose berada di dalam container yang sama dengan kartu total netto (relasi DOM ancestor, bukan sekadar keduanya ada di halaman); penjumlahan load_count rekap itu = load_count. Tidak ada satu angka 'limbah keluar' pun yang dirender dalam container yang tidak memuat rinciannya"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture dengan beberapa nilai purpose_end_use. Buka laporan; periksa kartu angka utama, rekap harian dan tren",
+        "assert": "Rekap purpose_end_use terlihat tanpa menggulir keluar dari viewport yang memuat kartu total — dibuktikan dengan boundingBox kedua elemen berada dalam satu viewport, bukan dengan toBeVisible saja"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — rekap tujuan penggunaan akhir diterbitkan per nilai apa adanya, bukan dua ember dibuang/dimanfaatkan",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; purpose_end_use berisi 4 nilai teks bebas berbeda yang belum pernah ada di DB mana pun (mis. 'Landfill', 'Co-firing Boiler', 'Dijual ke pihak ketiga', 'Kompos')"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai 4 nilai purpose_end_use teks bebas",
+        "assert": "by_purpose_end_use berisi 4 entri PER NILAI apa adanya dengan load_count dan net_weight_total masing-masing. Asersi negatif yang menjadi inti scenario ini: payload TIDAK punya kunci seperti 'disposed'/'utilized'/'dibuang'/'dimanfaatkan' di level mana pun (assertArrayNotHasKey rekursif), dan tidak ada tabel/array pemetaan nilai→ember di kode service (diperiksa atas struktur payload, bukan atas prosa layar). Menebak pemetaan atas nilai yang belum pernah ada berarti menanam aturan yang terlihat benar dan diam-diam salah"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture dengan 4 nilai purpose_end_use. Buka laporan",
+        "assert": "Tabel rekap punya 4 baris berisi keempat string mentah persis; nol baris berlabel 'Dibuang' atau 'Dimanfaatkan' sebagai pengelompokan (count()===0 atas baris berteks itu)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — sebaran per jam tidak dapat dibuat dan ketiadaannya dinyatakan di layar",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; periode dan line dengan banyak muatan (mis. 24 detail pada 5 hari)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Render laporan dengan banyak muatan",
+        "assert": "assertArrayNotHasKey untuk 'hourly', 'busiest_hour' dan 'empty_hour_count' pada akar payload DAN rekursif pada seluruh sub-array. JEBAKAN YANG SUDAH TERBUKTI DI PROYEK INI DAN WAJIB DIHINDARI: ketiadaan ini TIDAK BOLEH diasersikan dengan assertDontSee atas 'Sebaran'/'jam'/'tersibuk' — _note_no_hourly justru MEMUAT kata-kata itu, sehingga asersi berbasis prosa akan cocok dengan kalimat yang menyatakan ketiadaannya dan lolos tanpa membuktikan apa pun (persis yang terjadi saat memeriksa mock screen-161). Terpisah dari itu: _note_no_hourly terisi string non-kosong dan dirender UTUH (dibandingkan string penuh, bukan substring), supaya ketiadaannya tidak dibaca sebagai blok yang lupa dibuat dan supaya tidak ada yang menambahkannya kelak dengan menebak jam dari created_at"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture dengan banyak muatan. Buka laporan, telusuri SELURUH bagian",
+        "assert": "Nol tabel/grafik ber-24 kolom jam di DOM (dicari atas testid blok hourly, bukan atas kata 'jam'); dan paragraf _note_no_hourly hadir utuh di dalam container catatan. Dua asersi ini sengaja memakai dua mekanisme berbeda supaya yang satu tidak memuaskan yang lain"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — nomor gate pass dan nomor segel adalah jejak kepatuhan, bukan ukuran",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; sebagian muatan ber-gate_pass_no dan security_seal_no terisi, sebagian null atau ''"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai campuran gate_pass/seal terisi dan kosong; render seluruh blade",
+        "assert": "Yang diterbitkan HANYA missing_gate_pass_count dan missing_seal_count, keduanya di blok compliance beserta compliance._note yang menyatakan keduanya jejak kepatuhan bukan ukuran. assertArrayNotHasKey atas kunci bernuansa ukuran (avg/min/max/sorted/chart atas kedua nomor) di seluruh payload; compliance TIDAK digabung ke dalam blok loads (asersi struktural atas lokasi kuncinya). Nol nilai nomor gate pass/segel individual diterbitkan di payload layar — nomornya hanya ada di ekspor"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture campuran kelengkapan. Buka laporan",
+        "assert": "Kartu compliance memuat dua penghitung dan satu paragraf keterangan; nol elemen grafik dan nol tabel bernomor segel di dalamnya; kartu compliance adalah node yang terpisah dari kartu muatan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — keempat kolom pengelompokan adalah kategoris sungguhan dan rekapnya tidak pernah dilipat",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; 12 detail; pada setiap kolom kategoris ada beberapa nilai, sebagian null/'', dan beberapa nilai berfrekuensi 1; pada keempat kolom kelompok null disemai BERTONASE PALING BESAR supaya posisi barisnya diuji, bukan kebetulan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai 12 muatan dengan keempat kolom kategoris terisi sebagian dan kosong sebagian",
+        "assert": "Keempat rekap terbit sebagai sebaran load_count + net_weight_total per nilai. UNTUK KEEMPATNYA SECARA TERPISAH: array_sum(load_count) === loads.load_count === 12, dengan pesan assertSame yang menamai rekapnya — asersi penjumlahan inilah yang menangkap baris null yang dibuang. Urutan tiap rekap diasersikan sebagai net_weight_total DESC → load_count DESC → value ASC sebagai pemutus seri, sama persis dengan WeighbridgeReportService::groupedBreakdownOf(); netto null diurutkan sebagai 0.0 untuk PENGURUTAN SAJA dan tetap null di payload. Baris null ADA sebagai entri tersendiri pada keempatnya dan posisinya ditentukan tonasenya: pada fixture ini kelompok null bertonase terbesar, jadi diasersikan EKSPLISIT bahwa ia berada di indeks 0 — MUNCUL DI ATAS entri bernilai — dan assertNotSame(count()-1, index(null)) supaya 'tidak tercatat' tidak terkubur di baris terakhir. Nol entri 'lainnya'; nilai berfrekuensi 1 tetap berbaris sendiri."
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture 12 muatan dengan keempat kolom kategoris bervariasi dan kelompok null bertonase terbesar pada keempatnya. Buka laporan",
+        "assert": "Keempat tabel rekap ada; untuk masing-masing, jumlah nilai sel load_count yang dibaca dari DOM sama dengan angka pada kartu jumlah muatan — direkonsiliasi di browser, bukan hanya di unit test. Kolom net_weight_total dibaca urut dari DOM dan terbukti MENURUN dari atas ke bawah; baris 'tidak tercatat' muncul di BARIS PERTAMA tiap tabel karena tonasenya terbesar pada fixture ini, dan diasersikan secara negatif bahwa ia BUKAN baris terakhir — bukan diasumsikan dari urutan render."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — kolom shift tidak diterbitkan di layar tetapi tetap ada di ekspor",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; muatan dengan kolom `shift` terisi teks bebas berbeda-beda"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/export"
+          },
+          "request_example": {
+            "period_id": "<sama seperti step 1>",
+            "production_line_id": "<sama seperti step 1>",
+            "format": "csv",
+            "_given": "Sesi Supervisor"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/export"
+          },
+          "request_example": {
+            "period_id": "<sama seperti step 1>",
+            "production_line_id": "<sama seperti step 1>",
+            "format": "xlsx",
+            "_given": "Sesi Supervisor"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai shift teks bebas; render layar; lalu bangkitkan kedua berkas ekspor",
+        "assert": "Payload /summary: assertArrayNotHasKey 'shift' pada akar DAN rekursif — bukan sebagai rekap, bukan sebagai kolom, bukan sebagai penyaring. JEBAKAN: jangan membuktikannya dengan assertDontSee('shift'), karena _note_shift_not_published MEMUAT kata itu. Terpisah: _note_shift_not_published terisi dan dirender. Kedua berkas ekspor: header memuat kolom shift dan nilai shift tiap muatan ada di barisnya (dibandingkan per baris, bukan atas seluruh berkas) — pengecualian sebuah kolom dari layar tidak berarti ia dibuang dari berkas"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture dengan shift terisi. Buka laporan, lalu klik Ekspor CSV dan tunggu unduhan",
+        "assert": "Nol kolom/kartu/penyaring shift di DOM (dicari atas testid, bukan atas kata); berkas CSV terunduh memuat header shift dan nilainya. Dua mekanisme berbeda, sengaja"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — muatan draft tetap ikut terhitung dan jumlahnya dinyatakan",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode disemai>",
+            "production_line_id": "<line terpilih>",
+            "_given": "Sesi Supervisor; R1 draft 3 detail + R2 final 5 detail, tanggal eksplisit, keduanya ber-netto terisi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/export"
+          },
+          "request_example": {
+            "period_id": "<sama seperti step 1>",
+            "production_line_id": "<sama seperti step 1>",
+            "format": "csv",
+            "_given": "Sesi Supervisor — membuktikan baris draft juga ada di ekspor beserta kolom statusnya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal",
+        "action": "Semai 3 detail draft + 5 detail final",
+        "assert": "load_count 8; net_weight_load_count 8; penjumlahan keempat rekap 8; compliance menghitung kedelapan baris; daily memuat baris draft; draft_load_count 3. Asersi negatif eksplisit: load_count BUKAN 5 — tidak satu bagian pun menyaring draft. Ekspor memuat 8 baris dengan kolom status yang dicetak lewat ExportValue::status() untuk status RECORD, sementara kolom enum pengukuran dicetak lewat ExportValue::option()"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "PRASYARAT: fixture dengan campuran record draft dan final. Buka laporan",
+        "assert": "Kartu jumlah muatan 8 dan kartu draft 3, keduanya diasersikan per testid; angka draft terlihat berdampingan dengan total sehingga pembaca tahu sebagian angkanya belum final"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Solid Waste Disposal (Web) — PINTU MASUK: tile Solid Waste Disposal pada screen-140 kini AKTIF dan dapat diklik",
+      "usecase_id": "usecase-168--laporan-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/reports"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor; screen-140, rute WEB"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/reports/solid-waste-disposal"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor, mengikuti href tile; rute WEB"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun (screen-140, pemilih stasiun) — bukan komponen laporan ini",
+        "action": "Render pemilih stasiun sebagai Supervisor dengan master station_types lengkap dari tabel",
+        "assert": "Entri solid-waste-disposal ber-report_available true dan ber-route 'reports.solid-waste-disposal'. array_keys(REPORT_ROUTES) urut sort_order dengan solid-waste-disposal di indeks TERAKHIR, tepat sesudah storage-tank (140) — diverifikasi dari tabel station_types, BUKAN dari urutan deklarasi enum. Kunci bertanda hubung; kunci snake_case tidak ada"
+      },
+      "browser_test": {
+        "route": "/reports → /reports/solid-waste-disposal",
+        "action": "Tidak butuh muatan tersimpan — hanya master station_types dari seeder. Buka /reports sebagai Supervisor, klik tile Solid Waste Disposal",
+        "assert": "Tile TIDAK lagi berkeadaan nonaktif/kelabu dan dapat diklik; navigasi mendarat di laporan — toHaveURL dengan REGEX /\\/reports\\/solid-waste-disposal$/, JANGAN glob '**/reports/solid-waste-disposal' yang tidak pernah cocok ketika baseURL terkonfigurasi (jebakan terbukti). RIAK WAJIB IKUT DIPERBAIKI DI BERKAS INI: konstanta UNAVAILABLE_STATION pada e2e-web/tests/laporan-stasiun.spec.ts sudah basi sejak screen-160 dan kini bernilai process-quality-control (180); ia TIDAK boleh menunjuk solid-waste-disposal lagi, kalau tidak spec ini akan mengasersikan tile yang baru saja diaktifkan sebagai nonaktif. Riak ini ditemukan dengan grep atas KODE STASIUN di seluruh tests/ dan e2e-web/, bukan dengan memeriksa urutan daftar"
+      }
+    }
+  ]
+}

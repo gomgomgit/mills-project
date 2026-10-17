@@ -36,13 +36,23 @@
  * berhenti menguji apa pun dan memerah. Itu kegagalan yang DIRANCANG, dan
  * inilah pembaruannya.
  *
+ * PEMINDAHAN KEDELAPAN pada screen-161 (2026-10-18): Process Water -> Solid
+ * Waste Disposal, karena laporan Process Water mobile dibangun
+ * ('process-water' masuk ke REPORT_ROUTES, satu entri di
+ * src/views/ReportingPilihStasiunView.vue) sehingga tile-nya menjadi AKTIF
+ * dan SEMUA asersi di berkas ini yang memakai 'process-water' sebagai contoh
+ * "belum berlaporan" memerah sekaligus — pasangan asersi jebakan utama,
+ * asersi urutan tile, pesan info, dan hitungan tile nonaktif. Itu kegagalan
+ * yang DIRANCANG, dan inilah pembaruannya. Yang berubah hanyalah CONTOHNYA:
+ * tidak satu asersi dilemahkan, dihapus, atau dilonggarkan.
+ *
  * KOREKSI ATAS PENYUSUNAN DOCBLOCK INI (screen-157): paragraf di atas dulu
  * terbaca seolah pemindahan kelima menggantikan contoh kanonisnya di SELURUH
  * berkas. Ia tidak. Berkas ini memegang EMPAT contoh "belum dibangun"
  * sekaligus, dan keempatnya masih dipakai hari ini:
- *   - 'process-water' (sort_order 130) — hasil pemindahan KEDUA, dan inilah
- *     yang dipakai pasangan asersi di bawah serta sebagian besar test
- *     lainnya di berkas ini;
+ *   - 'solid-waste-disposal' (sort_order 150) — hasil pemindahan KEDELAPAN,
+ *     dan inilah yang dipakai pasangan asersi di bawah serta sebagian besar
+ *     test lainnya di berkas ini;
  *   - 'process-quality-control' (sort_order 180) — hasil pemindahan KELIMA,
  *     dipakai pada st-3/st-5 dan pada asersi urutan tile;
  *   - 'cpo-dispatch' (sort_order 170) — hasil pemindahan KEENAM, dipakai
@@ -50,18 +60,29 @@
  *   - 'kernel-dispatch' (sort_order 160) — hasil pemindahan KETUJUH, dipakai
  *     pada test "tile tanpa laporan tetap tidak berpindah rute".
  *
- * Dipindahkan, BUKAN dihapus: bila Process Water, Process Quality Control,
- * CPO Dispatch, Kernel Dispatch atau Solid Waste Disposal pun dibuatkan
- * laporan mobile, spec ini akan gagal lagi — dan itu benar, karena ia memaksa
- * contohnya diperbarui alih-alih diam-diam menjadi selalu hijau. Konvensinya:
- * ambil sort_order TERTINGGI di antara jenis yang belum terpakai sebagai
- * contoh di berkas ini, sehingga pemindahan berikutnya tertunda paling lama.
- * Yang MASIH tersisa setelah pemindahan ketujuh hanya Solid Waste Disposal
- * (150); Engine Room (120) sudah punya laporan mobile sejak screen-159, dan
- * Kernel Dispatch (160) baru terpakai di sini.
+ * Dipindahkan, BUKAN dihapus: bila Solid Waste Disposal, Process Quality
+ * Control, CPO Dispatch atau Kernel Dispatch pun dibuatkan laporan mobile,
+ * spec ini akan gagal lagi — dan itu benar, karena ia memaksa contohnya
+ * diperbarui alih-alih diam-diam menjadi selalu hijau. Konvensinya: ambil
+ * sort_order TERTINGGI di antara jenis yang belum terpakai sebagai contoh di
+ * berkas ini, sehingga pemindahan berikutnya tertunda paling lama.
  *
- *   - 'process-water' dengan isActive = true → tile WAJIB nonaktif (kodenya
- *     tidak ada di REPORT_ROUTES).
+ * DAN SESUDAH PEMINDAHAN KEDELAPAN, CONTOHNYA HABIS. Keempat jenis yang
+ * belum punya laporan mobile — solid-waste-disposal (150), kernel-dispatch
+ * (160), cpo-dispatch (170), process-quality-control (180) — kini TERPAKAI
+ * SELURUHNYA sebagai contoh di berkas ini, dan tidak ada kandidat kesembilan.
+ * Konsekuensinya dinyatakan di sini supaya tidak ditemukan lagi secara
+ * mendadak: pemindahan KESEMBILAN TIDAK MUNGKIN dilakukan dengan cara yang
+ * sama. Ketika salah satu dari keempat jenis itu dibuatkan laporan mobile,
+ * berkas ini WAJIB beralih ke KODE STASIUN FIKTIF yang disuntikkan lewat
+ * fixture (misalnya type: 'other' dengan nama buatan, atau kode yang sengaja
+ * tidak ada di StationType) — karena yang diuji sejak awal bukanlah stasiun
+ * tertentu, melainkan aturannya: ketersediaan laporan ditentukan HANYA oleh
+ * keanggotaan di REPORT_ROUTES, bukan oleh StationSlot.isActive. Jangan
+ * melemahkan asersinya sebagai gantinya.
+ *
+ *   - 'solid-waste-disposal' dengan isActive = true → tile WAJIB nonaktif
+ *     (kodenya tidak ada di REPORT_ROUTES).
  *   - 'sterilizer' dengan isActive = false → tile WAJIB tetap tersedia dan
  *     tetap bernavigasi (kodenya ada di REPORT_ROUTES).
  *
@@ -175,7 +196,7 @@ function makeStation(overrides: Partial<StationSlot> & { id: string }): StationS
  */
 const THREE_STATIONS: StationSlot[] = [
   makeStation({ id: 'st-1', name: 'Sterilizer Lini A', type: 'sterilizer', isActive: true }),
-  makeStation({ id: 'st-2', name: 'Process Water Lini A', type: 'process-water', isActive: true }),
+  makeStation({ id: 'st-2', name: 'Solid Waste Disposal Lini A', type: 'solid-waste-disposal', isActive: true }),
   makeStation({ id: 'st-3', name: 'Process Quality Control Lini A', type: 'process-quality-control', isActive: true }),
 ]
 
@@ -223,8 +244,8 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(tiles).toHaveLength(3)
     expect(tiles[0].attributes('data-testid')).toBe('station-tile-sterilizer')
     expect(tiles[0].text()).toContain('Sterilizer Lini A')
-    expect(tiles[1].attributes('data-testid')).toBe('station-tile-process-water')
-    expect(tiles[1].text()).toContain('Process Water Lini A')
+    expect(tiles[1].attributes('data-testid')).toBe('station-tile-solid-waste-disposal')
+    expect(tiles[1].text()).toContain('Solid Waste Disposal Lini A')
     expect(tiles[2].attributes('data-testid')).toBe('station-tile-process-quality-control')
     expect(tiles[2].text()).toContain('Process Quality Control Lini A')
   })
@@ -273,19 +294,19 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // `isActive && REPORT_ROUTES[type]` lolos tanpa terdeteksi.
   it('menandai tile nonaktif bila kodenya tidak ada di REPORT_ROUTES MESKIPUN isActive=true', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
     ])
 
-    const tile = wrapper.get('[data-testid="station-tile-process-water"]')
+    const tile = wrapper.get('[data-testid="station-tile-solid-waste-disposal"]')
     expect(tile.attributes('aria-disabled')).toBe('true')
     expect(tile.text()).toContain('Belum tersedia')
     expect(tile.classes()).toContain('station-tile--unavailable')
 
     // Ditekan pun hanya mengisi pesan — tidak berpindah rute.
     await tile.trigger('click')
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Process Water belum tersedia di aplikasi mobile.')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Solid Waste Disposal belum tersedia di aplikasi mobile.')
     expect(pushMock).not.toHaveBeenCalled()
-    expect(wrapper.find('[data-testid="station-tile-process-water"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="station-tile-solid-waste-disposal"]').exists()).toBe(true)
   })
 
   // unit_test_case 4.
@@ -390,7 +411,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
 
     const wrapper = await mountWithStations(THREE_STATIONS)
 
-    await wrapper.get('[data-testid="station-tile-process-water"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-solid-waste-disposal"]').trigger('click')
     await wrapper.get('[data-testid="station-tile-sterilizer"]').trigger('click')
     await flushPromises()
 
@@ -483,19 +504,19 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // unit_test_case 10 + Scenario "Menekan stasiun yang belum tersedia".
   it('scenario: menekan stasiun yang belum tersedia — mengisi pesan dan tidak berpindah rute', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
     ])
 
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
 
-    await wrapper.get('[data-testid="station-tile-process-water"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-solid-waste-disposal"]').trigger('click')
 
     const infoMessage = wrapper.get('[data-testid="info-message"]')
-    expect(infoMessage.text()).toBe('Laporan Process Water belum tersedia di aplikasi mobile.')
+    expect(infoMessage.text()).toBe('Laporan Solid Waste Disposal belum tersedia di aplikasi mobile.')
     expect(infoMessage.attributes('role')).toBe('status')
     expect(pushMock).not.toHaveBeenCalled()
 
-    const tile = wrapper.get('[data-testid="station-tile-process-water"]')
+    const tile = wrapper.get('[data-testid="station-tile-solid-waste-disposal"]')
     expect(tile.attributes('aria-disabled')).toBe('true')
     expect(tile.text()).toContain('Belum tersedia')
   })
@@ -505,11 +526,11 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // bentuk konkret dari aturan "pesan tidak menumpuk".
   it('scenario: menekan berkali-kali — pesan tidak pernah menumpuk, hanya tertimpa', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
       makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
     ])
 
-    const unbuilt = wrapper.get('[data-testid="station-tile-process-water"]')
+    const unbuilt = wrapper.get('[data-testid="station-tile-solid-waste-disposal"]')
     await unbuilt.trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.findAll('[data-testid="info-message"]')).toHaveLength(1)
@@ -519,7 +540,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     await unbuilt.trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.findAll('[data-testid="info-message"]')).toHaveLength(1)
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Process Water belum tersedia di aplikasi mobile.')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Solid Waste Disposal belum tersedia di aplikasi mobile.')
 
     await wrapper.get('[data-testid="station-tile-process-quality-control"]').trigger('click')
     await wrapper.vm.$nextTick()
@@ -572,7 +593,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(wrapper.get('[data-testid="station-grid"]').exists()).toBe(true)
     expect(wrapper.findAll('[data-testid^="station-tile-"]')).toHaveLength(3)
     expect(wrapper.get('[data-testid="station-tile-sterilizer"]').attributes('aria-disabled')).toBe('false')
-    expect(wrapper.get('[data-testid="station-tile-process-water"]').attributes('aria-disabled')).toBe('true')
+    expect(wrapper.get('[data-testid="station-tile-solid-waste-disposal"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.get('[data-testid="station-tile-process-quality-control"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="no-stations"]').exists()).toBe(false)
@@ -586,7 +607,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   it('scenario: stasiun belum tersedia tidak disembunyikan — 5 StationSlot menghasilkan 5 tile, 4 nonaktif', async () => {
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
-      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
       makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
       // PEMINDAHAN KEENAM — DIPINDAHKAN dari Effluent Plant pada screen-157
       // (2026-10-13), yang sendiri hasil pemindahan KEEMPAT dari Depricarping
@@ -605,6 +626,14 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       // Kernel Dispatch 160) sudah basi. Engine Room kini PUNYA laporan
       // mobile, dan Kernel Dispatch terpakai oleh pemindahan KETUJUH di
       // bawah — yang tersisa hanya Solid Waste Disposal (150).
+      //
+      // DIPERBARUI LAGI pada screen-161 (2026-10-18): Solid Waste Disposal
+      // (150) itu pun kini TERPAKAI, oleh pemindahan KEDELAPAN (st-2 di
+      // fixture ini dan di hampir seluruh berkas), karena laporan Process
+      // Water mobile dibangun. CPO Dispatch sendiri TIDAK berpindah — ia
+      // masih belum punya laporan mobile, jadi tile-nya tetap nonaktif dan
+      // hitungan 4 tile nonaktif di bawah tetap berlaku. Yang tersisa sebagai
+      // kandidat contoh: TIDAK ADA — lihat docblock berkas.
       makeStation({ id: 'st-4', name: 'CPO Dispatch', type: 'cpo-dispatch', isActive: true }),
       makeStation({ id: 'st-5', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
     ])
@@ -626,7 +655,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   it('tidak memakai atribut disabled native di mana pun pada grid', async () => {
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
-      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
       makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: false }),
     ])
 
@@ -673,7 +702,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       expect(tiles.map((tile) => tile.attributes('aria-disabled'))).toEqual(['false', 'true', 'true'])
       expect(tiles.map((tile) => tile.attributes('data-testid'))).toEqual([
         'station-tile-sterilizer',
-        'station-tile-process-water',
+        'station-tile-solid-waste-disposal',
         'station-tile-process-quality-control',
       ])
       expect(wrapper.text()).not.toMatch(/akses ditolak|tidak diizinkan|forbidden/i)
@@ -685,13 +714,13 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // sisa teks Inggris pada label yang ditulis layar ini sendiri.
   it('menulis seluruh teks layar dalam Bahasa Indonesia', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Process Water', type: 'process-water', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
     ])
 
-    await wrapper.get('[data-testid="station-tile-process-water"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-solid-waste-disposal"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="station-tile-process-water"]').text()).toContain('Belum tersedia')
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Process Water belum tersedia di aplikasi mobile.')
+    expect(wrapper.get('[data-testid="station-tile-solid-waste-disposal"]').text()).toContain('Belum tersedia')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Solid Waste Disposal belum tersedia di aplikasi mobile.')
     expect(wrapper.text()).not.toMatch(/not available|no stations|loading\b/i)
   })
 })
@@ -856,6 +885,13 @@ describe('ReportingPilihStasiunView — membawa Production Line ke laporan', () 
     // sini (Process Water 130, CPO Dispatch 170, dan Process Quality Control
     // 180 sudah terpakai di tempat lain; Solid Waste Disposal 150 lebih
     // rendah), sehingga pemindahan KEDELAPAN tertunda paling lama.
+    //
+    // PEMINDAHAN KEDELAPAN sudah terjadi pada screen-161 (2026-10-18), dan ia
+    // TIDAK menyentuh test ini: yang berpindah adalah contoh 'process-water'
+    // -> 'solid-waste-disposal' di tempat lain pada berkas ini, sementara
+    // Kernel Dispatch di sini MASIH belum punya laporan mobile. Yang berubah
+    // hanyalah bahwa Solid Waste Disposal (150) kini terpakai, sehingga
+    // kandidat contoh HABIS — lihat docblock berkas.
     //
     // Kalau suatu hari Kernel Dispatch pun dibuatkan laporan, test ini akan
     // gagal lagi — dan itu justru benar: ia memaksa contohnya diperbarui

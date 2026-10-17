@@ -146,6 +146,15 @@ const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   'boiler-room': 'report-boiler-room',
   clarification: 'report-clarification',
   'storage-tank': 'report-storage-tank',
+  // screen-161--laporan-process-water-mobile. Satu baris yang sama
+  // menentukannya: tanpa entri ini layar laporan Process Water ada, rutenya
+  // ada, seluruh test-nya lulus, dan tile-nya tetap kelabu — pola kegagalan
+  // yang sudah pernah terjadi. Kuncinya WAJIB DIKUTIP karena bertanda hubung —
+  // kunci bergaris-bawah ('process_water') akan terkompilasi, terlihat benar,
+  // dan tidak pernah cocok dengan satu station.type pun. Peta ini TIDAK
+  // berurut sort_order dan TIDAK punya asersi urutan, jadi entrinya cukup
+  // di-APPEND. Ikon 'process-water' sudah ada di STATION_ICONS di bawah.
+  'process-water': 'report-process-water',
 }
 
 function isReportAvailable(station: StationSlot): boolean {

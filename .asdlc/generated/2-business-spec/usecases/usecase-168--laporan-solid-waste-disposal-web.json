@@ -1,0 +1,462 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-17"
+  },
+  "id": "usecase-168--laporan-solid-waste-disposal-web",
+  "name": "Lihat Laporan Periode Solid Waste Disposal (Web)",
+  "description": "Pengguna web memilih periode pelaporan dan Production Line, lalu membaca rekap seluruh MUATAN LIMBAH PADAT YANG KELUAR sepanjang periode itu: jumlah muatan, total dan rata-rata berat bersih, empat rekap kategoris (jenis limbah padat, stasiun asal, lokasi pembuangan/pemanfaatan, tujuan penggunaan akhir), penghitung kelengkapan jejak kepatuhan (muatan tanpa gate pass, muatan tanpa segel), rekap harian, tren, rekap temuan dan catatan, serta berapa muatan yang penimbangannya belum selesai. Satu baris detail adalah SATU MUATAN KELUAR — laporan per-transaksi seperti Weighbridge, bukan laporan kondisi bergrid slot waktu.\n\nBERAT BERSIH DITURUNKAN SERVICE sebagai bruto dikurangi tara; ia tidak pernah diisi manusia. Netto NULL karena itu berarti PENIMBANGAN BELUM SELESAI, bukan nol: muatan seperti itu dikecualikan dari total dan dari rata-rata, dan jumlahnya diterbitkan sebagai angka tersendiri yang ditonjolkan.\n\nTIDAK ADA SATU ANGKA 'LIMBAH KELUAR' YANG BERDIRI SENDIRI. Rekap per tujuan penggunaan akhir dirender berdampingan dengan angka total mana pun, karena perbedaan antara limbah yang dibuang dan yang dimanfaatkan kembali menentukan secara lingkungan maupun komersial. Rekap itu diterbitkan PER NILAI apa adanya, bukan dilipat menjadi dua ember 'dibuang'/'dimanfaatkan' — nilai nyata kolom itu belum pernah terlihat di basis data mana pun, dan menebak pemetaannya berarti menanam aturan yang terlihat benar dan diam-diam salah.\n\nSEBARAN PER JAM TIDAK TERMASUK, dan ketiadaannya dinyatakan di layar: baris detail stasiun ini hanya membawa `event_date` tanpa satu pun kolom waktu, jadi 'jam tersibuk' tidak dapat dihitung sama sekali — berbeda dari Weighbridge. Nomor gate pass dan nomor segel diterbitkan sebagai penghitung KEHADIRAN saja, bukan sebagai ukuran. Kolom `shift` bertipe teks bebas sehingga tidak diterbitkan di layar dalam bentuk apa pun, tetapi tetap ikut di ekspor.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+    "Mill sudah punya minimal satu periode pelaporan yang mencakup stasiun Solid Waste Disposal",
+    "Mill sudah punya minimal satu Production Line"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka layar Laporan Solid Waste Disposal dari pemilih stasiun pada menu Laporan Stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Sistem menetapkan mill dari akun pengguna; khusus Admin yang tidak terikat mill, sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar Production Line milik mill itu, dan pengguna WAJIB memilih satu; sebelum itu tidak ada satu angka pun ditampilkan dan tombol ekspor belum tampil"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Solid Waste Disposal pada mill itu — periode yang hanya mendaftarkan stasiun lain tidak muncul"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Sistem menyaring muatan keluar menurut mill dan Production Line terpilih; satu baris data adalah SATU MUATAN KELUAR, bukan satu pembacaan per slot waktu"
+    },
+    {
+      "step": 7,
+      "actor": "actor-supervisor",
+      "description": "Sistem menentukan keanggotaan periode dari `event_date` muatan itu sendiri, inklusif di kedua ujung, bukan dari waktu baris dibuat maupun waktu sinkronisasi"
+    },
+    {
+      "step": 8,
+      "actor": "actor-supervisor",
+      "description": "Sistem membaca `net_weight_mt` apa adanya — nilai itu diturunkan service sebagai bruto dikurangi tara dan tidak pernah diisi manusia — lalu menandai muatan ber-netto NULL sebagai PENIMBANGAN BELUM SELESAI dan mengecualikannya dari total maupun rata-rata"
+    },
+    {
+      "step": 9,
+      "actor": "actor-supervisor",
+      "description": "Sistem menghitung total dan rata-rata berat bersih HANYA atas muatan yang netto-nya terisi, dan menyiapkan jumlah muatan terisi itu sebagai penyebut yang akan dicetak di samping rata-ratanya"
+    },
+    {
+      "step": 10,
+      "actor": "actor-supervisor",
+      "description": "Sistem menyusun empat rekap kategoris — jenis limbah padat, stasiun asal, lokasi pembuangan/pemanfaatan, dan tujuan penggunaan akhir — masing-masing berisi jumlah muatan dan total netto per nilai, diurutkan dari jumlah terbesar, dengan baris 'tidak tercatat' yang BERDIRI SENDIRI dan tanpa pelipatan nilai langka menjadi 'lainnya'"
+    },
+    {
+      "step": 11,
+      "actor": "actor-supervisor",
+      "description": "Sistem menghitung penghitung kelengkapan jejak kepatuhan: berapa muatan TANPA nomor gate pass dan berapa muatan TANPA nomor segel keamanan — sebagai penghitung kehadiran, tidak pernah sebagai ukuran"
+    },
+    {
+      "step": 12,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan jumlah muatan, total dan rata-rata netto beserta penyebutnya, jumlah muatan yang penimbangannya belum selesai, keempat rekap kategoris dengan rekap tujuan penggunaan akhir DIRENDER BERDAMPINGAN dengan angka total, kedua penghitung kepatuhan, rekap harian, tren harian, rekap temuan dan rekap catatan pada bagian terpisah, jumlah muatan draft, kelengkapan pencatatan, pernyataan bahwa sebaran per jam tidak dapat dibuat, keterangan bahwa kolom `shift` tidak diterbitkan di layar, dan keterangan ketiadaan blok downtime maupun penandaan nilai di luar batas"
+    },
+    {
+      "step": 13,
+      "actor": "actor-supervisor",
+      "description": "Pengguna dapat mengunduh rincian per muatan sepanjang periode sebagai CSV atau Excel (.xlsx sungguhan), satu baris per muatan, memuat SELURUH kolom detail termasuk `shift`, nomor gate pass, nomor segel, dan id operator"
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rekap periode stasiun Solid Waste Disposal untuk Production Line yang dipilih",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "alternative_flows": [
+    {
+      "name": "Operator mencoba membuka layar web ini",
+      "trigger": "Pada langkah 1, pengguna berperan Operator",
+      "steps": [
+        "Akses ditolak",
+        "Tidak ada data yang terlihat",
+        "Jalur Operator ada di mobile (screen-163), bukan di layar web ini"
+      ]
+    },
+    {
+      "name": "Admin memilih mill lebih dulu",
+      "trigger": "Pada langkah 2, pengguna berperan Admin dan belum memilih mill",
+      "steps": [
+        "Sistem menampilkan pemilih Mill",
+        "Angka tidak ditampilkan sampai mill dipilih",
+        "Daftar Production Line maupun daftar periode belum dimuat"
+      ]
+    },
+    {
+      "name": "Admin mengganti mill setelah periode dan line terpilih",
+      "trigger": "Pada langkah 2, Admin mengganti mill padahal periode dan Production Line sudah terpilih",
+      "steps": [
+        "Pilihan periode DAN pilihan Production Line keduanya dikosongkan — sebuah periode maupun sebuah line milik tepat satu mill",
+        "Sistem memuat ulang daftar line dan daftar periode milik mill baru",
+        "Angka tidak ditampilkan sampai line dipilih lagi, dan tidak ada angka mill lama yang tertinggal di layar"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun Supervisor atau Mill Management terikat mill tetapi mill-nya kosong",
+      "steps": [
+        "Sistem menampilkan pesan jelas agar pengguna menghubungi Admin",
+        "Sistem tidak menawarkan daftar seluruh mill sebagai jalan keluar",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 3, pengguna belum memilih Production Line",
+      "steps": [
+        "Tidak ada satu angka pun yang ditampilkan",
+        "Sistem menampilkan arahan memilih Production Line lebih dulu",
+        "Sistem TIDAK menampilkan angka gabungan seluruh mill sebagai pengganti sementara",
+        "Tombol Ekspor CSV dan Ekspor Excel belum tampil"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode yang mencakup Solid Waste Disposal",
+      "trigger": "Pada langkah 4, mill tidak punya satu pun periode yang mendaftarkan stasiun Solid Waste Disposal",
+      "steps": [
+        "Pemilih periode tampil kosong",
+        "Sistem menampilkan arahan menghubungi Admin untuk pembuatan periode",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 6, periode tidak memuat satu pun muatan keluar pada line terpilih",
+      "steps": [
+        "Seluruh angka ditampilkan tidak tersedia dan BUKAN sebagai nol",
+        "Sistem menyatakan belum ada data pada periode itu",
+        "Kelengkapan pencatatan TETAP ditampilkan supaya pembaca tahu berapa hari yang seharusnya terisi",
+        "Tidak ada grafik kosong yang menyesatkan"
+      ]
+    },
+    {
+      "name": "Seluruh muatan periode belum selesai ditimbang",
+      "trigger": "Pada langkah 8, tidak satu pun muatan pada periode punya netto terisi",
+      "steps": [
+        "Total dan rata-rata netto tampil tidak tersedia dengan penyebut nol",
+        "Jumlah muatan TETAP menunjukkan angka sebenarnya",
+        "Jumlah muatan yang penimbangannya belum selesai sama dengan jumlah seluruh muatan",
+        "Pembaca dapat membedakan kedua keadaan: muatannya ada, beratnya yang belum ada"
+      ]
+    },
+    {
+      "name": "Sebagian muatan belum selesai ditimbang",
+      "trigger": "Pada langkah 8, sebagian muatan ber-netto null karena bruto atau tara belum terisi",
+      "steps": [
+        "Total dan rata-rata dihitung HANYA atas muatan yang netto-nya terisi",
+        "Penyebut rata-rata dicetak di samping angkanya",
+        "Jumlah muatan yang belum selesai ditimbang ditonjolkan sebagai angka tersendiri",
+        "Laporan TIDAK menganggap kolom bruto atau tara yang kosong sebagai nol, dan muatan itu tidak menurunkan rata-rata melainkan dikecualikan darinya"
+      ]
+    },
+    {
+      "name": "Sebuah kolom pengelompokan kosong pada seluruh muatan",
+      "trigger": "Pada langkah 10, salah satu dari keempat kolom kategoris — termasuk kemungkinan `purpose_end_use` — kosong pada seluruh muatan periode",
+      "steps": [
+        "Rekap kolom itu menampilkan SATU baris 'tidak tercatat' berisi seluruh muatan, bukan rekap kosong tanpa penjelasan",
+        "Rekap tujuan penggunaan akhir tetap dirender berdampingan dengan angka total walau seluruh isinya 'tidak tercatat'",
+        "Rekapnya tidak disembunyikan, karena menyembunyikannya membuat pembaca mengira bagian itu tidak ada"
+      ]
+    },
+    {
+      "name": "Nilai kategoris langka atau hanya berbeda besar-kecil huruf",
+      "trigger": "Pada langkah 10, sebuah nilai kategoris muncul hanya satu kali, atau dua nilai berbeda hanya pada besar-kecil huruf maupun spasi tepi",
+      "steps": [
+        "Nilai yang muncul sekali tetap mendapat barisnya sendiri; rekap tidak pernah melipat nilai berfrekuensi rendah menjadi 'lainnya'",
+        "Nilai yang hanya berbeda huruf atau spasi ditampilkan apa adanya sebagai nilai berbeda",
+        "Laporan tidak menormalkan diam-diam, karena normalisasi yang tidak terlihat menyembunyikan data master yang perlu dirapikan",
+        "Bila sebuah kolom ternyata berisi ratusan nilai berjumlah satu-satu, gejala itu TERLIHAT alih-alih tersembunyi — tandanya kolom itu perlu master"
+      ]
+    },
+    {
+      "name": "Jejak kepatuhan tidak lengkap atau lengkap seluruhnya",
+      "trigger": "Pada langkah 11, seluruh muatan tidak punya nomor gate pass, atau sebaliknya seluruh muatan punya gate pass dan segel lengkap",
+      "steps": [
+        "Penghitung kepatuhan menunjukkan angka penuh bila seluruhnya kosong, dan itu TEMUAN, bukan galat",
+        "Bila seluruhnya lengkap, kedua penghitung menunjukkan nol dan nol itu TETAP dirender supaya pembaca tahu pemeriksaannya memang berjalan",
+        "Nomor gate pass dan nomor segel tidak dirata-rata, tidak diurutkan, dan tidak digrafikkan dalam keadaan mana pun"
+      ]
+    },
+    {
+      "name": "Rekap temuan dan catatan kosong atau terisi keduanya",
+      "trigger": "Pada langkah 12, kedua kolom teks bebas kosong sepanjang periode, atau sebaliknya satu muatan mengisi `findings` dan `remarks` sekaligus",
+      "steps": [
+        "Bila kosong, kedua rekap menampilkan keterangan tidak ada catatan, bukan tabel kosong tanpa penjelasan",
+        "Bila satu muatan mengisi keduanya, muatan itu muncul pada KEDUA rekap dan itu benar — bukan penghitungan ganda",
+        "Kedua rekap tetap berada pada dua bagian yang terpisah"
+      ]
+    },
+    {
+      "name": "Line punya lebih dari satu unit Solid Waste Disposal",
+      "trigger": "Pada langkah 6, Production Line terpilih punya lebih dari satu unit stasiun Solid Waste Disposal",
+      "steps": [
+        "Angka periode menggabungkan seluruh unit pada line itu",
+        "Tidak ada unit yang terlewat maupun dihitung dua kali",
+        "Pembaca membaca satu angka per line, bukan per unit"
+      ]
+    },
+    {
+      "name": "Periode masih berjalan atau belum mulai",
+      "trigger": "Pada langkah 12, periode yang dipilih masih berjalan, atau belum mulai sama sekali",
+      "steps": [
+        "Untuk periode yang masih berjalan, penyebut hari berhenti di hari ini dan hal itu dinyatakan",
+        "Untuk periode yang belum mulai, hari yang diharapkan nol sehingga kelengkapan tampil '—' beserta keterangannya, BUKAN 0,0%",
+        "Angka lain tetap dihitung atas data yang sudah ada"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 5, pengguna memilih periode berstatus tertutup",
+      "steps": [
+        "Laporan tetap tampil penuh dengan seluruh angka dan rekapnya",
+        "Status tertutup ditampilkan sebagai keterangan",
+        "Ekspor CSV dan Excel tetap dapat dijalankan"
+      ]
+    },
+    {
+      "name": "Seluruh muatan berstatus draft",
+      "trigger": "Pada langkah 12, seluruh muatan pada periode dan line terpilih masih berstatus draft",
+      "steps": [
+        "Seluruh angka tetap dihitung penuh dan tidak ada yang disembunyikan karena status draft",
+        "Jumlah muatan draft sama dengan jumlah seluruh muatan",
+        "Pembaca langsung melihat laporan ini sepenuhnya berdiri di atas data yang belum final"
+      ]
+    },
+    {
+      "name": "Rekap harian panjang",
+      "trigger": "Pada langkah 12, periode cukup panjang sehingga rekap hariannya puluhan baris",
+      "steps": [
+        "Keempat rekap kategoris dan rekap harian dapat ditutup agar halaman tetap terbaca",
+        "Tabel yang lebar menggulir mendatar di dalam kartunya sendiri, tanpa menggeser halaman",
+        "Menutup atau membuka rekap tidak memicu permintaan data dan tidak mengubah angka mana pun"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar hanya membaca; tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun",
+    "Supervisor dan Mill Management terkunci pada mill akunnya; Admin tidak terikat sehingga ia memilih",
+    "Operator tidak punya akses ke layar web ini — jalurnya ada di mobile (screen-163)",
+    "Daftar periode hanya memuat periode yang mendaftarkan stasiun Solid Waste Disposal sebagai salah satu stasiunnya",
+    "Status periode tidak membatasi pembacaan maupun ekspor",
+    "Rentang periode inklusif di kedua ujung",
+    "Production Line WAJIB dipilih; sebelum itu nol angka ditampilkan, bukan angka seluruh mill",
+    "Mengganti mill mengosongkan pilihan periode dan pilihan Production Line",
+    "Satu baris detail adalah SATU MUATAN KELUAR; laporan ini meringkas transaksi dan bentuknya mengikuti Weighbridge, bukan laporan kondisi bergrid slot waktu",
+    "BERAT BERSIH DITURUNKAN SERVICE sebagai bruto dikurangi tara; ia tidak ada di daftar kolom isian dan laporan membacanya apa adanya tanpa menghitungnya ulang",
+    "NETTO NULL BERARTI PENIMBANGAN BELUM SELESAI, bukan nol; muatan itu dikecualikan dari total dan dari rata-rata, dan jumlahnya diterbitkan sebagai angka tersendiri yang ditonjolkan",
+    "Rata-rata netto memakai JUMLAH MUATAN YANG NETTO-NYA TERISI sebagai penyebut, dan penyebut itu dicetak di samping angkanya",
+    "TIDAK ADA SATU ANGKA 'LIMBAH KELUAR' YANG BERDIRI SENDIRI; rekap per tujuan penggunaan akhir dirender berdampingan dengan angka total mana pun",
+    "Rekap tujuan penggunaan akhir diterbitkan PER NILAI apa adanya, BUKAN dilipat menjadi dua ember 'dibuang'/'dimanfaatkan' hasil pemetaan tebakan",
+    "Keempat kolom pengelompokan — jenis limbah, stasiun asal, lokasi pembuangan/pemanfaatan, tujuan penggunaan akhir — adalah kategoris sungguhan, berbeda dari `action_taken_status` Process Water yang bertipe teks bebas dan karena itu tidak pernah disebar",
+    "Pada keempat rekap, muatan yang kolomnya kosong masuk baris 'tidak tercatat' yang berdiri sendiri — tidak dilipat ke nilai mana pun dan tidak dibuang dari jumlah",
+    "Keempat rekap diurutkan dari jumlah terbesar, bukan menurut abjad, dan tidak pernah melipat nilai berfrekuensi rendah menjadi 'lainnya'",
+    "Nilai kategoris yang berbeda hanya pada besar-kecil huruf atau spasi tepi ditampilkan apa adanya sebagai nilai berbeda; laporan tidak menormalkan diam-diam",
+    "NOMOR GATE PASS DAN NOMOR SEGEL TIDAK PERNAH DIRATA-RATA, DIURUTKAN, MAUPUN DIGRAFIKKAN; keduanya jejak kepatuhan dan yang diterbitkan adalah KEHADIRANNYA sebagai penghitung muatan tanpa gate pass dan muatan tanpa segel",
+    "SEBARAN PER JAM TIDAK DITERBITKAN dan ketiadaannya DINYATAKAN di layar; baris detail hanya membawa `event_date` tanpa satu pun kolom waktu, jadi 'jam tersibuk' tidak dapat dihitung sama sekali",
+    "Kolom `shift` TIDAK diterbitkan di layar dalam bentuk apa pun — bukan sebagai sebaran, bukan sebagai kolom — karena bertipe teks bebas; ia tetap ikut di ekspor",
+    "`findings` dan `remarks` diterbitkan sebagai rekap teks pada dua bagian terpisah; satu muatan yang mengisi keduanya muncul di kedua rekap tanpa itu berarti penghitungan ganda",
+    "Muatan berstatus draft TETAP ikut terhitung dalam seluruh angka, dan jumlahnya dinyatakan supaya pembaca tahu sebagian angkanya belum final",
+    "Stasiun ini tidak mencatat downtime dan tidak punya master target, sehingga tidak ada blok downtime maupun penandaan nilai di luar batas; kedua ketiadaan itu dinyatakan",
+    "Kelengkapan pencatatan untuk periode yang masih berjalan dihitung hanya sampai hari ini; periode yang belum mulai menghasilkan nol hari diharapkan dan tampil '—', bukan 0,0%",
+    "Ekspor CSV dan Ekspor Excel (.xlsx sungguhan) adalah rincian mentah satu baris per muatan dengan seluruh kolom detail; pengecualian sebuah kolom dari layar tidak berarti ia dibuang dari berkas",
+    "Seluruh agregasi dihitung di server; layar merender apa yang diterbitkan tanpa menghitung ulang"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — sukses sebagai Supervisor atau Mill Management",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Supervisor atau Mill Management dan akunnya terikat pada satu mill; mill itu sudah punya minimal satu periode pelaporan yang mencakup stasiun Solid Waste Disposal dan minimal satu Production Line yang sudah memuat muatan limbah padat keluar",
+      "when": "Pengguna membuka layar Laporan Solid Waste Disposal dari pemilih stasiun, memilih satu Production Line, lalu memilih salah satu periode yang tersedia",
+      "then": "Sistem memakai mill dari akun pengguna tanpa menawarkan pemilih mill, lalu menampilkan rekap seluruh muatan keluar periode itu untuk line terpilih: jumlah muatan, total berat bersih beserta jumlah muatan yang netto-nya benar-benar terisi sebagai penyebutnya, rata-rata berat bersih dengan penyebut yang sama dicetak di sampingnya, jumlah muatan yang penimbangannya belum selesai sebagai angka tersendiri yang ditonjolkan, empat rekap kategoris (jenis limbah padat, stasiun asal, lokasi pembuangan/pemanfaatan, tujuan penggunaan akhir) dengan rekap tujuan penggunaan akhir dirender berdampingan dengan angka total, penghitung muatan tanpa gate pass dan muatan tanpa segel, rekap harian beserta baris total periode, tren harian, rekap temuan dan rekap catatan pada dua bagian terpisah, jumlah muatan draft, kelengkapan pencatatan, pernyataan bahwa sebaran per jam tidak dapat dibuat, keterangan bahwa kolom `shift` tidak diterbitkan di layar, dan keterangan ketiadaan blok downtime maupun penandaan nilai di luar batas; pengguna dapat mengunduh rincian per muatan sebagai CSV atau Excel; tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — Operator mencoba membuka layar web ini",
+      "given": "Seorang Station Operator sudah punya akun pada sistem namun tidak punya akses ke layar web; jalurnya ada di aplikasi mobile pada layar Laporan Solid Waste Disposal mobile (screen-163)",
+      "when": "Operator mencoba membuka layar Laporan Solid Waste Disposal di aplikasi web",
+      "then": "Akses ditolak, layar laporan tidak terbuka, dan tidak ada satu pun data — baik angka rekap, daftar periode, daftar Production Line, maupun rincian muatan — yang terlihat oleh Operator"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — Admin memilih mill lebih dulu",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Admin dan tidak terikat pada mill mana pun; tersedia beberapa mill yang masing-masing punya periode pelaporan mencakup stasiun Solid Waste Disposal dan minimal satu Production Line",
+      "when": "Pengguna membuka layar Laporan Solid Waste Disposal, memilih sebuah mill, memilih satu Production Line milik mill itu, lalu memilih salah satu periode",
+      "then": "Sistem menampilkan pemilih Mill lebih dulu dan tidak menampilkan satu angka pun sebelum mill dipilih — daftar Production Line maupun daftar periode belum dimuat — kemudian setelah mill, line, dan periode dipilih Sistem menampilkan rekap periode dengan isi yang sama seperti pengguna terikat-mill, dan seluruh angka yang tampil hanya milik mill serta line yang dipilih Admin"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — Admin mengganti mill setelah periode dan line terpilih",
+      "given": "Pengguna sudah masuk sebagai Admin, sudah memilih sebuah mill, sudah memilih satu Production Line dan satu periode milik mill itu, dan rekap periode sedang tampil",
+      "when": "Admin mengganti pilihan mill ke mill lain",
+      "then": "Pilihan periode DAN pilihan Production Line keduanya dikosongkan karena sebuah periode maupun sebuah line milik tepat satu mill, Sistem memuat ulang daftar line dan daftar periode milik mill yang baru, seluruh angka berhenti ditampilkan dan tidak ada angka mill lama yang tertinggal di layar, dan Sistem kembali menampilkan arahan memilih Production Line sampai pengguna memilih line baru secara sadar"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — akun belum terhubung ke mill",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Supervisor atau Mill Management tetapi akunnya belum terhubung ke mill mana pun",
+      "when": "Pengguna membuka layar Laporan Solid Waste Disposal",
+      "then": "Sistem menampilkan pesan jelas agar pengguna menghubungi Admin untuk menghubungkan akunnya ke sebuah mill, Sistem tidak menawarkan daftar seluruh mill sebagai jalan keluar, dan tidak ada satu pun angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — Production Line belum dipilih",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Supervisor, Mill Management, atau Admin; mill yang berlaku sudah punya periode pelaporan yang mencakup stasiun Solid Waste Disposal dan beberapa Production Line",
+      "when": "Pengguna membuka layar Laporan Solid Waste Disposal dan belum memilih Production Line mana pun",
+      "then": "Tidak ada satu pun angka yang ditampilkan, Sistem menampilkan arahan agar pengguna memilih Production Line terlebih dahulu, Sistem sama sekali tidak menampilkan angka gabungan seluruh line pada mill itu sebagai pengganti sementara, dan tombol Ekspor CSV maupun Ekspor Excel belum tampil"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — mill belum punya periode yang mencakup Solid Waste Disposal",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan mill yang berlaku sudah punya minimal satu Production Line",
+      "when": "Pengguna memilih Production Line pada mill yang tidak punya satu pun periode pelaporan yang mendaftarkan stasiun Solid Waste Disposal",
+      "then": "Pemilih periode tampil kosong, Sistem menampilkan arahan agar pengguna menghubungi Admin untuk pembuatan periode, dan tidak ada satu pun angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — periode tanpa data",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak, mill punya periode pelaporan yang mencakup stasiun Solid Waste Disposal dan minimal satu Production Line",
+      "when": "Pengguna memilih sebuah Production Line dan sebuah periode yang tidak memuat satu pun muatan keluar pada line itu",
+      "then": "Seluruh angka ditampilkan sebagai tidak tersedia dan bukan sebagai nol, Sistem menyatakan secara eksplisit bahwa belum ada data pada periode itu untuk line terpilih, kelengkapan pencatatan tetap ditampilkan supaya pembaca tahu berapa hari periode yang seharusnya terisi, dan tidak ada grafik kosong yang bisa disalahartikan sebagai aktivitas bernilai nol"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — seluruh muatan periode belum selesai ditimbang",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih terdapat muatan keluar namun tidak satu pun punya berat bersih terisi karena bruto atau tara belum ditimbang",
+      "when": "Pengguna membuka laporan untuk periode dan line tersebut",
+      "then": "Total berat bersih dan rata-rata berat bersih dinyatakan tidak tersedia dengan penyebut nol, jumlah muatan tetap menunjukkan angka sebenarnya sesuai muatan yang ada, jumlah muatan yang penimbangannya belum selesai sama dengan jumlah seluruh muatan, dan kedua keadaan itu dapat dibedakan pembaca: muatannya ada, beratnya yang belum ada"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — sebagian muatan belum selesai ditimbang",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih sebagian muatan punya bruto terisi tetapi tara kosong, atau sebaliknya, sehingga netto-nya null",
+      "when": "Pengguna membaca angka total dan rata-rata berat bersih",
+      "then": "Total dan rata-rata dihitung hanya atas muatan yang netto-nya terisi, penyebut rata-rata dicetak di samping angkanya, jumlah muatan yang penimbangannya belum selesai ditonjolkan sebagai angka tersendiri, laporan tidak menganggap kolom bruto atau tara yang kosong sebagai nol, dan muatan yang belum selesai itu tidak menurunkan rata-rata melainkan dikecualikan dari perhitungannya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — sebuah kolom pengelompokan kosong pada seluruh muatan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih salah satu dari keempat kolom kategoris — termasuk kemungkinan tujuan penggunaan akhir — kosong pada seluruh muatan",
+      "when": "Pengguna membaca rekap untuk kolom tersebut",
+      "then": "Rekap kolom itu menampilkan satu baris 'tidak tercatat' yang berisi seluruh muatan beserta total netto-nya, bukan rekap kosong tanpa penjelasan, rekap tujuan penggunaan akhir tetap dirender berdampingan dengan angka total walau seluruh isinya 'tidak tercatat', dan rekapnya tidak disembunyikan karena menyembunyikannya membuat pembaca mengira bagian laporan itu tidak ada"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — nilai kategoris langka atau hanya berbeda besar-kecil huruf",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih sebuah nilai kategoris muncul hanya satu kali, sementara dua nilai lain berbeda hanya pada besar-kecil huruf atau spasi tepi",
+      "when": "Pengguna membaca keempat rekap kategoris",
+      "then": "Nilai yang muncul sekali tetap mendapat barisnya sendiri dan rekap tidak pernah melipat nilai berfrekuensi rendah menjadi 'lainnya', nilai yang hanya berbeda huruf atau spasi ditampilkan apa adanya sebagai dua nilai berbeda tanpa normalisasi diam-diam — karena normalisasi yang tidak terlihat menyembunyikan data master yang perlu dirapikan — sehingga bila sebuah kolom ternyata berisi ratusan nilai berjumlah satu-satu, gejala itu terlihat alih-alih tersembunyi"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — jejak kepatuhan tidak lengkap atau lengkap seluruhnya",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak; pada satu periode seluruh muatan tidak punya nomor gate pass, sementara pada periode lain seluruh muatan punya nomor gate pass dan nomor segel lengkap",
+      "when": "Pengguna membaca penghitung kelengkapan jejak kepatuhan pada kedua periode",
+      "then": "Pada periode pertama penghitung muatan tanpa gate pass menunjukkan angka penuh dan itu disajikan sebagai temuan, bukan sebagai galat; pada periode kedua kedua penghitung menunjukkan nol dan nol itu tetap dirender supaya pembaca tahu pemeriksaannya memang berjalan; dan pada kedua periode nomor gate pass serta nomor segel tidak dirata-rata, tidak diurutkan, dan tidak digrafikkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — rekap temuan dan catatan kosong atau terisi keduanya",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak; pada satu periode kolom `findings` dan `remarks` kosong sepanjang periode, sementara pada periode lain terdapat satu muatan yang mengisi `findings` dan `remarks` sekaligus",
+      "when": "Pengguna membaca Rekap Temuan dan Rekap Catatan pada kedua periode",
+      "then": "Pada periode yang kosong kedua rekap menampilkan keterangan tidak ada catatan dan bukan tabel kosong tanpa penjelasan; pada periode lain muatan yang mengisi keduanya muncul pada kedua rekap beserta tanggalnya dan itu benar — bukan penghitungan ganda; dan kedua rekap selalu berada pada dua bagian yang terpisah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — line punya lebih dari satu unit Solid Waste Disposal",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan Production Line yang akan dipilih punya lebih dari satu unit stasiun Solid Waste Disposal yang masing-masing sudah memuat muatan keluar",
+      "when": "Pengguna memilih Production Line tersebut dan sebuah periode",
+      "then": "Angka periode menggabungkan muatan dari seluruh unit Solid Waste Disposal pada line itu, tidak ada unit yang terlewat maupun dihitung dua kali, dan pembaca membaca satu angka per Production Line dan bukan satu angka per unit"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — periode masih berjalan atau belum mulai",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan mill punya satu periode yang rentangnya masih berjalan serta satu periode lain yang tanggal awalnya belum tiba",
+      "when": "Pengguna membuka laporan untuk periode yang masih berjalan, lalu untuk periode yang belum mulai",
+      "then": "Untuk periode yang masih berjalan penyebut hari kelengkapan berhenti di hari ini dan hal itu dinyatakan pada laporan; untuk periode yang belum mulai hari yang diharapkan nol sehingga kelengkapan tampil '—' beserta keterangannya dan bukan 0,0% yang akan terbaca sebagai kelalaian pencatatan; dan angka lain tetap dihitung atas data yang sudah ada"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — periode berstatus tertutup",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan mill punya periode pelaporan Solid Waste Disposal yang berstatus tertutup beserta datanya",
+      "when": "Pengguna memilih Production Line lalu memilih periode yang berstatus tertutup",
+      "then": "Laporan tetap tampil penuh dengan seluruh angka, keempat rekap kategoris, penghitung kepatuhan, rekap harian, tren, dan kelengkapan seperti periode terbuka; status tertutup ditampilkan sebagai keterangan pada laporan; dan Ekspor CSV maupun Ekspor Excel tetap dapat dijalankan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — seluruh muatan berstatus draft",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan seluruh muatan pada periode serta line terpilih masih berstatus draft",
+      "when": "Pengguna membuka laporan untuk periode dan line tersebut",
+      "then": "Seluruh angka tetap dihitung penuh dan tidak ada yang disembunyikan karena status draft, jumlah muatan draft ditampilkan sama dengan jumlah seluruh muatan, dan pembaca langsung melihat bahwa laporan ini sepenuhnya berdiri di atas data yang belum final"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — rekap harian sangat panjang",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan periode yang dibaca cukup panjang sehingga rekap hariannya mencapai puluhan baris",
+      "when": "Pengguna membuka laporan untuk periode panjang tersebut lalu menutup dan membuka kembali rekapnya",
+      "then": "Keempat rekap kategoris dan rekap harian dapat ditutup oleh pengguna sehingga angka utama dan tren tetap terbaca tanpa gulir panjang, tabel yang lebar menggulir mendatar di dalam kartunya sendiri tanpa menggeser halaman, dan menutup atau membuka rekap tidak memicu permintaan data apa pun serta tidak mengubah satu angka pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — berat bersih diturunkan service dan netto null berarti penimbangan belum selesai",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih terdapat sepuluh muatan keluar yang tujuh di antaranya punya bruto dan tara terisi sehingga netto-nya terhitung, sementara tiga lainnya hanya punya bruto atau hanya punya tara sehingga netto-nya null",
+      "when": "Pengguna membaca angka utama laporan",
+      "then": "Berat bersih tiap muatan dibaca apa adanya sebagai nilai yang DITURUNKAN service dari bruto dikurangi tara — ia tidak pernah diisi manusia dan laporan tidak menghitungnya ulang; ketiga muatan ber-netto null dibaca sebagai PENIMBANGAN BELUM SELESAI dan bukan sebagai nol, sehingga dikecualikan dari total netto dan dari rata-rata; jumlah ketiga muatan itu diterbitkan sebagai angka tersendiri yang ditonjolkan dan bukan disembunyikan di catatan kaki; dan ketiga muatan itu tidak menarik rata-rata ke bawah sebagaimana yang akan terjadi bila netto null dianggap nol, karena beratnya memang belum diketahui"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — penyebut rata-rata adalah jumlah muatan yang netto-nya terisi dan dicetak di sampingnya",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih terdapat sepuluh muatan keluar yang hanya enam di antaranya punya berat bersih terisi",
+      "when": "Pengguna membaca rata-rata berat bersih per muatan",
+      "then": "Rata-rata yang ditampilkan adalah total netto enam muatan terisi dibagi ENAM dan bukan dibagi sepuluh, angka enam itu dicetak berdampingan dengan rata-rata sebagai penyebut yang benar-benar dipakai sehingga rata-rata dari enam muatan tidak terlihat sama meyakinkan dengan rata-rata dari enam ratus, jumlah muatan tetap ditampilkan sepuluh, dan empat muatan yang penimbangannya belum selesai ditampilkan sebagai jumlah tersendiri sehingga pembaca dapat merekonsiliasi ketiga angka itu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — rekap per tujuan penggunaan akhir dirender berdampingan dengan angka total",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih terdapat muatan keluar dengan beberapa nilai `purpose_end_use` yang berbeda",
+      "when": "Pengguna membaca seluruh bagian laporan yang memuat angka total berat bersih — angka utama, rekap harian, dan tren",
+      "then": "Tidak ada satu angka 'limbah keluar' pun yang terbaca tanpa rinciannya: rekap per tujuan penggunaan akhir dirender BERDAMPINGAN dengan angka total mana pun sehingga pembaca tidak pernah melihat total tanpa melihat pula ke mana limbah itu pergi — perbedaan antara limbah yang dibuang dan yang dimanfaatkan kembali menentukan secara lingkungan maupun komersial, dan satu angka gabungan menghapus justru informasi yang paling dicari"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — rekap tujuan penggunaan akhir diterbitkan per nilai apa adanya, bukan dua ember dibuang/dimanfaatkan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih kolom `purpose_end_use` terisi beberapa nilai teks bebas yang berbeda; himpunan nilai kolom itu tidak tertutup dan nilai nyatanya belum pernah terlihat di basis data mana pun",
+      "when": "Pengguna membaca rekap per tujuan penggunaan akhir",
+      "then": "Rekap menampilkan satu baris PER NILAI `purpose_end_use` apa adanya beserta jumlah muatan dan total netto-nya, laporan TIDAK melipat nilai-nilai itu menjadi dua ember 'dibuang' dan 'dimanfaatkan', dan tidak ada aturan pemetaan dari isi kolom ke salah satu ember itu yang diterapkan di bagian mana pun — karena menebak pemetaannya atas nilai yang belum pernah ada berarti menanam aturan yang terlihat benar dan diam-diam salah; rekap per nilai itu sendiri yang memperlihatkan mana yang dibuang dan mana yang dimanfaatkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — sebaran per jam tidak dapat dibuat dan ketiadaannya dinyatakan di layar",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan periode serta line terpilih memuat banyak muatan keluar; baris detail stasiun ini hanya membawa `event_date` berupa tanggal, tanpa satu pun kolom waktu",
+      "when": "Pengguna membaca seluruh bagian laporan untuk mencari pola di dalam hari",
+      "then": "Tidak ada sebaran muatan per jam, tidak ada jam tersibuk, dan tidak ada jumlah jam kosong di bagian mana pun laporan — berbeda dari laporan Weighbridge yang dapat menjawab 'kapan timbangan paling sibuk' karena tiap trip-nya membawa penanda waktu; sebagai gantinya laporan merender PERNYATAAN UTUH bahwa sebaran per jam tidak dapat dibuat untuk stasiun ini karena baris detailnya hanya membawa tanggal, sehingga laporan tidak berpura-pura bisa menjawab pertanyaan yang datanya tidak ada"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — nomor gate pass dan nomor segel adalah jejak kepatuhan, bukan ukuran",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih sebagian muatan punya nomor gate pass dan nomor segel keamanan terisi sementara sebagian lain tidak",
+      "when": "Pengguna membaca seluruh bagian laporan, termasuk angka utama, keempat rekap kategoris, rekap harian, tren, dan bagian kelengkapan",
+      "then": "Nomor gate pass dan nomor segel diterbitkan HANYA sebagai penghitung kehadiran — berapa muatan tanpa nomor gate pass dan berapa muatan tanpa nomor segel — disertai keterangan bahwa keduanya jejak kepatuhan dan bukan ukuran; tidak ada rata-rata, nilai minimum, nilai maksimum, pengurutan, maupun grafik atas kedua nomor itu di bagian mana pun laporan, karena sebuah nomor segel tidak punya besaran"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — keempat kolom pengelompokan adalah kategoris sungguhan dan rekapnya tidak pernah dilipat",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih keempat kolom pengelompokan — jenis limbah padat, stasiun asal, lokasi pembuangan/pemanfaatan, dan tujuan penggunaan akhir — terisi beberapa nilai berbeda, sebagian muatan mengosongkan salah satunya, dan beberapa nilai hanya muncul satu atau dua kali",
+      "when": "Pengguna membaca keempat rekap kategoris",
+      "then": "Keempat kolom memang disebar sebagai rekap jumlah muatan dan total netto per nilai karena keempatnya kategoris sungguhan — berbeda dari kolom `action_taken_status` pada laporan Process Water yang namanya menyebut 'status' tetapi bertipe teks bebas dan karena itu tidak pernah disebar; tiap rekap diurutkan dari jumlah TERBESAR dan bukan menurut abjad karena yang dicari pembaca adalah ke mana sebagian besar limbah pergi; muatan yang kolomnya kosong masuk baris 'tidak tercatat' yang BERDIRI SENDIRI, tidak dilipat ke nilai mana pun dan tidak dibuang dari jumlah; dan nilai berfrekuensi rendah tidak pernah dilipat menjadi 'lainnya', sehingga jumlah seluruh baris tiap rekap — termasuk baris 'tidak tercatat' — menjumlah tepat ke jumlah muatan pada angka utama"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — kolom shift tidak diterbitkan di layar tetapi tetap ada di ekspor",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih kolom `shift` terisi teks bebas yang berbeda-beda antar muatan",
+      "when": "Pengguna membaca seluruh bagian laporan di layar, lalu menjalankan Ekspor CSV dan Ekspor Excel",
+      "then": "Kolom `shift` tidak muncul di layar dalam BENTUK APA PUN — tidak sebagai rekap sebaran, tidak sebagai kolom, tidak sebagai penyaring — karena bertipe teks bebas sehingga menyebarkannya hanya akan menghasilkan satu 'nilai' per kalimat yang berbeda, dan laporan merender keterangan mengapa kolom itu tidak diterbitkan; namun kolom `shift` TETAP ikut pada kedua berkas ekspor — pengecualian sebuah kolom dari layar tidak berarti ia dibuang dari berkas"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Solid Waste Disposal (Web) — muatan draft tetap ikut terhitung dan jumlahnya dinyatakan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak dan pada periode serta line terpilih sebagian muatan keluar masih berstatus draft sementara sebagian lain sudah final",
+      "when": "Pengguna membaca angka utama, keempat rekap kategoris, penghitung kepatuhan, rekap harian, dan tren",
+      "then": "Muatan berstatus draft TETAP ikut terhitung dalam seluruh angka — jumlah muatan, total dan rata-rata netto, keempat rekap kategoris, penghitung kepatuhan, rekap harian, maupun tren — tidak satu pun bagian laporan menyaringnya keluar; dan jumlah muatan draft dinyatakan sebagai angka tersendiri supaya pembaca tahu sebagian angka yang dibacanya belum final"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-162--laporan-solid-waste-disposal-web"
+  ]
+}

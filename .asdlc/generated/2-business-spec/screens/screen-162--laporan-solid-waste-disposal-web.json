@@ -1,0 +1,154 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-17"
+  },
+  "id": "screen-162--laporan-solid-waste-disposal-web",
+  "name": "Laporan Solid Waste Disposal (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Solid Waste Disposal di web. LAPORAN PER-TRANSAKSI, bukan laporan kondisi bergrid slot waktu — kelompok yang polanya diwakili Weighbridge (screen-143) dan Grading (screen-146), bukan Process Water atau Engine Room. Satu baris detail adalah SATU MUATAN KELUAR, bukan satu pembacaan per slot.\n\nEMPAT SUMBU PENGELOMPOKAN, lebih banyak daripada laporan per-transaksi mana pun sebelumnya (Weighbridge punya dua): jenis limbah padat, stasiun asal, lokasi pembuangan/pemanfaatan, dan tujuan penggunaan akhir. Keempatnya kolom kategoris SUNGGUHAN — berbeda dari `action_taken_status` Process Water yang namanya menyebut 'status' tetapi bertipe teks bebas. Keempat rekap karenanya sah berbentuk sebaran jumlah dan total berat per nilai.\n\nPEMBEDA YANG PALING MENENTUKAN: `purpose_end_use` memisahkan limbah yang DIBUANG dari limbah yang DIMANFAATKAN kembali. Menjumlahkan keduanya menjadi satu angka 'limbah keluar' menghapus justru informasi yang paling dicari — baik secara lingkungan maupun komersial. Laporan ini karena itu TIDAK PERNAH menerbitkan satu angka total tunggal tanpa pemisahan itu di sampingnya.\n\nBERAT BERSIH DITURUNKAN, BUKAN DIISI. `net_weight_mt` dihitung service sebagai bruto dikurangi tara dan karena itu TIDAK ada di daftar kolom yang diisi manusia. Konsekuensinya mengikat laporan: netto NULL berarti PENIMBANGAN BELUM SELESAI — bruto atau tara belum terisi. Muatan seperti itu tidak menurunkan rata-rata, ia HILANG dari rata-rata; jumlahnya karena itu ditonjolkan sebagai angka tersendiri, persis seperti 'trip yang beratnya belum terisi' di laporan Weighbridge.\n\nNOMOR GATE PASS DAN NOMOR SEGEL ADALAH JEJAK KEPATUHAN, BUKAN UKURAN. Keduanya diterbitkan sebagai PENGHITUNG KELENGKAPAN — berapa muatan tanpa gate pass, berapa tanpa segel — dan tidak pernah dirata-rata, diurutkan, maupun digrafikkan. Sebuah nomor segel tidak punya besaran.\n\nYANG TIDAK DAPAT DILAPORKAN, DAN DINYATAKAN DI LAYAR: SEBARAN PER JAM. Baris detail stasiun ini hanya membawa `event_date` — tanggal, tanpa satu pun kolom waktu. Laporan Weighbridge dapat menjawab 'kapan timbangan paling sibuk'; laporan ini tidak bisa, dan tidak boleh berpura-pura bisa. Satu-satunya dimensi di dalam hari adalah kolom `shift`, yang bertipe TEKS BEBAS dan karena itu tidak diterbitkan sebagai sebaran.\n\nYANG TIDAK ADA: blok downtime, penandaan nilai di luar batas (stasiun ini tidak punya master target), dan sebaran per jam.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Solid Waste Disposal",
+    "Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih"
+  ],
+  "usecase_ids": [
+    "usecase-168--laporan-solid-waste-disposal-web"
+  ],
+  "test_priority": "high",
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Solid Waste Disposal",
+    "Pemilih Mill — hanya bagi Admin; peran terikat mill melihat nama mill akunnya sebagai keterangan",
+    "Pemilih Production Line (wajib) — sebelum line dipilih tidak ada satu angka pun yang ditampilkan",
+    "Nama mill yang berlaku, nama Production Line, rentang tanggal, dan status periode",
+    "Jumlah muatan keluar sepanjang periode",
+    "Total berat bersih (MT), beserta jumlah muatan yang netto-nya BENAR-BENAR terisi sebagai penyebutnya",
+    "Rata-rata berat bersih per muatan, dihitung HANYA atas muatan yang netto-nya terisi, dengan penyebutnya dicetak di sampingnya",
+    "JUMLAH MUATAN YANG PENIMBANGANNYA BELUM SELESAI — netto null karena bruto atau tara belum terisi — ditonjolkan sebagai angka tersendiri, bukan disembunyikan di catatan kaki",
+    "REKAP PER TUJUAN PENGGUNAAN AKHIR (`purpose_end_use`) DIRENDER BERDAMPINGAN DENGAN ANGKA TOTAL — jumlah muatan dan total netto per nilai — sehingga tidak ada satu angka 'limbah keluar' pun yang terbaca tanpa rinciannya. Rekap itu SENDIRI yang memperlihatkan mana yang dibuang dan mana yang dimanfaatkan; laporan TIDAK melipatnya menjadi dua ember, karena pemetaan dari isi kolom ke 'dibuang'/'dimanfaatkan' belum dapat diketahui (lihat open_questions)",
+    "Rekap per JENIS LIMBAH PADAT (`solid_waste_type`): jumlah muatan dan total netto per nilai, diurutkan dari yang terbesar",
+    "Rekap per STASIUN ASAL (`source_station`): jumlah muatan dan total netto per nilai, diurutkan dari yang terbesar",
+    "Rekap per LOKASI PEMBUANGAN/PEMANFAATAN (`disposal_utilization_site`): jumlah muatan dan total netto per nilai, diurutkan dari yang terbesar",
+    "Rekap per TUJUAN PENGGUNAAN AKHIR (`purpose_end_use`): jumlah muatan dan total netto per nilai, diurutkan dari yang terbesar",
+    "Pada keempat rekap: baris 'tidak tercatat' TERPISAH untuk muatan yang kolom itu kosong, tidak dilipat ke nilai mana pun",
+    "KELENGKAPAN JEJAK KEPATUHAN: berapa muatan TANPA nomor gate pass, dan berapa muatan TANPA nomor segel keamanan — sebagai penghitung, tidak pernah dirata-rata",
+    "Keterangan bahwa nomor gate pass dan nomor segel adalah jejak kepatuhan, bukan ukuran — sebuah nomor segel tidak punya besaran",
+    "Rekap per hari: jumlah muatan dan total netto, beserta baris total periode",
+    "Tren harian berat bersih per tanggal",
+    "Kelengkapan pencatatan: berapa hari yang memuat minimal satu muatan dibanding hari periode yang SUDAH lewat; periode yang masih berjalan berhenti di hari ini",
+    "Rekap Temuan (`findings`) — daftar isi yang tidak kosong beserta tanggalnya, DITERBITKAN SEBAGAI TEKS",
+    "Rekap Catatan (`remarks`) — bentuk yang sama, pada bagian TERPISAH; satu muatan dapat muncul di kedua rekap dan itu bukan penghitungan ganda",
+    "PERNYATAAN BAHWA SEBARAN PER JAM TIDAK DAPAT DIBUAT, dirender utuh: baris detail stasiun ini hanya membawa tanggal, tanpa satu pun kolom waktu — berbeda dari Weighbridge yang dapat menjawab jam tersibuk",
+    "Keterangan bahwa kolom `shift` tidak diterbitkan sebagai sebaran karena bertipe teks bebas, dan tidak diterbitkan di layar sama sekali",
+    "Keterangan bahwa layar ini tidak memuat bagian downtime maupun penandaan nilai di luar batas, karena stasiun ini tidak mencatat downtime dan tidak punya master target",
+    "Jumlah muatan yang masih berstatus draft dan TETAP ikut terhitung dalam angka di atas",
+    "Keterangan bila periode tidak memuat data, dengan kelengkapan pencatatan TETAP ditampilkan",
+    "Tombol Ekspor CSV dan Ekspor Excel (.xlsx sungguhan) — hanya tampil setelah Production Line dipilih"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill yang dilihat. Hanya bagi Admin yang tidak terikat satu mill.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan production line yang dilihat. Wajib dipilih sebelum angka dan tombol ekspor tampil.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap",
+      "description": "Menyembunyikan atau menampilkan keempat rekap kategoris dan rekap harian. Murni penyingkapan — tidak memicu permintaan data apa pun.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian per muatan sepanjang periode (cakupan line terpilih) sebagai CSV atau Excel (.xlsx sungguhan), satu baris per muatan. Kolom konteks diulang di setiap baris, disusul seluruh kolom detail termasuk `shift`, nomor gate pass, nomor segel, dan id operator. Ekspor adalah rincian mentah.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor dan Mill Management terikat pada mill di akunnya; Admin tidak terikat sehingga ia memilih.",
+    "Operator tidak punya akses ke layar web ini. Jalurnya ada di mobile (screen-163).",
+    "Production Line WAJIB dipilih lebih dulu. Selama belum dipilih layar tidak menampilkan SATU ANGKA PUN, dan tidak menampilkan angka seluruh mill sebagai penggantinya.",
+    "Mengganti mill MENGOSONGKAN pilihan periode dan pilihan Production Line — sebuah periode maupun sebuah line milik tepat satu mill.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Solid Waste Disposal.",
+    "Status periode tidak membatasi apa pun. Periode tertutup tetap dapat dilihat dan diekspor.",
+    "Rentang periode inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "SATU BARIS DETAIL ADALAH SATU MUATAN KELUAR, bukan satu pembacaan per slot waktu. Laporan ini meringkas TRANSAKSI, dan seluruh bentuknya mengikuti Weighbridge (screen-143), bukan laporan kondisi bergrid.",
+    "BERAT BERSIH DITURUNKAN SERVER sebagai bruto dikurangi tara — ia tidak pernah diisi manusia dan karena itu tidak ada di daftar kolom isian. Laporan membacanya apa adanya dan tidak menghitungnya ulang.",
+    "NETTO NULL BERARTI PENIMBANGAN BELUM SELESAI, bukan nol. Muatan seperti itu DIKECUALIKAN dari total dan dari rata-rata, dan jumlahnya diterbitkan sebagai ANGKA TERSENDIRI yang ditonjolkan. Memasukkannya sebagai nol akan menurunkan rata-rata dengan muatan yang beratnya belum diketahui.",
+    "Rata-rata berat bersih memakai JUMLAH MUATAN YANG NETTO-NYA TERISI sebagai penyebut, dan penyebut itu dicetak di samping angkanya. Rata-rata dari tiga muatan dan rata-rata dari tiga ratus tidak boleh terlihat sama meyakinkan.",
+    "TIDAK ADA SATU ANGKA 'LIMBAH KELUAR' YANG BERDIRI SENDIRI. Rekap per `purpose_end_use` dirender BERDAMPINGAN dengan angka total mana pun, karena perbedaan antara limbah yang dibuang dan yang dimanfaatkan kembali menentukan secara lingkungan maupun komersial — satu angka gabungan menghapus justru informasi yang paling dicari. Yang diterbitkan adalah rekap PER NILAI apa adanya, BUKAN dua ember hasil pemetaan: nilai nyata kolom itu belum pernah terlihat di basis data mana pun, dan menebak pemetaannya berarti menanam aturan yang terlihat benar dan diam-diam salah.",
+    "KEEMPAT KOLOM PENGELOMPOKAN ADALAH KATEGORIS SUNGGUHAN — jenis limbah, stasiun asal, lokasi pembuangan, tujuan penggunaan akhir — sehingga sebaran jumlah dan total per nilai memang sah untuk keempatnya. Ini BERBEDA dari `action_taken_status` Process Water, yang namanya menyebut 'status' tetapi bertipe teks bebas dan karena itu TIDAK pernah disebar.",
+    "Pada keempat rekap, muatan yang kolomnya kosong masuk baris 'tidak tercatat' yang BERDIRI SENDIRI — tidak dilipat ke nilai mana pun, dan tidak dibuang dari jumlah.",
+    "Keempat rekap diurutkan dari jumlah terbesar, bukan menurut abjad nilai — yang dicari pembaca adalah ke mana sebagian besar limbah pergi.",
+    "NOMOR GATE PASS DAN NOMOR SEGEL TIDAK PERNAH DIRATA-RATA, DIURUTKAN, MAUPUN DIGRAFIKKAN. Keduanya jejak kepatuhan, dan yang bermakna adalah KEHADIRANNYA: diterbitkan sebagai penghitung muatan tanpa gate pass dan muatan tanpa segel.",
+    "SEBARAN PER JAM TIDAK DITERBITKAN, dan ketiadaannya DINYATAKAN di layar. Baris detail stasiun ini hanya membawa `event_date` tanpa satu pun kolom waktu, jadi 'jam tersibuk' tidak dapat dihitung sama sekali — berbeda dari Weighbridge. Laporan tidak boleh berpura-pura bisa.",
+    "Kolom `shift` TIDAK diterbitkan di layar, baik sebagai sebaran maupun sebagai kolom. Ia bertipe teks bebas; menyebarkan teks bebas menghasilkan satu 'nilai' per kalimat yang berbeda. Ia tetap ikut di ekspor.",
+    "Kedua kolom teks bebas — `findings` dan `remarks` — diterbitkan sebagai REKAP TEKS pada DUA BAGIAN TERPISAH. Satu muatan yang mengisi keduanya muncul pada kedua rekap tanpa itu berarti penghitungan ganda.",
+    "Muatan berstatus draft TETAP ikut terhitung dalam seluruh angka, dan jumlahnya dinyatakan supaya pembaca tahu sebagian angkanya belum final.",
+    "Stasiun ini tidak mencatat downtime dan tidak punya master target, sehingga laporan ini tidak punya blok downtime maupun penandaan nilai di luar batas. Kedua ketiadaan itu dinyatakan.",
+    "Kelengkapan pencatatan untuk periode yang MASIH BERJALAN dihitung hanya sampai hari ini. Periode yang belum mulai menghasilkan nol hari yang diharapkan dan tampil '—', bukan 0,0%.",
+    "Ekspor Excel adalah berkas .xlsx sungguhan. Isi kolom kedua format sama, dan keduanya memuat SELURUH kolom detail termasuk `shift`, nomor gate pass, nomor segel, dan id operator — ekspor adalah rincian mentah, jadi pengecualian sebuah kolom dari layar tidak berarti ia dibuang dari berkas.",
+    "Seluruh agregasi dihitung di server; layar merender apa yang diterbitkan tanpa menghitung ulang."
+  ],
+  "edge_cases": [
+    "Periode tidak memuat satu pun muatan — seluruh angka ditampilkan tidak tersedia dengan keterangan belum ada data, bukan sebagai nol, dan kelengkapan pencatatan tetap tampil.",
+    "SELURUH muatan periode belum selesai ditimbang — total dan rata-rata netto tampil tidak tersedia dengan penyebut nol, sementara jumlah muatan tetap menunjukkan angka sebenarnya. Keduanya harus dapat dibedakan pembaca: ada muatannya, beratnya yang belum ada.",
+    "Sebagian muatan belum selesai ditimbang — total dan rata-rata dihitung HANYA atas yang terisi, penyebutnya dicetak, dan jumlah yang belum selesai ditonjolkan terpisah.",
+    "Bruto terisi tetapi tara kosong (atau sebaliknya) — netto null, dan muatan itu masuk hitungan 'belum selesai ditimbang'. Laporan TIDAK menganggap kolom yang kosong sebagai nol.",
+    "Seluruh muatan periode ber-`purpose_end_use` kosong — pemisahan dibuang/dimanfaatkan menampilkan kedua sisi nol beserta satu baris 'tidak tercatat' berisi seluruh muatan, bukan menyembunyikan pemisahannya.",
+    "Seluruh muatan dimanfaatkan kembali dan nol dibuang — kedua sisi tetap dirender, yang nol dicetak nol. Sisi yang hilang terbaca sebagai 'tidak ada datanya', padahal yang benar 'tidak pernah terjadi'.",
+    "Sebuah kolom pengelompokan kosong pada seluruh muatan — rekapnya menampilkan satu baris 'tidak tercatat' berisi seluruh muatan, bukan rekap kosong tanpa penjelasan.",
+    "Sebuah nilai kategoris muncul hanya satu kali — tetap mendapat barisnya sendiri; rekap tidak pernah melipat nilai berfrekuensi rendah menjadi 'lainnya'.",
+    "Nilai kategoris berbeda hanya pada besar-kecil huruf atau spasi tepi — ditampilkan apa adanya sebagai nilai yang berbeda; laporan tidak menormalkan diam-diam, karena normalisasi yang tidak terlihat menyembunyikan data master yang perlu dirapikan.",
+    "Seluruh muatan tanpa nomor gate pass — penghitung kepatuhan menunjukkan angka penuh, dan itu temuan, bukan galat.",
+    "Seluruh muatan punya gate pass dan segel lengkap — kedua penghitung menunjukkan nol, dan nol itu tetap dirender supaya pembaca tahu pemeriksaannya memang berjalan.",
+    "Kedua kolom teks bebas kosong sepanjang periode — kedua rekap menampilkan keterangan tidak ada catatan, bukan tabel kosong tanpa penjelasan.",
+    "Satu muatan mengisi `findings` DAN `remarks` sekaligus — muncul pada kedua rekap, dan itu benar.",
+    "Line punya lebih dari satu unit Solid Waste Disposal — angka periode menggabungkan seluruh unit.",
+    "Periode masih berjalan — penyebut hari berhenti di hari ini dan hal itu dinyatakan.",
+    "Periode belum mulai sehingga hari yang diharapkan nol — kelengkapan tampil '—' dengan keterangannya, bukan 0,0%.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Production Line belum dipilih — tidak ada satu angka pun, termasuk tidak menampilkan angka seluruh mill sebagai penggantinya.",
+    "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Mill belum punya satu pun periode yang mencakup Solid Waste Disposal — pemilih periode kosong dengan arahan menghubungi Admin.",
+    "Periode tertutup — laporan tampil penuh, status tertutup ditampilkan, ekspor tetap dapat dijalankan.",
+    "Seluruh muatan periode berstatus draft — angka tetap dihitung penuh, dan jumlah draft dinyatakan supaya pembaca tahu seluruh angkanya belum final.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca, dan tabelnya menggulir mendatar di dalam kartunya sendiri."
+  ],
+  "open_questions": [
+    "BELUM ADA SATU BARIS DATA PUN DI BASIS DATA DEV untuk stasiun ini — `solid_waste_disposal_details` nol baris, diverifikasi langsung 2026-10-17. Laporan ini karena itu akan merender keadaan kosong di dev sampai seseorang menginput, dan itu BUKAN cacat. Konsekuensi yang perlu disadari: nilai nyata keempat kolom kategoris (jenis limbah, stasiun asal, lokasi pembuangan, tujuan penggunaan akhir) belum pernah terlihat, sehingga spec ini tidak dapat menyatakan berapa banyak nilai berbeda yang wajar muncul di lapangan. Bila kelak ternyata sebuah kolom berisi ratusan nilai berbeda karena diketik bebas, rekapnya akan menjadi daftar panjang berjumlah satu-satu — gejala yang sama dengan teks bebas, dan tandanya kolom itu perlu master. Yang dipilih sekarang: terbitkan apa adanya tanpa melipat 'lainnya', supaya gejala itu TERLIHAT alih-alih tersembunyi.",
+    "PEMISAHAN DIBUANG vs DIMANFAATKAN DITURUNKAN DARI ISI `purpose_end_use`, dan kolom itu string bebas tanpa himpunan nilai tertutup. Spec ini menuntut pemisahannya dirender berdampingan dengan angka total, tetapi TIDAK menetapkan aturan mana yang memetakan sebuah isi ke 'dibuang' atau 'dimanfaatkan' — karena nilai nyatanya belum pernah terlihat (lihat pertanyaan di atas). Sampai nilai nyatanya diketahui, pemisahan itu diterbitkan sebagai REKAP PER NILAI `purpose_end_use` apa adanya, bukan sebagai dua ember yang diturunkan tebakan. Menebak pemetaannya sekarang berarti menanam aturan yang terlihat benar dan diam-diam salah untuk nilai yang belum pernah ada."
+  ]
+}

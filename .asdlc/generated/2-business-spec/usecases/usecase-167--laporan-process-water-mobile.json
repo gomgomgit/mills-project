@@ -1,0 +1,353 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-17"
+  },
+  "id": "usecase-167--laporan-process-water-mobile",
+  "name": "Lihat Laporan Periode Process Water (Mobile)",
+  "description": "Operator atau Supervisor membuka laporan periode stasiun Process Water dari ponsel. Ia memilih Production Line (wajib, dan terisi otomatis bila perangkat sudah mengingat line terakhir dari Daftar Stasiun) lalu Periode Pelaporan, kemudian membaca kelengkapan pencatatan, sembilan kartu metrik dalam empat blok berjudul, tren harian, dua rekap teks bebas yang terpisah, rekap per inspector, rekap per unit, dan rekap harian. Isi laporannya SAMA PERSIS dengan web (screen-160) karena keempat endpoint dipakai ulang apa adanya; yang berubah hanya bentuknya di layar sempit. Ia juga dapat mengunduh rincian per slot sebagai CSV — hanya CSV, karena WebView ponsel tidak membuka .xlsx.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk sebagai Operator atau Supervisor dan akunnya terhubung ke sebuah mill",
+    "Mill punya setidaknya satu Periode Pelaporan yang mencakup stasiun Process Water",
+    "Perangkat terhubung jaringan — layar ini tidak punya mode luring"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka Reporting (screen-141) lalu menekan tile Process Water"
+    },
+    {
+      "step": 2,
+      "actor": "system",
+      "description": "Memuat daftar Production Line milik mill akun, dan memilih otomatis line yang terakhir diingat perangkat dari Daftar Stasiun bila ada"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Memilih Production Line bila belum terpilih otomatis"
+    },
+    {
+      "step": 4,
+      "actor": "system",
+      "description": "Memuat daftar periode yang mencakup stasiun Process Water pada mill akun"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Memilih Periode Pelaporan"
+    },
+    {
+      "step": 6,
+      "actor": "system",
+      "description": "Meminta ringkasan ke /api/process-water-reports/summary dengan period_id dan production_line_id, lalu merender apa yang diterbitkan server tanpa menghitung ulang"
+    },
+    {
+      "step": 7,
+      "actor": "system",
+      "description": "Menampilkan kelengkapan pencatatan PALING ATAS, lalu sembilan kartu dalam empat blok berjudul dengan satuan tercetak, tren harian, dua rekap teks terpisah, rekap per inspector berkode mentah, rekap per unit, dan rekap harian yang menumpuk menjadi kartu"
+    },
+    {
+      "step": 8,
+      "actor": "actor-station-operator",
+      "description": "Membaca angkanya; dapat membuka/menutup rekap tanpa memicu permintaan data apa pun"
+    }
+  ],
+  "postconditions": [
+    "Tidak ada data stasiun yang berubah — layar ini hanya membaca",
+    "Pilihan Production Line dan periode bertahan ketika pengguna kembali dari layar lain"
+  ],
+  "alternative_flows": [
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 3, perangkat belum pernah mengingat line dan pengguna belum memilih",
+      "steps": [
+        "Layar meminta memilih Production Line",
+        "NOL permintaan ringkasan terkirim — penjagaannya di fungsi pemuatan, bukan di template",
+        "Tombol ekspor tidak dirender"
+      ]
+    },
+    {
+      "name": "Penyimpanan perangkat melempar",
+      "trigger": "Pada langkah 2, membaca kunci line tersimpan gagal (mode privat)",
+      "steps": [
+        "Pembacaan dibungkus try/catch sehingga tidak mematahkan layar",
+        "Layar jatuh ke keadaan 'belum ada line terpilih'",
+        "Pengguna memilih line secara manual dan alur berlanjut normal"
+      ]
+    },
+    {
+      "name": "Line yang diingat sudah tidak sah",
+      "trigger": "Pada langkah 2, line tersimpan milik mill lain atau sudah dihapus",
+      "steps": [
+        "Server mengabaikannya",
+        "Layar meminta memilih line",
+        "Angka mill lain TIDAK pernah ditampilkan"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode Process Water",
+      "trigger": "Pada langkah 4, daftar periode kosong",
+      "steps": [
+        "Pemilih periode kosong dengan arahan menghubungi Admin",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 6, periode tidak memuat satu pun pembacaan",
+      "steps": [
+        "Seluruh kartu menampilkan tidak tersedia dengan penyebut nol — bukan nol",
+        "Kelengkapan pencatatan TETAP ditampilkan",
+        "Kedua rekap teks menyatakan tidak ada catatan"
+      ]
+    },
+    {
+      "name": "Slot hanya berisi teks bebas",
+      "trigger": "Pada langkah 7, ada slot yang mengisi findings atau action_taken_status saja",
+      "steps": [
+        "Slot itu TERHITUNG terisi — kedua kolom teks termasuk dalam kesebelas kolom pembacaan",
+        "Tetapi tidak menambah penyebut kartu ukur mana pun",
+        "Jumlah slot terisi karenanya MELEBIHI setiap penyebut, dan itu dinyatakan di blok kelengkapan"
+      ]
+    },
+    {
+      "name": "Slot hanya berisi shift atau inspector",
+      "trigger": "Pada langkah 7, ada slot yang hanya mengisi kolom identitas",
+      "steps": [
+        "Slot itu TIDAK terhitung terisi — keduanya kolom identitas, bukan kolom pembacaan",
+        "Ini kebalikan dari alur di atas, dan keduanya harus dapat dibedakan pembaca"
+      ]
+    },
+    {
+      "name": "Catatan tindakan berulang sama persis",
+      "trigger": "Pada langkah 7, isi action_taken_status sama pada banyak slot",
+      "steps": [
+        "Tetap diterbitkan sebagai daftar teks per slot",
+        "TIDAK dikelompokkan menjadi sebaran — kolomnya teks bebas, dan mengelompokkannya membuat satu kalimat berbeda menjadi satu 'nilai'"
+      ]
+    },
+    {
+      "name": "Seluruh slot tanpa inspector",
+      "trigger": "Pada langkah 7, tidak ada slot yang mencatat inspector_id",
+      "steps": [
+        "Rekap per inspector menampilkan SATU baris 'tidak tercatat' berisi seluruh slot itu",
+        "Bukan rekap kosong"
+      ]
+    },
+    {
+      "name": "Jaringan gagal",
+      "trigger": "Pada langkah 6, permintaan gagal",
+      "steps": [
+        "Keadaan galat dengan aksi coba lagi",
+        "Penjagaan Production Line tetap berlaku pada jalur coba lagi"
+      ]
+    },
+    {
+      "name": "Perangkat luring",
+      "trigger": "Pada langkah 1, perangkat tidak terhubung jaringan",
+      "steps": [
+        "Layar menyatakan laporan perlu jaringan",
+        "Bukan menampilkan angka basi tanpa penanda, dan bukan diam"
+      ]
+    },
+    {
+      "name": "Ekspor CSV",
+      "trigger": "Pengguna menekan Ekspor CSV sesudah line dipilih",
+      "steps": [
+        "Berkas CSV diunduh berisi satu baris per slot waktu, memuat ke-13 kolom detail termasuk shift dan inspector_id",
+        "TIDAK ADA tombol Ekspor Excel — WebView ponsel tidak membuka .xlsx"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pengguna memilih periode berstatus tertutup",
+      "steps": [
+        "Laporan tampil penuh",
+        "Badge status tertutup ditampilkan",
+        "Ekspor CSV tetap dapat dijalankan"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Hanya membaca — tidak ada aksi yang mengubah data stasiun",
+    "Isi laporan IDENTIK dengan screen-160; keempat endpoint dipakai ulang apa adanya, nol endpoint baru",
+    "Ponsel TIDAK menghitung apa pun — seluruh agregasi datang dari server",
+    "Hanya Operator dan Supervisor; Mill Management dan Admin lewat web",
+    "TIDAK ADA pemilih Mill — kedua aktornya terikat mill akunnya",
+    "Production Line WAJIB dipilih, dan penjagaannya di FUNGSI PEMUATAN bukan di template",
+    "Line awal dibaca dari penyimpanan perangkat dengan KUNCI YANG SAMA PERSIS seperti yang ditulis Daftar Stasiun",
+    "Setiap kartu menampilkan penyebutnya SENDIRI — penyebut yang sama pada kesembilan kartu adalah cacat",
+    "Kesembilan kartu dikelompokkan menjadi EMPAT blok yang sama persis dengan web, dan keempatnya dibiarkan terbuka",
+    "Satuan tercetak pada setiap kartu yang punya satuan; pH tidak diberi satuan karena memang tanpa satuan",
+    "action_taken_status diterbitkan sebagai REKAP TEKS, bukan sebaran — layar ini tidak punya satu pun daftar sebaran",
+    "Rekap per inspector menampilkan kode MENTAH, tidak pernah memulangkan nama orang",
+    "Kolom shift tidak diterbitkan di layar, hanya di ekspor",
+    "Satu slot terisi bila minimal satu dari SEBELAS kolom pembacaan terisi — bukan tiga belas",
+    "Tanpa blok downtime dan tanpa penandaan nilai di luar batas; keterangannya dirender utuh tanpa dipendekkan",
+    "Kelengkapan pencatatan dirender PALING ATAS, sebelum satu kartu pun",
+    "Ekspor hanya CSV; tombol .xlsx tidak dirender sama sekali",
+    "Seluruh tabel rekap menumpuk menjadi kartu di lebar ponsel, tidak menggulir mendatar",
+    "Layar ini perlu jaringan dan tidak punya mode luring"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Laporan Process Water Mobile — berhasil membaca laporan periode",
+      "given": "Operator terhubung ke sebuah mill yang punya periode mencakup Process Water, dan line itu punya pembacaan",
+      "when": "Operator membuka Reporting lalu menekan tile Process Water, memilih line dan periode",
+      "then": "Kelengkapan pencatatan tampil paling atas, sembilan kartu tampil dalam empat blok berjudul dengan satuan tercetak, dan tiap kartu membawa penyebutnya sendiri"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — line terpilih otomatis dari yang diingat perangkat",
+      "given": "Perangkat sudah mengingat Production Line terakhir dari Daftar Stasiun",
+      "when": "Operator membuka layar ini",
+      "then": "Line itu terpilih otomatis dan angka dimuat tanpa langkah memilih line"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — line belum dipilih menahan seluruh permintaan",
+      "given": "Perangkat belum pernah mengingat Production Line",
+      "when": "Operator membuka layar ini",
+      "then": "Layar meminta memilih line, nol angka tampil, tombol ekspor tidak dirender, dan NOL permintaan ringkasan terkirim"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — penyimpanan perangkat melempar",
+      "given": "Penyimpanan perangkat melempar ketika dibaca (mode privat)",
+      "when": "Operator membuka layar ini",
+      "then": "Layar tetap berfungsi dan jatuh ke keadaan 'belum ada line terpilih', bukan halaman rusak"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — tanpa pemilih Mill",
+      "given": "Supervisor terikat pada satu mill",
+      "when": "Ia membuka layar ini",
+      "then": "Nama mill tampil sebagai keterangan dan TIDAK ada pemilih Mill di mana pun pada layar"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — empat blok berjudul sama dengan web",
+      "given": "Periode punya pembacaan pada kesembilan kolom ukur",
+      "when": "Operator membaca kartunya",
+      "then": "Kartunya terkelompok menjadi Aliran Air, Softener, Dosis Kimia, dan Air Umpan Boiler — judul dan urutan yang sama persis dengan screen-160"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — satuan tercetak pada kedua kartu dosis",
+      "given": "Blok Dosis Kimia memuat dosis alum dan dosis polimer",
+      "when": "Operator menggulir ke blok itu",
+      "then": "Kartu alum menyebut kg/jam dan kartu polimer menyebut g/jam, masing-masing pada kartunya sendiri — sebab di ponsel keduanya tidak pernah terlihat bersamaan"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — pH tidak diberi satuan",
+      "given": "Blok Softener dan blok Air Umpan Boiler memuat kartu pH",
+      "when": "Operator membacanya",
+      "then": "Kartu pH tidak mencantumkan satuan apa pun, karena pH memang besaran tanpa satuan"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — nol sebaran kategoris",
+      "given": "Periode memuat banyak isi action_taken_status",
+      "when": "Operator membaca seluruh layar",
+      "then": "Tidak ada satu pun daftar sebaran jumlah slot per nilai; catatan tindakan tampil sebagai daftar TEKS per slot beserta tanggal dan slot waktunya"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — catatan dan temuan pada dua bagian terpisah",
+      "given": "Sebuah slot mengisi action_taken_status DAN findings sekaligus",
+      "when": "Operator membaca kedua rekap",
+      "then": "Slot itu muncul pada kedua rekap, dan itu bukan penghitungan ganda"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — slot berisi teks bebas saja tetap terhitung",
+      "given": "Sebuah slot hanya mengisi findings tanpa satu pun kolom ukur",
+      "when": "Operator membaca blok kelengkapan",
+      "then": "Slot itu terhitung terisi, tidak menambah penyebut kartu mana pun, dan jumlah slot terisi melebihi setiap penyebut — keterangannya tampil"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — slot berisi identitas saja tidak terhitung",
+      "given": "Sebuah slot hanya mengisi shift dan inspector_id tanpa kolom pembacaan",
+      "when": "Operator membaca blok kelengkapan",
+      "then": "Slot itu TIDAK terhitung terisi, karena keduanya kolom identitas bukan kolom pembacaan"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — rekap per inspector memakai kode mentah",
+      "given": "Beberapa slot mencatat inspector_id dan beberapa tidak",
+      "when": "Operator membuka rekap per inspector",
+      "then": "Tiap baris menampilkan kode inspector apa adanya tanpa dipetakan ke nama, baris 'tidak tercatat' berdiri sendiri, dan jumlahnya menjumlah ke slot tercatat"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — kolom shift tidak muncul di layar",
+      "given": "Record periode ini punya isi kolom shift",
+      "when": "Operator membaca seluruh layar",
+      "then": "Tidak ada bagian mana pun yang menerbitkan kolom shift, dan keterangan alasannya terlihat"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — tanpa downtime dan tanpa penandaan di luar batas",
+      "given": "Periode memuat nilai pH dan TDS yang jauh di luar batas umum",
+      "when": "Operator membacanya",
+      "then": "Nilainya tampil apa adanya tanpa penanda, tidak ada blok downtime, dan keterangan ketiadaan penandaan terbaca UTUH tanpa dipotong"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — kelengkapan berada paling atas",
+      "given": "Periode punya kelengkapan pencatatan sangat rendah",
+      "when": "Operator membuka layar tanpa menggulir",
+      "then": "Blok kelengkapan terlihat sebelum satu kartu pun"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — periode berjalan menghentikan penyebut di hari ini",
+      "given": "Periode terpilih masih berjalan",
+      "when": "Operator membaca blok kelengkapan",
+      "then": "Penyebut hari berhenti di hari ini dan hal itu dinyatakan"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — slot diharapkan nol tampil sebagai garis",
+      "given": "Periode belum mulai sehingga slot yang diharapkan nol",
+      "when": "Operator membaca blok kelengkapan",
+      "then": "Kelengkapan tampil '—' dengan 'belum ada slot yang diharapkan', bukan 0,0%"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — periode tanpa data tetap menampilkan kelengkapan",
+      "given": "Periode tidak memuat satu pun pembacaan",
+      "when": "Operator membacanya",
+      "then": "Seluruh kartu menyatakan tidak tersedia dengan penyebut nol, dan blok kelengkapan tetap tampil"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — hanya ekspor CSV",
+      "given": "Production Line sudah dipilih",
+      "when": "Operator melihat daerah tombol ekspor",
+      "then": "Hanya tombol Ekspor CSV yang dirender; tidak ada tombol Ekspor Excel di mana pun"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — ekspor memuat kolom yang dikecualikan dari pemeriksaan slot",
+      "given": "Periode memuat slot yang mengisi shift dan inspector_id",
+      "when": "Operator mengunduh CSV",
+      "then": "Berkasnya memuat ke-13 kolom detail termasuk shift dan inspector_id — ekspor adalah rincian mentah"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — rekap menumpuk jadi kartu di lebar ponsel",
+      "given": "Periode panjang sehingga rekap hariannya puluhan baris",
+      "when": "Operator membukanya pada lebar 390px",
+      "then": "Rekapnya menumpuk menjadi kartu per baris dengan tiap sel berlabel, dan halaman TIDAK menggulir mendatar"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — galat jaringan dapat dicoba lagi",
+      "given": "Permintaan ringkasan gagal",
+      "when": "Operator menekan coba lagi",
+      "then": "Permintaan diulang, dan penjagaan Production Line tetap berlaku pada jalur itu"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — luring dinyatakan apa adanya",
+      "given": "Perangkat tidak terhubung jaringan",
+      "when": "Operator membuka layar ini",
+      "then": "Layar menyatakan laporan perlu jaringan, bukan menampilkan angka basi dan bukan diam"
+    },
+    {
+      "scenario": "Laporan Process Water Mobile — periode tertutup tetap dapat dibaca dan diekspor",
+      "given": "Periode terpilih berstatus tertutup",
+      "when": "Operator membacanya",
+      "then": "Laporan tampil penuh, badge tertutup tampil, dan ekspor CSV tetap berjalan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-161--laporan-process-water-mobile"
+  ]
+}

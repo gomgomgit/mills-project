@@ -1121,6 +1121,43 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanEngineRoomView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-161--laporan-process-water-mobile /
+    // usecase-167--laporan-process-water-mobile "Lihat Laporan Periode Process
+    // Water (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor) — without a token the router guard sends the caller to
+    // Login. Mill Management and Admin are NOT "unsupported" here: they are
+    // deliberately routed to the WEB screen (screen-160), and this route is
+    // never rendered for them because the Reporting grid that leads here is a
+    // mobile-only screen.
+    //
+    // THERE IS NO ROLE LIST ON THIS ROUTE, AND THAT IS THE CONTRACT — not an
+    // omission. The mobile router carries ONE global guard, over `meta.public`,
+    // and not one of its routes carries a role list; what holds Mill Management
+    // and Admin out of this screen is server-side authorisation plus the
+    // absence of a mobile path for them. Adding a role guard here would be a
+    // router-wide change touching all 14 report screens.
+    //
+    // ZERO BACKEND CHANGE, and that was paid for in advance on purpose: all
+    // three /api/process-water-reports/* data routes have admitted Operator
+    // since screen-160's FIRST commit, precisely so this mobile twin would not
+    // have to widen anything, and /api/production-lines/options-for-report is
+    // reused verbatim from screen-135. What stayed closed stays closed:
+    // /business-units/options is Admin only (403 raised inside the service, not
+    // by the middleware), and the WEB route /reports/process-water is not
+    // touched. This mobile screen has no mill picker at all.
+    //
+    // Pintu masuknya: rute 'report-stations' (screen-141) menampilkan grid
+    // stasiun, dan tile Process Water-lah yang menavigasi ke sini — entri
+    // 'process-water' pada REPORT_ROUTES di ReportingPilihStasiunView.vue
+    // adalah satu-satunya penentu tile itu hidup atau mati. Kuncinya WAJIB
+    // berkutip di sana karena bertanda hubung.
+    path: '/reports/process-water',
+    name: 'report-process-water',
+    component: () => import('@/views/LaporanProcessWaterView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

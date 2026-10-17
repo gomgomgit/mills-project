@@ -1,0 +1,1599 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-17"
+  },
+  "id": "screen-161--laporan-process-water-mobile",
+  "name": "Laporan Process Water (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "report-process-water (path '/reports/process-water' pada router mobile Vue; meta.public false)",
+  "auth_requirement": "authenticated — token Sanctum. Aktor: actor-station-operator dan actor-supervisor, keduanya terikat mill akunnya.",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya. Ketiga rute data /api/process-water-reports/* SUDAH menerimanya sejak commit pertama screen-160, jadi TIDAK ADA pelebaran akses yang perlu dikerjakan di layar ini."
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "Jalurnya di web (screen-160). Ditahan oleh otorisasi sisi server plus ketiadaan jalur mobile — BUKAN oleh penjaga peran di router, yang memang tidak ada."
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": false,
+      "conditions": "Sama dengan Mill Management. Endpoint pemilih mill (/business-units/options) tetap ADMIN SAJA dan layar ini tidak pernah memanggilnya."
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "process-water-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "process-water-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "usecase_name": "Lihat Laporan Periode Process Water (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "Daftar Production Line untuk pemilih. DIPAKAI ULANG VERBATIM dari screen-135; nol perubahan.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "TIDAK PERNAH dikirim layar ini — peran terikat mill, dan server membuang nilai kiriman klien tanpa memvalidasinya"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "code": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — klien mengarahkan ke Login TANPA pesan jaringan"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "users.business_unit_id NULL — klien menampilkan arahan menghubungi Admin, bukan galat jaringan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/process-water-reports/periods",
+          "description": "Periode yang punya baris period_stations berjenis 'process-water' pada mill akun. DIPAKAI ULANG APA ADANYA dari screen-160 — tidak ada varian mobile.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "TIDAK PERNAH dikirim layar ini"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string (draft|open|closed)",
+                  "station_type": "string — selalu 'process-water'",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar operator/supervisor/mill_management/admin"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "users.business_unit_id NULL — akun belum terhubung mill"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/process-water-reports/summary",
+          "description": "SELURUH angka laporan untuk satu periode pada satu Production Line. Bentuk responsnya sama persis dengan yang dirender web — ponsel merendernya apa adanya dan tidak menghitung ulang satu angka pun.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — dan klien menahan permintaannya di FUNGSI PEMUATAN selama nilai ini kosong, bukan hanya menyembunyikan angkanya di template"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string"
+              },
+              "coverage": {
+                "filled_slots": "integer",
+                "expected_slots": "integer",
+                "unit_count": "integer",
+                "days_counted": "integer",
+                "slots_per_unit_per_day": "integer — selalu 24",
+                "percent": "number|null — null ketika expected_slots 0; klien mencetak '—', bukan 0,0%",
+                "_note_filled_rule": "string — prosa yang menyatakan aturan SEBELAS kolom; dirender apa adanya"
+              },
+              "metrics": {
+                "_": "TEPAT sembilan kunci, masing-masing {min, avg, max, count, unit, group} — count adalah penyebut kartu ITU SENDIRI, unit dicetak apa adanya (null untuk pH), group salah satu dari aliran|softener|dosis|air_umpan_boiler"
+              },
+              "text_entries": {
+                "_": "TEPAT dua kunci — action_taken_status dan findings, masing-masing daftar {date, time_slot, value}. BUKAN sebaran."
+              },
+              "inspector_recap": [
+                {
+                  "inspector_id": "string|null — null berarti baris 'tidak tercatat'",
+                  "slots": "integer",
+                  "share": "number"
+                }
+              ],
+              "unit_recap": [
+                {
+                  "process_water_id": "string",
+                  "filled_slots": "integer"
+                }
+              ],
+              "daily": [
+                {
+                  "date": "date",
+                  "raw_water_flow_avg": "number|null",
+                  "filled_slots": "integer"
+                }
+              ],
+              "total": {
+                "days_with_records": "integer",
+                "reading_rows": "integer"
+              },
+              "_note_absences": "string — prosa yang menyatakan ketiadaan downtime, ketiadaan penandaan di luar batas, dan ketiadaan kolom shift di layar. Dirender UTUH."
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "period_id atau production_line_id milik mill lain"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/process-water-reports/export",
+          "description": "Unduhan CSV rincian per slot waktu. Format 'csv' SAJA dari layar ini — .xlsx tidak pernah diminta karena WebView ponsel tidak membukanya. Bukan respons JSON.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "Layar ini SELALU mengirim 'csv' eksplisit. Nilai 'xlsx' tidak pernah dikirim dan tombolnya pun tidak dirender."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_": "Aliran CSV, bukan JSON. 21 kolom: 7 konteks + Slot Waktu + 13 kolom detail termasuk shift dan inspector_id."
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain — ditolak EAGER sebelum aliran dimulai, supaya galat tidak sampai ke klien sebagai unduhan berhasil yang kosong"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen, atau batas 50.000 baris slot terlampaui"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. NOL ENDPOINT BARU. Keempat endpoint sudah ada: tiga rute data /api/process-water-reports/* dibangun screen-160 dan SUDAH menerima Operator sejak commit pertamanya, dan /api/production-lines/options-for-report dipakai ulang verbatim dari screen-135. Tidak ada entri api-index baru, dan tidak ada satu baris pun yang disentuh di backend/.",
+        "2. PONSEL TIDAK MENGHITUNG APA PUN. Repo mengurai respons dan view merendernya; tidak ada rata-rata, penyebut, porsi, persentase, maupun pengelompokan yang diturunkan di klien. Termasuk TIDAK mengubah satuan — nilai `unit` dicetak apa adanya sebagaimana diterbitkan server.",
+        "3. PERAN DITAHAN DI SERVER, BUKAN DI ROUTER. `mobile/src/router/index.ts` hanya punya SATU guard global atas `meta.public`; tidak ada satu rute pun yang membawa daftar peran. Mill Management dan Admin ditahan oleh otorisasi sisi server plus ketiadaan jalur mobile. Menambahkan penjaga peran di router adalah perubahan se-router yang menyentuh seluruh 14 layar laporan — di luar cakupan layar ini.",
+        "4. Mill TIDAK PERNAH dikirim. Tidak ada pemilih Mill dan `business_unit_id` tidak pernah masuk query string — server membuangnya untuk peran terikat mill, jadi mengirimnya hanya menambah permukaan salah tanpa menambah kemampuan.",
+        "5. Resolusi Production Line di klien, berurutan: (a) query rute bila layar dibuka dari tile Reporting yang membawanya; (b) ingatan perangkat dari Daftar Stasiun; (c) bila keduanya tidak ada, layar MEMINTA memilih. TIDAK ADA langkah (d) 'pilih line pertama' — memilih diam-diam menghasilkan angka line yang tidak pernah diminta siapa pun.",
+        "6. Ingatan perangkat dibaca dari localStorage dengan kunci `msl_production_line_{userId}` — KUNCI YANG SAMA PERSIS yang ditulis StationListView. Kunci yang berbeda akan terkompilasi, terlihat benar, dan tidak pernah cocok.",
+        "7. Pembacaan localStorage dibungkus try/catch: pada mode privat penyimpanan dapat melempar, dan itu tidak boleh mematahkan layar — cukup jatuh ke keadaan 'belum ada line terpilih'.",
+        "8. PENJAGAAN PRODUCTION LINE ADA DI FUNGSI PEMUATAN, BUKAN DI TEMPLATE. `loadSummary()` keluar lebih awal bila `productionLineId` kosong, SEBELUM satu pun pemanggilan jaringan. Template yang hanya menyembunyikan angka tetap membiarkan permintaannya terkirim, dan penjagaan di fungsi pemuatan ikut melindungi jalur ganti-periode dan jalur coba-lagi.",
+        "9. SEMBILAN KARTU DALAM EMPAT BLOK, dan blok diturunkan dari field `group` pada respons — BUKAN dari daftar nama kolom yang dipaku di klien. Satu blok markup yang di-loop; jangan menulis sembilan kartu manual. Urutan dan judul blok SAMA PERSIS dengan web: Aliran Air, Softener, Dosis Kimia, Air Umpan Boiler.",
+        "10. SATUAN DICETAK DARI FIELD `unit` RESPONS, dan kartu yang `unit`-nya null TIDAK mencetak apa pun — bukan mencetak '-' dan bukan mengarang satuan. Kedua kartu pH justru yang null, dan itu benar: pH besaran tanpa satuan.",
+        "11. BLOK DOSIS KIMIA ADALAH TITIK PALING RAWAN DI LAYAR INI. Alum kg/jam dan polimer g/jam berada di blok yang sama, keduanya bernama 'dosis', dan skalanya berbeda seribu kali. Di web keduanya berdampingan sehingga satuannya terbaca sekaligus; di ponsel pembaca melihat satu kartu pada satu waktu. Satuan WAJIB tercetak pada kartunya masing-masing, dan sebuah test menuntutnya pada KEDUA kartu secara terpisah — bukan sekali pada bloknya.",
+        "12. NOL SEBARAN KATEGORIS. Layar ini tidak punya satu pun daftar 'nilai / jumlah slot / porsi', dan ketiadaan itu diasersi atas TESTID dan JUDUL, bukan atas prosa. Layar yang persis sebelumnya (Engine Room mobile) punya DUA, jadi bentuknya paling mudah tersalin dari tetangga terdekat — dan salinan itu akan menghasilkan satu 'nilai' per kalimat yang berbeda karena kolomnya teks bebas.",
+        "13. DUA REKAP TEKS pada DUA bagian terpisah, masing-masing dari `text_entries.action_taken_status` dan `text_entries.findings`. Satu slot yang mengisi keduanya muncul di kedua rekap; itu bukan penghitungan ganda dan tidak boleh 'dirapikan'.",
+        "14. REKAP PER INSPECTOR menampilkan `inspector_id` MENTAH. Nol join, nol pencarian nama, nol pemetaan — isinya teks bebas yang tidak merujuk master mana pun. Baris dengan `inspector_id` null dirender sebagai 'tidak tercatat' dan BERDIRI SENDIRI, tidak dilipat ke baris mana pun.",
+        "15. KOLOM `shift` TIDAK DIRENDER di layar ini. Ia tidak ada di payload /summary sama sekali, jadi ketiadaannya di layar adalah konsekuensi — bukan penyaringan di klien. Keterangan alasannya dirender dari `_note_absences`.",
+        "16. ATURAN SEBELAS KOLOM dirender dari `coverage._note_filled_rule` apa adanya. Ponsel TIDAK menyusun kalimatnya sendiri — kalimat yang disusun dua kali di dua platform adalah kalimat yang akan berselisih.",
+        "17. KELENGKAPAN DIRENDER PALING ATAS, sebelum satu kartu pun. Di layar sempit ia satu-satunya bagian yang pasti terlihat tanpa menggulir, dan ia menentukan apakah angka di bawahnya layak dipercaya. `percent` null dicetak '—' beserta 'belum ada slot yang diharapkan', bukan 0,0%.",
+        "18. Keterangan ketiadaan penandaan di luar batas dirender UTUH: jangan beri text-overflow, line-clamp, maupun 'baca selengkapnya'. Diperiksa pada hasil render di lebar 390px, bukan pada sumbernya.",
+        "19. SELURUH TABEL REKAP memakai v-stacked-table sehingga menumpuk menjadi kartu di lebar ponsel. Gulir mendatar HARUS DIUKUR, bukan disimpulkan: `document.scrollingElement.scrollWidth <= clientWidth + 1`.",
+        "20. Unduhan CSV di WebView mengikuti pola kembaran mobile sebelumnya APA ADANYA — jangan mengarang mekanisme unduhan baru. `format=csv` dikirim eksplisit.",
+        "21. Layar ini TIDAK menulis ke localDb. Jangan menambahkan tabel maupun cache laporan; ketiadaan mode luring disengaja dan dinyatakan di layar.",
+        "22. SATU ENTRI di REPORT_ROUTES pada src/views/ReportingPilihStasiunView.vue menentukan tile Process Water hidup atau kelabu: `'process-water': 'report-process-water'`. Tanpa baris itu layar ini ada, seluruh test-nya lulus, dan tile-nya tetap kelabu — pola kegagalan yang sudah pernah terjadi. Peta itu TIDAK urut sort_order dan TIDAK punya asersi urutan, jadi APPEND saja."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "process-water-record",
+          "operation": "SELECT",
+          "description": "Dibaca lewat ProcessWaterReportService yang SAMA dengan web — ponsel tidak punya kueri sendiri."
+        },
+        {
+          "entity_id": "process-water-detail",
+          "operation": "SELECT",
+          "description": "Satu baris per slot waktu: 9 kolom ukur nullable, 2 kolom teks bebas, dan 2 kolom identitas (shift, inspector_id). Dibaca server; ponsel hanya menerima hasil agregasinya."
+        },
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Pemilih periode dan rentang tanggal laporan."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih Production Line, lewat endpoint options-for-report yang dipakai ulang."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Production Line belum terpilih",
+          "handling": "loadSummary() keluar lebih awal SEBELUM satu pun pemanggilan jaringan; layar meminta memilih line; tombol ekspor tidak dirender"
+        },
+        {
+          "condition": "localStorage melempar saat dibaca (mode privat)",
+          "handling": "try/catch menangkapnya; layar jatuh ke keadaan 'belum ada line terpilih' dan tetap berfungsi"
+        },
+        {
+          "condition": "Line yang diingat perangkat milik mill lain atau sudah dihapus",
+          "handling": "Server mengabaikannya (403 atau daftar tanpa line itu); layar meminta memilih line dan TIDAK PERNAH menampilkan angka mill lain"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup Process Water",
+          "handling": "Pemilih periode kosong dengan arahan menghubungi Admin; nol angka"
+        },
+        {
+          "condition": "Periode tidak memuat satu pun pembacaan",
+          "handling": "Seluruh kartu menampilkan 'tidak tersedia' dengan count 0 — bukan 0; blok kelengkapan TETAP tampil; kedua rekap teks menyatakan tidak ada catatan"
+        },
+        {
+          "condition": "Sebuah metrik tidak pernah terisi walau metrik lain terisi",
+          "handling": "Kartunya TETAP dirender dengan 'tidak tersedia' dan count 0; tidak dihilangkan dari bloknya"
+        },
+        {
+          "condition": "coverage.percent null (expected_slots 0)",
+          "handling": "Dicetak '—' dengan 'belum ada slot yang diharapkan', BUKAN 0,0%"
+        },
+        {
+          "condition": "filled_slots melebihi count setiap kartu",
+          "handling": "Dirender apa adanya beserta _note_filled_rule yang menerangkannya; TIDAK dikoreksi dan TIDAK disembunyikan"
+        },
+        {
+          "condition": "metrics.unit null (kedua kartu pH)",
+          "handling": "Tidak mencetak satuan apa pun — bukan '-', bukan satuan karangan"
+        },
+        {
+          "condition": "text_entries kosong pada salah satu atau kedua kolom",
+          "handling": "Bagian itu menyatakan tidak ada catatan, bukan daftar kosong tanpa penjelasan"
+        },
+        {
+          "condition": "Teks catatan atau temuan sangat panjang",
+          "handling": "Dibungkus pada layar sempit, bukan dipotong, dan tidak mendorong lebar halaman"
+        },
+        {
+          "condition": "inspector_recap seluruhnya inspector_id null",
+          "handling": "Satu baris 'tidak tercatat' berisi seluruh slot itu — bukan rekap kosong"
+        },
+        {
+          "condition": "inspector_id berupa kode panjang atau mengandung spasi",
+          "handling": "Ditampilkan apa adanya tanpa dipotong dan tanpa dicoba dipetakan ke nama"
+        },
+        {
+          "condition": "Line punya lebih dari satu unit Process Water",
+          "handling": "Angka periode menggabungkan seluruh unit; unit_recap menunjukkan sebarannya; unit tanpa pembacaan tetap muncul dengan 0"
+        },
+        {
+          "condition": "Periode masih berjalan",
+          "handling": "Penyebut hari berhenti di hari ini — diturunkan SERVER, dan ponsel merender keterangannya"
+        },
+        {
+          "condition": "Periode tertutup",
+          "handling": "Laporan tampil penuh, badge status tertutup tampil, ekspor CSV tetap berjalan"
+        },
+        {
+          "condition": "Jaringan gagal di tengah pemuatan",
+          "handling": "Keadaan galat dengan aksi coba lagi; penjagaan Production Line TETAP berlaku pada jalur coba-lagi itu"
+        },
+        {
+          "condition": "Perangkat luring",
+          "handling": "Layar menyatakan laporan perlu jaringan — bukan angka basi tanpa penanda, dan bukan diam"
+        },
+        {
+          "condition": "401 dari endpoint mana pun",
+          "handling": "Klien mengarahkan ke Login TANPA menampilkannya sebagai galat jaringan"
+        },
+        {
+          "condition": "422 karena akun belum terhubung mill",
+          "handling": "Arahan menghubungi Admin, bukan galat jaringan"
+        },
+        {
+          "condition": "Periode sangat panjang sehingga rekap hariannya puluhan baris",
+          "handling": "Rekap dapat ditutup; tabelnya MENUMPUK MENJADI KARTU di lebar ponsel, dan halaman tidak pernah menggulir mendatar"
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya membaca — nol aksi tulis",
+        "Isi laporan identik dengan screen-160; nol endpoint baru, nol perubahan backend",
+        "Ponsel tidak menghitung apa pun, termasuk tidak memetakan ulang satuan",
+        "Hanya Operator dan Supervisor; ditahan server, bukan router",
+        "Tanpa pemilih Mill; business_unit_id tidak pernah dikirim",
+        "Production Line wajib, dijaga di fungsi pemuatan",
+        "Line awal dari localStorage dengan kunci yang sama persis seperti StationListView",
+        "Sembilan kartu dalam empat blok yang sama dengan web, diturunkan dari field group",
+        "Satuan dicetak dari field unit; null tidak mencetak apa pun",
+        "Nol sebaran kategoris di seluruh layar",
+        "Dua rekap teks pada dua bagian terpisah",
+        "Rekap per inspector memakai kode mentah dengan baris 'tidak tercatat' berdiri sendiri",
+        "Kolom shift tidak dirender",
+        "Aturan sebelas kolom dirender dari prosa server, tidak disusun ulang di klien",
+        "Kelengkapan paling atas; percent null tampil '—'",
+        "Keterangan ketiadaan penandaan dirender utuh",
+        "Seluruh rekap menumpuk jadi kartu; nol gulir mendatar halaman",
+        "Ekspor hanya CSV, format dikirim eksplisit",
+        "Tanpa mode luring dan tanpa penulisan ke localDb"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "repo memanggil TEPAT keempat endpoint yang sudah ada, nol endpoint baru",
+          "given": "api-client mobile di-mock; fetchLines(), fetchPeriods(), fetchSummary(), buildExportUrl() dipanggil satu kali masing-masing",
+          "expect": "URL yang diminta tepat '/api/production-lines/options-for-report', '/api/process-water-reports/periods', '/api/process-water-reports/summary', '/api/process-water-reports/export' — assert atas daftar URL yang terkumpul; tidak ada URL kelima"
+        },
+        {
+          "description": "business_unit_id TIDAK PERNAH masuk query string pada keempat pemanggilan",
+          "given": "repo dipanggil untuk keempat endpoint dengan userId dan line/period valid",
+          "expect": "walker rekursif atas KUNCI setiap objek params yang terkirim tidak menemukan kunci 'business_unit_id' — asersi atas NAMA KUNCI, bukan atas teks URL atau payload"
+        },
+        {
+          "description": "fetchSummary mengirim period_id dan production_line_id",
+          "given": "fetchSummary({periodId: 'p-1', productionLineId: 'l-1'})",
+          "expect": "params tepat {period_id: 'p-1', production_line_id: 'l-1'}; tidak ada kunci lain"
+        },
+        {
+          "description": "buildExportUrl SELALU mengirim format=csv secara eksplisit",
+          "given": "buildExportUrl({periodId: 'p-1', productionLineId: 'l-1'}) tanpa argumen format",
+          "expect": "query memuat format=csv; assertStringContainsString('format=csv', url, 'format wajib eksplisit, bukan mengandalkan default server')"
+        },
+        {
+          "description": "antarmuka TypeScript /summary tidak membuang satu kunci pun dari respons",
+          "given": "fixture /summary lengkap (period, coverage termasuk _note_filled_rule, metrics 9 kunci, text_entries 2 kunci, inspector_recap, unit_recap, daily, total, _note_absences)",
+          "expect": "hasil parse repo deep-equal dengan fixture; walker rekursif memastikan setiap kunci fixture ada pada hasil — kunci yang hilang tidak boleh tak terlihat sampai dibaca di layar"
+        },
+        {
+          "description": "repo TIDAK menghitung apa pun dan tidak memetakan ulang satuan",
+          "given": "fixture metrics dengan unit 'm³/jam', 'kg/jam', 'g/jam', 'ppm', '°C', dan null",
+          "expect": "setiap objek metrik (min, avg, max, count, unit, group) deep-equal dengan nilai respons; tidak ada rata-rata/persentase/porsi yang diturunkan klien"
+        },
+        {
+          "description": "repo TIDAK menulis ke localDb",
+          "given": "localDb di-mock penuh; fetchSummary() dan fetchPeriods() dijalankan sampai selesai",
+          "expect": "seluruh metode tulis mock localDb (put/add/bulkPut/transaction) menerima nol pemanggilan"
+        },
+        {
+          "description": "401 dari endpoint mana pun dipetakan ke pengalihan Login, bukan galat jaringan",
+          "given": "api-client menolak dengan status 401 / UNAUTHENTICATED",
+          "expect": "repo melempar/mengembalikan hasil berjenis 'unauthenticated'; view mengalihkan ke rute Login dan TIDAK merender state galat jaringan"
+        },
+        {
+          "description": "422 karena akun belum terhubung mill menjadi arahan hubungi Admin",
+          "given": "api-client menolak dengan 422 VALIDATION_ERROR (users.business_unit_id NULL)",
+          "expect": "view merender arahan menghubungi Admin; state galat jaringan dan tombol coba-lagi TIDAK dirender"
+        },
+        {
+          "description": "403 pada /summary (line ingatan milik mill lain) meminta memilih line dan nol angka",
+          "given": "localStorage mengingat line 'l-mill-lain'; /summary menolak 403 FORBIDDEN",
+          "expect": "view jatuh ke keadaan 'belum ada line terpilih' dengan permintaan memilih line; nol kartu metrik dirender; tidak ada angka mill lain di DOM"
+        },
+        {
+          "description": "loadSummary() keluar lebih awal dengan NOL pemanggilan jaringan selama productionLineId kosong",
+          "given": "productionLineId = '' dan periodId = 'p-1'; api-client di-spy",
+          "expect": "spy api-client menerima nol pemanggilan; penjagaan ada di fungsi pemuatan, bukan di template"
+        },
+        {
+          "description": "jalur GANTI PERIODE ikut dijaga: ganti periode tanpa line terpilih mengirim nol permintaan",
+          "given": "productionLineId = ''; pengguna mengubah pemilih periode dari kosong ke 'p-2'",
+          "expect": "spy api-client menerima nol pemanggilan /summary — mengganti periode tidak melewati penjagaan"
+        },
+        {
+          "description": "jalur COBA LAGI ikut dijaga: retry tanpa line terpilih mengirim nol permintaan",
+          "given": "state galat aktif, lalu productionLineId dikosongkan; aksi coba-lagi dipanggil",
+          "expect": "spy api-client menerima nol pemanggilan /summary; penjagaan tetap berlaku pada jalur coba-lagi"
+        },
+        {
+          "description": "dengan line terpilih, loadSummary mengirim TEPAT satu permintaan /summary",
+          "given": "productionLineId = 'l-1', periodId = 'p-1'",
+          "expect": "tepat satu pemanggilan GET /api/process-water-reports/summary dengan kedua parameter; bukan nol dan bukan dua"
+        },
+        {
+          "description": "kunci localStorage TEPAT 'msl_production_line_{userId}'",
+          "given": "auth-store userId = 'u-1'; localStorage.getItem di-spy",
+          "expect": "getItem dipanggil dengan string tepat 'msl_production_line_u-1' — asersi kesamaan string penuh, bukan substring; kunci berbeda akan terkompilasi, terlihat benar, dan tidak pernah cocok"
+        },
+        {
+          "description": "localStorage yang MELEMPAR saat dibaca (mode privat) tidak mematahkan layar",
+          "given": "localStorage.getItem di-stub melempar DOMException",
+          "expect": "mount tidak melempar; view merender keadaan 'belum ada line terpilih'; nol pemanggilan jaringan /summary; pemilih line tetap dapat dioperasikan"
+        },
+        {
+          "description": "query rute mengalahkan ingatan perangkat (urutan resolusi a sebelum b)",
+          "given": "route.query.production_line_id = 'l-query'; localStorage menyimpan 'l-ingatan'",
+          "expect": "productionLineId terpilih 'l-query'; /summary diminta dengan production_line_id='l-query'"
+        },
+        {
+          "description": "tanpa query rute dan tanpa ingatan, layar MEMINTA memilih dan TIDAK memilih line pertama diam-diam",
+          "given": "route.query kosong; localStorage kosong; fetchLines mengembalikan dua line",
+          "expect": "productionLineId tetap kosong meski daftar line berisi dua entri; permintaan memilih line dirender; nol pemanggilan /summary — tidak ada langkah (d) 'pilih line pertama'"
+        },
+        {
+          "description": "sembilan kartu dirender dalam EMPAT blok dengan judul dan urutan sama persis dengan web",
+          "given": "fixture metrics sembilan kunci dengan group aliran|softener|dosis|air_umpan_boiler",
+          "expect": "judul blok berurutan tepat ['Aliran Air', 'Softener', 'Dosis Kimia', 'Air Umpan Boiler']; jumlah elemen [data-testid^='pw-metric-card-'] tepat 9"
+        },
+        {
+          "description": "blok diturunkan dari field `group`, bukan dari daftar nama kolom yang dipaku di klien",
+          "given": "fixture yang sama tetapi URUTAN kunci metrics diacak",
+          "expect": "keempat blok tetap muncul dalam urutan kanonis dan setiap metrik berada di dalam elemen blok yang sesuai group-nya (assert keanggotaan per elemen blok, bukan atas teks halaman)"
+        },
+        {
+          "description": "setiap kartu membawa PENYEBUTNYA SENDIRI",
+          "given": "fixture dengan sembilan nilai count berbeda (12, 7, 24, 3, 19, 0, 8, 15, 21)",
+          "expect": "elemen [data-testid='pw-metric-count-{key}'] masing-masing menampilkan count-nya sendiri; penyebut yang sama pada kesembilan kartu adalah cacat — asersi per ELEMEN kartu, bukan atas kontainer blok"
+        },
+        {
+          "description": "kartu DOSIS ALUM mencetak satuan 'kg/jam' pada kartunya sendiri",
+          "given": "metrics.alum_dose = {min: 1.8, avg: 2.5, max: 3.1, count: 20, unit: 'kg/jam', group: 'dosis'}",
+          "expect": "elemen [data-testid='pw-metric-unit-alum_dose'] berisi tepat 'kg/jam'; assertStringContainsString('kg/jam', unitAlum.textContent, 'satuan wajib pada kartu alum sendiri, bukan sekali pada bloknya')"
+        },
+        {
+          "description": "kartu DOSIS POLIMER mencetak satuan 'g/jam' pada kartunya sendiri — kasus TERPISAH dari alum",
+          "given": "metrics.polymer_dose = {min: 1.9, avg: 2.4, max: 3.0, count: 20, unit: 'g/jam', group: 'dosis'}",
+          "expect": "elemen [data-testid='pw-metric-unit-polymer_dose'] berisi tepat 'g/jam' DAN tidak berisi 'kg/jam'; skalanya beda seribu kali dan di ponsel kedua kartu tak pernah berdampingan, jadi satu asersi atas blok 'dosis' tidak dianggap memenuhi kasus ini"
+        },
+        {
+          "description": "kartu pH MASUK SOFTENER tidak mencetak satuan apa pun",
+          "given": "metrics.softener_inlet_ph = {..., unit: null, group: 'softener'}",
+          "expect": "elemen [data-testid='pw-metric-unit-softener_inlet_ph'] tidak dirender (queryByTestId null) ATAU bertekstur kosong; teks kartu tidak memuat '-' sebagai satuan dan tidak memuat satuan karangan ('pH', 'ppm', 'unit')"
+        },
+        {
+          "description": "kartu pH AIR UMPAN BOILER tidak mencetak satuan apa pun — kasus TERPISAH dari pH softener",
+          "given": "metrics.boiler_feed_ph = {..., unit: null, group: 'air_umpan_boiler'}",
+          "expect": "elemen [data-testid='pw-metric-unit-boiler_feed_ph'] tidak dirender atau kosong; tidak ada '-' dan tidak ada satuan karangan pada kartu ITU"
+        },
+        {
+          "description": "satuan dicetak APA ADANYA dari field unit, tanpa pemetaan ulang di klien",
+          "given": "metrics.raw_water_flow.unit = 'm³/jam' dan metrics.boiler_feed_tank_temp.unit = '°C'",
+          "expect": "elemen satuan masing-masing kartu berisi string identik dengan nilai respons (kesamaan penuh, termasuk '³' dan '°'); tidak ada normalisasi ke 'm3/jam' atau 'C'"
+        },
+        {
+          "description": "metrik yang tidak pernah terisi TETAP dirender dengan 'tidak tersedia' dan count 0",
+          "given": "metrics.polymer_dose = {min: null, avg: null, max: null, count: 0, unit: 'g/jam', group: 'dosis'}; delapan metrik lain terisi",
+          "expect": "kartu polymer_dose tetap ada di blok Dosis Kimia, menampilkan 'tidak tersedia' dan count 0 — bukan '0' sebagai nilai, dan tidak dihilangkan dari bloknya"
+        },
+        {
+          "description": "periode tanpa satu pun pembacaan: kesembilan kartu 'tidak tersedia', blok kelengkapan TETAP tampil",
+          "given": "seluruh metrics bercount 0 dan bernilai null; coverage.filled_slots = 0",
+          "expect": "sembilan kartu dirender dengan 'tidak tersedia'; [data-testid='pw-coverage'] tetap ada; kedua rekap teks menyatakan tidak ada catatan"
+        },
+        {
+          "description": "coverage.percent null dicetak '—' beserta 'belum ada slot yang diharapkan', BUKAN 0,0%",
+          "given": "coverage = {filled_slots: 0, expected_slots: 0, unit_count: 0, days_counted: 0, slots_per_unit_per_day: 24, percent: null, _note_filled_rule: '...'}",
+          "expect": "[data-testid='pw-coverage-percent'] berisi '—'; teks kelengkapan memuat 'belum ada slot yang diharapkan'; DAN assert elemen itu TIDAK memuat '0,0%' maupun '0%'"
+        },
+        {
+          "description": "filled_slots melebihi count SETIAP kartu dirender apa adanya beserta _note_filled_rule",
+          "given": "coverage.filled_slots = 96 sedangkan count tertinggi di antara sembilan kartu 24; coverage._note_filled_rule berisi prosa aturan sebelas kolom",
+          "expect": "angka 96 dirender apa adanya (tidak di-clamp ke 24, tidak disembunyikan) dan [data-testid='pw-note-filled-rule'] merender _note_filled_rule; tidak ada koreksi dan tidak ada peringatan 'data tidak konsisten'"
+        },
+        {
+          "description": "_note_filled_rule dirender VERBATIM dari server; klien tidak menyusun kalimatnya sendiri",
+          "given": "coverage._note_filled_rule = string prosa tertentu dari fixture",
+          "expect": "textContent [data-testid='pw-note-filled-rule'] sama persis (kesamaan penuh setelah trim) dengan nilai fixture — kalimat yang disusun dua kali di dua platform adalah kalimat yang akan berselisih"
+        },
+        {
+          "description": "blok kelengkapan berada PALING ATAS, mendahului kartu pertama dalam urutan DOM",
+          "given": "fixture lengkap ter-mount",
+          "expect": "indeks [data-testid='pw-coverage'] dalam document order LEBIH KECIL dari indeks kartu metrik pertama — asersi posisi, bukan sekadar keberadaan"
+        },
+        {
+          "description": "keterangan penyebut hari berhenti di hari ini dirender dari keterangan server pada periode berjalan",
+          "given": "period.status = 'open' dan coverage.days_counted lebih kecil dari rentang penuh periode",
+          "expect": "keterangan bahwa penyebut hari berhenti di hari ini terlihat; klien tidak menghitung sendiri days_counted (nilai dirender apa adanya dari respons)"
+        },
+        {
+          "description": "NOL sebaran kategoris: tidak ada satu pun testid sebaran di seluruh layar",
+          "given": "fixture dengan BANYAK isi action_taken_status berulang sama persis",
+          "expect": "queryAllByTestId untuk setiap testid sebaran yang DISALIN dari Engine Room mobile — 'pw-sebaran-action-taken-status', 'pw-sebaran-table', 'sebaran-table', 'sebaran-row' — seluruhnya berpanjang 0; asersi atas TESTID, bukan pemindaian prosa"
+        },
+        {
+          "description": "NOL judul 'Sebaran' di seluruh layar",
+          "given": "fixture yang sama ter-mount",
+          "expect": "getAllByRole('heading', {name: /^Sebaran/}) berpanjang 0; payload dan layar memuat kata-kata yang mirip, jadi memindai prosa tidak cukup"
+        },
+        {
+          "description": "action_taken_status dirender sebagai daftar TEKS per slot, bukan dikelompokkan",
+          "given": "text_entries.action_taken_status berisi tiga entri dengan value IDENTIK pada tanggal/slot berbeda",
+          "expect": "tepat 3 baris rekap dirender, masing-masing dengan date dan time_slot-nya; TIDAK ada satu baris bernilai jumlah 3 — mengelompokkannya membuat satu kalimat berbeda menjadi satu 'nilai'"
+        },
+        {
+          "description": "dua rekap teks pada DUA bagian terpisah; satu slot yang mengisi keduanya muncul di keduanya",
+          "given": "satu slot (date '2026-10-05', time_slot '08:00') mengisi action_taken_status dan findings sekaligus",
+          "expect": "slot itu hadir di dalam ELEMEN [data-testid='pw-recap-action-taken'] DAN di dalam ELEMEN [data-testid='pw-recap-findings'] (pencarian di-scope ke masing-masing section, bukan ke dokumen); tidak ada penggabungan atau penandaan 'duplikat'"
+        },
+        {
+          "description": "text_entries kosong pada salah satu atau kedua kolom menyatakan tidak ada catatan",
+          "given": "text_entries = {action_taken_status: [], findings: []}",
+          "expect": "kedua section merender keterangan tidak ada catatan; bukan daftar kosong tanpa penjelasan dan bukan section yang hilang"
+        },
+        {
+          "description": "teks catatan sangat panjang tidak dipotong oleh kelas klien",
+          "given": "satu entri findings sepanjang 600 karakter",
+          "expect": "elemen teksnya tidak membawa line-clamp/text-overflow/truncate dalam class maupun style inline, dan tidak ada kontrol 'baca selengkapnya'; teks lengkapnya hadir di textContent"
+        },
+        {
+          "description": "rekap per inspector mencetak KODE MENTAH, diasersi pada ELEMEN barisnya",
+          "given": "inspector_recap = [{inspector_id: 'A1', slots: 9, share: 0.375}, {inspector_id: 'INSP 07 PAGI', slots: 8, share: 0.333}, {inspector_id: null, slots: 7, share: 0.292}]",
+          "expect": "[data-testid='pw-inspector-code-0'] berisi tepat 'A1' dan [data-testid='pw-inspector-code-1'] berisi tepat 'INSP 07 PAGI' — asersi menyasar ELEMEN sel kodenya, TIDAK memindai teks kontainer: kode pendek seperti 'A1' atau '7' akan cocok di dalam angka lain pada halaman yang sama"
+        },
+        {
+          "description": "nol pemetaan nama: tidak ada pencarian master untuk inspector_id",
+          "given": "service/store penyelesai nama pengguna di-mock dan di-spy; inspector_recap berisi dua kode",
+          "expect": "mock penyelesai nama menerima nol pemanggilan; teks yang dirender sama persis dengan nilai inspector_id respons"
+        },
+        {
+          "description": "baris inspector_id null dirender 'tidak tercatat' dan BERDIRI SENDIRI",
+          "given": "inspector_recap dengan dua baris berkode plus satu baris inspector_id null",
+          "expect": "jumlah baris rekap tepat 3 (sama dengan panjang payload); baris ketiga menampilkan 'tidak tercatat' sebagai barisnya sendiri dan slots-nya TIDAK dilipat ke baris berkode mana pun"
+        },
+        {
+          "description": "inspector_recap seluruhnya null menghasilkan SATU baris 'tidak tercatat' berisi seluruh slot",
+          "given": "inspector_recap = [{inspector_id: null, slots: 24, share: 1}]",
+          "expect": "tepat satu baris 'tidak tercatat' dengan slots 24; bukan rekap kosong dan bukan section yang disembunyikan"
+        },
+        {
+          "description": "kolom `shift` tidak muncul DI MANA PUN di layar",
+          "given": "fixture /summary lengkap (payload /summary memang tidak memuat kunci shift)",
+          "expect": "walker rekursif atas KUNCI payload yang dipasok ke view tidak menemukan kunci 'shift'/'shift_id'; DAN queryAllByTestId('pw-shift-column') kosong, queryAllByRole('columnheader', {name: /shift/i}) kosong; keterangan alasannya dirender dari _note_absences"
+        },
+        {
+          "description": "tidak ada blok downtime",
+          "given": "fixture lengkap ter-mount",
+          "expect": "queryAllByTestId('pw-downtime') dan queryAllByRole('heading', {name: /downtime/i}) keduanya kosong"
+        },
+        {
+          "description": "_note_absences dirender UTUH tanpa pemendekan apa pun",
+          "given": "_note_absences berisi prosa panjang ketiadaan downtime, ketiadaan penandaan di luar batas, dan ketiadaan kolom shift",
+          "expect": "textContent [data-testid='pw-note-absences'] sama persis (kesamaan penuh) dengan nilai payload; tidak ada '…', tidak ada kelas line-clamp/truncate, tidak ada kontrol 'baca selengkapnya'"
+        },
+        {
+          "description": "HANYA tombol Ekspor CSV yang dirender; tombol Excel diasersi ABSEN atas testid",
+          "given": "productionLineId = 'l-1' dan periodId = 'p-1'; fixture lengkap",
+          "expect": "[data-testid='pw-export-csv'] ada; queryByTestId('pw-export-xlsx') dan queryByTestId('pw-export-excel') keduanya null — asersi ketiadaan atas TESTID, bukan atas teks halaman"
+        },
+        {
+          "description": "tombol ekspor TIDAK dirender selama line belum terpilih",
+          "given": "productionLineId = ''",
+          "expect": "queryByTestId('pw-export-csv') null"
+        },
+        {
+          "description": "periode tertutup tetap terbaca penuh dan tetap dapat diekspor",
+          "given": "period.status = 'closed' dengan fixture lengkap",
+          "expect": "sembilan kartu dan seluruh rekap dirender; badge status tertutup tampil; [data-testid='pw-export-csv'] ada dan tidak disabled"
+        },
+        {
+          "description": "membuka/menutup rekap TIDAK memicu permintaan data apa pun",
+          "given": "fixture ter-render; api-client di-spy lalu dibersihkan; pengguna menoggle rekap inspector, rekap unit, dan rekap harian",
+          "expect": "spy api-client menerima nol pemanggilan setelah toggle — penyingkapan murni"
+        },
+        {
+          "description": "galat jaringan merender keadaan galat dengan aksi coba lagi, tanpa angka",
+          "given": "fetchSummary menolak dengan galat jaringan (bukan 401/403/422)",
+          "expect": "state galat dan tombol coba-lagi dirender; nol kartu metrik dirender; pesan bukan arahan Admin dan bukan pengalihan Login"
+        },
+        {
+          "description": "luring dinyatakan apa adanya, bukan angka basi dan bukan diam",
+          "given": "navigator.onLine di-stub false saat mount",
+          "expect": "keterangan laporan perlu jaringan dirender; nol kartu metrik dan nol angka kelengkapan dirender; layar tidak kosong-diam"
+        },
+        {
+          "description": "daftar periode kosong memberi arahan hubungi Admin dan nol permintaan ringkasan",
+          "given": "fetchPeriods mengembalikan data: []",
+          "expect": "pemilih periode kosong dengan arahan menghubungi Admin; spy api-client menerima nol pemanggilan /summary"
+        },
+        {
+          "description": "rute 'report-process-water' terdaftar pada '/reports/process-water' dengan meta.public false",
+          "given": "router mobile diimpor",
+          "expect": "router.resolve('/reports/process-water').name === 'report-process-water' dan meta.public falsy; tidak ada daftar peran pada rute itu (penahanan peran di server)"
+        },
+        {
+          "description": "REPORT_ROUTES memuat entri 'process-water' sehingga tile tidak kelabu",
+          "given": "REPORT_ROUTES diimpor dari src/views/ReportingPilihStasiunView.vue",
+          "expect": "REPORT_ROUTES['process-water'] === 'report-process-water'; asersi atas KUNCI/nilai peta, bukan atas urutan — peta itu tidak urut sort_order dan tidak punya asersi urutan"
+        },
+        {
+          "description": "contoh 'stasiun belum berlaporan' pada spec tetangga masih merujuk stasiun yang benar-benar belum berlaporan",
+          "given": "mobile/tests/ReportingPilihStasiunView.spec.ts dibaca; kandidat tersisa solid-waste-disposal, kernel-dispatch, cpo-dispatch, process-quality-control",
+          "expect": "kode stasiun yang dipakai sebagai contoh 'belum berlaporan' BUKAN 'process-water' — asersi atas KODE stasiunnya, bukan atas urutan tile; bila memerah, pindahkan contohnya ke jenis yang masih belum berlaporan alih-alih melemahkan asersinya"
+        },
+        {
+          "description": "view TIDAK menulis ke localDb",
+          "given": "localDb di-mock; seluruh alur (muat line, muat periode, muat ringkasan, toggle rekap, ekspor) dijalankan",
+          "expect": "seluruh metode tulis mock localDb menerima nol pemanggilan — ketiadaan mode luring disengaja"
+        },
+        {
+          "description": "alur lengkap berhasil ketika seluruh prasyarat terpenuhi (happy path)",
+          "given": "userId 'u-1'; localStorage mengingat 'l-1'; fetchLines, fetchPeriods, fetchSummary semuanya mengembalikan fixture valid",
+          "expect": "tepat satu pemanggilan per endpoint data; kelengkapan dirender paling atas; sembilan kartu dalam empat blok dengan satuannya masing-masing; dua rekap teks, rekap inspector berkode mentah, rekap unit, dan rekap harian dirender; tombol Ekspor CSV ada; nol galat"
+        }
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-160--laporan-process-water-web",
+      "reason": "Pasangan web dan sumber SELURUH endpoint. Operator sudah diterima pada ketiga rute data di sana sejak commit pertama, justru supaya layar ini tidak perlu melebarkan akses apa pun. Setiap perubahan bentuk respons /summary menyentuh KEDUA layar — keduanya merender payload yang sama."
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "Pintu masuk satu-satunya. Tile Process Water baru menyala setelah REPORT_ROUTES di src/views/ReportingPilihStasiunView.vue menerima entri 'process-water': 'report-process-water'. Peta itu TIDAK urut sort_order dan TIDAK punya asersi urutan — APPEND saja."
+    }
+  ],
+  "implementation_notes": [
+    "NOL perubahan backend. Berkas yang disentuh seluruhnya di mobile/: src/services/processWaterReportRepo.ts (baru), src/views/LaporanProcessWaterView.vue (baru), src/router/index.ts (satu rute baru), src/views/ReportingPilihStasiunView.vue (satu entri REPORT_ROUTES). Bila sebuah test backend memerah, sebabnya ada di tempat lain.",
+    "NOL endpoint baru dan NOL entri api-index baru. Keempat endpoint sudah ada — tiga dari screen-160 (yang sudah menerima Operator sejak commit pertamanya) dan satu dari screen-135.",
+    "SATU ENTRI di REPORT_ROUTES menentukan tile Process Water hidup atau kelabu: `'process-water': 'report-process-water'`. Peta itu TIDAK urut sort_order dan TIDAK punya asersi urutan — APPEND saja. Ikon untuk 'process-water' sudah ada di sana.",
+    "RIAK TEST YANG MEMANG DIRANCANG, DAN INI YANG KEDELAPAN: mobile/tests/ReportingPilihStasiunView.spec.ts memakai satu kode stasiun sebagai contoh 'belum berlaporan'. Saat ini KERNEL-DISPATCH. Membangun layar ini TIDAK memindahkannya (process-water bukan pembawanya saat ini) — tetapi PERIKSA, jangan asumsikan; dan bila ia memerah, pindahkan contohnya ke jenis yang masih belum berlaporan alih-alih melemahkan asersinya.",
+    "CATATAN STRUKTURAL yang melampaui layar ini: kandidat 'stasiun belum berlaporan' TINGGAL EMPAT — solid-waste-disposal, kernel-dispatch, cpo-dispatch, process-quality-control — dan keempatnya persis stasiun yang akan dibuatkan laporan di screen-162..169. Sesudah yang terakhir mendarat contohnya HABIS, dan test itu wajib ditulis ulang dengan kode fiktif yang disuntikkan. Paling murah dikerjakan sekarang, bukan pada layar terakhir.",
+    "Repo mobile mendefinisikan antarmuka TypeScript untuk SELURUH bentuk respons /summary, termasuk `inspector_recap` dan `text_entries` yang berisi dua kunci saja. Antarmuka yang hanya memuat sebagian kunci akan membuat kunci yang hilang tidak terlihat sampai seseorang membacanya di layar.",
+    "Kartu metrik: SATU blok markup yang di-loop atas metrics yang dikelompokkan menurut `group`. JANGAN menulis sembilan kartu manual — sembilan salinan markup adalah sembilan tempat satuan bisa terlewat.",
+    "SATUAN dicetak dari field `unit`; kartu ber-unit null tidak mencetak apa pun. Sebuah test menuntut satuan pada KEDUA kartu Dosis Kimia SECARA TERPISAH — bukan sekali pada bloknya — karena justru pasangan itu yang berbahaya: skalanya beda seribu kali dan di ponsel keduanya tak pernah berdampingan.",
+    "KETIADAAN SEBARAN diasersi atas TESTID dan JUDUL, disalin dari laporan yang MEMANG punya blok itu, plus `getByRole('heading', {name: /^Sebaran/})` berjumlah nol. Memindai prosa tidak cukup — payload dan layar memuat kata-kata yang mirip.",
+    "Keterangan ketiadaan penandaan di luar batas: jangan beri text-overflow, line-clamp, atau 'baca selengkapnya'. Periksa pada hasil render di lebar 390px, bukan pada sumbernya.",
+    "Gulir mendatar harus DIUKUR, bukan disimpulkan: `document.scrollingElement.scrollWidth <= clientWidth + 1` sementara wrapper rekap melaporkan overflowX 'auto' — pemeriksaan CSS HASIL COMPILE, karena kelas tanpa definisi menjawab 'visible'.",
+    "Setiap kelas CSS yang dipakai markup harus punya definisi. Periksa HASIL COMPILE, bukan sumbernya — di kelola-machinery.blade.php lima kelas tanpa definisi lolos 25 test Livewire dan 19 spec browser.",
+    "Unduhan CSV di WebView mengikuti pola kembaran mobile sebelumnya APA ADANYA — jangan mengarang mekanisme unduhan baru.",
+    "Layar ini TIDAK menulis ke localDb. Jangan menambahkan tabel maupun cache laporan.",
+    "Browser test mobile DAPAT dijalankan — layar Capacitor ini diuji lewat Vite dev server pada baseURL http://localhost:5174, bukan ditunda sebagai 'mobile-only'.",
+    "Spec e2e mobile login terhadap backend :8000 (basis data DEV) tetapi MENYETUB endpoint laporan lewat page.route. Pertahankan pola stub itu — ia yang membuat spec ini tidak menulis apa pun ke DB dev.",
+    "Asersi label pendek WAJIB menyasar elemennya, bukan memindai teks kontainer. Di layar ini yang paling rawan adalah kode inspector — kode pendek seperti '7' atau 'A1' akan cocok di dalam angka lain di halaman yang sama.",
+    "mobile/vite.config.ts mengecualikan 'shots/**' dari vitest dan memuat dua setupFiles (teleportStub, shiftRepoStub) — jangan menghapus keduanya.",
+    "Jangan menyentuh backend/ untuk layar ini.",
+    "PENANDAAN SHIFT SUDAH MENDARAT tetapi laporan ini TIDAK memakainya. `shift_id` kini ada di process_water_records (migrasi 2026_10_16_000002) dan tampil di layar Detail serta Data Browser web — tetapi payload /summary belum mengelompokkan menurut shift, dan layar ini merender payload itu apa adanya. Pengelompokan per shift adalah putaran tersendiri yang menyentuh web DAN mobile sekaligus; jangan menurunkannya sepihak di klien."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Laporan Process Water Mobile — berhasil membaca laporan periode",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_note": "tanpa business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/periods"
+          },
+          "request_example": {
+            "_note": "tanpa business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "production_line_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan repo distub mengembalikan fixture /summary lengkap, line dan periode terpilih",
+        "assert": "indeks DOM [data-testid='pw-coverage'] mendahului kartu pertama; tepat 9 elemen [data-testid^='pw-metric-card-'] tersebar pada empat blok berjudul Aliran Air, Softener, Dosis Kimia, Air Umpan Boiler dalam urutan itu; tiap [data-testid='pw-metric-count-{key}'] menampilkan count-nya sendiri (sembilan nilai berbeda); tiap kartu ber-unit non-null mencetak satuannya"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "login, buka Reporting lalu tekan tile Process Water (atau navigasi langsung), pilih Production Line dan Periode; keempat endpoint distub page.route",
+        "assert": "blok kelengkapan terlihat di viewport awal 390x844 tanpa menggulir; sembilan kartu hadir dalam empat blok berjudul dengan satuan terbaca; nol galat console"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — line terpilih otomatis dari yang diingat perangkat",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "seed localStorage kunci tepat 'msl_production_line_u-1' = 'l-1' lalu mount tanpa query rute",
+        "assert": "pemilih line terikat ke 'l-1'; tepat satu permintaan /summary terkirim dengan production_line_id='l-1'; tidak ada langkah memilih line yang diminta ke pengguna"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "page.addInitScript menulis localStorage['msl_production_line_<userId>']='l-1', lalu buka layar dengan endpoint distub",
+        "assert": "line terpilih otomatis dan angka termuat; permintaan /summary yang tertangkap page.on('request') membawa production_line_id='l-1'"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — line belum dipilih menahan seluruh permintaan",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "_note": "production_line_id sengaja diabaikan"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount tanpa query rute dan tanpa ingatan localStorage; api-client di-spy; ganti periode lalu picu coba-lagi",
+        "assert": "spy api-client menerima NOL pemanggilan /summary pada ketiga jalur (muat awal, ganti periode, coba lagi); nol kartu metrik; queryByTestId('pw-export-csv') null"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "buka layar dengan localStorage kosong; kumpulkan seluruh request lewat page.on('request'); ganti periode sekali",
+        "assert": "jumlah request ke '/api/process-water-reports/summary' TEPAT 0 (diukur, bukan disimpulkan dari angka yang tidak tampil); permintaan memilih line terlihat; tombol Ekspor CSV tidak ada di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — penyimpanan perangkat melempar",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "stub localStorage.getItem melempar DOMException, lalu mount",
+        "assert": "mount tidak melempar; keadaan 'belum ada line terpilih' dirender; nol permintaan /summary; pemilih line tetap operasional"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "page.addInitScript mengganti Storage.prototype.getItem agar melempar, lalu buka layar",
+        "assert": "layar tetap merender (bukan halaman rusak / blank), meminta memilih line; nol galat console yang tidak tertangani; nol request /summary"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — tanpa pemilih Mill",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/periods"
+          },
+          "request_example": {
+            "_note": "tanpa business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1",
+            "_note": "tanpa business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount sebagai Supervisor terikat satu mill",
+        "assert": "nama mill tampil sebagai keterangan; queryByTestId('pw-mill-select') null dan queryAllByRole('combobox', {name: /mill/i}) kosong; walker rekursif atas kunci params seluruh request tidak menemukan 'business_unit_id'"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "buka layar sebagai Supervisor dengan endpoint distub; periksa query string setiap request tertangkap",
+        "assert": "tidak ada kontrol pemilih Mill di mana pun; tidak satu pun URL request memuat parameter business_unit_id"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — empat blok berjudul sama dengan web",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan fixture yang URUTAN kunci metrics-nya diacak",
+        "assert": "judul blok tetap ['Aliran Air','Softener','Dosis Kimia','Air Umpan Boiler'] dalam urutan itu; setiap metrik berada di dalam elemen blok sesuai field `group`-nya (keanggotaan diperiksa per elemen blok); 2+2+2+3 kartu"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "buka layar dengan /summary distub, gulir melewati keempat blok pada lebar 390px",
+        "assert": "keempat judul blok terlihat dalam urutan yang sama dengan screen-160; keempat blok terbuka (tidak terlipat)"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — satuan tercetak pada kedua kartu dosis",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan alum_dose.unit='kg/jam' dan polymer_dose.unit='g/jam'; periksa KEDUA kartu dalam DUA asersi terpisah",
+        "assert": "[data-testid='pw-metric-unit-alum_dose'] berisi tepat 'kg/jam'; [data-testid='pw-metric-unit-polymer_dose'] berisi tepat 'g/jam' dan TIDAK berisi 'kg/jam'; satu asersi atas elemen blok 'dosis' tidak memenuhi skenario ini"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "gulir ke blok Dosis Kimia pada lebar 390px; baca kartu alum lalu kartu polimer satu per satu",
+        "assert": "kartu alum menampilkan 'kg/jam' dan kartu polimer menampilkan 'g/jam', masing-masing di dalam elemen kartunya sendiri (locator di-scope ke kartu, bukan ke halaman)"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — pH tidak diberi satuan",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan softener_inlet_ph.unit=null dan boiler_feed_ph.unit=null; dua asersi terpisah",
+        "assert": "elemen satuan kedua kartu pH tidak dirender atau kosong; teks masing-masing kartu TIDAK memuat '-' sebagai satuan dan tidak memuat satuan karangan ('pH','ppm','unit')"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "baca kartu pH masuk softener dan kartu pH air umpan boiler pada lebar 390px",
+        "assert": "pada kedua kartu, locator satuan berjumlah 0; tidak ada tanda hubung berdiri sendiri di posisi satuan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — nol sebaran kategoris",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1",
+            "_note": "periode dengan banyak isi action_taken_status"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan action_taken_status berisi tiga entri bernilai identik; walker rekursif atas KUNCI payload memeriksa ketiadaan kunci sebaran",
+        "assert": "queryAllByTestId untuk testid sebaran yang DISALIN dari Engine Room mobile ('pw-sebaran-action-taken-status','pw-sebaran-table','sebaran-table','sebaran-row') seluruhnya kosong; getAllByRole('heading',{name:/^Sebaran/}) berpanjang 0; tiga baris rekap TEKS dirender dengan date dan time_slot masing-masing (bukan satu baris berjumlah 3)"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "buka layar dengan /summary distub lalu periksa seluruh halaman",
+        "assert": "page.getByRole('heading',{name:/^Sebaran/}) berjumlah 0 dan setiap locator testid sebaran berjumlah 0 — asersi atas testid dan judul, BUKAN pemindaian prosa (payload dan layar memuat kata-kata yang mirip)"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — catatan dan temuan pada dua bagian terpisah",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan satu slot (2026-10-05, 08:00) yang mengisi action_taken_status DAN findings",
+        "assert": "pencarian di-scope ke [data-testid='pw-recap-action-taken'] menemukan slot itu, dan pencarian di-scope ke [data-testid='pw-recap-findings'] juga menemukannya; kedua section adalah elemen berbeda; tidak ada penandaan 'duplikat' maupun penggabungan"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "gulir ke Rekap Catatan Tindakan lalu ke Rekap Temuan",
+        "assert": "kedua section hadir sebagai dua bagian berjudul terpisah dan slot yang sama tampil pada keduanya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — slot berisi teks bebas saja tetap terhitung",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1",
+            "_note": "periode dengan slot yang hanya mengisi findings"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan coverage.filled_slots=96 sementara count tertinggi di antara sembilan kartu 24, plus coverage._note_filled_rule terisi",
+        "assert": "96 dirender apa adanya (tidak di-clamp ke 24, tidak disembunyikan); [data-testid='pw-note-filled-rule'] merender _note_filled_rule VERBATIM (kesamaan string penuh); tidak ada peringatan 'data tidak konsisten'"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "baca blok kelengkapan pada lebar 390px",
+        "assert": "jumlah slot terisi yang melebihi setiap penyebut terbaca beserta kalimat aturan sebelas kolom dari server, utuh"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — slot berisi identitas saja tidak terhitung",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1",
+            "_note": "periode dengan slot yang hanya mengisi shift dan inspector_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan fixture di mana satu slot hanya mengisi kolom identitas (server menerbitkan filled_slots yang TIDAK mencakupnya)",
+        "assert": "angka filled_slots dirender apa adanya dari respons (klien tidak menghitung ulang); kalimat _note_filled_rule yang menerangkan pengecualian kolom identitas dirender verbatim; perbedaannya dari kasus teks-bebas terbaca"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "baca blok kelengkapan pada lebar 390px",
+        "assert": "keterangan bahwa shift dan inspector_id adalah kolom identitas dan tidak membuat slot terhitung terisi terbaca utuh"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — rekap per inspector memakai kode mentah",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan inspector_recap [{'A1',9},{'INSP 07 PAGI',8},{null,7}]; penyelesai nama pengguna di-mock dan di-spy",
+        "assert": "[data-testid='pw-inspector-code-0'] berisi tepat 'A1' dan [data-testid='pw-inspector-code-1'] tepat 'INSP 07 PAGI' — asersi menyasar ELEMEN sel kode, tidak memindai kontainer (kode pendek akan cocok di dalam angka lain); mock penyelesai nama nol pemanggilan; baris null menampilkan 'tidak tercatat' sebagai baris sendiri dan jumlah baris tepat 3"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "buka Rekap per Inspector pada lebar 390px",
+        "assert": "setiap baris menampilkan kodenya apa adanya tanpa dipotong (termasuk kode berspasi); baris 'tidak tercatat' berdiri sendiri; keterangan bahwa rekap ini untuk menelusuri slot belum terisi, bukan menilai orang, terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — kolom shift tidak muncul di layar",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan fixture /summary lengkap; jalankan walker rekursif atas KUNCI payload",
+        "assert": "walker tidak menemukan kunci 'shift' maupun 'shift_id' — ketiadaan diasersi atas NAMA KUNCI, bukan atas teks payload; queryAllByTestId('pw-shift-column') kosong; queryAllByRole('columnheader',{name:/shift/i}) kosong; [data-testid='pw-note-absences'] merender alasannya"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "periksa seluruh halaman pada lebar 390px termasuk semua rekap dalam keadaan terbuka",
+        "assert": "nol locator header/kolom/label shift di seluruh halaman; keterangan alasannya terbaca"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — tanpa downtime dan tanpa penandaan di luar batas",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1",
+            "_note": "periode dengan pH 3,2 dan TDS 9800"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan nilai pH dan TDS jauh di luar batas umum",
+        "assert": "nilainya dirender apa adanya tanpa kelas/ikon penanda; queryAllByTestId('pw-downtime') dan queryAllByRole('heading',{name:/downtime/i}) kosong; textContent [data-testid='pw-note-absences'] sama persis dengan string payload; tidak ada kontrol 'baca selengkapnya'"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "set viewport 390x844, gulir ke pernyataan ketiadaan penandaan, lalu UKUR hasil render",
+        "assert": "textContent elemen sama persis dengan string _note_absences; getComputedStyle (CSS HASIL COMPILE) melaporkan textOverflow bukan 'ellipsis', webkitLineClamp 'none', dan scrollHeight <= clientHeight + 1 sehingga tidak ada teks terpotong; nol blok downtime"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — kelengkapan berada paling atas",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1",
+            "_note": "kelengkapan sangat rendah"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount fixture lengkap lalu bandingkan urutan DOM",
+        "assert": "indeks [data-testid='pw-coverage'] dalam document order lebih kecil dari indeks kartu metrik pertama — asersi POSISI, bukan sekadar keberadaan"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "buka layar pada 390x844 tanpa menggulir; ukur boundingBox blok kelengkapan dan kartu pertama",
+        "assert": "blok kelengkapan sepenuhnya berada di dalam viewport awal dan y-nya lebih kecil dari y kartu pertama"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — periode berjalan menghentikan penyebut di hari ini",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode status open>",
+            "production_line_id": "l-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan period.status='open' dan coverage.days_counted lebih kecil dari rentang penuh periode",
+        "assert": "days_counted dirender apa adanya dari respons (klien tidak menghitung hari); keterangan bahwa penyebut berhenti di hari ini terlihat di blok kelengkapan"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "pilih periode berstatus berjalan lalu baca blok kelengkapan",
+        "assert": "hari terhitung dan keterangan 'berhenti di hari ini' terbaca utuh pada lebar 390px"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — slot diharapkan nol tampil sebagai garis",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode belum mulai>",
+            "production_line_id": "l-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan coverage.expected_slots=0 dan coverage.percent=null",
+        "assert": "[data-testid='pw-coverage-percent'] berisi '—'; blok kelengkapan memuat 'belum ada slot yang diharapkan'; DAN elemen itu TIDAK memuat '0,0%' maupun '0%'"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "stub /summary dengan percent null lalu baca blok kelengkapan",
+        "assert": "'—' terbaca beserta 'belum ada slot yang diharapkan'; tidak ada '0,0%' di dalam elemen kelengkapan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — periode tanpa data tetap menampilkan kelengkapan",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode tanpa pembacaan>",
+            "production_line_id": "l-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan kesembilan metrics bercount 0 dan bernilai null",
+        "assert": "sembilan kartu TETAP dirender dengan 'tidak tersedia' dan count 0 (bukan angka 0 sebagai nilai); [data-testid='pw-coverage'] tetap ada; kedua rekap teks menyatakan tidak ada catatan"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "pilih periode tanpa data (stub) lalu gulir seluruh layar",
+        "assert": "blok kelengkapan terlihat; kesembilan kartu hadir dengan 'tidak tersedia'; kedua rekap teks berketerangan, bukan daftar kosong"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — hanya ekspor CSV",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/export"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan line dan periode terpilih; periksa daerah tombol ekspor",
+        "assert": "[data-testid='pw-export-csv'] ada; queryByTestId('pw-export-xlsx') dan queryByTestId('pw-export-excel') keduanya null — ketiadaan diasersi atas TESTID; URL ekspor memuat format=csv eksplisit"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "buka layar dengan line terpilih lalu periksa daerah tombol ekspor pada 390px",
+        "assert": "tepat satu tombol ekspor (CSV); locator testid tombol xlsx/Excel berjumlah 0 di seluruh halaman"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — ekspor memuat kolom yang dikecualikan dari pemeriksaan slot",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/export"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1",
+            "format": "csv",
+            "_note": "periode dengan slot yang mengisi shift dan inspector_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "klik Ekspor CSV dengan repo distub; periksa URL yang dibangun",
+        "assert": "URL tepat '/api/process-water-reports/export' dengan period_id, production_line_id, dan format=csv; mekanisme unduhan WebView mengikuti pola kembaran mobile sebelumnya (tidak ada mekanisme baru); nol tulisan ke localDb"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "stub /export dengan aliran CSV 21 kolom (7 konteks + Slot Waktu + 13 kolom detail) lalu tekan Ekspor CSV; tangkap event download",
+        "assert": "berkas terunduh; baris header memuat kolom shift dan inspector_id — assertStringContainsString dipakai bila pesan diinginkan, karena expect().toContain() bersifat variadik atas needle dan tidak menerima pesan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — rekap menumpuk jadi kartu di lebar ponsel",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode panjang>",
+            "production_line_id": "l-1",
+            "_note": "daily puluhan baris"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan daily 45 baris; periksa markup rekap harian, rekap unit, dan rekap inspector",
+        "assert": "ketiganya memakai v-stacked-table; setiap sel membawa labelnya; rekap dapat ditutup dan menutupnya tidak memicu permintaan data"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "set viewport 390x844, buka seluruh rekap, lalu UKUR gulir dan baca CSS HASIL COMPILE",
+        "assert": "document.scrollingElement.scrollWidth <= document.scrollingElement.clientWidth + 1 (diukur, bukan disimpulkan) SEMENTARA getComputedStyle(wrapper rekap).overflowX === 'auto'; setiap kelas CSS yang dipakai markup rekap punya definisi di hasil compile (kelas tanpa definisi menjawab 'visible'); tiap baris tampil sebagai kartu dengan sel berlabel"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — galat jaringan dapat dicoba lagi",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-1",
+            "_note": "permintaan pertama gagal di tingkat jaringan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.period_id}}",
+            "production_line_id": "{{step1.production_line_id}}",
+            "_note": "pengulangan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "buat fetchSummary gagal, picu coba-lagi dengan line terpilih; lalu kosongkan productionLineId dan picu coba-lagi sekali lagi",
+        "assert": "pada percobaan dengan line terpilih tepat satu permintaan baru terkirim dan angka termuat; pada percobaan tanpa line terpilih spy api-client menerima NOL pemanggilan — penjagaan di fungsi pemuatan ikut melindungi jalur coba-lagi"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "page.route membalas /summary dengan kegagalan sekali, tekan coba lagi, lalu balas sukses; hitung request",
+        "assert": "state galat dengan aksi coba lagi terlihat; sesudah coba lagi angka termuat; jumlah request /summary yang terhitung sesuai (nol tambahan saat line belum terpilih)"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — luring dinyatakan apa adanya",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "stub navigator.onLine=false saat mount",
+        "assert": "keterangan laporan perlu jaringan dirender; nol kartu metrik dan nol angka kelengkapan; layar tidak diam/blank; nol baca-tulis cache laporan di localDb"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "login lebih dulu (bootstrap sesi selesai), BARU set context.setOffline(true), lalu navigasi ke layar ini",
+        "assert": "pernyataan laporan perlu jaringan terlihat; tidak ada angka basi tanpa penanda; offline di-set SESUDAH bootstrap sesi, bukan sebelumnya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Water Mobile — periode tertutup tetap dapat dibaca dan diekspor",
+      "usecase_id": "usecase-167--laporan-process-water-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode closed>",
+            "production_line_id": "l-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-water-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.period.id}}",
+            "production_line_id": "l-1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessWaterView.vue",
+        "action": "mount dengan period.status='closed' dan fixture lengkap",
+        "assert": "sembilan kartu dan seluruh rekap dirender; badge status tertutup tampil; [data-testid='pw-export-csv'] ada dan tidak disabled"
+      },
+      "browser_test": {
+        "route": "/reports/process-water",
+        "action": "pilih periode berstatus tertutup lalu tekan Ekspor CSV",
+        "assert": "laporan tampil penuh; badge tertutup terlihat; unduhan CSV berjalan"
+      }
+    }
+  ]
+}

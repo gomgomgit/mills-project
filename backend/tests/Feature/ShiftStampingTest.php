@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Support\Concerns\StampsShift;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Livewire;
+use Illuminate\Support\Facades\DB;
 
 /**
  * PENANDAAN `shift_id` PADA RECORD STASIUN (2026-10-16).
@@ -277,4 +279,132 @@ it('update() TIDAK menghitung ulang shift record yang sudah tersimpan', function
     expect($record->shift_id)->not->toBe($pagi->id);
 
     $this->travelBack();
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// TAMPILAN — shift yang tersimpan harus TERLIHAT (2026-10-17)
+//
+// Sampai di sini `shift_id` tertulis dan terbukti tersimpan, tetapi tidak
+// muncul di satu layar pun: ia hanya dapat dibaca dari basis data. Bagian
+// ini membuktikan ia sampai ke mata manusia — dan bahwa "tanpa shift"
+// dinyatakan dengan KATA, bukan dengan tanda hubung yang menyamakannya
+// dengan data yang hilang.
+// ═══════════════════════════════════════════════════════════════════════
+
+it('layar Detail menampilkan nama shift beserta rentang jamnya', function () {
+    $malam = Shift::factory()->forProductionLine($this->lineId)->malam()->create();
+
+    $created = $this->actingAs($this->supervisor, 'web')->postJson('/api/process-water-records', shiftStampPayload([
+        'production_line_id' => $this->lineId,
+        'shift_id' => $malam->id,
+    ]))->assertCreated()->json();
+
+    Livewire::actingAs($this->supervisor)
+        ->test(\App\Livewire\Data\DetailProcessWater::class, ['id' => $created['id']])
+        ->assertSee('Shift Kerja')
+        ->assertSee('Malam')
+        // '+1' BUKAN HIASAN: tanpa itu '23:00 — 07:00' terbaca sebagai salah
+        // input, dan pembacaan keliru itulah yang membuat aturannya ada.
+        ->assertSee('23:00 — 07:00 +1')
+        ->assertDontSee('Tanpa shift');
+});
+
+it('layar Detail menulis "Tanpa shift" dengan KATA ketika record tidak bershift', function () {
+    $created = $this->actingAs($this->supervisor, 'web')->postJson('/api/process-water-records', shiftStampPayload([
+        'production_line_id' => $this->lineId,
+    ]))->assertCreated()->json();
+
+    expect(ProcessWaterRecord::whereKey($created['id'])->firstOrFail()->shift_id)->toBeNull();
+
+    Livewire::actingAs($this->supervisor)
+        ->test(\App\Livewire\Data\DetailProcessWater::class, ['id' => $created['id']])
+        ->assertSee('Shift Kerja')
+        ->assertSee('Tanpa shift');
+});
+
+/**
+ * LABELNYA "Shift Kerja", BUKAN "Shift" — dan khusus di layar ini
+ * pembedaan itu menanggung beban nyata: grid Process Water Detail sudah
+ * punya kolom bernama "Shift" yang artinya lain sama sekali (teks bebas
+ * per slot waktu yang diketik operator). Dua hal berbeda dengan nama sama
+ * di satu layar adalah cara tercepat membuat orang salah baca.
+ */
+it('label header berbeda dari kolom Shift per slot yang sudah ada di grid', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineId)->pagi()->create();
+
+    $created = $this->actingAs($this->supervisor, 'web')->postJson('/api/process-water-records', shiftStampPayload([
+        'production_line_id' => $this->lineId,
+        'shift_id' => $pagi->id,
+        'details' => [['time_slot' => '07:00', 'raw_water_flow_m3h' => 45.5, 'shift' => 'A']],
+    ]))->assertCreated()->json();
+
+    $html = Livewire::actingAs($this->supervisor)
+        ->test(\App\Livewire\Data\DetailProcessWater::class, ['id' => $created['id']])
+        ->html();
+
+    // Keduanya ada di halaman yang sama, dan namanya TIDAK sama.
+    expect($html)->toContain('Shift Kerja');
+    expect($html)->toContain('<th>Shift</th>');
+
+    // Nilai header disasar lewat ELEMENNYA, bukan dipindai dari seluruh
+    // halaman: 'Pagi' pendek dan dapat muncul di mana saja.
+    $matched = preg_match('/data-testid="detail-shift"[^>]*>(.*?)<\/span>/s', $html, $m);
+
+    expect($matched)->toBe(1);
+    $this->assertStringContainsString('Pagi', $m[1], 'field Shift Kerja tidak memuat nama shift-nya');
+});
+
+it('Data Browser menampilkan kolom Shift Kerja, dan "Tanpa shift" untuk yang tidak bershift', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineId)->pagi()->create();
+
+    $this->actingAs($this->supervisor, 'web')->postJson('/api/process-water-records', shiftStampPayload([
+        'production_line_id' => $this->lineId,
+        'shift_id' => $pagi->id,
+        'process_water_id' => 'PW-BERSHIFT',
+    ]))->assertCreated();
+
+    $this->actingAs($this->supervisor, 'web')->postJson('/api/process-water-records', shiftStampPayload([
+        'production_line_id' => $this->lineId,
+        'process_water_id' => 'PW-TANPA-SHIFT',
+    ]))->assertCreated();
+
+    $html = Livewire::actingAs($this->supervisor)
+        ->test(\App\Livewire\Data\DataBrowserProcessWater::class)
+        ->html();
+
+    expect($html)->toContain('<th>Shift Kerja</th>');
+    expect($html)->toContain('Pagi');
+    expect($html)->toContain('Tanpa shift');
+});
+
+/**
+ * N+1 ADALAH YANG PALING MUDAH TERLEWAT di sini: `$record->shift?->name`
+ * pada daftar berpaginasi menembak satu kueri per baris, dan hasilnya
+ * BENAR — jadi tidak ada asersi tampilan yang akan memerahkannya. Yang
+ * membedakan hanyalah menghitung kueri.
+ */
+it('daftar memuat shift sekali untuk seluruh halaman, bukan satu kueri per baris', function () {
+    $pagi = Shift::factory()->forProductionLine($this->lineId)->pagi()->create();
+
+    foreach (range(1, 5) as $i) {
+        $this->actingAs($this->supervisor, 'web')->postJson('/api/process-water-records', shiftStampPayload([
+            'production_line_id' => $this->lineId,
+            'shift_id' => $pagi->id,
+            'process_water_id' => 'PW-N1-'.$i,
+        ]))->assertCreated();
+    }
+
+    $queries = [];
+    DB::listen(function ($query) use (&$queries) {
+        if (str_contains($query->sql, '"shifts"') || str_contains($query->sql, '`shifts`')) {
+            $queries[] = $query->sql;
+        }
+    });
+
+    Livewire::actingAs($this->supervisor)
+        ->test(\App\Livewire\Data\DataBrowserProcessWater::class)
+        ->html();
+
+    // Lima baris, SATU kueri shift. Tanpa eager load angkanya akan lima.
+    expect(count($queries))->toBeLessThanOrEqual(1);
 });

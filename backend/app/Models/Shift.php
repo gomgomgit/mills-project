@@ -80,4 +80,27 @@ class Shift extends Model
     {
         return $this->belongsTo(ProductionLine::class);
     }
+
+    /**
+     * Rentang jam siap cetak — '07:00 — 15:00', atau '23:00 — 07:00 +1'
+     * ketika shift melewati tengah malam.
+     *
+     * ADA DI MODEL, BUKAN DI TIAP PEMAKAI. Sejak penandaan `shift_id`
+     * (2026-10-16) label ini dibutuhkan oleh ke-18 layar Detail dan ke-18
+     * layar Data Browser; menyusunnya di masing-masing berarti 36 salinan
+     * aturan '+1' yang akan berselisih pada salinan pertama yang terlewat.
+     *
+     * '+1' BUKAN HIASAN: tanpa itu '23:00 — 07:00' terbaca sebagai salah
+     * input, dan pembacaan keliru itulah yang membuat aturannya ada sejak
+     * screen-170.
+     */
+    public function getTimeLabelAttribute(): string
+    {
+        $start = ShiftService::displayTime((string) $this->start_time);
+        $end = ShiftService::displayTime((string) $this->end_time);
+        $crosses = ShiftService::minuteOfDay((string) $this->end_time)
+            < ShiftService::minuteOfDay((string) $this->start_time);
+
+        return $start.' — '.$end.($crosses ? ' +1' : '');
+    }
 }

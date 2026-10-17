@@ -136,7 +136,7 @@ class GradingRecordService
             return $record;
         });
 
-        $record->load(['station', 'weighbridgeRecord', 'acknowledgedBy', 'gradingDetails.gradingParameter']);
+        $record->load(['shift', 'station', 'weighbridgeRecord', 'acknowledgedBy', 'gradingDetails.gradingParameter']);
 
         return $this->toDetailRow($record);
     }
@@ -183,7 +183,7 @@ class GradingRecordService
             $this->upsertDetails($record, $details, netto: $attributes['netto'], quantity: $attributes['quantity']);
         });
 
-        $record->load(['station', 'weighbridgeRecord', 'acknowledgedBy', 'gradingDetails.gradingParameter']);
+        $record->load(['shift', 'station', 'weighbridgeRecord', 'acknowledgedBy', 'gradingDetails.gradingParameter']);
 
         return $this->toDetailRow($record);
     }
@@ -359,7 +359,7 @@ class GradingRecordService
 
         // `productionLine` dimuat di sini, bukan lewat relasi `station`:
         // kolom line milik record sendiri adalah sumber kebenarannya.
-        $paginator = $query->with('productionLine:id,name')->paginate(perPage: $perPage, page: $page);
+        $paginator = $query->with(['productionLine:id,name', 'shift:id,name,start_time,end_time'])->paginate(perPage: $perPage, page: $page);
 
         $formatted = Pagination::format($paginator);
         $formatted['data'] = collect($formatted['data'])
@@ -601,6 +601,7 @@ class GradingRecordService
             'vehicle_number' => $record->vehicle_number,
             'driver_name' => $record->driver_name,
             'production_line_name' => $record->productionLine?->name,
+            'shift_name' => $record->shift?->name,
             'status' => $record->status?->value,
         ];
     }
@@ -650,6 +651,9 @@ class GradingRecordService
             'id' => $record->id,
             'station_id' => $record->station_id,
             'station_name' => $record->station?->name,
+            'shift_id' => $record->shift_id,
+            'shift_name' => $record->shift?->name,
+            'shift_time_label' => $record->shift?->time_label,
             // Ditambahkan 2026-10-05 (additif), mengikuti WeighbridgeRecord
             // Service::toDetailRow(): Form Grading web mode edit menampilkan
             // Business Unit (dari stasiun — record tak menyimpan

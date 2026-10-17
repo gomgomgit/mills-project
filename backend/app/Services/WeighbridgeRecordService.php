@@ -64,7 +64,7 @@ class WeighbridgeRecordService
 
         // `productionLine` dimuat di sini, bukan lewat relasi `station`:
         // kolom line milik record sendiri adalah sumber kebenarannya.
-        $paginator = $query->with('productionLine:id,name')->paginate(perPage: $perPage, page: $page);
+        $paginator = $query->with(['productionLine:id,name', 'shift:id,name,start_time,end_time'])->paginate(perPage: $perPage, page: $page);
 
         $formatted = Pagination::format($paginator);
         $formatted['data'] = collect($formatted['data'])
@@ -358,7 +358,7 @@ class WeighbridgeRecordService
         $this->applyVerification($attributes, $data, $actor);
 
         $record = WeighbridgeRecord::create($attributes);
-        $record->load(['station.businessUnit', 'productionLine', 'checkedBy', 'acknowledgedBy']);
+        $record->load(['shift', 'station.businessUnit', 'productionLine', 'checkedBy', 'acknowledgedBy']);
 
         return $this->toDetailRow($record);
     }
@@ -402,7 +402,7 @@ class WeighbridgeRecordService
         $this->applyVerification($attributes, $data, $actor);
 
         $record->update($attributes);
-        $record->load(['station.businessUnit', 'productionLine', 'checkedBy', 'acknowledgedBy']);
+        $record->load(['shift', 'station.businessUnit', 'productionLine', 'checkedBy', 'acknowledgedBy']);
 
         return $this->toDetailRow($record);
     }
@@ -553,6 +553,9 @@ class WeighbridgeRecordService
             'id' => $record->id,
             'station_id' => $record->station_id,
             'station_name' => $record->station?->name,
+            'shift_id' => $record->shift_id,
+            'shift_name' => $record->shift?->name,
+            'shift_time_label' => $record->shift?->time_label,
             // Ditambahkan 2026-10-04 (additif): Form Weighbridge web mode edit
             // menampilkan Business Unit dan Production Line record ini. Line
             // dibaca dari KOLOM RECORD (snapshot saat create), mill dari
@@ -598,6 +601,7 @@ class WeighbridgeRecordService
             'destination' => $record->destination,
             'net_weight' => $record->net_weight,
             'production_line_name' => $record->productionLine?->name,
+            'shift_name' => $record->shift?->name,
             'status' => $record->status?->value,
         ];
     }

@@ -73,6 +73,7 @@
             <thead class="cd-table__head">
                 <tr>
                     <th>Production Line</th>
+                            <th>Shift Kerja</th>
                     <th>CPO Dispatch ID</th>
                     <th>Tanggal</th>
                     <th>Jumlah Kejadian</th>
@@ -99,6 +100,13 @@
                              stasiunnya sudah dipindah, keduanya berbeda — dan yang
                              benar adalah line tempat data itu benar-benar dihasilkan. --}}
                         <td>{{ $record['production_line_name'] ?? '-' }}</td>
+                        {{-- SHIFT KERJA — shift yang berjalan ketika record ini
+                             DISIMPAN. 'Tanpa shift' ditulis dengan KATA, bukan '-':
+                             celah jadwal diizinkan oleh rancangan dan record lama
+                             tidak pernah ditandai, jadi kosong di sini adalah
+                             keadaan yang sah — bukan data yang hilang, dan tanda
+                             hubung akan menyamakan keduanya. --}}
+                        <td>{{ $record['shift_name'] ?? 'Tanpa shift' }}</td>
                         <td>{{ $record['cpo_dispatch_id'] }}</td>
                         <td>{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d/m/Y') : '-' }}</td>
                         <td>{{ $record['event_count'] }}</td>

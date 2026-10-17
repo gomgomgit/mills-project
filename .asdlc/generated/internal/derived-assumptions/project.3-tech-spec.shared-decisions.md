@@ -117,3 +117,22 @@ Keduanya ditemukan karena `tests/Feature/ShiftStampingTest.php` ditulis sebelum 
 2. **Pemeriksaan kepemilikan line tidak pernah berjalan** sebagai akibat (1) — shift line lain tidak akan pernah ditolak.
 
 Catatan ketiga, untuk diri sendiri: asersi `expect(...)->toContain($needle, $message)` saya pakai lagi di test baru ini, dan ia memerah menuntut array memuat kalimat pesannya sendiri. Jebakan itu sudah tercatat di [[feedback-vacuous-assertions]] sejak 2026-10-15. Dibiarkan tertulis di komentar test-nya supaya pembaca berikutnya mengenalinya.
+
+## v16 — 2026-10-17 · menampilkan shift di Detail + Data Browser
+
+Permintaan user: *"tampilkan shift dulu"*. Yang saya turunkan sendiri:
+
+- **Label "Shift Kerja", bukan "Shift"** ← tabrakan nyata, bukan kehati-hatian umum: grid Detail Process Water sudah punya `<th>Shift</th>` untuk kolom teks bebas per slot. Dipakai seragam di ke-18 layar meski 17 di antaranya tidak punya tabrakan itu — label yang berbeda-beda antar stasiun lebih mahal.
+- **"Tanpa shift" dengan kata, bukan "-"** ← kosong di sini SAH dan hari ini universal (semua record lama null). Tanda hubung menyamakannya dengan data hilang.
+- **`Shift::time_label` sebagai accessor model** ← alternatifnya 36 salinan aturan '+1'.
+- **Payload daftar hanya `shift_name`; payload Detail `shift_id` + `shift_name` + `shift_time_label`** ← daftar butuh satu kolom sempit, Detail butuh identitas penuh dan rentang jamnya.
+- **Eager-load `shift:id,name,start_time,end_time` di kueri daftar.**
+
+### Dua kesalahan saya sendiri di putaran ini, keduanya tertangkap sebelum mendarat
+
+1. **`str.format` memakan kurung ganda Blade.** Template penyisipan memakai `.format()`, dan Python mengubah `{{ $record[...] }}` menjadi `{ $record[...] }` serta `{{--` menjadi `{--` di **18 berkas sekaligus** — Blade yang mencetak literal alih-alih mengevaluasi. Tidak ada lint PHP yang menangkapnya (sintaksnya sah). Ketahuan karena saya **membaca hasil sisipannya**, bukan karena skripnya melapor "18 berkas disunting". Perbaikannya: `git checkout` ke-18 berkas lalu ulangi dengan `.replace()` atas placeholder huruf (`IND`, `PFX`) — tidak ada mekanisme substitusi yang mengenal kurung kurawal.
+2. **18 kelas CSS tanpa definisi** (`*-detail-field__hint`) nyaris mendarat, melanggar standar kerapian proyek ini. Ketahuan karena saya memeriksa definisinya sebelum lanjut. Dibuang; rentang jam dicetak sebagai teks biasa.
+
+### Satu asersi yang dibuktikan tidak hampa
+
+Test N+1 dijalankan terhadap kode yang sengaja dirusak (eager load dicabut): **5 kueri**, lalu dipulihkan: **1 kueri**. Tanpa pembuktian itu ia hanya asersi yang kebetulan hijau — dan N+1 adalah kelas cacat yang hasilnya BENAR, jadi tidak ada asersi tampilan yang akan memerahkannya. Lihat [[feedback-vacuous-assertions]].

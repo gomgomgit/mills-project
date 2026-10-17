@@ -113,7 +113,7 @@ class SolidWasteDisposalRecordService
             return $record;
         });
 
-        $record->load(['station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'solidWasteDisposalDetails']);
+        $record->load(['shift', 'station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'solidWasteDisposalDetails']);
 
         return $this->toDetailRow($record);
     }
@@ -163,7 +163,7 @@ class SolidWasteDisposalRecordService
             $this->upsertDetails($record, $details);
         });
 
-        $record->load(['station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'solidWasteDisposalDetails']);
+        $record->load(['shift', 'station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'solidWasteDisposalDetails']);
 
         return $this->toDetailRow($record);
     }
@@ -326,7 +326,7 @@ class SolidWasteDisposalRecordService
 
         // `productionLine` dimuat di sini, bukan lewat relasi `station`:
         // kolom line milik record sendiri adalah sumber kebenarannya.
-        $paginator = $query->with('productionLine:id,name')->paginate(perPage: $perPage, page: $page);
+        $paginator = $query->with(['productionLine:id,name', 'shift:id,name,start_time,end_time'])->paginate(perPage: $perPage, page: $page);
 
         $formatted = Pagination::format($paginator);
         $formatted['data'] = collect($formatted['data'])
@@ -558,6 +558,7 @@ class SolidWasteDisposalRecordService
             'date' => optional($record->date)->toDateString(),
             'event_count' => (int) $record->solid_waste_disposal_details_count,
             'production_line_name' => $record->productionLine?->name,
+            'shift_name' => $record->shift?->name,
             'status' => $record->status?->value,
         ];
     }
@@ -596,6 +597,9 @@ class SolidWasteDisposalRecordService
             'id' => $record->id,
             'station_id' => $record->station_id,
             'station_name' => $record->station?->name,
+            'shift_id' => $record->shift_id,
+            'shift_name' => $record->shift?->name,
+            'shift_time_label' => $record->shift?->time_label,
             'solid_waste_disposal_id' => $record->solid_waste_disposal_id,
             'date' => optional($record->date)->toDateString(),
             'note' => $record->note,

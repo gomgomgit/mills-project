@@ -149,7 +149,7 @@ class CagesTrackRecordService
             return $record;
         });
 
-        $record->load(['station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'cagesTippedTimes']);
+        $record->load(['shift', 'station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'cagesTippedTimes']);
 
         return $this->toDetailRow($record);
     }
@@ -198,7 +198,7 @@ class CagesTrackRecordService
             $this->upsertDetails($record, $details, jumlahCages: $jumlahCages);
         });
 
-        $record->load(['station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'cagesTippedTimes']);
+        $record->load(['shift', 'station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'cagesTippedTimes']);
 
         return $this->toDetailRow($record);
     }
@@ -425,7 +425,7 @@ class CagesTrackRecordService
 
         // `productionLine` dimuat di sini, bukan lewat relasi `station`:
         // kolom line milik record sendiri adalah sumber kebenarannya.
-        $paginator = $query->with('productionLine:id,name')->paginate(perPage: $perPage, page: $page);
+        $paginator = $query->with(['productionLine:id,name', 'shift:id,name,start_time,end_time'])->paginate(perPage: $perPage, page: $page);
 
         $formatted = Pagination::format($paginator);
         $formatted['data'] = collect($formatted['data'])
@@ -664,6 +664,7 @@ class CagesTrackRecordService
             'date' => optional($record->date)->toDateString(),
             'tipped_time_count' => (int) $record->cages_tipped_times_count,
             'production_line_name' => $record->productionLine?->name,
+            'shift_name' => $record->shift?->name,
             'status' => $record->status?->value,
         ];
     }
@@ -715,6 +716,9 @@ class CagesTrackRecordService
             'id' => $record->id,
             'station_id' => $record->station_id,
             'station_name' => $record->station?->name,
+            'shift_id' => $record->shift_id,
+            'shift_name' => $record->shift?->name,
+            'shift_time_label' => $record->shift?->time_label,
             'cages_track_number' => $record->cages_track_number,
             'date' => optional($record->date)->toDateString(),
             'tippler_start_time' => optional($record->tippler_start_time)->toIso8601String(),

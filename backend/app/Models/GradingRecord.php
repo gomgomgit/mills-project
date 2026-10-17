@@ -85,6 +85,15 @@ class GradingRecord extends Model
         return $this->belongsTo(ProductionLine::class);
     }
 
+    /**
+     * Shift yang berjalan ketika record ini DISIMPAN. Nullable selamanya —
+     * lihat migrasi 2026_10_16_000002.
+     */
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
+    }
+
     public function weighbridgeRecord(): BelongsTo
     {
         return $this->belongsTo(WeighbridgeRecord::class);

@@ -112,7 +112,7 @@ class CpoDispatchRecordService
             return $record;
         });
 
-        $record->load(['station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'cpoDispatchDetails']);
+        $record->load(['shift', 'station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'cpoDispatchDetails']);
 
         return $this->toDetailRow($record);
     }
@@ -162,7 +162,7 @@ class CpoDispatchRecordService
             $this->upsertDetails($record, $details);
         });
 
-        $record->load(['station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'cpoDispatchDetails']);
+        $record->load(['shift', 'station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'cpoDispatchDetails']);
 
         return $this->toDetailRow($record);
     }
@@ -342,7 +342,7 @@ class CpoDispatchRecordService
 
         // `productionLine` dimuat di sini, bukan lewat relasi `station`:
         // kolom line milik record sendiri adalah sumber kebenarannya.
-        $paginator = $query->with('productionLine:id,name')->paginate(perPage: $perPage, page: $page);
+        $paginator = $query->with(['productionLine:id,name', 'shift:id,name,start_time,end_time'])->paginate(perPage: $perPage, page: $page);
 
         $formatted = Pagination::format($paginator);
         $formatted['data'] = collect($formatted['data'])
@@ -582,6 +582,7 @@ class CpoDispatchRecordService
             'date' => optional($record->date)->toDateString(),
             'event_count' => (int) $record->cpo_dispatch_details_count,
             'production_line_name' => $record->productionLine?->name,
+            'shift_name' => $record->shift?->name,
             'status' => $record->status?->value,
         ];
     }
@@ -620,6 +621,9 @@ class CpoDispatchRecordService
             'id' => $record->id,
             'station_id' => $record->station_id,
             'station_name' => $record->station?->name,
+            'shift_id' => $record->shift_id,
+            'shift_name' => $record->shift?->name,
+            'shift_time_label' => $record->shift?->time_label,
             'cpo_dispatch_id' => $record->cpo_dispatch_id,
             'date' => optional($record->date)->toDateString(),
             'note' => $record->note,

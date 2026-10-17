@@ -40,6 +40,28 @@
                     <span class="ct-detail-field__label">Station</span>
                     <span class="ct-detail-field__value">{{ $record['station_name'] ?: '-' }}</span>
                 </div>
+                {{-- SHIFT KERJA — shift yang berjalan ketika record ini DISIMPAN.
+                     Labelnya "Shift Kerja", bukan "Shift": layar Detail Process Water
+                     sudah punya kolom "Shift" per slot waktu yang artinya lain sama
+                     sekali (teks bebas yang diketik operator), dan dua hal berbeda
+                     dengan nama yang sama di satu layar adalah cara tercepat membuat
+                     orang salah baca. Label yang sama dipakai di ke-18 layar, termasuk
+                     yang tidak punya tabrakan itu — label yang berbeda-beda antar
+                     stasiun lebih mahal daripada label yang sedikit panjang.
+                
+                     KOSONG ITU SAH, dan dinyatakan dengan KATA: celah jadwal diizinkan
+                     oleh rancangan dan record lama tidak pernah ditandai, jadi "-" saja
+                     akan terbaca seperti data yang hilang. --}}
+                <div class="ct-detail-field">
+                    <span class="ct-detail-field__label">Shift Kerja</span>
+                    <span class="ct-detail-field__value" data-testid="detail-shift">
+                        @if (($record['shift_name'] ?? null) !== null)
+                            {{ $record['shift_name'] }}@if ($record['shift_time_label'] ?? null) ({{ $record['shift_time_label'] }})@endif
+                        @else
+                            Tanpa shift
+                        @endif
+                    </span>
+                </div>
                 <div class="ct-detail-field">
                     <span class="ct-detail-field__label">Tippler Start Time</span>
                     <span class="ct-detail-field__value">{{ \App\Support\Display::dateTime($record['tippler_start_time']) }}</span>

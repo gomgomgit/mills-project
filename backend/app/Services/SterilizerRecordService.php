@@ -114,7 +114,7 @@ class SterilizerRecordService
             return $record;
         });
 
-        $record->load(['station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'sterilizerDetails']);
+        $record->load(['shift', 'station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'sterilizerDetails']);
 
         return $this->toDetailRow($record);
     }
@@ -160,7 +160,7 @@ class SterilizerRecordService
             $this->upsertDetails($record, $details, $actor);
         });
 
-        $record->load(['station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'sterilizerDetails']);
+        $record->load(['shift', 'station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'sterilizerDetails']);
 
         return $this->toDetailRow($record);
     }
@@ -397,7 +397,7 @@ class SterilizerRecordService
 
         // `productionLine` dimuat di sini, bukan lewat relasi `station`:
         // kolom line milik record sendiri adalah sumber kebenarannya.
-        $paginator = $query->with('productionLine:id,name')->paginate(perPage: $perPage, page: $page);
+        $paginator = $query->with(['productionLine:id,name', 'shift:id,name,start_time,end_time'])->paginate(perPage: $perPage, page: $page);
 
         $formatted = Pagination::format($paginator);
         $formatted['data'] = collect($formatted['data'])
@@ -623,6 +623,7 @@ class SterilizerRecordService
             'date' => optional($record->date)->toDateString(),
             'cycle_count' => (int) $record->sterilizer_details_count,
             'production_line_name' => $record->productionLine?->name,
+            'shift_name' => $record->shift?->name,
             'status' => $record->status?->value,
         ];
     }
@@ -661,6 +662,9 @@ class SterilizerRecordService
             'id' => $record->id,
             'station_id' => $record->station_id,
             'station_name' => $record->station?->name,
+            'shift_id' => $record->shift_id,
+            'shift_name' => $record->shift?->name,
+            'shift_time_label' => $record->shift?->time_label,
             'sterilizer_id' => $record->sterilizer_id,
             'date' => optional($record->date)->toDateString(),
             'note' => $record->note,

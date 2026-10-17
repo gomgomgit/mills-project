@@ -111,6 +111,29 @@ class Display
         // Boiler Room: blowdown_executed / sootblowing_executed
         'y' => 'Ya',
         'n' => 'Tidak',
+        // Kernel Dispatch: remarks_gate_status. DITAMBAHKAN 2026-10-18 bersama
+        // screen-164 (Laporan Kernel Dispatch), dan label-nya DISALIN VERBATIM
+        // dari <select> di form-kernel-dispatch.blade.php — bukan diterjemahkan
+        // ulang, karena dua label untuk satu nilai adalah dua kosakata.
+        //
+        // MENGAPA KOLOM INI BARU MASUK SEKARANG. Ia satu-satunya kolom di
+        // Kernel Dispatch yang nilainya pilihan TERTUTUP, tetapi labelnya dulu
+        // hidup HANYA di form itu: layar Detail mencetak kodenya mentah, dan
+        // tidak ada pembaca ketiga. Laporan periode adalah pembaca ketiga itu,
+        // dan aturan rumah ("blade mendelegasikan, jangan menyalin") melarang
+        // menuliskan pemetaannya untuk kali kedua. Jadi ia dinaikkan ke
+        // kosakata bersama di sini, dan layar Detail ikut mendelegasikan —
+        // yang sekaligus memperbaiki layar itu, karena mencetak 'not_released'
+        // kepada manusia tidak pernah merupakan niat siapa pun.
+        //
+        // CATATAN YANG MENGIKAT PEMBACANYA: service TIDAK memvalidasi kolom
+        // ini terhadap kedua nilai di bawah — ia menyimpan apa pun yang datang,
+        // sehingga nilai di luar keduanya mungkin ada dari jalur selain form
+        // web. option() memang jatuh ke nilai mentah untuk yang tak dikenal,
+        // dan itulah perilaku yang diinginkan: ditampilkan apa adanya, bukan
+        // dibuang dan bukan dipaksa masuk ke salah satu pilihan.
+        'released' => 'Released',
+        'not_released' => 'Not Released',
     ];
 
     /** Label pilihan enum (OPTION_LABELS); kosong → "-", tak dikenal → apa adanya. */

@@ -121,7 +121,7 @@
                                     <td>{{ $row['security_seal_no_top'] ?: '-' }}</td>
                                     <td>{{ $row['security_seal_no_bottom'] ?: '-' }}</td>
                                     <td>{{ $row['weighbridge_operator_id'] ?: '-' }}</td>
-                                    <td>{{ $row['remarks_gate_status'] ?: '-' }}</td>
+                                    <td>{{ \App\Support\Display::option($row['remarks_gate_status']) }}</td>
                                     <td>{{ $row['findings'] ?: '-' }}</td>
                                 </tr>
                             @endforeach

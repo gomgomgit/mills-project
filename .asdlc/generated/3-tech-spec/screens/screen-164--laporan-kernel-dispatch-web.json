@@ -1,0 +1,597 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-164--laporan-kernel-dispatch-web",
+  "name": "Laporan Kernel Dispatch (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/kernel-dispatch (Livewire, layout app; terdaftar di routes/web.php sebagai `reports.kernel-dispatch`)",
+  "auth_requirement": "authenticated — sesi web. Aktor: Supervisor, Mill Management, Admin. Operator DITOLAK di rute web; jalurnya di mobile (screen-165).",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id kiriman klien DIABAIKAN, bukan divalidasi"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat mill; satu-satunya peran yang melihat pemilih Mill"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Ditolak di rute web. Tetapi ketiga rute DATA menerimanya SEJAK COMMIT PERTAMA, supaya screen-165 (mobile) tidak perlu melebarkan akses apa pun — pola yang sudah terbukti tiga kali: screen-158/159, screen-160/161, screen-162/163."
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "kernel-dispatch-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "kernel-dispatch-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "usecase_name": "Lihat Laporan Periode Kernel Dispatch (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/kernel-dispatch-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — ADMIN SAJA, ditegakkan DI DALAM service dan bukan oleh middleware, karena middleware prefix ini menerima keempat peran demi ketiga rute data di bawahnya. Master kosong adalah jawaban sah: [] dengan 200.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-dispatch-reports/periods",
+          "description": "Periode yang punya baris period_stations berjenis 'kernel-dispatch' pada satu mill. Status periode TIDAK menyaring. business_unit_id WAJIB bagi Admin, DIABAIKAN bagi peran terikat mill termasuk Operator.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "WAJIB bagi Admin (422 bila absen); DIABAIKAN bagi peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string — selalu 'kernel-dispatch'",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "business_unit_id absen bagi Admin, atau akun terikat mill yang business_unit_id-nya NULL"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar keempatnya"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-dispatch-reports/summary",
+          "description": "SELURUH angka laporan. Satu baris detail = SATU PENGIRIMAN. Payload ini menggabungkan DUA bentuk yang sebelumnya selalu terpisah di proyek ini: hitungan transaksi (seperti Weighbridge/Grading/Solid Waste) DAN ukuran mutu min/avg/max (sebelumnya hanya ada di laporan bergrid per jam).",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — agregat lintas line adalah angka yang tidak dimiliki siapa pun"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya dihormati bagi Admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string"
+              },
+              "dispatches": {
+                "dispatch_count": "integer — seluruh pengiriman periode, termasuk yang penimbangannya belum selesai",
+                "net_weight_total": "float|null — null ketika NOL pengiriman punya netto; BUKAN 0",
+                "net_weight_avg": "float|null",
+                "net_weight_dispatch_count": "integer — PENYEBUT yang dicetak di kartu yang sama",
+                "missing_net_weight_dispatch_count": "integer — penimbangan BELUM SELESAI; kartu tersendiri"
+              },
+              "quality": {
+                "kernel_moisture_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer — PENYEBUT UKURAN INI SENDIRI"
+                },
+                "dirt_impurities_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "ffa_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "broken_kernel_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "_note": "string — prosa yang menyatakan bahwa keempat measured_count boleh BERBEDA satu dengan lainnya dan berbeda dari dispatch_count, karena satu pengiriman boleh punya sebagian hasil uji saja. Dirender UTUH."
+              },
+              "by_transporter": [
+                {
+                  "value": "string|null",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_silo_source": [
+                {
+                  "value": "string|null — TEKS, bukan rujukan master; lihat implementation_notes",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_destination_buyer": [
+                {
+                  "value": "string|null",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_gate_status": [
+                {
+                  "value": "string|null — KODE MENTAH ('released'|'not_released'|nilai lain|null); label DITURUNKAN DI BLADE lewat Display::option(), bukan di payload",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "not_released_count": "integer — HANYA value === 'not_released'; TIDAK termasuk null. Ditonjolkan sebagai angka tersendiri di luar rekapnya.",
+              "compliance": {
+                "missing_waybill_count": "integer",
+                "missing_seal_top_count": "integer",
+                "missing_seal_bottom_count": "integer",
+                "_note": "string — prosa yang menyatakan ketiganya jejak kepatuhan bukan ukuran, DAN bahwa segel atas dan bawah tidak pernah dijumlahkan"
+              },
+              "draft_dispatch_count": "integer — pengiriman draft TETAP terhitung di seluruh angka di atas",
+              "undated_dispatch_count": "integer — selalu 0 dalam praktik; lihat implementation_notes. Dirender HANYA ketika > 0.",
+              "daily": [
+                {
+                  "date": "date",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "daily_total": {
+                "dispatch_count": "integer",
+                "net_weight_total": "float|null",
+                "net_weight_dispatch_count": "integer",
+                "net_weight_avg": "float|null"
+              },
+              "completeness": {
+                "days_in_period": "integer",
+                "days_with_dispatch": "integer",
+                "days_counted": "integer — ReportPeriodDays::counted",
+                "percent": "number|null — null ketika days_counted 0; blade mencetak '—'"
+              },
+              "text_entries": {
+                "findings": [
+                  {
+                    "date": "date",
+                    "value": "string"
+                  }
+                ]
+              },
+              "_note_no_hourly": "string — prosa yang menyatakan sebaran per jam DAN waktu putar kendaraan TIDAK DAPAT dibuat: catatan pengiriman hanya membawa event_date, tanpa jam masuk maupun jam keluar. Menyebut pula bahwa di CPO Dispatch keduanya JUSTRU ADA. Dirender UTUH.",
+              "_note_no_quality_thresholds": "string — prosa yang menyatakan tidak ada penandaan nilai mutu di luar batas karena stasiun ini tidak punya master ambang mutu",
+              "_note_shift_not_published": "string — prosa yang menyatakan kolom shift tidak ditampilkan di layar tetapi ada di ekspor"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-dispatch-reports/export",
+          "description": "Unduhan CSV/Excel — SATU BARIS PER PENGIRIMAN, kolom konteks diulang verbatim, disusul SELURUH kolom detail. Excel adalah .xlsx SUNGGUHAN lewat SheetWriter. Gate peran, resolusi mill/line, pemeriksaan format dan batas baris berjalan EAGER sebelum aliran dimulai.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "'csv' atau 'xlsx'; nilai lain → 422. Default ditetapkan CONTROLLER atas nilai query yang sudah di-trim."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_": "Aliran CSV atau .xlsx, bukan JSON."
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen, format tidak dikenal, atau batas 50.000 baris terlampaui"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain — ditolak sebelum aliran dimulai"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "GATE PERAN, RESOLUSI MILL, RESOLUSI PERIODE, RESOLUSI LINE — keempatnya identik dengan screen-162 dan tidak diulang panjang di sini: Operator diterima di ketiga rute data sejak commit pertama; business_unit_id DIABAIKAN bagi peran terikat mill (bukan ditolak, karena menolak membocorkan keberadaan mill lain); business_unit_id WAJIB bagi Admin; akun terikat mill ber-business_unit_id NULL → 422 bukan 403; production_line_id WAJIB dan line mill lain → 403 (DITOLAK, karena line adalah parameter yang dipilih sadar, bukan konteks yang diturunkan dari akun); status periode TIDAK diperiksa.",
+        "LINGKUP BARIS. Record induk disaring: production_line_id = line terpilih, DAN station.station_type = 'kernel-dispatch', DAN `date` INDUK berada di dalam rentang periode. Agregasi dilakukan atas baris DETAIL yang ter-flatten — satu baris = satu pengiriman.",
+        "EAGER LOAD `details` DAN `station` sekaligus. Test integrasi menghitung query DAN dibuktikan non-vakum dengan sengaja melepas eager load lebih dulu.",
+        "dispatch_count = jumlah SELURUH baris detail dalam lingkup, termasuk yang netto-nya kosong dan termasuk milik record draft.",
+        "net_weight_total DAN net_weight_avg dihitung HANYA atas baris yang net_weight_mt-nya non-null; net_weight_dispatch_count DITERBITKAN sebagai penyebut. Nol → keduanya null, BUKAN 0. missing_net_weight_dispatch_count = selisihnya, ditonjolkan tersendiri: netto adalah kolom TURUNAN SERVICE, jadi null berarti PENIMBANGAN BELUM SELESAI.",
+        "net_weight_mt DIBACA APA ADANYA — TIDAK dihitung ulang dari gross_weight_mt − tare_weight_mt. Turunannya terjadi di KernelDispatchRecordService, dan baris yang ditulis lewat jalur lain dapat punya netto tanpa bruto/tara.",
+        "EMPAT UKURAN MUTU, MASING-MASING DENGAN PENYEBUTNYA SENDIRI. kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent — tiap-tiap menghasilkan {min, avg, max, measured_count} yang dihitung HANYA atas baris yang kolom ITU-nya non-null. Keempat measured_count INDEPENDEN: satu pengiriman boleh punya hasil uji kadar air tanpa ALB, sehingga ia masuk penyebut yang satu dan tidak masuk yang lain. Inilah perbedaan paling mudah ditulis salah di layar ini — satu penyebut tunggal untuk keempat ukuran akan tampak rapi dan salah secara sistematis.",
+        "PENYEBUT NOL PADA SATU UKURAN TIDAK MENGOSONGKAN UKURAN LAIN. Bila measured_count sebuah ukuran = 0, min/avg/max ukuran ITU menjadi null (blade '—') sementara ketiga ukuran lain tetap menerbitkan angkanya. Diperiksa per ukuran, bukan lewat satu penjaga 'ada data mutu atau tidak'.",
+        "quality._note DITERBITKAN DAN DIRENDER UTUH: ia menyatakan bahwa keempat penyebut boleh berbeda satu dengan lainnya dan berbeda dari dispatch_count. Tanpa kalimat itu, pembaca yang melihat kadar air atas 12 pengiriman dan ALB atas 7 akan menyimpulkan ada data yang hilang — padahal yang terjadi adalah dua uji yang tidak selalu dilakukan bersama.",
+        "TIGA REKAP KATEGORIS TEKS BEBAS: by_transporter (`transporter_contractor`), by_silo_source (`silo_source_id`), by_destination_buyer (`destination_buyer`). Nilai dikelompokkan APA ADANYA — nol join, nol pemetaan, nol penerjemahan. Masing-masing punya baris value = null ('tidak tercatat') TERSENDIRI, dan penjumlahan dispatch_count tiap rekap SAMA DENGAN dispatch_count di atasnya.",
+        "`silo_source_id` ADALAH TEKS, BUKAN RUJUKAN — dan nama kolomnya menyesatkan. Tidak ada tabel silo di satu migrasi pun, kolomnya `string` nullable, dan form web merendernya sebagai `<input type=\"text\">`. Laporan memperlakukannya persis seperti kedua kolom teks lainnya dan TIDAK PERNAH mencoba mencari namanya. Sebuah join yang 'masuk akal' di sini tidak mungkin dibuat.",
+        "REKAP KEEMPAT BERBEDA SIFATNYA: by_gate_status. `remarks_gate_status` adalah SATU-SATUNYA kolom di stasiun ini yang nilainya pilihan TERTUTUP — form web merendernya sebagai `<select>` dengan tepat dua pilihan ('released', 'not_released') plus kosong. Karena itu rekap ini menerbitkan KODE MENTAH di payload dan LABEL-nya diturunkan DI BLADE lewat `Display::option()`. Pemetaannya TIDAK disalin ke layar ini — ia dinaikkan ke kosakata bersama (lihat implementation_notes).",
+        "TETAPI NILAI DI LUAR KEDUA PILIHAN MUNGKIN ADA, dan ditampilkan APA ADANYA. KernelDispatchRecordService hanya menyimpan `filled(...) ? $value : null` tanpa daftar tertutup, sehingga jalur selain form web dapat menyimpan apa pun. `Display::option()` jatuh ke nilai mentah untuk yang tak dikenal, dan itu PERILAKU YANG DIINGINKAN: barisnya sendiri, bukan dibuang dan bukan dipaksa masuk ke salah satu pilihan.",
+        "not_released_count MENGHITUNG HANYA value === 'not_released'. Baris null TIDAK termasuk. 'Tidak tercatat' dan 'tidak dilepas' adalah dua keadaan berbeda, dan menggabungkannya akan MENUDUH pengiriman yang sekadar belum diisi statusnya. Angka ini ditonjolkan tersendiri di luar rekapnya, karena inti yang berangkat tanpa pelepasan gerbang adalah kejadian yang perlu dilihat bukan baris yang perlu dihitung.",
+        "TIGA PENGHITUNG KEPATUHAN TERPISAH: missing_waybill_count (`waybill_number`), missing_seal_top_count (`security_seal_no_top`), missing_seal_bottom_count (`security_seal_no_bottom`) — masing-masing menghitung null atau string kosong setelah trim. KEDUA PENGHITUNG SEGEL TIDAK PERNAH DIJUMLAHKAN menjadi satu angka: satu kendaraan yang kehilangan satu segel adalah keadaan yang berbeda dari dua kendaraan yang masing-masing kehilangan satu, dan satu angka gabungan menghapus perbedaan itu. Satu pengiriman yang kehilangan KEDUA segel terhitung di KEDUA penghitung — itu bukan penghitungan ganda, itu dua fakta.",
+        "URUTAN TIAP REKAP: net_weight_total DESC → dispatch_count DESC → value ASC sebagai pemutus seri, dengan null diurutkan sebagai 0.0 UNTUK PENGURUTAN SAJA dan tetap null di payload. Disalin dari WeighbridgeReportService::groupedBreakdownOf(). Tiap baris menerbitkan penyebutnya sendiri.",
+        "draft_dispatch_count menghitung baris milik record draft; baris itu TETAP terhitung di seluruh angka, dan angka ini ADALAH pernyataan atas hal tersebut.",
+        "daily[] berisi SATU ENTRI PER HARI YANG ADA PENGIRIMANNYA, bukan per hari kalender. daily_total DIJUMLAHKAN dari daily[], bukan disalin dari blok dispatches.",
+        "completeness mengukur HARI lewat ReportPeriodDays::counted — periode berjalan tidak dihukum atas hari yang belum datang; days_counted 0 → percent null → blade '—'.",
+        "text_entries HANYA punya `findings` — stasiun ini tidak punya kolom catatan kedua, berbeda dari Solid Waste Disposal yang punya `remarks` juga. Entri kosong/whitespace dibuang; daftar kosong dicetak sebagai pernyataan 'tidak ada', bukan dihilangkan.",
+        "TIDAK ADA BLOK hourly DAN TIDAK ADA WAKTU PUTAR KENDARAAN. Catatan pengiriman hanya membawa `event_date`; tidak ada kolom jam masuk maupun jam keluar. Keduanya BUKAN fitur yang ditunda. _note_no_hourly menyebut secara eksplisit bahwa di CPO Dispatch (screen-166/167) keduanya JUSTRU ADA karena tabel itu punya `time_in`/`time_out` — supaya ketiadaan di sini tidak dibaca sebagai kelalaian, dan supaya tidak ada yang menambahkannya kemudian dengan menebak jam dari created_at.",
+        "TANPA PENANDAAN NILAI MUTU DI LUAR BATAS: stasiun ini tidak punya master ambang mutu apa pun. Dinyatakan lewat _note_no_quality_thresholds — sebuah laporan mutu TANPA penandaan terlihat seperti laporan yang lupa membandingkan, jadi sebabnya harus tertulis.",
+        "KOLOM `shift` TIDAK DITERBITKAN di payload maupun layar — hanya di ekspor. Ia teks bebas pada tabel detail, bukan FK ke `shifts`.",
+        "EKSPOR: satu baris per pengiriman; kolom konteks diulang verbatim; disusul SELURUH kolom detail — event_date, shift, weighbridge_ticket_no, waybill_number, transporter_contractor, vehicle_plate_no, driver_name, silo_source_id, destination_buyer, gross_weight_mt, tare_weight_mt, net_weight_mt, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent, security_seal_no_top, security_seal_no_bottom, weighbridge_operator_id, remarks_gate_status, findings. DUA PULUH SATU kolom detail, didaftar lengkap karena LIMA di antaranya (weighbridge_ticket_no, waybill_number, vehicle_plate_no, driver_name, weighbridge_operator_id) tidak muncul di satu angka pun di layar dan karenanya paling mudah tertinggal. `remarks_gate_status` di ekspor memakai Display::option() juga — ekspor rincian mentah tetap memakai satu kosakata, bukan dua."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "kernel-dispatch-record",
+          "operation": "SELECT",
+          "description": "Induk pengiriman: station_id, production_line_id, date, status."
+        },
+        {
+          "entity_id": "kernel-dispatch-detail",
+          "operation": "SELECT",
+          "description": "SATU BARIS PER PENGIRIMAN, berkunci event_date (TANPA kolom waktu). Membawa bruto/tara/netto MT, EMPAT kolom mutu persen, tiga kolom kategoris teks, satu kolom status pilihan-tertutup, dua nomor segel, nomor surat jalan, dan satu kolom teks temuan."
+        },
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Pemilih periode dan rentang tanggal."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih line; wajib dipilih sebelum satu angka pun."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Periode punya baris period_stations 'kernel-dispatch' tetapi NOL record di line terpilih",
+          "handling": "200 dengan kerangka lengkap: dispatch_count 0, kedua angka berat NULL, keempat ukuran mutu min/avg/max NULL dengan measured_count 0, keempat rekap [], daily []. Layar mencetak keadaan kosong yang menyebut periode dan line. Ini keadaan NYATA hari ini — tabel detail ini nol baris di dev."
+        },
+        {
+          "condition": "SATU ukuran mutu tidak punya satu hasil uji pun sementara tiga lainnya punya",
+          "handling": "Ukuran ITU menampilkan '—' untuk min/avg/max dengan measured_count 0; ketiga ukuran lain TETAP menampilkan angkanya. Diperiksa PER UKURAN — satu penjaga 'ada data mutu atau tidak' akan mengosongkan keempatnya sekaligus."
+        },
+        {
+          "condition": "Keempat ukuran mutu kosong tetapi tonasenya ada",
+          "handling": "Bagian mutu menyatakan belum ada hasil uji pada periode ini; bagian tonase tetap menampilkan angkanya. Keduanya independen."
+        },
+        {
+          "condition": "Satu pengiriman punya kadar air tetapi tidak punya ALB",
+          "handling": "Terhitung pada measured_count kadar air, TIDAK terhitung pada measured_count ALB. Kedua penyebut dicetak, dan quality._note menjelaskan mengapa keduanya berbeda."
+        },
+        {
+          "condition": "Seluruh pengiriman belum selesai ditimbang",
+          "handling": "Kedua angka berat NULL ('—'), net_weight_dispatch_count 0, missing = dispatch_count. Tidak pernah 0,00 MT. Ukuran mutu TIDAK terpengaruh — mutu dan berat adalah kolom yang berbeda."
+        },
+        {
+          "condition": "Ketiga kolom kategoris teks kosong pada sebagian pengiriman",
+          "handling": "Satu entri value = null per rekap, dicetak 'tidak tercatat', dan penjumlahan rekap tetap = dispatch_count. String kosong/whitespace di-trim lalu diperlakukan sama dengan null."
+        },
+        {
+          "condition": "Nilai kategoris berbeda hanya pada huruf besar/kecil atau spasi",
+          "handling": "DIBIARKAN sebagai dua entri terpisah — hanya spasi di ujung di-trim. Kemungkinan ini DINYATAKAN di layar supaya pembaca mengenalinya."
+        },
+        {
+          "condition": "remarks_gate_status kosong pada sebagian pengiriman",
+          "handling": "Baris value = null di by_gate_status, dicetak 'tidak tercatat'. TIDAK dihitung di not_released_count. Diasersikan secara eksplisit — ini kesalahan yang paling mudah dibuat dan paling menuduh bila dibuat."
+        },
+        {
+          "condition": "remarks_gate_status berisi nilai di luar kedua pilihan yang dikenal",
+          "handling": "Barisnya sendiri di by_gate_status dengan nilainya APA ADANYA (Display::option() jatuh ke mentah), TIDAK dibuang dan TIDAK dipaksa masuk ke salah satu pilihan. not_released_count tetap hanya menghitung 'not_released' persis."
+        },
+        {
+          "condition": "Satu pengiriman kehilangan KEDUA nomor segel",
+          "handling": "Terhitung di missing_seal_top_count DAN missing_seal_bottom_count. Itu bukan penghitungan ganda — itu dua fakta, dan keduanya benar."
+        },
+        {
+          "condition": "event_date NULL",
+          "handling": "MUSTAHIL — kolomnya NOT NULL di migrasi, sama dengan solid_waste_disposal_details. undated_dispatch_count dipertahankan sebagai penjaga invarian dan diuji lewat service-ganda in-memory, tetapi layar mencetaknya HANYA ketika > 0."
+        },
+        {
+          "condition": "Periode belum mulai / masih berjalan",
+          "handling": "days_counted 0 → percent NULL → '—' dengan kalimat 'periode belum dimulai'; atau penyebut berhenti di hari ini (WIB dari config, bukan waktu server)."
+        },
+        {
+          "condition": "Record draft ikut dalam lingkup",
+          "handling": "Ikut terhitung di SELURUH angka; draft_dispatch_count menyatakan berapa."
+        },
+        {
+          "condition": "Admin tanpa business_unit_id",
+          "handling": "422 dengan pesan Indonesia yang menyebut parameter yang kurang. Tidak ada mill default dan tidak ada 'mill pertama'."
+        },
+        {
+          "condition": "Peran terikat mill mengirim business_unit_id mill lain",
+          "handling": "DIABAIKAN tanpa galat; laporan terbit untuk mill akunnya."
+        },
+        {
+          "condition": "Akun terikat mill ber-business_unit_id NULL",
+          "handling": "422, bukan 403 — master rusak, bukan izin kurang."
+        },
+        {
+          "condition": "production_line_id absen / milik mill lain",
+          "handling": "422 bila absen (tanpa fallback 'line pertama', tanpa mode semua-line); 403 bila milik mill lain."
+        },
+        {
+          "condition": "Operator membuka rute web",
+          "handling": "403 pada rute WEB; ketiga rute data API tetap menerimanya — itu jalur screen-165."
+        },
+        {
+          "condition": "format tak dikenal pada /export",
+          "handling": "422 SEBELUM aliran dimulai; nilai di-trim lebih dulu lalu dibandingkan dengan daftar tertutup."
+        },
+        {
+          "condition": "Ekspor melampaui 50.000 baris",
+          "handling": "422 EAGER — galat sesudah header terkirim mendarat sebagai berkas rusak."
+        }
+      ],
+      "business_rules_applied": [
+        "Isolasi Production Line: line WAJIB dipilih, tanpa agregat lintas line",
+        "Isolasi business unit: dari akun bagi peran terikat mill, dipilih oleh Admin",
+        "Laporan tidak menyaring status periode",
+        "Satuan hitung = baris detail (satu pengiriman)",
+        "Setiap ukuran mutu punya penyebutnya SENDIRI, dan keempatnya independen",
+        "Penyebut nol pada satu ukuran tidak mengosongkan ukuran lain",
+        "Rata-rata selalu diterbitkan bersama penyebutnya",
+        "Nol pengukuran → null, bukan 0",
+        "net_weight_mt dibaca apa adanya, tidak dihitung ulang",
+        "Rekap teks bebas: nol join, nol pemetaan master",
+        "silo_source_id adalah TEKS meskipun namanya berakhiran _id",
+        "Kolom pilihan tertutup memakai Display::option(); blade mendelegasikan, tidak menyalin",
+        "Nilai enum tak dikenal ditampilkan apa adanya",
+        "'Tidak tercatat' bukan 'tidak dilepas'",
+        "Segel atas dan bawah tidak pernah dijumlahkan",
+        "Setiap rekap punya baris 'tidak tercatat' tersendiri",
+        "Record draft ikut terhitung dan jumlahnya dinyatakan",
+        "Kelengkapan diukur atas hari yang sudah berjalan",
+        "Kolom shift tidak diterbitkan, tetap diekspor",
+        "Ketiadaan sebuah blok dinyatakan di layar beserta sebabnya"
+      ],
+      "unit_test_cases": []
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Pintu masuk satu-satunya. Tile Kernel Dispatch baru menyala setelah REPORT_ROUTES ditambah entri 'kernel-dispatch' => 'reports.kernel-dispatch'. sort_order kernel-dispatch = 160, di belakang solid-waste-disposal (150) yang kini entri terakhir — jadi DI-APPEND di akhir. RIAKNYA ADA DI EMPAT BERKAS; lihat implementation_notes."
+    },
+    {
+      "screen_id": "screen-162--laporan-solid-waste-disposal-web",
+      "reason": "Preseden terdekat untuk SEPARUH laporan ini: bentuk per-transaksi, rekap kategoris teks bebas dengan baris 'tidak tercatat', penghitung kepatuhan, daily[] per hari-bertransaksi, ReportPeriodDays::counted. Ambil kerangkanya."
+    },
+    {
+      "screen_id": "screen-160--laporan-process-water-web",
+      "reason": "Preseden untuk SEPARUH YANG LAIN: ukuran min/avg/max dengan penyebut per metrik, dan kalimat yang menyatakan bahwa penyebut antar-metrik boleh berbeda. Di sana metriknya per slot jam; di sini per pengiriman — rumusnya sama, satuannya berbeda."
+    },
+    {
+      "screen_id": "screen-165--laporan-kernel-dispatch-mobile",
+      "reason": "Pasangan mobile. Ketiga rute data di sini menerima Operator SEJAK COMMIT PERTAMA supaya layar itu tidak perlu melebarkan akses apa pun."
+    }
+  ],
+  "implementation_notes": [
+    "LAPORAN HIBRIDA PERTAMA DI PROYEK INI — dan itu berarti dua preseden, bukan satu. Separuh transaksi disalin dari SolidWasteDisposalReportService (screen-162); separuh mutu dari ProcessWaterReportService (screen-160), tempat min/avg/max per metrik dengan penyebut per metrik sudah ada. Menyalin dari satu saja akan kehilangan separuh bentuknya.",
+    "KESALAHAN YANG PALING MUDAH DIBUAT DI LAYAR INI: satu penyebut tunggal untuk keempat ukuran mutu. Ia akan tampak rapi, lolos review, dan salah secara sistematis — karena keempat kolom mutu nullable INDEPENDEN dan satu pengiriman boleh punya sebagian hasil uji saja. Keempat measured_count WAJIB dihitung terpisah, DITERBITKAN, dan dicetak di kartunya masing-masing.",
+    "DAN KESALAHAN KEDUANYA: satu penjaga 'ada data mutu atau tidak' yang mengosongkan keempat ukuran sekaligus. Penjaganya harus PER UKURAN.",
+    "`silo_source_id` ADALAH TEKS BEBAS MESKIPUN NAMANYA BERAKHIRAN `_id` — diverifikasi tiga cara: migrasi 2026_08_31 menuliskannya `$table->string('silo_source_id')->nullable()`; TIDAK ADA tabel silo di satu migrasi pun; dan form-kernel-dispatch.blade.php merendernya sebagai `<input type=\"text\">`. Jangan membuat join, jangan mencari nama, jangan memperlakukannya berbeda dari kedua kolom teks lainnya. Andaian wajar bahwa ia foreign key akan menghasilkan pekerjaan yang tidak mungkin diselesaikan.",
+    "`remarks_gate_status` ADALAH SATU-SATUNYA ENUM SUNGGUHAN DI STASIUN INI — dan ia KEBALIKAN dari `action_taken_status` di Process Water, yang namanya juga berbunyi seperti status tetapi `<input type=text>` dan karena itu TIDAK disebar jadi rekap. Perbedaannya diverifikasi dari form masing-masing, bukan dari namanya. Di sini form merendernya `<select>` dengan tepat dua `<option>`: `released` dan `not_released`, plus `value=\"\"`.",
+    "KOSAKATA BERSAMA DITAMBAH, DAN INI MELEBARKAN CAKUPAN SEDIKIT — disengaja, dan sebabnya aturan rumah. `Display::OPTION_LABELS` dulu TIDAK memuat kedua nilai itu: labelnya ('Released' / 'Not Released') hidup HANYA di `<select>` form, dan layar Detail mencetak kodenya MENTAH. Laporan ini pembaca KETIGA, dan aturan proyek (keputusan 2026-10-14) melarang menuliskan ulang pemetaan di tempat kedua: blade MENDELEGASIKAN, jangan menyalin. Jadi kedua entri dinaikkan ke OPTION_LABELS dan `detail-kernel-dispatch.blade.php` ikut mendelegasikan ke `Display::option()`. Terverifikasi aman sebelum diubah: kedua nilai NOL kemunculan di luar form itu, NOL test mengasersikan nilai mentahnya, dan `option()` sudah mengembalikan '-' untuk kosong sehingga perilaku null tidak berubah. Suite yang menyentuhnya: 111 lolos. Efek sampingnya menguntungkan — layar Detail berhenti mencetak `not_released` kepada manusia. Label DISALIN VERBATIM dari form, tidak diterjemahkan: dua label untuk satu nilai adalah dua kosakata.",
+    "PAYLOAD MENERBITKAN KODE MENTAH, BLADE MENURUNKAN LABEL. by_gate_status[].value berisi 'released'/'not_released'/nilai lain/null; `Display::option()` dipanggil DI BLADE dan DI EKSPOR. Menerbitkan label di payload akan memindahkan kosakata ke lapisan yang salah dan membuat pasangan mobile (screen-165) menerima label yang tidak dapat ia ubah.",
+    "NILAI ENUM TAK DIKENAL TIDAK DIBUANG. KernelDispatchRecordService menyimpan `filled(...) ? $value : null` TANPA daftar tertutup, jadi jalur selain form web dapat menyimpan apa pun. `Display::option()` jatuh ke nilai mentah, dan itu yang diinginkan. Uji ini secara eksplisit — sebuah implementasi yang 'merapikan' dengan membuang nilai tak dikenal akan menghilangkan baris dan membuat penjumlahan rekap tidak lagi sama dengan dispatch_count.",
+    "'TIDAK TERCATAT' BUKAN 'TIDAK DILEPAS'. not_released_count menghitung HANYA value === 'not_released' persis. Menggabungkan null ke dalamnya akan menuduh pengiriman yang sekadar belum diisi statusnya — dan tuduhan itu akan sampai ke orang.",
+    "SEGEL ATAS DAN BAWAH: DUA PENGHITUNG, TIDAK PERNAH SATU. Satu kendaraan kehilangan satu segel ≠ dua kendaraan masing-masing kehilangan satu, dan satu angka gabungan menghapus perbedaan itu. Satu pengiriman yang kehilangan keduanya terhitung di KEDUANYA — itu dua fakta, bukan penghitungan ganda. Prosa di layar menyatakannya.",
+    "HANYA SATU KOLOM TEKS KEJADIAN (`findings`) — stasiun ini TIDAK punya `remarks`, berbeda dari Solid Waste Disposal. Jangan menyalin struktur `text_entries` dua-daftar dari sana; satu daftar saja, dan daftar kosong tetap dicetak sebagai pernyataan 'tidak ada'.",
+    "ENTRI REPORT_ROUTES DI-APPEND DI AKHIR: sort_order kernel-dispatch = 160, di belakang solid-waste-disposal (150) yang kini entri terakhir. Verifikasi dari tabel station_types, BUKAN dari urutan deklarasi enum. Kuncinya 'kernel-dispatch' BERTANDA HUBUNG.",
+    "RIAK 'CONTOH STASIUN BELUM BERLAPORAN' ADA DI EMPAT BERKAS, dan screen-162 sudah menanganinya — tetapi TIGA di antaranya kini memakai `process-quality-control` (180) yang MASIH belum berlaporan, sehingga pekerjaan ini TIDAK memerahkannya. Yang perlu diperiksa hanya satu: `StationReportServiceTest` memakai kode fiktif `zz-stasiun-fiktif`, jadi ia juga tidak terpengaruh. Keempat berkas itu: tests/Unit/Services/StationReportServiceTest.php, tests/Feature/Api/LaporanStasiunTest.php, tests/Feature/Livewire/LaporanStasiunTest.php, e2e-web/tests/laporan-stasiun.spec.ts. JALANKAN SUITE PENUH untuk memastikan — pada screen-162 berkas keempat hanya ditemukan oleh suite, bukan oleh grep.",
+    "`event_date` NOT NULL di migrasi, sama dengan solid_waste_disposal_details. undated_dispatch_count dipertahankan sebagai penjaga invarian dan diuji lewat service-ganda in-memory (factory tidak dapat menyimpan barisnya), tetapi layar mencetaknya HANYA ketika > 0 — mencetak 'nol pengiriman tanpa tanggal' pada setiap laporan berarti mengarang kekhawatiran atas keadaan yang dilarang skema. Pelajaran ini sudah dibayar sekali di screen-162.",
+    "ReportPeriodDays::counted DIPAKAI APA ADANYA — jangan menghitung ulang panjang periode secara lokal.",
+    "SQLite vs PostgreSQL: suite PHP di SQLite in-memory, produksi dan e2e di PostgreSQL. whereDate() bukan where() untuk tanggal; lower()+LIKE bukan ILIKE; jangan mengandalkan urutan tanpa ORDER BY. min/avg/max dihitung DI PHP, bukan lewat agregat SQL — konsisten dengan keenam belas laporan sebelumnya dan menghindari perbedaan pembulatan antar-mesin basis data.",
+    "SheetWriter dipakai ulang untuk .xlsx; jangan menamai CSV berekstensi .xlsx. Seluruh gate berjalan EAGER sebelum satu byte dialirkan.",
+    "LABEL KOLOM EKSPOR mengikuti layar Detail stasiun ini, bukan nama kolom database; kolom konteks diulang verbatim per baris.",
+    "CSS: setiap kelas yang dipakai markup WAJIB punya definisi, diperiksa pada hasil COMPILE bukan pada sumbernya.",
+    "ASERSI YANG TIDAK MEMBUKTIKAN APA PUN — patuhi ketiganya: `expect()->toContain($a,$b)` membaca argumen kedua sebagai needle KEDUA (pakai `$this->assertContains()`); `assertSee` tidak membuktikan cacat tampilan; dan mengasersikan KETIADAAN lewat teks akan cocok dengan prosa yang MENYATAKAN ketiadaan itu — payload ini memuat `_note_no_hourly` dan `_note_no_quality_thresholds` yang berisi kata 'jam' dan 'batas', jadi ketiadaan blok diasersikan atas NAMA KUNCI lewat penelusur rekursif.",
+    "Asersi jumlah query (N+1) harus dibuktikan NON-VAKUM: lepas dulu eager load-nya, lihat memerah, baru pasang kembali.",
+    "Factory record stasiun di proyek ini dapat membuat record stasiun LAIN bertanggal acak, sehingga asersi 'tepat N pengiriman hari ini' dapat gagal ~1:30. Semai tanggal secara EKSPLISIT di setiap test.",
+    "UJI BROWSER: `beforeAll` WAJIB `seedOpenPeriodForForms(browser, 'kernel-dispatch')` — tanpanya ia MENGGANTUNG, bukan gagal. PROFIL FIXTURE E2E DIVERIFIKASI LANGSUNG DI `mill_smart_log_e2e` pada 2026-10-18, bukan diasumsikan: 2 baris detail, 3 baris period_stations 'kernel-dispatch'. Kedua baris: event_date = 2025-03-10 (termuat oleh periode fixture 2020-01-01 s/d hari-ini+7), status induk `draft_ongoing`, net_weight_mt = 20, `waybill_number` TERISI ('SJ-PL-A' dan 'SJ-PL-B'), sementara KETIGA kolom kategoris teks, KEEMPAT kolom mutu, KEDUA nomor segel, dan `remarks_gate_status` SEMUANYA NULL. Profil itu menentukan apa yang dapat dibuktikan di browser, dan ia lebih berguna daripada dugaan awal saya. YANG LAYAK DIASERSIKAN DI SANA: (a) keempat ukuran mutu menampilkan '—' dengan measured_count 0 sementara tonase tetap menampilkan angkanya — justru jalur 'mutu kosong tetapi berat ada' yang paling mudah ditulis salah; (b) missing_seal_top_count DAN missing_seal_bottom_count keduanya ≥ 1, dua angka terpisah; (c) missing_waybill_count = NOL — sebuah penghitung kepatuhan yang benar-benar nol, yang membuktikan penghitungnya tidak sekadar mengembalikan jumlah baris; (d) by_gate_status punya baris 'tidak tercatat' SEMENTARA not_released_count = 0 — inilah pembuktian paling langsung bahwa 'tidak tercatat' TIDAK dihitung sebagai 'tidak dilepas', dan fixture ini memberikannya tanpa penyemaian tambahan; (e) ketiga rekap teks punya baris 'tidak tercatat'; (f) draft_dispatch_count ≥ 1 dan pengiriman draft ikut terhitung. YANG TIDAK DAPAT DIBUKTIKAN DI SANA, dan jangan ditulis seolah dapat: urutan rekap (tiap rekap hanya punya SATU baris, sehingga asersi posisi vakum — satu baris selalu pertama sekaligus terakhir), nilai mutu yang sesungguhnya, dan jumlah pengiriman yang persis (spec form menulis ke DB e2e yang sama; pakai ≥ 1). Urutan dan angka mutu diuji di unit test, tempat fixture-nya dapat disusun."
+  ],
+  "test_scenarios": []
+}

@@ -1,0 +1,1836 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-163--laporan-solid-waste-disposal-mobile",
+  "name": "Laporan Solid Waste Disposal (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports/solid-waste-disposal (router mobile, nama rute `report-solid-waste-disposal`, meta.public false)",
+  "auth_requirement": "authenticated — token Sanctum perangkat. Aktor: Station Operator, Supervisor, Mill Management, Admin. Tidak ada penjagaan berbasis peran di router mobile: ia hanya punya satu penjaga global `meta.public`, dan pembatasan peran yang sebenarnya ada di sisi server pada ketiga rute data.",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; pemilih Mill tidak dirender untuknya. Ia PENGGUNA layar ini, bukan sekadar diizinkan — dan servernya sudah menerimanya sejak commit pertama screen-162."
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat mill; satu-satunya peran yang melihat pemilih Mill"
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "solid-waste-disposal-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "solid-waste-disposal-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "usecase_name": "Lihat Laporan Periode Solid Waste Disposal (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/solid-waste-disposal-reports/business-units/options",
+          "description": "DIPAKAI ULANG APA ADANYA dari screen-162 — nol endpoint baru di layar ini. ADMIN SAJA; 403 untuk ketiga peran lain, ditegakkan di dalam service. Layar mobile hanya memanggilnya ketika peran pengguna adalah admin, sehingga 403 itu bukan jalur yang normal ditemui — tetapi ia tetap ditangani, karena peran dibaca dari sesi dan sesi dapat berubah.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — layar mengarahkan ke Login"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/solid-waste-disposal-reports/periods",
+          "description": "DIPAKAI ULANG APA ADANYA. Periode yang punya baris period_stations berjenis 'solid-waste-disposal' pada satu mill; status tidak menyaring. business_unit_id WAJIB bagi Admin, DIABAIKAN bagi peran terikat mill termasuk Operator — jadi klien mobile TIDAK PERLU dan TIDAK BOLEH mengirimkannya untuk peran non-admin.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Dikirim HANYA ketika peran pengguna adalah admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id, atau akun terikat mill yang business_unit_id-nya NULL — layar menampilkan arahan menghubungi Admin, BUKAN galat jaringan"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/solid-waste-disposal-reports/summary",
+          "description": "DIPAKAI ULANG APA ADANYA — inilah sumber SELURUH angka layar ini, dan alasan angka mobile wajib sama persis dengan web: keduanya membaca satu endpoint yang sama, bukan menghitung ulang dengan dua rumus. period_id dan production_line_id KEDUANYA wajib.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — selama kosong, layar TIDAK memanggil endpoint ini sama sekali"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya untuk admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string"
+              },
+              "loads": {
+                "load_count": "integer",
+                "net_weight_total": "float|null",
+                "net_weight_avg": "float|null",
+                "net_weight_load_count": "integer — PENYEBUT, dicetak di kartu yang sama dengan rata-ratanya",
+                "missing_net_weight_load_count": "integer — penimbangan belum selesai; kartu tersendiri"
+              },
+              "by_waste_type": [
+                {
+                  "value": "string|null",
+                  "load_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_load_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_source_station": [
+                {
+                  "value": "string|null",
+                  "load_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_load_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_disposal_site": [
+                {
+                  "value": "string|null",
+                  "load_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_load_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_purpose_end_use": [
+                {
+                  "value": "string|null",
+                  "load_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_load_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "compliance": {
+                "missing_gate_pass_count": "integer",
+                "missing_seal_count": "integer",
+                "_note": "string — dirender UTUH"
+              },
+              "draft_load_count": "integer",
+              "undated_load_count": "integer — selalu 0 dalam praktik (kolom event_date NOT NULL); dirender HANYA ketika > 0",
+              "daily": [
+                {
+                  "date": "date",
+                  "load_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_load_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "daily_total": {
+                "load_count": "integer",
+                "net_weight_total": "float|null",
+                "net_weight_load_count": "integer",
+                "net_weight_avg": "float|null"
+              },
+              "completeness": {
+                "days_in_period": "integer",
+                "days_with_load": "integer",
+                "days_counted": "integer",
+                "percent": "number|null"
+              },
+              "text_entries": {
+                "findings": [
+                  {
+                    "date": "date",
+                    "value": "string"
+                  }
+                ],
+                "remarks": [
+                  {
+                    "date": "date",
+                    "value": "string"
+                  }
+                ]
+              },
+              "_note_no_hourly": "string — dirender UTUH",
+              "_note_shift_not_published": "string — dirender UTUH",
+              "_note_absences": "string — dirender UTUH"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain — layar meminta memilih line lagi, BUKAN menampilkan galat jaringan"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir — arahkan ke Login"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/solid-waste-disposal-reports/export",
+          "description": "DIPAKAI ULANG APA ADANYA. Satu baris per muatan, tujuh belas kolom detail termasuk `shift`, gate_pass_no, security_seal_no, weighbridge_ticket_no, vehicle_no dan driver_name — tiga yang terakhir tidak muncul di satu angka pun di layar, dan justru karena itu paling mudah tertinggal. Perangkat mengunduhnya lewat jalur unduhan biasa.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "Layar mobile mengirim 'csv' saja — lihat implementation_notes"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_": "Aliran CSV, bukan JSON."
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen atau batas baris terlampaui"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "NOL BERKAS BACKEND DISENTUH, dan itu rancangan bukan kebetulan. Keempat endpoint sudah ada dari screen-162, dan Operator sudah diterima di ketiga rute data SEJAK COMMIT PERTAMA layar itu justru supaya layar ini tidak perlu melebarkan izin apa pun. Pola yang sama sudah terbukti dua kali: screen-158/159 dan screen-160/161. Konsekuensinya tidak ada integration test di sini — bukan karena dilewatkan, melainkan karena tidak ada kontrak baru untuk diuji.",
+        "ANGKA MOBILE WAJIB SAMA PERSIS DENGAN WEB, dan yang menjaminnya BUKAN disiplin melainkan bentuk: layar ini TIDAK PERNAH menghitung agregat apa pun. Ia membaca `/summary` dan memilih field untuk ditampilkan. Tidak ada penjumlahan, tidak ada rata-rata, tidak ada pembulatan ulang di klien. Setiap kali klien menghitung sendiri, ia menjadi rumus KEDUA yang dapat menyimpang tanpa ada yang membandingkannya.",
+        "URUTAN BOOTSTRAP: baca sesi → bila luring, BERHENTI sebelum permintaan pertama → bila peran admin, ambil opsi mill → ambil daftar periode → ambil opsi production line → pakai line yang diingat perangkat bila ada dan sah → HANYA bila periode DAN line keduanya terisi, ambil `/summary`. Penjagaan terakhir itu ada di SATU tempat (fungsi pemuat ringkasan), bukan disebar di pemanggil-pemanggilnya, supaya jalur 'ganti periode' dan jalur 'coba lagi' tidak dapat melewatinya.",
+        "LINE YANG DIINGAT PERANGKAT dibaca dari kunci penyimpanan yang SAMA dengan yang ditulis layar daftar stasiun — kunci itu berisi id pengguna, sehingga dua akun di satu perangkat tidak saling mewarisi pilihan. Nilai yang tidak lagi sah (line dihapus, atau line milik mill lain) DIBUANG dan layar meminta memilih, bukan dipakai diam-diam.",
+        "PENYIMPANAN PERANGKAT DIBACA DI DALAM try/catch. Di mode privat sebagian peramban MELEMPAR saat diakses, bukan mengembalikan null. Layar harus tetap merender dan meminta memilih line, tanpa satu elemen galat pun.",
+        "LURING MENUTUP ANGKANYA. Ketika `navigator.onLine === false`, bootstrap kembali SEBELUM permintaan pertama dan layar merender pernyataan 'memerlukan jaringan' beserta kalimat bahwa ia tidak menampilkan satu angka pun dari pemuatan sebelumnya — nol kartu angka terender bersamaan dengan pernyataan itu. Angka basi tanpa penanda lebih berbahaya daripada tidak ada angka. Layar juga mendengarkan event `online`/`offline`, dan listener itu WAJIB dilepas saat unmount.",
+        "`undated_load_count` DIRENDER HANYA KETIKA > 0 — sama dengan web. Kolom tanggal kejadian NOT NULL di database, jadi angkanya selalu 0 dalam praktik; mencetak 'nol muatan tanpa tanggal' pada setiap laporan berarti mengarang kekhawatiran atas keadaan yang dilarang skema.",
+        "KETIGA PROSA `_note_*` DAN `compliance._note` DIRENDER UTUH, tidak diringkas dan tidak dipotong. Kalimat-kalimat itu disusun SERVER justru supaya penjelasan yang sama muncul di web dan di mobile; memparafrasekannya di klien berarti membuat dua penjelasan untuk satu keadaan.",
+        "KEEMPAT REKAP DAN REKAP HARIAN DIRENDER DALAM URUTAN YANG DIBERIKAN SERVER — klien TIDAK mengurutkan ulang. Server sudah mengurutkan netto DESC → jumlah DESC → nilai ASC; mengurutkan ulang di klien akan membuat baris yang sama tampil berbeda di dua platform untuk periode yang sama.",
+        "BARIS `value: null` DICETAK SEBAGAI 'tidak tercatat' — pemetaan null→label itu satu-satunya transformasi tampilan yang diizinkan pada rekap, dan ia TIDAK memindahkan barisnya. Posisi baris itu milik server.",
+        "NILAI null PADA ANGKA DICETAK '—', BUKAN 0. Diperiksa per field, bukan lewat default `?? 0` di satu tempat — sebuah default seperti itu akan mengubah 'tidak diketahui' menjadi 'tidak ada beban' di seluruh layar sekaligus.",
+        "TATA LETAK LAYAR SEMPIT: kartu angka BERTUMPUK satu kolom, keempat rekap dan rekap harian menjadi kartu yang DAPAT DILIPAT, dan tabel yang lebar menggulir mendatar DI DALAM kartunya. Halaman itu sendiri TIDAK BOLEH bergeser mendatar — dan itu diukur, bukan dilihat.",
+        "EKSPOR: hanya CSV. Lihat implementation_notes untuk alasannya. Tombolnya dinonaktifkan selama permintaan berjalan supaya ketukan ganda mengirim SATU permintaan.",
+        "PEMETAAN GALAT KE KEADAAN LAYAR, dan tiap galat punya keadaannya sendiri: 401 → arahkan ke Login (tanpa pesan jaringan); 403 → minta pilih line lagi (tanpa angka mill lain yang tersisa di layar); 422 akun tanpa mill → arahan menghubungi Admin; galat jaringan lain → keadaan galat dengan tombol Coba Lagi. Menyeragamkannya menjadi satu 'galat jaringan' akan mengirim pengguna mencari masalah di tempat yang salah.",
+        "PINTU MASUK: satu entri pada REPORT_ROUTES di layar Reporting, DI-APPEND. Map itu TIDAK urut sort_order dan TIDAK punya asersi urutan, jadi append aman di sana — berbeda dari REPORT_ROUTES di backend, yang urutannya load-bearing. Ikon 'solid-waste-disposal' SUDAH ADA di STATION_ICONS (diverifikasi), jadi tidak perlu ditambah."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "solid-waste-disposal-detail",
+          "operation": "SELECT",
+          "description": "Tidak langsung — lewat endpoint /summary dan /export milik screen-162. Layar ini tidak punya akses basis data."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Perangkat luring saat layar dibuka",
+          "handling": "Bootstrap berhenti sebelum permintaan pertama; pernyataan 'memerlukan jaringan' + kalimat bahwa nol angka lama ditampilkan; nol kartu angka di DOM; nol permintaan terkirim (dihitung, bukan diasumsikan)."
+        },
+        {
+          "condition": "Perangkat menjadi luring SESUDAH angka termuat",
+          "handling": "Event `offline` menutup angkanya dan menampilkan pernyataan yang sama. Diuji dengan memalsukan `navigator.onLine` dan memicu event, BUKAN dengan mematikan jaringan browser lalu memuat ulang halaman — cara itu memutus pengambilan dokumen aplikasinya sendiri sehingga yang teruji bukan layar ini."
+        },
+        {
+          "condition": "Production Line belum dipilih",
+          "handling": "Nol angka, nol tombol ekspor, dan kalimat yang menyatakan apa yang ditunggu. `/summary` TIDAK dipanggil — dihitung tepat 0, juga sesudah ganti periode dan juga pada jalur Coba Lagi."
+        },
+        {
+          "condition": "Mill hanya punya SATU production line",
+          "handling": "Tetap TIDAK dipilihkan. Memilihkan satu-satunya line terasa membantu tetapi membuat layar menampilkan angka yang pengguna tidak pernah memilih — dan ketika line kedua ditambahkan kemudian, kebiasaan itu berubah tanpa pemberitahuan."
+        },
+        {
+          "condition": "Line yang diingat perangkat sudah tidak sah",
+          "handling": "Dibuang; layar meminta memilih. Tidak pernah dipakai diam-diam."
+        },
+        {
+          "condition": "Penyimpanan perangkat melempar saat dibaca (mode privat)",
+          "handling": "Ditangkap; layar tetap merender dan meminta memilih line; nol elemen galat. Diuji dengan spy pada `Storage.prototype`, BUKAN pada instance `window.localStorage` — di jsdom instance-nya dibungkus Proxy sehingga spy instance menerima NOL panggilan dan test-nya hijau tanpa menguji apa pun."
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup stasiun ini",
+          "handling": "Pemilih periode kosong dengan kalimat sebabnya; nol angka; bukan galat."
+        },
+        {
+          "condition": "Admin belum memilih mill",
+          "handling": "Arahan memilih mill; tidak ada area kosong tanpa penjelasan."
+        },
+        {
+          "condition": "Akun terikat mill tetapi business_unit_id-nya NULL (422)",
+          "handling": "Arahan menghubungi Admin — bukan galat jaringan dan bukan permintaan hak akses."
+        },
+        {
+          "condition": "Periode atau line milik mill lain (403)",
+          "handling": "Minta pilih line lagi; angka mill lain tidak pernah terender, dan angka yang sudah ada dibersihkan."
+        },
+        {
+          "condition": "Sesi berakhir (401)",
+          "handling": "Arahkan ke Login tanpa pesan jaringan."
+        },
+        {
+          "condition": "`/summary` gagal sekali lalu berhasil",
+          "handling": "Keadaan galat + Coba Lagi; sesudah berhasil angka termuat. Jumlah permintaan dihitung, supaya 'coba lagi' tidak diam-diam memanggil dua kali."
+        },
+        {
+          "condition": "Nol muatan pada line terpilih",
+          "handling": "Kerangka laporan penuh dengan keadaan kosong yang menyebut periode dan line. Ini keadaan NYATA di sebagian besar line hari ini."
+        },
+        {
+          "condition": "Seluruh muatan belum selesai ditimbang",
+          "handling": "Kedua angka berat '—' dan kartu penimbangan-belum-selesai menonjol. Tidak pernah 0,00 MT."
+        },
+        {
+          "condition": "Keempat kolom kategoris kosong pada seluruh muatan",
+          "handling": "Setiap rekap punya tepat SATU baris, yaitu baris 'tidak tercatat'. CATATAN UJI: pada keadaan ini asersi tentang POSISI baris null menjadi VAKUM — satu baris selalu pertama sekaligus terakhir. Urutan hanya dapat diuji dengan fixture yang punya beberapa nilai."
+        },
+        {
+          "condition": "Rekap atau rekap harian sangat panjang",
+          "handling": "Gulir mendatar DI DALAM kartunya; halaman tidak bergeser. DIUKUR — scrollWidth halaman dibandingkan clientWidth-nya pada lebar 390px — bukan diasersikan lewat nama kelas."
+        },
+        {
+          "condition": "Ekspor ditekan dua kali cepat",
+          "handling": "Tombol dinonaktifkan selama permintaan; satu unduhan, satu permintaan. Ketukan kedua dikirim dengan force supaya yang teruji adalah penjagaan APLIKASI, bukan penjagaan alat uji."
+        },
+        {
+          "condition": "Periode belum mulai / masih berjalan",
+          "handling": "Kelengkapan '—' dengan kalimat 'periode belum dimulai'; atau penyebut berhenti di hari ini. Keduanya datang dari server — klien tidak menghitung ulang."
+        }
+      ],
+      "business_rules_applied": [
+        "Angka mobile = angka web, dijamin oleh bentuk: klien tidak menghitung agregat apa pun",
+        "Production Line wajib dipilih; tidak ada 'semua line'; tidak pernah dipilihkan",
+        "Mill dari akun bagi peran terikat mill; hanya Admin memilih",
+        "Nol endpoint baru — Operator sudah diterima sejak commit pertama pasangan web-nya",
+        "Urutan baris milik server; klien tidak mengurutkan ulang",
+        "Prosa penjelas server dirender utuh, tidak diparafrasekan",
+        "null dicetak '—' per field, bukan lewat default tunggal",
+        "Luring menutup angkanya, bukan sekadar menambah spanduk",
+        "undated dicetak hanya ketika > 0",
+        "Layar baca saja: nol kontrol tulis",
+        "Halaman tidak pernah bergeser mendatar"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "repo memanggil TEPAT endpoint yang sudah ada, nol endpoint baru",
+          "given": "api-client mobile di-mock; fetchBusinessUnits(), fetchPeriods(), fetchLines(), fetchSummary(), buildExportUrl() dipanggil masing-masing satu kali dengan peran admin",
+          "expect": "daftar URL yang terkumpul tepat '/api/solid-waste-disposal-reports/business-units/options', '/api/solid-waste-disposal-reports/periods', '/api/solid-waste-disposal-reports/summary', '/api/solid-waste-disposal-reports/export' ditambah '/api/production-lines/options-for-report' yang dipakai ulang verbatim (dibuat untuk screen-135, lihat docblock SolidWasteDisposalReportController ± baris 93) — assert atas DAFTAR URL yang terkumpul; tidak ada URL keenam dan tidak ada path ber-prefix lain"
+        },
+        {
+          "description": "business_unit_id TIDAK PERNAH masuk query string untuk peran terikat mill",
+          "given": "repo dipanggil untuk /periods dan /summary dengan sesi berperan station-operator, lalu supervisor, lalu mill-management",
+          "expect": "walker rekursif atas KUNCI setiap objek params yang terkirim tidak menemukan kunci 'business_unit_id' pada ketiga peran — asersi atas NAMA KUNCI, bukan atas teks URL atau payload"
+        },
+        {
+          "description": "business_unit_id dikirim HANYA untuk admin, pada /periods dan /summary",
+          "given": "sesi berperan admin dengan mill terpilih 'bu-9'; repo memanggil /periods lalu /summary",
+          "expect": "query string kedua permintaan memuat business_unit_id=bu-9 (dibaca dari URLSearchParams permintaan yang tertangkap, bukan dari argumen yang dilewatkan); ketika peran diganti ke station-operator dan kedua pemanggilan diulang, kedua query string tidak lagi punya kunci itu"
+        },
+        {
+          "description": "/business-units/options dipanggil nol kali untuk ketiga peran non-admin",
+          "given": "layar di-mount sekali untuk masing-masing peran station-operator, supervisor, mill-management dengan api-client di-spy",
+          "expect": "penghitung permintaan ke '/api/solid-waste-disposal-reports/business-units/options' TEPAT 0 pada ketiga mount, dan TEPAT 1 pada mount keempat berperan admin"
+        },
+        {
+          "description": "layar baca saja: nol permintaan bermetode tulis",
+          "given": "seluruh alur layar dijalankan — bootstrap, ganti periode, ganti line, lipat/buka rekap, ekspor — dengan api-client di-spy pada metode HTTP",
+          "expect": "seluruh permintaan yang tertangkap bermetode GET; penghitung POST, PUT, PATCH, DELETE masing-masing 0; nol tulisan ke localDb"
+        },
+        {
+          "description": "line belum dipilih pada MUAT AWAL menahan /summary — dihitung tepat 0",
+          "given": "mount tanpa query rute, tanpa ingatan penyimpanan perangkat; api-client di-spy",
+          "expect": "penghitung permintaan ke '/api/solid-waste-disposal-reports/summary' TEPAT 0 (diukur, bukan disimpulkan dari angka yang tidak tampil); [data-testid='production-line-required-hint'] ada dan menyatakan apa yang ditunggu; queryByTestId('swd-export-csv') null"
+        },
+        {
+          "description": "line belum dipilih pada jalur GANTI PERIODE menahan /summary — dihitung tepat 0",
+          "given": "mount tanpa line terpilih, lalu pemilih periode diubah dua kali ke periode yang berbeda",
+          "expect": "penghitung /summary tetap TEPAT 0 sesudah kedua pergantian; nol kartu angka ([data-testid^='swd-kpi-'] berpanjang 0). Jalur ini diuji TERPISAH dari muat awal karena ia memanggil pemuat sendiri dan dapat melewati penjagaan"
+        },
+        {
+          "description": "line belum dipilih pada jalur COBA LAGI menahan /summary — dihitung tepat 0",
+          "given": "mount tanpa line terpilih; keadaan galat dipaksa pada daftar periode sehingga tombol Coba Lagi dirender; tombol itu ditekan tiga kali",
+          "expect": "penghitung /summary tetap TEPAT 0 sesudah ketiga ketukan. Jalur ini diuji TERPISAH karena tombol Coba Lagi adalah pemanggil ketiga pemuat yang sama"
+        },
+        {
+          "description": "penjagaan line ada di SATU fungsi pemuat, bukan disebar di pemanggilnya",
+          "given": "fungsi pemuat ringkasan di-spy (bukan di-mock) sementara line kosong; ketiga jalur dipicu — muat awal, ganti periode, coba lagi",
+          "expect": "spy pemuat menerima TEPAT 3 pemanggilan sementara penghitung permintaan /summary tetap 0 — membuktikan ketiga jalur melewati satu penjagaan yang sama alih-alih masing-masing punya pemeriksaannya sendiri"
+        },
+        {
+          "description": "kunci penyimpanan perangkat sama PENUH dengan yang ditulis layar daftar stasiun",
+          "given": "sesi dengan user.id = 'u-7'; Storage.prototype.getItem di-spy",
+          "expect": "argumen pertama pemanggilan pertama spy sama PENUH dengan string 'msl_production_line_u-7' — toBe atas string lengkap, BUKAN toContain('msl_production_line') dan bukan regex berakhir bebas; nilai yang dibandingkan dibangun dengan rumus yang sama seperti StationListView.vue ± baris 195"
+        },
+        {
+          "description": "line yang diingat perangkat dipakai tanpa diminta memilih, DAN terbawa ke query /summary",
+          "given": "Storage.prototype.getItem distub mengembalikan 'l-3' untuk kunci 'msl_production_line_u-7'; mount tanpa query rute; periode distub satu entri 'p-1'",
+          "expect": "pemilih line terikat ke 'l-3'; queryByTestId('production-line-required-hint') null (nol langkah memilih diminta); TEPAT satu permintaan /summary terkirim dan query string-nya memuat production_line_id=l-3 — kesetaraan atas nilai param, bukan atas keberadaan substring di URL"
+        },
+        {
+          "description": "line yang diingat sudah tidak sah dibuang, bukan dipakai diam-diam",
+          "given": "ingatan perangkat 'l-99'; /summary distub menjawab 403 FORBIDDEN untuk line itu",
+          "expect": "[data-testid='production-line-rejected'] dirender dan pemilih line kembali kosong; nol kartu angka pernah terender sepanjang alur (dicatat lewat spy pada render atau lewat snapshot DOM sesudah setiap tick); ingatan yang tidak sah tidak dikirim ulang pada permintaan berikutnya"
+        },
+        {
+          "description": "penyimpanan perangkat MELEMPAR saat dibaca (mode privat) tidak merusak layar",
+          "given": "vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new DOMException('denied') }) — spy pada PROTOTYPE, bukan pada window.localStorage, karena di jsdom instance-nya dibungkus Proxy sehingga spy instance menerima NOL panggilan dan test-nya hijau tanpa menguji apa pun",
+          "expect": "spy prototype menerima minimal 1 panggilan (dibuktikan, bukan diasumsikan); layar tetap merender [data-testid='laporan-solid-waste-disposal-mobile']; [data-testid='production-line-required-hint'] ada; queryAllByTestId('error-message') dan queryAllByTestId('network-error') KEDUANYA berpanjang 0; sesudah pengguna memilih line secara manual, /summary terkirim tepat satu kali"
+        },
+        {
+          "description": "mill dengan SATU production line tetap TIDAK dipilihkan",
+          "given": "/api/production-lines/options-for-report distub mengembalikan tepat satu line; tanpa ingatan perangkat; mount",
+          "expect": "pemilih line kosong dan [data-testid='production-line-required-hint'] ada; penghitung permintaan /summary TEPAT 0; sesudah pengguna memilih satu-satunya line itu secara sadar, /summary terkirim tepat satu kali"
+        },
+        {
+          "description": "luring saat layar dibuka: nol permintaan ke KELIMA endpoint",
+          "given": "navigator.onLine dipalsukan false sebelum mount (defineProperty pada navigator, bukan mematikan jaringan); api-client di-spy; mount",
+          "expect": "penghitung permintaan untuk setiap path yang dipakai layar TEPAT 0 — kelima path diperiksa satu per satu, bukan hanya /summary; bootstrap kembali sebelum permintaan pertama"
+        },
+        {
+          "description": "pernyataan luring berdiri bersama NOL kartu angka",
+          "given": "keadaan sama seperti kasus sebelumnya",
+          "expect": "[data-testid='offline-notice'] dirender; teks elemen itu memuat pernyataan bahwa laporan ini memerlukan jaringan DAN kalimat bahwa layar tidak menampilkan satu angka pun dari pemuatan sebelumnya — kedua kalimat diasersikan pada ELEMEN notice itu, bukan pada seluruh halaman; queryAllByTestId pola '^swd-kpi-' berpanjang 0 dan queryByTestId('swd-daily-table') null"
+        },
+        {
+          "description": "KLIEN TIDAK MENGHITUNG APA PUN: setiap angka yang dirender sama dengan field payload yang bersesuaian",
+          "given": "satu fixture /summary dengan nilai yang SENGAJA tidak konsisten secara aritmetika — loads.load_count=12, net_weight_total=37.5, net_weight_avg=9.9 (bukan 37.5/5), net_weight_load_count=5, missing_net_weight_load_count=7, daily_total.load_count=12, completeness.percent=41.3",
+          "expect": "peta eksplisit testid → field payload diperiksa satu per satu dengan toBe atas nilai terformatnya: swd-kpi-load-count→12, swd-kpi-net-weight-total→37.5, swd-kpi-net-weight-avg→9.9, swd-kpi-net-weight-load-count→5, swd-kpi-missing-net-weight→7, swd-daily-total-load-count→12, swd-coverage-percent→41.3. Tidak satu pun angka layar yang dapat diturunkan ulang dari angka lain — bila klien menghitung, salah satunya akan menyimpang"
+        },
+        {
+          "description": "loads.load_count dicetak dari payload meski BERBEDA dari penjumlahan baris rekap",
+          "given": "fixture dengan loads.load_count=12 sementara by_waste_type sengaja berjumlah 11",
+          "expect": "[data-testid='swd-kpi-load-count'] mencetak 12 — angka payload, bukan 11 hasil penjumlahan klien. (Konsistensi 12 = 12 diuji di kasus penjumlahan rekap; kasus ini justru membuktikan arah pembacaannya.)"
+        },
+        {
+          "description": "net_weight_avg dibaca dari payload, tidak dihitung ulang dari total dibagi penyebut",
+          "given": "fixture dengan net_weight_total=100, net_weight_load_count=4, net_weight_avg=7.25 (bukan 25)",
+          "expect": "[data-testid='swd-kpi-net-weight-avg'] mencetak 7,25 dan BUKAN 25; nol operator pembagian di jalur render yang menyentuh kedua field itu"
+        },
+        {
+          "description": "daily_total dibaca dari payload, tidak dijumlahkan dari daily[]",
+          "given": "fixture dengan daily[] tiga baris berjumlah load_count 3+4+2=9 sementara daily_total.load_count=9 tetapi daily_total.net_weight_total=55.0 yang BUKAN jumlah ketiga net_weight_total barisnya",
+          "expect": "baris total [data-testid='swd-daily-total'] mencetak 55,0 — nilai payload — bukan hasil penjumlahan kolomnya; reduce/sum tidak muncul di jalur render baris total"
+        },
+        {
+          "description": "net_weight_total null dicetak '—', BUKAN 0",
+          "given": "fixture dengan loads.net_weight_total=null sementara loads.load_count=10 terisi",
+          "expect": "teks [data-testid='swd-kpi-net-weight-total'] sama dengan '—' (kesetaraan penuh atas teks elemen itu, bukan sapuan halaman); teks itu TIDAK sama dengan '0', '0,00' atau '0,00 MT'; [data-testid='swd-kpi-load-count'] tetap mencetak 10 — membuktikan null diputuskan PER FIELD, bukan lewat default tunggal di satu tempat"
+        },
+        {
+          "description": "completeness.percent null dicetak '—' dengan kalimat 'periode belum dimulai', BUKAN 0,0%",
+          "given": "fixture periode yang belum mulai: completeness.percent=null, days_counted=0",
+          "expect": "teks [data-testid='swd-coverage-percent'] sama dengan '—'; [data-testid='swd-coverage-not-started-note'] ada dan menyatakan periode belum dimulai; nol elemen mencetak '0,0%' atau '0%' di blok kelengkapan (diperiksa pada elemen blok itu, bukan pada halaman)"
+        },
+        {
+          "description": "seluruh muatan belum selesai ditimbang: kedua angka berat '—' dengan penyebut nol",
+          "given": "fixture loads.load_count=8, net_weight_total=null, net_weight_avg=null, net_weight_load_count=0, missing_net_weight_load_count=8",
+          "expect": "swd-kpi-net-weight-total dan swd-kpi-net-weight-avg KEDUANYA bertekst '—'; swd-kpi-net-weight-load-count mencetak 0; swd-kpi-missing-net-weight mencetak 8; swd-kpi-load-count tetap 8; nol elemen bertekst '0,00 MT' di blok berat"
+        },
+        {
+          "description": "net_weight_load_count dicetak di KARTU YANG SAMA dengan rata-ratanya",
+          "given": "fixture lengkap dengan net_weight_avg=9.9 dan net_weight_load_count=6",
+          "expect": "elemen [data-testid='swd-kpi-net-weight-avg'] dan [data-testid='swd-kpi-net-weight-load-count'] punya LELUHUR [data-testid='swd-card-net-weight-avg'] yang SAMA — diasersikan lewat closest()/contains() atas hubungan DOM, bukan lewat kedekatan teks atau nama kelas; kartu itu juga memuat label penyebutnya"
+        },
+        {
+          "description": "missing_net_weight_load_count adalah kartu TERSENDIRI dengan kalimat 'penimbangan belum selesai'",
+          "given": "fixture missing_net_weight_load_count=7",
+          "expect": "[data-testid='swd-card-missing-net-weight'] ada dan BUKAN leluhur maupun keturunan dari swd-card-net-weight-avg; teks kartu itu memuat frasa 'penimbangan belum selesai' dan TIDAK memuat frasa 'data tidak lengkap' — kedua pemeriksaan dilakukan pada teks KARTU itu, bukan pada halaman"
+        },
+        {
+          "description": "baris value null pada keempat rekap dicetak 'tidak tercatat'",
+          "given": "fixture yang setiap rekapnya punya satu baris { value: null, load_count: 3, ... }",
+          "expect": "pada masing-masing dari swd-recap-waste-type, swd-recap-source-station, swd-recap-disposal-site, swd-recap-purpose-end-use terdapat tepat satu baris bertekst sel nilai 'tidak tercatat'; nol baris bertekst 'null', 'undefined' atau kosong; label itu tidak mengubah posisi barisnya"
+        },
+        {
+          "description": "URUTAN DOM keempat rekap SAMA DENGAN urutan payload — klien tidak mengurutkan ulang",
+          "given": "tiap rekap diberi empat baris yang urutannya SENGAJA bukan alfabetis dan bukan urut jumlah — mis. by_waste_type: [{value:'Zpalm shell', load_count:1}, {value:null, load_count:9}, {value:'Abu boiler', load_count:4}, {value:'Mesocarp fibre', load_count:2}]",
+          "expect": "daftar teks sel nilai yang terbaca dari DOM sama PERSIS (toEqual atas array berurut) dengan ['Zpalm shell','tidak tercatat','Abu boiler','Mesocarp fibre'] — urutan payload apa adanya; pembandingnya adalah array, bukan himpunan, sehingga pengurutan ulang apa pun di klien gagal. Diulang untuk keempat rekap dengan urutan payload yang berbeda-beda"
+        },
+        {
+          "description": "penjumlahan load_count tiap rekap = loads.load_count",
+          "given": "fixture loads.load_count=12 dan keempat rekap yang masing-masing baris-barisnya berjumlah 12 (komposisi berbeda per rekap, salah satunya memuat baris 'tidak tercatat' bernilai 5)",
+          "expect": "untuk MASING-MASING rekap, penjumlahan angka kolom jumlah muatan yang dibaca dari DOM sama dengan 12 — empat asersi terpisah, satu per rekap; baris 'tidak tercatat' ikut dalam penjumlahan dan tidak dibuang"
+        },
+        {
+          "description": "nilai yang hanya berbeda besar-kecil huruf tampil dua baris; nilai berfrekuensi satu tetap punya baris; nol 'lainnya'",
+          "given": "fixture rekap dengan baris 'Abu boiler' dan 'abu boiler' terpisah serta satu baris berjumlah 1 di antara belasan baris",
+          "expect": "kedua ejaan muncul sebagai dua baris berbeda (dua sel nilai dengan teks berbeda); baris berjumlah 1 ada; nol baris bertekst 'lainnya' atau 'Lainnya' di dalam elemen rekap; jumlah baris DOM sama dengan panjang array payload"
+        },
+        {
+          "description": "keempat prosa dirender UTUH — kesetaraan penuh, bukan contains",
+          "given": "fixture membawa _note_no_hourly, _note_shift_not_published, _note_absences, dan compliance._note dengan nilai yang DISALIN dari konstanta SolidWasteDisposalReportService (NOTE_NO_HOURLY dan saudaranya), bukan dikarang",
+          "expect": "textContent masing-masing elemen swd-note-no-hourly, swd-note-shift, swd-note-absences, swd-compliance-note — sesudah normalisasi spasi — sama PENUH dengan nilai payload-nya (toBe), bukan toContain; nol elipsis, nol pemotongan, nol parafrase"
+        },
+        {
+          "description": "nol kunci hourly yang dibaca klien dan nol elemen sebaran per jam di DOM",
+          "given": "fixture /summary yang SENGAJA juga membawa kunci tambahan hourly, busiest_hour, empty_hour_count; pengakses payload dibungkus Proxy pencatat baca kunci",
+          "expect": "Proxy mencatat NOL baca atas ketiga nama kunci itu; queryAllByTestId untuk pola '^swd-hourly' , testid 'swd-busiest-hour', 'swd-empty-hour-count' dan 'hourly-dispatch'/'hourly-receive' (nama yang dipakai laporan per-transaksi sebelumnya) SELURUHNYA berpanjang 0; getAllByRole('heading', { name: /per jam/i }) berpanjang 0. ASERSI LEWAT TESTID, NAMA KUNCI DAN ROLE — BUKAN lewat sapuan teks halaman, karena _note_no_hourly MEMUAT kata 'jam' dan layar merendernya utuh"
+        },
+        {
+          "description": "kolom shift tidak ada di layar, dan nol kontrol xlsx — diasersikan lewat testid dan role",
+          "given": "fixture lengkap; layar dirender penuh",
+          "expect": "queryAllByTestId pola '^swd-recap-shift', testid 'swd-shift-column', 'swd-shift-filter' seluruhnya 0; getAllByRole('columnheader', { name: /^Shift$/i }) berpanjang 0; getAllByRole('button', { name: /xlsx|excel/i }) berpanjang 0 dan queryByTestId('swd-export-xlsx') null — BUKAN pemeriksaan bahwa halaman tidak memuat kata 'excel'/'xlsx', karena [data-testid='swd-note-shift'] justru menjelaskan bahwa kolom itu hanya ada di berkas ekspor"
+        },
+        {
+          "description": "undated_load_count = 0 → blok TIDAK dirender",
+          "given": "fixture dengan undated_load_count = 0",
+          "expect": "queryByTestId('swd-undated-note') null DAN queryByTestId('swd-undated-load-count') null — blok itu tidak hadir sama sekali, bukan hadir bernilai 0; nol teks 'tanpa tanggal' di dalam kerangka laporan"
+        },
+        {
+          "description": "undated_load_count > 0 → blok DIRENDER",
+          "given": "fixture dengan undated_load_count = 3 (keadaan yang dilarang skema, tetapi kliennya tetap menanganinya)",
+          "expect": "[data-testid='swd-undated-load-count'] ada dan mencetak 3; [data-testid='swd-undated-note'] ada. Dua test TERPISAH dari kasus 0 — satu test bercabang if tidak membuktikan kedua cabang"
+        },
+        {
+          "description": "draft_load_count dinyatakan tersendiri dan muatan draft IKUT terhitung",
+          "given": "fixture draft_load_count=4 dengan loads.load_count=12; tidak ada field terpisah untuk 'final saja'",
+          "expect": "[data-testid='swd-draft-load-count'] mencetak 4 dan [data-testid='swd-draft-note'] menyatakan bahwa muatan draft ikut terhitung; swd-kpi-load-count tetap 12 — bukan 8; nol penyaring status di jalur render (nol filter atas 'draft'/'final' pada array mana pun yang dibaca layar)"
+        },
+        {
+          "description": "daily[] satu baris per hari BERMUATAN, nol baris nol",
+          "given": "fixture periode 30 hari dengan daily[] berisi TEPAT 9 entri",
+          "expect": "jumlah baris [data-testid^='swd-daily-row-'] TEPAT 9; nol baris bertekst jumlah muatan '0'; nol baris untuk 21 tanggal yang tidak ada di payload — diperiksa dengan membandingkan himpunan tanggal DOM dengan himpunan tanggal payload (toEqual), bukan hanya panjangnya"
+        },
+        {
+          "description": "penghitung kepatuhan NOL tetap dirender, dan prosanya tampil pada kedua keadaan",
+          "given": "dua mount: fixture A dengan missing_gate_pass_count=0 dan missing_seal_count=0; fixture B dengan keduanya bernilai penuh sama dengan load_count",
+          "expect": "pada KEDUA mount, swd-compliance-missing-gate-pass dan swd-compliance-missing-seal ada (0 dirender, tidak disembunyikan) dan swd-compliance-note hadir dengan teks penuh yang sama; nol elemen rata-rata, nol pengurutan, nol grafik di dalam blok kepatuhan (queryAllByTestId pola '^swd-compliance-chart' berpanjang 0)"
+        },
+        {
+          "description": "temuan dan catatan pada dua bagian terpisah; satu muatan dapat muncul di keduanya",
+          "given": "fixture text_entries.findings satu entri bertanggal 2026-03-04 dan text_entries.remarks satu entri bertanggal 2026-03-04 dengan teks berbeda; mount kedua dengan kedua daftar kosong",
+          "expect": "[data-testid='swd-findings'] dan [data-testid='swd-remarks'] ada dan tidak saling bersarang; masing-masing memuat satu entri bertanggalnya, teks dirender penuh tanpa dipendekkan; pada mount kedua masing-masing menampilkan keterangan tidak ada catatan (swd-findings-empty, swd-remarks-empty), bukan daftar kosong tanpa penjelasan"
+        },
+        {
+          "description": "event 'offline' SESUDAH angka termuat menutup angkanya",
+          "given": "mount dengan fixture lengkap sampai kartu angka terender; lalu navigator.onLine dipalsukan false dan window.dispatchEvent(new Event('offline')) dipicu",
+          "expect": "sesudah satu tick, queryAllByTestId pola '^swd-kpi-' berpanjang 0 dan [data-testid='offline-notice'] ada — angka ditutup, bukan diberi spanduk di atasnya; nol permintaan tambahan terkirim sesudah event itu"
+        },
+        {
+          "description": "listener online/offline DILEPAS saat unmount",
+          "given": "spy pada window.addEventListener dan window.removeEventListener; wrapper di-mount lalu di-unmount",
+          "expect": "untuk 'online' dan 'offline' masing-masing, terdapat pasangan add/remove dengan referensi handler yang SAMA (dibandingkan identitas fungsinya, bukan hanya jumlah pemanggilan). CATATAN WAJIB UNTUK SELURUH BERKAS: wrapper di-unmount pada afterEach — wrapper yang bocor menghitung GANDA permintaan bootstrap pada test berikutnya dan kegagalannya akan tampak seperti bug di layar"
+        },
+        {
+          "description": "401 pada /summary mengarahkan ke Login tanpa pesan jaringan",
+          "given": "/summary distub menjawab 401 UNAUTHENTICATED; router di-mock dengan spy push",
+          "expect": "spy router menerima satu push ke rute bernama 'login'; queryByTestId('network-error') null dan nol elemen menyebut galat jaringan; queryAllByTestId pola '^swd-kpi-' berpanjang 0"
+        },
+        {
+          "description": "403 meminta memilih line lagi DAN membersihkan angka yang sudah ada",
+          "given": "mount sukses dengan fixture lengkap sehingga kartu angka terender; lalu line diganti dan /summary menjawab 403 FORBIDDEN",
+          "expect": "[data-testid='production-line-rejected'] ada; queryAllByTestId pola '^swd-kpi-' berpanjang 0 SESUDAH 403 — angka pemuatan sebelumnya dibersihkan, bukan ditinggalkan di layar; queryByTestId('network-error') null"
+        },
+        {
+          "description": "422 akun tanpa mill menampilkan arahan menghubungi Admin",
+          "given": "/periods distub menjawab 422 VALIDATION_ERROR dengan pesan server yang DISALIN dari SolidWasteDisposalReportService ± baris 445 ('Akun Anda belum terhubung ke mill. Hubungi Admin.')",
+          "expect": "[data-testid='no-mill-for-account'] ada dan teksnya menyebut menghubungi Admin; queryByTestId('network-error') null; nol daftar seluruh mill ditawarkan (queryByTestId('mill-select') null untuk peran non-admin); nol angka dirender"
+        },
+        {
+          "description": "galat lain menampilkan keadaan galat + Coba Lagi, dengan jumlah permintaan DIHITUNG",
+          "given": "/summary distub menjawab 500 pada pemanggilan pertama lalu 200 pada pemanggilan kedua; line dan periode terisi",
+          "expect": "sesudah kegagalan: [data-testid='network-error'] ada dan [data-testid='retry-button'] ada, nol kartu angka; sesudah satu ketukan Coba Lagi: penghitung permintaan /summary TEPAT 2 (bukan 3 — coba lagi tidak memanggil dua kali) dan kartu angka terender"
+        },
+        {
+          "description": "URL ekspor tepat, dengan format=csv dan kedua parameter lingkup",
+          "given": "line 'l-3' dan periode 'p-1' terpilih; tombol ekspor ditekan satu kali",
+          "expect": "URL yang dibangun ber-pathname tepat '/api/solid-waste-disposal-reports/export'; URLSearchParams-nya memuat period_id=p-1, production_line_id=l-3, format=csv — kesetaraan atas tiap nilai param, bukan substring URL; format BUKAN 'xlsx'"
+        },
+        {
+          "description": "ketukan ganda cepat pada ekspor mengirim SATU permintaan",
+          "given": "permintaan ekspor distub tertunda (promise belum selesai); tombol ekspor ditekan dua kali berturut-turut, ketukan kedua dikirim dengan force supaya yang teruji adalah penjagaan APLIKASI bukan penjagaan alat uji",
+          "expect": "penghitung permintaan ke '/api/solid-waste-disposal-reports/export' TEPAT 1; tombol ber-atribut disabled selama permintaan berjalan dan menunjukkan keadaan sedang berjalan; sesudah promise selesai tombol aktif kembali"
+        },
+        {
+          "description": "pintu masuk: entri REPORT_ROUTES ditambahkan tanpa menyentuh ikon",
+          "given": "REPORT_ROUTES dan STATION_ICONS diimpor dari ReportingPilihStasiunView.vue",
+          "expect": "REPORT_ROUTES['solid-waste-disposal'] sama dengan 'report-solid-waste-disposal'; STATION_ICONS['solid-waste-disposal'] sudah ada dan nilainya TIDAK berubah oleh pekerjaan ini (dibandingkan terhadap nilai yang tercatat di implementation_notes ± baris 359); jumlah kunci REPORT_ROUTES bertambah tepat satu"
+        },
+        {
+          "description": "setiap kelas CSS yang dipakai markup punya definisi",
+          "given": "himpunan kelas yang dipakai LaporanSolidWasteDisposalView.vue dikumpulkan dari markup-nya, dan himpunan selector kelas dikumpulkan dari HASIL COMPILE stylesheet (bukan dari sumber SFC atau daftar utility yang ditulis tangan)",
+          "expect": "selisih himpunan pertama terhadap kedua KOSONG; kegagalan mencetak nama kelas yang tidak terdefinisi. Diperiksa pada hasil compile karena delapan belas kelas tanpa definisi hampir ikut terkirim pada pekerjaan sebelumnya di proyek ini"
+        }
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-162--laporan-solid-waste-disposal-web",
+      "reason": "Pasangan web — pemilik keempat endpoint yang dipakai layar ini apa adanya, dan pemilik SELURUH aturan angkanya. Perubahan bentuk payload di sana adalah perubahan di sini; tidak ada lapisan penyangga di antaranya, dan itu disengaja."
+    },
+    {
+      "screen_id": "screen-141--reporting-mobile",
+      "reason": "Pintu masuk satu-satunya. Tile Solid Waste Disposal baru menyala setelah satu entri ditambahkan ke REPORT_ROUTES di ReportingPilihStasiunView.vue. Entri itu DI-APPEND: map tersebut tidak urut sort_order dan tidak punya asersi urutan. RIAKNYA ADA DI SPEC-NYA — lihat implementation_notes."
+    },
+    {
+      "screen_id": "screen-161--laporan-process-water-mobile",
+      "reason": "Preseden kode terdekat untuk bentuk layar laporan mobile: struktur repo, bootstrap, penanganan luring, pemilih periode/line, dan tata letak kartu. TETAPI bentuk ANGKAnya berbeda — screen-161 bergrid 24 slot dengan sembilan metrik min/avg/max, layar ini per-transaksi dengan rekap kategoris. Ambil kerangkanya, bukan isinya."
+    }
+  ],
+  "implementation_notes": [
+    "RIAK WAJIB: `mobile/tests/ReportingPilihStasiunView.spec.ts` KINI MEMAKAI 'solid-waste-disposal' sebagai contoh 'belum ada laporan mobile' — dipindahkan ke sana oleh screen-161 pada 2026-10-18, beberapa jam sebelum layar ini. Menambahkan entri REPORT_ROUTES akan memerahkan ±20 tempat di berkas itu, termasuk docblock, fixture THREE_STATIONS, asersi urutan tile, dan asersi pesan 'belum tersedia di aplikasi mobile'.",
+    "DAN KALI INI PERBAIKANNYA ADALAH KODE FIKTIF, BUKAN PEMINDAHAN — keadaan yang berubah sejak catatan screen-161 menyatakan kolam kandidat habis. Berkas itu TIDAK membaca master station_types: ia MENYUNTIKKAN daftar stasiunnya sendiri lewat `makeStation({...})` dengan `getActiveAndPlaceholderStationsMock.mockResolvedValue(stations)` (± baris 197–220). Karena masternya disuntik, jenis stasiun FIKTIF tersedia di sini — sama seperti `stationReportMaster()` di StationReportServiceTest. Jadi pakai mis. `'zz-stasiun-fiktif'` dan SELESAIKAN pengejaran itu di berkas ini untuk selamanya, alih-alih memindahkannya ke kernel-dispatch yang akan basi lagi pada screen-165. Catatan screen-161 yang menyatakan 'kolam habis' dibuat tanpa memeriksa bagaimana spec itu memperoleh daftar stasiunnya; perbaiki catatan itu sekalian.",
+    "IKON 'solid-waste-disposal' SUDAH ADA di STATION_ICONS pada ReportingPilihStasiunView.vue (diverifikasi, ± baris 359) — tidak perlu ditambah dan jangan ditambah ulang.",
+    "EKSPOR HANYA CSV di mobile. Pasangan web-nya menyediakan csv dan xlsx; layar ini mengirim `format=csv` saja, karena berkas .xlsx di perangkat lapangan tidak punya pembaca yang dapat diandalkan sementara CSV dapat dibuka di mana pun dan dikirim lewat pesan. Keputusan ini mengikuti keenam laporan mobile sebelumnya. KONSEKUENSI UJI: ketiadaan tombol Excel diasersikan lewat TESTID dan role — BUKAN lewat sapuan teks halaman untuk 'excel'/'xlsx', karena prosa wajib di layar justru dapat menyebut kata itu saat menjelaskan bahwa tombolnya tidak ada. Jebakan ini sudah terbukti pada screen-161.",
+    "STUB APA PUN YANG MENIRU RESPONS SERVER WAJIB DISALIN DARI SERVERNYA, bukan dikarang. Pada screen-161 stub CSV dikarang dan menghasilkan 22 kolom sementara header nyata punya 21; seandainya angka asersinya yang disesuaikan, seluruh berkas akan hijau sambil membuktikan nol hal tentang berkas yang sungguh diunduh pengguna — layar mengunduh dari endpoint ASLI. Untuk layar ini, header ekspor datang dari SolidWasteDisposalReportService; salin dari sana.",
+    "JANGAN MENGUJI LURING DENGAN `context.setOffline(true)` + `page.reload()`. Itu memutus jaringan pada tingkat browser sehingga dokumen dan bundle aplikasinya sendiri gagal diambil dari Vite dev server: navigasinya mati dengan ERR_INTERNET_DISCONNECTED dan aplikasinya TIDAK PERNAH DIJALANKAN. Palsukan `navigator.onLine` lewat `addInitScript` — sinyal yang benar-benar dibaca layar — dan biarkan stub API tetap terpasang supaya penolakan permintaan DAPAT dibantah oleh penghitung permintaannya. Terbukti pada screen-161.",
+    "UJI BROWSER MOBILE BERJALAN LEWAT VITE DEV SERVER :5174 dengan `reuseExistingServer`, dan login DIBIARKAN NYATA terhadap backend :8000 — jadi backend dev HARUS hidup, atau ke-36-an test akan masing-masing membakar timeout navigasi 30s dan gagal karena sebab yang tidak ada hubungannya dengan layar. Jangan jalankan `db:prepare` dan jangan menyentuh database dev.",
+    "WRAPPER YANG DI-MOUNT WAJIB DI-UNMOUNT PADA `afterEach`: layar ini mendaftarkan listener `online`/`offline`, dan wrapper yang bocor menghitung ganda permintaan bootstrap pada test berikutnya — sebuah kegagalan yang akan tampak seperti bug di layar.",
+    "SPY PENYIMPANAN PERANGKAT HARUS PADA `Storage.prototype`, bukan pada `window.localStorage`. Di jsdom instance-nya dibungkus Proxy, sehingga spy instance menerima NOL panggilan dan test-nya hijau tanpa menguji apa pun. Diverifikasi pada screen-161: spy instance 0 panggilan, spy prototype 1 panggilan.",
+    "GEOMETRI DIUKUR, BUKAN DIASERSIKAN LEWAT NAMA KELAS. 'Halaman tidak bergeser mendatar' berarti membandingkan scrollWidth dan clientWidth pada lebar 390px; 'tabel menggulir di dalam kartunya' berarti memeriksa kartunya yang punya overflow, bukan halamannya. Markup yang benar tetap dapat menghasilkan elemen yang terpotong induknya, dan assertSee tidak pernah menangkapnya.",
+    "SETIAP KELAS CSS YANG DIPAKAI MARKUP WAJIB PUNYA DEFINISI, diperiksa pada hasil COMPILE bukan pada sumbernya. Delapan belas kelas tanpa definisi hampir ikut terkirim pada pekerjaan sebelumnya di proyek ini.",
+    "`expect()->toContain($a, $b)` / `toContain(a, b)` memperlakukan argumen kedua sebagai NEEDLE KEDUA, bukan sebagai pesan. Pakai bentuk yang menerima pesan secara eksplisit.",
+    "KETIADAAN BLOK DIASERSIKAN ATAS NAMA KUNCI PAYLOAD atau atas TESTID — tidak pernah atas prosa layar. Payload memuat `_note_no_hourly` yang berisi kata 'jam', dan layar merender kalimat itu utuh, sehingga asersi berbasis teks akan cocok dengan kalimat yang justru MENYATAKAN ketiadaannya."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — berhasil membaca laporan periode",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "_note": "peran Operator — tanpa business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_note": "endpoint bersama yang dipakai ulang verbatim"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "{{step2.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan repo distub mengembalikan fixture /summary lengkap, line dan periode terpilih",
+        "assert": "nama periode + rentang + [data-testid='period-status-badge'] hadir; keenam kartu angka utama (swd-kpi-load-count, swd-kpi-net-weight-total, swd-kpi-net-weight-avg, swd-kpi-net-weight-load-count, swd-kpi-missing-net-weight, swd-draft-load-count) masing-masing mencetak field payload-nya lewat peta testid→field dengan toBe; keempat rekap, kedua penghitung kepatuhan, swd-daily-table + swd-daily-total, blok kelengkapan, dan kedua daftar kejadian hadir; nol penjumlahan di klien"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "login, buka Reporting lalu tekan tile Solid Waste Disposal, pilih Production Line dan Periode; keempat rute data + rute line options distub page.route",
+        "assert": "seluruh blok laporan terlihat pada viewport 390x844; angka yang dirender sama dengan angka fixture; nol galat console"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — line terpilih otomatis dari yang diingat perangkat dan tetap dapat diganti",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "seed penyimpanan perangkat pada kunci tepat 'msl_production_line_u-7' = 'l-3' lalu mount tanpa query rute; sesudah angka termuat, pemilih line dibuka dan diganti ke 'l-4'",
+        "assert": "argumen getItem yang tertangkap spy Storage.prototype sama PENUH dengan 'msl_production_line_u-7'; pemilih line terikat ke 'l-3' tanpa satu langkah pengguna; permintaan /summary pertama membawa production_line_id=l-3; sesudah diganti, permintaan kedua membawa production_line_id=l-4 — line adalah konteks yang DIPILIH, bukan ikatan akun"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "page.addInitScript menulis localStorage['msl_production_line_<userId>']='l-3', lalu buka layar dengan rute data distub; kumpulkan permintaan lewat page.on('request'); ganti line sekali",
+        "assert": "line terpilih otomatis dan angka termuat; permintaan /summary pertama membawa production_line_id=l-3 dan yang kedua membawa line baru; pemilih line tetap dapat dibuka"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — line belum dipilih menahan seluruh permintaan",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "_note": "production_line_id sengaja diabaikan — membuktikan server pun menolak"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount tanpa query rute dan tanpa ingatan penyimpanan; api-client di-spy; lalu TIGA jalur dipicu terpisah — muat awal, ganti periode dua kali, dan ketuk Coba Lagi tiga kali",
+        "assert": "penghitung permintaan /summary TEPAT 0 pada ketiga jalur, diasersikan setelah masing-masing jalur (bukan satu asersi di akhir); spy pada fungsi pemuat ringkasan menerima 3 pemanggilan sementara permintaan tetap 0 — penjagaannya di SATU pemuat, bukan di template; nol kartu angka; queryByTestId('swd-export-csv') null; [data-testid='production-line-required-hint'] menyatakan apa yang ditunggu"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "buka layar dengan localStorage kosong; kumpulkan seluruh permintaan lewat page.on('request'); ganti periode sekali lalu ketuk Coba Lagi bila ada",
+        "assert": "jumlah permintaan ke '/api/solid-waste-disposal-reports/summary' TEPAT 0 (diukur, bukan disimpulkan dari angka yang tidak tampil); permintaan memilih line terlihat; tombol Ekspor CSV tidak ada di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — penyimpanan perangkat tidak dapat dibaca",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "vi.spyOn(Storage.prototype, 'getItem') dibuat MELEMPAR DOMException — spy pada PROTOTYPE, bukan pada window.localStorage, karena di jsdom instance-nya dibungkus Proxy sehingga spy instance menerima NOL panggilan dan test-nya hijau tanpa menguji apa pun; lalu mount dan pilih line secara manual",
+        "assert": "spy prototype menerima minimal 1 panggilan (dibuktikan lebih dulu); [data-testid='laporan-solid-waste-disposal-mobile'] tetap terender penuh; [data-testid='production-line-required-hint'] ada; queryAllByTestId('error-message') dan queryAllByTestId('network-error') KEDUANYA berpanjang 0; sesudah line dipilih manual, /summary terkirim tepat satu kali dan angka termuat"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "page.addInitScript mengganti Storage.prototype.getItem dengan fungsi yang melempar, lalu buka layar",
+        "assert": "layar terender dan meminta memilih line; nol elemen galat; nol galat console yang belum tertangani; alur berlanjut normal sesudah line dipilih"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — line yang diingat milik mill lain",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "<line milik mill lain>"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "ingatan perangkat berisi 'l-99'; /summary distub menjawab 403; snapshot DOM diambil setiap tick sepanjang alur",
+        "assert": "[data-testid='production-line-rejected'] ada dan pemilih line kembali kosong; pada SETIAP snapshot, queryAllByTestId pola '^swd-kpi-' berpanjang 0 — angka mill lain tidak pernah terender bahkan sekejap; 'l-99' tidak dikirim lagi pada permintaan berikutnya"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "addInitScript menanam ingatan line milik mill lain; /summary distub 403",
+        "assert": "layar meminta memilih line; locator kartu angka berjumlah 0 sepanjang alur; nol angka asing terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — Admin memilih mill dan mengganti mill mengosongkan line serta periode",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/business-units/options"
+          },
+          "request_example": {
+            "_note": "ADMIN SAJA"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "production_line_id": "l-3",
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/business-units/options"
+          },
+          "request_example": {
+            "_note": "peran bukan admin"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount berperan admin tanpa mill terpilih; pilih mill, line dan periode sampai angka tampil; lalu ganti mill ke mill lain; ulangi mount untuk ketiga peran non-admin",
+        "assert": "sebelum mill dipilih [data-testid='mill-required-hint'] ada dan daftar line maupun periode belum dimuat (penghitung permintaan keduanya 0); query string /periods dan /summary memuat business_unit_id — asersi atas nilai param; sesudah mill diganti, pemilih line DAN pemilih periode keduanya kosong dan queryAllByTestId pola '^swd-kpi-' berpanjang 0; pada ketiga mount non-admin queryAllByTestId('mill-select') berpanjang 0 (toHaveLength(0)) dan business_unit_id tidak muncul sebagai KUNCI di satu params pun"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "login sebagai admin, pilih mill lalu line dan periode, lalu ganti mill; ulangi login sebagai Operator",
+        "assert": "pemilih Mill terlihat untuk admin; permintaan yang tertangkap membawa business_unit_id; sesudah ganti mill nol kartu angka dan layar meminta memilih line; pada sesi Operator page.getByTestId('mill-select') toHaveCount(0)"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — akun belum terhubung ke mill",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "_note": "akun terikat mill yang users.business_unit_id-nya NULL"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan /periods distub menjawab 422 berisi pesan server yang DISALIN dari SolidWasteDisposalReportService ± baris 445 ('Akun Anda belum terhubung ke mill. Hubungi Admin.'), bukan dikarang",
+        "assert": "[data-testid='no-mill-for-account'] ada dan teksnya menyebut menghubungi Admin; queryByTestId('network-error') null; queryByTestId('mill-select') null (nol daftar seluruh mill ditawarkan sebagai jalan keluar); nol kartu angka"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /periods dengan 422 bertubuh salinan server, lalu buka layar",
+        "assert": "arahan menghubungi Admin terlihat; locator network-error berjumlah 0; nol angka terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — mill belum punya periode yang mencakup stasiun ini",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/periods"
+          },
+          "request_example": {
+            "_note": "mill tanpa period_stations berjenis solid-waste-disposal"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan /periods distub mengembalikan data: [] dan line terpilih",
+        "assert": "[data-testid='no-periods'] ada dan menyatakan sebabnya beserta arahan menghubungi Admin untuk pembuatan periode; queryByTestId('network-error') null (ini bukan galat); nol kartu angka; penghitung permintaan /summary TEPAT 0"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /periods dengan daftar kosong, pilih line",
+        "assert": "pemilih periode kosong dengan kalimat sebabnya; nol angka; jumlah permintaan /summary 0"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — periode tanpa muatan pada line terpilih",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "line tanpa satu muatan pun — keadaan nyata hari ini di sebagian besar line"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan fixture loads.load_count=0, net_weight_total=null, net_weight_avg=null, net_weight_load_count=0, keempat rekap [], daily [], completeness terisi",
+        "assert": "[data-testid='swd-empty-period-note'] ada dan teksnya MENYEBUT nama periode dan nama line (dibaca dari payload, dibandingkan dengan toContain atas needle tunggal — bukan toContain(a, b) yang memperlakukan argumen kedua sebagai needle kedua); swd-kpi-net-weight-total dan swd-kpi-net-weight-avg KEDUANYA bertekst '—' bukan 0; blok kelengkapan tetap dirender dengan days_in_period-nya; nol layar putih"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan fixture nol muatan lalu buka layar",
+        "assert": "kerangka laporan penuh terlihat dengan keadaan kosong yang menyebut periode dan line; blok kelengkapan terlihat; nol elemen bertekst '0,00 MT' pada blok berat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — jumlah muatan menghitung baris muatan, bukan dokumen catatan harian",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "tiga record induk yang bersama-sama membawa dua belas baris detail"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan fixture loads.load_count=12 sementara keempat rekap masing-masing berjumlah 12 dengan komposisi berbeda",
+        "assert": "[data-testid='swd-kpi-load-count'] mencetak 12 — bukan 3; untuk MASING-MASING keempat rekap, penjumlahan kolom jumlah muatan yang dibaca dari DOM sama dengan 12 (empat asersi terpisah, satu per rekap, baris 'tidak tercatat' ikut dijumlahkan); nol elemen mencetak 3 sebagai jumlah muatan"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan fixture itu lalu baca kartu jumlah muatan dan keempat rekap",
+        "assert": "kartu jumlah muatan menampilkan 12; penjumlahan baris tiap rekap yang dibaca dari tabelnya sama dengan 12"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — berat bersih dibaca apa adanya tanpa dihitung ulang",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "periode yang memuat baris ber-netto terisi sementara bruto dan tara keduanya null — keadaan yang ADA di DB e2e hari ini"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan fixture net_weight_total=37.5, net_weight_load_count=5, net_weight_avg=9.9 — avg SENGAJA bukan 37.5/5",
+        "assert": "swd-kpi-net-weight-total mencetak 37,5 dan swd-kpi-net-weight-avg mencetak 9,9 — keduanya nilai payload; bila klien menghitung ulang, avg akan terbaca 7,5 dan test gagal; nol kunci gross_weight/tare_weight dibaca (Proxy pencatat baca kunci atas payload mencatat 0 baca)"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan fixture yang aritmetikanya sengaja tidak konsisten",
+        "assert": "angka yang terlihat sama dengan angka fixture, bukan hasil hitungan ulang"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — seluruh muatan belum selesai ditimbang menghasilkan garis bukan nol",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "seluruh muatan tanpa net_weight_mt"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan fixture load_count=8, net_weight_total=null, net_weight_avg=null, net_weight_load_count=0, missing_net_weight_load_count=8",
+        "assert": "teks swd-kpi-net-weight-total dan swd-kpi-net-weight-avg KEDUANYA sama dengan '—' (kesetaraan penuh pada tiap elemen, bukan sapuan halaman) dan TIDAK sama dengan '0,00 MT'; swd-kpi-net-weight-load-count mencetak 0; swd-kpi-load-count tetap 8; [data-testid='swd-card-missing-net-weight'] mencetak 8 dan teks kartunya memuat 'penimbangan belum selesai' dan TIDAK memuat 'data tidak lengkap'"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan fixture tanpa satu netto pun",
+        "assert": "kedua kartu berat menampilkan garis; kartu penimbangan-belum-selesai menonjol dengan angka 8; nol elemen '0,00 MT' di blok berat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — rata-rata selalu bersama penyebutnya",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "sepuluh muatan, enam di antaranya bernetto"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan fixture load_count=10, net_weight_load_count=6, missing_net_weight_load_count=4, net_weight_avg dari payload",
+        "assert": "elemen swd-kpi-net-weight-avg dan swd-kpi-net-weight-load-count punya LELUHUR [data-testid='swd-card-net-weight-avg'] yang SAMA — diasersikan lewat closest()/contains(), bukan lewat kedekatan teks atau nama kelas; penyebut yang tercetak 6, bukan 10; swd-kpi-load-count tetap 10; swd-card-missing-net-weight adalah kartu terpisah bernilai 4 dan BUKAN keturunan kartu rata-rata; setiap baris keempat rekap DAN setiap baris daily juga mencetak net_weight_load_count-nya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan fixture 10/6/4 lalu baca kartu rata-rata",
+        "assert": "penyebut 6 terlihat di dalam kartu rata-rata yang sama (diperiksa lewat locator bersarang di bawah testid kartunya); kartu penimbangan-belum-selesai terpisah dengan angka 4"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — rekap kategoris menampilkan nilai apa adanya tanpa ember dibuang/dimanfaatkan",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "purpose_end_use terisi beberapa nilai teks bebas berbeda"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan by_purpose_end_use berisi empat nilai teks bebas yang berbeda",
+        "assert": "jumlah baris [data-testid^='swd-recap-purpose-end-use-row-'] sama dengan panjang array payload; teks tiap sel nilai sama PENUH dengan nilai payload-nya (nol penerjemahan ke label); nol baris bertekst 'dibuang', 'dimanfaatkan' atau 'lainnya' di dalam elemen rekap itu; nol tabel pemetaan nilai→ember di berkas mana pun yang diimpor layar (diperiksa dengan grep statis atas nama kunci pemetaan)"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary lalu buka rekap tujuan penggunaan akhir",
+        "assert": "satu baris per nilai apa adanya beserta jumlah muatan dan total netto; locator baris 'dibuang'/'dimanfaatkan' di dalam kartu rekap berjumlah 0"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — baris 'tidak tercatat' berdiri sendiri dan tiap rekap menjumlah ke jumlah muatan",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "dua belas muatan; sebagian mengosongkan tiap kolom kategoris; dua nilai berbeda hanya pada besar-kecil huruf"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan loads.load_count=12 dan keempat rekap masing-masing memuat satu baris value:null plus baris 'Abu boiler' dan 'abu boiler' terpisah",
+        "assert": "pada masing-masing keempat rekap terdapat TEPAT satu baris bertekst nilai 'tidak tercatat' yang tidak dilipat ke baris mana pun; penjumlahan kolom jumlah muatan tiap rekap sama dengan 12 (empat asersi terpisah); 'Abu boiler' dan 'abu boiler' muncul sebagai dua baris dengan teks berbeda; jumlah baris DOM sama dengan panjang array payload tiap rekap"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan fixture itu lalu buka keempat rekap",
+        "assert": "baris 'tidak tercatat' terlihat pada keempat rekap; penjumlahan tiap rekap sama dengan jumlah muatan; kedua ejaan tampil terpisah"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — urutan dari total netto terbesar menaikkan 'tidak tercatat' yang bertonase besar, dan nilai langka tidak dilipat",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "kelompok berkolom kategoris kosong justru bertonase terbesar — server sudah mengurutkan netto DESC → jumlah DESC → nilai ASC"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan tiap rekap diberi empat baris yang urutannya SENGAJA bukan alfabetis dan bukan urut jumlah — mis. [{value:'Zpalm shell',load_count:1},{value:null,load_count:9},{value:'Abu boiler',load_count:4},{value:'Mesocarp fibre',load_count:2}]",
+        "assert": "array teks sel nilai yang dibaca dari DOM sama PERSIS (toEqual atas array berurut, bukan himpunan) dengan ['Zpalm shell','tidak tercatat','Abu boiler','Mesocarp fibre']; baris 'tidak tercatat' berada di posisi KEDUA sesuai payload, bukan dipindah ke akhir; nol pemanggilan sort/toSorted di jalur render rekap; diulang untuk keempat rekap dengan urutan payload yang berbeda-beda"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan urutan payload yang sengaja tidak alfabetis dan tidak urut jumlah, lalu baca urutan baris dari DOM",
+        "assert": "urutan teks baris yang terbaca sama persis dengan urutan payload; baris 'tidak tercatat' bertonase besar MUNCUL DI ATAS, tidak terkubur di baris terakhir"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — nilai langka tidak pernah dilipat menjadi 'lainnya' (pecahan kedua dari BDD 'urutan … dan nilai langka tidak dilipat' — fixture berekor panjang terpisah)",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "satu nilai kategoris muncul sekali di antara puluhan muatan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan rekap berisi lima belas baris yang delapan di antaranya ber-load_count=1",
+        "assert": "jumlah baris DOM sama dengan panjang array payload (lima belas) — nol pelipatan; kedelapan baris ber-load_count=1 hadir masing-masing; queryAllByTestId baris yang teks nilainya /^lainnya$/i berpanjang 0; nol pemotongan daftar (nol 'tampilkan lebih banyak' yang menyembunyikan baris dari DOM)"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan rekap berekor panjang lalu buka rekapnya",
+        "assert": "setiap nilai punya barisnya sendiri; locator baris 'lainnya' di dalam kartu rekap berjumlah 0"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — penghitung kepatuhan adalah jejak, bukan ukuran",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode tanpa gate pass>",
+            "production_line_id": "l-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode dengan gate pass dan segel lengkap>",
+            "production_line_id": "l-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "dua mount: fixture A dengan missing_gate_pass_count sama dengan load_count; fixture B dengan missing_gate_pass_count=0 dan missing_seal_count=0",
+        "assert": "pada KEDUA mount swd-compliance-missing-gate-pass dan swd-compliance-missing-seal HADIR — nol tetap dirender, tidak disembunyikan; [data-testid='swd-compliance-note'] hadir pada kedua keadaan dan textContent-nya sama PENUH dengan compliance._note payload (toBe sesudah normalisasi spasi, bukan toContain); nol elemen rata-rata/pengurutan/grafik di dalam blok kepatuhan (queryAllByTestId pola '^swd-compliance-chart' dan '^swd-compliance-avg' berpanjang 0); blok kepatuhan bukan keturunan kartu loads"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "buka layar untuk kedua periode secara berurutan",
+        "assert": "pada periode pertama penghitung menunjukkan angka penuh sebagai temuan; pada periode kedua keduanya menunjukkan 0 dan tetap terlihat; kalimat jejak-kepatuhan terlihat di kedua keadaan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — temuan dan catatan pada dua bagian terpisah",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode dengan satu muatan mengisi findings dan remarks sekaligus>",
+            "production_line_id": "l-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode dengan kedua kolom teks kosong>",
+            "production_line_id": "l-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount pertama dengan findings satu entri dan remarks satu entri bertanggal sama namun berteks berbeda; mount kedua dengan kedua daftar kosong",
+        "assert": "[data-testid='swd-findings'] dan [data-testid='swd-remarks'] ada dan TIDAK saling bersarang (contains() dua arah keduanya false); masing-masing memuat satu entri dengan tanggalnya, dan teks entri sama PENUH dengan nilai payload-nya — nol pemendekan, nol elipsis; pada mount kedua swd-findings-empty dan swd-remarks-empty hadir dan daftar tidak kosong tanpa penjelasan"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "buka layar untuk kedua periode",
+        "assert": "dua bagian terpisah terlihat; muatan yang mengisi keduanya muncul di kedua daftar beserta tanggalnya; pada periode kosong keterangan tidak ada catatan terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — draft ikut terhitung dan jumlahnya dinyatakan",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "sebagian muatan berstatus draft"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan fixture draft_load_count=4 dan loads.load_count=12",
+        "assert": "[data-testid='swd-draft-load-count'] mencetak 4 dan [data-testid='swd-draft-note'] menyatakan bahwa muatan draft IKUT terhitung; swd-kpi-load-count tetap 12 — bukan 8; penjumlahan tiap rekap tetap 12; penghitung kepatuhan dan daily_total juga dihitung atas 12; nol pemanggilan filter atas nilai 'draft'/'final' di jalur render (grep statis atas jalur render payload)"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan fixture bercampur draft lalu baca seluruh angka",
+        "assert": "jumlah muatan 12, jumlah draft dinyatakan 4, dan tidak ada bagian layar yang menyaring draft keluar"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — rekap harian satu baris per hari bermuatan",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode 30 hari dengan pengangkutan pada 9 hari>",
+            "production_line_id": "l-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan periode 30 hari dan daily[] berisi TEPAT 9 entri (urutan payload sengaja bukan urut tanggal naik), ditambah daily_total yang net_weight_total-nya BUKAN jumlah kolomnya",
+        "assert": "jumlah baris [data-testid^='swd-daily-row-'] TEPAT 9; himpunan tanggal yang dibaca dari DOM sama (toEqual) dengan himpunan tanggal payload — nol baris nol untuk 21 hari lainnya; urutan baris DOM sama persis dengan urutan payload; [data-testid='swd-daily-total'] mencetak nilai daily_total dari payload, bukan hasil penjumlahan kolom; setiap baris mencetak net_weight_load_count-nya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan periode 30 hari / 9 hari bermuatan lalu buka rekap harian",
+        "assert": "tepat 9 baris terlihat beserta baris total; nol baris bertanggal tanpa muatan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — kelengkapan diukur atas hari yang sudah berjalan",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang masih berjalan>",
+            "production_line_id": "l-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang belum mulai>",
+            "production_line_id": "l-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount pertama dengan completeness {days_in_period:30, days_with_load:4, days_counted:11, percent:36.4}; mount kedua dengan {days_in_period:30, days_with_load:0, days_counted:0, percent:null}",
+        "assert": "mount pertama: swd-coverage-percent mencetak 36,4 dan swd-coverage-denominator mencetak 11 (bukan 30), [data-testid='swd-coverage-running-note'] menyatakan penyebut berhenti di hari ini; nol pembagian di klien — percent dibaca dari payload, dibuktikan dengan fixture yang percent-nya sengaja tidak sama dengan days_with_load/days_counted. Mount kedua: teks swd-coverage-percent sama dengan '—' dan [data-testid='swd-coverage-not-started-note'] menyatakan periode belum dimulai; nol elemen bertekst '0,0%' atau '0%' di dalam blok kelengkapan"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "buka layar untuk periode berjalan lalu untuk periode yang belum mulai",
+        "assert": "pada periode berjalan penyebut hari berhenti di hari ini dan hal itu dinyatakan; pada periode belum mulai kelengkapan menampilkan garis dengan kalimat 'periode belum dimulai', bukan 0,0%"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — tanpa sebaran per jam, dan sebabnya dinyatakan di layar",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "periode berisi banyak muatan; payload tidak punya blok hourly sama sekali"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan fixture yang SENGAJA juga membawa kunci tambahan hourly, busiest_hour, empty_hour_count, dan payload dibungkus Proxy pencatat baca kunci; nilai _note_no_hourly dan _note_absences DISALIN dari konstanta SolidWasteDisposalReportService (NOTE_NO_HOURLY dan saudaranya), bukan dikarang",
+        "assert": "Proxy mencatat NOL baca atas ketiga nama kunci itu; queryAllByTestId pola '^swd-hourly', testid 'swd-busiest-hour', 'swd-empty-hour-count', 'hourly-dispatch', 'hourly-receive' SELURUHNYA berpanjang 0 dan getAllByRole('heading',{name:/per jam/i}) berpanjang 0 — ASERSI LEWAT TESTID, NAMA KUNCI DAN ROLE, BUKAN lewat sapuan teks halaman, karena _note_no_hourly MEMUAT kata 'jam' dan layar merendernya utuh (jebakan ini sudah terbukti pada screen-161); textContent swd-note-no-hourly dan swd-note-absences masing-masing sama PENUH dengan nilai payload-nya (toBe), dan kalimat ketiadaan blok henti operasi serta ketiadaan penandaan nilai di luar batas ikut di dalamnya"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "buka layar dengan /summary distub lalu gulir seluruh halaman",
+        "assert": "page.getByTestId untuk setiap testid sebaran jam toHaveCount(0) dan getByRole('heading',{name:/per jam/i}) toHaveCount(0); [data-testid='swd-note-no-hourly'] terlihat dan teksnya utuh — nol pemindaian prosa dipakai sebagai bukti ketiadaan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — muatan tanpa tanggal kejadian tidak dapat terjadi",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "undated_load_count = 0 (kolom event_date NOT NULL)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "DUA mount TERPISAH: (a) fixture undated_load_count=0; (b) fixture undated_load_count=3",
+        "assert": "mount (a): queryByTestId('swd-undated-note') null DAN queryByTestId('swd-undated-load-count') null — blok tidak hadir sama sekali, bukan hadir bernilai 0; penjumlahan baris rekap harian tetap sama dengan loads.load_count tanpa sisa. Mount (b): kedua testid itu HADIR dan swd-undated-load-count mencetak 3. Dua test terpisah karena satu test bercabang tidak membuktikan kedua cabang"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "buka layar untuk fixture undated_load_count=0, lalu untuk fixture undated_load_count=3",
+        "assert": "pada fixture pertama locator swd-undated-load-count toHaveCount(0); pada fixture kedua toHaveCount(1) dengan angka 3"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — giliran kerja tidak di layar tetapi ada di ekspor",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/export"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "format": "csv",
+            "_note": "periode yang kolom shift-nya terisi berbeda-beda"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan fixture lengkap lalu periksa ketiadaan shift di layar dan isi header ekspor",
+        "assert": "queryAllByTestId pola '^swd-recap-shift', testid 'swd-shift-column' dan 'swd-shift-filter' seluruhnya 0; getAllByRole('columnheader',{name:/^Shift$/i}) berpanjang 0 — asersi lewat TESTID dan ROLE, BUKAN sapuan teks untuk kata 'shift', karena [data-testid='swd-note-shift'] justru menjelaskan bahwa kolom itu hanya ada di ekspor dan textContent-nya diasersikan sama PENUH dengan _note_shift_not_published payload; stub CSV DISALIN dari SolidWasteDisposalReportService::EXPORT_HEADER — 22 kolom (5 konteks + 17 kolom detail), diimpor/disalin dari konstanta itu, BUKAN dikarang — dan baris headernya memuat 'Shift', 'Weighbridge Ticket No', 'Vehicle No', 'Driver Name', 'Gate Pass No', 'Security Seal No'; dipakai expect(header).toContain('Shift') terpisah per needle, karena toContain(a, b) memperlakukan argumen kedua sebagai NEEDLE KEDUA dan bukan pesan"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /export dengan aliran CSV yang baris headernya disalin dari EXPORT_HEADER (22 kolom) lalu tekan Ekspor CSV; tangkap event download",
+        "assert": "berkas terunduh; baris header berisi tepat 22 kolom dan memuat Shift beserta kelima kolom yang tidak muncul di satu angka pun di layar; nol kolom Shift pada DOM layar (locator columnheader 'Shift' toHaveCount(0))"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — ekspor ditekan dua kali cepat",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/export"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "line dan periode terpilih, angka tampil; permintaan ekspor distub tertunda; [data-testid='swd-export-csv'] ditekan dua kali berturut-turut, ketukan kedua dikirim dengan force supaya yang teruji adalah penjagaan APLIKASI bukan penjagaan alat uji",
+        "assert": "penghitung permintaan ke '/api/solid-waste-disposal-reports/export' TEPAT 1; URL yang dibangun ber-pathname tepat endpoint itu dan URLSearchParams-nya memuat period_id=p-1, production_line_id=l-3, format=csv (kesetaraan per nilai param, bukan substring URL) dan format BUKAN 'xlsx'; tombol ber-atribut disabled selama permintaan berjalan lalu aktif kembali; queryByTestId('swd-export-xlsx') null dan getAllByRole('button',{name:/xlsx|excel/i}) berpanjang 0"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "tekan Ekspor CSV dua kali cepat dengan /export distub tertunda; kumpulkan permintaan lewat page.on('request') dan unduhan lewat page.on('download')",
+        "assert": "jumlah permintaan /export TEPAT 1 dan jumlah event download TEPAT 1; tombol menunjukkan keadaan sedang berjalan selama permintaan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — rekap menggulir mendatar di dalam kartunya dan dapat dilipat",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode panjang: rekap harian puluhan baris>",
+            "production_line_id": "l-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan fixture rekap harian 28 baris dan rekap kategoris lebar; keempat rekap kategoris dan rekap harian dilipat lalu dibuka kembali; api-client di-spy",
+        "assert": "setiap kartu rekap punya kontrol lipat ber-role button dengan aria-expanded yang berubah; melipat dan membuka TIDAK memicu satu permintaan pun (penghitung permintaan tetap pada nilai sebelum interaksi) dan tidak mengubah satu angka pun (teks swd-kpi-* dan swd-daily-total identik sebelum dan sesudah, dibandingkan sebagai objek peta testid→teks)"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "page.setViewportSize({width:390,height:844}); buka layar dengan fixture panjang; UKUR geometri lewat evaluate()",
+        "assert": "document.documentElement.scrollWidth <= clientWidth (halaman tidak bergeser mendatar) — DIUKUR, bukan diasersikan lewat nama kelas; untuk kartu tabel lebar, elemen pembungkus di dalam kartu punya scrollWidth > clientWidth dan getComputedStyle-nya overflow-x bukan 'visible', sementara boundingBox tabelnya tidak melampaui boundingBox kartunya; sesudah dilipat dan dibuka kembali, kedua pengukuran itu tetap berlaku dan jumlah permintaan tidak bertambah"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — periode tertutup tetap dapat dibaca dan diekspor",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode closed>",
+            "production_line_id": "l-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.period.id}}",
+            "production_line_id": "l-3",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "mount dengan period.status='closed' dan fixture lengkap",
+        "assert": "seluruh kartu angka, keempat rekap, kedua penghitung kepatuhan, rekap harian dan blok kelengkapan dirender sama seperti periode terbuka (peta testid→field diperiksa penuh); [data-testid='period-status-badge'] hadir dan menyatakan status tertutup; [data-testid='swd-export-csv'] ada dan TIDAK ber-atribut disabled; nol penyaring status pada daftar periode (periode closed hadir di opsi pemilih)"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "pilih periode berstatus tertutup lalu tekan Ekspor CSV",
+        "assert": "laporan tampil penuh; badge tertutup terlihat; unduhan CSV berjalan dan event download tertangkap"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — luring menutup angkanya dan mengirim nol permintaan",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "_note": "tidak ada langkah API — justru itu yang diuji: nol permintaan terkirim selama perangkat luring"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "navigator.onLine dipalsukan false lewat defineProperty SEBELUM mount; api-client di-spy; wrapper di-unmount pada afterEach",
+        "assert": "penghitung permintaan untuk SETIAP path yang dipakai layar (business-units/options, periods, options-for-report, summary, export) TEPAT 0 — kelima diperiksa satu per satu, bukan hanya /summary; [data-testid='offline-notice'] ada dan teks ELEMEN ITU memuat pernyataan bahwa laporan memerlukan jaringan DAN kalimat bahwa layar tidak menampilkan satu angka pun dari pemuatan sebelumnya; queryAllByTestId pola '^swd-kpi-' berpanjang 0 dan queryByTestId('swd-daily-table') null"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "page.addInitScript memalsukan navigator.onLine menjadi false (Object.defineProperty) dengan stub API TETAP terpasang, lalu buka layar — JANGAN context.setOffline(true) + page.reload(), karena itu memutus pengambilan dokumen dan bundle dari Vite dev server :5174 sehingga aplikasinya TIDAK PERNAH DIJALANKAN; kumpulkan permintaan lewat page.on('request')",
+        "assert": "jumlah permintaan ke kelima path TEPAT 0 — dapat dibantah oleh penghitungnya karena stub masih terpasang; pernyataan luring terlihat; locator kartu angka toHaveCount(0)"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — sesi berakhir mengarahkan ke Login tanpa pesan galat jaringan",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "token tidak berlaku"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "DUA mount terpisah: (a) /summary menjawab 401; (b) layar sudah memuat angka lalu /export menjawab 401; router di-mock dengan spy push",
+        "assert": "pada kedua mount spy router menerima satu push ke rute bernama 'login'; queryByTestId('network-error') null dan nol elemen menyebut galat jaringan (diperiksa pada testid, bukan sapuan prosa); queryAllByTestId pola '^swd-kpi-' berpanjang 0 sesudah 401 — nol angka tertinggal di layar"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary dengan 401 lalu buka layar",
+        "assert": "URL berakhir pada rute Login (dibandingkan lewat page.url() terhadap baseURL + path, BUKAN toHaveURL('**/login') yang tidak pernah cocok bila baseURL dipakai); locator network-error toHaveCount(0); nol angka terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — galat jaringan dapat dicoba lagi dengan penjagaan line tetap berlaku",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "pemanggilan pertama gagal"
+          },
+          "expected_status": 500,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "l-3",
+            "_note": "pemanggilan kedua berhasil"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSolidWasteDisposalView.vue",
+        "action": "DUA mount terpisah: (a) line terpilih, /summary gagal lalu berhasil, Coba Lagi ditekan satu kali; (b) line BELUM terpilih, keadaan galat dipaksa, Coba Lagi ditekan tiga kali",
+        "assert": "mount (a): sesudah kegagalan [data-testid='network-error'] dan [data-testid='retry-button'] ada dan nol kartu angka separuh jadi; sesudah satu ketukan penghitung permintaan /summary TEPAT 2 — bukan 3, sehingga coba lagi tidak diam-diam memanggil dua kali — dan kartu angka terender. Mount (b): penghitung permintaan /summary TEPAT 0 sesudah ketiga ketukan — penjagaan line TETAP berlaku pada jalur Coba Lagi"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "stub /summary gagal sekali lalu berhasil; tekan Coba Lagi; ulangi pada sesi tanpa line terpilih",
+        "assert": "jumlah permintaan /summary 2 pada kasus pertama dan 0 pada kasus kedua, keduanya DIHITUNG lewat page.on('request'); nol angka separuh jadi terlihat di antara kedua keadaan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Solid Waste Disposal Mobile — pintu masuk tile Reporting menyala, DAN riak pada ReportingPilihStasiunView.spec.ts diselesaikan dengan kode fiktif",
+      "usecase_id": "usecase-169--laporan-solid-waste-disposal-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_note": "dipicu oleh navigasi dari tile — nol endpoint baru untuk pintu masuk ini"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "ReportingPilihStasiunView.vue",
+        "action": "satu entri DI-APPEND ke REPORT_ROUTES: 'solid-waste-disposal' → 'report-solid-waste-disposal'; ikon 'solid-waste-disposal' SUDAH ADA di STATION_ICONS (± baris 359) dan tidak ditambah ulang. RIAK WAJIB DIPERBAIKI DI TEMPAT: mobile/tests/ReportingPilihStasiunView.spec.ts kini memakai 'solid-waste-disposal' sebagai contoh 'belum ada laporan mobile' (±20 tempat: docblock ± baris 53/71/84, fixture THREE_STATIONS ± 199, asersi urutan tile ± 247, asersi pesan 'Belum tersedia' ± 722, dan catatan ± 891). PERBAIKANNYA MENYUNTIKKAN KODE FIKTIF, BUKAN MEMINDAHKAN KE STASIUN NYATA LAIN: berkas itu TIDAK membaca master station_types — ia menyuntikkan daftar stasiunnya sendiri lewat makeStation({...}) + getActiveAndPlaceholderStationsMock.mockResolvedValue(stations) (± baris 197–220), sehingga jenis fiktif mis. 'zz-stasiun-fiktif' tersedia di sini (preseden stationReportMaster() di StationReportServiceTest). Catatan screen-161 yang menyatakan 'kolam kandidat habis' dibuat tanpa memeriksa bagaimana spec itu memperoleh daftar stasiunnya — perbaiki catatan itu sekalian.",
+        "assert": "REPORT_ROUTES['solid-waste-disposal'] sama dengan 'report-solid-waste-disposal' dan jumlah kuncinya bertambah TEPAT satu; STATION_ICONS['solid-waste-disposal'] tidak berubah; [data-testid='station-tile-solid-waste-disposal'] TIDAK ber-aria-disabled='true' dan teksnya TIDAK memuat 'Belum tersedia'; klik tile itu memanggil spy router.push dengan { name: 'report-solid-waste-disposal' }; seluruh asersi 'belum ada laporan mobile' di berkas spec itu kini menyasar 'zz-stasiun-fiktif' — dicari dengan GREP ATAS KODE STASIUNNYA, bukan atas urutan barisnya — dan berkas spec-nya hijau tanpa satu test pun di-skip"
+      },
+      "browser_test": {
+        "route": "/reports/solid-waste-disposal",
+        "action": "login, buka layar Reporting, tekan tile Solid Waste Disposal",
+        "assert": "tile aktif (bukan aria-disabled) dan navigasi mendarat pada rute laporan ini — dibandingkan lewat page.url() terhadap baseURL + '/reports/solid-waste-disposal'; layar laporan terender; nol galat console"
+      }
+    }
+  ]
+}

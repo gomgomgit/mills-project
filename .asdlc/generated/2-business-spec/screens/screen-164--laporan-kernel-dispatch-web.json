@@ -1,0 +1,144 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-164--laporan-kernel-dispatch-web",
+  "name": "Laporan Kernel Dispatch (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode untuk stasiun Kernel Dispatch — pengiriman inti (kernel) keluar pabrik. Satuan hitungnya SATU PENGIRIMAN: satu baris catatan, satu kendaraan yang berangkat membawa inti ke pembeli. Layar ini menjawab tiga pertanyaan sekaligus, dan ketiganya berbeda sifat: BERAPA BANYAK yang terkirim pada periode ini, SEBAIK APA MUTUNYA, dan APAKAH DOKUMENNYA LENGKAP. Dua yang pertama hampir selalu dibaca bersama — tonase tinggi dengan kadar air tinggi adalah kabar buruk yang menyamar sebagai kabar baik — sehingga keduanya ditampilkan berdampingan, bukan di dua bagian terpisah. Inilah laporan pertama yang menggabungkan HITUNGAN TRANSAKSI dengan MUTU per pengiriman; laporan per-transaksi sebelumnya (Weighbridge, Grading, Solid Waste Disposal) hanya menghitung dan menimbang, sementara laporan bermutu sebelumnya bergrid per jam. Layar ini juga punya satu hal yang tidak dimiliki laporan per-transaksi mana pun sejauh ini: sebuah kolom status yang BENAR-BENAR berisi pilihan tertutup, bukan teks bebas.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menekan tile Kernel Dispatch pada layar Laporan Stasiun (screen-140) — satu-satunya pintu masuk web",
+    "Tautan langsung ke rutenya dengan mill dan Production Line terbawa di query string, seperti keenam belas laporan sebelumnya"
+  ],
+  "information_displayed": [
+    "Nama periode, rentang tanggalnya, dan penanda statusnya — periode draft maupun tertutup tetap terbaca",
+    "Nama mill yang berlaku; pemilih Mill hanya untuk Admin",
+    "Pemilih Production Line — WAJIB dipilih sebelum satu angka pun muncul",
+    "Jumlah pengiriman pada periode ini, termasuk pengiriman yang penimbangannya belum selesai",
+    "Total berat bersih inti terkirim dan rata-rata per pengiriman, DENGAN penyebutnya tercetak di kartu yang sama",
+    "Jumlah pengiriman yang penimbangannya BELUM SELESAI, ditonjolkan tersendiri — berat bersih adalah angka turunan, jadi kosongnya berarti kendaraan belum kembali ditimbang kosong",
+    "EMPAT UKURAN MUTU, masing-masing dengan nilai terendah, rata-rata dan tertinggi, dan masing-masing dengan PENYEBUTNYA SENDIRI: kadar air inti, kadar kotoran, kadar asam lemak bebas (ALB), dan kadar inti pecah — keempatnya dalam persen",
+    "Pernyataan bahwa penyebut keempat ukuran mutu dapat BERBEDA SATU DENGAN LAINNYA dan berbeda dari jumlah pengiriman, karena satu pengiriman boleh punya sebagian hasil uji saja",
+    "Rekap menurut pengangkut/kontraktor — berapa pengiriman dan berapa tonase per pengangkut",
+    "Rekap menurut silo sumber — dari silo mana inti itu diambil",
+    "Rekap menurut pembeli tujuan — ke mana inti itu dikirim",
+    "Pada ketiga rekap di atas: satu baris 'tidak tercatat' tersendiri, sehingga penjumlahan tiap rekap tetap sama dengan jumlah pengiriman",
+    "Rekap STATUS PELEPASAN GERBANG — berapa pengiriman berstatus dilepas, berapa tidak dilepas, dan berapa yang statusnya tidak tercatat. Ini satu-satunya rekap di layar ini yang nilainya berasal dari pilihan tertutup, bukan dari teks yang diketik",
+    "Pengiriman berstatus TIDAK DILEPAS ditonjolkan tersendiri — ia bukan sekadar satu baris dalam rekap: inti yang berangkat tanpa pelepasan gerbang adalah kejadian yang perlu dilihat, bukan dihitung",
+    "Jumlah pengiriman tanpa nomor surat jalan, tanpa nomor segel atas, dan tanpa nomor segel bawah — tiga penghitung terpisah, disajikan sebagai JEJAK KEPATUHAN bukan ukuran produksi",
+    "Pernyataan bahwa segel ATAS dan segel BAWAH dihitung terpisah dan tidak dijumlahkan — satu kendaraan dengan satu segel hilang adalah keadaan yang berbeda dari dua kendaraan dengan masing-masing satu segel hilang",
+    "Rekap harian: satu baris per hari YANG ADA PENGIRIMANNYA, beserta baris total periode",
+    "Kelengkapan pencatatan diukur dalam HARI — berapa hari dari periode yang sudah berjalan punya pengiriman",
+    "Jumlah pengiriman milik catatan berstatus draft — ikut terhitung, dan jumlahnya dinyatakan",
+    "Daftar temuan bertanggal — teks bebas apa adanya",
+    "Pernyataan bahwa SEBARAN PER JAM dan WAKTU PUTAR KENDARAAN tidak dapat dibuat untuk stasiun ini, beserta sebabnya: catatan pengiriman hanya membawa tanggal, tanpa jam masuk maupun jam keluar",
+    "Pernyataan bahwa tidak ada penandaan nilai mutu di luar batas, beserta sebabnya: stasiun ini tidak punya master ambang mutu",
+    "Pernyataan bahwa kolom giliran kerja tidak ditampilkan di layar tetapi tetap ada di berkas ekspor"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih periode pelaporan",
+      "description": "Daftar periode hanya memuat periode yang mendaftarkan stasiun Kernel Dispatch pada mill yang berlaku; status periode tidak menyaringnya.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Wajib. Sebelum ini dipilih, layar tidak menampilkan satu angka pun dan menyatakan apa yang ditunggunya. Tidak ada opsi 'semua line'.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Hanya Admin. Peran lain terikat pada mill akunnya dan tidak melihat pemilih ini.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Unduh ekspor CSV",
+      "description": "Rincian mentah: satu baris per pengiriman, kolom konteks diulang di setiap baris, dan SELURUH kolom catatan ikut — termasuk giliran kerja, nomor tiket timbang, nomor surat jalan, nomor kendaraan, nama pengemudi, kedua nomor segel, dan kode operator timbang. Lima di antaranya tidak muncul di satu angka pun di layar.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Unduh ekspor Excel",
+      "description": "Berkas .xlsx sungguhan dengan isi yang sama persis dengan CSV — bukan CSV yang diberi ekstensi lain.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Production Line WAJIB dipilih sebelum satu angka pun tampil. Tidak ada 'semua line', dan tidak ada line yang dipilihkan — bahkan ketika mill hanya punya satu.",
+    "Mill diturunkan dari akun bagi Supervisor dan Mill Management; hanya Admin yang memilih. Mill kiriman dari peran terikat mill DIABAIKAN, bukan ditolak.",
+    "Operator tidak punya akses ke rute web ini; jalurnya ada di screen-165 (mobile).",
+    "Laporan tidak menyaring status periode: draft, terbuka dan tertutup sama-sama terbaca.",
+    "Satu baris catatan pengiriman = satu pengiriman. Jumlah pengiriman menghitung baris catatan, bukan dokumen catatan harian.",
+    "Total dan rata-rata berat dihitung HANYA atas pengiriman yang beratnya terisi, dan penyebut itu DITERBITKAN di layar.",
+    "SETIAP ukuran mutu punya penyebutnya SENDIRI, dan keempatnya boleh berbeda satu dengan lainnya serta berbeda dari jumlah pengiriman — satu pengiriman boleh punya sebagian hasil uji saja. Kenyataan itu DINYATAKAN di layar, bukan disembunyikan di balik satu penyebut tunggal.",
+    "Nol pengukuran pada sebuah ukuran mutu menghasilkan '—' untuk ketiga angkanya, bukan 0,00 — 'belum diuji' dan 'kadarnya nol' adalah dua hal yang berbeda, dan untuk kadar air perbedaannya besar.",
+    "Berat bersih dibaca APA ADANYA dari catatan; laporan tidak pernah menghitungnya ulang dari bruto dikurangi tara.",
+    "Ketiga rekap pengangkut / silo sumber / pembeli tujuan menampilkan nilai APA ADANYA tanpa penerjemahan — ketiganya teks bebas yang diketik, dan tidak ada master untuk mencocokkannya.",
+    "Kolom silo sumber berakhiran '_id' tetapi BUKAN rujukan ke master apa pun — ia teks bebas. Laporan memperlakukannya sebagai teks, dan tidak pernah mencoba mencari namanya.",
+    "Rekap status pelepasan gerbang BERBEDA dari ketiga rekap lainnya: nilainya berasal dari pilihan tertutup, sehingga labelnya ditampilkan — bukan kodenya. Label itu diambil dari kosakata bersama aplikasi, bukan dituliskan ulang khusus untuk layar ini.",
+    "Setiap rekap punya baris 'tidak tercatat' tersendiri, dan penjumlahan baris tiap rekap wajib sama dengan jumlah pengiriman.",
+    "Rekap diurutkan dari total netto terbesar — yang dicari pembaca adalah pengangkut dan pembeli mana yang menyerap sebagian besar inti.",
+    "Pengiriman berstatus tidak dilepas ditonjolkan sebagai angka tersendiri, terpisah dari rekapnya.",
+    "Segel atas dan segel bawah dihitung TERPISAH dan tidak pernah dijumlahkan menjadi satu angka 'segel hilang'.",
+    "Catatan berstatus draft IKUT terhitung di seluruh angka, dan jumlahnya dinyatakan.",
+    "Rekap harian memuat satu baris per hari yang ada pengirimannya saja. Hari tanpa pengiriman tidak dibuatkan baris nol.",
+    "Kelengkapan diukur atas hari yang sudah berjalan, bukan atas panjang periode.",
+    "Ketiadaan sebuah bagian DINYATAKAN di layar beserta sebabnya — khususnya ketiadaan sebaran per jam dan waktu putar kendaraan, yang pada stasiun saudaranya (CPO Dispatch) justru ADA.",
+    "Giliran kerja tidak ditampilkan di layar tetapi tetap ada di ekspor.",
+    "Ekspor Excel adalah .xlsx sungguhan, bukan CSV berekstensi .xlsx.",
+    "Layar ini baca saja: nol kontrol tulis."
+  ],
+  "usecase_ids": [
+    "usecase-170--laporan-kernel-dispatch-web"
+  ],
+  "edge_cases": [
+    "Periode mendaftarkan stasiun ini tetapi line terpilih tidak punya satu pengiriman pun — kerangka laporan tetap tampil dengan keadaan kosong yang menyebut periode dan line. Ini keadaan NYATA hari ini: tabel catatan pengiriman inti masih kosong di basis data pengembangan.",
+    "Seluruh pengiriman belum selesai ditimbang — kedua angka berat menjadi '—' dan layar menyatakan bahwa seluruh penimbangan belum selesai.",
+    "Satu ukuran mutu tidak punya satu hasil uji pun, sementara tiga lainnya punya — ukuran itu menampilkan '—' untuk ketiga angkanya sementara yang lain tetap menampilkan angkanya. Penyebut nol pada satu ukuran tidak boleh mengosongkan ukuran yang lain.",
+    "Semua empat ukuran mutu kosong tetapi tonasenya ada — bagian mutu menyatakan bahwa belum ada hasil uji pada periode ini, dan bagian tonase tetap menampilkan angkanya.",
+    "Satu pengiriman punya hasil uji kadar air tetapi tidak punya ALB — ia terhitung pada penyebut kadar air dan tidak terhitung pada penyebut ALB. Kedua penyebut itu tercetak.",
+    "Ketiga kolom kategoris teks kosong pada sebagian pengiriman — masuk ke baris 'tidak tercatat', bukan dihilangkan.",
+    "Satu nilai pengangkut atau pembeli berbeda hanya pada huruf besar/kecil atau spasi — tetap dua baris terpisah; menyatukannya berarti memutuskan dua ejaan adalah hal yang sama, dan teks bebas tidak menjaminnya. Kemungkinan ini dinyatakan di layar.",
+    "Status pelepasan gerbang kosong pada sebagian pengiriman — baris 'tidak tercatat' tersendiri di rekapnya, dan pengiriman itu TIDAK dihitung sebagai 'tidak dilepas'. Tidak tercatat dan tidak dilepas adalah dua keadaan yang berbeda, dan menggabungkannya akan menuduh.",
+    "Status pelepasan gerbang berisi nilai di luar kedua pilihan yang dikenal — mungkin karena disimpan lewat jalur selain form web, yang tidak memvalidasinya. Nilainya ditampilkan APA ADANYA sebagai barisnya sendiri, bukan dibuang dan bukan dipaksa masuk ke salah satu pilihan.",
+    "Kedua nomor segel kosong pada satu pengiriman — terhitung di KEDUA penghitung, karena keduanya memang hilang.",
+    "Periode belum mulai — kelengkapan menjadi '—' dengan kalimat 'periode belum dimulai'.",
+    "Periode masih berjalan — penyebut kelengkapan berhenti di hari ini.",
+    "Mill belum punya periode yang mencakup stasiun ini — pemilih periode kosong dengan kalimat sebabnya.",
+    "Admin belum memilih mill — arahan memilih mill tampil.",
+    "Akun belum terhubung ke mill — arahan menghubungi Admin, bukan pesan galat izin.",
+    "Periode atau line milik mill lain — ditolak, dan tidak satu angka pun terhitung.",
+    "Operator membuka rute web ini — ditolak.",
+    "Ekspor melampaui batas baris — ditolak dengan pesan yang menyebut batasnya, sebelum satu byte pun dialirkan.",
+    "Rekap sangat panjang — tabel menggulir di dalam kartunya; halaman tidak bergeser mendatar."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Label untuk kedua nilai status pelepasan gerbang ('released' / 'not_released') saat ini hanya hidup di SATU berkas form web dan tidak ada di kosakata bersama aplikasi. Laporan ini membutuhkan label yang sama, dan aturan proyek melarang menuliskan ulang pemetaan di tempat kedua. Rencananya: menambahkan kedua nilai itu ke kosakata bersama supaya laporan, layar Detail dan form memakai satu sumber — yang sekaligus memperbaiki layar Detail, yang hari ini mencetak kodenya mentah. Perlu diketahui pemilik produk karena ia mengubah tampilan satu layar di luar laporan ini, meskipun ke arah yang lebih benar.",
+    "Stasiun ini tidak punya master ambang mutu, sehingga tidak ada nilai mutu yang dapat ditandai 'di luar batas'. Bila ambang itu diinginkan (mis. kadar air maksimum per pembeli), ia pekerjaan master data tersendiri — bukan bagian dari laporan ini."
+  ]
+}

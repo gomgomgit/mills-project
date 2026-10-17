@@ -1,0 +1,135 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-163--laporan-solid-waste-disposal-mobile",
+  "name": "Laporan Solid Waste Disposal (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Versi mobile dari Laporan Periode Solid Waste Disposal — pasangan screen-162, dengan angka yang SAMA PERSIS dan tata letak layar sempit. Layar ini menjawab satu pertanyaan di lapangan: pada periode ini, berapa banyak limbah padat yang keluar dari pabrik, ke mana ia pergi, dan untuk apa. Satuan hitungnya adalah MUATAN KELUAR — satu baris detail, satu kendaraan yang berangkat — bukan slot jam seperti laporan stasiun bergrid, sehingga jumlah muatan per hari sepenuhnya bebas dan hari tanpa pengangkutan adalah keadaan normal, bukan lubang data. Layar ini BACA SAJA: ia tidak punya satu pun kontrol tulis, dan satu-satunya hal yang keluar darinya adalah unduhan ekspor. Ia dicapai dari Reporting (screen-141), dan Operator memang penggunanya — bukan sekadar diizinkan — karena ia yang berada di dekat jembatan timbang ketika angka itu dipertanyakan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menekan tile Solid Waste Disposal pada layar Reporting (screen-141) — satu-satunya pintu masuk, sama seperti keenam laporan mobile sebelumnya",
+    "Kembali ke layar ini dari Back setelah berpindah, dengan periode dan Production Line yang terakhir dipilih tetap terpakai"
+  ],
+  "information_displayed": [
+    "Nama periode beserta rentang tanggalnya dan penanda statusnya (draft / terbuka / tertutup) — periode tertutup TETAP dapat dibaca, karena laporan ini tidak menyaring status",
+    "Nama mill yang berlaku, dan bagi Admin sebuah pemilih Mill; bagi peran lain mill-nya ditetapkan dari akun tanpa diminta memilih",
+    "Pemilih Production Line — WAJIB dipilih sebelum satu angka pun muncul, dan tidak ada opsi 'semua line'",
+    "Jumlah muatan keluar pada periode ini, termasuk muatan yang penimbangannya belum selesai",
+    "Total berat bersih dan rata-rata berat per muatan, DENGAN penyebutnya tercetak di kartu yang sama — rata-rata tanpa penyebut yang terlihat adalah angka yang tidak dapat diperiksa siapa pun",
+    "Jumlah muatan yang penimbangannya BELUM SELESAI, ditonjolkan tersendiri — berat bersih adalah angka turunan (bruto dikurangi tara), jadi kosongnya berarti kendaraan sudah ditimbang kotor tetapi belum kembali ditimbang kosong, bukan 'lupa diisi'",
+    "Rekap menurut jenis limbah padat — berapa muatan dan berapa total netto per jenis",
+    "Rekap menurut stasiun asal — dari bagian pabrik mana limbah itu datang",
+    "Rekap menurut lokasi pembuangan/pemanfaatan — ke mana ia pergi",
+    "Rekap menurut tujuan penggunaan akhir — untuk apa ia dipakai di sana",
+    "Pada keempat rekap: satu baris 'tidak tercatat' tersendiri untuk muatan yang nilainya tidak diisi, sehingga penjumlahan tiap rekap tetap sama dengan jumlah muatan di atasnya dan tidak ada selisih yang tak dijelaskan",
+    "Jumlah muatan tanpa nomor gate pass dan jumlah muatan tanpa nomor segel keamanan — disajikan sebagai JEJAK KEPATUHAN, bukan sebagai ukuran produksi, dengan kalimat yang menyatakan perbedaannya",
+    "Rekap harian: satu baris per hari YANG ADA MUATANNYA, bukan satu baris per hari kalender, beserta baris total periode",
+    "Kelengkapan pencatatan diukur dalam HARI — berapa hari dari periode yang sudah berjalan punya pengangkutan; periode yang masih berjalan tidak dihukum atas hari yang belum datang",
+    "Jumlah muatan milik catatan berstatus draft — muatan itu IKUT terhitung di seluruh angka, dan angka ini menyatakan berapa banyak di antaranya yang belum final",
+    "Dua daftar kejadian terpisah: temuan dan catatan, masing-masing bertanggal, keduanya teks bebas apa adanya",
+    "Pernyataan bahwa SEBARAN PER JAM tidak dapat dibuat untuk stasiun ini, beserta sebabnya — catatan muatan hanya membawa tanggal kejadian, tanpa jam",
+    "Pernyataan bahwa tidak ada blok henti operasi dan tidak ada penandaan nilai di luar batas pada stasiun ini, beserta sebabnya",
+    "Pernyataan bahwa kolom giliran kerja tidak ditampilkan di layar ini tetapi tetap ada di berkas ekspor"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih periode pelaporan",
+      "description": "Memilih periode mana yang dibaca. Daftar periode hanya memuat periode yang mendaftarkan stasiun Solid Waste Disposal pada mill yang berlaku; status periode tidak menyaringnya.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Memilih line mana yang angkanya dibaca. Wajib — sebelum ini dipilih, layar tidak menampilkan satu angka pun dan menyatakan apa yang ditunggunya. Tidak ada opsi 'semua line', karena total yang mencampur beberapa line bukan angka yang dimiliki siapa pun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Hanya Admin. Peran lain terikat pada mill akunnya dan tidak melihat pemilih ini sama sekali.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Unduh ekspor",
+      "description": "Mengunduh rincian mentah: satu baris per muatan, dengan kolom konteks diulang di setiap baris dan SELURUH kolom catatan ikut — termasuk giliran kerja, nomor gate pass, nomor segel, nomor tiket timbang, nomor kendaraan dan nama pengemudi, yang semuanya tidak muncul di satu angka pun di layar. Ekspor adalah rincian, bukan ringkasan.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka dan tutup bagian rekap",
+      "description": "Keempat rekap kategoris dan rekap harian dapat dilipat, supaya layar sempit tetap dapat ditelusuri tanpa menggulir melewati tabel yang tidak sedang dibaca.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Angka layar ini WAJIB sama persis dengan screen-162 untuk periode dan line yang sama — ia membaca sumber yang sama, bukan menghitung ulang. Dua angka berbeda untuk pertanyaan yang sama adalah cacat, bukan perbedaan platform.",
+    "Production Line WAJIB dipilih sebelum satu angka pun tampil. Tidak ada 'semua line', dan tidak ada line yang dipilihkan — bahkan ketika mill hanya punya satu.",
+    "Mill diturunkan dari akun bagi Supervisor, Mill Management dan Operator; hanya Admin yang memilih.",
+    "Line yang diingat perangkat dari layar lain dipakai tanpa meminta pengguna memilih lagi, tetapi tetap dapat diganti.",
+    "Laporan tidak menyaring status periode: draft, terbuka dan tertutup sama-sama terbaca.",
+    "Satu baris catatan muatan = satu muatan keluar. Jumlah muatan menghitung baris catatan, bukan dokumen catatan harian.",
+    "Total dan rata-rata berat dihitung HANYA atas muatan yang beratnya terisi, dan penyebut itu DITERBITKAN di layar.",
+    "Nol muatan bertimbang menghasilkan '—', bukan 0,00 MT — 'tidak diketahui' dan 'tidak ada beban terangkut' adalah dua hal berbeda.",
+    "Berat bersih dibaca APA ADANYA dari catatan; layar ini tidak pernah menghitungnya ulang dari bruto dikurangi tara.",
+    "Keempat rekap kategoris menampilkan nilai APA ADANYA — tanpa penerjemahan ke label, karena keempat kolom itu teks bebas dan pemetaan yang dikarang lebih buruk daripada kode mentah yang jujur.",
+    "Setiap rekap kategoris punya baris 'tidak tercatat' tersendiri, dan penjumlahan baris tiap rekap wajib sama dengan jumlah muatan.",
+    "Rekap diurutkan dari total netto terbesar — yang dicari pembaca adalah ke mana sebagian besar limbah pergi, bukan abjad. Kelompok 'tidak tercatat' yang bertonase besar karena itu muncul di ATAS, bukan terkubur di baris terakhir.",
+    "Catatan berstatus draft IKUT terhitung di seluruh angka, dan jumlahnya dinyatakan — pembaca diberi tahu, bukan dilindungi dari mengetahuinya.",
+    "Rekap harian memuat satu baris per hari yang ada muatannya saja. Hari tanpa pengangkutan tidak dibuatkan baris nol.",
+    "Kelengkapan diukur atas hari yang sudah berjalan, bukan atas panjang periode.",
+    "Ketiadaan sebuah bagian DINYATAKAN di layar beserta sebabnya — bagian yang hilang tanpa penjelasan selalu dibaca sebagai bagian yang lupa dibuat.",
+    "Giliran kerja tidak ditampilkan di layar tetapi tetap ada di ekspor.",
+    "Layar ini baca saja: nol kontrol tulis, dan nol permintaan yang mengubah data.",
+    "Luring MENUTUP angkanya, bukan sekadar menambah spanduk: layar menyatakan bahwa ia memerlukan jaringan dan TIDAK menampilkan satu angka pun dari pemuatan sebelumnya — angka basi tanpa penanda lebih berbahaya daripada tidak ada angka."
+  ],
+  "usecase_ids": [
+    "usecase-169--laporan-solid-waste-disposal-mobile"
+  ],
+  "edge_cases": [
+    "Periode mendaftarkan stasiun ini tetapi line terpilih tidak punya satu muatan pun — kerangka laporan tetap tampil dengan keadaan kosong yang menyebut periode dan line, bukan layar putih. Ini keadaan NYATA hari ini di sebagian besar line.",
+    "Seluruh muatan periode belum selesai ditimbang — kedua angka berat menjadi '—' dan layar menyatakan bahwa seluruh penimbangan belum selesai.",
+    "Sebagian muatan belum ditimbang — rata-rata memakai penyebut yang lebih kecil, dan penyebut itu tercetak supaya tidak terbaca sebagai rata-rata seluruh muatan.",
+    "Keempat kolom kategoris kosong pada sebagian muatan — masuk ke baris 'tidak tercatat', bukan dihilangkan.",
+    "Satu nilai kategoris berbeda hanya pada huruf besar/kecil — tetap dua baris terpisah; menyatukannya berarti memutuskan dua ejaan adalah hal yang sama, dan teks bebas tidak menjaminnya. Kemungkinan ini dinyatakan di layar supaya pembaca mengenalinya saat melihatnya.",
+    "Periode belum mulai — kelengkapan menjadi '—' dengan kalimat 'periode belum dimulai', bukan 0,0% yang akan terbaca sebagai kegagalan.",
+    "Periode masih berjalan — penyebut kelengkapan berhenti di hari ini.",
+    "Mill belum punya periode yang mencakup stasiun ini — pemilih periode kosong, dengan kalimat yang menyatakan sebabnya.",
+    "Admin belum memilih mill — arahan memilih mill tampil, dan tidak ada area kosong tanpa penjelasan.",
+    "Akun belum terhubung ke mill — arahan menghubungi Admin, bukan pesan galat jaringan.",
+    "Line milik mill lain dipaksa lewat jalur apa pun — layar meminta memilih line, dan tidak pernah menampilkan angka mill lain.",
+    "Sesi berakhir saat layar terbuka — diarahkan ke Login, tanpa pesan galat jaringan yang menyesatkan.",
+    "Perangkat luring — layar menyatakannya dan menutup angkanya; tidak ada permintaan yang dikirim.",
+    "Penyimpanan perangkat tidak dapat dibaca (mode privat) — layar tetap tampil dan meminta memilih line, tanpa elemen galat.",
+    "Ekspor ditekan dua kali cepat — satu unduhan, satu permintaan.",
+    "Daftar rekap sangat panjang — tabel menggulir mendatar DI DALAM kartunya; halaman itu sendiri tidak pernah bergeser mendatar."
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

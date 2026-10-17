@@ -360,22 +360,28 @@ it('stations: menandai report_available=true dan mengisi report_path hanya untuk
 
 // Case 16
 it('stations: stasiun yang laporannya belum dibangun tetap ada, dengan report_available=false dan report_path null', function () {
-    // CONTOH "LAPORAN BELUM DIBANGUN" DIPINDAHKAN DUA KALI, dan keduanya
-    // dengan alasan yang sama: THRESHING -> PROCESS WATER pada 2026-10-06
-    // (screen-148 membuat laporan Threshing), lalu PROCESS WATER ->
-    // SOLID WASTE DISPOSAL pada 2026-10-16 (screen-160 membuat laporan
-    // Process Water). Contohnya DIPINDAHKAN, BUKAN dihapus: bila Solid Waste
-    // Disposal pun suatu saat dibuatkan laporan, test ini akan gagal lagi —
-    // dan itu benar, karena ia memaksa contohnya diperbarui alih-alih
-    // diam-diam menjadi selalu hijau.
+    // CONTOH "LAPORAN BELUM DIBANGUN" SUDAH DIPINDAHKAN TIGA KALI, selalu
+    // dengan sebab yang sama: THRESHING -> PROCESS WATER pada 2026-10-06
+    // (screen-148 membuat laporan Threshing), PROCESS WATER -> SOLID WASTE
+    // DISPOSAL pada 2026-10-16 (screen-160 membuat laporan Process Water),
+    // lalu SOLID WASTE DISPOSAL -> KODE FIKTIF pada 2026-10-18 (screen-162
+    // membuat laporan Solid Waste Disposal).
     //
-    // Jenis stasiun yang (per 2026-10-16) masih belum punya entri
-    // REPORT_ROUTES: solid-waste-disposal (150), kernel-dispatch (160),
-    // cpo-dispatch (170), process-quality-control (180). Yang dipakai di sini
-    // yang pertama.
+    // DAN YANG KETIGA INI YANG TERAKHIR. Memindahkannya ke stasiun NYATA
+    // berikutnya hanya menunda kegagalan yang sama beberapa hari:
+    // kernel-dispatch mendapat laporannya di screen-164, cpo-dispatch di
+    // screen-166, process-quality-control di screen-168 — ketiganya sedang
+    // dibangun berurutan, jadi tidak satu pun dari mereka dapat menjadi
+    // contoh yang bertahan. Yang dipakai sekarang adalah KODE FIKTIF yang
+    // DISUNTIKKAN ke master milik test ini sendiri: 'zz-stasiun-fiktif' tidak
+    // ada di tabel station_types mana pun dan tidak akan pernah mendapat
+    // entri REPORT_ROUTES, sehingga pembawa contohnya tidak perlu berpindah
+    // lagi. Mungkin justru karena stationReportMaster() di bawah MENGGANTI
+    // seluruh master dengan baris yang ia sebut sendiri — tidak ada FK yang
+    // memegangnya, jadi kode yang tidak ada di dunia nyata tetap sah di sini.
     stationReportMaster([
         ['sterilizer', 'Sterilizer', 40],
-        ['solid-waste-disposal', 'Solid Waste Disposal', 150],
+        ['zz-stasiun-fiktif', 'Stasiun Fiktif', 999],
     ]);
 
     $this->actingAs($this->supervisorA);
@@ -384,10 +390,10 @@ it('stations: stasiun yang laporannya belum dibangun tetap ada, dengan report_av
 
     // Not dropped for being unbuilt — the screen greys it out rather than
     // hiding it, so the feature's coverage reads as it really is.
-    expect($stations)->toHaveKey('solid-waste-disposal');
-    expect($stations['solid-waste-disposal']['report_available'])->toBeFalse();
-    expect($stations['solid-waste-disposal']['report_path'])->toBeNull();
-    expect($stations['solid-waste-disposal']['name'])->toBe('Solid Waste Disposal');
+    expect($stations)->toHaveKey('zz-stasiun-fiktif');
+    expect($stations['zz-stasiun-fiktif']['report_available'])->toBeFalse();
+    expect($stations['zz-stasiun-fiktif']['report_path'])->toBeNull();
+    expect($stations['zz-stasiun-fiktif']['name'])->toBe('Stasiun Fiktif');
 });
 
 // Case 17
@@ -413,8 +419,11 @@ it('stations: mengembalikan hasil sukses lengkap ketika semua prasyarat terpenuh
         // Pembawa separuh "laporan belum dibangun" pada case ini. Dulu
         // threshing (sort_order 50), dipindahkan 2026-10-06 ketika screen-148
         // membuat laporannya; lalu process-water (130), dipindahkan 2026-10-16
-        // ketika screen-160 membuat laporannya.
-        ['solid-waste-disposal', 'Solid Waste Disposal', 150],
+        // ketika screen-160 membuat laporannya; lalu solid-waste-disposal
+        // (150), dipindahkan 2026-10-18 ketika screen-162 membuat laporannya.
+        // SEKARANG SEBUAH KODE FIKTIF, dan itu yang membuat pemindahan ini
+        // yang TERAKHIR — lihat alasan lengkapnya di case 16.
+        ['zz-stasiun-fiktif', 'Stasiun Fiktif', 999],
         ['other', 'Other', 190],
     ]);
 
@@ -432,7 +441,7 @@ it('stations: mengembalikan hasil sukses lengkap ketika semua prasyarat terpenuh
     expect(array_keys($result['stations'][0]))
         ->toBe(['code', 'name', 'sort_order', 'report_available', 'report_path']);
     expect(array_column($result['stations'], 'code'))
-        ->toBe(['weighbridge', 'sterilizer', 'solid-waste-disposal']);
+        ->toBe(['weighbridge', 'sterilizer', 'zz-stasiun-fiktif']);
 
     $byCode = collect($result['stations'])->keyBy('code');
 
@@ -453,19 +462,24 @@ it('stations: mengembalikan hasil sukses lengkap ketika semua prasyarat terpenuh
     expect($byCode['weighbridge']['report_path'])
         ->toContain('business_unit_id='.$this->businessUnitA->id);
 
-    // The unbuilt-report half of this case is now carried by
-    // solid-waste-disposal, which has no REPORT_ROUTES entry — so "greyed out
+    // The unbuilt-report half of this case is now carried by a FICTITIOUS
+    // code, which has no REPORT_ROUTES entry and never will — so "greyed out
     // rather than hidden" is still asserted here and not merely in case 16. It
-    // carried threshing until 2026-10-06 (screen-148 built that report), then
-    // process-water until 2026-10-16 (screen-160 built that one); moving the
-    // example rather than deleting it is what keeps this half of the case
-    // alive.
-    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('solid-waste-disposal');
-    expect($byCode['solid-waste-disposal']['report_available'])->toBeFalse();
-    expect($byCode['solid-waste-disposal']['report_path'])->toBeNull();
+    // carried threshing until 2026-10-06 (screen-148 built that report),
+    // process-water until 2026-10-16 (screen-160 built that one), and
+    // solid-waste-disposal until 2026-10-18 (screen-162 built that one).
+    // Moving the example rather than deleting it is what keeps this half of
+    // the case alive; moving it to a code that can never receive a route is
+    // what stops it from having to move again.
+    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('zz-stasiun-fiktif');
+    expect($byCode['zz-stasiun-fiktif']['report_available'])->toBeFalse();
+    expect($byCode['zz-stasiun-fiktif']['report_path'])->toBeNull();
 
     // Dan contoh yang baru saja ditinggalkan kini memang TERBANGUN — tanpa
     // baris ini, pemindahan contohnya bisa terjadi tanpa ada yang membuktikan
-    // sebabnya.
+    // sebabnya. 2026-10-16: process-water. 2026-10-18: solid-waste-disposal,
+    // lewat screen-162, entri TERAKHIR pada REPORT_ROUTES (sesudah
+    // storage-tank, sort_order 140 -> 150).
     expect(StationReportService::REPORT_ROUTES)->toHaveKey('process-water');
+    expect(StationReportService::REPORT_ROUTES)->toHaveKey('solid-waste-disposal');
 });

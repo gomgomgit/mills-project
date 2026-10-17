@@ -1,0 +1,85 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-162--laporan-solid-waste-disposal-web",
+  "name": "Laporan Solid Waste Disposal (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-18T06:30:00Z",
+      "passed": 59,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-18T06:40:00Z",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-18T06:40:00Z",
+      "passed": 31,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-18T06:52:00Z",
+      "passed": 18,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/SolidWasteDisposalReportService.php",
+    "backend/app/Http/Controllers/Api/SolidWasteDisposalReportController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/SolidWasteDisposalReportServiceTest.php",
+    "backend/tests/Feature/Livewire/LaporanSolidWasteDisposalTest.php",
+    "backend/tests/Unit/Services/StationReportServiceTest.php",
+    "backend/tests/Feature/Livewire/LaporanStasiunTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanSolidWasteDisposal.php",
+    "backend/resources/views/livewire/dashboard/laporan-solid-waste-disposal.blade.php",
+    "backend/resources/views/dashboard/laporan-solid-waste-disposal.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "e2e-web/tests/laporan-solid-waste-disposal.spec.ts",
+    "e2e-web/tests/laporan-stasiun.spec.ts"
+  ],
+  "implementation_notes": [
+    "LAPORAN PER-TRANSAKSI PERTAMA sejak Weighbridge (screen-143) dan Grading (screen-146). Satuan hitungnya BARIS DETAIL — satu muatan keluar — bukan record induk dan bukan slot jam. Tabel solid_waste_disposal_details tidak punya READING_FIELDS, sehingga menyalin bentuk dari screen-160/161 (grid 24 slot) akan memaksa transaksi ke dalam 24 kotak yang tidak pernah ada. Konsekuensi langsungnya: hari tanpa muatan TIDAK dibuatkan baris nol di daily[] — kebalikan dari laporan bergrid, tempat slot kosong justru informasi.",
+    "ENTRI REPORT_ROUTES DI-APPEND DI AKHIR, satu-satunya laporan sejauh ini yang benar-benar append: station_types.sort_order menempatkan solid-waste-disposal di 150, di belakang storage-tank (140) yang sebelumnya entri terakhir. Diverifikasi dari tabel station_types, bukan dari urutan deklarasi enum.",
+    "RIAK 'CONTOH STASIUN BELUM BERLAPORAN' TERNYATA ADA DI TIGA TEMPAT, BUKAN DUA. Perkiraan awal menyebut dua (StationReportServiceTest + e2e laporan-stasiun.spec.ts); suite penuh menemukan yang ketiga, tests/Feature/Livewire/LaporanStasiunTest.php, dengan tujuh test memerah. Ketiganya kini sejalan tetapi TIDAK dengan cara yang sama, dan perbedaannya penting: StationReportServiceTest menyemai masternya sendiri lewat stationReportMaster(), sehingga ia dapat memakai KODE FIKTIF ('zz-stasiun-fiktif', sort_order 999) yang tidak akan pernah berlaporan — itu pemindahan TERAKHIR di sana. Kedua berkas lainnya membaca master station_types yang NYATA, sehingga kode fiktif tidak tersedia dan contohnya harus stasiun sungguhan: keduanya dipindahkan ke process-quality-control (180), yaitu yang TERAKHIR dari empat yang belum berlaporan, supaya tidak basi lagi sampai screen-168. Cara menemukannya: grep atas KODE STASIUNNYA di seluruh tests/ dan e2e-web/, bukan memeriksa urutan daftar — dan bahkan itu melewatkan satu, yang akhirnya ditemukan hanya oleh menjalankan suite penuh.",
+    "DAN SESUDAH screen-168 TIDAK ADA KANDIDAT NYATA LAGI. Keempat stasiun tanpa laporan (150/160/170/180) dibangun berurutan; begitu yang terakhir selesai, kedua berkas yang membaca master nyata harus BERUBAH BENTUK — menyuntikkan jenis stasiun fiktif ke master browser/feature — bukan dipindahkan lagi. Dicatat di ketiga berkas itu sendiri dan di sini.",
+    "`event_date` ADALAH KOLOM NOT NULL, DAN SPEC SAYA SALAH MENGANDAIKAN SEBALIKNYA. Migrasi 2026_08_31_000003 menuliskan `$table->date('event_date');` tanpa `->nullable()`, sehingga muatan tak bertanggal DITOLAK di tingkat skema. Versi pertama tech-spec memperlakukan undated_load_count sebagai keadaan operasional biasa dan bahkan menuntut layar SELALU mencetaknya; keduanya dikoreksi. Ditemukan bukan saat menulis spec melainkan saat agen implementasi mencoba menyemai fixture-nya dan factory-nya menolak. Penyelesaiannya: penghitungnya TETAP di payload dan cabang agregasinya TETAP diuji — lewat service-ganda in-memory, karena factory tidak dapat menyimpan barisnya — tetapi layar mencetaknya HANYA ketika > 0. Mencetak 'nol muatan tanpa tanggal' pada setiap laporan berarti mengarang kekhawatiran atas keadaan yang dilarang database, dan pembaca yang melihatnya akan mencari masalah yang tidak ada. PELAJARAN PROSESNYA: saya memeriksa nullability keempat kolom KATEGORIS dengan teliti lalu memperlakukan kolom TANGGAL-nya seolah sama — padahal migrasinya ada di layar yang sama dan mengatakan sebaliknya. Daftar kolom yang dibaca untuk satu pertanyaan tidak otomatis terbaca untuk pertanyaan berikutnya.",
+    "URUTAN REKAP MENGIKUTI PRESEDEN KODE, BUKAN SPEC SAYA. WeighbridgeReportService::groupedBreakdownOf() mengurutkan net_weight_total DESC → count DESC → value ASC, dengan null diurutkan sebagai 0.0 UNTUK PENGURUTAN SAJA dan tetap null di payload, dan null terakhir hanya di antara yang seri. Tech-spec v1 menuliskan 'abjad, null selalu terakhir' — bertentangan dengan business-spec DAN usecase-168 yang keduanya menyatakan urut jumlah terbesar. Tiga sumber melawan satu, dan yang satu itu milik saya. Konsekuensi yang ikut terkoreksi: sekelompok muatan tanpa lokasi pembuangan tercatat tetapi bertonase besar MUNCUL DI ATAS, bukan terkubur di baris terakhir — dan itu benar, karena 300 MT yang tidak diketahui tujuannya justru baris yang paling perlu dibaca.",
+    "DUA NAMA YANG SPEC v1 TULIS SALAH, keduanya ketahuan dari kode bukan dari penalaran: kolom kepatuhan bernama `gate_pass_no` dan `security_seal_no` (bukan `..._number`), dan komponen Livewire-nya `App\\Livewire\\Dashboard\\LaporanSolidWasteDisposal` mengikuti kelima belas laporan yang sudah ada — namespace `App\\Livewire\\Reports\\` yang ditebak agen penurun spesifikasi uji TIDAK ADA SAMA SEKALI di proyek ini.",
+    "`net_weight_mt` DIBACA APA ADANYA, TIDAK DIHITUNG ULANG dari bruto−tara. Turunannya terjadi di SolidWasteDisposalRecordService, dan baris yang ditulis seeder lewat updateOrCreate melewatinya: di DB e2e ada baris dengan net = 5 sementara bruto dan tara KEDUANYA null. Menghitung ulang akan mengubah 5 MT menjadi null pada data yang ada hari ini. Diasersikan tersendiri (skenario 20 pada test Livewire).",
+    "TIDAK ADA BLOK hourly, DAN KETIADAANNYA DIASERSIKAN ATAS NAMA KUNCI PAYLOAD lewat penelusur rekursif — bukan atas teks layar. Payload memuat `_note_no_hourly` yang berisi kata itu, sehingga asersi berbasis prosa akan cocok dengan kalimat yang justru MENYATAKAN ketiadaannya. Jebakan ini sudah terbukti sekali di proyek ini ketika memeriksa mock screen-161 untuk 'Sebaran' dan 'Excel'.",
+    "FIXTURE BROWSER MEMBATASI APA YANG DAPAT DIBUKTIKAN DI SANA, dan itu dinyatakan alih-alih disamarkan. Kedua baris detail di mill_smart_log_e2e punya KEEMPAT kolom kategoris NULL, sehingga setiap rekap hanya punya SATU baris — asersi POSISI baris null akan VAKUM di browser (satu baris selalu pertama sekaligus terakhir). Urutan diuji HANYA di unit test, tempat fixture-nya dapat disusun. Yang justru ideal untuk diuji di browser dengan fixture itu: baris 'tidak tercatat' benar-benar dirender pada keempat rekap, compliance menghitung gate pass dan segel yang kosong, dan record draft_ongoing ikut terhitung — ketiganya jalur yang paling jarang punya data nyata untuk mengujinya.",
+    "JUMLAH MUATAN TIDAK DIASERSIKAN PERSIS DI BROWSER: form-solid-waste-disposal.spec.ts menulis record ke DB e2e yang sama, sehingga jumlahnya bergantung pada spec mana yang berjalan lebih dulu. Asersi 'tepat N muatan' akan hijau sendiri dan merah bila urutannya berubah.",
+    "`seedOpenPeriodForForms(browser, 'solid-waste-disposal')` di beforeAll adalah prasyarat yang TIDAK OPSIONAL: tanpanya pemilih periode kosong dan beforeAll MENGGANTUNG alih-alih gagal. FIXTURE_START '2020-01-01' s/d hari-ini+7 memang memuat record fixture bertanggal 2025-03-10."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Coverage unit TIDAK TERUKUR, bukan 0 maupun gagal — tidak ada xdebug/pcov terpasang, sehingga ambang coverage_threshold tidak ditegakkan oleh apa pun. Status TIDAK diturunkan karenanya: nol yang tidak terukur bukan nol yang nyata.",
+      "severity": "minor"
+    },
+    {
+      "description": "Kolam contoh 'stasiun belum berlaporan' tinggal tiga (kernel-dispatch 160, cpo-dispatch 170, process-quality-control 180) dan ketiganya dijadwalkan dibangun pada screen-164/166/168. Dua berkas yang membaca master NYATA — e2e-web/tests/laporan-stasiun.spec.ts dan tests/Feature/Livewire/LaporanStasiunTest.php — kini memakai process-quality-control dan akan memerah pada screen-168, saat itu keduanya harus ditulis ulang dengan jenis stasiun fiktif yang disuntikkan ke master, bukan dipindahkan lagi.",
+      "severity": "minor"
+    },
+    {
+      "description": "Cabang undated_load_count > 0 tidak dapat dijangkau lewat database (kolom NOT NULL) dan hanya diuji lewat service-ganda in-memory. Ia dipertahankan sebagai penjaga invarian 'penjumlahan daily[] boleh kurang dari load_count' seandainya kolom itu suatu saat dilonggarkan — bukan sebagai keadaan yang diharapkan.",
+      "severity": "minor"
+    }
+  ]
+}

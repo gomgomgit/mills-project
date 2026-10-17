@@ -40,6 +40,7 @@ use App\Http\Controllers\Api\RecordVerificationController;
 use App\Http\Controllers\Api\RecordVerificationStatusController;
 use App\Http\Controllers\Api\ShiftController;
 use App\Http\Controllers\Api\SolidWasteDisposalRecordController;
+use App\Http\Controllers\Api\SolidWasteDisposalReportController;
 use App\Http\Controllers\Api\StationController;
 use App\Http\Controllers\Api\StationReportController;
 use App\Http\Controllers\Api\SterilizerRecordController;
@@ -1666,6 +1667,65 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/process-water-reports/periods', [ProcessWaterReportController::class, 'periods']);
     Route::get('/process-water-reports/summary', [ProcessWaterReportController::class, 'summary']);
     Route::get('/process-water-reports/export', [ProcessWaterReportController::class, 'export']);
+});
+
+// === LAPORAN PERIODE SOLID WASTE DISPOSAL (screen-162 web + screen-163 mobile) ===
+// Bentuk empat endpoint yang sama dan daftar peran yang sama persis dengan
+// prefix process-water-reports di atas — `operator` IKUT.
+//
+// OPERATOR DITERIMA SEJAK COMMIT PERTAMA DI SINI, pilihan yang sama dengan
+// screen-160 tepat di atas dan dengan alasan yang sama: pasangan mobile
+// screen-163--laporan-solid-waste-disposal-mobile dibangun dalam SERI YANG SAMA
+// dengan layar web ini, jadi pemanggil Operator yang sah ada sejak awal —
+// preseden Grading / Kernel Plant / Engine Room / Process Water, bukan preseden
+// Weighbridge / Effluent Plant tempat layar web mendarat lebih dulu dan
+// pelebaran akses harus dikerjakan sebagai tindak lanjut. Memilih preseden
+// pertama menghindarkan riak mahal berupa asersi yang harus dibalik dan field
+// artefak yang harus disunting ulang.
+//
+// ADMISINYA SATU PERUBAHAN DI TIGA TEMPAT, BUKAN TIGA PERUBAHAN: daftar peran
+// ini, SolidWasteDisposalReportService::guardAccess(), DAN cabang TERIKAT-MILL
+// pada SolidWasteDisposalReportService::resolveBusinessUnit(). Mengerjakan dua
+// yang pertama saja menjatuhkan Operator ke cabang Admin, tempat
+// business_unit_id kiriman klien JUSTRU dihormati — Operator lalu dapat membaca
+// laporan mill MANA PUN. Itu kebocoran lintas mill, bukan cacat tampilan.
+//
+// YANG TETAP TERTUTUP TETAP TERTUTUP: /business-units/options menolak siapa pun
+// selain Admin dengan 403 — Operator, Supervisor dan Mill Management sama-sama
+// — diangkat di dalam SolidWasteDisposalReportService dan BUKAN oleh middleware
+// ini, PERSIS karena daftar ini menerima keempat peran demi ketiga rute data,
+// sehingga penjaga yang ditempatkan di sini tidak akan menutup rute itu sama
+// sekali. Rute WEB /reports/solid-waste-disposal juga TIDAK dilebarkan:
+// menerima Operator di API untuk pasangan mobile tidak boleh melebarkan layar
+// web.
+//
+// business_unit_id diterima pada /periods, /summary dan /export tetapi
+// DIABAIKAN untuk setiap peran terikat mill — Operator, Supervisor dan Mill
+// Management sama-sama (SolidWasteDisposalReportService::resolveBusinessUnit) —
+// menyebut mill lain tetap menjawab 200 berisi data pemanggil sendiri, dengan
+// sengaja: sebuah 403 akan memastikan mill lain itu ada. Penjaga lintas mill
+// yang sungguhan ada pada production_line_id (resolveProductionLine) dan
+// period_id (authorizePeriod), dan keduanya MEMANG menjawab 403.
+//
+// LAPORAN PER-TRANSAKSI: satu baris detail adalah SATU MUATAN KELUAR, jadi
+// /summary menghitung BARIS DETAIL (bukan record induk) dan daily[] memuat satu
+// entri per HARI BERMUATAN — bukan grid 24 slot seperti process-water di atas.
+// /summary TIDAK membawa satu pun kunci hourly / busiest_hour /
+// empty_hour_count / shift: baris detail stasiun ini hanya punya event_date
+// tanpa satu pun kolom waktu, dan kolom shift-nya teks bebas. Ketiga ketiadaan
+// itu dinyatakan lewat _note_no_hourly, _note_shift_not_published dan
+// _note_absences. /export tetap membawa KETUJUH BELAS kolom detail termasuk
+// shift, nomor gate pass, nomor segel dan id operator, karena ekspor adalah
+// rincian MENTAH. Format ekspornya daftar tertutup {csv, xlsx}.
+//
+// Daftar OPSI production line TIDAK diduplikasi di sini: GET
+// /api/production-lines/options-for-report (dibuat untuk screen-135) dipakai
+// ulang verbatim.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/solid-waste-disposal-reports/business-units/options', [SolidWasteDisposalReportController::class, 'businessUnitOptions']);
+    Route::get('/solid-waste-disposal-reports/periods', [SolidWasteDisposalReportController::class, 'periods']);
+    Route::get('/solid-waste-disposal-reports/summary', [SolidWasteDisposalReportController::class, 'summary']);
+    Route::get('/solid-waste-disposal-reports/export', [SolidWasteDisposalReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

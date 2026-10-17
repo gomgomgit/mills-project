@@ -171,6 +171,19 @@ class StationReportService
         // tile stays greyed out.
         StationTypeEnum::ProcessWater->value => 'reports.process-water',
         StationTypeEnum::StorageTank->value => 'reports.storage-tank',
+        // screen-162--laporan-solid-waste-disposal-web. BENAR-BENAR DI-APPEND
+        // di akhir, sesudah storage-tank — satu-satunya entri sejauh ini yang
+        // memang append: station_types.sort_order menempatkan
+        // solid-waste-disposal di 150, di belakang storage-tank (140) yang
+        // hari ini entri terakhir, dan urutan map ini LOAD-BEARING (lihat
+        // catatan di bawah). Diverifikasi dari tabel station_types, BUKAN
+        // ditebak dari urutan deklarasi enum. Kuncinya 'solid-waste-disposal'
+        // BERTANDA HUBUNG, yaitu nilai yang dibawa
+        // StationTypeEnum::SolidWasteDisposal->value; kunci snake_case akan
+        // ter-compile, terlihat benar, dan tidak pernah cocok dengan satu baris
+        // master pun. Tanpa satu baris ini laporannya ada, seluruh test-nya
+        // sendiri lolos, dan tile-nya tetap kelabu.
+        StationTypeEnum::SolidWasteDisposal->value => 'reports.solid-waste-disposal',
     ];
 
     /**

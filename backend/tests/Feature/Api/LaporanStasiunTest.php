@@ -201,24 +201,37 @@ it('akun tanpa mill: 422 VALIDATION_ERROR dan respons tidak memuat daftar mill (
 // =====================================================================
 // Scenario: "menekan stasiun yang belum tersedia"
 // =====================================================================
-it('stasiun belum tersedia: solid-waste-disposal dikembalikan dengan report_available false dan report_path null', function () {
-    // CONTOH "LAPORAN BELUM DIBANGUN" SUDAH DIPINDAHKAN DUA KALI, keduanya
-    // dengan alasan yang sama: THRESHING -> PROCESS WATER pada 2026-10-06
-    // (screen-148 membuat laporan Threshing), lalu PROCESS WATER -> SOLID
-    // WASTE DISPOSAL pada 2026-10-16 (screen-160 membuat laporan Process
-    // Water). DIPINDAHKAN, BUKAN DIHAPUS: bila Solid Waste Disposal pun
-    // dibuatkan laporan, test ini gagal lagi — dan itu benar, karena ia
-    // memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
+it('stasiun belum tersedia: process-quality-control dikembalikan dengan report_available false dan report_path null', function () {
+    // CONTOH "LAPORAN BELUM DIBANGUN" SUDAH DIPINDAHKAN TIGA KALI, selalu
+    // dengan sebab yang sama: THRESHING -> PROCESS WATER pada 2026-10-06
+    // (screen-148 membuat laporan Threshing), PROCESS WATER -> SOLID WASTE
+    // DISPOSAL pada 2026-10-16 (screen-160 membuat laporan Process Water),
+    // lalu SOLID WASTE DISPOSAL -> PROCESS QUALITY CONTROL pada 2026-10-18
+    // (screen-162 membuat laporan Solid Waste Disposal). DIPINDAHKAN, BUKAN
+    // DIHAPUS: bila pembawanya pun dibuatkan laporan, test ini gagal lagi —
+    // dan itu benar, karena ia memaksa contohnya diperbarui alih-alih
+    // diam-diam menjadi selalu hijau.
     //
-    // Sisa jenis stasiun tanpa entri REPORT_ROUTES per 2026-10-16:
-    // solid-waste-disposal (150), kernel-dispatch (160), cpo-dispatch (170),
-    // process-quality-control (180). Sesudah keempatnya berlaporan, contoh
-    // ini HABIS dan test harus ditulis ulang dengan kode fiktif yang
-    // disuntikkan — bukan dibiarkan menghijau tanpa pembawa.
+    // KENAPA PROCESS QUALITY CONTROL, BUKAN KERNEL DISPATCH. Sisa jenis
+    // stasiun tanpa entri REPORT_ROUTES per 2026-10-18: kernel-dispatch
+    // (160), cpo-dispatch (170), process-quality-control (180) — dan
+    // ketiganya sedang dibangun BERURUTAN (screen-164, 166, 168). Yang
+    // dipakai di sini yang TERAKHIR, supaya contohnya tidak basi lagi sampai
+    // screen-168. Berbeda dari StationReportServiceTest, yang menyemai
+    // masternya sendiri lewat stationReportMaster() dan karena itu dapat
+    // memakai kode FIKTIF yang tidak akan pernah berlaporan: berkas ini
+    // membaca master station_types yang NYATA dari migrasi, jadi kode fiktif
+    // tidak tersedia di sini. Sesudah screen-168 contoh ini HABIS dan test
+    // harus ditulis ulang dengan jenis stasiun fiktif yang disuntikkan ke
+    // master — bukan dibiarkan menghijau tanpa pembawa.
+    //
     // Alasan pemindahannya DIASERSI, bukan sekadar dikomentari: yang membuat
-    // sebuah kode layak jadi contoh adalah ketiadaannya di REPORT_ROUTES.
+    // sebuah kode layak jadi contoh adalah ketiadaannya di REPORT_ROUTES, dan
+    // yang membuat pemindahannya sah adalah contoh yang baru ditinggalkan
+    // MEMANG sudah terbangun.
     expect(StationReportService::REPORT_ROUTES)->toHaveKey('process-water');
-    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('solid-waste-disposal');
+    expect(StationReportService::REPORT_ROUTES)->toHaveKey('solid-waste-disposal');
+    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('process-quality-control');
 
     // Step 1 — GET /api/station-reports/stations
     $stations = $this->actingAs($this->supervisor, 'web')->getJson('/api/station-reports/stations');
@@ -226,7 +239,7 @@ it('stasiun belum tersedia: solid-waste-disposal dikembalikan dengan report_avai
     $stations->assertStatus(200);
 
     $rows = collect($stations->json('data.stations'));
-    $unbuilt = $rows->firstWhere('code', 'solid-waste-disposal');
+    $unbuilt = $rows->firstWhere('code', 'process-quality-control');
 
     // Present, so the screen can render it — but with no destination at
     // all, which is why the tile has no href and nothing to click.
@@ -234,10 +247,11 @@ it('stasiun belum tersedia: solid-waste-disposal dikembalikan dengan report_avai
     expect($unbuilt['report_available'])->toBeFalse();
     expect($unbuilt['report_path'])->toBeNull();
 
-    // Dan Process Water kini SEBALIKNYA — pasangan inilah yang membuktikan
-    // payload berubah ketika laporannya mendarat, bukan sekadar bahwa ada
-    // satu baris report_available=false di suatu tempat.
-    $built = $rows->firstWhere('code', 'process-water');
+    // Dan contoh yang BARU SAJA DITINGGALKAN kini SEBALIKNYA — pasangan
+    // inilah yang membuktikan payload berubah ketika laporannya mendarat,
+    // bukan sekadar bahwa ada satu baris report_available=false di suatu
+    // tempat.
+    $built = $rows->firstWhere('code', 'solid-waste-disposal');
 
     expect($built)->not->toBeNull();
     expect($built['report_available'])->toBeTrue();

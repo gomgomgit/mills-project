@@ -184,6 +184,18 @@ class StationReportService
         // master pun. Tanpa satu baris ini laporannya ada, seluruh test-nya
         // sendiri lolos, dan tile-nya tetap kelabu.
         StationTypeEnum::SolidWasteDisposal->value => 'reports.solid-waste-disposal',
+        // screen-164--laporan-kernel-dispatch-web. DI-APPEND DI AKHIR, sesudah
+        // solid-waste-disposal: station_types.sort_order menempatkan
+        // kernel-dispatch di 160, di belakang solid-waste-disposal (150) yang
+        // hari ini entri terakhir, dan urutan map ini LOAD-BEARING (lihat
+        // catatan di bawah). Diverifikasi dari tabel station_types, BUKAN
+        // ditebak dari urutan deklarasi enum. Kuncinya 'kernel-dispatch'
+        // BERTANDA HUBUNG, yaitu nilai yang dibawa
+        // StationTypeEnum::KernelDispatch->value; kunci snake_case akan
+        // ter-compile, terlihat benar, dan tidak pernah cocok dengan satu baris
+        // master pun. Tanpa satu baris ini laporannya ada, seluruh test-nya
+        // sendiri lolos, dan tile-nya tetap kelabu.
+        StationTypeEnum::KernelDispatch->value => 'reports.kernel-dispatch',
     ];
 
     /**

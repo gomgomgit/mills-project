@@ -1,0 +1,89 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-164--laporan-kernel-dispatch-web",
+  "name": "Laporan Kernel Dispatch (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-18T13:10:00Z",
+      "passed": 67,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-18T13:10:00Z",
+      "passed": 32,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-18T13:10:00Z",
+      "passed": 39,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-18T13:40:00Z",
+      "passed": 22,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/KernelDispatchReportService.php",
+    "backend/app/Http/Controllers/Api/KernelDispatchReportController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/KernelDispatchReportServiceTest.php",
+    "backend/tests/Feature/Livewire/LaporanKernelDispatchTest.php",
+    "backend/tests/Feature/Api/LaporanKernelDispatchTest.php",
+    "backend/tests/Unit/Services/SolidWasteDisposalReportServiceTest.php",
+    "backend/tests/Feature/ShiftStampingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanKernelDispatch.php",
+    "backend/resources/views/livewire/dashboard/laporan-kernel-dispatch.blade.php",
+    "backend/resources/views/dashboard/laporan-kernel-dispatch.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "e2e-web/tests/laporan-kernel-dispatch.spec.ts"
+  ],
+  "implementation_notes": [
+    "LAPORAN HIBRIDA PERTAMA DI PROYEK INI: hitungan transaksi DAN ukuran mutu min/avg/max per pengiriman. Dua preseden, bukan satu — separuh transaksi dari SolidWasteDisposalReportService (screen-162), separuh mutu dari ProcessWaterReportService (screen-160). Menyalin dari satu saja akan kehilangan separuh bentuknya.",
+    "KEEMPAT `measured_count` DIHITUNG TERPISAH, dan asersinya menolak fixture yang setengah-vakum. `QUALITY_MEASURES` di-loop; `measureValuesOf()` memfilter non-null kolomnya sendiri; tidak ada penyebut bersama di payload mana pun. Case 24 membangun 9 pengiriman dengan measured_count 6/5/4/3 dan dispatch_count 9, lalu mengasersikan `array_unique` kelima angka itu BERJUMLAH 5 — sebuah fixture di mana dua penyebut kebetulan sama akan setengah-vakum, dan asersi itu menolaknya.",
+    "PENJAGA '—' PER UKURAN, bukan satu penjaga global. Case 25: ffa min/avg/max `assertNull` dengan count 0 SEMENTARA ketiga ukuran lain `assertNotNull` + `assertIsFloat` dengan count 4, di payload YANG SAMA — satu penjaga global tidak dapat lolos asersi itu. Di blade, `@if ((int) $m['measured_count'] === 0)` berada DI DALAM loop per-kartu.",
+    "`not_released_count` MENGHITUNG PERSIS `=== 'not_released'`, null dikecualikan. Case 32 mengasersikan `=== 2` (bukan 6, bukan 0) DAN `assertNull($row['value'])` pada baris by_gate_status bercount 4, dalam satu test — sehingga penggabungan yang menuduh tidak dapat lolos.",
+    "NILAI ENUM TAK DIKENAL TIDAK DIBUANG: `breakdownOf()` mengelompokkan nilai mentah tanpa daftar tertutup, dan case 34 mengasersikan `array_sum(by_gate_status.dispatch_count) === dispatch_count` — asersi yang menangkap implementasi yang 'merapikan' dengan membuang baris.",
+    "TETAPI PREMIS 'NILAI TAK DIKENAL MUNGKIN ADA' LEBIH SEMPIT DARIPADA YANG SPEC TULIS. Migrasi 2026_08_31_000007 mendeklarasikan kolomnya `enum(['released','not_released'])->nullable()` — CHECK constraint di PostgreSQL DAN SQLite; `expectException(QueryException::class)` pada insert 'HOLD_BY_SECURITY' LOLOS. Spec menyimpulkan 'mungkin ada' dari fakta bahwa SERVICE tidak memvalidasinya, tanpa memeriksa bahwa KOLOMNYA yang memvalidasi — dua lapis penjaga, dan hanya satu yang dilihat. Cabang defensifnya tetap benar dan tetap diuji lewat service-ganda in-memory, tetapi ia menjaga terhadap perubahan skema di masa depan, bukan terhadap data hari ini.",
+    "ASERSI N+1 DIBUKTIKAN NON-VAKUM: eager load dilepas → MEMERAH (A=9, B=19) → dipasang kembali byte-for-byte → hijau di A=B=7, plus `assertLessThan(12, $queriesB)` supaya 'sama' tidak dapat lolos pada dua angka yang sama-sama besar. Relasinya `kernelDispatchDetails`, BUKAN `details` seperti bunyi spec.",
+    "EKSPOR MEMAKAI `ExportValue::option()`, BUKAN `Display::option()` — DIKOREKSI sesudah implementasi pertama. Alasan code-writer ('-' harus tercetak sama seperti layar Detail) salah tempat: di LAYAR '-' penanda yang dibaca manusia; di BERKAS EKSPOR ia NILAI TEKS yang diurutkan, disaring dan dijumlahkan pembacanya — sel '-' menjadi KATEGORI PALSU di tabel pivot, sel kosong memang berarti kosong. `ExportValue::option()` mendelegasikan ke `Display::option()` lalu mengubah '-' menjadi null, sehingga satu kosakata tetap terjaga. Aturan rumah (keputusan 2026-10-14) menyatakan kolom enum pengukuran memakainya DI MANA PUN; EffluentPlantReportService dan EngineRoomReportService memakainya persis begitu. Dua test case ikut dikoreksi, dan satu asersi negatif BARU ditambahkan: `Display::option($value)` tidak boleh muncul di jalur ekspor.",
+    "EKSPOR 27 KOLOM: 6 konteks + 21 detail. Konteks keenam `Rentang Periode` TIDAK ada di preseden lain (mereka 5) — ditambahkan karena nama periode adalah teks bebas tanpa jaminan memuat tanggalnya. Judulnya diasersikan dengan kesetaraan array PENUH terhadap konstanta, nilainya disalin dari konstanta: daftar yang ditulis ulang di test akan menyetujui dirinya sendiri.",
+    "KOREKSI api_test SKENARIO 4: spec mengharapkan 403 ketika Admin berganti mill tanpa mengubah periode dan line. Yang menolak sebenarnya PENJAGA LINE, bukan penjaga periode — `authorizePeriodModel()` meloloskan Admin untuk mill mana pun, sehingga periode BASI + line VALID menghasilkan 200. Diasersikan perilaku sesungguhnya (403 pada line basi, 200 pada periode basi + line valid) plus kontras bahwa Supervisor terikat-mill tidak punya jalur itu. 'Admin berganti mill' bukan satu operasi melainkan dua parameter yang masing-masing punya penjaganya sendiri.",
+    "RIAK: BERKAS KEEMPAT ADALAH BERKAS SPEC screen-162 SENDIRI, dan grep tidak menemukannya. Ketiga kandidat yang diperkirakan tetap HIJAU. Yang memerah: `SolidWasteDisposalReportServiceTest` case 47 ('posisi TERAKHIR', 14 vs 15) dan case 48 (`assertArrayNotHasKey('kernel-dispatch')`). Keduanya DI-RE-POINT, bukan dilemahkan: case 47 kini memaku `count($keys) - 2` PLUS tetangga di KEDUA sisi PLUS ketiga sort_order 140/150/160 — lebih kuat dari sebelumnya; case 48 menyisakan loop dua kandidat dan MENAMBAH asersi bahwa kernel-dispatch kini berlaporan. Koplingnya DIBIARKAN disengaja: bentuk yang sama akan memerah lagi di screen-166 dan screen-168, dan itu memang yang dikehendaki. Pelajaran screen-162 terulang verbatim — yang menemukannya adalah MENJALANKAN SUITE PENUH.",
+    "SATU KEGAGALAN SUITE YANG BUKAN MILIK LAYAR INI, DAN SEBABNYA PEKERJAAN SHIFT 2026-10-16. `ShiftStampingTest` memposting record TANPA `shift_id`, sehingga shift diturunkan dari JAM DINDING; satu-satunya shift fixture adalah Pagi 07:00–15:00 dan `APP_TIMEZONE=Asia/Jakarta` berlaku di bawah test. Test itu HIJAU HANYA ANTARA 15:00 DAN 07:00 WIB — flake laten, dan setiap baseline 'hijau' sebelumnya terambil di luar jendela Pagi. Dibuktikan read-only: run 12:20 WIB memerah, `APP_TIMEZONE=UTC` pada test yang sama hijau. Diperbaiki dengan `travelTo(20:00)` — pola yang SUDAH dipakai test 'celah jadwal' di berkas yang sama; yang satu ini terlewat. Ditambahkan asersi DB (`shift_id` null) supaya layar yang kebetulan mencetak 'Tanpa shift' karena sebab lain tidak meloloskannya.",
+    "VERIFIKASI URUTAN e2e MENEMUKAN CACAT NYATA, dan run standalone tidak dapat membuktikannya. Asersi `missing_waybill_count` toBe(0) semula di lajur `PL Mill A` — lajur yang DITULISI `form-kernel-dispatch.spec.ts` dengan waybill kosong, dan `form-*` mendahului `laporan-*` dalam satu worker. Nol itu hanya nol saat spec berjalan sendirian. Dipindah ke `PL Mill B` (tidak ditulisi spec mana pun) dan dikeraskan dengan `toBeLessThan(dispatchCount)` + `toBeGreaterThanOrEqual(1)` agar tidak lolos vakum di periode kosong. Diverifikasi di bawah urutan nyata (`--workers=1`, form + laporan bersama): 22/22 lolos.",
+    "KEKELIRUAN KOORDINASI YANG DICATAT: dua agen sempat diluncurkan untuk satu berkas spec e2e, karena pengukuran disk menyatakan berkas itu belum ada sementara penulis pertama sedang menyelesaikannya dan notifikasinya datang terlambat. Hasilnya kebetulan menguntungkan — agen kedua mendeteksi berkasnya sudah ada, mempertahankannya, lalu menemukan cacat urutan di atas — tetapi itu kebetulan, bukan rancangan. Pengukuran disk adalah potret sesaat, bukan pernyataan bahwa tidak ada yang sedang menulis.",
+    "TIDAK ADA GRAFIK TREN HARIAN. Preseden screen-162 punya (`md-lc*`); baik business spec (23 information_displayed) maupun tech spec layar ini tidak memintanya, jadi rekap harian dirender sebagai tabel + footer. Ketiadaan yang disengaja, bukan terlewat.",
+    "KOMENTAR BASI DIBIARKAN di empat tempat (`Api/LaporanStasiunTest.php:216`, `Livewire/LaporanStasiunTest.php:254` dan `:435`, `e2e-web/tests/laporan-stasiun.spec.ts:91`): prosanya masih menyebut kernel-dispatch sebagai stasiun tanpa entri REPORT_ROUTES, sementara ASERSINYA sudah benar (menyasar process-quality-control). Tidak disentuh karena di luar daftar berkas; dicatat supaya tidak dibaca sebagai kebenaran oleh pembaca berikutnya."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Coverage TIDAK TERUKUR, bukan 0% — proyek ini tanpa Xdebug/PCOV, sehingga ambang 80% di composer.json tidak pernah ditegakkan. `--coverage` tidak dijalankan dan driver tidak dipasang. Status TIDAK diturunkan atas nama ambang yang tidak dapat diukur: angka yang tak pernah diukur bukan angka di bawah ambang. Ini satu-satunya kriteria done_definition yang tidak dapat dinilai.",
+      "severity": "minor"
+    },
+    {
+      "description": "Komentar basi di empat berkas uji menyebut kernel-dispatch sebagai stasiun yang belum berlaporan. Asersinya benar; hanya prosanya yang salah. Kandidat pembersihan pada pekerjaan riak berikutnya (screen-166 atau screen-168), tempat berkas-berkas itu memang akan disentuh lagi.",
+      "severity": "minor"
+    },
+    {
+      "description": "Bentuk asersi `count($keys) - 2` di SolidWasteDisposalReportServiceTest case 47 AKAN memerah lagi pada screen-166 dan screen-168. Itu disengaja — kopling yang memaksa setiap pergeseran ditangani alih-alih lolos diam-diam — tetapi pelaksana kedua layar itu harus mengetahuinya sebagai pekerjaan yang dijadwalkan, bukan sebagai kejutan.",
+      "severity": "minor"
+    }
+  ]
+}

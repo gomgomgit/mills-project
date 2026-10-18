@@ -1,0 +1,594 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-167--laporan-cpo-dispatch-mobile",
+  "name": "Laporan CPO Dispatch (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports/cpo-dispatch (router mobile, nama rute `report-cpo-dispatch`, meta.public false)",
+  "auth_requirement": "authenticated — token Sanctum perangkat. Aktor: Station Operator, Supervisor, Mill Management, Admin. Tidak ada penjagaan berbasis peran di router mobile — ia hanya punya satu penjaga global `meta.public`; pembatasan peran yang sebenarnya ada di server.",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; pemilih Mill tidak dirender untuknya. Ia PENGGUNA layar ini — ia yang berada di jembatan timbang ketika angkanya dipertanyakan — dan servernya sudah menerimanya sejak commit pertama screen-166."
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat mill; satu-satunya peran yang melihat pemilih Mill"
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "cpo-dispatch-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "cpo-dispatch-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-173--laporan-cpo-dispatch-mobile",
+      "usecase_name": "Lihat Laporan Periode CPO Dispatch (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/cpo-dispatch-reports/business-units/options",
+          "description": "DIPAKAI ULANG APA ADANYA dari screen-166 — nol endpoint baru. ADMIN SAJA; layar hanya memanggilnya ketika peran pengguna admin.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — arahkan ke Login"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cpo-dispatch-reports/periods",
+          "description": "DIPAKAI ULANG APA ADANYA. business_unit_id dikirim HANYA ketika peran pengguna admin — bagi peran terikat mill ia DIABAIKAN server, jadi mengirimnya tidak berguna dan tidak boleh.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya untuk admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id, atau akun terikat mill ber-business_unit_id NULL — layar menampilkan arahan menghubungi Admin, BUKAN galat jaringan"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cpo-dispatch-reports/summary",
+          "description": "DIPAKAI ULANG APA ADANYA — sumber SELURUH angka layar ini. Payload-nya satu-satunya di proyek yang membawa `hourly` DAN `turnaround` pada laporan per-transaksi, dan satu-satunya yang menerbitkan EMPAT penyebut berbeda. Bentuk lengkapnya ada di tech-spec screen-166; layar ini TIDAK menambah dan TIDAK mengurangi satu kunci pun.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — selama kosong, layar TIDAK memanggil endpoint ini sama sekali"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya untuk admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string"
+              },
+              "dispatches": {
+                "dispatch_count": "integer — PENYEBUT (a)",
+                "net_weight_total": "float|null",
+                "net_weight_avg": "float|null",
+                "net_weight_dispatch_count": "integer — PENYEBUT (b)",
+                "missing_net_weight_dispatch_count": "integer"
+              },
+              "quality": {
+                "ffa_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "moisture_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "impurities_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "dobi": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer",
+                  "_note": "string — DOBI INDEKS TANPA SATUAN; dirender UTUH DI DALAM blok dobi"
+                },
+                "_note": "string — keempat measured_count boleh berbeda; dirender UTUH"
+              },
+              "turnaround": {
+                "min_minutes": "integer|null",
+                "avg_minutes": "float|null",
+                "max_minutes": "integer|null",
+                "measured_count": "integer — PENYEBUT (d)",
+                "crossed_midnight_count": "integer — DIRENDER selalu, termasuk ketika 0",
+                "uncomputable_count": "integer",
+                "_note": "string — dirender UTUH"
+              },
+              "hourly": {
+                "buckets": [
+                  {
+                    "hour": "integer 0..23",
+                    "dispatch_count": "integer",
+                    "net_weight_total": "float|null"
+                  }
+                ],
+                "not_recorded_count": "integer",
+                "recorded_count": "integer — PENYEBUT (c)",
+                "busiest_hour": "integer|null — null dirender '—', BUKAN 0",
+                "empty_hour_count": "integer",
+                "_note": "string — dirender UTUH"
+              },
+              "_note_four_denominators": "string — dirender UTUH",
+              "by_transport_company": [
+                {
+                  "value": "string|null",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_storage_tank_source": [
+                {
+                  "value": "string|null",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_destination_buyer": [
+                {
+                  "value": "string|null",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "compliance": {
+                "missing_waybill_count": "integer",
+                "missing_seal_top_count": "integer",
+                "missing_seal_bottom_count": "integer",
+                "_note": "string — dirender UTUH"
+              },
+              "draft_dispatch_count": "integer",
+              "daily": [
+                {
+                  "date": "date",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "daily_total": {
+                "dispatch_count": "integer",
+                "net_weight_total": "float|null",
+                "net_weight_dispatch_count": "integer",
+                "net_weight_avg": "float|null"
+              },
+              "completeness": {
+                "days_in_period": "integer",
+                "days_with_dispatch": "integer",
+                "days_counted": "integer",
+                "percent": "number|null"
+              },
+              "text_entries": {
+                "findings": [
+                  {
+                    "date": "date",
+                    "value": "string"
+                  }
+                ]
+              },
+              "_note_no_labeled_recap": "string — dirender UTUH",
+              "_note_no_quality_thresholds": "string — dirender UTUH",
+              "_note_shift_not_published": "string — dirender UTUH"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain — minta pilih line lagi dan BERSIHKAN angka yang sudah ada"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir — arahkan ke Login"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cpo-dispatch-reports/export",
+          "description": "DIPAKAI ULANG APA ADANYA; `format=csv` saja. Jam masuk dan jam keluar DIEKSPOR APA ADANYA, tanpa penafsiran menyeberang tengah malam dan tanpa kolom waktu putar — sama dengan web, karena ia endpoint yang sama.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "Layar mobile mengirim 'csv' saja"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_": "Aliran CSV, bukan JSON."
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "NOL BERKAS BACKEND DISENTUH. Keempat endpoint sudah ada dari screen-166, dan Operator sudah diterima di ketiga rute data SEJAK COMMIT PERTAMA layar itu. Pola yang kini terbukti empat kali: 158/159, 160/161, 162/163, 164/165. Tidak ada integration test — bukan dilewatkan, melainkan tidak ada kontrak baru.",
+        "ANGKA MOBILE = ANGKA WEB, DAN BAHAYANYA PALING BESAR DI LAYAR INI. Layar ini TIDAK PERNAH menghitung satu agregat pun — termasuk, dan terutama, TIDAK PERNAH menghitung waktu putar sendiri. Selisih dua jam tampak seperti aritmetika sepele yang 'bisa dilakukan di klien', dan justru di sanalah jebakan tengah malam akan lahir untuk kedua kalinya, di tempat yang tidak diuji oleh test backend mana pun. Seluruh waktu putar, seluruh sebaran jam, seluruh min/avg/max datang dari `/summary` dan HANYA DITAMPILKAN.",
+        "DAN `crossed_midnight_count` JUGA HANYA DITAMPILKAN, bukan dihitung ulang dari jam-jam yang terlihat. Menghitungnya ulang berarti menafsirkan untuk kedua kalinya, dan dua tafsir atas satu data dapat menyimpang tanpa ada yang membandingkannya.",
+        "TIGA KARTU ANGKA UTAMA BERURUTAN DAN TIDAK DAPAT DILIPAT: tonase, mutu, waktu putar. Di web ketiganya berdampingan; pada lebar ponsel itu tidak mungkin, jadi yang dipertahankan MAKSUDNYA — tonase tinggi dengan kadar air tinggi adalah kabar buruk yang menyamar sebagai kabar baik, dan waktu putar adalah angka yang paling sering ditanyakan. Ketiganya harus terbaca tanpa tindakan pengguna. Rekap dan sebaran jam boleh dilipat.",
+        "SEBARAN 24 JAM DIRENDER SEBAGAI DAFTAR BERTUMPUK DI DALAM KARTUNYA, bukan berdampingan dan BUKAN menggulir mendatar. Satu baris selebar kartu per kelompok — 24 baris jam (00–23) DITAMBAH satu baris 'jam tidak tercatat' = 25 baris — masing-masing memuat label jam, jumlah pengiriman, dan bilah sepanjang nilainya. Jam tersibuk dan jumlah jam kosong dicetak di KEPALA kartu, sebelum ke-25 barisnya. Kartunya dapat dilipat.",
+        "KEDUA BENTUK LAIN DITOLAK, DAN SEBABNYA DICATAT SUPAYA TIDAK DICOBA ULANG. (1) BERDAMPINGAN: 25 kelompok pada lebar ponsel memberi tiap kelompok belasan piksel — angkanya tidak terbaca sama sekali. (2) GULIR MENDATAR DI DALAM KARTU: ia menyembunyikan sebagian besar jam di balik gerakan, sehingga pertanyaan utama layar ini ('jam mana yang tersibuk') justru menuntut gulir maju-mundur — dan kelompok KOSONG menjadi yang paling mungkin tak pernah terlihat, padahal jam kosong adalah INFORMASI (jembatan timbang menganggur), bukan ketiadaan informasi.",
+        "KELOMPOK BERNILAI NOL TETAP DIRENDER SEBAGAI BARIS BERNILAI NOL, tidak pernah dihilangkan dari daftar. Diuji lewat kasus 'seluruh pengiriman pada satu jam yang sama → 23 baris nol tetap terlihat'. Menyembunyikan baris nol akan membuat daftar 25 baris tampak lebih pendek dan jauh lebih sedikit berguna.",
+        "`busiest_hour` NULL DIRENDER '—', BUKAN 0 — 0 akan terbaca 'tersibuk pukul 00'. Diperiksa dengan pembandingan null eksplisit, bukan falsiness JavaScript, karena jam 0 adalah jam yang SAH dan falsy.",
+        "KEEMPAT UKURAN MUTU DIRENDER DENGAN PENYEBUTNYA MASING-MASING, dan penjaga '—' ADA DI TINGKAT UKURAN bukan di tingkat kartu. Satu `v-if` di pembungkus kartu terasa rapi dan akan menyembunyikan tiga ukuran yang punya data ketika satu ukuran kosong — kesalahan yang sama diperingatkan di screen-164/165, dan di klien ia paling mudah dibuat.",
+        "DOBI DIRENDER TANPA SATUAN, dan prosanya (`quality.dobi._note`) dirender UTUH DI DALAM kartu ukuran itu — bukan di kaki kartu mutu. Ia duduk berdampingan dengan tiga kolom persen, sehingga refleks memberinya '%' sangat kuat; menempatkan prosanya tepat di sebelah angkanya adalah yang mencegahnya.",
+        "URUTAN BOOTSTRAP: baca sesi → bila luring, BERHENTI sebelum permintaan pertama → bila admin, ambil opsi mill → ambil daftar periode → ambil opsi production line → pakai line yang diingat perangkat bila ada dan sah → HANYA bila periode DAN line keduanya terisi, ambil `/summary`. Penjagaan terakhir ada di SATU fungsi pemuat, bukan disebar di pemanggilnya.",
+        "LINE YANG DIINGAT PERANGKAT dibaca dari kunci penyimpanan yang SAMA dengan yang ditulis layar daftar stasiun — kunci itu memuat id pengguna. Nilai yang tidak lagi sah DIBUANG dan layar meminta memilih, bukan dipakai diam-diam. Penyimpanan dibaca di dalam try/catch: di mode privat sebagian peramban MELEMPAR.",
+        "LURING MENUTUP ANGKANYA: ketiga kartu utama DAN kartu sebaran jam DAN seluruh rekap ditutup, bukan dibiarkan terlipat dengan isi basi. Pernyataan 'memerlukan jaringan' + kalimat bahwa nol angka dari pemuatan sebelumnya ditampilkan. Berlaku juga untuk luring yang terjadi SESUDAH angka termuat, lewat event `offline` — dan listener `online`/`offline` WAJIB dilepas saat unmount.",
+        "KEENAM PROSA SERVER DIRENDER UTUH: `_note_four_denominators`, `hourly._note`, `turnaround._note`, `quality._note`, `quality.dobi._note`, `compliance._note`, `_note_no_labeled_recap`, `_note_no_quality_thresholds`, `_note_shift_not_published`. Tidak diringkas dan tidak dipotong — kalimat-kalimat itu disusun SERVER supaya penjelasan yang sama muncul di web dan mobile; memparafrasekannya di klien berarti membuat dua penjelasan untuk satu keadaan.",
+        "URUTAN BARIS MILIK SERVER; klien TIDAK mengurutkan ulang satu baris pun — termasuk ke-24 kelompok jam, yang urutannya memang urutan jam dan karenanya tampak 'aman' untuk diurutkan ulang.",
+        "NILAI null PADA ANGKA DICETAK '—', diperiksa PER FIELD — bukan lewat default `?? 0` tunggal, yang akan mengubah 'tidak diketahui' menjadi 'nol' di seluruh layar sekaligus. Dan angka 0 SUNGGUHAN tetap dicetak 0: penjaga yang memakai falsiness akan menampilkan '—' untuk waktu putar nol menit dan untuk jam 0, keduanya nilai yang sah.",
+        "TIDAK ADA REKAP BERLABEL DI LAYAR INI, dan TIDAK ADA pemakaian helper label apa pun — stasiun ini nol kolom berpilihan tertutup. Berbeda dari screen-165, yang punya satu. `_note_no_labeled_recap` dirender utuh karena pembaca yang datang dari Laporan Kernel Dispatch akan mencarinya.",
+        "EKSPOR: hanya CSV. Tombol dinonaktifkan selama permintaan berjalan supaya ketukan ganda mengirim SATU permintaan.",
+        "PEMETAAN GALAT KE KEADAAN LAYAR: 401 → Login tanpa pesan jaringan; 403 → minta pilih line lagi DAN bersihkan angka yang sudah ada; 422 akun tanpa mill → arahan menghubungi Admin; galat lain → keadaan galat + Coba Lagi dengan penjagaan line tetap berlaku.",
+        "PINTU MASUK: satu entri pada REPORT_ROUTES di ReportingPilihStasiunView.vue, DI-APPEND. Map itu tidak urut sort_order dan tidak punya asersi urutan.",
+        "TATA LETAK: kartu angka BERTUMPUK satu kolom; tabel rekap yang lebar menggulir mendatar DI DALAM kartunya; halaman itu sendiri TIDAK BOLEH bergeser mendatar — DIUKUR, bukan dilihat. Daftar 25 baris sebaran jam tidak boleh mengubur bagian di bawahnya, karena itu kartunya dapat dilipat."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "cpo-dispatch-detail",
+          "operation": "SELECT",
+          "description": "Tidak langsung — lewat endpoint /summary dan /export milik screen-166. Layar ini tidak punya akses basis data."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Perangkat luring saat layar dibuka",
+          "handling": "Bootstrap berhenti sebelum permintaan pertama; NOL kartu tonase, NOL kartu mutu, NOL kartu waktu putar, NOL kartu sebaran jam, NOL rekap di DOM; pernyataan 'memerlukan jaringan' + kalimat nol-angka-lama; nol permintaan DIHITUNG."
+        },
+        {
+          "condition": "Perangkat menjadi luring SESUDAH angka termuat",
+          "handling": "Event `offline` menutup seluruh angkanya. Diuji dengan memalsukan `navigator.onLine` lewat `addInitScript` — BUKAN `context.setOffline()` lalu `page.reload()`, yang memutus pengambilan dokumen aplikasinya sendiri dari Vite sehingga yang teruji adalah Chromium, bukan layar ini."
+        },
+        {
+          "condition": "Production Line belum dipilih",
+          "handling": "Nol angka, nol tombol ekspor, kalimat yang menyatakan apa yang ditunggu. `/summary` TIDAK dipanggil — TEPAT 0, juga sesudah ganti periode dan juga pada jalur Coba Lagi. Tiga jalur, tiga test, plus satu test yang membuktikan penjagaannya di satu tempat."
+        },
+        {
+          "condition": "Mill hanya punya SATU production line",
+          "handling": "Tetap TIDAK dipilihkan."
+        },
+        {
+          "condition": "Line yang diingat perangkat sudah tidak sah",
+          "handling": "Dibuang; layar meminta memilih."
+        },
+        {
+          "condition": "Penyimpanan perangkat melempar saat dibaca (mode privat)",
+          "handling": "Ditangkap; layar tetap merender; nol elemen galat. Spy WAJIB pada `Storage.prototype`, bukan pada instance `window.localStorage` — di jsdom instance-nya dibungkus Proxy sehingga spy instance menerima NOL panggilan dan test-nya hijau tanpa menguji apa pun. Buktikan dulu spy-nya menerima ≥ 1 panggilan."
+        },
+        {
+          "condition": "Tidak ada satu jam pun tercatat pada seluruh pengiriman",
+          "handling": "`busiest_hour` dirender '—' (BUKAN 0); `empty_hour_count` 24; ke-24 baris kelompok TETAP dirender bernilai nol; baris 'jam tidak tercatat' memuat seluruh pengiriman; kartu waktu putar menampilkan '—' dengan `measured_count` 0 dan `uncomputable_count` = jumlah pengiriman; `crossed_midnight_count` dirender NOL. KEDUA kartu TETAP ADA di layar, tidak dihilangkan."
+        },
+        {
+          "condition": "Seluruh pengiriman pada satu jam yang sama",
+          "handling": "Satu baris berisi, 23 baris NOL TETAP TERLIHAT, `empty_hour_count` 23, `busiest_hour` = jam itu. Ini kasus yang membuktikan baris nol tidak disembunyikan."
+        },
+        {
+          "condition": "Waktu putar nol menit datang dari server",
+          "handling": "Dirender 0, BUKAN '—'. Penjaga null yang memakai falsiness JavaScript akan salah di sini, dan juga pada jam 0 — keduanya nilai yang sah."
+        },
+        {
+          "condition": "`crossed_midnight_count` > 0",
+          "handling": "Dirender beserta prosa `turnaround._note` yang menyatakan sebabnya. Klien TIDAK menghitungnya ulang dan TIDAK menandai baris mana yang menyeberang — payload tidak membawa informasi per-baris itu, dan mengarangnya berarti menafsirkan untuk kedua kalinya."
+        },
+        {
+          "condition": "Satu ukuran mutu tidak punya hasil uji sementara tiga lainnya punya",
+          "handling": "Ukuran ITU '—' dengan measured_count 0; ketiga lainnya TETAP berangka. Penjaga di tingkat UKURAN."
+        },
+        {
+          "condition": "Keempat ukuran mutu kosong tetapi tonasenya ada",
+          "handling": "Kartu mutu menyatakan belum ada hasil uji; kartu tonase DAN kartu waktu putar DAN kartu sebaran jam tidak terpengaruh. Semuanya tetap dirender."
+        },
+        {
+          "condition": "Seluruh pengiriman belum selesai ditimbang",
+          "handling": "Kedua angka berat '—'; mutu, waktu putar, dan sebaran jam TIDAK terpengaruh — kolom yang berbeda."
+        },
+        {
+          "condition": "Ketiga kolom kategoris kosong pada sebagian pengiriman",
+          "handling": "Baris 'tidak tercatat' per rekap; penjumlahan tiap rekap tetap = dispatch_count."
+        },
+        {
+          "condition": "Satu pengiriman kehilangan KEDUA nomor segel",
+          "handling": "Kedua penghitung naik — klien hanya menampilkan kedua angka itu sebagai DUA angka terpisah, dan tidak boleh ada elemen gabungan 'segel hilang'."
+        },
+        {
+          "condition": "Admin belum memilih mill / akun ber-business_unit_id NULL (422)",
+          "handling": "Arahan memilih mill; atau arahan menghubungi Admin — bukan galat jaringan dan bukan permintaan hak akses."
+        },
+        {
+          "condition": "Periode atau line milik mill lain (403)",
+          "handling": "Minta pilih line lagi; angka yang sudah ada DIBERSIHKAN dari DOM; angka mill lain tidak pernah terender."
+        },
+        {
+          "condition": "Sesi berakhir (401)",
+          "handling": "Arahkan ke Login tanpa pesan jaringan."
+        },
+        {
+          "condition": "`/summary` gagal sekali lalu berhasil",
+          "handling": "Keadaan galat + Coba Lagi; jumlah permintaan DIHITUNG supaya 'coba lagi' tidak diam-diam memanggil dua kali, dan penjagaan line tetap berlaku di jalur itu."
+        },
+        {
+          "condition": "Nol pengiriman pada line terpilih",
+          "handling": "Kerangka laporan penuh dengan keadaan kosong yang menyebut periode dan line; ketiga kartu utama dan kartu sebaran jam tetap ada."
+        },
+        {
+          "condition": "Periode belum mulai / masih berjalan",
+          "handling": "Kelengkapan '—' dengan kalimat sebabnya, atau penyebut berhenti di hari ini. Keduanya datang dari server."
+        },
+        {
+          "condition": "Kartu sebaran jam dibuka pada lebar 390px",
+          "handling": "Dua puluh lima baris terbaca; tiap baris memuat label jam, jumlah, dan bilahnya tanpa terpotong kartu induknya; halaman TIDAK bergeser mendatar. DIUKUR: scrollWidth halaman dibanding clientWidth, dan geometri baris dibanding kartunya."
+        },
+        {
+          "condition": "Melipat sebuah rekap atau kartu sebaran jam",
+          "handling": "Ketiga kartu angka utama TETAP TERBUKA — melipat yang satu tidak boleh ikut melipat yang lain, dan keadaan terlipat tidak mengubah satu angka pun."
+        },
+        {
+          "condition": "Ekspor ditekan dua kali cepat",
+          "handling": "Tombol dinonaktifkan selama permintaan; satu unduhan, satu permintaan. Ketukan kedua dikirim dengan force supaya yang teruji penjagaan APLIKASI, bukan penjagaan alat uji."
+        }
+      ],
+      "business_rules_applied": [
+        "Angka mobile = angka web, dijamin oleh bentuk: klien tidak menghitung agregat apa pun — termasuk tidak menghitung waktu putar",
+        "crossed_midnight_count hanya ditampilkan, tidak dihitung ulang",
+        "Tiga kartu angka utama berurutan dan tidak dapat dilipat",
+        "Sebaran 24 jam sebagai daftar bertumpuk; baris nol tetap dirender",
+        "busiest_hour null dirender '—', bukan 0; jam 0 adalah jam yang sah dan falsy",
+        "Setiap ukuran mutu punya penyebutnya sendiri; penjaga '—' per ukuran",
+        "DOBI tanpa satuan, prosanya di dalam kartu ukurannya",
+        "Prosa penjelas server dirender utuh",
+        "null dicetak '—' per field; angka 0 sungguhan tetap dicetak 0",
+        "Urutan baris milik server, termasuk ke-24 kelompok jam",
+        "Luring menutup seluruh angkanya",
+        "Tidak ada rekap berlabel dan tidak ada helper label di layar ini",
+        "Production Line wajib; tidak pernah dipilihkan",
+        "Segel atas dan bawah ditampilkan sebagai dua angka terpisah",
+        "Layar baca saja; halaman tidak pernah bergeser mendatar"
+      ],
+      "unit_test_cases": []
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-166--laporan-cpo-dispatch-web",
+      "reason": "Pasangan web — pemilik keempat endpoint yang dipakai apa adanya DAN pemilik seluruh aturan angkanya, termasuk keempat keputusan jebakan tengah malam. Perubahan bentuk payload di sana adalah perubahan di sini; tidak ada lapisan penyangga, dan itu disengaja."
+    },
+    {
+      "screen_id": "screen-141--reporting-mobile",
+      "reason": "Pintu masuk satu-satunya. Tile CPO Dispatch menyala setelah satu entri ditambahkan ke REPORT_ROUTES di ReportingPilihStasiunView.vue. RIAKNYA ADA DI SPEC-NYA — lihat implementation_notes."
+    },
+    {
+      "screen_id": "screen-165--laporan-kernel-dispatch-mobile",
+      "reason": "Preseden kode terdekat: laporan mobile hibrida transaksi + mutu dengan kartu mutu empat-ukuran, rekap kategoris, dan penghitung kepatuhan. Layar ini MENAMBAHKAN kartu waktu putar dan kartu sebaran 24 jam, dan MENGHILANGKAN rekap berlabel beserta pemakaian helper label — ambil kerangkanya, periksa ketiga perbedaan itu."
+    }
+  ],
+  "implementation_notes": [
+    "BAHAYA TERBESAR LAYAR INI BUKAN DI TAMPILAN, MELAINKAN DI GODAAN MENGHITUNG. Selisih dua jam tampak seperti aritmetika sepele yang 'bisa saja dilakukan di klien', dan di sanalah jebakan tengah malam akan lahir UNTUK KEDUA KALINYA — di tempat yang tidak diuji oleh satu test backend pun. Waktu putar, sebaran jam, dan `crossed_midnight_count` SELURUHNYA datang dari `/summary` dan hanya ditampilkan. Sertakan satu unit case yang MENGAUDIT SUMBER: tidak ada aritmetika jam di berkas view sama sekali (nol pengurangan atas nilai waktu, nol pemanggilan Date/Intl untuk menghitung durasi), sebab kesalahan ini tidak akan memerahkan satu asersi angka pun selama fixture-nya tidak melewati tengah malam.",
+    "SEBARAN 24 JAM: DAFTAR BERTUMPUK, dan kedua bentuk lain SUDAH DITOLAK beserta sebabnya — jangan dicoba ulang. Berdampingan memberi tiap kelompok belasan piksel pada lebar ponsel. Gulir mendatar menyembunyikan sebagian besar jam di balik gerakan, sehingga pertanyaan utama layar ini ('jam mana yang tersibuk') menuntut gulir maju-mundur, dan kelompok KOSONG menjadi yang paling mungkin tak pernah terlihat — padahal jam kosong adalah informasi, bukan ketiadaan informasi. Bentuk yang dipilih: 25 baris selebar kartu (24 jam + 'jam tidak tercatat'), jam tersibuk dan jumlah jam kosong di KEPALA kartu, kartunya dapat dilipat.",
+    "KELOMPOK NOL TETAP DIRENDER. Uji lewat 'seluruh pengiriman pada satu jam yang sama → 23 baris nol tetap terlihat'. Sebuah implementasi yang menyaring baris nol akan membuat daftarnya lebih pendek dan jauh lebih sedikit berguna, dan tidak satu pun asersi angka akan memerah karenanya.",
+    "`busiest_hour` DAN WAKTU PUTAR NOL ADALAH DUA JEBAKAN FALSINESS DI SATU LAYAR. Jam 0 adalah jam yang SAH dan falsy; waktu putar 0 menit adalah angka yang SAH dan falsy. Penjaga '—' WAJIB membandingkan dengan null secara eksplisit (`=== null` / `== null`), bukan memakai `||` atau `!value`. Dua unit case terpisah, satu untuk masing-masing.",
+    "PENJAGA '—' KARTU MUTU ADA DI TINGKAT UKURAN, BUKAN DI TINGKAT KARTU. Satu `v-if=\"adaDataMutu\"` di pembungkus terasa rapi dan akan menyembunyikan tiga ukuran yang punya data ketika satu ukuran kosong. Peringatan yang sama sudah ditulis di screen-164 dan screen-165; di klien ia paling mudah dibuat.",
+    "`quality.dobi._note` DIRENDER DI DALAM KARTU UKURAN DOBI, bukan di kaki kartu mutu. DOBI duduk berdampingan dengan tiga kolom persen sehingga refleks memberinya '%' sangat kuat; menempatkan prosanya tepat di sebelah angkanya adalah yang mencegahnya. Sertakan unit case yang mengasersikan DOBI dirender TANPA elemen satuan sementara ketiga ukuran lain DENGAN '%'.",
+    "TIDAK ADA HELPER LABEL DI LAYAR INI. Berbeda dari screen-165, stasiun ini nol kolom berpilihan tertutup — diverifikasi: satu-satunya `<select>` di form CPO adalah pemilih production line. Sertakan audit sumber: `optionLabel` TIDAK diimpor di berkas view ini. Mengimpornya 'untuk konsistensi' akan menambahkan ketergantungan yang tidak punya pemakai dan menyesatkan pembaca berikutnya.",
+    "RIAK: `mobile/tests/ReportingPilihStasiunView.spec.ts` memakai `cpo-dispatch` sebagai contoh 'belum ada laporan mobile' di SATU tempat (hitungan 2026-10-18). PERIKSA ulang dengan grep KODE STASIUNNYA sebelum menulis — JANGAN bersandar pada unit case 56 di `LaporanProcessWaterView.spec.ts`: case itu kini menjaga `zz-stasiun-fiktif`, kode yang tidak akan pernah masuk REPORT_ROUTES, sehingga ia HIJAU SELAMANYA dan TIDAK akan memerah untuk pergeseran ini. Daya peringatan-dini itu sengaja ditukar pada screen-163 demi test yang tidak basi, dan konsekuensinya jatuh di sini. Perbaikannya: ganti ke `'zz-stasiun-fiktif'` dengan cast `as StationType` (union-nya tertutup) — bukan ke `process-quality-control`, yang akan basi pada screen-169.",
+    "IKON 'cpo-dispatch' — PERIKSA di STATION_ICONS pada ReportingPilihStasiunView.vue sebelum menambahkannya. Pada screen-163 dan screen-165 ikon stasiunnya sudah ada, dan menambahkan ulang akan menjadi entri ganda. Jangan diasumsikan ke dua arah.",
+    "JANGAN MENGUJI LURING DENGAN `context.setOffline(true)` + `page.reload()` — itu memutus pengambilan dokumen dan bundle dari Vite dev server sehingga aplikasinya TIDAK PERNAH dijalankan, dan yang teruji adalah Chromium bukan layar ini. Palsukan `navigator.onLine` lewat `addInitScript` + `Object.defineProperty`, dan BIARKAN stub API terpasang supaya penolakan permintaan DAPAT dibantah oleh penghitungnya. Terbukti pada screen-161.",
+    "SPY PENYIMPANAN PADA `Storage.prototype`, bukan `window.localStorage` — di jsdom instance-nya dibungkus Proxy sehingga spy instance menerima NOL panggilan. Buktikan dulu spy-nya menerima ≥ 1 panggilan sebelum mempercayai test-nya.",
+    "WRAPPER YANG DI-MOUNT WAJIB DI-UNMOUNT PADA `afterEach` — layar ini mendaftarkan listener `online`/`offline`, dan wrapper yang bocor menghitung ganda permintaan bootstrap pada test berikutnya, kegagalan yang akan tampak seperti bug di layar.",
+    "STUB YANG MENIRU RESPONS SERVER WAJIB DISALIN DARI SERVERNYA. Header ekspor ada di `backend/app/Services/CpoDispatchReportService.php` — yang pada saat spec ini ditulis BELUM ADA; bila masih belum ada saat kamu mulai, SALIN dari konstanta itu begitu tersedia dan JANGAN menuliskan daftar tebakan. Pada screen-161 stub CSV dikarang dan menghasilkan jumlah kolom yang salah; seandainya angka asersinya yang disesuaikan, berkasnya hijau sambil membuktikan nol hal tentang berkas yang sungguh diunduh pengguna.",
+    "KETIADAAN DIASERSIKAN LEWAT TESTID DAN NAMA KUNCI, tidak pernah lewat sapuan teks. Payload ini memuat `_note_no_labeled_recap` (berisi 'rekap berlabel'), `turnaround._note` (berisi 'tidak wajar'), dan `hourly._note` (berisi 'jam'), dan layar merender ketiganya UTUH. Ketiadaan tombol Excel juga lewat testid + role, bukan sapuan 'excel'/'xlsx'.",
+    "GEOMETRI DIUKUR, BUKAN DIASERSIKAN LEWAT NAMA KELAS. Daftar 25 baris adalah elemen terpanjang di layar ini: periksa scrollWidth halaman dibanding clientWidth pada 390px, DAN geometri baris dibanding kartunya (baris tidak terpotong induknya). Markup yang benar tetap dapat menghasilkan elemen yang terpotong, dan assertSee tidak pernah menangkapnya.",
+    "SETIAP KELAS CSS YANG DIPAKAI MARKUP WAJIB PUNYA DEFINISI, diperiksa pada hasil COMPILE bukan pada sumbernya — audit terhadap `dist/assets/*.css` seperti yang dilakukan pada screen-163.",
+    "`toContain(a, b)` memperlakukan argumen kedua sebagai NEEDLE KEDUA, bukan pesan.",
+    "UJI BROWSER MOBILE lewat Vite :5174 dengan `reuseExistingServer`, login DIBIARKAN NYATA terhadap backend :8000 — jadi backend dev HARUS hidup, atau setiap test membakar timeout navigasi 30s dan gagal karena sebab yang tidak ada hubungannya dengan layar. Jangan `db:prepare`, jangan menyentuh database dev. CATATAN PROFIL FIXTURE: kedua baris cpo-dispatch di DB e2e punya `time_in` DAN `time_out` KEDUANYA NULL (diukur 2026-10-18), sehingga di browser yang teruji adalah kasus 'tidak ada satu jam pun tercatat' — justru kasus tepi yang paling mudah dikodekan salah. Jebakan tengah malam dan waktu putar nol TIDAK dapat diuji di browser; keduanya milik unit test."
+  ],
+  "test_scenarios": []
+}

@@ -363,10 +363,36 @@ it('Data Browser menampilkan kolom Shift Kerja, dan "Tanpa shift" untuk yang tid
         'process_water_id' => 'PW-BERSHIFT',
     ]))->assertCreated();
 
+    // JAM DIPAKU SEBELUM POST KEDUA — DAN INI PERBAIKAN FLAKE LATEN.
+    //
+    // Record kedua sengaja dikirim TANPA `shift_id`, sehingga server
+    // MENURUNKANNYA dari jam dinding. Fixture di atas punya satu shift saja,
+    // Pagi 07:00–15:00, jadi tanpa pakuan ini record itu akan BERSHIFT setiap
+    // kali suite dijalankan antara 07:00 dan 15:00 WIB — dan asersi 'Tanpa
+    // shift' di bawah tidak akan pernah menemukan kata itu.
+    //
+    // Terbukti pada 2026-10-18: suite memerah pada run 12:20 WIB dan hijau
+    // dengan APP_TIMEZONE=UTC pada test yang sama. Cacat ini LATEN sejak
+    // pekerjaan shift 2026-10-16, dan baseline 'hijau' sebelumnya semuanya
+    // terambil di luar jendela Pagi. Sebuah test yang kehijauannya bergantung
+    // pada jam berapa ia dijalankan bukan test.
+    //
+    // 20:00 dipilih karena ia di luar Pagi dan line ini tidak punya shift
+    // lain — pola yang sama persis sudah dipakai test 'celah jadwal' di atas,
+    // yang memang sejak awal memakunya.
+    $this->travelTo(Carbon::parse('2026-08-31 20:00:00'));
+
     $this->actingAs($this->supervisor, 'web')->postJson('/api/process-water-records', shiftStampPayload([
         'production_line_id' => $this->lineId,
         'process_water_id' => 'PW-TANPA-SHIFT',
     ]))->assertCreated();
+
+    $this->travelBack();
+
+    // Dan dibuktikan di DB, bukan hanya di HTML: tanpa baris ini, sebuah
+    // layar yang kebetulan mencetak 'Tanpa shift' karena sebab lain akan
+    // meloloskan test ini.
+    expect(ProcessWaterRecord::where('process_water_id', 'PW-TANPA-SHIFT')->firstOrFail()->shift_id)->toBeNull();
 
     $html = Livewire::actingAs($this->supervisor)
         ->test(\App\Livewire\Data\DataBrowserProcessWater::class)

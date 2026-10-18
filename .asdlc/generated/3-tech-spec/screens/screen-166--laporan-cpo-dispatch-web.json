@@ -566,7 +566,368 @@
         "Ekspor mentah: jam apa adanya, tanpa tafsir dan tanpa kolom waktu putar",
         "Ketiadaan sebuah blok dinyatakan di layar beserta sebabnya"
       ],
-      "unit_test_cases": []
+      "unit_test_cases": [
+        {
+          "description": "businessUnitOptions menolak non-admin dengan 403 dari DALAM service",
+          "given": "User berperan Supervisor; diulang untuk Mill Management dan Station Operator. Ketiganya diterima middleware prefix ini karena ketiga rute data di bawahnya memang menerima mereka",
+          "expect": "throw ForbiddenException kode FORBIDDEN untuk ketiga peran. Asersi tambahan yang membuat test ini bukan uji middleware: CpoDispatchReportService dipanggil LANGSUNG tanpa HTTP kernel dan TETAP menolak — penolakan lahir di service, bukan di route group"
+        },
+        {
+          "description": "businessUnitOptions mengembalikan seluruh mill bagi Admin; master kosong mengembalikan [] bukan galat",
+          "given": "User Admin (business_unit_id null). Varian A: tiga BusinessUnit disemai bernama 'Mill C','Mill A','Mill B'. Varian B: nol BusinessUnit",
+          "expect": "Varian A: tiga entri {id,name} urut nama naik. Varian B: array KOSONG tanpa exception — 'belum ada mill' adalah jawaban sah, bukan 404"
+        },
+        {
+          "description": "periods menolak 422 ketika Admin tidak menyertakan business_unit_id",
+          "given": "User Admin; business_unit_id tidak dikirim",
+          "expect": "throw ValidationException kode VALIDATION_ERROR yang MENYEBUT parameter business_unit_id. Asersikan KELAS exception dan kode-nya, bukan hanya pesannya"
+        },
+        {
+          "description": "business_unit_id kiriman DIABAIKAN bagi peran terikat mill — bukan 403, dan dikontraskan dengan production_line_id",
+          "given": "Supervisor terikat mill-A mengirim business_unit_id = mill-B. mill-B punya periode cpo-dispatch sendiri yang juga disemai",
+          "expect": "200 dengan periode mill-A. ASERSI NEGATIF EKSPLISIT: tidak satu pun id periode mill-B ada di hasil (dicek per id, bukan hanya jumlahnya). Menolak akan membocorkan keberadaan mill lain; mengabaikan tidak. Deskripsi menyatakan kontrasnya: business_unit_id DIABAIKAN, production_line_id DITOLAK 403 — dua parameter, dua perlakuan, sengaja"
+        },
+        {
+          "description": "Akun terikat mill yang business_unit_id-nya NULL di DB menghasilkan 422, BUKAN 403",
+          "given": "Supervisor dengan business_unit_id NULL di tabel users",
+          "expect": "throw ValidationException kode VALIDATION_ERROR. Asersikan KELAS exception DAN kode-nya. Bukan ForbiddenException: izinnya ada, masternya yang rusak — dan pesan 403 akan menyuruh pengguna meminta hak yang sudah dimilikinya"
+        },
+        {
+          "description": "periods hanya memuat periode yang punya baris period_stations berjenis 'cpo-dispatch'",
+          "given": "Mill punya tiga periode: satu mendaftarkan cpo-dispatch, satu hanya kernel-dispatch, satu tanpa period_stations sama sekali",
+          "expect": "Tepat satu periode kembali, dan station_type-nya 'cpo-dispatch'. Kedua periode lain diasersikan ABSEN per id"
+        },
+        {
+          "description": "periods TIDAK menyaring status periode — draft, open dan closed sama-sama terbaca",
+          "given": "Tiga periode cpo-dispatch berstatus draft, open dan closed",
+          "expect": "Ketiganya kembali. Asersikan ketiga nilai status hadir di hasil — laporan membaca, bukan menegakkan siklus hidup periode"
+        },
+        {
+          "description": "periods mengembalikan [] ketika mill belum punya satu pun periode cpo-dispatch",
+          "given": "Mill punya Production Line tetapi nol period_stations berjenis cpo-dispatch",
+          "expect": "Array KOSONG dengan 200, tanpa exception — pemilih periode kosong adalah keadaan sah yang dijelaskan layar, bukan galat"
+        },
+        {
+          "description": "summary menolak 422 ketika period_id absen",
+          "given": "Supervisor; production_line_id dikirim, period_id tidak",
+          "expect": "throw ValidationException kode VALIDATION_ERROR menyebut period_id. Tidak ada fallback 'periode terakhir'"
+        },
+        {
+          "description": "summary menolak 422 ketika production_line_id absen — tanpa fallback 'line pertama' dan tanpa mode semua-line",
+          "given": "Mill punya DUA Production Line yang MASING-MASING memuat pengiriman cpo-dispatch pada periode itu, supaya sebuah fallback atau mode agregat punya sesuatu untuk dikembalikan dan karenanya terbukti tidak dijalankan",
+          "expect": "throw ValidationException kode VALIDATION_ERROR menyebut production_line_id. Asersikan NOL payload terbit — tidak ada satu angka pun, bukan angka gabungan kedua line dan bukan angka line pertama"
+        },
+        {
+          "description": "summary menolak 403 ketika periode milik mill lain",
+          "given": "Supervisor terikat mill-A; period_id milik mill-B yang punya pengiriman",
+          "expect": "throw ForbiddenException kode FORBIDDEN. Penolakan terjadi SEBELUM agregasi: asersikan tidak ada satu angka pun terbit, bukan payload sebagian"
+        },
+        {
+          "description": "summary menolak 403 ketika production_line_id milik mill lain — DITOLAK, bukan diabaikan",
+          "given": "Supervisor terikat mill-A; period_id mill-A yang sah; production_line_id milik mill-B",
+          "expect": "throw ForbiddenException kode FORBIDDEN. Dalam SATU test, dikontraskan dengan business_unit_id mill-B pada permintaan yang sama yang DIABAIKAN tanpa galat: line adalah parameter yang dipilih sadar dan karenanya divalidasi, mill adalah konteks akun dan karenanya diabaikan"
+        },
+        {
+          "description": "Station Operator DITERIMA di periods, summary dan export sejak commit pertama; DITOLAK 403 hanya di rute web",
+          "given": "Station Operator terikat mill yang punya periode dan line cpo-dispatch",
+          "expect": "Ketiga rute data mengembalikan 200 dengan payload penuh. businessUnitOptions tetap 403. Ini bukan kelonggaran: screen-167 memakai rute yang sama, dan melebarkan gate nanti berarti mengubah gate yang sudah lolos test"
+        },
+        {
+          "description": "dispatch_count menghitung BARIS DETAIL, bukan record induk",
+          "given": "Dua record induk cpo-dispatch pada line dan periode terpilih: induk pertama 3 baris detail, induk kedua 2 baris detail",
+          "expect": "dispatch_count = 5, bukan 2. Satu baris detail = satu tanker = satu pengiriman; menghitung induk akan melaporkan angka yang selalu lebih kecil dan selalu tampak masuk akal"
+        },
+        {
+          "description": "Lingkup baris menyingkirkan record stasiun lain dan record line lain",
+          "given": "Pada periode yang sama: record kernel-dispatch di line terpilih, dan record cpo-dispatch di line LAIN pada mill yang sama. Keduanya berbaris detail",
+          "expect": "Keduanya TIDAK ikut satu angka pun. dispatch_count hanya baris cpo-dispatch di line terpilih. Penyaringnya station.station_type DAN production_line_id, dan keduanya diuji dalam satu fixture"
+        },
+        {
+          "description": "Keanggotaan periode ditentukan kolom `date` pada INDUK, inklusif di kedua ujung",
+          "given": "Empat record induk bertanggal: satu hari sebelum start, tepat start, tepat end, satu hari sesudah end. Tanggal disemai EKSPLISIT, tidak diambil dari factory",
+          "expect": "Hanya record tepat-start dan tepat-end masuk. Dibandingkan dengan whereDate(), BUKAN where() — suite berjalan di SQLite in-memory sementara produksi/e2e PostgreSQL, dan perbandingan kolom tanggal tanpa whereDate() lolos di yang pertama dan menyimpang di yang kedua"
+        },
+        {
+          "description": "Satu line dengan LEBIH DARI SATU unit stasiun cpo-dispatch digabung tepat sekali",
+          "given": "Line terpilih punya dua baris stations berjenis cpo-dispatch, masing-masing punya record dengan baris detail",
+          "expect": "Seluruh baris detail kedua unit stasiun masuk, dan masing-masing TEPAT SEKALI — asersikan dispatch_count sama dengan jumlah baris detail yang disemai, bukan dua kali lipatnya (join yang keliru melipatgandakan tanpa menggagalkan apa pun)"
+        },
+        {
+          "description": "summary menghitung normal untuk periode berstatus draft maupun closed",
+          "given": "Periode identik isinya disemai dua kali, berstatus draft dan closed",
+          "expect": "Kedua payload identik angkanya, termasuk sebaran jam dan waktu putar. period.status terbit apa adanya. Status periode tidak menyaring apa pun — dan tidak pula mengubah satu angka"
+        },
+        {
+          "description": "JEBAKAN 1 — jam keluar LEBIH KECIL daripada jam masuk dibaca HARI BERIKUTNYA: 23:30 → 00:45 = TEPAT 75 menit, dan BUKAN −1365",
+          "given": "SATU baris detail dengan time_in '23:30' dan time_out '00:45', disemai EKSPLISIT sebagai string jam (bukan dari factory, bukan dari Carbon::now()). event_date disemai eksplisit di dalam periode",
+          "expect": "turnaround.min_minutes = 75 DAN max_minutes = 75 DAN avg_minutes = 75.0. Asersi KEDUA, eksplisit dan tersendiri: hasilnya BUKAN −1365 — assertNotSame(-1365, ...) atas ketiga angka — karena −1365 adalah apa yang diberikan pengurangan mentah dan sebuah implementasi yang salah akan tetap mengembalikan angka, bukan exception. Rumus yang diasersikan: selisih menit-dalam-hari lalu +1440 bila negatif. measured_count = 1 dan crossed_midnight_count = 1"
+        },
+        {
+          "description": "JEBAKAN 2a — crossed_midnight_count diterbitkan tersendiri dan bernilai TEPAT 3 dari 20",
+          "given": "20 baris detail yang KEDUA jamnya tercatat; TIGA di antaranya ber-time_out lebih kecil daripada time_in (23:10→00:20, 22:45→01:15, 23:55→00:05), tujuh belas sisanya normal. Seluruh jam disemai eksplisit",
+          "expect": "turnaround.crossed_midnight_count = 3 TEPAT. measured_count = 20 — ketiga pengiriman itu TIDAK dibuang dari penyebut. min/avg/max dihitung atas kedua puluh, dengan ketiga nilai menyeberang sudah ber-+1440. Angka ini terbit TERSENDIRI karena tafsir yang tidak terlihat adalah tafsir yang tidak dapat dibantah"
+        },
+        {
+          "description": "JEBAKAN 2b — crossed_midnight_count TETAP dirender sebagai 0 ketika TIDAK ADA yang menyeberang",
+          "given": "8 baris detail yang kedua jamnya tercatat dan time_out SELALU lebih besar daripada time_in",
+          "expect": "Kunci turnaround.crossed_midnight_count ADA di payload (diasersikan atas nama kunci lewat array_key_exists / penelusur rekursif) DAN bernilai 0 — assertSame(0, ...), bukan assertEmpty. Test ini TERSENDIRI dari jebakan 2a dengan sengaja: sebuah angka yang hanya muncul ketika tidak nol tidak membuktikan pembacaannya berjalan, ia hanya membuktikan ada cabang yang kebetulan terpicu"
+        },
+        {
+          "description": "JEBAKAN 3 — jam masuk SAMA DENGAN jam keluar memberi NOL menit apa adanya, dan `<=` alih-alih `<` akan melaporkan 24 jam",
+          "given": "Tiga baris detail: (1) time_in '08:00' time_out '08:00' — SAMA; (2) time_in '08:00' time_out '09:30'; (3) time_in '23:30' time_out '00:45'. Seluruh jam disemai eksplisit",
+          "expect": "Baris nol-menit MASUK measured_count (measured_count = 3), menjadi min_minutes = 0 — assertSame(0, ...) bukan assertNull — dan ikut menarik avg_minutes ke bawah (avg = (0+90+75)/3 = 55.0). Dan ia TIDAK masuk crossed_midnight_count: crossed_midnight_count = 1, bukan 2. Deskripsi test MENYATAKAN sebabnya: implementasi yang memakai `<=` alih-alih `<` pada cabang +1440 akan menambahkan 1440 pada nol dan melaporkan waktu putar 24 jam — kesalahan satu karakter yang hasilnya tampak masuk akal, lolos review, dan hanya tertangkap oleh asersi min_minutes === 0 ini"
+        },
+        {
+          "description": "JEBAKAN 4 — waktu putar yang tampak TIDAK WAJAR tidak dibuang, tidak dipotong, dan NOL penandaan",
+          "given": "Lima baris detail: empat ber-waktu putar 40–90 menit, satu 23 JAM (time_in '00:30' time_out '23:30' — 1380 menit, TANPA menyeberang tengah malam sehingga ia bukan varian jebakan 1)",
+          "expect": "max_minutes = 1380 TEPAT — ia TETAP menjadi max, tidak dipotong ke batas apa pun. measured_count = 5 — ia TIDAK dibuang dari penyebut. avg_minutes memasukkannya (asersikan nilai rata-rata yang dihitung dengan 1380 di dalamnya, bukan tanpa). DAN NOL PENANDAAN: penelusur rekursif atas payload membuktikan TIDAK ADA kunci bernama severity / flag / warning / color / badge / violation_count / outlier_count / unreasonable_count atau apa pun yang sejenis. Diasersikan atas NAMA KUNCI, bukan atas teks — karena turnaround._note justru MEMUAT kata 'tidak wajar' dan asersi berbasis teks akan cocok dengan prosa yang menyatakan ketiadaan itu"
+        },
+        {
+          "description": "turnaround._note DITERBITKAN sebagai kunci dan memuat prosa 'tidak wajar'",
+          "given": "Payload summary apa pun yang sah",
+          "expect": "Kunci turnaround._note ADA dan berupa string tak kosong, dan isinya memuat frasa yang menyatakan angka tak wajar patut DIPERIKSA PEMBACA (asersikan dengan $this->assertStringContainsString, satu needle per asersi). Pasangan dari test NOL PENANDAAN: laporan boleh MENYATAKAN kecurigaan, tidak boleh MEMUTUSKANNYA"
+        },
+        {
+          "description": "Waktu putar HANYA dihitung bila KEDUA jam tercatat; measured_count + uncomputable_count = dispatch_count",
+          "given": "20 baris detail: 14 ber-time_in DAN time_out, 3 ber-time_in saja, 2 ber-time_out saja, 1 tanpa keduanya",
+          "expect": "measured_count = 14, uncomputable_count = 6, dan 14 + 6 = 20 = dispatch_count sebagai asersi PENGUNCI yang berdiri sendiri. min/avg/max dihitung HANYA atas keempat belas itu"
+        },
+        {
+          "description": "min/avg/max waktu putar dihitung DI PHP, bukan lewat agregat SQL; satu baris terukur memberi min = avg = max",
+          "given": "Varian A: lima baris ber-waktu putar beragam. Varian B: satu baris saja yang kedua jamnya tercatat, di antara sepuluh baris lain yang tidak",
+          "expect": "Varian A: min/avg/max sesuai hitungan manual yang ditulis di test. Varian B: min_minutes = avg_minutes = max_minutes = nilai baris itu, dan measured_count = 1. Agregasi DI PHP — konsisten dengan tujuh belas laporan sebelumnya dan menghindari perbedaan pembulatan antara SQLite dan PostgreSQL"
+        },
+        {
+          "description": "JEBAKAN 5 (TURUNAN) — penafsiran menyeberang tengah malam TIDAK MENGGESER kelompok sebaran jam",
+          "given": "SATU baris detail dengan time_in '23:30' dan time_out '00:45', disemai eksplisit — fixture yang SAMA dengan jebakan 1, dengan sengaja",
+          "expect": "DUA hal benar SEKALIGUS dalam satu test: (1) hourly.buckets[23].dispatch_count = 1 sementara hourly.buckets[0].dispatch_count = 0 — asersikan KEDUANYA, karena hanya asersi kelompok 23 tidak membuktikan ia tidak juga ada di kelompok 0; DAN (2) turnaround.min_minutes = 75. Sebuah implementasi yang 'menormalkan' barisnya lebih dulu (menambahkan satu hari lalu memakai hasil normalisasi itu untuk kedua keperluan) akan memindahkan pengiriman ini ke kelompok 0 dan tetap melaporkan 75 menit — separuh benar, dan beban jembatan timbang pindah ke jam yang salah. Test ini BERDIRI SENDIRI, tidak digabung dengan jebakan 1"
+        },
+        {
+          "description": "Sebaran jam dihitung menurut JAM MASUK, dan jam keluar TIDAK PERNAH dipakai sebagai penggantinya",
+          "given": "Empat baris detail: time_in '06:00'/time_out '14:00'; time_in '07:15'/time_out '20:00'; time_in NULL/time_out '09:00'; time_in '18:40'/time_out NULL",
+          "expect": "buckets[6] = 1, buckets[7] = 1, buckets[18] = 1. Dan ASERSI NEGATIF atas jam keluar: buckets[14], buckets[20] dan buckets[9] SEMUA 0 — khususnya buckets[9], karena baris ketiga punya jam keluar 09:00 dan jam masuk kosong, sehingga sebuah implementasi yang mem-fallback ke time_out akan menaruhnya di kelompok 9 alih-alih di not_recorded. not_recorded_count = 1"
+        },
+        {
+          "description": "EMPAT PENYEBUT: satu fixture, EMPAT angka yang semuanya BERBEDA, EMPAT asersi terpisah",
+          "given": "20 baris detail disemai agar keempat kolom terisi SALING BEBAS: 16 ber-net_weight_mt non-null, 17 ber-time_in, 14 ber-time_in DAN time_out sekaligus. Pola null-nya disusun eksplisit per baris di test, tidak diacak",
+          "expect": "EMPAT asersi berdiri sendiri atas empat kunci berbeda: dispatches.dispatch_count = 20; dispatches.net_weight_dispatch_count = 16; hourly.recorded_count = 17; turnaround.measured_count = 14. Karena keempat angka BERBEDA, sebuah implementasi yang memakai satu penyebut untuk semuanya PASTI menggagalkan setidaknya tiga dari empat asersi ini — yang tidak terjadi bila fixture-nya kebetulan membuat keempatnya sama"
+        },
+        {
+          "description": "PENYEBUT (b) — rata-rata berat dibagi net_weight_dispatch_count, DAN kesepuluh pengiriman tetap terhitung di sebaran jam",
+          "given": "10 baris detail; HANYA 6 ber-net_weight_mt non-null (nilainya 10,20,30,40,50,60 → total 210); KESEPULUHNYA punya time_in tercatat dan disemai eksplisit",
+          "expect": "net_weight_total = 210, net_weight_avg = 35.0 (210/6), BUKAN 21.0 (210/10). net_weight_dispatch_count = 6 dan missing_net_weight_dispatch_count = 4. DAN di test yang SAMA: hourly.recorded_count = 10 dan penjumlahan 24 kelompok = 10 — membuktikan berat dan jam terisi saling bebas dan tidak saling memotong. Keempat baris tanpa berat TIDAK dianggap bernilai nol: nol akan menarik rata-rata ke 21.0 dan tampak masuk akal"
+        },
+        {
+          "description": "PENYEBUT (c) — 24 kelompok memuat 17, kelompok 'tidak tercatat' memuat 3, jumlahnya TEPAT 20",
+          "given": "20 baris detail; 17 ber-time_in tersebar di beberapa jam yang disemai eksplisit; 3 ber-time_in NULL",
+          "expect": "hourly.recorded_count = 17; hourly.not_recorded_count = 3; array_sum atas dispatch_count KEDUA PULUH EMPAT kelompok = 17; dan 17 + 3 = 20 = dispatch_count sebagai asersi PENGUNCI tersendiri. Kelompok 'tidak tercatat' tidak pernah dilipat ke kelompok jam mana pun dan tidak pernah dibuang dari jumlah"
+        },
+        {
+          "description": "PENYEBUT (d) — 14 measured_count ditambah 6 uncomputable_count sama dengan 20",
+          "given": "Fixture penyebut yang sama: 20 baris, 14 berjam lengkap, 6 kehilangan salah satu atau kedua jamnya",
+          "expect": "turnaround.measured_count = 14; turnaround.uncomputable_count = 6; 14 + 6 = 20 = dispatch_count. Ketiga angka tercetak berdampingan supaya pembaca dapat merekonsiliasinya — selisih yang tak dijelaskan tidak dapat dibedakan dari cacat"
+        },
+        {
+          "description": "ASIMETRI (c) vs (d) — tiga keadaan jam, tiga akibat berbeda, dalam SATU test",
+          "given": "Tiga baris detail, satu per keadaan: (A) time_in '10:00' time_out NULL; (B) time_in NULL time_out '15:00'; (C) time_in NULL time_out NULL",
+          "expect": "(A) MASUK sebaran — buckets[10] = 1 dan recorded_count memuatnya — TETAPI TIDAK masuk waktu putar (ia di uncomputable_count). (B) TIDAK masuk sebaran mana pun — ia di not_recorded_count — DAN tidak masuk waktu putar. (C) di not_recorded_count DAN di uncomputable_count sekaligus. Hasil akhirnya: recorded_count = 1, not_recorded_count = 2, measured_count = 0, uncomputable_count = 3. Plus ASERSI NEGATIF: buckets[15] = 0 — jam keluar TIDAK PERNAH dipakai sebagai pengganti jam masuk, dan baris (B) adalah bentuk terkecil yang membuktikannya"
+        },
+        {
+          "description": "_note_four_denominators DITERBITKAN dan memuat keempat label (a)–(d)",
+          "given": "Payload summary apa pun yang sah",
+          "expect": "Kunci _note_four_denominators ADA di tingkat atas payload (array_key_exists, bukan assertNotEmpty atas teks halaman) DAN isinya memuat keempat nama penyebut: 'dispatch_count', 'net_weight_dispatch_count', 'hourly.recorded_count', 'turnaround.measured_count' — EMPAT asersi $this->assertStringContainsString terpisah, satu needle per asersi, karena toContain berargumen banyak membaca argumen kedua sebagai needle KEDUA dan hanya memeriksa yang pertama"
+        },
+        {
+          "description": "busiest_hour NULL ketika tidak ada satu jam pun tercatat — BUKAN 0, yang akan terbaca 'tersibuk pukul 00'",
+          "given": "6 baris detail, SELURUHNYA ber-time_in NULL (time_out boleh terisi, supaya test ini tidak diam-diam menjadi uji 'tidak ada jam sama sekali')",
+          "expect": "$this->assertNull($payload['hourly']['busiest_hour']) — assertNull, BUKAN assertEmpty dan BUKAN assertFalsy, karena 0 lolos keduanya dan 0 adalah justru nilai salah yang paling mungkin ditulis implementasi (array_search atas max() dari 24 nol mengembalikan 0). recorded_count = 0, not_recorded_count = 6"
+        },
+        {
+          "description": "empty_hour_count = 24 ketika tidak ada jam tercatat; = 23 ketika seluruh pengiriman pada SATU jam yang sama",
+          "given": "Varian A: seluruh baris ber-time_in NULL. Varian B: lima baris yang SELURUHNYA ber-time_in di jam 14 (14:05, 14:20, 14:35, 14:50, 14:59 — disemai eksplisit, menit berbeda untuk membuktikan pengelompokan memakai JAM bukan jam:menit)",
+          "expect": "Varian A: empty_hour_count = 24 dan busiest_hour NULL. Varian B: empty_hour_count = 23, busiest_hour = 14, buckets[14].dispatch_count = 5, dan dua puluh tiga kelompok lain semuanya 0"
+        },
+        {
+          "description": "Penjumlahan 24 kelompok DITAMBAH not_recorded_count SAMA DENGAN dispatch_count — asersi PENGUNCI",
+          "given": "13 baris detail dengan time_in tersebar eksplisit di jam 0, 1, 23 dan beberapa jam tengah, ditambah 4 baris ber-time_in NULL",
+          "expect": "array_sum(array_column($payload['hourly']['buckets'], 'dispatch_count')) + $payload['hourly']['not_recorded_count'] === $payload['dispatches']['dispatch_count']. Satu asersi, tanpa cabang, dan ia menangkap SELURUH cara sebaran bisa kehilangan atau melipatgandakan baris — sejajar dengan baris 'tidak tercatat' pada rekap kategoris dan dengan alasan yang sama"
+        },
+        {
+          "description": "Kelompok bernilai NOL TETAP ADA di buckets — selalu 24 entri, tidak dihilangkan",
+          "given": "Dua baris detail saja, keduanya ber-time_in di jam 9",
+          "expect": "count($payload['hourly']['buckets']) === 24 TEPAT. Asersikan pula bahwa kelompok jam 0 dan jam 23 HADIR sebagai entri ber-dispatch_count 0 (dicari lewat kolom 'hour', bukan lewat indeks posisi semata), dan bahwa nilai 'hour' berjalan 0..23 tanpa lompatan. Menghilangkan kelompok kosong membuat sebaran terbaca sebagai aktivitas yang terkonsentrasi padahal ia jarang"
+        },
+        {
+          "description": "hourly._note DITERBITKAN dan menyatakan dua hal: sebaran menurut JAM MASUK, dan tafsir tengah malam tidak menggeser kelompok",
+          "given": "Payload summary apa pun yang sah",
+          "expect": "Kunci hourly._note ADA dan berupa string tak kosong; isinya memuat frasa tentang JAM MASUK dan frasa tentang kelompok jam yang TIDAK bergeser — dua asersi assertStringContainsString terpisah. Prosa ini ada supaya blade tidak perlu menyusun kalimatnya sendiri dan supaya ketiadaannya dapat diasersikan atas nama kunci"
+        },
+        {
+          "description": "buckets[].net_weight_total hanya menjumlah netto non-null; kelompok berisi baris yang netto-nya SEMUA null memberi NULL bukan 0",
+          "given": "Tiga baris detail di jam 8: dua ber-net_weight_mt 25 dan 35, satu NULL. Dua baris detail di jam 9: KEDUANYA ber-net_weight_mt NULL",
+          "expect": "buckets[8].dispatch_count = 3 dengan net_weight_total = 60.0 (bukan dibagi atau ditambal nol). buckets[9].dispatch_count = 2 dengan net_weight_total NULL — assertNull, bukan assertSame(0.0, ...): 'ada tanker, beratnya belum ada' berbeda dari 'ada tanker bermuatan nol'"
+        },
+        {
+          "description": "Kelompok jam dihitung dari time_in bertipe `time` tanpa tanggal — bukan dari event_date dan bukan dari record_datetime",
+          "given": "Dua baris detail dengan event_date BERBEDA (hari ke-2 dan hari ke-9 periode) tetapi time_in yang SAMA '05:30'; keduanya disemai eksplisit",
+          "expect": "buckets[5].dispatch_count = 2 — sebaran mengelompokkan menurut JAM, lintas hari, karena yang ditanyakan adalah pada jam berapa jembatan timbang padat sepanjang periode. Deskripsi menyatakan bedanya dari WeighbridgeReportService, yang bentuk bloknya disalin: di sana jamnya lahir dari record_datetime yang NOT NULL dan lengkap bertanggal, di sini dari time_in yang NULLABLE dan tanpa tanggal — perbedaan itulah yang melahirkan kelompok 'tidak tercatat'"
+        },
+        {
+          "description": "KEEMPAT measured_count mutu INDEPENDEN: lima angka yang semuanya berbeda, lima asersi",
+          "given": "20 baris detail dengan pola null yang DISUSUN BERBEDA per kolom mutu: 15 ber-ffa_percent, 12 ber-moisture_percent, 9 ber-impurities_percent, 7 ber-dobi. Baris mana yang terisi ditulis eksplisit di test supaya polanya tidak bisa bertabrakan secara kebetulan",
+          "expect": "LIMA asersi terpisah: dispatch_count = 20; quality.ffa_percent.measured_count = 15; quality.moisture_percent.measured_count = 12; quality.impurities_percent.measured_count = 9; quality.dobi.measured_count = 7. Kelimanya BERBEDA, sehingga satu penyebut bersama untuk keempat ukuran akan menggagalkan sekurangnya tiga asersi. Plus: kunci quality._note ADA dan prosanya menyatakan keempat penyebut boleh berbeda"
+        },
+        {
+          "description": "Penyebut NOL pada SATU ukuran TIDAK mengosongkan ukuran lain — diperiksa PER UKURAN",
+          "given": "10 baris detail: ffa_percent, moisture_percent dan impurities_percent terisi pada sebagian baris; dobi NULL pada SELURUH sepuluh baris",
+          "expect": "quality.dobi min/avg/max NULL dengan measured_count 0; SEMENTARA ketiga ukuran lain TETAP berangka dengan measured_count masing-masing > 0 — tiga asersi positif berdampingan dengan satu asersi null. Deskripsi test MENYATAKAN maksudnya: sebuah penjaga global 'apakah periode ini punya data mutu' akan mengosongkan keempatnya sekaligus dan MEMERAHKAN tepat case ini; itulah yang membuat test ini bukan pengulangan"
+        },
+        {
+          "description": "quality.dobi._note ADA DI DALAM blok dobi dan menyatakan DOBI indeks TANPA satuan",
+          "given": "Payload summary apa pun yang sah",
+          "expect": "array_key_exists('_note', $payload['quality']['dobi']) === true — diasersikan DI DALAM blok dobi, BUKAN di $payload['quality']. Asersi kedua: $payload['quality'] tidak punya kunci bernama dobi_note / _note_dobi di tingkat itu. Letaknya load-bearing: prosa yang duduk di tingkat quality dapat terpisah dari angkanya ketika blade merender kartu, dan DOBI yang duduk berdampingan dengan tiga kolom persen adalah yang paling mudah diberi '%' secara refleks. Isinya memuat kata 'indeks' dan menyatakan tanpa satuan"
+        },
+        {
+          "description": "KEEMPAT ukuran mutu kosong SEMENTARA tonase ada — dan waktu putar serta sebaran jam TIDAK terpengaruh",
+          "given": "8 baris detail: keempat kolom mutu NULL pada SEMUANYA; net_weight_mt terisi pada tujuh; time_in terisi pada enam; time_in DAN time_out keduanya terisi pada lima. Seluruh tanggal dan jam disemai eksplisit",
+          "expect": "Keempat blok mutu min/avg/max NULL dengan measured_count 0, dan keempat blok TETAP ADA sebagai kunci (bukan dihilangkan dari payload). SEMENTARA: net_weight_total dan net_weight_avg berangka dengan net_weight_dispatch_count = 7; hourly.recorded_count = 6 dengan busiest_hour non-null; turnaround.measured_count = 5 dengan min/avg/max berangka. Empat kelompok angka, empat penyebut, nol saling memotong"
+        },
+        {
+          "description": "min/avg/max tiap ukuran mutu benar dan dihitung DI PHP; satu nilai memberi min = avg = max; nilai tak masuk akal dilaporkan apa adanya",
+          "given": "Varian A: ffa_percent 2.1, 5.4, 3.3 pada tiga baris (disemai eksplisit). Varian B: moisture_percent terisi pada SATU baris saja bernilai 0.18. Varian C: impurities_percent bernilai NEGATIF −0.5 pada satu baris di antara nilai normal",
+          "expect": "Varian A: min 2.1, max 5.4, avg sesuai hitungan manual yang ditulis di test (bukan dibandingkan dengan hasil service itu sendiri). Varian B: min = avg = max = 0.18 dengan measured_count 1. Varian C: −0.5 TETAP menjadi min dan TETAP ikut avg — tidak disaring, tidak dinolkan, karena stasiun ini tidak punya master ambang mutu dan memilih ambang berarti mengarangnya"
+        },
+        {
+          "description": "Satu pengiriman yang punya moisture_percent tetapi TIDAK punya ffa_percent masuk penyebut yang satu dan TIDAK masuk yang lain",
+          "given": "SATU baris detail dengan moisture_percent 0.2 dan ffa_percent NULL",
+          "expect": "quality.moisture_percent.measured_count = 1 dengan min/avg/max berangka; quality.ffa_percent.measured_count = 0 dengan min/avg/max NULL. Bentuk TERKECIL dari jebakan penyebut tunggal, dan sengaja disimpan sebagai test tersendiri: ia gagal lebih cepat dan lebih jelas daripada fixture dua puluh baris ketika seseorang menyatukan keempat penyebut"
+        },
+        {
+          "description": "Tidak ada penandaan nilai mutu di luar batas, dan ketiadaan itu diasersikan atas NAMA KUNCI",
+          "given": "Baris detail dengan ffa_percent 12.5 yang jauh di atas baris lain (2.0–3.0)",
+          "expect": "12.5 terbit sebagai max_percent apa adanya. Penelusur rekursif atas SELURUH payload membuktikan tidak ada kunci bernama threshold / out_of_spec_count / violation_count / flag / severity / color / badge di blok mutu mana pun. DAN kunci _note_no_quality_thresholds ADA. Diasersikan atas nama kunci karena prosa _note itu sendiri MENYEBUT ketiadaan penandaan, sehingga asersi berbasis teks akan cocok dengan kalimat yang menyatakannya"
+        },
+        {
+          "description": "net_weight_mt DIBACA APA ADANYA — netto terpakai meski bruto dan tara KEDUANYA null",
+          "given": "Dua baris detail: (1) gross_weight_mt NULL, tare_weight_mt NULL, net_weight_mt 28.5; (2) gross_weight_mt 40, tare_weight_mt 12, net_weight_mt 27 — sengaja TIDAK sama dengan 40−12 = 28",
+          "expect": "Baris (1): 28.5 TERPAKAI dan net_weight_dispatch_count memuatnya — ia tidak dibuang karena bruto/tara kosong. Baris (2): angka yang terbit 27, BUKAN 28 — assertSame(55.5, net_weight_total) membuktikan keduanya sekaligus. Laporan tidak pernah menghitung ulang netto di bagian mana pun: diasersikan juga pada ketiga rekap kategoris dan pada daily[], bukan hanya pada angka utama"
+        },
+        {
+          "description": "Rata-rata memakai net_weight_dispatch_count; penyebut NOL memberi total dan avg NULL, BUKAN 0",
+          "given": "6 baris detail yang SELURUHNYA ber-net_weight_mt NULL; time_in dan keempat kolom mutu sebagian terisi",
+          "expect": "net_weight_total NULL DAN net_weight_avg NULL — assertNull keduanya, bukan assertSame(0, ...): 'penimbangan belum selesai' berbeda dari 'beratnya nol ton'. net_weight_dispatch_count = 0, missing_net_weight_dispatch_count = 6, dispatch_count = 6. Sebuah pembagian oleh nol yang tidak dijaga akan melempar atau memberi INF, dan keduanya tertangkap asersi ini"
+        },
+        {
+          "description": "missing_net_weight_dispatch_count = dispatch_count − net_weight_dispatch_count, dan NOL tetap diterbitkan",
+          "given": "Varian A: 9 baris, 4 ber-netto. Varian B: 5 baris, KESELURUHANNYA ber-netto",
+          "expect": "Varian A: missing = 5 dan 4 + 5 = 9 sebagai asersi pengunci. Varian B: kunci missing_net_weight_dispatch_count ADA dan bernilai 0 — nol tetap dirender supaya pembaca tahu pemeriksaannya memang berjalan"
+        },
+        {
+          "description": "TIGA rekap teks bebas mengelompokkan nilai APA ADANYA — nol join, nol pemetaan, nol penerjemahan",
+          "given": "9 baris detail dengan transport_company, storage_tank_source dan destination_buyer terisi dengan POLA NULL BERBEDA antar-kolom; satu nilai storage_tank_source sengaja berbentuk seperti uuid ('9f1c...'), satu nilai destination_buyer sengaja berbentuk kode ('BUYER-01')",
+          "expect": "Ketiga rekap mengembalikan value PERSIS seperti tersimpan — nilai berbentuk uuid tetap dicetak apa adanya dan TIDAK dicari namanya di tabel mana pun; nilai berbentuk kode tidak diterjemahkan menjadi label. net_weight_total per entri hanya menjumlah netto non-null dan menjadi NULL bila seluruh baris entri itu ber-netto null. Ketiganya teks bebas yang diketik operator: tidak ada daftar induk untuk mencocokkannya, dan mengarang satu akan menyembunyikan salah ketik alih-alih menampakkannya"
+        },
+        {
+          "description": "Baris value = null ('tidak tercatat') adalah entri TERSENDIRI di KETIGA rekap, dan penjumlahan tiap rekap = dispatch_count",
+          "given": "12 baris detail; transport_company kosong pada 3 baris, storage_tank_source kosong pada 5 baris, destination_buyer kosong pada 1 baris — tiga pola berbeda supaya satu angka tidak bisa lolos untuk ketiganya. Varian tambahan: satu kolom kosong pada SELURUH dua belas baris",
+          "expect": "Masing-masing rekap punya TEPAT SATU entri ber-value null, berisi jumlah baris kosong kolom itu (3, 5, 1 — tiga asersi). ASERSI PENGUNCI di KETIGA rekap, tiga kali terpisah: array_sum(array_column($recap,'dispatch_count')) === dispatch_count. Varian tambahan: satu baris berisi kedua belas pengiriman — bukan rekap kosong, karena 'tidak ada yang mencatatnya' adalah temuan, bukan ketiadaan data"
+        },
+        {
+          "description": "Urutan tiap rekap: net_weight_total DESC → dispatch_count DESC → value ASC, dengan SERI SEMPURNA pada kedua kunci pertama supaya pemutus KETIGA teruji",
+          "given": "Fixture yang menyusun TIGA entri ber-net_weight_total IDENTIK (masing-masing 60.0) DAN dispatch_count IDENTIK (masing-masing 2), dengan value 'Zeta Trans', 'Alpha Trans', 'Mega Trans'. Ditambah satu entri ber-net_weight_total 100.0 dan satu entri ber-net_weight_total 60.0 tetapi dispatch_count 3",
+          "expect": "Urutan hasil: entri 100.0 lebih dulu; lalu entri 60.0/dispatch_count 3; lalu ketiga entri seri sempurna dalam urutan 'Alpha Trans','Mega Trans','Zeta Trans'. Tanpa seri sempurna pada KEDUA kunci pertama, pemutus ketiga tidak pernah dieksekusi dan asersi urutan abjad menjadi vakum — fixture-nya yang membuat test ini bernilai, bukan asersinya. Disalin dari WeighbridgeReportService::groupedBreakdownOf()"
+        },
+        {
+          "description": "null diurutkan sebagai 0.0 UNTUK PENGURUTAN SAJA; kelompok null bertonase besar TIDAK berada di baris terakhir",
+          "given": "Rekap dengan empat entri: value null ber-net_weight_total 500.0 dan dispatch_count 6; tiga entri bernama ber-net_weight_total 120.0, 80.0 dan NULL (seluruh netto kolom itu null)",
+          "expect": "Entri null bertonase 500.0 berada DI ATAS — asersi NEGATIF eksplisit: ia BUKAN elemen terakhir ($recap[count-1]['value'] !== null) dan ia adalah elemen PERTAMA. Entri bernama ber-net_weight_total NULL jatuh ke bawah karena null diperlakukan 0.0 untuk pengurutan. DAN value entri itu TETAP null di payload, bukan 0.0 — pengurutan tidak boleh menulis balik nilainya. 'null terakhir' hanya berlaku di antara yang SERI, bukan sebagai aturan global"
+        },
+        {
+          "description": "String kosong dan whitespace di-trim lalu SAMA DENGAN null (satu entri); beda huruf besar/kecil TETAP dua entri",
+          "given": "6 baris detail dengan transport_company: null, '', '   ', 'Sawit Trans', 'sawit trans', 'Sawit Trans ' (dengan spasi di ujung)",
+          "expect": "TIGA baris pertama melebur menjadi SATU entri ber-value null dan dispatch_count 3 — satu entri, bukan dua atau tiga. 'Sawit Trans' dan 'Sawit Trans ' melebur (hanya spasi ujung di-trim) menjadi satu entri ber-dispatch_count 2. 'sawit trans' TETAP entri TERSENDIRI — huruf besar/kecil TIDAK dinormalkan, karena menormalkannya berarti memutuskan dua ejaan itu merujuk hal yang sama, dan laporan tidak punya dasar untuk memutuskannya. Hasil akhir: TEPAT tiga entri"
+        },
+        {
+          "description": "TIDAK ADA rekap berlabel dan TIDAK ADA kunci berbau status di payload — diasersikan atas NAMA KUNCI",
+          "given": "Payload summary penuh atas fixture yang kaya (dua puluh baris, seluruh kolom terisi)",
+          "expect": "Penelusur rekursif atas SELURUH payload membuktikan TIDAK ADA kunci bernama by_gate_status, not_released_count, released_count, gate_status, remarks_gate_status, by_status, status_breakdown — maupun kunci lain yang berakhiran _status di luar period.status dan period_stations. DAN kunci _note_no_labeled_recap ADA dan berupa string tak kosong. Diasersikan atas NAMA KUNCI dan BUKAN atas teks, karena _note_no_labeled_recap sendiri MEMUAT kata 'rekap berlabel' — sebuah asersi berbasis teks akan cocok dengan prosa yang menyatakan ketiadaan itu dan lolos walaupun rekapnya ada"
+        },
+        {
+          "description": "AUDIT SUMBER: literal `Display::option` muncul NOL kali di service laporan ini",
+          "given": "Berkas backend/app/Services/CpoDispatchReportService.php dibaca sebagai teks di dalam test (file_get_contents atas basis_path), bukan lewat refleksi",
+          "expect": "substr_count atas literal 'Display::option' === 0. Stasiun ini NOL kolom berpilihan tertutup — diverifikasi: satu-satunya <select> di form-cpo-dispatch.blade.php adalah pemilih production line — sehingga satu pemakaian Display::option() di sini berarti ada kosakata tertutup yang dikarang. Audit statis dipilih dengan sengaja: pemakaian yang salah tetap mengembalikan string dan tidak menggagalkan asersi angka mana pun"
+        },
+        {
+          "description": "TIGA penghitung kepatuhan dari NAMA KOLOM YANG BENAR: waybill_number, seal_no_top, seal_no_bottom — TANPA awalan security_",
+          "given": "Fixture yang MENULIS ke kolom seal_no_top dan seal_no_bottom secara eksplisit: 7 baris detail — 2 tanpa waybill_number, 3 tanpa seal_no_top, 1 tanpa seal_no_bottom; sisanya terisi. Sebagian 'tanpa' disemai sebagai string kosong dan whitespace, sebagian sebagai null",
+          "expect": "missing_waybill_count = 2, missing_seal_top_count = 3, missing_seal_bottom_count = 1 — tiga asersi. Karena fixture MENULIS seal_no_top dan penghitungnya IKUT NAIK, test ini membuktikan kolom yang dibaca service adalah kolom yang benar: kernel_dispatch_details memakai security_seal_no_top/security_seal_no_bottom, dan menyalin nama itu ke sini akan ter-compile, membaca kolom yang tidak ada, dan melaporkan nol atau seluruh baris. null DAN kosong-setelah-trim keduanya terhitung. Penghitung bernilai nol TETAP diterbitkan"
+        },
+        {
+          "description": "Kedua segel TIDAK PERNAH dijumlahkan; satu pengiriman yang kehilangan KEDUANYA terhitung di KEDUANYA",
+          "given": "3 baris detail: satu kehilangan HANYA seal_no_top, satu kehilangan HANYA seal_no_bottom, satu kehilangan KEDUANYA",
+          "expect": "missing_seal_top_count = 2 DAN missing_seal_bottom_count = 2 — baris ketiga masuk ke keduanya, itu DUA FAKTA dan bukan penghitungan ganda. DAN penelusur rekursif membuktikan TIDAK ADA kunci bernama missing_seal_count / seal_missing_count / missing_seals_total di mana pun di payload: satu tanker dengan satu segel hilang berbeda keadaannya dari dua tanker yang masing-masing kehilangan satu, dan satu angka gabungan menghapus perbedaan itu"
+        },
+        {
+          "description": "text_entries HANYA punya findings — TIDAK ADA kunci remarks",
+          "given": "Varian A: tiga baris detail dengan findings terisi, satu dengan findings '   ' (whitespace), satu NULL. Varian B: seluruh baris tanpa findings",
+          "expect": "Varian A: text_entries.findings memuat TEPAT tiga entri {date, value} bertanggal eksplisit; entri whitespace dan null DIBUANG. Varian B: text_entries.findings adalah array KOSONG yang TETAP diterbitkan, bukan kunci yang hilang. DAN di kedua varian: array_key_exists('remarks', $payload['text_entries']) === false — stasiun ini punya satu kolom teks kejadian, dan struktur dua-daftar milik solid-waste-disposal tidak boleh disalin ke sini"
+        },
+        {
+          "description": "Kunci shift ABSEN dari payload /summary tetapi ADA di header ekspor — dua asersi di dua lapisan",
+          "given": "Baris detail dengan kolom shift terisi 'Shift 1'",
+          "expect": "Lapisan 1: penelusur rekursif atas payload /summary membuktikan TIDAK ADA kunci bernama shift / by_shift / shift_breakdown di mana pun, DAN kunci _note_shift_not_published ADA. Lapisan 2: header ekspor MEMUAT kolom shift dan barisnya memuat 'Shift 1'. Diasersikan atas nama kunci untuk ketidakhadiran, karena _note_shift_not_published sendiri menyebut giliran kerja"
+        },
+        {
+          "description": "EKSPOR MEMBAWA JAM APA ADANYA: 23:30 dan 00:45 persis, tanpa kolom waktu putar dan tanpa penanda menyeberang",
+          "given": "SATU baris detail dengan time_in '23:30' dan time_out '00:45' — fixture yang sama dengan jebakan tengah malam, dengan sengaja. Ekspor dijalankan format csv dan format xlsx",
+          "expect": "Baris ekspor memuat '23:30' dan '00:45' PERSIS seperti tersimpan — dua asersi assertStringContainsString atas isi baris, atau perbandingan sel untuk xlsx. TIDAK ADA satu hari ditambahkan pada jam keluar. DAN header ekspor TIDAK memuat kolom waktu putar maupun penanda menyeberang: asersi NEGATIF atas daftar header — tidak ada header yang memuat 'Waktu Putar', 'Turnaround', 'Menyeberang' atau 'Crossed'. Ekspor adalah rincian MENTAH; memasukkan tafsir ke dalamnya melahirkan dua sumber angka yang dapat menyimpang tanpa ada yang membandingkannya. Test ini TERSENDIRI dari test isi ekspor"
+        },
+        {
+          "description": "Baris ekspor: SATU BARIS PER PENGIRIMAN, kolom konteks diulang verbatim, dan header DISALIN dari konstanta service",
+          "given": "Dua record induk dengan total 5 baris detail, pada satu mill/line/periode. Kolom konteks: nama mill, nama Production Line, nama periode, tanggal kejadian",
+          "expect": "Tepat 5 baris data (di luar header) — satu per baris detail, bukan satu per record induk. Keempat kolom konteks berisi NILAI YANG SAMA PERSIS di kelima baris, diasersikan per baris supaya satu baris dapat dibaca sendirian. DAFTAR HEADER DISALIN DARI KONSTANTA SERVICE, bukan dikarang di test: pada saat spesifikasi ini ditulis CpoDispatchReportService BELUM ADA di backend/app/Services (hanya CpoDispatchRecordService), sehingga test WAJIB membandingkan dengan konstanta header service itu (pola yang sama dengan KernelDispatchReportService) alih-alih menuliskan daftar tebakan — sebuah daftar yang ditulis ulang di test akan menyetujui dirinya sendiri dan tidak menangkap kolom yang terlewat. Label kolom mengikuti layar Detail stasiun ini"
+        },
+        {
+          "description": "Ekspor menolak 422 untuk format tak dikenal SEBELUM satu byte dialirkan; trim dan default 'csv' ditetapkan CONTROLLER",
+          "given": "Lima permintaan HTTP ke /api/cpo-dispatch-reports/export dengan format: '' (kosong), '  ' (whitespace), ' csv ' (berspasi), 'CSV' (huruf besar), 'pdf' (tak dikenal). Diuji di level HTTP lewat $this->getJson(), BUKAN dengan memanggil service — karena trim dan default-nya hidup di CONTROLLER",
+          "expect": "'', '  ', ' csv ' dan 'CSV' → 200 dengan aliran CSV (default dan normalisasi berjalan). 'pdf' → 422 VALIDATION_ERROR. Untuk 'pdf': asersikan NOL byte isi berkas terkirim — gate berjalan EAGER sebelum aliran dimulai, bukan di tengah generator, karena sebuah 422 yang terlambat menghasilkan berkas separuh yang terbuka tanpa galat di Excel"
+        },
+        {
+          "description": "Ekspor menolak 422 EAGER ketika melampaui batas 50.000 baris",
+          "given": "Jumlah baris detail melewati batas — disemai lewat service-ganda in-memory atau penyuntikan hitungan, bukan dengan benar-benar menulis 50.001 baris ke DB",
+          "expect": "422 VALIDATION_ERROR dengan pesan yang MENYEBUT batasnya. Pemeriksaan terjadi SEBELUM aliran: asersikan response tidak membawa satu baris data pun dan tidak ber-Content-Disposition attachment"
+        },
+        {
+          "description": "Ekspor xlsx menghasilkan workbook .xlsx SUNGGUHAN lewat SheetWriter, bukan CSV berekstensi .xlsx",
+          "given": "format=xlsx atas fixture lima baris",
+          "expect": "Content-Type workbook xlsx dan nama berkas berakhiran .xlsx; isi biner dibuka kembali sebagai ZIP/spreadsheet dan sel-selnya dibaca — asersikan nilai sel, bukan hanya nama berkas. Isi kedua format SAMA PERSIS: jumlah baris dan nilai kolom konteks dibandingkan antara csv dan xlsx dalam satu test"
+        },
+        {
+          "description": "daily[] satu baris per hari BERPENGIRIMAN; daily_total DIJUMLAHKAN dari daily[] bukan disalin",
+          "given": "Periode 31 hari; pengiriman hanya pada 9 hari yang disemai EKSPLISIT tanggalnya (bukan dari factory, yang dapat membuat record stasiun lain bertanggal acak)",
+          "expect": "count($payload['daily']) === 9 TEPAT — bukan 31, dan tidak ada baris bernilai nol untuk hari tanpa pengiriman. TIDAK ADA baris 'tanggal tidak tercatat' karena event_date NOT NULL. daily_total.dispatch_count === array_sum(array_column($payload['daily'],'dispatch_count')) dan daily_total.net_weight_total === jumlah kolomnya — asersi PENJUMLAHAN, bukan perbandingan dengan blok dispatches, karena nilai yang disalin dari blok lain akan cocok tanpa membuktikan daily[] benar"
+        },
+        {
+          "description": "completeness lewat ReportPeriodDays::counted — periode belum mulai memberi days_counted 0 dan percent NULL",
+          "given": "Varian A: periode yang start_date-nya di MASA DEPAN. Varian B: periode 30 hari yang baru berjalan 10 hari (tanggal disemai relatif terhadap 'hari ini' WIB dari config, bukan waktu server), dengan pengiriman pada 6 hari",
+          "expect": "Varian A: days_counted = 0 DAN percent NULL — assertNull, bukan 0.0, karena 0,0% terbaca sebagai kelalaian pencatatan sementara yang benar adalah 'belum dimulai'. Varian B: days_counted = 10 (penyebut berhenti di HARI INI, bukan di 30), days_with_dispatch = 6, percent = 60.0 bukan 20.0. ReportPeriodDays::counted dipakai apa adanya, tidak disalin ulang"
+        },
+        {
+          "description": "Record draft ikut terhitung di SELURUH angka TERMASUK waktu putar dan sebaran jam; draft_dispatch_count menyatakan berapa",
+          "given": "Dua record induk pada line dan periode yang sama: satu berstatus draft dengan 4 baris detail, satu berstatus final dengan 6 baris detail. KEEMPAT baris draft punya time_in DAN time_out yang disemai eksplisit, dan net_weight_mt terisi",
+          "expect": "dispatch_count = 10 dan draft_dispatch_count = 4. Dan — ini yang membuat test ini bukan pengulangan — keempat baris draft IKUT di hourly (penjumlahan 24 kelompok memuatnya) DAN di turnaround (measured_count memuatnya, dan nilai min/max-nya memperhitungkannya). Varian kedua: SELURUH record draft → draft_dispatch_count === dispatch_count, dan seluruh angka tetap terbit penuh"
+        },
+        {
+          "description": "/summary memuat details DAN station dengan jumlah kueri TETAP — dibuktikan NON-VAKUM",
+          "given": "Varian A: 1 record induk dengan 2 baris detail. Varian B: 8 record induk dengan 24 baris detail. DB::listen dipasang di keduanya",
+          "expect": "Jumlah kueri di Varian B SAMA dengan di Varian A — assertSame atas hitungan, bukan assertLessThan atas ambang longgar. Dan dinyatakan di expect ini sebagai KEWAJIBAN PROSEDURAL: eager load atas `details` DAN `station` harus DILEPAS lebih dulu sampai asersi ini MEMERAH, baru dipasang kembali. Sebuah asersi jumlah kueri yang hijau sejak awal mungkin saja menghitung kueri yang tidak pernah berlipat, dan tidak membuktikan apa pun tentang eager load"
+        },
+        {
+          "description": "StationReportService::REPORT_ROUTES memuat kunci 'cpo-dispatch' BERTANDA HUBUNG, dan array_keys-nya tetap urut sort_order dengan entri ini di POSISI TERAKHIR",
+          "given": "Konstanta REPORT_ROUTES dibaca langsung; tabel station_types menjadi acuan sort_order (cpo-dispatch = 170, kernel-dispatch = 160 yang hari ini entri terakhir)",
+          "expect": "array_key_exists('cpo-dispatch', REPORT_ROUTES) === true dengan nilai 'reports.cpo-dispatch'; kunci BERTANDA HUBUNG, bukan snake_case (yang akan ter-compile, terlihat benar, dan tidak pernah cocok dengan satu baris master pun). array_keys(REPORT_ROUTES) dibandingkan dengan urutan sort_order dari tabel station_types lewat toBe() berurutan, dengan 'cpo-dispatch' sebagai elemen TERAKHIR (170, tepat di belakang 'kernel-dispatch'). PLUS ASERSI PENJAGA tersendiri: 'process-quality-control' MASIH TIDAK ADA di REPORT_ROUTES — keempat berkas sisi web memakainya sebagai contoh 'stasiun belum berlaporan', sehingga pekerjaan ini seharusnya tidak memerahkan satu pun; tetapi pada screen-162 satu dari empat hanya ditemukan oleh MENJALANKAN SUITE PENUH, jadi jalankan `php artisan test` penuh dan percayai hasilnya"
+        }
+      ]
     }
   ],
   "screen_dependencies": [
@@ -610,5 +971,1530 @@
     "CSS: setiap kelas yang dipakai markup WAJIB punya definisi, diperiksa pada hasil COMPILE bukan pada sumbernya. Sebaran 24 jam adalah elemen tampilan terlebar di laporan ini — pastikan ia menggulir DI DALAM kartunya dan halaman tidak bergeser mendatar, DIUKUR bukan dilihat.",
     "UJI BROWSER — PROFIL FIXTURE SUDAH DIUKUR LANGSUNG DI `mill_smart_log_e2e` pada 2026-10-18, bukan diasumsikan. `beforeAll` WAJIB `seedOpenPeriodForForms(browser, 'cpo-dispatch')`; tanpanya MENGGANTUNG bukan gagal. Yang ada di sana: 2 baris detail, 3 baris period_stations 'cpo-dispatch'. Kedua baris: event_date 2025-03-10 (termuat periode fixture 2020-01-01 s/d hari-ini+7), status induk `draft_ongoing`, net_weight_mt 30, `waybill_number` TERISI ('SJ-PL-A'/'SJ-PL-B'), dan SELURUH sisanya NULL — termasuk `time_in` DAN `time_out` KEDUANYA NULL, ketiga kolom kategoris, keempat kolom mutu, dan kedua segel. KEBETULAN YANG MENGUNTUNGKAN: profil itu justru menguji tepat kasus tepi yang paling mudah dikodekan salah pada layar ini — 'tidak ada satu jam pun tercatat'. Yang layak diasersikan di browser karenanya: (a) `busiest_hour` NULL dan dirender '—', BUKAN 0 yang akan terbaca 'tersibuk pukul 00'; (b) `empty_hour_count` = 24; (c) `hourly.recorded_count` = 0 dengan `not_recorded_count` = 2, dan penjumlahan 24 kelompok + kelompok tak-tercatat = jumlah pengiriman; (d) waktu putar min/avg/max '—' dengan `measured_count` 0 dan `uncomputable_count` = 2; (e) `crossed_midnight_count` dirender sebagai NOL — membuktikan angka itu memang dirender dan bukan hanya muncul ketika tidak nol; (f) KEDUA blok (sebaran jam dan waktu putar) TETAP DIRENDER meskipun kosong, tidak dihilangkan dari layar; (g) keempat ukuran mutu '—' sementara tonase berangka; (h) `missing_waybill_count` = NOL sementara kedua penghitung segel ≥ 1 — sebuah penghitung kepatuhan yang benar-benar nol membuktikan ia tidak sekadar mengembalikan jumlah baris; (i) ketiga rekap teks punya baris 'tidak tercatat'; (j) draft ikut terhitung. YANG TIDAK DAPAT DIBUKTIKAN DI BROWSER, dan jangan ditulis seolah dapat: jebakan tengah malam (butuh jam sungguhan — diuji di unit test), nol-menit, waktu putar tak wajar, urutan rekap (satu baris per rekap → asersi posisi VAKUM), nilai mutu, dan jumlah pengiriman yang persis (pakai ≥ 1; spec form menulis ke DB e2e yang sama)."
   ],
-  "test_scenarios": []
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — sukses sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor terikat mill-A; business_unit_id tidak dikirim"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data.0.id}}",
+            "production_line_id": "<line mill-A>",
+            "_given": "Pengiriman disemai bertanggal DAN BERJAM eksplisit; sebagian ber-netto null; keempat kolom mutu berpola null BERBEDA; sebagian berjam lengkap"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.data.0.id}}",
+            "production_line_id": "<line mill-A>",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); set productionLineId lalu periodId. Pengiriman disemai bertanggal DAN BERJAM eksplisit di dalam periode — jam yang tidak disemai membuat asersi sebaran jam flake",
+        "assert": "Diasersikan dengan assertSet atas data yang DIPUBLIKASIKAN komponen, bukan assertSee atas prosa. Blok terbit: dispatch_count; net_weight_total dan net_weight_avg DENGAN penyebut net_weight_dispatch_count di elemen yang sama; missing_net_weight_dispatch_count tersendiri; KEEMPAT ukuran mutu masing-masing dengan min/avg/max dan measured_count SENDIRI; turnaround min/avg/max dengan measured_count, crossed_midnight_count dan uncomputable_count; hourly 24 kelompok plus not_recorded_count, recorded_count, busiest_hour, empty_hour_count; tiga rekap teks bebas; TIGA penghitung kepatuhan; daily[] dan daily_total; completeness; draft_dispatch_count; text_entries.findings. _note_four_denominators, quality._note, quality.dobi._note, turnaround._note, hourly._note, _note_no_labeled_recap, _note_no_quality_thresholds dan _note_shift_not_published dirender UTUH. Pemilih Mill TIDAK dirender bagi peran terikat mill"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch') dari ./support/period-fixture — tanpanya beforeAll MENGGANTUNG, bukan gagal. Login Supervisor, pilih Production Line, pilih periode yang memuat 2025-03-10",
+        "assert": "dispatch_count ≥ 1 (spec form menulis ke DB e2e yang sama, jadi angka persis tidak dapat dipakai) dan tonase berangka. Pada profil fixture terukur — time_in DAN time_out KEDUANYA NULL pada kedua baris — KEDUA blok baru TETAP DIRENDER dengan keadaan kosongnya: sebaran jam hadir dengan 24 kelompok dan waktu putar hadir dengan '—'. Penyebut rata-rata terlihat DI DALAM kartu rata-rata, disasarkan ke testid kartunya dan bukan ke halaman. Nol permintaan tulis: jumlah record dibandingkan sebelum dan sesudah"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — Operator ditolak di rute web",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/reports/cpo-dispatch"
+          },
+          "request_example": {
+            "_given": "Sesi Station Operator; ini rute WEB, bukan API"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Station Operator yang SAMA"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "<line mill akun Operator>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "<line mill akun Operator>",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 5,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/business-units/options"
+          },
+          "request_example": {
+            "_given": "Sesi Station Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(operator)->test(komponen)",
+        "assert": "403 dari middleware rute web; nol data terpublikasi — nol periode, nol line, nol angka pada STATE komponen (diasersikan atas state, bukan atas HTML). Tidak satu kelompok sebaran jam maupun satu angka waktu putar pun terbit. Ketiga rute data tetap menerima Operator: itu jalur screen-167 dan tidak ada gate yang perlu dilebarkan nanti"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "Tidak butuh data tersimpan. Login Operator, buka URL langsung",
+        "assert": "Halaman 403; URL tidak berisi laporan — dicocokkan dengan REGEX, bukan toHaveURL('**/x') yang dengan baseURL tidak pernah cocok; tidak ada tabel rekap, tidak ada kartu sebaran jam, tidak ada kartu waktu putar di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/business-units/options"
+          },
+          "request_example": {
+            "_given": "Sesi Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Admin; business_unit_id TIDAK dikirim"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}",
+            "_given": "Sesi Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step3.data.0.id}}",
+            "production_line_id": "<line mill itu>",
+            "business_unit_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(admin)->test(komponen) tanpa memilih apa pun, lalu set businessUnitId, lalu productionLineId, lalu periodId",
+        "assert": "Sebelum mill dipilih: pemilih Mill DIRENDER, daftar line DAN daftar periode keduanya kosong, nol angka terpublikasi. Sesudah ketiganya dipilih: payload sebentuk dengan peran terikat mill — termasuk blok sebaran jam dan waktu putar — dan business_unit.id pada payload sama dengan mill yang dipilih Admin"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Login Admin, pilih mill, pilih line, pilih periode",
+        "assert": "Pemilih Mill hanya terlihat bagi Admin; sebelum mill dipilih nol kartu angka di DOM; sesudahnya nama mill terpilih tampil di header laporan, disasarkan ke elemen header dan bukan ke halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — Admin mengganti mill setelah periode dan line terpilih",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode mill-A>",
+            "production_line_id": "<line mill-A>",
+            "business_unit_id": "<mill-A>",
+            "_given": "Sesi Admin; mill-A punya pengiriman berjam lengkap"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode mill-A yang SAMA>",
+            "production_line_id": "<line mill-A yang SAMA>",
+            "business_unit_id": "<mill-B>",
+            "_given": "Sesi Admin berganti mill tanpa mengganti periode/line"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(admin)->test(komponen); set businessUnitId mill-A, productionLineId, periodId sampai angka terbit; lalu set businessUnitId = mill-B",
+        "assert": "periodId DAN productionLineId KEDUANYA dikosongkan — sebuah periode maupun sebuah line milik tepat satu mill. Daftar line dan daftar periode dimuat ulang milik mill baru. Nol angka mill lama tertinggal: diasersikan atas STATE — tidak satu kelompok hourly.buckets pun, tidak satu angka turnaround pun, tidak satu baris rekap pun. Komponen kembali menampilkan arahan memilih Production Line"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Login Admin, pilih mill fixture, line, periode; lalu ganti mill ke mill lain",
+        "assert": "Sesudah ganti mill: pemilih periode dan pemilih line keduanya kembali kosong (asersi atas nilai select, bukan atas teks), dan kartu sebaran jam serta kartu waktu putar TIDAK LAGI memuat angka mill lama. DB e2e hanya punya satu mill berfixture, jadi mill kedua disemai oleh spec ini sendiri atau langkahnya dilewati dengan alasan tertulis"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — mill kiriman dari peran terikat mill diabaikan, bukan ditolak",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<mill-B>",
+            "_given": "Sesi Supervisor terikat mill-A; mill-B punya periode cpo-dispatch sendiri yang juga disemai"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data.0.id}}",
+            "production_line_id": "<line mill-A>",
+            "business_unit_id": "<mill-B>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor mill-A)->test(komponen, ['businessUnitId' => '<mill-B>'])",
+        "assert": "business_unit.id pada payload adalah mill-A, bukan mill-B — kiriman DIABAIKAN tanpa galat. ASERSI NEGATIF EKSPLISIT: tidak satu pun id periode mill-B ada di daftar periode (dicek per id, bukan hanya jumlahnya), dan tidak satu angka mill-B pun di hourly/turnaround/rekap. Pemilih Mill tetap TIDAK dirender"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch?business_unit_id=<mill lain>",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Login Supervisor, buka URL yang MEMBAWA mill lain di query string",
+        "assert": "Halaman terbuka normal (bukan 403, bukan layar galat) dan header laporan menyebut mill AKUN. Tautan yang disalin antar pengguna tidak membocorkan mill lain dan tidak mematahkan layarnya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor yang business_unit_id-nya NULL di tabel users"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/business-units/options"
+          },
+          "request_example": {
+            "_given": "Sesi yang SAMA — memastikan 'daftar seluruh mill' tidak ditawarkan sebagai jalan keluar"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor tanpa business_unit_id)->test(komponen)",
+        "assert": "Arahan menghubungi Admin untuk menghubungkan akun ke mill — BUKAN pesan galat izin. Asersikan KELAS exception (ValidationException) dan kode VALIDATION_ERROR pada lapisan service: 422 bukan 403, karena izinnya ada dan masternya yang rusak. Nol angka terpublikasi, dan pemilih Mill TIDAK dirender sebagai jalan keluar"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "Butuh akun e2e tanpa business_unit_id; bila tidak tersedia di seeder fixture, langkah ini dilewati dengan alasan tertulis dan pembuktiannya tetap di feature test",
+        "assert": "Bila dijalankan: halaman memuat arahan menghubungi Admin, disasarkan ke elemen keadaan-kosong lewat testid, dan nol kartu angka di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — Production Line wajib dipilih, tanpa opsi 'semua line'",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "_given": "production_line_id TIDAK dikirim. Mill punya DUA line yang MASING-MASING berpengiriman pada periode itu, supaya sebuah fallback atau mode agregat punya sesuatu untuk dikembalikan"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "format": "csv",
+            "_given": "production_line_id TIDAK dikirim"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); set periodId SAJA, productionLineId dibiarkan null. Kedua line disemai berpengiriman",
+        "assert": "NOL payload terbit — asersikan atas STATE: tidak ada dispatch_count, tidak ada satu kelompok hourly, tidak ada satu angka turnaround. Komponen menyatakan apa yang ditunggunya. Daftar opsi line TIDAK memuat entri bernilai null/''/'all' dalam bentuk apa pun (asersi atas array opsi, bukan atas HTML). Tombol Ekspor CSV dan Ekspor Excel BELUM dirender"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Login Supervisor, buka laporan tanpa memilih line",
+        "assert": "Arahan memilih Production Line terlihat; nol kartu angka di DOM; pemilih line tidak punya opsi 'semua line' (asersi atas daftar option elemen select); tombol ekspor tidak ada di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — mill hanya punya satu Production Line dan line itu tetap tidak dipilihkan",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "_given": "Mill hanya punya SATU Production Line, dan line itu berpengiriman"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada mill berline TUNGGAL; set periodId saja",
+        "assert": "productionLineId TETAP null — line tunggal TIDAK dipilihkan otomatis (assertSet('productionLineId', null)). Nol angka terpublikasi. Baru sesudah set productionLineId secara sadar angka muncul. Pembaca harus tahu line mana yang sedang dibacanya, dan mill berline satu hari ini bisa berline dua besok"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "DB e2e punya lebih dari satu line, sehingga keadaan 'mill berline tunggal' tidak dapat dibentuk tanpa mengubah fixture bersama — tidak dilakukan",
+        "assert": "Tidak diasersikan di browser; pembuktiannya di component test dan feature test. Yang diasersikan di browser hanyalah bahwa pemilih line tidak pernah datang terpilih: nilai awalnya kosong saat halaman dimuat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — mill belum punya periode yang mencakup CPO Dispatch",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Mill punya Production Line dan punya periode, tetapi NOL baris period_stations berjenis 'cpo-dispatch' — satu periode sengaja mendaftarkan kernel-dispatch saja"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada mill tanpa periode cpo-dispatch",
+        "assert": "Daftar periode adalah array KOSONG dengan 200 — bukan exception dan bukan 404. Komponen merender kalimat sebabnya beserta arahan menghubungi Admin. Nol angka terpublikasi. Periode yang hanya mendaftarkan stasiun lain diasersikan ABSEN per id, bukan hanya lewat jumlah"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "DB e2e punya 3 baris period_stations 'cpo-dispatch', sehingga keadaan 'nol periode' tidak dapat dibentuk tanpa merusak fixture bersama — tidak dilakukan",
+        "assert": "Tidak diasersikan di browser; pembuktiannya di feature test dan component test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — periode atau line milik mill lain ditolak",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode mill-B>",
+            "production_line_id": "<line mill-A>",
+            "_given": "Sesi Supervisor mill-A; periode milik mill lain"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode mill-A>",
+            "production_line_id": "<line mill-B>",
+            "_given": "Sesi Supervisor mill-A; line milik mill lain — DITOLAK, berbeda dari business_unit_id yang DIABAIKAN"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode mill-A>",
+            "production_line_id": "<line mill-B>",
+            "format": "csv"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor mill-A)->test(komponen, ['periodId' => '<periode mill-B>', 'productionLineId' => '<line mill-B>'])",
+        "assert": "ForbiddenException kode FORBIDDEN. Penolakan terjadi SEBELUM agregasi: nol angka terbit, bukan payload sebagian — tidak satu kelompok sebaran jam, tidak satu angka waktu putar, tidak satu baris rekap. Dalam satu deskripsi dikontraskan dengan business_unit_id mill lain yang DIABAIKAN: line adalah parameter yang dipilih sadar, mill adalah konteks akun"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch?production_line_id=<line mill lain>",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Butuh line milik mill kedua; bila tidak ada di fixture, dilewati dengan alasan tertulis",
+        "assert": "Bila dijalankan: halaman menampilkan penolakan dan nol kartu angka di DOM. URL dicocokkan dengan REGEX, bukan toHaveURL('**/x')"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — periode tanpa satu pun pengiriman",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode ber-period_stations cpo-dispatch>",
+            "production_line_id": "<line tanpa record cpo-dispatch>",
+            "_given": "Keadaan NYATA hari ini — tabel detail ini nol baris di dev"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada periode dan line yang nol pengiriman",
+        "assert": "200 dengan KERANGKA LENGKAP: dispatch_count 0; net_weight_total dan net_weight_avg NULL (bukan 0); keempat ukuran mutu NULL dengan measured_count 0; turnaround min/avg/max NULL dengan measured_count 0, uncomputable_count 0 dan crossed_midnight_count 0 yang TETAP DITERBITKAN; hourly.buckets tetap 24 entri bernilai nol dengan busiest_hour NULL (assertNull) dan empty_hour_count 24; ketiga rekap []. KEDUA blok baru TETAP DIRENDER dengan keadaan kosongnya — asersikan kehadiran testid bloknya. completeness tetap terbit. Tidak ada grafik kosong yang dapat disalahartikan sebagai aktivitas bernilai nol"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "DB e2e punya 2 baris detail pada line fixture, sehingga 'nol pengiriman' hanya dapat dibentuk dengan memilih line LAIN yang tidak berpengiriman bila ada",
+        "assert": "Bila line kosong tersedia: kerangka penuh terlihat dengan blok sebaran jam dan blok waktu putar HADIR dalam keadaan kosong, dan keadaan kosong menyebut nama periode dan nama line. Bila tidak tersedia, dilewati dengan alasan tertulis — pembuktiannya di component test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — seluruh pengiriman belum selesai ditimbang",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "6 pengiriman, SELURUHNYA ber-net_weight_mt null; time_in dan time_out sebagian terisi dan disemai eksplisit; keempat kolom mutu sebagian terisi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture di atas",
+        "assert": "net_weight_total dan net_weight_avg KEDUANYA NULL (assertNull, bukan 0) dengan net_weight_dispatch_count 0; dispatch_count tetap 6; missing_net_weight_dispatch_count 6. SEMENTARA — dan inilah yang diuji — hourly, turnaround dan keempat ukuran mutu TETAP BERANGKA PENUH, karena penyebutnya berbeda dari penyebut berat. Komponen menyatakan bahwa seluruh penimbangan belum selesai, sehingga pembaca dapat membedakan 'pengirimannya ada, beratnya belum' dari 'tidak ada pengiriman'"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "Profil fixture e2e justru BERBALIK dari skenario ini (net_weight_mt 30 terisi, jam KOSONG), sehingga keadaan ini tidak dapat dibentuk tanpa menulis data",
+        "assert": "Tidak diasersikan di browser. Yang diasersikan di browser adalah pasangan terbaliknya pada skenario mutu-kosong-tonase-ada: tonase berangka sementara blok lain '—'"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — sebagian pengiriman belum selesai ditimbang dan penyebut berat dicetak",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "10 pengiriman; HANYA 6 ber-netto (10,20,30,40,50,60 → total 210); KESEPULUHNYA ber-time_in tercatat dan disemai eksplisit"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture 10/6 di atas",
+        "assert": "net_weight_avg = 35.0 (210 dibagi ENAM), BUKAN 21.0 (dibagi sepuluh); angka 6 dicetak DI DALAM elemen kartu rata-rata yang sama (disasarkan ke testid kartu, bukan ke halaman); dispatch_count tetap 10; missing_net_weight_dispatch_count 4 ditonjolkan tersendiri sehingga 6+4=10 dapat direkonsiliasi. DAN di asersi yang sama: hourly.recorded_count = 10 dengan penjumlahan 24 kelompok = 10 — kesepuluh pengiriman TETAP terhitung penuh di sebaran jam, membuktikan berat dan jam terisi saling bebas"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "Kartu rata-rata memuat penyebutnya di dalam elemen yang SAMA (testid kartu). missing_net_weight_dispatch_count terrender sebagai angka tersendiri. Nilai persisnya TIDAK diasersikan — spec form menulis ke DB e2e yang sama; yang diasersikan adalah penyebutnya hadir dan tonasenya berangka"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — berat bersih dibaca apa adanya dan tidak pernah dihitung ulang",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Baris 1: gross NULL, tare NULL, netto 28.5. Baris 2: gross 40, tare 12, netto 27 — sengaja TIDAK sama dengan 40−12"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture dua baris di atas",
+        "assert": "net_weight_total = 55.5 — satu angka yang membuktikan DUA hal: 28.5 TERPAKAI meski bruto dan tara KEDUANYA null (tidak dibuang), dan baris kedua memakai 27 BUKAN 28 (tidak dihitung ulang dari bruto−tara). Diasersikan juga di KETIGA rekap kategoris dan di daily[], bukan hanya di angka utama — perhitungan ulang yang menyusup biasanya menyusup di salah satu rekap, bukan di kartu utama"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "Profil fixture e2e: net_weight_mt 30 pada kedua baris, gross dan tare KEDUANYA NULL — kebetulan cocok dengan setengah skenario ini tanpa penyemaian tambahan",
+        "assert": "Tonase laporan berangka (≥ 1 dan bukan '—') walaupun bruto dan tara kosong — membuktikan netto dibaca apa adanya dan tidak dibuang ketika bruto/tara kosong. Angka persisnya TIDAK diasersikan: spec form menulis ke DB e2e yang sama. Baris kedua (netto ≠ bruto−tara) tidak dapat dibentuk di browser — diuji di unit test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — jam keluar lebih kecil daripada jam masuk dibaca sebagai hari berikutnya",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "SATU pengiriman dengan time_in '23:30' dan time_out '00:45', disemai eksplisit sebagai string jam; event_date eksplisit di dalam periode"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture 23:30→00:45",
+        "assert": "turnaround min/avg/max KETIGANYA 75 menit. ASERSI KEDUA yang berdiri sendiri: nilainya BUKAN −1365 (assertNotSame) — karena pengurangan mentah tetap mengembalikan ANGKA, bukan exception, dan sebuah layar yang menampilkan '−1365 menit' hanya terbaca salah oleh manusia. measured_count 1 — pengiriman itu TIDAK ditandai data salah dan TIDAK dibuang dari penyebut. DAN di asersi yang sama: hourly.buckets[23].dispatch_count = 1 SEMENTARA buckets[0].dispatch_count = 0"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "Profil fixture e2e: time_in DAN time_out KEDUANYA NULL pada kedua baris — jebakan tengah malam BUTUH jam sungguhan",
+        "assert": "TIDAK DAPAT dibuktikan di browser dan tidak boleh ditulis seolah dapat. Diuji di unit test dengan angka konkret 75 dan asersi negatif −1365. Yang diasersikan di browser pada skenario lain adalah keadaan 'tidak ada satu jam pun tercatat', yang justru itulah profil fixture-nya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — jumlah pengiriman menyeberang tengah malam diterbitkan sebagai angka tersendiri",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode A>",
+            "production_line_id": "<line>",
+            "_given": "20 pengiriman berjam LENGKAP; TIGA ber-time_out lebih kecil daripada time_in (23:10→00:20, 22:45→01:15, 23:55→00:05)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode B>",
+            "production_line_id": "<line>",
+            "_given": "8 pengiriman berjam lengkap, TIDAK ADA yang menyeberang — permintaan TERSENDIRI, bukan cabang dari step 1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "DUA test terpisah, bukan satu test dua cabang: (A) komponen pada periode berisi 3 penyeberang dari 20; (B) komponen pada periode tanpa penyeberang",
+        "assert": "(A) crossed_midnight_count = 3 TEPAT, dirender sebagai elemen TERSENDIRI di samping min/avg/max, dan measured_count = 20 — ketiganya tidak dibuang dari penyebut. Prosa turnaround._note yang menjelaskan pembacaan 'hari berikutnya' dirender UTUH. (B) elemen crossed_midnight_count TETAP ADA dan bernilai 0 — assertSet(0), bukan assertDontSee — karena sebuah angka yang hanya muncul ketika tidak nol tidak membuktikan pembacaannya berjalan"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture memberikan cabang (B) tanpa penyemaian tambahan: kedua jam NULL pada kedua baris, sehingga nol pengiriman menyeberang",
+        "assert": "crossed_midnight_count DIRENDER sebagai NOL — elemen ber-testid hadir dan isinya '0', bukan '—' dan bukan absen dari DOM. Ini satu dari dua asersi paling bernilai di browser untuk layar ini: ia membuktikan di aplikasi nyata bahwa angka itu memang dirender dan bukan hanya muncul ketika tidak nol. Cabang (A) butuh jam sungguhan — diuji di unit test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — jam masuk sama dengan jam keluar memberi waktu putar nol menit",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Tiga pengiriman: (1) 08:00→08:00 SAMA; (2) 08:00→09:30; (3) 23:30→00:45. Jam disemai eksplisit"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture tiga keadaan di atas",
+        "assert": "min_minutes = 0 — assertSame(0), BUKAN assertNull — dan nol itu dirender sebagai '0 menit', bukan '—'. measured_count = 3: nol MASUK penyebut karena kedua jamnya tercatat. avg_minutes = 55.0, membuktikan nol ikut menarik rata-rata (nol adalah angka, bukan ketiadaan). DAN crossed_midnight_count = 1 BUKAN 2 — baris nol-menit tidak dibaca menyeberang. Deskripsi menyatakan sebabnya: implementasi yang memakai `<=` alih-alih `<` akan menambahkan 1440 pada nol dan melaporkan waktu putar 24 jam — kesalahan satu karakter yang hasilnya tampak masuk akal"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "Butuh jam sungguhan pada baris detail; profil fixture e2e kedua jamnya NULL",
+        "assert": "TIDAK DAPAT dibuktikan di browser. Diuji di unit test dan component test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — waktu putar yang tampak tidak wajar dilaporkan apa adanya",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Lima pengiriman: empat ber-waktu putar 40–90 menit, satu 23 JAM (00:30→23:30 — 1380 menit TANPA menyeberang tengah malam)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture berisi satu waktu putar 23 jam",
+        "assert": "max_minutes = 1380 TEPAT — tidak dipotong ke batas apa pun; measured_count = 5 — tidak dibuang; avg_minutes dihitung DENGAN 1380 di dalamnya. NOL PENANDAAN: penelusur rekursif atas data yang dipublikasikan komponen membuktikan tidak ada kunci severity/flag/warning/color/badge/violation_count/outlier_count. Diasersikan atas NAMA KUNCI, bukan atas teks — turnaround._note sendiri MEMUAT kata 'tidak wajar', sehingga asersi berbasis teks akan cocok dengan prosa yang menyatakan ketiadaan penandaan itu. Dan turnaround._note DIRENDER UTUH: laporan MENYATAKAN kecurigaan, tidak MEMUTUSKANNYA"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "Butuh jam sungguhan; profil fixture e2e kedua jamnya NULL",
+        "assert": "TIDAK DAPAT dibuktikan di browser. Diuji di unit test (angka 1380, nol penandaan lewat penelusur kunci) dan component test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — waktu putar hanya dihitung bila kedua jam tercatat dan penyebutnya dicetak",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "20 pengiriman: 14 berjam LENGKAP, 3 ber-time_in saja, 2 ber-time_out saja, 1 tanpa keduanya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture 20 pengiriman di atas",
+        "assert": "min/avg/max dihitung HANYA atas keempat belas; measured_count = 14 dirender DI DALAM kartu waktu putar (testid kartu, bukan halaman) dan jelas berbeda dari dispatch_count 20; uncomputable_count = 6 dirender tersendiri; dan 14 + 6 = 20 sebagai asersi PENGUNCI yang berdiri sendiri sehingga pembaca dapat merekonsiliasi ketiga angka"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: kedua jam NULL pada kedua baris — keadaan tepi penyebut-nol",
+        "assert": "Waktu putar min/avg/max KETIGANYA dirender '—' (bukan 0) dengan measured_count '0' dan uncomputable_count '2'; penjumlahan measured_count + uncomputable_count = jumlah pengiriman yang tampil. Nilai persis '2' dapat dipakai HANYA bila spec ini tidak berdampingan dengan spec form yang menulis; bila berdampingan, dipakai ≥ 1 untuk uncomputable_count dan TEPAT 0 untuk measured_count — nol tetap tepat karena tidak ada baris berjam di fixture"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — hanya satu dari kedua jam tercatat, dua arah yang tidak simetris",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "TIGA pengiriman, satu per keadaan: (A) time_in '10:00' time_out NULL; (B) time_in NULL time_out '15:00'; (C) keduanya NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture tiga keadaan jam di atas",
+        "assert": "ASIMETRI diasersikan penuh: (A) MASUK sebaran — buckets[10] = 1 — TETAPI tidak masuk waktu putar; (B) masuk kelompok 'tidak tercatat' DAN tidak masuk waktu putar; (C) masuk keduanya. Hasil: recorded_count 1, not_recorded_count 2, measured_count 0, uncomputable_count 3. PLUS ASERSI NEGATIF: buckets[15] = 0 — jam keluar TIDAK PERNAH dipakai sebagai pengganti jam masuk, dan baris (B) adalah bentuk terkecil yang membuktikannya. Kedua penyebut dirender masing-masing di kartunya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture hanya memberikan keadaan (C) — kedua jam NULL pada kedua baris",
+        "assert": "Hanya keadaan (C) yang dapat diasersikan: kedua baris berada di kelompok 'tidak tercatat' (not_recorded_count '2') DAN di uncomputable_count ('2'), sementara recorded_count '0' dan measured_count '0'. Keadaan (A) dan (B) — dan terutama asersi negatif bahwa jam keluar bukan pengganti jam masuk — butuh jam sungguhan dan diuji di unit test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — sebaran dihitung menurut jam masuk, bukan jam keluar",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Empat pengiriman: 06:00→14:00; 07:15→20:00; NULL→09:00; 18:40→NULL. Satu pengiriman tambahan 23:30→00:45 untuk menguji kelompok yang tidak bergeser"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture di atas",
+        "assert": "buckets[6]=1, buckets[7]=1, buckets[18]=1, buckets[23]=1. ASERSI NEGATIF atas jam KELUAR: buckets[14]=0, buckets[20]=0, buckets[9]=0 dan buckets[0]=0 — khususnya buckets[9], karena baris ketiga punya jam keluar 09:00 dan jam masuk kosong sehingga fallback ke time_out akan menaruhnya di sana alih-alih di not_recorded. TIDAK ADA sebaran kedua menurut jam keluar: penelusur rekursif membuktikan tidak ada kunci hourly_out / by_hour_out / buckets_out. busiest_hour adalah jam MASUK tersibuk. hourly._note dirender UTUH"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "Butuh jam sungguhan pada baris detail; profil fixture e2e kedua jamnya NULL",
+        "assert": "TIDAK DAPAT dibuktikan di browser. Yang diasersikan di browser: ketidakhadiran sebaran kedua — tidak ada kartu kedua bersebaran jam di DOM (asersi atas jumlah elemen bertestid sebaran, TEPAT satu)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — sebaran jam menjumlah ke jumlah pengiriman berkat kelompok 'jam tidak tercatat'",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "20 pengiriman; 17 ber-time_in tersebar eksplisit di beberapa jam; 3 ber-time_in NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture 20/17 di atas",
+        "assert": "24 kelompok dirender dan bersama-sama memuat 17; kelompok 'JAM TIDAK TERCATAT' dirender TERSENDIRI memuat 3; recorded_count 17 dirender di kartunya sendiri. ASERSI PENGUNCI yang berdiri sendiri: array_sum atas dispatch_count 24 kelompok + not_recorded_count === dispatch_count === 20. Kelompok 'tidak tercatat' tidak pernah dilipat ke kelompok jam mana pun dan tidak pernah dibuang dari jumlah"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: KEDUA baris ber-time_in NULL — seluruh pengiriman di kelompok 'tidak tercatat'",
+        "assert": "recorded_count '0' DAN not_recorded_count '2', dan penjumlahan 24 kelompok yang dirender (dibaca dari DOM) ditambah kelompok tidak-tercatat SAMA DENGAN jumlah pengiriman yang tampil — asersi pengunci dijalankan di browser atas angka yang BENAR-BENAR dirender, bukan atas payload. Kelompok 'tidak tercatat' hadir sebagai elemen tersendiri, bukan sebagai kelompok jam ke-25"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — jam tersibuk, jam kosong, dan keadaan ekstrem sebaran",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode A>",
+            "production_line_id": "<line>",
+            "_given": "Lima pengiriman yang SELURUHNYA ber-time_in di jam 14 (14:05, 14:20, 14:35, 14:50, 14:59 — menit berbeda, membuktikan pengelompokan memakai JAM)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode B>",
+            "production_line_id": "<line>",
+            "_given": "Enam pengiriman yang SELURUHNYA ber-time_in NULL — permintaan tersendiri"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "DUA test terpisah: (A) seluruh pengiriman di satu jam; (B) tidak satu jam pun tercatat",
+        "assert": "(A) buckets[14] = 5, empty_hour_count = 23, busiest_hour = 14, dan KELOMPOK BERNILAI NOL TETAP DIRENDER — count(buckets) === 24 dengan kolom 'hour' berjalan 0..23 tanpa lompatan. (B) busiest_hour NULL — $this->assertNull, BUKAN assertEmpty dan BUKAN assertFalsy, karena 0 lolos keduanya dan 0 akan terbaca 'tersibuk pukul 00'; empty_hour_count = 24; not_recorded_count = 6; blok waktu putar '—' dengan measured_count 0 dan uncomputable_count = 6. KEDUA blok TETAP DIRENDER di kedua periode — menghilangkannya membuat pembaca mengira layar ini tidak punya bagian jam"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture memberikan cabang (B) persis tanpa penyemaian tambahan",
+        "assert": "Cabang (B) diasersikan penuh di browser dan inilah asersi paling bernilai layar ini: busiest_hour dirender '—' dan BUKAN '0' (dua asersi — teksnya '—', dan teksnya bukan '0'); empty_hour_count dirender '24'; KEDUA blok hadir di DOM meski kosong (asersi kehadiran testid, bukan assertSee). Cabang (A) butuh jam sungguhan — diuji di unit test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — empat penyebut berbeda di satu layar dan kenyataan itu dinyatakan",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "20 pengiriman: 16 ber-netto, 17 ber-time_in, 14 berjam LENGKAP. Pola null ditulis eksplisit per baris, tidak diacak"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture empat penyebut di atas",
+        "assert": "EMPAT asersi berdiri sendiri atas empat kunci berbeda, dan keempat ANGKANYA berbeda: dispatch_count 20; net_weight_dispatch_count 16; hourly.recorded_count 17; turnaround.measured_count 14. Karena keempatnya berbeda, implementasi berpenyebut tunggal PASTI menggagalkan sekurangnya tiga asersi. Tiap angka dirender DI DALAM kartunya masing-masing (empat testid berbeda), tidak di satu tempat lalu dipakai ulang. Kunci _note_four_denominators ADA dan memuat keempat label (a)–(d) — empat assertStringContainsString TERPISAH, satu needle per asersi, karena toContain berargumen banyak hanya memeriksa yang pertama"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture membuat keempat penyebut bernilai 2/2/0/0",
+        "assert": "Keempat penyebut dirender masing-masing di kartunya (empat testid berbeda hadir) dan _note_four_denominators dirender UTUH. Karena fixture membuat dua pasang penyebut bernilai sama, PERBEDAAN angkanya tidak dapat dibuktikan di browser — yang dibuktikan adalah bahwa keempatnya DICETAK, termasuk dua yang bernilai nol. Perbedaan nilainya diuji di unit test dan component test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — empat ukuran mutu dengan terendah, rata-rata, tertinggi, dan penyebutnya masing-masing",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "20 pengiriman; 15 ber-ffa_percent, 12 ber-moisture_percent, 9 ber-impurities_percent, 7 ber-dobi. Baris mana yang terisi ditulis eksplisit"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture empat pola mutu di atas",
+        "assert": "Empat kartu terpisah, masing-masing dengan min, avg DAN max — bukan hanya rata-rata, karena satu pengiriman berkadar ekstrem adalah informasi yang hilang bila hanya rata-ratanya tampil. LIMA asersi terpisah atas lima angka berbeda: dispatch_count 20, ffa 15, moisture 12, impurities 9, dobi 7. Tiap measured_count dirender DI DALAM kartunya sendiri (empat testid). quality._note dirender UTUH dan menyatakan keempat penyebut boleh berbeda"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: keempat kolom mutu NULL pada kedua baris",
+        "assert": "Keempat kartu mutu HADIR di DOM dengan min/avg/max dirender '—' dan measured_count '0' — empat kartu, empat testid, delapan asersi. NILAI mutu tidak dapat diasersikan di browser (tidak ada hasil uji di fixture) — diuji di unit test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — DOBI adalah indeks tanpa satuan sementara ketiga ukuran lain persen",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Pengiriman yang keempat kolom mutunya terisi sekaligus"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada pengiriman berkeempat mutu terisi",
+        "assert": "array_key_exists('_note', $payload['quality']['dobi']) === true — diasersikan DI DALAM blok dobi, BUKAN di $payload['quality']; asersi kedua: tidak ada kunci dobi_note / _note_dobi di tingkat quality. Letaknya load-bearing: prosa yang duduk di tingkat quality dapat terpisah dari angkanya ketika blade merender kartu. Isinya memuat kata 'indeks' dan menyatakan tanpa satuan. Kartu DOBI dirender TANPA tanda '%' — diasersikan atas isi elemen nilai kartu DOBI, sementara ketiga kartu lain memuat '%'"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: dobi NULL, sehingga nilainya '—'",
+        "assert": "Prosa DOBI-indeks-tanpa-satuan dirender DI DALAM kartu DOBI — asersi atas elemen di bawah testid kartu dobi, bukan di halaman, sehingga prosanya tidak dapat berpindah ke bagian lain tanpa memerahkan test. Ketiadaan '%' pada kartu DOBI tidak dapat dibuktikan pada nilai '—' — diuji di component test dengan nilai terisi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — satu ukuran mutu tanpa hasil uji tampil '—' tanpa mengosongkan ukuran lain",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "10 pengiriman; ffa/moisture/impurities terisi sebagian; dobi NULL pada SELURUH sepuluh"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture dobi-kosong di atas",
+        "assert": "Kartu DOBI menampilkan '—' untuk KETIGA angkanya dan BUKAN 0 — 'belum diuji' dan 'nilainya nol' adalah dua hal berbeda — dengan measured_count 0. KETIGA kartu lain TETAP berangka dengan measured_count masing-masing > 0: tiga asersi positif berdampingan dengan satu asersi null. Deskripsi MENYATAKAN maksudnya: sebuah penjaga global 'apakah periode ini punya data mutu' akan mengosongkan keempat kartu dan MEMERAHKAN tepat case ini — itulah yang membuatnya bukan pengulangan. Diperiksa PER UKURAN"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "Butuh sebagian kolom mutu terisi; profil fixture e2e keempatnya NULL",
+        "assert": "TIDAK DAPAT dibuktikan di browser — keempat kartu kosong tidak memisahkan 'penjaga per ukuran' dari 'penjaga global'. Diuji di unit test dan component test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — keempat ukuran mutu kosong sementara tonasenya ada",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "8 pengiriman: keempat kolom mutu NULL pada semuanya; netto terisi pada 7; time_in terisi pada 6; kedua jam terisi pada 5"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture mutu-kosong-tonase-ada",
+        "assert": "Bagian mutu MENYATAKAN belum ada hasil uji dan keempat kartunya '—' dengan measured_count 0, dan keempat blok TETAP ADA sebagai kunci (tidak dihilangkan — menyembunyikannya membuat pembaca mengira layar ini tidak punya bagian mutu). SEMENTARA: net_weight_total/avg berangka dengan penyebut 7; hourly.recorded_count 6 dengan busiest_hour non-null; turnaround.measured_count 5 dengan min/avg/max berangka. Empat kelompok angka, empat penyebut, nol saling memotong"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture memberikan separuh skenario ini persis: keempat mutu NULL, net_weight_mt 30 terisi",
+        "assert": "Keempat kartu mutu '—' dengan measured_count '0' SEMENTARA tonase BERANGKA (≥ 1, bukan '—') — asersi berpasangan yang paling langsung membuktikan di aplikasi nyata bahwa blok mutu dan blok berat tidak saling memotong. Bagian mutu tidak disembunyikan: testid-nya hadir. Bedanya dari skenario kernel-dispatch: di sini blok sebaran jam dan waktu putar JUGA kosong (jam NULL), dan ketiganya tetap dirender"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — tiga rekap teks bebas apa adanya, menjumlah ke jumlah pengiriman, dan tidak dinormalkan",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "12 pengiriman; transport_company, storage_tank_source dan destination_buyer berpola null BERBEDA (kosong pada 3, 5 dan 1 baris); nilai mencakup '', '   ', 'Sawit Trans', 'sawit trans', 'Sawit Trans ', satu nilai berbentuk uuid pada storage_tank_source"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture tiga rekap di atas",
+        "assert": "Satu baris PER NILAI apa adanya — nilai berbentuk uuid dicetak apa adanya dan TIDAK dicari namanya; nol join, nol pemetaan. Masing-masing rekap punya TEPAT SATU baris value null ('tidak tercatat') berisi 3, 5 dan 1 — tiga asersi. ASERSI PENGUNCI tiga kali TERPISAH: array_sum(array_column($recap,'dispatch_count')) === dispatch_count untuk KETIGA rekap. '' dan '   ' melebur ke null (SATU entri, bukan dua atau tiga); 'Sawit Trans' dan 'Sawit Trans ' melebur; 'sawit trans' TETAP entri tersendiri — huruf besar/kecil TIDAK dinormalkan, dan kemungkinan itu DINYATAKAN di layar. Nilai yang muncul sekali tetap mendapat barisnya sendiri, tidak dilipat menjadi 'lainnya'"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: ketiga kolom kategoris NULL pada kedua baris",
+        "assert": "KETIGA tabel rekap hadir dan masing-masing punya baris 'tidak tercatat' — tiga asersi lewat testid tabelnya — dengan dispatch_count ≥ 1. Penjumlahan baris tiap tabel yang dirender sama dengan jumlah pengiriman yang tampil. Normalisasi huruf besar/kecil dan nilai berbentuk uuid tidak dapat dibuktikan di fixture ini — diuji di unit test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — tidak ada rekap berlabel karena stasiun ini tanpa kolom berpilihan tertutup",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Fixture kaya: 20 pengiriman, seluruh kolom terisi — supaya ketiadaan rekap berlabel bukan akibat data yang kosong"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture kaya di atas. Ditambah AUDIT SUMBER: berkas CpoDispatchReportService.php dibaca sebagai teks di dalam test",
+        "assert": "Penelusur rekursif atas SELURUH data yang dipublikasikan membuktikan TIDAK ADA kunci by_gate_status, not_released_count, released_count, gate_status, remarks_gate_status, by_status, status_breakdown — maupun kunci lain berakhiran _status di luar period.status. DAN kunci _note_no_labeled_recap ADA dan dirender UTUH, menyebut bahwa Kernel Dispatch punya satu kolom seperti itu sementara stasiun ini tidak. Diasersikan atas NAMA KUNCI dan BUKAN atas teks — _note_no_labeled_recap sendiri MEMUAT frasa 'rekap berlabel', sehingga asersi berbasis teks akan cocok dengan prosa yang menyatakan ketiadaannya dan lolos walaupun rekapnya ada. AUDIT: substr_count atas literal 'Display::option' di service === 0"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "Tidak ada tabel rekap keempat di DOM: asersi atas JUMLAH elemen bertestid rekap — TEPAT tiga, bukan empat — dan atas ketidakhadiran testid by_gate_status. _note_no_labeled_recap dirender utuh, karena pembaca yang datang dari Laporan Kernel Dispatch akan mencari rekap itu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — rekap diurutkan dari total netto terbesar",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Fixture pengurutan: satu entri net_weight_total 100.0; satu entri 60.0 ber-dispatch_count 3; TIGA entri SERI SEMPURNA pada 60.0 DAN dispatch_count 2 bernama 'Zeta Trans','Alpha Trans','Mega Trans'; satu entri value null ber-net_weight_total 500.0"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture pengurutan di atas",
+        "assert": "Urutan: entri null bertonase 500.0 PERTAMA; lalu 100.0; lalu 60.0/dispatch_count 3; lalu ketiga entri seri sempurna dalam urutan abjad 'Alpha Trans','Mega Trans','Zeta Trans'. Fixture WAJIB memuat seri sempurna pada KEDUA kunci pertama — tanpanya pemutus ketiga tidak pernah dieksekusi dan asersi abjad menjadi vakum. ASERSI NEGATIF: kelompok null BUKAN baris terakhir ($recap[count-1]['value'] !== null) dan ia justru PERTAMA. value entri null TETAP null di payload, bukan 0.0 — null diperlakukan 0.0 untuk PENGURUTAN SAJA"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: ketiga kolom kategoris NULL, sehingga tiap rekap hanya punya SATU baris",
+        "assert": "URUTAN rekap TIDAK diasersikan di browser: satu baris per rekap membuat asersi posisi VAKUM — satu baris selalu pertama sekaligus terakhir. Pengurutan diuji di unit test dengan fixture seri sempurna"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — tiga penghitung kepatuhan terpisah dan segel atas serta bawah tidak pernah dijumlahkan",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Fixture MENULIS kolom seal_no_top dan seal_no_bottom secara eksplisit: 7 pengiriman — 2 tanpa waybill_number, 3 tanpa seal_no_top, 1 tanpa seal_no_bottom, satu di antaranya kehilangan KEDUA segel; sebagian 'tanpa' berupa string kosong/whitespace"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture kepatuhan di atas",
+        "assert": "Tiga penghitung TERPISAH dirender di tiga elemen berbeda: missing_waybill_count, missing_seal_top_count, missing_seal_bottom_count. Karena fixture MENULIS seal_no_top/seal_no_bottom dan penghitungnya IKUT NAIK, test ini membuktikan nama kolom yang dibaca service BENAR — kernel_dispatch_details memakai security_seal_no_top/security_seal_no_bottom, dan menyalin nama itu ke sini akan ter-compile dan tidak pernah cocok. Pengiriman yang kehilangan KEDUA segel terhitung di KEDUANYA (dua fakta, bukan penghitungan ganda). Penelusur rekursif membuktikan TIDAK ADA kunci missing_seal_count / seal_missing_count / missing_seals_total. null DAN kosong-setelah-trim keduanya terhitung; nol tetap dirender; ketiganya tidak dirata-rata, diurutkan, maupun digrafikkan"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: waybill_number TERISI pada kedua baris ('SJ-PL-A'/'SJ-PL-B'), kedua segel NULL pada kedua baris",
+        "assert": "missing_waybill_count dirender NOL — dan ini asersi paling bernilai di browser bersama crossed_midnight_count: sebuah penghitung kepatuhan yang benar-benar nol membuktikan ia tidak sekadar mengembalikan jumlah baris. SEMENTARA kedua penghitung segel ≥ 1, masing-masing di elemennya sendiri. Dan tidak ada elemen 'segel hilang' gabungan di DOM. Angka persis kedua segel tidak dipakai (≥ 1), karena spec form menulis ke DB e2e yang sama"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — tanpa penandaan nilai mutu di luar batas",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Pengiriman ber-ffa_percent 12.5 yang jauh di atas baris lain (2.0–3.0)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada fixture nilai mutu ekstrem",
+        "assert": "12.5 dirender sebagai max apa adanya. Penelusur rekursif membuktikan tidak ada kunci threshold / out_of_spec_count / violation_count / flag / severity / color / badge di blok mutu mana pun. Kunci _note_no_quality_thresholds ADA dan dirender UTUH. Diasersikan atas nama kunci karena prosa _note itu MENYEBUT ketiadaan penandaan. Ketiadaan ini sejajar dengan ketiadaan batas kewajaran waktu putar — keduanya batas DATA, bukan pilihan laporan, dan keduanya diasersikan dengan cara yang sama"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: keempat mutu NULL — nilai ekstrem tidak dapat dibentuk",
+        "assert": "Hanya yang dapat dibuktikan tanpa nilai: _note_no_quality_thresholds dirender utuh, dan tidak ada elemen berlencana/berwarna-peringatan di dalam keempat kartu mutu (asersi atas ketidakhadiran kelas/testid lencana di bawah testid kartu). NILAI tertinggi tanpa penandaan diuji di unit test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — temuan adalah satu-satunya kolom catatan kejadian",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode A>",
+            "production_line_id": "<line>",
+            "_given": "Tiga pengiriman ber-findings terisi, satu ber-findings '   ', satu NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode B>",
+            "production_line_id": "<line>",
+            "_given": "Tidak satu pengiriman pun mengisi findings"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "DUA test terpisah: (A) periode berisi temuan; (B) periode tanpa temuan",
+        "assert": "(A) text_entries.findings memuat TEPAT tiga entri {date,value} bertanggal eksplisit, teks apa adanya; entri whitespace dan null DIBUANG. (B) array KOSONG yang TETAP diterbitkan dan dirender sebagai keterangan 'tidak ada temuan', bukan tabel kosong tanpa penjelasan. Di KEDUA test: array_key_exists('remarks', $payload['text_entries']) === false — stasiun ini punya SATU kolom teks kejadian, dan struktur dua-daftar milik solid-waste-disposal tidak boleh disalin. Satu bagian catatan kejadian di layar: asersi atas jumlah elemen bertestid catatan, TEPAT satu"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: findings NULL pada kedua baris — cabang (B)",
+        "assert": "Bagian temuan HADIR dengan keterangan 'tidak ada temuan' (testid hadir, bukan assertSee atas prosa), dan TIDAK ADA bagian catatan kedua di DOM — jumlah elemen bertestid catatan kejadian TEPAT satu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — ekspor membawa jam apa adanya tanpa penafsiran menyeberang tengah malam",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "SATU pengiriman dengan time_in '23:30' dan time_out '00:45' — fixture yang sama dengan jebakan tengah malam, dengan sengaja"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "xlsx",
+            "_given": "Berkas yang sama diasersikan di kedua format"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Isi ekspor diasersikan di feature test, bukan di komponen. Komponen hanya diasersikan menerbitkan tautan/aksi ekspor untuk periode dan line terpilih",
+        "assert": "Pada LAPORAN: turnaround 75 menit (hasil tafsir). Pada EKSPOR: baris memuat '23:30' dan '00:45' PERSIS — dua asersi assertStringContainsString terpisah untuk csv, perbandingan sel untuk xlsx — TANPA satu hari ditambahkan. DAN asersi NEGATIF atas daftar header: tidak ada header yang memuat 'Waktu Putar', 'Turnaround', 'Menyeberang' atau 'Crossed'. Ekspor adalah rincian MENTAH; memasukkan tafsir melahirkan dua sumber angka yang dapat menyimpang tanpa ada yang membandingkannya. Test ini TERSENDIRI dari test isi ekspor"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "Butuh jam sungguhan pada baris detail; profil fixture e2e kedua jamnya NULL. Isi berkas ekspor juga tidak diasersikan di browser",
+        "assert": "TIDAK DAPAT dibuktikan di browser. Diuji di feature test. Yang diasersikan di browser hanyalah bahwa tombol Ekspor CSV dan Ekspor Excel hadir setelah line dan periode dipilih"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — ekspor CSV dan Excel .xlsx sungguhan dengan satu baris per pengiriman",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "csv",
+            "_given": "Dua record induk, total 5 baris detail; shift, nomor tanker, nama pengemudi, kedua segel dan operator timbang terisi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "xlsx"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "pdf",
+            "_given": "Format tak dikenal; diuji di level HTTP bersama '', '  ', ' csv ' dan 'CSV' karena trim dan default hidup di CONTROLLER"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Komponen: kehadiran kedua aksi ekspor. Isi berkas: feature test atas kedua format",
+        "assert": "TEPAT 5 baris data di luar header — satu per baris DETAIL, bukan satu per record induk. Keempat kolom konteks (mill, Production Line, periode, tanggal) berisi nilai SAMA PERSIS di kelima baris, diasersikan per baris. DAFTAR HEADER DISALIN DARI KONSTANTA SERVICE, bukan dikarang di test: CpoDispatchReportService BELUM ADA di backend/app/Services saat spesifikasi ini ditulis (hanya CpoDispatchRecordService), sehingga test WAJIB membandingkan dengan konstanta header service itu — pola KernelDispatchReportService — alih-alih menuliskan daftar tebakan, karena daftar yang ditulis ulang di test akan menyetujui dirinya sendiri. Kelima kolom yang tidak muncul di layar diasersikan HADIR di ekspor secara eksplisit. Isi csv dan xlsx dibandingkan SAMA PERSIS dalam satu test. xlsx dibuka kembali sebagai workbook dan sel-selnya dibaca — .xlsx SUNGGUHAN lewat SheetWriter, bukan CSV berekstensi lain. Batas 50.000 baris: 422 EAGER menyebut batasnya, nol byte terkirim, tanpa Content-Disposition attachment"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "Kedua tombol ekspor hadir dan dapat diklik; unduhan terpicu dengan nama berkas berakhiran .csv dan .xlsx. ISI berkas TIDAK diasersikan di browser — jumlah baris tidak dapat dipastikan karena spec form menulis ke DB e2e yang sama"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — status periode tidak disaring dan pengiriman draft tetap terhitung",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Mill punya periode cpo-dispatch berstatus draft, open DAN closed"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode closed>",
+            "production_line_id": "<line>",
+            "_given": "Periode tertutup — tetap terbaca penuh"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode closed>",
+            "production_line_id": "<line>",
+            "format": "csv",
+            "_given": "Ekspor tetap dapat dijalankan pada periode tertutup"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); dua record induk pada line dan periode yang sama — satu draft dengan 4 baris detail, satu final dengan 6 — KEEMPAT baris draft ber-time_in DAN time_out eksplisit dan ber-netto terisi. Varian kedua: SELURUH record draft",
+        "assert": "Ketiga status periode muncul di pemilih dan ketiganya terbaca penuh dengan seluruh angka, keempat mutu, sebaran jam dan waktu putar; period.status dirender sebagai keterangan. dispatch_count 10 dan draft_dispatch_count 4. Dan — inilah yang membuat test ini bukan pengulangan — keempat baris draft IKUT di hourly (penjumlahan 24 kelompok memuatnya) DAN di turnaround (measured_count memuatnya, min/max memperhitungkannya). Varian kedua: draft_dispatch_count === dispatch_count dan seluruh angka tetap terbit penuh"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: KEDUA baris milik induk berstatus draft_ongoing",
+        "assert": "draft_dispatch_count dirender ≥ 1 DAN dispatch_count ≥ 1 — membuktikan di aplikasi nyata bahwa draft tidak disaring keluar. Periode fixture berstatus terbuka; status draft/closed pada PERIODE tidak dapat dibentuk tanpa mengubah fixture bersama — diuji di feature test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — rekap harian per hari yang ada pengirimannya dan kelengkapan atas hari yang sudah berjalan",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode 31 hari>",
+            "production_line_id": "<line>",
+            "_given": "Pengiriman hanya pada 9 hari, tanggal disemai EKSPLISIT — factory record stasiun dapat membuat record stasiun lain bertanggal acak"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode 30 hari yang baru berjalan 10 hari>",
+            "production_line_id": "<line>",
+            "_given": "Pengiriman pada 6 hari; tanggal relatif terhadap hari ini WIB dari config, bukan waktu server"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang belum mulai>",
+            "production_line_id": "<line>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanCpoDispatch",
+        "action": "TIGA test terpisah untuk ketiga periode di atas",
+        "assert": "count(daily) === 9 TEPAT — bukan 31, dan tidak ada baris nol untuk hari tanpa pengiriman; TIDAK ADA baris 'tanggal tidak tercatat' karena event_date NOT NULL. daily diurutkan dari net_weight_total terbesar. daily_total DIJUMLAHKAN dari daily[]: daily_total.dispatch_count === array_sum(array_column(daily,'dispatch_count')) — asersi PENJUMLAHAN, bukan perbandingan dengan blok dispatches, karena nilai yang disalin dari blok lain akan cocok tanpa membuktikan daily[] benar. Periode berjalan: days_counted 10 (penyebut berhenti di HARI INI, bukan 30), days_with_dispatch 6, percent 60.0 bukan 20.0, dan hal itu DINYATAKAN. Periode belum mulai: days_counted 0 dan percent NULL (assertNull, bukan 0.0) dengan kalimat 'periode belum dimulai', karena 0,0% terbaca sebagai kelalaian pencatatan"
+      },
+      "browser_test": {
+        "route": "/reports/cpo-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Profil fixture: kedua baris ber-event_date 2025-03-10 — satu hari berpengiriman; periode fixture 2020-01-01 s/d hari-ini+7",
+        "assert": "Tabel harian hadir dengan ≥ 1 baris dan baris total periode; kelengkapan dirender dengan penyebut berupa HARI. Jumlah baris persis TIDAK diasersikan — spec form menulis ke DB e2e yang sama dan dapat menambah hari berpengiriman. Ketiga cabang completeness diuji di feature test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode CPO Dispatch (Web) — PINTU MASUK: tile CPO Dispatch pada Laporan Stasiun aktif dan REPORT_ROUTES tetap urut sort_order",
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor; daftar tile pada screen-140. Kode yang kembali urut sort_order dan dibandingkan dengan array_keys(REPORT_ROUTES) lewat toBe() BERURUTAN"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/reports/cpo-dispatch"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor mengikuti tautan tile"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Services\\StationReportService",
+        "action": "Konstanta REPORT_ROUTES dibaca langsung; tabel station_types menjadi acuan sort_order (cpo-dispatch = 170, kernel-dispatch = 160 yang hari ini entri terakhir)",
+        "assert": "array_key_exists('cpo-dispatch', REPORT_ROUTES) === true dengan nilai 'reports.cpo-dispatch'; kunci BERTANDA HUBUNG, bukan snake_case (yang akan ter-compile, terlihat benar, dan tidak pernah cocok satu baris master pun). array_keys(REPORT_ROUTES) dibandingkan dengan urutan sort_order lewat toBe() berurutan, dengan 'cpo-dispatch' sebagai elemen TERAKHIR. ASERSI PENJAGA tersendiri: 'process-quality-control' MASIH TIDAK ADA di REPORT_ROUTES — keempat berkas sisi web memakainya sebagai contoh 'stasiun belum berlaporan'. Pekerjaan ini seharusnya tidak memerahkan satu pun, TETAPI pada screen-162 satu dari empat hanya ditemukan oleh MENJALANKAN SUITE PENUH: jalankan `php artisan test` penuh dan percayai hasilnya, bukan perkiraan. Riak di mobile/tests/ReportingPilihStasiunView.spec.ts milik screen-167, bukan pekerjaan ini"
+      },
+      "browser_test": {
+        "route": "/reports/stations",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'cpo-dispatch'). Login Supervisor, buka Laporan Stasiun",
+        "assert": "Tile CPO Dispatch AKTIF (tidak kelabu) dan DAPAT DIKLIK, dan kliknya mendarat di /reports/cpo-dispatch — URL dicocokkan dengan REGEX, bukan toHaveURL('**/x') yang dengan baseURL tidak pernah cocok. Tanpa satu baris REPORT_ROUTES, laporannya ada, seluruh test-nya sendiri lolos, dan tile-nya tetap kelabu — hanya asersi ini yang menangkapnya"
+      }
+    }
+  ]
 }

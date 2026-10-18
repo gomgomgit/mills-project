@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\EngineRoomReportController;
 use App\Http\Controllers\Api\KernelPlantReportController;
 use App\Http\Controllers\Api\PressingReportController;
 use App\Http\Controllers\Api\ThreshingReportController;
+use App\Http\Controllers\Api\KernelDispatchReportController;
 use App\Http\Controllers\Api\KernelDispatchRecordController;
 use App\Http\Controllers\Api\KernelPlantRecordController;
 use App\Http\Controllers\Api\MachineryController;
@@ -1726,6 +1727,82 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/solid-waste-disposal-reports/periods', [SolidWasteDisposalReportController::class, 'periods']);
     Route::get('/solid-waste-disposal-reports/summary', [SolidWasteDisposalReportController::class, 'summary']);
     Route::get('/solid-waste-disposal-reports/export', [SolidWasteDisposalReportController::class, 'export']);
+});
+
+// === LAPORAN PERIODE KERNEL DISPATCH (screen-164 web + screen-165 mobile) ===
+// Bentuk empat endpoint yang sama dan daftar peran yang sama persis dengan
+// prefix solid-waste-disposal-reports di atas — `operator` IKUT.
+//
+// OPERATOR DITERIMA SEJAK COMMIT PERTAMA DI SINI, pilihan yang sama dengan
+// screen-162 tepat di atas dan dengan alasan yang sama: pasangan mobile
+// screen-165--laporan-kernel-dispatch-mobile dibangun dalam SERI YANG SAMA
+// dengan layar web ini, jadi pemanggil Operator yang sah ada sejak awal —
+// preseden Grading / Kernel Plant / Engine Room / Process Water / Solid Waste
+// Disposal, bukan preseden Weighbridge / Effluent Plant tempat layar web
+// mendarat lebih dulu dan pelebaran akses harus dikerjakan sebagai tindak
+// lanjut. Memilih preseden pertama menghindarkan riak mahal berupa asersi yang
+// harus dibalik dan field artefak yang harus disunting ulang.
+//
+// ADMISINYA SATU PERUBAHAN DI TIGA TEMPAT, BUKAN TIGA PERUBAHAN: daftar peran
+// ini, KernelDispatchReportService::guardAccess(), DAN cabang TERIKAT-MILL pada
+// KernelDispatchReportService::resolveBusinessUnit(). Mengerjakan dua yang
+// pertama saja menjatuhkan Operator ke cabang Admin, tempat business_unit_id
+// kiriman klien JUSTRU dihormati — Operator lalu dapat membaca laporan mill
+// MANA PUN. Itu kebocoran lintas mill, bukan cacat tampilan.
+//
+// YANG TETAP TERTUTUP TETAP TERTUTUP: /business-units/options menolak siapa pun
+// selain Admin dengan 403 — Operator, Supervisor dan Mill Management sama-sama
+// — diangkat di dalam KernelDispatchReportService dan BUKAN oleh middleware
+// ini, PERSIS karena daftar ini menerima keempat peran demi ketiga rute data,
+// sehingga penjaga yang ditempatkan di sini tidak akan menutup rute itu sama
+// sekali. Rute WEB /reports/kernel-dispatch juga TIDAK dilebarkan: menerima
+// Operator di API untuk pasangan mobile tidak boleh melebarkan layar web.
+//
+// business_unit_id diterima pada /periods, /summary dan /export tetapi
+// DIABAIKAN untuk setiap peran terikat mill — Operator, Supervisor dan Mill
+// Management sama-sama (KernelDispatchReportService::resolveBusinessUnit) —
+// menyebut mill lain tetap menjawab 200 berisi data pemanggil sendiri, dengan
+// sengaja: sebuah 403 akan memastikan mill lain itu ada. Penjaga lintas mill
+// yang sungguhan ada pada production_line_id (resolveProductionLine) dan
+// period_id (authorizePeriod), dan keduanya MEMANG menjawab 403.
+//
+// LAPORAN HIBRIDA PERTAMA DI PROYEK INI: satu baris detail adalah SATU
+// PENGIRIMAN, jadi /summary menghitung BARIS DETAIL (bukan record induk) dan
+// daily[] memuat satu entri per HARI BERPENGIRIMAN — sejauh itu sama dengan
+// solid-waste-disposal di atas. YANG BARU: blok `quality` membawa EMPAT UKURAN
+// min/avg/max dan MASING-MASING MENERBITKAN measured_count-NYA SENDIRI.
+// Keempat penyebut itu INDEPENDEN dan boleh berbeda satu dengan lainnya serta
+// berbeda dari dispatch_count, karena satu pengiriman boleh punya sebagian
+// hasil uji saja; satu penyebut tunggal untuk keempatnya akan tampak rapi dan
+// salah secara sistematis. quality._note menyatakan aturan itu di dalam
+// payload.
+//
+// /summary TIDAK membawa satu pun kunci hourly / busiest_hour /
+// empty_hour_count / turnaround / time_in / time_out / shift: baris detail
+// stasiun ini hanya punya event_date tanpa satu pun kolom waktu, dan kolom
+// shift-nya teks bebas. Ketiadaan itu dinyatakan lewat _note_no_hourly,
+// _note_no_quality_thresholds dan _note_shift_not_published. Bandingkan
+// cpo-dispatch (screen-166/167): tabel itu PUNYA time_in/time_out, jadi di sana
+// sebaran jam dan waktu putar kendaraan justru wajib ada. /export tetap membawa
+// DUA PULUH SATU kolom detail termasuk shift, nomor tiket timbang, nomor surat
+// jalan, nomor kendaraan, nama pengemudi, kedua nomor segel dan kode operator
+// timbang, karena ekspor adalah rincian MENTAH. Format ekspornya daftar
+// tertutup {csv, xlsx}.
+//
+// by_gate_status[].value menerbitkan KODE MENTAH ('released'/'not_released'/
+// nilai lain/null); labelnya diturunkan di lapisan tampilan lewat
+// App\Support\Display::option(). Menerbitkan label di payload akan memindahkan
+// kosakata ke lapisan yang salah dan membuat pasangan mobile menerima label
+// yang tidak dapat ia ubah.
+//
+// Daftar OPSI production line TIDAK diduplikasi di sini: GET
+// /api/production-lines/options-for-report (dibuat untuk screen-135) dipakai
+// ulang verbatim.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/kernel-dispatch-reports/business-units/options', [KernelDispatchReportController::class, 'businessUnitOptions']);
+    Route::get('/kernel-dispatch-reports/periods', [KernelDispatchReportController::class, 'periods']);
+    Route::get('/kernel-dispatch-reports/summary', [KernelDispatchReportController::class, 'summary']);
+    Route::get('/kernel-dispatch-reports/export', [KernelDispatchReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

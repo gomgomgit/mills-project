@@ -11,6 +11,7 @@ use App\Livewire\Dashboard\LaporanEffluentPlant;
 use App\Livewire\Dashboard\LaporanEngineRoom;
 use App\Livewire\Dashboard\LaporanProcessWater;
 use App\Livewire\Dashboard\LaporanSolidWasteDisposal;
+use App\Livewire\Dashboard\LaporanKernelDispatch;
 use App\Livewire\Dashboard\LaporanKernelPlant;
 use App\Livewire\Dashboard\LaporanPressing;
 use App\Livewire\Dashboard\LaporanThreshing;
@@ -1143,5 +1144,36 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/solid-waste-disposal', LaporanSolidWasteDisposal::class)
     ->name('reports.solid-waste-disposal');
+
+// screen-164--laporan-kernel-dispatch-web (Laporan Periode Kernel Dispatch).
+//
+// Supervisor / Mill Management / Admin saja. OPERATOR DITOLAK DI SINI MESKI API
+// MENERIMANYA SEJAK COMMIT PERTAMA: ketiga rute data di bawah
+// /api/kernel-dispatch-reports menerima Operator karena
+// screen-165--laporan-kernel-dispatch-mobile dibangun dalam seri yang sama dan
+// merupakan pemanggil sahnya — dan menerima sebuah peran di API TIDAK boleh
+// melebarkan layar web. Rute web ini dan LaporanKernelDispatch::canAccess()
+// sengaja tetap tertutup, dan itulah sebab canAccess() mempertahankan daftar
+// perannya sendiri alih-alih meminjam
+// KernelDispatchReportService::guardAccess(); bila ia pernah mendelegasi, layar
+// web ini terbuka untuk Operator secara senyap.
+//
+// Rutenya /reports/kernel-dispatch, BUKAN /laporan/kernel-dispatch — konvensi
+// repo untuk layar laporan adalah prefix Inggris /reports/*
+// (/reports/management, /reports/stations, /reports/weighbridge,
+// /reports/solid-waste-disposal, dan seterusnya), dan tidak ada satu rute pun
+// di berkas ini yang memakai /laporan. Ia juga berbeda dari layar DATA untuk
+// stasiun yang sama, yang hidup di bawah /data/kernel-dispatch (browser),
+// /data/kernel-dispatch/create (formulir input), /data/kernel-dispatch/{id} dan
+// /data/kernel-dispatch/{id}/edit — laporan ini MEMBACA apa yang ditulis
+// layar-layar itu dan tidak pernah menulis apa pun sendiri.
+//
+// Dapat dicapai dari UI HANYA melalui tile Kernel Dispatch pada screen-140
+// (/reports), yang menyala karena StationReportService::REPORT_ROUTES kini
+// memetakan kode 'kernel-dispatch' ke nama rute ini. Tanpa satu baris itu
+// laporannya ada, seluruh test-nya sendiri lolos, dan tile-nya tetap kelabu.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/kernel-dispatch', LaporanKernelDispatch::class)
+    ->name('reports.kernel-dispatch');
 
 // === ASDLC_ROUTES_END ===

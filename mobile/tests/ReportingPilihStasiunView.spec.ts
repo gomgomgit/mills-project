@@ -12,82 +12,95 @@
  * ────────────────────────────────────────────────────────────────────────
  * JEBAKAN YANG DIJAGA BERKAS INI: ketersediaan laporan ≠ StationSlot.isActive
  * ────────────────────────────────────────────────────────────────────────
- * Hari ini Sterilizer kebetulan isActive = true DAN punya layar laporan,
- * sehingga implementasi keliru `isActive && REPORT_ROUTES[type]` akan tetap
- * hijau di hampir semua test yang memakai data realistis. Dua test di bawah
- * ada khusus untuk menjatuhkannya, dengan fixture yang sengaja dibuat
- * "tidak realistis":
+ * Ketersediaan sebuah laporan ditentukan HANYA oleh keanggotaan kode stasiun
+ * di REPORT_ROUTES (src/views/ReportingPilihStasiunView.vue) — TIDAK PERNAH
+ * oleh `StationSlot.isActive`. Hari ini Sterilizer kebetulan isActive = true
+ * DAN punya layar laporan, sehingga implementasi keliru
+ * `isActive && REPORT_ROUTES[type]` akan tetap hijau di hampir semua test yang
+ * memakai data realistis. Dua test di bawah ada khusus untuk menjatuhkannya,
+ * dengan fixture yang sengaja dibuat "tidak realistis":
  *
- * CONTOH "LAPORAN BELUM DIBANGUN" SUDAH TUJUH KALI DIPINDAHKAN, dan
- * ketujuhnya karena laporannya memang dibangun: Weighbridge -> Engine Room
- * pada screen-144, Threshing -> Process Water pada screen-149, Pressing ->
- * Kernel Plant pada screen-151, lalu Depricarping -> Effluent Plant pada
- * screen-153 (keempatnya 2026-10-06). PEMINDAHAN KELIMA pada screen-155
- * (2026-10-07): Kernel Plant -> Process Quality Control, karena laporan
- * Kernel Plant mobile dibangun dan tujuh test di berkas ini gagal — persis
- * seperti yang diperingatkan di bawah. PEMINDAHAN KEENAM pada screen-157
- * (2026-10-13): Effluent Plant -> CPO Dispatch, karena laporan Effluent Plant
- * mobile dibangun sehingga tile-nya menjadi AKTIF dan jumlah tile nonaktif
- * pada fixture lima-stasiun di bawah turun dari 4 menjadi 3. PEMINDAHAN
- * KETUJUH pada screen-159 (2026-10-15): Engine Room -> Kernel Dispatch,
- * karena laporan Engine Room mobile dibangun ('engine-room' masuk ke
- * REPORT_ROUTES) sehingga test "tile tanpa laporan tetap tidak berpindah
- * rute" — yang sejak screen-144 memakai Engine Room sebagai contohnya —
- * berhenti menguji apa pun dan memerah. Itu kegagalan yang DIRANCANG, dan
- * inilah pembaruannya.
- *
- * PEMINDAHAN KEDELAPAN pada screen-161 (2026-10-18): Process Water -> Solid
- * Waste Disposal, karena laporan Process Water mobile dibangun
- * ('process-water' masuk ke REPORT_ROUTES, satu entri di
- * src/views/ReportingPilihStasiunView.vue) sehingga tile-nya menjadi AKTIF
- * dan SEMUA asersi di berkas ini yang memakai 'process-water' sebagai contoh
- * "belum berlaporan" memerah sekaligus — pasangan asersi jebakan utama,
- * asersi urutan tile, pesan info, dan hitungan tile nonaktif. Itu kegagalan
- * yang DIRANCANG, dan inilah pembaruannya. Yang berubah hanyalah CONTOHNYA:
- * tidak satu asersi dilemahkan, dihapus, atau dilonggarkan.
- *
- * KOREKSI ATAS PENYUSUNAN DOCBLOCK INI (screen-157): paragraf di atas dulu
- * terbaca seolah pemindahan kelima menggantikan contoh kanonisnya di SELURUH
- * berkas. Ia tidak. Berkas ini memegang EMPAT contoh "belum dibangun"
- * sekaligus, dan keempatnya masih dipakai hari ini:
- *   - 'solid-waste-disposal' (sort_order 150) — hasil pemindahan KEDELAPAN,
- *     dan inilah yang dipakai pasangan asersi di bawah serta sebagian besar
- *     test lainnya di berkas ini;
- *   - 'process-quality-control' (sort_order 180) — hasil pemindahan KELIMA,
- *     dipakai pada st-3/st-5 dan pada asersi urutan tile;
- *   - 'cpo-dispatch' (sort_order 170) — hasil pemindahan KEENAM, dipakai
- *     pada st-4 di fixture lima-stasiun;
- *   - 'kernel-dispatch' (sort_order 160) — hasil pemindahan KETUJUH, dipakai
- *     pada test "tile tanpa laporan tetap tidak berpindah rute".
- *
- * Dipindahkan, BUKAN dihapus: bila Solid Waste Disposal, Process Quality
- * Control, CPO Dispatch atau Kernel Dispatch pun dibuatkan laporan mobile,
- * spec ini akan gagal lagi — dan itu benar, karena ia memaksa contohnya
- * diperbarui alih-alih diam-diam menjadi selalu hijau. Konvensinya: ambil
- * sort_order TERTINGGI di antara jenis yang belum terpakai sebagai contoh di
- * berkas ini, sehingga pemindahan berikutnya tertunda paling lama.
- *
- * DAN SESUDAH PEMINDAHAN KEDELAPAN, CONTOHNYA HABIS. Keempat jenis yang
- * belum punya laporan mobile — solid-waste-disposal (150), kernel-dispatch
- * (160), cpo-dispatch (170), process-quality-control (180) — kini TERPAKAI
- * SELURUHNYA sebagai contoh di berkas ini, dan tidak ada kandidat kesembilan.
- * Konsekuensinya dinyatakan di sini supaya tidak ditemukan lagi secara
- * mendadak: pemindahan KESEMBILAN TIDAK MUNGKIN dilakukan dengan cara yang
- * sama. Ketika salah satu dari keempat jenis itu dibuatkan laporan mobile,
- * berkas ini WAJIB beralih ke KODE STASIUN FIKTIF yang disuntikkan lewat
- * fixture (misalnya type: 'other' dengan nama buatan, atau kode yang sengaja
- * tidak ada di StationType) — karena yang diuji sejak awal bukanlah stasiun
- * tertentu, melainkan aturannya: ketersediaan laporan ditentukan HANYA oleh
- * keanggotaan di REPORT_ROUTES, bukan oleh StationSlot.isActive. Jangan
- * melemahkan asersinya sebagai gantinya.
- *
- *   - 'solid-waste-disposal' dengan isActive = true → tile WAJIB nonaktif
+ *   - 'zz-stasiun-fiktif' dengan isActive = true → tile WAJIB nonaktif
  *     (kodenya tidak ada di REPORT_ROUTES).
  *   - 'sterilizer' dengan isActive = false → tile WAJIB tetap tersedia dan
  *     tetap bernavigasi (kodenya ada di REPORT_ROUTES).
  *
  * Jangan "merapikan" kedua fixture itu agar isActive-nya masuk akal — justru
  * ketidakwajarannya yang menjadi alat ujinya.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * PEMINDAHAN KESEMBILAN (screen-163, 2026-10-18): CONTOHNYA KINI FIKTIF, DAN
+ * INILAH PEMINDAHAN TERAKHIR
+ * ────────────────────────────────────────────────────────────────────────
+ * Contoh "laporan belum dibangun" di berkas ini sudah DELAPAN kali berpindah,
+ * dan kedelapannya karena laporannya memang dibangun: Weighbridge → Engine
+ * Room (screen-144), Threshing → Process Water (screen-149), Pressing →
+ * Kernel Plant (screen-151), Depricarping → Effluent Plant (screen-153),
+ * Kernel Plant → Process Quality Control (screen-155), Effluent Plant → CPO
+ * Dispatch (screen-157), Engine Room → Kernel Dispatch (screen-159), dan
+ * Process Water → Solid Waste Disposal (screen-161). Setiap kali, test di
+ * berkas ini memerah lebih dulu — kegagalan yang DIRANCANG, karena ia memaksa
+ * contohnya diperbarui alih-alih diam-diam menjadi selalu hijau.
+ *
+ * PEMINDAHAN KESEMBILAN terjadi pada screen-163 (2026-10-18): laporan Solid
+ * Waste Disposal mobile dibangun ('solid-waste-disposal' masuk ke
+ * REPORT_ROUTES), sehingga tile-nya menjadi AKTIF dan SEMUA asersi di berkas
+ * ini yang memakainya sebagai contoh "belum berlaporan" memerah sekaligus.
+ * Kali ini contohnya TIDAK dipindahkan ke stasiun nyata lain, melainkan
+ * diganti KODE FIKTIF: 'zz-stasiun-fiktif', dengan nama tile 'Stasiun Fiktif'.
+ *
+ * KOREKSI ATAS CATATAN screen-161 DI BERKAS INI — ia SALAH, dan ini sebabnya.
+ * Catatan itu menyatakan "DAN SESUDAH PEMINDAHAN KEDELAPAN, CONTOHNYA HABIS"
+ * dan bahwa "pemindahan KESEMBILAN TIDAK MUNGKIN dilakukan dengan cara yang
+ * sama", dengan alasan keempat jenis stasiun yang belum berlaporan sudah
+ * terpakai seluruhnya. Alasan itu dibuat TANPA memeriksa dari mana spec ini
+ * memperoleh daftar stasiunnya. Berkas ini TIDAK pernah membaca master
+ * station_types: ia MENYUNTIKKAN daftarnya sendiri lewat `makeStation({...})`
+ * yang diserahkan ke `getActiveAndPlaceholderStationsMock.mockResolvedValue()`,
+ * dan `@/services/stationRepo` di-mock di tingkat modul. Karena masternya
+ * DISUNTIK, kode stasiun apa pun tersedia di sini — termasuk kode yang tidak
+ * ada di StationType sama sekali (preseden: `stationReportMaster()` di
+ * StationReportServiceTest). Jadi kolam kandidatnya tidak pernah habis; yang
+ * habis hanyalah daftar stasiun NYATA, dan daftar itu memang tidak pernah
+ * diperlukan.
+ *
+ * KONSEKUENSINYA: ini pemindahan TERAKHIR. Tidak ada layar masa depan yang
+ * dapat membuat 'zz-stasiun-fiktif' punya laporan mobile, jadi contoh ini
+ * tidak akan pernah basi lagi — dan pengejaran yang berulang delapan kali itu
+ * selesai di sini. Contohnya SENGAJA tidak dipindahkan ke 'kernel-dispatch',
+ * 'cpo-dispatch' atau 'process-quality-control': ketiganya sedang dibangun
+ * pada screen-165/167/169 dan akan basi dalam hitungan hari.
+ *
+ * Kode fiktifnya ditulis LOWERCASE DAN BERTANDA HUBUNG dengan sengaja:
+ * LaporanProcessWaterView.spec.ts (unit_test_case 56) memungut kode stasiun
+ * yang dipakai berkas ini lewat /type: '([a-z-]+)'/g untuk memastikan masih
+ * ada contoh "belum berlaporan" yang tersisa di sini. Kode berhuruf besar atau
+ * bergaris bawah akan lolos dari pungutan itu dan membuat penjaganya hampa.
+ * `as StationType` diperlukan karena StationType adalah union TERTUTUP yang
+ * berakhir pada 'other'; bentuk teksnya tetap `type: 'zz-stasiun-fiktif'`.
+ *
+ * URUTAN TILE DI BERKAS INI TIDAK TERPENGARUH. Tangga `CASE type WHEN …` yang
+ * mengurutkan grid hidup di SQL stationRepo (getActiveAndPlaceholderStations
+ * / …ForProductionLine), dan di sana kode tak dikenal jatuh ke `ELSE 99`
+ * sehingga tampil PALING BELAKANG. Di berkas ini tangga itu tidak pernah
+ * dijalankan: stationRepo di-mock dan urutan tile SAMA DENGAN urutan array
+ * fixture-nya — itu pula yang diasersi unit_test_case 1 ("tidak ada
+ * penyusunan ulang di layar ini"). Jadi 'zz-stasiun-fiktif' menempati posisi
+ * yang dulu ditempati contoh lamanya, dan asersi urutan tile tetap berlaku
+ * apa adanya tanpa satu indeks pun digeser.
+ *
+ * Yang berubah pada pemindahan ini HANYALAH CONTOHNYA: tidak satu asersi
+ * dilemahkan, dihapus, atau dilonggarkan. Keempat asersi pesan tetap
+ * kesetaraan penuh `toBe`.
+ *
+ * Tiga contoh "belum dibangun" lain di berkas ini TIDAK ikut berubah, karena
+ * ketiganya masih benar-benar belum berlaporan:
+ *   - 'process-quality-control' (sort_order 180) — hasil pemindahan KELIMA,
+ *     dipakai pada st-3/st-5 dan pada asersi urutan tile;
+ *   - 'cpo-dispatch' (sort_order 170) — hasil pemindahan KEENAM, dipakai pada
+ *     st-4 di fixture lima-stasiun;
+ *   - 'kernel-dispatch' (sort_order 160) — hasil pemindahan KETUJUH, dipakai
+ *     pada test "tile tanpa laporan tetap tidak berpindah rute".
  *
  * Strategi mocking (mengikuti StationListView.spec.ts / DashboardReportingView.spec.ts):
  *   - 'vue-router' dimock di tingkat modul sehingga `router.push` dapat
@@ -110,7 +123,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import ReportingPilihStasiunView from '@/views/ReportingPilihStasiunView.vue'
-import type { StationSlot } from '@/services/stationRepo'
+import type { StationSlot, StationType } from '@/services/stationRepo'
 
 const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }))
 
@@ -196,7 +209,7 @@ function makeStation(overrides: Partial<StationSlot> & { id: string }): StationS
  */
 const THREE_STATIONS: StationSlot[] = [
   makeStation({ id: 'st-1', name: 'Sterilizer Lini A', type: 'sterilizer', isActive: true }),
-  makeStation({ id: 'st-2', name: 'Solid Waste Disposal Lini A', type: 'solid-waste-disposal', isActive: true }),
+  makeStation({ id: 'st-2', name: 'Stasiun Fiktif Lini A', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
   makeStation({ id: 'st-3', name: 'Process Quality Control Lini A', type: 'process-quality-control', isActive: true }),
 ]
 
@@ -244,8 +257,8 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(tiles).toHaveLength(3)
     expect(tiles[0].attributes('data-testid')).toBe('station-tile-sterilizer')
     expect(tiles[0].text()).toContain('Sterilizer Lini A')
-    expect(tiles[1].attributes('data-testid')).toBe('station-tile-solid-waste-disposal')
-    expect(tiles[1].text()).toContain('Solid Waste Disposal Lini A')
+    expect(tiles[1].attributes('data-testid')).toBe('station-tile-zz-stasiun-fiktif')
+    expect(tiles[1].text()).toContain('Stasiun Fiktif Lini A')
     expect(tiles[2].attributes('data-testid')).toBe('station-tile-process-quality-control')
     expect(tiles[2].text()).toContain('Process Quality Control Lini A')
   })
@@ -294,19 +307,19 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // `isActive && REPORT_ROUTES[type]` lolos tanpa terdeteksi.
   it('menandai tile nonaktif bila kodenya tidak ada di REPORT_ROUTES MESKIPUN isActive=true', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Stasiun Fiktif', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
     ])
 
-    const tile = wrapper.get('[data-testid="station-tile-solid-waste-disposal"]')
+    const tile = wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]')
     expect(tile.attributes('aria-disabled')).toBe('true')
     expect(tile.text()).toContain('Belum tersedia')
     expect(tile.classes()).toContain('station-tile--unavailable')
 
     // Ditekan pun hanya mengisi pesan — tidak berpindah rute.
     await tile.trigger('click')
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Solid Waste Disposal belum tersedia di aplikasi mobile.')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Stasiun Fiktif belum tersedia di aplikasi mobile.')
     expect(pushMock).not.toHaveBeenCalled()
-    expect(wrapper.find('[data-testid="station-tile-solid-waste-disposal"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="station-tile-zz-stasiun-fiktif"]').exists()).toBe(true)
   })
 
   // unit_test_case 4.
@@ -411,7 +424,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
 
     const wrapper = await mountWithStations(THREE_STATIONS)
 
-    await wrapper.get('[data-testid="station-tile-solid-waste-disposal"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]').trigger('click')
     await wrapper.get('[data-testid="station-tile-sterilizer"]').trigger('click')
     await flushPromises()
 
@@ -504,19 +517,19 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // unit_test_case 10 + Scenario "Menekan stasiun yang belum tersedia".
   it('scenario: menekan stasiun yang belum tersedia — mengisi pesan dan tidak berpindah rute', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Stasiun Fiktif', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
     ])
 
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
 
-    await wrapper.get('[data-testid="station-tile-solid-waste-disposal"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]').trigger('click')
 
     const infoMessage = wrapper.get('[data-testid="info-message"]')
-    expect(infoMessage.text()).toBe('Laporan Solid Waste Disposal belum tersedia di aplikasi mobile.')
+    expect(infoMessage.text()).toBe('Laporan Stasiun Fiktif belum tersedia di aplikasi mobile.')
     expect(infoMessage.attributes('role')).toBe('status')
     expect(pushMock).not.toHaveBeenCalled()
 
-    const tile = wrapper.get('[data-testid="station-tile-solid-waste-disposal"]')
+    const tile = wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]')
     expect(tile.attributes('aria-disabled')).toBe('true')
     expect(tile.text()).toContain('Belum tersedia')
   })
@@ -526,11 +539,11 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // bentuk konkret dari aturan "pesan tidak menumpuk".
   it('scenario: menekan berkali-kali — pesan tidak pernah menumpuk, hanya tertimpa', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Stasiun Fiktif', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
       makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
     ])
 
-    const unbuilt = wrapper.get('[data-testid="station-tile-solid-waste-disposal"]')
+    const unbuilt = wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]')
     await unbuilt.trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.findAll('[data-testid="info-message"]')).toHaveLength(1)
@@ -540,7 +553,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     await unbuilt.trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.findAll('[data-testid="info-message"]')).toHaveLength(1)
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Solid Waste Disposal belum tersedia di aplikasi mobile.')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Stasiun Fiktif belum tersedia di aplikasi mobile.')
 
     await wrapper.get('[data-testid="station-tile-process-quality-control"]').trigger('click')
     await wrapper.vm.$nextTick()
@@ -593,7 +606,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(wrapper.get('[data-testid="station-grid"]').exists()).toBe(true)
     expect(wrapper.findAll('[data-testid^="station-tile-"]')).toHaveLength(3)
     expect(wrapper.get('[data-testid="station-tile-sterilizer"]').attributes('aria-disabled')).toBe('false')
-    expect(wrapper.get('[data-testid="station-tile-solid-waste-disposal"]').attributes('aria-disabled')).toBe('true')
+    expect(wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.get('[data-testid="station-tile-process-quality-control"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="no-stations"]').exists()).toBe(false)
@@ -607,7 +620,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   it('scenario: stasiun belum tersedia tidak disembunyikan — 5 StationSlot menghasilkan 5 tile, 4 nonaktif', async () => {
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
-      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Stasiun Fiktif', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
       makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
       // PEMINDAHAN KEENAM — DIPINDAHKAN dari Effluent Plant pada screen-157
       // (2026-10-13), yang sendiri hasil pemindahan KEEMPAT dari Depricarping
@@ -627,13 +640,17 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       // mobile, dan Kernel Dispatch terpakai oleh pemindahan KETUJUH di
       // bawah — yang tersisa hanya Solid Waste Disposal (150).
       //
-      // DIPERBARUI LAGI pada screen-161 (2026-10-18): Solid Waste Disposal
-      // (150) itu pun kini TERPAKAI, oleh pemindahan KEDELAPAN (st-2 di
-      // fixture ini dan di hampir seluruh berkas), karena laporan Process
-      // Water mobile dibangun. CPO Dispatch sendiri TIDAK berpindah — ia
-      // masih belum punya laporan mobile, jadi tile-nya tetap nonaktif dan
-      // hitungan 4 tile nonaktif di bawah tetap berlaku. Yang tersisa sebagai
-      // kandidat contoh: TIDAK ADA — lihat docblock berkas.
+      // DIPERBARUI LAGI pada screen-163 (2026-10-18), PEMINDAHAN KESEMBILAN:
+      // st-2 di fixture ini kini berkode FIKTIF ('zz-stasiun-fiktif'), karena
+      // laporan Solid Waste Disposal mobile dibangun pada screen-163 sehingga
+      // tile-nya menjadi AKTIF. Lacakan "kandidat mana lagi yang tersisa" yang
+      // dirawat di komentar ini SELESAI di sini: masternya DISUNTIK lewat
+      // makeStation, jadi kodenya tidak perlu nyata, dan kode fiktif tidak
+      // akan pernah masuk REPORT_ROUTES. Catatan screen-161 yang menyatakan
+      // kandidatnya HABIS adalah KELIRU — lihat koreksinya di docblock berkas.
+      // CPO Dispatch sendiri TIDAK berpindah: ia masih belum punya laporan
+      // mobile, jadi tile-nya tetap nonaktif dan hitungan 4 tile nonaktif di
+      // bawah tetap berlaku.
       makeStation({ id: 'st-4', name: 'CPO Dispatch', type: 'cpo-dispatch', isActive: true }),
       makeStation({ id: 'st-5', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
     ])
@@ -655,7 +672,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   it('tidak memakai atribut disabled native di mana pun pada grid', async () => {
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
-      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Stasiun Fiktif', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
       makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: false }),
     ])
 
@@ -702,7 +719,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       expect(tiles.map((tile) => tile.attributes('aria-disabled'))).toEqual(['false', 'true', 'true'])
       expect(tiles.map((tile) => tile.attributes('data-testid'))).toEqual([
         'station-tile-sterilizer',
-        'station-tile-solid-waste-disposal',
+        'station-tile-zz-stasiun-fiktif',
         'station-tile-process-quality-control',
       ])
       expect(wrapper.text()).not.toMatch(/akses ditolak|tidak diizinkan|forbidden/i)
@@ -714,13 +731,13 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   // sisa teks Inggris pada label yang ditulis layar ini sendiri.
   it('menulis seluruh teks layar dalam Bahasa Indonesia', async () => {
     const wrapper = await mountWithStations([
-      makeStation({ id: 'st-2', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Stasiun Fiktif', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
     ])
 
-    await wrapper.get('[data-testid="station-tile-solid-waste-disposal"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="station-tile-solid-waste-disposal"]').text()).toContain('Belum tersedia')
-    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Solid Waste Disposal belum tersedia di aplikasi mobile.')
+    expect(wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]').text()).toContain('Belum tersedia')
+    expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Stasiun Fiktif belum tersedia di aplikasi mobile.')
     expect(wrapper.text()).not.toMatch(/not available|no stations|loading\b/i)
   })
 })
@@ -886,16 +903,19 @@ describe('ReportingPilihStasiunView — membawa Production Line ke laporan', () 
     // 180 sudah terpakai di tempat lain; Solid Waste Disposal 150 lebih
     // rendah), sehingga pemindahan KEDELAPAN tertunda paling lama.
     //
-    // PEMINDAHAN KEDELAPAN sudah terjadi pada screen-161 (2026-10-18), dan ia
-    // TIDAK menyentuh test ini: yang berpindah adalah contoh 'process-water'
-    // -> 'solid-waste-disposal' di tempat lain pada berkas ini, sementara
-    // Kernel Dispatch di sini MASIH belum punya laporan mobile. Yang berubah
-    // hanyalah bahwa Solid Waste Disposal (150) kini terpakai, sehingga
-    // kandidat contoh HABIS — lihat docblock berkas.
+    // PEMINDAHAN KEDELAPAN (screen-161, 2026-10-18) dan KESEMBILAN
+    // (screen-163, 2026-10-18) TIDAK menyentuh test ini: yang berpindah adalah
+    // contoh di tempat LAIN pada berkas ini ('process-water' →
+    // 'solid-waste-disposal' → 'zz-stasiun-fiktif'), sementara Kernel Dispatch
+    // di sini MASIH belum punya laporan mobile.
     //
-    // Kalau suatu hari Kernel Dispatch pun dibuatkan laporan, test ini akan
-    // gagal lagi — dan itu justru benar: ia memaksa contohnya diperbarui
-    // alih-alih diam-diam menjadi selalu hijau.
+    // Kalau suatu hari Kernel Dispatch pun dibuatkan laporan (ia sedang
+    // dibangun pada screen-165), test ini akan gagal lagi — dan itu justru
+    // benar: ia memaksa contohnya diperbarui alih-alih diam-diam menjadi
+    // selalu hijau. Penggantinya kelak TIDAK perlu stasiun nyata: pakai kode
+    // FIKTIF seperti 'zz-stasiun-fiktif' yang dipakai di tempat lain pada
+    // berkas ini, karena masternya DISUNTIK lewat makeStation — lihat koreksi
+    // "kolam kandidat habis" pada docblock berkas.
     window.localStorage.setItem('msl_production_line_user-1', 'pl-2')
     getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([
       makeStation({ id: 'st-x', name: 'Kernel Dispatch', type: 'kernel-dispatch', isActive: true }),

@@ -1158,6 +1158,41 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanProcessWaterView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-163--laporan-solid-waste-disposal-mobile /
+    // usecase-169--laporan-solid-waste-disposal-mobile "Lihat Laporan Periode
+    // Solid Waste Disposal (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: Station
+    // Operator, Supervisor, Mill Management, Admin) — without a token the
+    // router guard sends the caller to Login.
+    //
+    // THERE IS NO ROLE LIST ON THIS ROUTE, AND THAT IS THE CONTRACT — not an
+    // omission. The mobile router carries ONE global guard, over `meta.public`,
+    // and not one of its routes carries a role list; the real role restriction
+    // lives server-side on the three data routes. Adding a role guard here
+    // would be a router-wide change touching all 15 report screens.
+    //
+    // ZERO BACKEND CHANGE, and that was paid for in advance on purpose: all
+    // three /api/solid-waste-disposal-reports/* data routes have admitted
+    // Operator since screen-162's FIRST commit, precisely so this mobile twin
+    // would not have to widen anything, and
+    // /api/production-lines/options-for-report is reused verbatim from
+    // screen-135. What stayed closed stays closed: /business-units/options is
+    // Admin only (403 raised inside the service, not by the middleware), and
+    // the WEB route /reports/solid-waste-disposal is not touched. Unlike
+    // screen-161 this mobile screen DOES render a mill picker — Admin is one of
+    // its four actors, and Admin is not bound to a mill.
+    //
+    // Pintu masuknya: rute 'report-stations' (screen-141) menampilkan grid
+    // stasiun, dan tile Solid Waste Disposal-lah yang menavigasi ke sini —
+    // entri 'solid-waste-disposal' pada REPORT_ROUTES di
+    // ReportingPilihStasiunView.vue adalah satu-satunya penentu tile itu hidup
+    // atau mati. Kuncinya WAJIB berkutip di sana karena bertanda hubung.
+    path: '/reports/solid-waste-disposal',
+    name: 'report-solid-waste-disposal',
+    component: () => import('@/views/LaporanSolidWasteDisposalView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

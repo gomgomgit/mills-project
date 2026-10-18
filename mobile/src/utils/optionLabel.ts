@@ -19,6 +19,21 @@ export const OPTION_LABELS: Record<string, string> = {
   // Boiler Room: blowdown_executed / sootblowing_executed
   y: 'Ya',
   n: 'Tidak',
+  // Kernel Dispatch: remarks_gate_status. DITAMBAHKAN 2026-10-18 bersama
+  // screen-164 (Laporan Kernel Dispatch), yang menaikkan kedua nilai ini ke
+  // Display::OPTION_LABELS di backend — label-nya disalin VERBATIM dari sana,
+  // yang menyalinnya verbatim dari <select> di form-kernel-dispatch.blade.php.
+  //
+  // CARA KELALAIANNYA KETAHUAN, dan itu layak dicatat: backend diubah lebih
+  // dulu TANPA memeriksa bahwa cermin ini ada, dan test penjaga di
+  // tests/optionLabel.spec.ts — yang MEMBACA Display.php dari disk lalu
+  // menuntut kedua peta identik — langsung memerah dan memerahkan seluruh
+  // suite mobile. Penjaga itu bekerja persis sebagaimana dimaksud: sebuah
+  // kosakata bersama yang hidup di DUA bahasa hanya tetap bersama bila ada
+  // yang membandingkannya, dan membandingkannya tidak dapat diserahkan pada
+  // ingatan orang yang mengubah salah satu sisinya.
+  released: 'Released',
+  not_released: 'Not Released',
 }
 
 /** Kosong -> "-", nilai dikenal -> labelnya, tak dikenal -> apa adanya. */

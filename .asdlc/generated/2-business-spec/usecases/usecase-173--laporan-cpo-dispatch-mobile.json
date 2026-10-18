@@ -1,0 +1,655 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "usecase-173--laporan-cpo-dispatch-mobile",
+  "name": "Lihat Laporan Periode CPO Dispatch (Mobile)",
+  "description": "Pengguna aplikasi mobile — Operator, Supervisor, Mill Management atau Admin — memilih Production Line dan periode pelaporan, lalu membaca rekap seluruh PENGIRIMAN MINYAK SAWIT MENTAH (CPO) KELUAR sepanjang periode itu. Satuan hitungnya SATU PENGIRIMAN: satu tanker yang datang, diisi, dan berangkat.\n\nANGKANYA SAMA PERSIS DENGAN PASANGAN WEB-NYA (screen-166), dan yang menjaminnya adalah mekanismenya: endpoint yang sama dipakai ulang apa adanya, NOL endpoint baru, seluruh agregasi dihitung di server, dan layar ini TIDAK menghitung satu agregat pun. Dua angka berbeda untuk pertanyaan yang sama adalah cacat, bukan perbedaan platform.\n\nLAYAR INI ADALAH SATU-SATUNYA LAPORAN PENGIRIMAN DI APLIKASI MOBILE YANG PUNYA SEBARAN PER JAM DAN WAKTU PUTAR TANKER, karena hanya catatan stasiun ini yang mencatat jam tanker masuk dan jam tanker keluar — pada stasiun saudaranya, Kernel Dispatch, keduanya justru tidak ada. Dari dua kolom itu lahir SEBARAN PENGIRIMAN MENURUT JAM MASUK, yang memperlihatkan kapan jembatan timbang padat dan kapan ia menganggur, dan WAKTU PUTAR TANKER, yaitu berapa lama satu tanker berada di dalam pabrik.\n\nJAM DICATAT TANPA TANGGAL, DAN ITULAH JEBAKAN TERBESAR LAYAR INI. Tanker yang masuk pukul 23:30 dan keluar pukul 00:45 secara mentah memberi selisih NEGATIF dua puluh dua jam empat puluh lima menit. Ini bukan kasus langka: tanker memang berangkat melewati tengah malam. Karena itu jam keluar yang LEBIH KECIL daripada jam masuk dibaca sebagai HARI BERIKUTNYA — satu hari penuh ditambahkan — BUKAN sebagai data salah. Dan karena pembacaan itu adalah PENAFSIRAN, jumlah pengiriman yang dibaca menyeberang tengah malam DITERBITKAN sebagai angka tersendiri di layar: tafsir yang tidak terlihat adalah tafsir yang tidak dapat dibantah. Penafsiran itu TIDAK menggeser kelompok sebaran jam — pengiriman masuk 23:30 tetap di kelompok jam 23. Jam masuk yang SAMA dengan jam keluar menghasilkan waktu putar NOL menit yang dilaporkan apa adanya, tetap di penyebut, dan tidak dibaca menyeberang tengah malam. Waktu putar yang tampak tidak wajar TIDAK dibuang dan TIDAK dipotong: stasiun ini tidak punya master batas kewajaran, sehingga memilih batas berarti mengarangnya; layar menyatakan bahwa angka seperti itu patut DIPERIKSA PEMBACA, bukan diputuskan oleh laporan.\n\nAKIBAT SEMUA ITU LAYAR INI PUNYA EMPAT PENYEBUT YANG BERBEDA SEKALIGUS, dan kenyataan itu WAJIB DINYATAKAN: jumlah pengiriman seluruhnya; pengiriman yang BERATNYA terisi; pengiriman yang JAM MASUKNYA tercatat; dan pengiriman yang KEDUA JAMNYA tercatat — ditambah penyebut MASING-MASING dari empat ukuran mutu (kadar asam lemak bebas, kadar air, kadar kotoran, dan DOBI, yang merupakan INDEKS TANPA SATUAN sementara ketiga lainnya persen). Ketiga rekap kategoris layar ini seluruhnya teks bebas dan stasiun ini TIDAK punya satu pun kolom berpilihan tertutup, sehingga TIDAK ADA rekap berlabel — ketiadaan itu dinyatakan karena pembaca yang datang dari Kernel Dispatch akan mencarinya.\n\nYANG KHUSUS MOBILE: Operator memang PENGGUNANYA, bukan sekadar diizinkan — ia yang berada di jembatan timbang ketika angkanya dipertanyakan. Pintu masuknya tunggal: tile CPO Dispatch pada layar Reporting (screen-141). Laporan ini MEMERLUKAN JARINGAN dan luring MENUTUP angkanya alih-alih menyajikannya basi. Ekspornya HANYA CSV karena WebView ponsel tidak membuka .xlsx. Dan tantangan tata letak terbesarnya adalah SEBARAN DUA PULUH EMPAT JAM pada lebar ponsel, yang dirender sebagai DAFTAR BERTUMPUK dua puluh lima baris di dalam kartunya yang dapat dilipat — sementara kartu tonase, kartu mutu dan kartu waktu putar tidak dapat dilipat sama sekali.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi mobile sebagai Operator, Supervisor, Mill Management atau Admin",
+    "Akun pengguna terhubung ke sebuah mill; khusus Admin yang tidak terikat mill, ia memilih mill di layar ini",
+    "Mill punya setidaknya satu Periode Pelaporan yang mendaftarkan stasiun CPO Dispatch",
+    "Mill punya setidaknya satu Production Line",
+    "Perangkat terhubung jaringan — layar ini tidak punya mode luring dan tidak menyimpan angka untuk dibaca ulang"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka layar Reporting (screen-141) lalu menekan tile CPO Dispatch — satu-satunya pintu masuk ke layar ini"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Menetapkan mill dari akun pengguna bagi Operator, Supervisor dan Mill Management; khusus Admin, menampilkan pemilih Mill dan menunggu ia memilih"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Memuat daftar Production Line milik mill yang berlaku, lalu memilih otomatis line yang terakhir diingat perangkat bila ada dan masih sah — pengguna tidak diminta memilih ulang sesuatu yang sudah diketahui, dan nilai yang tidak lagi sah dibuang alih-alih dipakai"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Memilih Production Line bila belum terpilih otomatis, atau mengganti line yang terpilih otomatis — tidak ada opsi 'semua line', dan line tunggal pun tidak dipilihkan"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Memuat daftar periode yang mendaftarkan stasiun CPO Dispatch pada mill yang berlaku; status periode tidak menyaring daftar itu"
+    },
+    {
+      "step": 6,
+      "actor": "actor-station-operator",
+      "description": "Memilih Periode Pelaporan; periode berstatus draft, terbuka maupun tertutup sama-sama dapat dipilih dan sama-sama terbaca penuh"
+    },
+    {
+      "step": 7,
+      "actor": "actor-station-operator",
+      "description": "Meminta ringkasan periode dengan periode dan Production Line terpilih lewat endpoint yang SAMA PERSIS dengan pasangan web-nya (screen-166), lalu merender apa yang diterbitkan server tanpa menghitung ulang satu agregat pun — nol endpoint baru dibuat untuk layar ini"
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Menyaring catatan pengiriman CPO menurut mill dan Production Line terpilih, lalu menentukan keanggotaan periode dari TANGGAL PENGIRIMAN itu sendiri — inklusif di kedua ujung, bukan dari waktu baris dibuat maupun waktu sinkronisasi perangkat; tanggal pengiriman selalu terisi sehingga tidak ada pengiriman yang jatuh di luar periode karena tanggalnya kosong"
+    },
+    {
+      "step": 9,
+      "actor": "System",
+      "description": "Menghitung jumlah pengiriman sebagai jumlah BARIS CATATAN PENGIRIMAN — satu tanker yang datang, diisi dan berangkat, bukan satu dokumen catatan harian — membaca berat bersih APA ADANYA tanpa menghitungnya ulang dari bruto dikurangi tara, lalu memisahkan pengiriman yang beratnya belum terisi sebagai PENIMBANGAN BELUM SELESAI dan mengecualikannya dari total maupun rata-rata; penyebut berat itu disiapkan untuk dicetak di kartu yang sama dengan angkanya"
+    },
+    {
+      "step": 10,
+      "actor": "System",
+      "description": "Menghitung EMPAT ukuran mutu secara sepenuhnya mandiri — kadar asam lemak bebas, kadar air, kadar kotoran, dan DOBI — masing-masing berupa nilai terendah, rata-rata dan tertinggi, dan masing-masing dengan PENYEBUTNYA SENDIRI yaitu jumlah pengiriman yang punya hasil uji untuk ukuran itu saja; ketiga ukuran pertama berupa persen sementara DOBI adalah INDEKS tanpa satuan"
+    },
+    {
+      "step": 11,
+      "actor": "System",
+      "description": "Menyusun SEBARAN PENGIRIMAN MENURUT JAM MASUK ke dalam dua puluh empat kelompok jam — menurut jam MASUK dan bukan jam keluar, karena yang ditanyakan adalah kapan tanker datang dan itulah yang membebani jembatan timbang — menentukan jam tersibuk, menghitung jumlah jam yang kosong, dan menambahkan satu kelompok 'JAM TIDAK TERCATAT' TERSENDIRI untuk pengiriman yang jam masuknya kosong, termasuk yang justru punya jam keluar, sehingga penjumlahan seluruh kelompok wajib sama dengan jumlah pengiriman"
+    },
+    {
+      "step": 12,
+      "actor": "System",
+      "description": "Menghitung WAKTU PUTAR TANKER hanya untuk pengiriman yang jam masuk DAN jam keluarnya KEDUANYA tercatat, lalu menerbitkan waktu putar tercepat, rata-rata dan terlama beserta PENYEBUT WAKTU PUTAR itu, serta jumlah pengiriman yang waktu putarnya TIDAK DAPAT dihitung karena salah satu jamnya kosong"
+    },
+    {
+      "step": 13,
+      "actor": "System",
+      "description": "Untuk pengiriman yang jam keluarnya LEBIH KECIL daripada jam masuknya, membaca jam keluar itu sebagai HARI BERIKUTNYA dengan menambahkan satu hari penuh sebelum menghitung selisihnya — karena jam dicatat tanpa tanggal — lalu menghitung berapa pengiriman yang dibaca MENYEBERANG TENGAH MALAM dan menerbitkan angka itu TERSENDIRI beserta penjelasan pembacaannya; penafsiran itu tidak menggeser kelompok sebaran jam satu pengiriman pun, pengiriman berjam masuk sama dengan jam keluar dihitung nol menit apa adanya tanpa dibaca menyeberang, dan waktu putar yang tampak tidak wajar tidak dibuang maupun dipotong"
+    },
+    {
+      "step": 14,
+      "actor": "System",
+      "description": "Menyusun tiga rekap kategoris dari kolom TEKS BEBAS — perusahaan pengangkut, tangki penyimpanan sumber, dan pembeli tujuan — dengan jumlah pengiriman dan total netto per nilai apa adanya tanpa penerjemahan, masing-masing dengan baris 'tidak tercatat' yang berdiri sendiri, dalam urutan yang diterbitkan server dari total netto terbesar lebih dulu"
+    },
+    {
+      "step": 15,
+      "actor": "System",
+      "description": "Menyiapkan TIGA penghitung jejak kepatuhan terpisah (tanpa nomor surat jalan, tanpa segel atas, tanpa segel bawah), rekap harian satu baris per hari yang ada pengirimannya beserta baris total periode, kelengkapan pencatatan atas hari yang sudah berjalan, jumlah pengiriman berstatus draft, dan daftar temuan bertanggal"
+    },
+    {
+      "step": 16,
+      "actor": "actor-station-operator",
+      "description": "Menampilkan nama periode beserta rentang dan penanda statusnya serta nama mill yang berlaku, lalu KARTU TONASE, KARTU MUTU dan KARTU WAKTU PUTAR sebagai tiga kartu BERURUTAN yang tidak terpisah oleh bagian apa pun dan ketiganya tidak dapat dilipat — beserta jumlah pengiriman yang penimbangannya belum selesai, jumlah menyeberang tengah malam dan jumlah tak-dapat-dihitung — kemudian KARTU SEBARAN JAM MASUK sebagai DAFTAR BERTUMPUK dua puluh empat baris jam ditambah satu baris 'jam tidak tercatat' dengan jam tersibuk dan jumlah jam kosong di kepala kartunya, lalu ketiga rekap teks bebas, ketiga penghitung kepatuhan, rekap harian, kelengkapan dalam hari, jumlah pengiriman draft, daftar temuan, serta PERNYATAAN bahwa keempat penyebut layar ini berbeda, bahwa DOBI adalah indeks tanpa satuan, bahwa waktu putar tak wajar patut diperiksa pembaca, bahwa stasiun ini tidak punya kolom berpilihan tertutup sehingga tidak ada rekap berlabel, bahwa tidak ada penandaan nilai mutu di luar batas, dan bahwa giliran kerja tidak di layar tetapi ada di ekspor"
+    },
+    {
+      "step": 17,
+      "actor": "actor-station-operator",
+      "description": "Membaca angkanya; membuka dan menutup bagian rekap serta kartu sebaran jam tanpa memicu satu permintaan data pun, dan menggulir tabel rekap yang lebar mendatar di dalam kartunya sementara halaman itu sendiri tidak bergeser"
+    },
+    {
+      "step": 18,
+      "actor": "actor-station-operator",
+      "description": "Mengunduh ekspor CSV — satu-satunya format yang ditawarkan: rincian mentah satu baris per pengiriman, kolom konteks diulang di setiap baris, dan SELURUH kolom catatan ikut termasuk giliran kerja, nomor surat jalan, nomor tanker, nama pengemudi, kedua nomor segel, nama operator timbang, serta jam masuk dan jam keluar APA ADANYA tanpa penafsiran menyeberang tengah malam"
+    }
+  ],
+  "postconditions": [
+    "Pengguna membaca rekap periode stasiun CPO Dispatch untuk Production Line yang dipilih, dengan angka yang sama persis dengan screen-166",
+    "Kartu tonase, kartu mutu dan kartu waktu putar sudah terbaca ketiganya tanpa satu tindakan pun dari pengguna, karena ketiganya tidak dapat dilipat",
+    "Keempat penyebut layar ini terbaca masing-masing di kartunya sendiri, sehingga tidak ada angka yang dapat dibaca dengan penyebut yang salah",
+    "Tidak ada satu pun data stasiun yang berubah — layar ini hanya membaca",
+    "Pilihan Production Line dan periode bertahan ketika pengguna kembali ke layar ini dari layar lain, dan line yang dipilih tetap diingat perangkat untuk pembukaan berikutnya"
+  ],
+  "alternative_flows": [
+    {
+      "name": "Line yang diingat perangkat dipakai tanpa diminta memilih, dan yang tidak lagi sah dibuang",
+      "trigger": "Pada langkah 3, perangkat sudah mengingat Production Line dari layar lain — line itu masih milik mill yang berlaku, atau sebaliknya sudah milik mill lain maupun sudah dihapus",
+      "steps": [
+        "Bila line itu masih sah, ia dipilih otomatis tanpa satu langkah pun dari pengguna dan daftar periode langsung dimuat",
+        "Pemilih line TETAP dapat dibuka dan diganti — line adalah konteks yang DIPILIH, bukan ikatan akun yang dipaksakan",
+        "Bila line itu tidak lagi sah, nilai itu DIBUANG alih-alih dipakai: layar meminta memilih line dan server mengabaikannya pada jalur mana pun",
+        "Angka milik mill lain TIDAK pernah ditampilkan, bahkan sekejap, dan tidak satu baris sebaran jam pun"
+      ]
+    },
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 4, perangkat belum pernah mengingat line dan pengguna belum memilih — termasuk ketika mill hanya punya satu line",
+      "steps": [
+        "Layar meminta memilih Production Line dan menyatakan apa yang ditunggunya",
+        "NOL permintaan ringkasan terkirim — penjagaannya di fungsi pemuatan, bukan di template",
+        "Tidak ada satu angka pun yang tampil, dan tidak ada angka gabungan seluruh line sebagai pengganti sementara; pemilih tidak menyediakan opsi 'semua line' dalam bentuk apa pun",
+        "Line tunggal TIDAK dipilihkan otomatis — pembaca harus tahu line mana yang sedang dibacanya, dan mill yang hari ini punya satu line besok bisa punya dua",
+        "Tombol ekspor tidak dirender"
+      ]
+    },
+    {
+      "name": "Penyimpanan perangkat tidak dapat dibaca",
+      "trigger": "Pada langkah 3, membaca kunci line tersimpan gagal karena perangkat berjalan dalam mode privat atau penyimpanan situs diblokir",
+      "steps": [
+        "Pembacaan dibungkus try/catch sehingga tidak mematahkan layar",
+        "Layar TETAP tampil utuh dan jatuh ke keadaan 'belum ada line terpilih'",
+        "NOL elemen galat dirender — ini bukan kegagalan yang perlu dilaporkan ke pengguna",
+        "Pengguna memilih line secara manual dan alur berlanjut normal"
+      ]
+    },
+    {
+      "name": "Admin memilih dan mengganti mill",
+      "trigger": "Pada langkah 2, pengguna berperan Admin dan belum memilih mill, atau mengganti mill padahal line dan periode sudah terpilih",
+      "steps": [
+        "Sebelum mill dipilih, arahan memilih mill tampil dan tidak ada area kosong tanpa penjelasan",
+        "Daftar Production Line maupun daftar periode belum dimuat",
+        "Ketika mill diganti, pilihan Production Line DAN pilihan periode keduanya dikosongkan — sebuah line maupun sebuah periode milik tepat satu mill",
+        "Seluruh angka berhenti ditampilkan dan tidak ada angka mill lama yang tertinggal, termasuk tidak satu baris sebaran jam maupun satu angka waktu putar pun",
+        "Layar kembali meminta memilih Production Line sampai pengguna memilihnya secara sadar"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun Operator, Supervisor atau Mill Management belum terhubung ke mill mana pun",
+      "steps": [
+        "Layar menampilkan arahan jelas agar pengguna menghubungi Admin — bukan pesan galat izin dan bukan pesan galat jaringan",
+        "Layar tidak menawarkan daftar seluruh mill sebagai jalan keluar",
+        "Tidak ada satu angka pun yang ditampilkan dan nol permintaan ringkasan terkirim"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode yang mencakup stasiun ini",
+      "trigger": "Pada langkah 5, mill tidak punya satu pun periode yang mendaftarkan stasiun CPO Dispatch",
+      "steps": [
+        "Pemilih periode tampil kosong",
+        "Layar menampilkan kalimat sebabnya beserta arahan menghubungi Admin untuk pembuatan periode",
+        "Tidak ada angka yang ditampilkan, dan bagian sebaran jam maupun waktu putar tidak dirender berisi"
+      ]
+    },
+    {
+      "name": "Line atau periode milik mill lain",
+      "trigger": "Pada langkah 7, periode atau Production Line yang diminta bukan milik mill yang berlaku — lewat nilai tersimpan yang basi atau jalur lain apa pun",
+      "steps": [
+        "Permintaan ditolak di server, dan tidak satu angka pun terhitung karena penolakan terjadi sebelum agregasi dijalankan",
+        "Layar kembali meminta memilih Production Line dan tidak pernah menampilkan angka mill lain",
+        "Tidak ada sebagian data yang bocor — bukan jumlah pengiriman, bukan tonase, bukan satu kelompok sebaran jam, bukan satu angka waktu putar"
+      ]
+    },
+    {
+      "name": "Periode tanpa pengiriman pada line terpilih",
+      "trigger": "Pada langkah 8, periode mendaftarkan stasiun ini tetapi line terpilih tidak punya satu pengiriman pun",
+      "steps": [
+        "Kerangka laporan TETAP tampil dengan keadaan kosong yang menyebut periode dan line yang sedang dibaca",
+        "Seluruh angka ditampilkan tidak tersedia dan BUKAN sebagai nol",
+        "Kartu sebaran jam dan kartu waktu putar TETAP dirender dengan keadaan kosongnya, bukan dihilangkan dari layar",
+        "Kelengkapan pencatatan TETAP ditampilkan supaya pembaca tahu berapa hari yang seharusnya terisi",
+        "Tidak ada bilah kosong yang bisa disalahartikan sebagai aktivitas bernilai nol"
+      ]
+    },
+    {
+      "name": "Penimbangan belum selesai — sebagian atau seluruhnya",
+      "trigger": "Pada langkah 9, sebagian pengiriman belum punya berat bersih karena tanker belum kembali ditimbang, atau tidak satu pun pengiriman pada periode punya berat bersih terisi",
+      "steps": [
+        "Total dan rata-rata dihitung HANYA atas pengiriman yang beratnya terisi, dan penyebut berat dicetak di kartu yang sama — ia BUKAN jumlah pengiriman",
+        "Pengiriman tanpa berat tidak dianggap bernilai nol dan tidak menurunkan rata-rata, melainkan dikecualikan darinya",
+        "Jumlah pengiriman yang penimbangannya belum selesai ditonjolkan sebagai angka tersendiri sehingga ketiga angka itu dapat direkonsiliasi",
+        "Bila tidak satu pun bertimbang, kedua angka berat tampil '—' dengan penyebut berat nol dan layar menyatakan bahwa seluruh penimbangan belum selesai, sementara jumlah pengiriman tetap menunjukkan angka sebenarnya",
+        "Ukuran mutu, sebaran jam, dan waktu putar TIDAK terpengaruh sama sekali — berat dan kedua jam terisi secara saling bebas, dan pengiriman tanpa berat tetap ikut sebaran jam serta ikut waktu putar bila kedua jamnya tercatat"
+      ]
+    },
+    {
+      "name": "Ukuran mutu tanpa satu pun hasil uji",
+      "trigger": "Pada langkah 10, salah satu dari keempat ukuran mutu tidak punya satu hasil uji pun sementara yang lain punya, atau keempatnya kosong sementara tonasenya ada",
+      "steps": [
+        "Ukuran yang kosong menampilkan '—' untuk KETIGA angkanya — terendah, rata-rata dan tertinggi — bukan 0",
+        "Ukuran lainnya TETAP menampilkan angkanya masing-masing beserta penyebutnya, karena penyebut nol pada satu ukuran TIDAK mengosongkan ukuran yang lain",
+        "Satu pengiriman yang punya hasil uji kadar air tetapi tidak punya hasil uji DOBI terhitung pada penyebut yang pertama dan tidak pada yang kedua",
+        "Ketika keempatnya kosong, kartu mutu MENYATAKAN bahwa belum ada hasil uji pada periode ini sementara kartu tonase dan kartu waktu putar tetap berangka penuh",
+        "Kartu mutu tidak disembunyikan, karena menyembunyikannya membuat pembaca mengira layar ini tidak punya bagian mutu",
+        "'Belum diuji' dan 'kadarnya nol' dibedakan — untuk kadar air perbedaannya besar"
+      ]
+    },
+    {
+      "name": "Jam keluar lebih kecil daripada jam masuk — pengiriman menyeberang tengah malam",
+      "trigger": "Pada langkah 13, sebuah pengiriman punya jam keluar yang LEBIH KECIL daripada jam masuknya — misalnya masuk 23:30 dan keluar 00:45",
+      "steps": [
+        "Jam keluar itu dibaca sebagai HARI BERIKUTNYA dan satu hari penuh ditambahkan sebelum selisihnya dihitung, karena jam dicatat tanpa tanggal",
+        "Waktu putarnya menjadi satu jam lima belas menit dan BUKAN negatif dua puluh dua jam empat puluh lima menit",
+        "Pengiriman itu TIDAK ditandai sebagai data salah dan TIDAK dibuang dari penyebut waktu putar — tanker memang berangkat melewati tengah malam",
+        "Pengiriman itu masuk hitungan 'MENYEBERANG TENGAH MALAM' yang diterbitkan sebagai angka TERSENDIRI di layar beserta penjelasan pembacaannya, supaya pembaca tahu berapa banyak angka waktu putar yang lahir dari PENAFSIRAN alih-alih dari pembacaan langsung — tafsir yang tidak terlihat adalah tafsir yang tidak dapat dibantah",
+        "Angka itu tetap dirender sebagai nol ketika tidak ada satu pun, supaya pembaca tahu pembacaan itu memang dijalankan",
+        "Pada daftar sebaran jam, pengiriman itu tetap berada di baris kelompok jam MASUK-nya yaitu kelompok 23 — penafsiran menyeberang tengah malam sama sekali tidak menggeser kelompok sebarannya"
+      ]
+    },
+    {
+      "name": "Waktu putar nol menit dan waktu putar yang tampak tidak wajar — keduanya dilaporkan apa adanya",
+      "trigger": "Pada langkah 13, sebuah pengiriman punya jam masuk dan jam keluar yang SAMA, atau sebaliknya menghasilkan waktu putar yang tampak tidak wajar — misalnya lebih dari dua belas jam, mungkin karena salah input jam",
+      "steps": [
+        "Jam masuk yang sama dengan jam keluar menghasilkan waktu putar NOL menit yang dilaporkan apa adanya sebagai nol, TETAP di penyebut waktu putar karena kedua jamnya tercatat, dan TIDAK dibaca sebagai menyeberang tengah malam maupun ikut angka menyeberang — jam keluar tidak lebih kecil daripada jam masuk, ia sama",
+        "Nol itu ikut menurunkan waktu putar tercepat menjadi nol dan ikut memengaruhi rata-rata, karena nol adalah angka bukan ketiadaan",
+        "Pembaca dapat membedakan 'nol menit' yang ada di penyebut waktu putar dari 'tidak dapat dihitung' yang ada di angka tak-dapat-dihitung",
+        "Waktu putar yang tampak tidak wajar dilaporkan APA ADANYA, tidak dibuang dari penyebut dan tidak dipotong oleh batas apa pun; ia tetap menjadi waktu putar terlama dan tetap ikut rata-rata",
+        "Sistem TIDAK menandainya sebagai pelanggaran dalam bentuk apa pun — tanpa warna peringatan, tanpa lencana, tanpa hitungan pelanggaran — karena stasiun ini tidak punya master batas kewajaran dan memilih batas berarti mengarangnya",
+        "Sebagai gantinya layar MENYATAKAN bahwa angka waktu putar yang tampak tidak wajar patut DIPERIKSA PEMBACA pada rincian pengirimannya, dan mengarahkannya ke ekspor untuk melihat kedua jam mentahnya"
+      ]
+    },
+    {
+      "name": "Hanya satu dari kedua jam tercatat, atau kedua jamnya tidak tercatat",
+      "trigger": "Pada langkah 11 dan 12, sebuah pengiriman punya jam masuk tanpa jam keluar, atau jam keluar tanpa jam masuk, atau tidak punya satu jam pun",
+      "steps": [
+        "Pengiriman dengan jam masuk tetapi tanpa jam keluar MASUK sebaran jam pada baris kelompok jam masuknya, dan TIDAK masuk penyebut waktu putar",
+        "Pengiriman dengan jam keluar tetapi tanpa jam masuk masuk baris 'JAM TIDAK TERCATAT' pada sebaran — jam keluarnya tidak pernah dipakai sebagai pengganti jam masuk — dan TIDAK masuk penyebut waktu putar",
+        "Pengiriman tanpa satu jam pun masuk baris 'jam tidak tercatat' pada sebaran dan masuk hitungan 'waktu putar tidak dapat dihitung'",
+        "Ketiga keadaan itu membuat penyebut sebaran jam dan penyebut waktu putar BERBEDA, dan kedua penyebut itu tercetak masing-masing di kartunya sendiri",
+        "Jumlah pengiriman yang waktu putarnya tidak dapat dihitung dinyatakan tersendiri, sehingga penyebut waktu putar ditambah angka itu sama dengan jumlah pengiriman"
+      ]
+    },
+    {
+      "name": "Keadaan ekstrem sebaran jam — satu jam terisi, atau tidak ada jam sama sekali",
+      "trigger": "Pada langkah 11, seluruh pengiriman masuk pada satu jam yang sama, atau tidak satu pun pengiriman punya jam masuk tercatat",
+      "steps": [
+        "Ketika seluruh pengiriman masuk pada satu jam yang sama, daftar sebaran memperlihatkan satu baris terisi dan DUA PULUH TIGA baris bernilai NOL yang tetap TERLIHAT sebagai nol — bukan dihilangkan dari daftar — dan jumlah jam kosong itu DINYATAKAN sebagai angka di kepala kartunya",
+        "Jam tersibuk adalah satu-satunya jam yang terisi itu",
+        "Ketika tidak satu pun pengiriman punya jam masuk, kartu sebaran MENYATAKAN bahwa tidak ada jam yang tercatat pada periode ini, seluruh pengiriman berada di baris 'jam tidak tercatat', dan jam tersibuk tampil '—'",
+        "Kartu waktu putar dalam keadaan itu menampilkan '—' untuk ketiga angkanya dengan penyebut nol, dan jumlah tak-dapat-dihitung sama dengan jumlah pengiriman",
+        "Kedua kartu TETAP dirender dan tidak dihilangkan dari layar, karena menghilangkannya membuat pembaca mengira layar ini tidak punya bagian jam — padahal justru inilah satu-satunya laporan pengiriman mobile yang punya"
+      ]
+    },
+    {
+      "name": "Sebaran dua puluh empat jam pada lebar ponsel",
+      "trigger": "Pada langkah 16, kartu sebaran jam dirender pada lebar ponsel yang tidak dapat memuat dua puluh empat kelompok jam ditambah kelompok 'jam tidak tercatat' berdampingan",
+      "steps": [
+        "Sebaran dirender sebagai DAFTAR BERTUMPUK di dalam kartunya — satu baris selebar kartu per kelompok, dua puluh empat baris jam ditambah satu baris 'jam tidak tercatat', masing-masing memuat label jamnya, jumlah pengirimannya, dan bilah sepanjang nilainya",
+        "Bentuk berdampingan DITOLAK karena dua puluh lima kelompok pada lebar ponsel hanya memberi tiap kelompok belasan piksel sehingga angkanya tidak terbaca",
+        "Gulir mendatar di dalam kartu juga DITOLAK karena ia menyembunyikan sebagian besar jam di balik gerakan, membuat pertanyaan 'jam mana yang tersibuk' menuntut gulir maju-mundur, dan menjadikan kelompok kosong yang paling mungkin tak pernah terlihat",
+        "Kelompok bernilai nol TETAP dirender sebagai baris bernilai nol dan tidak pernah dihilangkan dari daftar — jam yang kosong adalah informasi, bukan ketiadaan informasi",
+        "Jam tersibuk dan jumlah jam kosong dicetak di KEPALA kartu sebelum kedua puluh lima barisnya, supaya pertanyaan utamanya terjawab tanpa menggulir seluruh daftar",
+        "Kartunya dapat DILIPAT supaya dua puluh lima baris tidak mengubur bagian di bawahnya, dan melipatnya tidak memicu satu permintaan data pun",
+        "Halaman itu sendiri TIDAK PERNAH bergeser mendatar pada lebar ponsel mana pun"
+      ]
+    },
+    {
+      "name": "Pembaca memakai satu angka jumlah pengiriman sebagai penyebut semua ukuran",
+      "trigger": "Pada langkah 16, pembaca mencoba merekonsiliasi angka layar dengan hanya satu penyebut yaitu jumlah pengiriman",
+      "steps": [
+        "Layar merender PERNYATAAN bahwa ia punya EMPAT penyebut yang berbeda: jumlah pengiriman seluruhnya; pengiriman yang BERATNYA terisi; pengiriman yang JAM MASUKNYA tercatat; dan pengiriman yang KEDUA JAMNYA tercatat — ditambah penyebut masing-masing dari empat ukuran mutu",
+        "Pernyataan itu menyebut sebabnya: kedua jam dan berat terisi secara saling bebas, sehingga satu angka 'jumlah pengiriman' yang dipakai sebagai penyebut semuanya akan salah secara sistematis",
+        "Setiap angka rata-rata dan setiap ukuran mencetak PENYEBUTNYA SENDIRI di kartu yang sama dengan angkanya, sehingga pembaca tidak perlu menebak penyebut mana yang dipakai",
+        "Tidak pernah ada satu penyebut tunggal yang diumumkan di satu tempat lalu dipakai untuk kartu lain",
+        "Keempat penyebut boleh sama nilainya pada periode tertentu, dan kesamaan itu tidak membuat layar menggabungkannya menjadi satu angka"
+      ]
+    },
+    {
+      "name": "Nilai teks bebas kosong, langka, atau berbeda hanya pada huruf",
+      "trigger": "Pada langkah 14, sebagian pengiriman mengosongkan perusahaan pengangkut, tangki penyimpanan sumber, atau pembeli tujuan; sebuah nilai muncul hanya sekali; atau dua nilai berbeda hanya pada besar-kecil huruf maupun spasi tepi",
+      "steps": [
+        "Pengiriman yang kolomnya kosong masuk ke baris 'tidak tercatat' yang BERDIRI SENDIRI pada rekap itu — tidak dilipat ke nilai mana pun dan tidak dibuang dari jumlah",
+        "Nilai yang hanya berbeda huruf atau spasi tetap dua baris terpisah; menyatukannya berarti memutuskan dua ejaan adalah hal yang sama, dan teks bebas tidak menjaminnya",
+        "Kemungkinan itu DINYATAKAN di layar supaya pembaca tahu mengapa dua baris yang terlihat serupa tidak digabung",
+        "Nilai yang muncul sekali tetap mendapat barisnya sendiri; rekap tidak pernah melipat nilai berfrekuensi rendah menjadi 'lainnya'",
+        "Penjumlahan baris tiap rekap — termasuk baris 'tidak tercatat' — tetap sama dengan jumlah pengiriman",
+        "Urutan baris tetap seperti yang diterbitkan server dan layar tidak mengurutkan ulang, sehingga baris 'tidak tercatat' yang bertonase besar muncul di atas alih-alih terkubur di baris terakhir"
+      ]
+    },
+    {
+      "name": "Pembaca mencari rekap berlabel dan tidak menemukannya",
+      "trigger": "Pada langkah 16, pembaca yang baru membaca Laporan Kernel Dispatch mencari rekap berlabel semacam status pelepasan gerbang di layar ini",
+      "steps": [
+        "Tidak ada satu pun rekap berlabel di layar ini, karena stasiun CPO Dispatch TIDAK punya satu pun kolom berpilihan tertutup",
+        "Layar merender PERNYATAAN atas ketiadaan itu beserta sebabnya, dan menyebut bahwa Kernel Dispatch punya satu kolom seperti itu sementara stasiun ini tidak",
+        "Ketiga rekap yang ada seluruhnya berasal dari teks bebas dan menampilkan nilainya apa adanya, bukan label dari kosakata bersama",
+        "Pernyataan itu mencegah seseorang kemudian membuat daftar label karangan untuk kolom teks bebas layar ini",
+        "Ketiadaan itu terbaca sebagai sifat data, bukan kelalaian laporan"
+      ]
+    },
+    {
+      "name": "Satu pengiriman kehilangan kedua nomor segel",
+      "trigger": "Pada langkah 15, sebuah pengiriman tidak punya nomor segel atas maupun nomor segel bawah",
+      "steps": [
+        "Pengiriman itu terhitung di KEDUA penghitung, karena kedua segelnya memang hilang",
+        "Kedua penghitung TIDAK dijumlahkan menjadi satu angka 'segel hilang' di bagian mana pun — dua fakta, bukan penghitungan ganda",
+        "Satu tanker dengan satu segel hilang tetap terbaca berbeda dari dua tanker masing-masing satu segel hilang",
+        "Ketiga penghitung disajikan sebagai penghitung KEHADIRAN dan bukan ukuran produksi, sehingga nomornya tidak pernah dirata-rata, diurutkan, maupun digrafikkan",
+        "Penghitung yang bernilai nol tetap dirender supaya pembaca tahu pemeriksaannya memang berjalan"
+      ]
+    },
+    {
+      "name": "Periode belum mulai, masih berjalan, tertutup, atau seluruh pengirimannya draft",
+      "trigger": "Pada langkah 16, periode terpilih belum mencapai tanggal awalnya, masih berjalan, sudah berstatus tertutup, atau seluruh pengiriman pada periode dan line terpilih masih berstatus draft",
+      "steps": [
+        "Untuk periode yang belum mulai, kelengkapan tampil '—' beserta kalimat 'periode belum dimulai', BUKAN 0,0% yang akan terbaca sebagai kelalaian pencatatan",
+        "Untuk periode yang masih berjalan, penyebut hari berhenti di hari ini dan hal itu dinyatakan",
+        "Periode tertutup tetap tampil penuh dengan seluruh angka, keempat ukuran mutu, sebaran jam, dan waktu putarnya; statusnya ditampilkan sebagai keterangan dan ekspor tetap dapat dijalankan",
+        "Pengiriman berstatus draft TETAP ikut terhitung di seluruh angka — termasuk sebaran jam dan waktu putar — dan tidak ada bagian laporan yang menyaringnya keluar",
+        "Jumlah pengiriman draft dinyatakan sebagai angka tersendiri; bila sama dengan jumlah seluruh pengiriman, pembaca langsung melihat laporan ini sepenuhnya berdiri di atas data yang belum final"
+      ]
+    },
+    {
+      "name": "Rekap sangat panjang di layar sempit sementara angka utama tetap terbuka",
+      "trigger": "Pada langkah 17, periode cukup panjang atau nilai teks bebasnya cukup banyak sehingga rekapnya puluhan baris",
+      "steps": [
+        "Ketiga rekap teks bebas, rekap harian dan kartu sebaran jam dapat DILIPAT, supaya layar sempit tetap dapat ditelusuri tanpa menggulir melewati tabel yang tidak sedang dibaca",
+        "Kartu tonase, kartu mutu dan kartu waktu putar TIDAK dapat dilipat — ketiganya angka utama layar ini dan harus terlihat tanpa satu tindakan pun",
+        "Tabel rekap yang lebar menggulir mendatar DI DALAM kartunya sendiri",
+        "Keempat ukuran mutu BERTUMPUK di dalam kartu mutu, dan untuk setiap ukuran ketiga angkanya beserta PENYEBUTNYA tetap terbaca utuh tanpa terpotong oleh kartu yang memuatnya",
+        "Halaman itu sendiri TIDAK PERNAH bergeser mendatar pada lebar ponsel mana pun",
+        "Menutup atau membuka sebuah bagian tidak memicu satu permintaan data pun dan tidak mengubah satu angka pun"
+      ]
+    },
+    {
+      "name": "Ekspor CSV ditekan dua kali cepat",
+      "trigger": "Pada langkah 18, pengguna menekan tombol ekspor dua kali berturut-turut dalam waktu singkat",
+      "steps": [
+        "Tepat SATU permintaan ekspor terkirim",
+        "Tepat SATU berkas terunduh",
+        "Tombol menunjukkan keadaan sedang berjalan selama permintaan berlangsung",
+        "Satu-satunya format yang ditawarkan adalah CSV; tidak ada tombol ekspor Excel di layar ini, karena WebView ponsel tidak membuka berkas .xlsx",
+        "Berkasnya membawa jam masuk dan jam keluar APA ADANYA tanpa penafsiran menyeberang tengah malam, tanpa kolom waktu putar hasil hitungan, dan tanpa penanda menyeberang tengah malam pada barisnya"
+      ]
+    },
+    {
+      "name": "Perangkat luring sejak awal atau menjadi luring sesudah angka termuat",
+      "trigger": "Pada langkah 1 perangkat sudah tidak terhubung jaringan, atau pada langkah 17 perangkat kehilangan koneksi setelah angka selesai dimuat",
+      "steps": [
+        "Layar MENYATAKAN bahwa laporan ini memerlukan jaringan",
+        "Layar TIDAK menampilkan satu angka pun dari pemuatan sebelumnya — luring MENUTUP angkanya, bukan sekadar menambah spanduk di atasnya",
+        "Bila perangkat menjadi luring sesudah angka termuat, angka yang sudah tampil DITUTUP — termasuk kedua puluh lima baris sebaran jam dan ketiga angka waktu putar — bukan dibiarkan basi tanpa penanda",
+        "NOL permintaan dikirim selama perangkat luring",
+        "Angka basi tanpa penanda lebih berbahaya daripada tidak ada angka, dan laporan ini memilih tidak ada angka"
+      ]
+    },
+    {
+      "name": "Sesi berakhir, atau permintaan gagal karena jaringan",
+      "trigger": "Pada langkah 7 atau 18, server menjawab bahwa sesi sudah tidak sah; atau permintaan ringkasan gagal padahal perangkat terhubung",
+      "steps": [
+        "Ketika sesi berakhir, pengguna diarahkan ke layar Login dan TIDAK ada pesan galat jaringan — sesi berakhir bukan kegagalan jaringan, dan menyebutnya begitu mengirim pengguna memeriksa sinyal alih-alih masuk kembali",
+        "Tidak ada angka yang tertinggal di layar ketika sesi berakhir",
+        "Ketika permintaan gagal padahal perangkat terhubung, keadaan galat ditampilkan dengan aksi coba lagi",
+        "Penjagaan Production Line TETAP berlaku pada jalur coba lagi — line yang belum dipilih tidak boleh lolos lewat tombol itu",
+        "Tidak ada angka separuh jadi yang ditampilkan, dan kartu mutu maupun kartu waktu putar tidak tampil berisi sementara kartu tonase kosong"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Angka layar ini WAJIB sama persis dengan screen-166 untuk periode dan line yang sama: endpoint yang sama dipakai ulang apa adanya, NOL endpoint baru, seluruh agregasi dihitung di server, dan layar ini TIDAK menghitung satu agregat pun — itulah mekanisme yang menjaminnya. Dua angka berbeda untuk pertanyaan yang sama adalah cacat, bukan perbedaan platform.",
+    "Layar ini baca saja: nol kontrol tulis, nol permintaan yang mengubah data, dan satu-satunya hal yang keluar darinya adalah unduhan ekspor. Pintu masuknya tunggal: tile CPO Dispatch pada layar Reporting (screen-141), tanpa jalur masuk lain.",
+    "Keempat peran berhak membacanya — Operator memang PENGGUNANYA, bukan sekadar diizinkan, karena ia yang berada di jembatan timbang ketika angkanya dipertanyakan. Mill diturunkan dari akun bagi Operator, Supervisor dan Mill Management; hanya Admin yang memilih, dan mengganti mill mengosongkan pilihan Production Line DAN pilihan periode.",
+    "Production Line WAJIB dipilih sebelum satu angka pun tampil, dan penjagaannya ada di FUNGSI PEMUATAN bukan di template. Tidak ada opsi 'semua line', dan tidak ada line yang dipilihkan — bahkan ketika mill hanya punya satu.",
+    "Line awal dibaca dari penyimpanan perangkat dengan kunci yang sama persis seperti yang ditulis layar lain, dipakai tanpa meminta pengguna memilih lagi, tetapi TETAP dapat diganti; nilai yang tidak lagi sah DIBUANG alih-alih dipakai; dan pembacaannya dibungkus try/catch sehingga penyimpanan yang tidak dapat dibaca tidak mematahkan layar dan tidak memunculkan satu elemen galat pun.",
+    "Daftar periode hanya memuat periode yang mendaftarkan stasiun CPO Dispatch pada mill yang berlaku. Status periode tidak menyaring pembacaan maupun ekspor: draft, terbuka dan tertutup sama-sama terbaca penuh. Rentang periode inklusif di kedua ujung, dan keanggotaan ditentukan dari TANGGAL PENGIRIMAN itu sendiri — bukan dari waktu baris dibuat maupun waktu sinkronisasi perangkat.",
+    "Tanggal pengiriman SELALU terisi pada setiap catatan; 'pengiriman tanpa tanggal' BUKAN keadaan operasional yang wajar, sehingga tidak boleh disediakan tempatnya di layar dan tidak ada baris 'tanggal tidak tercatat' pada rekap harian.",
+    "Satu baris catatan pengiriman = SATU PENGIRIMAN, yaitu satu tanker yang datang, diisi, dan berangkat. Jumlah pengiriman menghitung baris catatan, bukan dokumen catatan harian yang memuatnya.",
+    "KARTU TONASE, KARTU MUTU dan KARTU WAKTU PUTAR adalah tiga kartu BERURUTAN yang tidak terpisah oleh bagian apa pun, dan ketiganya TIDAK DAPAT DILIPAT — rekap dan kartu sebaran jam boleh dilipat, angka utama tidak. Inilah cara layar sempit mempertahankan maksud pasangan web-nya: tonase tinggi dengan kadar air tinggi adalah kabar buruk yang menyamar sebagai kabar baik, dan waktu putar adalah angka yang paling sering ditanyakan — menyembunyikan salah satunya di balik satu tindakan membuat pembaca berhenti setelah angka pertama.",
+    "Berat bersih dibaca APA ADANYA dari catatan; layar ini tidak pernah menghitungnya ulang dari bruto dikurangi tara di bagian mana pun — tidak di angka utama, tidak di rekap kategoris, tidak di rekap harian. Berat bersih yang kosong berarti PENIMBANGAN BELUM SELESAI, bukan nol: tanker belum kembali ditimbang. Pengiriman itu dikecualikan dari total dan dari rata-rata, jumlahnya diterbitkan tersendiri dan ditonjolkan, total dan rata-rata dihitung HANYA atas pengiriman yang beratnya terisi dengan penyebut itu DICETAK di kartu yang sama, dan nol pengiriman bertimbang menghasilkan '—' bukan 0,00 — 'tidak diketahui' dan 'tidak ada minyak terkirim' adalah dua hal berbeda.",
+    "EMPAT ukuran mutu diterbitkan — kadar asam lemak bebas, kadar air, kadar kotoran, dan DOBI — masing-masing dengan nilai TERENDAH, RATA-RATA dan TERTINGGI; bukan hanya rata-rata, karena satu pengiriman berkadar ekstrem adalah informasi yang hilang bila hanya rata-ratanya yang tampil.",
+    "SETIAP ukuran mutu punya PENYEBUTNYA SENDIRI, dan keempat penyebut itu boleh berbeda satu dengan lainnya SERTA berbeda dari jumlah pengiriman — satu pengiriman boleh punya sebagian hasil uji saja. Kenyataan itu DINYATAKAN di layar, bukan disembunyikan di balik satu penyebut tunggal, dan penyebut nol pada satu ukuran TIDAK boleh mengosongkan ukuran mutu yang lain karena keempatnya dihitung sepenuhnya mandiri. Nol pengukuran pada sebuah ukuran mutu — maupun pada waktu putar — menghasilkan '—' untuk KETIGA angkanya, bukan 0: 'belum diuji' dan 'nilainya nol' adalah dua hal berbeda, dan untuk kadar air perbedaannya besar.",
+    "DOBI adalah INDEKS TANPA SATUAN; kadar asam lemak bebas, kadar air, dan kadar kotoran berupa PERSEN. Memberi DOBI satuan — tanda persen maupun satuan lain — akan salah, dan aturan ini ada supaya tidak ada yang menambahkannya kemudian.",
+    "JAM MASUK DAN JAM KELUAR DICATAT TANPA TANGGAL. Karena itu jam keluar yang LEBIH KECIL daripada jam masuk dibaca sebagai HARI BERIKUTNYA — waktu putar dihitung dengan menambahkan satu hari penuh pada jam keluar seperti itu — dan BUKAN sebagai data salah: tanker memang berangkat melewati tengah malam. Masuk 23:30 dan keluar 00:45 menghasilkan satu jam lima belas menit, bukan negatif dua puluh dua jam empat puluh lima menit; pengiriman seperti itu tidak pernah dibuang dari penyebut waktu putar dan tidak pernah menghasilkan selisih negatif.",
+    "Jumlah pengiriman yang dibaca MENYEBERANG TENGAH MALAM DITERBITKAN sebagai angka tersendiri di layar beserta penjelasan pembacaannya, dan tetap dirender sebagai nol ketika tidak ada satu pun supaya pembaca tahu pembacaan itu memang dijalankan. Pembaca harus dapat melihat berapa banyak angka waktu putar yang lahir dari PENAFSIRAN alih-alih dari pembacaan langsung — tafsir yang tidak terlihat adalah tafsir yang tidak dapat dibantah.",
+    "Penafsiran menyeberang tengah malam sama sekali TIDAK menggeser kelompok sebaran jam sebuah pengiriman: sebaran tetap memakai jam MASUK apa adanya, sehingga pengiriman masuk 23:30 tetap berada di baris kelompok jam 23.",
+    "Jam masuk yang SAMA dengan jam keluar menghasilkan waktu putar NOL menit yang dilaporkan APA ADANYA sebagai nol — tidak dibuang dari penyebut, dan TIDAK dibaca sebagai menyeberang tengah malam karena jam keluar tidak lebih kecil daripada jam masuk melainkan sama. Nol adalah angka, bukan ketiadaan, dan ia ikut menjadi waktu putar tercepat serta ikut memengaruhi rata-rata; pembaca dapat membedakan 'nol menit' dari 'tidak dapat dihitung'.",
+    "WAKTU PUTAR TANKER dihitung HANYA untuk pengiriman yang jam masuk DAN jam keluarnya KEDUANYA tercatat. Penyebutnya diterbitkan di kartu yang sama, dan jumlah pengiriman yang waktu putarnya TIDAK DAPAT dihitung dinyatakan tersendiri sehingga penyebut waktu putar ditambah angka itu sama dengan jumlah pengiriman.",
+    "Waktu putar yang tampak tidak wajar TIDAK DIBUANG dan TIDAK DIPOTONG oleh batas apa pun. Stasiun ini tidak punya master batas kewajaran, sehingga memilih batas berarti mengarangnya. Angkanya dilaporkan apa adanya, ia tetap menjadi waktu putar terlama dan tetap ikut rata-rata, tidak ditandai sebagai pelanggaran dalam bentuk apa pun, dan layar MENYATAKAN bahwa angka seperti itu patut DIPERIKSA PEMBACA pada rincian pengirimannya — bukan diputuskan oleh laporan.",
+    "SEBARAN PENGIRIMAN dihitung menurut JAM MASUK, BUKAN jam keluar — yang ditanyakan adalah kapan tanker datang, karena itulah yang membebani jembatan timbang. Sebaran berisi dua puluh empat kelompok jam beserta JAM TERSIBUK dan JUMLAH JAM KOSONG, kelompok nol tidak pernah disembunyikan, dan tidak ada sebaran kedua menurut jam keluar. Sebaran juga punya satu kelompok 'JAM TIDAK TERCATAT' TERSENDIRI, dan penjumlahan seluruh kelompok — termasuk kelompok itu — wajib sama dengan jumlah pengiriman, sejajar dengan baris 'tidak tercatat' pada rekap kategoris; jam keluar TIDAK PERNAH dipakai sebagai pengganti jam masuk, sehingga pengiriman yang punya jam keluar tetapi tidak punya jam masuk masuk kelompok 'jam tidak tercatat'.",
+    "LAYAR INI PUNYA EMPAT PENYEBUT YANG BERBEDA SATU DENGAN LAINNYA, dan kenyataan itu DINYATAKAN: (a) jumlah pengiriman seluruhnya; (b) pengiriman yang BERATNYA terisi, penyebut total dan rata-rata berat; (c) pengiriman yang JAM MASUKNYA tercatat, penyebut sebaran jam; (d) pengiriman yang KEDUA JAMNYA tercatat, penyebut waktu putar — ditambah penyebut MASING-MASING dari empat ukuran mutu. Kedua jam dan berat terisi secara saling bebas, sehingga satu angka 'jumlah pengiriman' yang dipakai sebagai penyebut semuanya akan salah secara sistematis. Setiap angka mencetak PENYEBUTNYA SENDIRI di kartu yang sama, tidak pernah ada satu penyebut tunggal yang dipakai untuk kartu lain, dan ketika keempat penyebut kebetulan bernilai sama keempatnya tetap dicetak alih-alih digabungkan.",
+    "TATA LETAK SEBARAN DUA PULUH EMPAT JAM PADA LAYAR SEMPIT: sebaran dirender sebagai DAFTAR BERTUMPUK di dalam kartunya — satu baris selebar kartu per kelompok, dua puluh empat baris jam ditambah satu baris 'jam tidak tercatat', masing-masing memuat label jamnya, jumlah pengirimannya, dan bilah sepanjang nilainya. Bentuk berdampingan ditolak karena dua puluh lima kelompok pada lebar ponsel hanya memberi tiap kelompok belasan piksel sehingga angkanya tidak terbaca; gulir mendatar di dalam kartu juga ditolak karena ia menyembunyikan sebagian besar jam di balik gerakan dan menjadikan kelompok kosong yang paling mungkin tak pernah terlihat. Kelompok bernilai nol TETAP dirender sebagai baris bernilai nol, jam tersibuk dan jumlah jam kosong dicetak di KEPALA kartu, kartunya dapat dilipat, dan halaman itu sendiri TIDAK PERNAH bergeser mendatar.",
+    "Tabel rekap yang lebar menggulir mendatar DI DALAM kartunya sendiri dan halaman itu sendiri tidak pernah bergeser mendatar; keempat ukuran mutu BERTUMPUK di dalam kartu mutu dengan ketiga angkanya beserta penyebutnya tetap terbaca utuh tanpa terpotong oleh kartu yang memuatnya; dan membuka atau menutup sebuah bagian tidak memicu satu permintaan data pun dan tidak mengubah satu angka pun.",
+    "Tiga rekap kategoris — perusahaan pengangkut, tangki penyimpanan sumber, dan pembeli tujuan — seluruhnya berasal dari kolom TEKS BEBAS dan diterbitkan APA ADANYA dengan NOL penerjemahan; tidak ada daftar induk untuk mencocokkannya. Tiap rekap punya baris 'tidak tercatat' TERSENDIRI dan penjumlahan seluruh baris tiap rekap — termasuk baris itu — wajib sama dengan jumlah pengiriman; nilai berfrekuensi rendah tidak pernah dilipat menjadi 'lainnya', dan nilai yang berbeda hanya pada besar-kecil huruf atau spasi tepi ditampilkan apa adanya sebagai nilai berbeda — laporan tidak menormalkan diam-diam, dan kemungkinan itu dinyatakan di layar.",
+    "Urutan baris setiap rekap MILIK SERVER — server menerbitkannya dari total netto terbesar lebih dulu, dan layar ini TIDAK mengurutkan ulang satu baris pun. Konsekuensinya disengaja: kelompok 'tidak tercatat' yang bertonase besar MUNCUL DI ATAS, bukan terkubur di baris terakhir tempat tak seorang pun menemukannya.",
+    "Stasiun ini TIDAK punya satu pun kolom berpilihan tertutup, sehingga TIDAK ADA rekap berlabel di layar ini sama sekali. Ketiadaan itu DINYATAKAN beserta sebabnya, dan pernyataan itu menyebut bahwa Kernel Dispatch punya satu kolom seperti itu sementara stasiun ini tidak — karena pembaca yang datang dari Laporan Kernel Dispatch akan mencarinya, dan supaya tidak ada yang kemudian mengarang daftar label untuk kolom teks bebas layar ini.",
+    "TIGA penghitung jejak kepatuhan yang TERPISAH diterbitkan: pengiriman tanpa nomor surat jalan, tanpa nomor segel ATAS, dan tanpa nomor segel BAWAH. Kedua penghitung segel TIDAK PERNAH dijumlahkan menjadi satu angka 'segel hilang', karena satu tanker dengan satu segel hilang berbeda keadaannya dari dua tanker masing-masing satu segel hilang; satu pengiriman yang kehilangan KEDUA segel terhitung di KEDUA penghitung — dua fakta, bukan penghitungan ganda. Ketiganya penghitung KEHADIRAN, tidak pernah dirata-rata, diurutkan, maupun digrafikkan, dan bila nilainya nol maka nol itu tetap dirender supaya pembaca tahu pemeriksaannya berjalan.",
+    "Rekap harian memuat satu baris per hari YANG ADA PENGIRIMANNYA saja, beserta baris total periode; hari tanpa pengiriman tidak dibuatkan baris nol. Kelengkapan pencatatan diukur dalam HARI dan hanya atas hari yang SUDAH BERJALAN — periode yang masih berjalan tidak dihukum atas hari yang belum datang, dan periode yang belum mulai tampil '—' beserta keterangannya, bukan 0,0%. Catatan berstatus draft IKUT terhitung di seluruh angka — termasuk sebaran jam dan waktu putar — dan jumlahnya DINYATAKAN sebagai angka tersendiri; pembaca diberi tahu, bukan dilindungi dari mengetahuinya.",
+    "Temuan adalah SATU-SATUNYA daftar kejadian pada layar ini, diterbitkan sebagai daftar bertanggal berisi teks apa adanya; tidak ada bagian 'catatan' kedua seperti pada laporan Solid Waste Disposal, karena stasiun ini hanya punya satu kolom teks bebas untuk itu.",
+    "Tidak ada penandaan nilai mutu di luar batas, dan ketiadaannya DINYATAKAN beserta sebabnya: stasiun ini tidak punya daftar induk ambang mutu. Nilai tertinggi tiap ukuran tampil sebagai angka tanpa warna peringatan, tanpa lencana, dan tanpa hitungan pelanggaran, supaya pembaca tidak mengira angka tanpa tanda berarti seluruh mutunya memenuhi syarat — ketiadaan ini sejajar dengan ketiadaan batas kewajaran waktu putar; keduanya batas data, bukan pilihan laporan.",
+    "Giliran kerja TIDAK diterbitkan di layar dalam bentuk apa pun tetapi TETAP ikut di berkas ekspor, bersama nomor surat jalan, nomor tanker, nama pengemudi, kedua nomor segel, dan nama operator timbang — nomor surat jalan dan kedua segel hadir di layar HANYA sebagai penghitung ketidakhadirannya pada jejak kepatuhan. DAN ekspor membawa JAM MASUK serta JAM KELUAR APA ADANYA, TANPA penafsiran menyeberang tengah malam, tanpa kolom waktu putar hasil hitungan, dan tanpa penanda menyeberang tengah malam pada barisnya — ekspor adalah rincian MENTAH, dan penafsiran adalah pekerjaan laporan.",
+    "Ekspor tersedia HANYA sebagai CSV — tidak ada ekspor Excel di layar ini, karena WebView ponsel tidak membuka berkas .xlsx dan menawarkan tombol yang menghasilkan berkas tak terbuka lebih buruk daripada tidak menawarkannya. Berkasnya rincian mentah satu baris per pengiriman dengan kolom konteks diulang di setiap baris sehingga satu baris dapat dibaca sendirian; ditekan dua kali cepat, ia menghasilkan tepat SATU permintaan dan tepat SATU unduhan.",
+    "LURING MENUTUP ANGKANYA, bukan sekadar menambah spanduk: layar menyatakan bahwa laporan ini memerlukan jaringan, TIDAK menampilkan satu angka pun dari pemuatan sebelumnya, dan mengirim NOL permintaan. Bila perangkat menjadi luring SESUDAH angka termuat, angka yang sudah tampil DITUTUP — termasuk kedua puluh lima baris sebaran jam dan ketiga angka waktu putar — karena angka basi tanpa penanda lebih berbahaya daripada tidak ada angka. Dan sesi yang berakhir mengarahkan pengguna ke Login TANPA pesan galat jaringan, sebab sesi berakhir bukan kegagalan jaringan dan menyebutnya begitu mengirim pengguna memeriksa sinyal alih-alih masuk kembali; kegagalan jaringan yang sesungguhnya menampilkan keadaan galat dengan aksi coba lagi, dan penjagaan Production Line tetap berlaku pada jalur coba lagi itu."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — berhasil membaca laporan periode, termasuk sebagai Operator",
+      "given": "Pengguna sudah masuk ke aplikasi mobile sebagai Operator, Supervisor, Mill Management atau Admin; mill yang berlaku punya periode pelaporan yang mendaftarkan stasiun CPO Dispatch dan satu Production Line yang sudah memuat pengiriman minyak keluar beserta jam masuk dan jam keluar tankernya; perangkat terhubung jaringan",
+      "when": "Pengguna membuka layar Reporting lalu menekan tile CPO Dispatch, memilih satu Production Line, lalu memilih salah satu periode yang tersedia",
+      "then": "Layar menampilkan nama periode beserta rentang dan statusnya, lalu KARTU TONASE, KARTU MUTU dan KARTU WAKTU PUTAR sebagai tiga kartu berurutan yang semuanya sudah terbaca tanpa satu tindakan pun, jumlah pengiriman yang penimbangannya belum selesai, jumlah pengiriman menyeberang tengah malam, jumlah yang waktu putarnya tidak dapat dihitung, kartu sebaran jam masuk berisi dua puluh empat baris jam ditambah satu baris 'jam tidak tercatat' dengan jam tersibuk dan jumlah jam kosong di kepalanya, ketiga rekap teks bebas masing-masing dengan baris 'tidak tercatat', ketiga penghitung kepatuhan, rekap harian beserta baris total periode, kelengkapan dalam hari, jumlah pengiriman draft, daftar temuan bertanggal, serta pernyataan bahwa keempat penyebut layar ini berbeda, bahwa DOBI adalah indeks tanpa satuan, bahwa tidak ada rekap berlabel, dan bahwa tidak ada penandaan nilai mutu di luar batas; Operator membacanya dengan hak yang sama seperti ketiga peran lain; dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — angka sama persis dengan pasangan web karena endpoint dipakai ulang dan nol agregat dihitung di layar",
+      "given": "Pengguna punya akses ke layar web Laporan CPO Dispatch (screen-166) dan ke layar mobile ini, dan sebuah periode serta Production Line yang sama sudah memuat pengiriman minyak keluar dengan berat, hasil uji mutu, dan jam masuk serta jam keluar yang beragam",
+      "when": "Pengguna membaca laporan periode dan line yang sama pada layar web lalu pada layar mobile ini",
+      "then": "Setiap angka yang sama di kedua layar bernilai SAMA PERSIS — jumlah pengiriman, total dan rata-rata berat beserta penyebutnya, keempat ukuran mutu beserta penyebutnya masing-masing, ketiga angka waktu putar beserta penyebutnya, jumlah menyeberang tengah malam, jumlah tak-dapat-dihitung, kedua puluh lima nilai sebaran jam, ketiga rekap, ketiga penghitung kepatuhan, rekap harian, dan kelengkapan — karena layar mobile memakai ULANG endpoint yang sama persis dengan pasangan web-nya, tidak ada satu endpoint baru pun dibuat untuknya, seluruh agregasi dihitung di server, dan layar mobile tidak menghitung satu agregat pun sehingga tidak ada tempat bagi kedua angka untuk berbeda"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — line terpilih otomatis dari yang diingat perangkat, tetap dapat diganti, dan yang tidak lagi sah dibuang",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan perangkat sudah mengingat sebuah Production Line dari layar lain; pada satu keadaan line itu masih milik mill yang berlaku, pada keadaan lain ia sudah milik mill lain atau sudah dihapus",
+      "when": "Pengguna membuka layar Laporan CPO Dispatch pada kedua keadaan itu",
+      "then": "Ketika line yang diingat masih sah, ia dipilih otomatis tanpa satu langkah pun dari pengguna dan daftar periode langsung dimuat, sementara pemilih line tetap dapat dibuka dan diganti karena line adalah konteks yang DIPILIH bukan ikatan akun yang dipaksakan; ketika line itu tidak lagi sah, nilainya DIBUANG alih-alih dipakai sehingga layar meminta memilih line dan server mengabaikannya pada jalur mana pun, dan tidak satu angka milik mill lain pun pernah ditampilkan bahkan sekejap termasuk tidak satu baris sebaran jam"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — line belum dipilih menahan seluruh permintaan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak, perangkat belum pernah mengingat Production Line, dan mill yang berlaku punya periode yang mencakup stasiun ini — pada satu keadaan dengan beberapa line, pada keadaan lain hanya dengan SATU line",
+      "when": "Pengguna membuka layar Laporan CPO Dispatch tanpa menyentuh pemilih line",
+      "then": "Layar meminta memilih Production Line dan menyatakan apa yang ditunggunya, NOL permintaan ringkasan terkirim karena penjagaannya ada di fungsi pemuatan bukan di template, tidak ada satu angka pun yang tampil dan tidak ada angka gabungan seluruh line sebagai pengganti sementara, pemilih tidak menyediakan opsi 'semua line' dalam bentuk apa pun, line tunggal TIDAK dipilihkan otomatis karena pembaca harus tahu line mana yang sedang dibacanya dan mill yang hari ini punya satu line besok bisa punya dua, dan tombol ekspor tidak dirender"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — penyimpanan perangkat tidak dapat dibaca",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan perangkat berjalan dalam mode privat atau penyimpanan situsnya diblokir sehingga membaca kunci line tersimpan gagal",
+      "when": "Pengguna membuka layar Laporan CPO Dispatch",
+      "then": "Layar TETAP tampil utuh dan jatuh ke keadaan 'belum ada line terpilih' dengan arahan memilih Production Line, pembacaan penyimpanan dibungkus sehingga kegagalannya tidak mematahkan layar, NOL elemen galat dirender karena ini bukan kegagalan yang perlu dilaporkan ke pengguna, dan setelah pengguna memilih line secara manual alur berlanjut normal dengan seluruh angka tampil"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — Admin memilih mill dan mengganti mill mengosongkan line serta periode",
+      "given": "Pengguna sudah masuk ke aplikasi mobile sebagai Admin dan tidak terikat mill mana pun; tersedia beberapa mill yang masing-masing punya periode CPO Dispatch dan Production Line berisi pengiriman",
+      "when": "Admin membuka layar ini tanpa memilih mill, lalu memilih mill, line dan periode sehingga angka tampil, lalu mengganti mill ke mill lain",
+      "then": "Sebelum mill dipilih, arahan memilih mill tampil tanpa area kosong tanpa penjelasan dan daftar line maupun daftar periode belum dimuat; setelah mill, line dan periode dipilih seluruh angka tampil hanya milik mill dan line itu; dan ketika mill diganti, pilihan Production Line DAN pilihan periode keduanya dikosongkan karena sebuah line maupun sebuah periode milik tepat satu mill, seluruh angka berhenti ditampilkan tanpa satu angka mill lama yang tertinggal — termasuk tidak satu baris sebaran jam maupun satu angka waktu putar pun — dan layar kembali meminta memilih line sampai pengguna memilihnya secara sadar"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — akun belum terhubung ke mill",
+      "given": "Pengguna sudah masuk ke aplikasi mobile sebagai Operator, Supervisor atau Mill Management tetapi akunnya belum terhubung ke mill mana pun",
+      "when": "Pengguna membuka layar Laporan CPO Dispatch",
+      "then": "Layar menampilkan arahan jelas agar pengguna menghubungi Admin untuk menghubungkan akunnya ke sebuah mill — bukan pesan galat izin yang membuat pengguna mengira ia tidak berhak dan bukan pesan galat jaringan yang mengirimnya memeriksa sinyal, layar tidak menawarkan daftar seluruh mill sebagai jalan keluar, tidak ada satu angka pun yang ditampilkan, dan nol permintaan ringkasan terkirim"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — mill belum punya periode yang mencakup stasiun ini",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan mill yang berlaku punya Production Line tetapi tidak punya satu pun periode pelaporan yang mendaftarkan stasiun CPO Dispatch",
+      "when": "Pengguna memilih Production Line lalu membuka pemilih periode",
+      "then": "Pemilih periode tampil kosong, layar menampilkan kalimat sebabnya beserta arahan menghubungi Admin untuk pembuatan periode, tidak ada satu angka pun yang ditampilkan, dan kartu sebaran jam maupun kartu waktu putar tidak dirender berisi"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — line atau periode milik mill lain ditolak",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak pada sebuah mill, dan terdapat Production Line serta periode pelaporan milik mill lain beserta data pengirimannya",
+      "when": "Permintaan ringkasan dikirim dengan line atau periode milik mill lain itu — lewat nilai tersimpan yang sudah basi atau jalur lain apa pun",
+      "then": "Permintaan ditolak di server dan tidak satu angka pun terhitung karena penolakan terjadi sebelum agregasi dijalankan, layar kembali meminta memilih Production Line, dan tidak ada sebagian data mill lain yang bocor — bukan jumlah pengiriman, bukan tonase, bukan satu ukuran mutu, bukan satu baris sebaran jam, bukan satu angka waktu putar, bukan satu baris rekap"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — periode tanpa satu pun pengiriman pada line terpilih",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan mill punya periode yang mencakup stasiun CPO Dispatch serta minimal satu Production Line",
+      "when": "Pengguna memilih sebuah Production Line dan sebuah periode yang tidak memuat satu pun pengiriman minyak keluar pada line itu",
+      "then": "Kerangka laporan tetap tampil dengan keadaan kosong yang menyebut periode dan line yang sedang dibaca, seluruh angka ditampilkan sebagai tidak tersedia dan BUKAN sebagai nol, kartu sebaran jam dan kartu waktu putar TETAP dirender dengan keadaan kosongnya alih-alih dihilangkan dari layar, kelengkapan pencatatan tetap ditampilkan supaya pembaca tahu berapa hari periode yang seharusnya terisi, dan tidak ada bilah kosong yang bisa disalahartikan sebagai aktivitas bernilai nol"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — berat bersih dibaca apa adanya tanpa pernah dihitung ulang",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat pengiriman yang membawa berat bruto, berat tara, dan berat bersih sekaligus di catatannya",
+      "when": "Pengguna membaca total dan rata-rata berat bersih serta total netto pada setiap baris rekap dan rekap harian",
+      "then": "Setiap angka berat bersih yang tampil berasal dari nilai berat bersih yang tercatat APA ADANYA dan layar tidak pernah menghitungnya ulang sebagai bruto dikurangi tara di bagian mana pun — tidak di angka utama, tidak di ketiga rekap kategoris, tidak di rekap harian — sehingga tidak ada kemungkinan layar menampilkan angka yang berbeda dari yang tersimpan maupun berbeda dari pasangan web-nya, dan pengiriman tanpa berat bersih tidak ditambal dengan hasil pengurangan bruto dan tara"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — seluruh pengiriman belum selesai ditimbang menghasilkan garis bukan nol",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat pengiriman minyak keluar namun tidak satu pun punya berat bersih terisi, sementara jam masuk dan jam keluar tankernya tercatat",
+      "when": "Pengguna membuka laporan untuk periode dan line tersebut",
+      "then": "Total dan rata-rata berat bersih dinyatakan tidak tersedia sebagai '—' dengan penyebut berat nol dan BUKAN sebagai 0,00, jumlah pengiriman tetap menunjukkan angka sebenarnya, jumlah pengiriman yang penimbangannya belum selesai sama dengan jumlah seluruh pengiriman dan layar menyatakan bahwa seluruh penimbangan belum selesai, sementara kartu mutu, kartu waktu putar dan kartu sebaran jam TIDAK terpengaruh sama sekali karena penyebutnya berbeda dari penyebut berat — sehingga pembaca dapat membedakan kedua keadaan: pengirimannya ada, beratnya yang belum ada"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — sebagian pengiriman belum ditimbang, rata-rata bersama penyebutnya, dan jam tetap terhitung penuh",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat sepuluh pengiriman yang hanya enam di antaranya punya berat bersih terisi, sementara kesepuluhnya punya jam masuk tercatat",
+      "when": "Pengguna membaca kartu tonase lalu membandingkannya dengan kartu sebaran jam",
+      "then": "Rata-rata yang ditampilkan adalah total berat enam pengiriman terisi dibagi ENAM dan bukan dibagi sepuluh, angka enam itu dicetak di kartu yang sama sebagai penyebut yang benar-benar dipakai, jumlah pengiriman tetap sepuluh, empat pengiriman yang penimbangannya belum selesai ditonjolkan sebagai angka tersendiri sehingga ketiga angka itu dapat direkonsiliasi, keempat pengiriman tanpa berat tidak dianggap bernilai nol sehingga tidak menarik rata-rata ke bawah, dan kesepuluh pengiriman TETAP terhitung penuh pada sebaran jam masuk karena berat dan jam terisi secara saling bebas"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — tiga kartu angka utama berurutan dan tidak dapat dilipat",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan laporan periode sudah tampil pada lebar ponsel dengan tonase, keempat ukuran mutu, dan waktu putar tanker yang semuanya berangka",
+      "when": "Pengguna membuka layar dan membacanya dari atas tanpa menyentuh satu kontrol pun",
+      "then": "KARTU TONASE, KARTU MUTU dan KARTU WAKTU PUTAR muncul sebagai tiga kartu BERURUTAN yang tidak terpisah oleh bagian apa pun dan ketiganya sudah terbaca tanpa satu tindakan pun karena ketiganya TIDAK dapat dilipat, sementara ketiga rekap teks bebas, rekap harian dan kartu sebaran jam adalah bagian yang dapat dilipat — rekap boleh dilipat, angka utama tidak; inilah cara layar sempit mempertahankan maksud pasangan web yang merender ketiganya berdampingan, karena tonase tinggi dengan kadar air tinggi adalah kabar buruk yang menyamar sebagai kabar baik dan waktu putar adalah angka yang paling sering ditanyakan"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — empat ukuran mutu dengan terendah, rata-rata, tertinggi, dan penyebutnya masing-masing",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat dua puluh pengiriman; lima belas punya hasil uji kadar asam lemak bebas, dua belas punya hasil uji kadar air, sembilan punya hasil uji kadar kotoran, dan tujuh punya hasil uji DOBI",
+      "when": "Pengguna membaca kartu mutu dan membandingkannya dengan jumlah pengiriman",
+      "then": "Keempat ukuran diterbitkan BERTUMPUK di dalam satu kartu dan masing-masing menampilkan nilai TERENDAH, RATA-RATA dan TERTINGGI — bukan hanya rata-rata, karena satu pengiriman berkadar ekstrem adalah informasi yang hilang bila hanya rata-ratanya yang tampil — masing-masing mencetak PENYEBUTNYA SENDIRI, keempat penyebut yang tampil BERBEDA yaitu lima belas, dua belas, sembilan dan tujuh dan keempatnya berbeda dari jumlah pengiriman yaitu dua puluh karena satu pengiriman boleh punya sebagian hasil uji saja, layar merender pernyataan atas kenyataan itu dan tidak memakai satu penyebut tunggal untuk keempat ukuran, dan seluruh angka beserta penyebutnya terbaca utuh tanpa terpotong oleh kartu yang memuatnya dan tanpa halaman bergeser mendatar"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — ukuran mutu tanpa hasil uji tampil '—' tanpa mengosongkan ukuran lain, termasuk ketika keempatnya kosong",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak; pada satu periode tidak satu pun pengiriman punya hasil uji DOBI sementara ketiga ukuran lain punya, sementara pada periode lain keempat ukuran sama sekali belum punya hasil uji padahal tonase dan jamnya ada",
+      "when": "Pengguna membaca kartu mutu pada kedua periode",
+      "then": "Pada periode pertama ukuran DOBI menampilkan '—' untuk KETIGA angkanya dan BUKAN 0 karena 'belum diuji' dan 'nilainya nol' adalah dua hal berbeda, sementara ketiga ukuran lainnya TETAP menampilkan angkanya masing-masing beserta penyebutnya sendiri sehingga penyebut nol pada satu ukuran sama sekali tidak mengosongkan ukuran yang lain, dan satu pengiriman yang punya hasil uji kadar air tetapi tidak punya hasil uji DOBI terhitung pada penyebut yang pertama dan tidak pada yang kedua; pada periode kedua kartu mutu MENYATAKAN bahwa belum ada hasil uji pada periode ini dengan keempat ukuran '—' dan penyebut nol, sementara kartu tonase dan kartu waktu putar tetap berangka penuh, dan kartu mutu tidak disembunyikan karena menyembunyikannya membuat pembaca mengira layar ini tidak punya bagian mutu"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — DOBI adalah indeks tanpa satuan sementara ketiga ukuran lain persen",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat pengiriman yang punya hasil uji kadar asam lemak bebas, kadar air, kadar kotoran, dan DOBI sekaligus",
+      "when": "Pengguna membaca keempat ukuran mutu beserta satuannya di dalam kartu mutu",
+      "then": "Kadar asam lemak bebas, kadar air, dan kadar kotoran menampilkan ketiga angkanya dalam PERSEN, sementara DOBI menampilkan ketiga angkanya sebagai INDEKS TANPA SATUAN — tanpa tanda persen dan tanpa satuan lain dalam bentuk apa pun, karena memberi DOBI satuan akan salah — dan layar MENYATAKAN perbedaan itu supaya pembaca tidak membaca DOBI sebagai persentase dan supaya tidak ada yang kemudian menambahkan tanda persen padanya"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — jam keluar lebih kecil daripada jam masuk dibaca sebagai hari berikutnya tanpa menggeser kelompok sebarannya",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat satu pengiriman yang tanker masuknya tercatat pukul 23:30 dan tanker keluarnya tercatat pukul 00:45; jam pada stasiun ini dicatat TANPA TANGGAL",
+      "when": "Pengguna membaca kartu waktu putar lalu kartu sebaran jam masuk",
+      "then": "Waktu putar pengiriman itu ditampilkan SATU JAM LIMA BELAS MENIT karena jam keluar yang lebih kecil daripada jam masuk dibaca sebagai HARI BERIKUTNYA dengan satu hari penuh ditambahkan sebelum selisihnya dihitung, dan BUKAN negatif dua puluh dua jam empat puluh lima menit yang akan lahir dari pengurangan mentah; pengiriman itu TIDAK ditandai sebagai data salah dan TIDAK dibuang dari penyebut waktu putar karena tanker memang berangkat melewati tengah malam; dan pada daftar sebaran jam pengiriman itu tetap berada di baris kelompok jam 23 karena penafsiran menyeberang tengah malam tidak pernah menggeser kelompok sebarannya"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — jumlah menyeberang tengah malam diterbitkan sebagai angka tersendiri",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat dua puluh pengiriman yang kedua jamnya tercatat, tiga di antaranya punya jam keluar lebih kecil daripada jam masuknya; pada periode lain tidak satu pun pengiriman menyeberang tengah malam",
+      "when": "Pengguna membaca kartu waktu putar pada kedua periode",
+      "then": "Pada periode pertama layar menampilkan angka TERSENDIRI bernilai TIGA sebagai jumlah pengiriman yang dibaca MENYEBERANG TENGAH MALAM di samping waktu putar tercepat, rata-rata dan terlama yang dihitung atas kedua puluh pengiriman, beserta penjelasan bahwa jam keluar yang lebih kecil daripada jam masuk dibaca sebagai hari berikutnya — angka itu ada supaya pembaca dapat melihat bahwa tiga dari dua puluh angka waktu putar lahir dari PENAFSIRAN alih-alih dari pembacaan langsung, sebab tafsir yang tidak terlihat adalah tafsir yang tidak dapat dibantah; dan pada periode kedua angka itu tetap dirender sebagai NOL alih-alih dihilangkan, supaya pembaca tahu pembacaan itu memang dijalankan"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — jam masuk sama dengan jam keluar memberi waktu putar nol menit",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat satu pengiriman yang jam masuk dan jam keluar tankernya SAMA, bersama beberapa pengiriman lain yang waktu putarnya positif",
+      "when": "Pengguna membaca kartu waktu putar beserta angka menyeberang tengah malamnya",
+      "then": "Waktu putar pengiriman itu dilaporkan APA ADANYA sebagai NOL MENIT, ia TETAP terhitung di penyebut waktu putar karena kedua jamnya tercatat, dan ia TIDAK dibaca sebagai menyeberang tengah malam maupun ikut angka menyeberang tengah malam karena jam keluarnya tidak lebih kecil daripada jam masuknya melainkan sama; nol itu menjadi waktu putar TERCEPAT dan ikut diperhitungkan pada rata-rata karena nol adalah angka bukan ketiadaan; dan pembaca dapat membedakan 'nol menit' yang ada di penyebut waktu putar dari 'tidak dapat dihitung' yang ada di angka tak-dapat-dihitung"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — waktu putar yang tampak tidak wajar dilaporkan apa adanya",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat satu pengiriman yang waktu putarnya jauh lebih lama daripada pengiriman lain — misalnya lebih dari dua belas jam, mungkin karena salah input jam; stasiun ini tidak punya master batas kewajaran waktu putar",
+      "when": "Pengguna membaca kartu waktu putar",
+      "then": "Angka itu dilaporkan APA ADANYA tanpa dibuang dari penyebut dan tanpa dipotong oleh batas apa pun, ia tetap menjadi waktu putar TERLAMA dan tetap ikut menaikkan rata-rata, layar TIDAK menandainya sebagai pelanggaran dalam bentuk apa pun — tidak ada warna peringatan, tidak ada lencana, tidak ada hitungan pelanggaran — karena tidak ada ambang untuk membandingkannya dan memilih ambang berarti mengarangnya, dan sebagai gantinya layar MENYATAKAN bahwa angka waktu putar yang tampak tidak wajar patut DIPERIKSA PEMBACA pada rincian pengirimannya serta mengarahkannya ke ekspor untuk melihat kedua jam mentahnya"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — waktu putar hanya dihitung bila kedua jam tercatat dan penyebutnya dicetak",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat dua puluh pengiriman yang hanya empat belas di antaranya punya jam masuk DAN jam keluar sekaligus",
+      "when": "Pengguna membaca kartu waktu putar",
+      "then": "Waktu putar tercepat, rata-rata dan terlama dihitung HANYA atas empat belas pengiriman itu, angka empat belas dicetak di kartu yang sama sebagai PENYEBUT WAKTU PUTAR dan ia jelas berbeda dari jumlah pengiriman yaitu dua puluh, jumlah pengiriman yang waktu putarnya TIDAK DAPAT dihitung dinyatakan tersendiri bernilai ENAM, dan empat belas ditambah enam sama tepat dengan dua puluh sehingga pembaca dapat merekonsiliasi ketiga angka itu"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — hanya satu dari kedua jam tercatat, dua arah yang tidak simetris",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat satu pengiriman yang punya jam masuk tetapi tidak punya jam keluar, satu pengiriman yang punya jam keluar tetapi tidak punya jam masuk, dan satu pengiriman yang tidak punya satu jam pun",
+      "when": "Pengguna membaca kartu sebaran jam masuk lalu membandingkannya dengan kartu waktu putar",
+      "then": "Pengiriman yang punya jam masuk tanpa jam keluar MASUK sebaran pada baris kelompok jam masuknya namun TIDAK masuk penyebut waktu putar; pengiriman yang punya jam keluar tanpa jam masuk masuk baris 'JAM TIDAK TERCATAT' karena jam keluarnya tidak pernah dipakai sebagai pengganti jam masuk, dan juga TIDAK masuk penyebut waktu putar; pengiriman tanpa satu jam pun masuk baris 'jam tidak tercatat' sekaligus hitungan 'waktu putar tidak dapat dihitung'; sehingga penyebut sebaran jam dan penyebut waktu putar BERBEDA dan kedua penyebut itu tercetak masing-masing di kartunya sendiri"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — sebaran dihitung menurut jam masuk dan menjumlah ke jumlah pengiriman berkat baris 'jam tidak tercatat'",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat dua puluh pengiriman yang tankernya masuk pada jam-jam pagi namun keluar pada jam-jam yang jauh berbeda, dan hanya tujuh belas di antaranya punya jam masuk tercatat",
+      "when": "Pengguna membaca kartu sebaran pengiriman menurut jam lalu menjumlahkan seluruh barisnya",
+      "then": "Setiap pengiriman ditempatkan pada baris kelompok jam MASUK tankernya dan sama sekali bukan pada kelompok jam keluarnya, sehingga sebaran menjawab kapan tanker DATANG karena itulah yang membebani jembatan timbang; layar tidak menerbitkan sebaran kedua menurut jam keluar, jam tersibuk yang ditampilkan adalah jam masuk tersibuk, dan penafsiran menyeberang tengah malam tidak menggeser satu pengiriman pun ke baris kelompok jam lain; daftar sebaran menampilkan dua puluh empat baris jam yang bersama-sama memuat tujuh belas pengiriman DITAMBAH satu baris 'JAM TIDAK TERCATAT' TERSENDIRI yang memuat tiga pengiriman sisanya, sehingga penjumlahan seluruh baris sama TEPAT dengan dua puluh yaitu jumlah pengiriman — sejajar dengan baris 'tidak tercatat' pada rekap kategoris; baris 'jam tidak tercatat' tidak pernah dilipat ke kelompok jam mana pun dan tidak pernah dibuang dari jumlah, dan penyebut sebaran yaitu tujuh belas dicetak di kartunya sendiri"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — sebaran dua puluh empat jam pada lebar ponsel dirender sebagai daftar bertumpuk tanpa halaman bergeser",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan kartu sebaran jam dirender pada lebar ponsel yang tidak dapat memuat dua puluh empat kelompok jam ditambah kelompok 'jam tidak tercatat' berdampingan; sebagian kelompok jam bernilai nol",
+      "when": "Pengguna membaca kartu sebaran jam masuk lalu menggulir layar",
+      "then": "Sebaran dirender sebagai DAFTAR BERTUMPUK di dalam kartunya dengan satu baris selebar kartu per kelompok — dua puluh empat baris jam ditambah satu baris 'jam tidak tercatat', masing-masing memuat label jamnya, jumlah pengirimannya, dan bilah sepanjang nilainya — alih-alih dua puluh lima kelompok berdampingan yang hanya akan memberi tiap kelompok belasan piksel sehingga angkanya tidak terbaca, dan alih-alih gulir mendatar yang akan menyembunyikan sebagian besar jam di balik gerakan; kelompok bernilai NOL tetap dirender sebagai baris bernilai nol dan tidak pernah dihilangkan dari daftar karena jam yang kosong adalah informasi; jam tersibuk dan jumlah jam kosong dicetak di KEPALA kartu sebelum kedua puluh lima barisnya sehingga pertanyaan utamanya terjawab tanpa menggulir seluruh daftar; kartunya dapat dilipat supaya dua puluh lima baris tidak mengubur bagian di bawahnya; dan HALAMAN itu sendiri tidak pernah bergeser mendatar pada lebar ponsel mana pun"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — jam tersibuk, jumlah jam kosong, dan keadaan ekstrem sebaran",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak; pada satu periode seluruh pengiriman masuk pada satu jam yang sama, sementara pada periode lain tidak satu pun pengiriman punya jam masuk tercatat",
+      "when": "Pengguna membaca kartu sebaran jam dan kartu waktu putar pada kedua periode",
+      "then": "Pada periode pertama daftar sebaran memperlihatkan satu baris terisi dan DUA PULUH TIGA baris bernilai nol yang tetap TERLIHAT sebagai nol alih-alih dihilangkan, jumlah jam kosong itu dinyatakan sebagai angka di kepala kartu, dan jam tersibuk adalah satu-satunya jam yang terisi; pada periode kedua kartu sebaran MENYATAKAN bahwa tidak ada jam yang tercatat pada periode ini sehingga seluruh pengiriman berada di baris 'jam tidak tercatat' dan jam tersibuk tampil '—', sementara kartu waktu putar menampilkan '—' untuk ketiga angkanya dengan penyebut nol dan jumlah tak-dapat-dihitung sama dengan jumlah pengiriman; kedua kartu TETAP dirender pada kedua periode, karena menghilangkannya membuat pembaca mengira layar ini tidak punya bagian jam — padahal inilah satu-satunya laporan pengiriman mobile yang punya"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — empat penyebut berbeda di satu layar dan kenyataan itu dinyatakan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat DUA PULUH pengiriman: enam belas punya berat bersih terisi, tujuh belas punya jam masuk tercatat, empat belas punya kedua jamnya tercatat, dan keempat ukuran mutunya punya hasil uji pada jumlah pengiriman yang berbeda-beda",
+      "when": "Pengguna mencoba merekonsiliasi seluruh angka layar dengan satu penyebut saja yaitu jumlah pengiriman",
+      "then": "Setiap kartu mencetak PENYEBUTNYA SENDIRI dan keempatnya berbeda — dua puluh untuk jumlah pengiriman, ENAM BELAS untuk total dan rata-rata berat, TUJUH BELAS untuk sebaran jam masuk, dan EMPAT BELAS untuk waktu putar tanker — ditambah penyebut masing-masing dari empat ukuran mutu yang juga boleh berbeda satu dengan lainnya; layar merender PERNYATAAN bahwa ia punya empat penyebut berbeda beserta sebabnya yaitu kedua jam dan berat terisi secara saling bebas sehingga satu angka 'jumlah pengiriman' yang dipakai sebagai penyebut semuanya akan salah secara sistematis; tidak ada satu penyebut tunggal yang diumumkan di satu tempat lalu dipakai untuk kartu lain, dan ketika keempat penyebut kebetulan bernilai sama pada sebuah periode keempatnya tetap dicetak alih-alih digabungkan menjadi satu angka"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — tiga rekap teks bebas apa adanya, menjumlah ke jumlah pengiriman, dan urutannya milik server",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih kolom perusahaan pengangkut, tangki penyimpanan sumber, dan pembeli tujuan terisi beberapa nilai teks berbeda; sebagian pengiriman mengosongkan salah satunya, dan kelompok yang mengosongkan perusahaan pengangkut justru bertonase besar",
+      "when": "Pengguna membaca ketiga rekap kategoris",
+      "then": "Ketiga rekap menampilkan satu baris PER NILAI apa adanya beserta jumlah pengiriman dan total berat bersihnya dengan NOL penerjemahan karena ketiganya teks bebas yang diketik dan tidak ada daftar induk untuk mencocokkannya, tiap rekap punya baris 'tidak tercatat' TERSENDIRI tanpa dilipat ke nilai mana pun dan tanpa dibuang dari jumlah, penjumlahan seluruh baris tiap rekap — termasuk baris itu — sama TEPAT dengan jumlah pengiriman pada angka utama, dan URUTAN barisnya adalah urutan yang diterbitkan server dari total netto terbesar lebih dulu tanpa layar mengurutkan ulang satu baris pun — sehingga baris 'tidak tercatat' yang bertonase besar MUNCUL DI ATAS alih-alih terkubur di baris terakhir tempat tak seorang pun menemukannya"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — nilai berbeda hanya pada huruf atau spasi tetap dua baris, dan nilai langka tidak dilipat",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih dua pengiriman mengisi nama perusahaan pengangkut yang sama namun berbeda pada besar-kecil huruf atau spasi tepi, sementara satu nama pembeli tujuan hanya muncul sekali",
+      "when": "Pengguna membaca ketiga rekap kategoris",
+      "then": "Kedua ejaan yang berbeda hanya pada huruf atau spasi tetap DUA baris terpisah karena menyatukannya berarti memutuskan dua ejaan adalah hal yang sama dan teks bebas tidak menjaminnya, kemungkinan itu DINYATAKAN di layar supaya pembaca tahu mengapa dua baris yang terlihat serupa tidak digabung, nilai yang muncul sekali tetap mendapat barisnya sendiri tanpa dilipat menjadi 'lainnya', dan layar tidak menormalkan satu nilai pun diam-diam"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — tidak ada rekap berlabel karena stasiun ini tanpa kolom berpilihan tertutup",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan baru saja selesai membaca Laporan Kernel Dispatch mobile yang memuat satu rekap berlabel dari kolom berpilihan tertutup; stasiun CPO Dispatch tidak punya satu pun kolom berpilihan tertutup",
+      "when": "Pengguna menelusuri seluruh bagian Laporan CPO Dispatch mobile mencari rekap berlabel semacam itu",
+      "then": "Tidak ada satu pun rekap berlabel di layar ini dan ketiga rekap yang ada seluruhnya menampilkan nilai teks bebas APA ADANYA alih-alih label dari kosakata bersama; sebagai gantinya layar merender PERNYATAAN atas ketiadaan itu beserta sebabnya yaitu stasiun ini tidak punya kolom berpilihan tertutup satu pun, dan pernyataan itu menyebut bahwa Kernel Dispatch punya satu kolom seperti itu sementara stasiun ini tidak — sehingga ketiadaan di sini terbaca sebagai sifat data bukan kelalaian laporan, dan tidak ada yang kemudian mengarang daftar label untuk kolom teks bebas layar ini"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — tiga penghitung kepatuhan terpisah dan segel atas serta bawah tidak pernah dijumlahkan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat satu pengiriman tanpa nomor surat jalan, satu pengiriman yang hanya kehilangan segel atas, satu pengiriman yang hanya kehilangan segel bawah, dan satu pengiriman yang kehilangan KEDUA segel",
+      "when": "Pengguna membaca bagian jejak kepatuhan",
+      "then": "Tiga penghitung diterbitkan TERPISAH — pengiriman tanpa nomor surat jalan, tanpa segel ATAS, dan tanpa segel BAWAH — dan kedua penghitung segel TIDAK PERNAH dijumlahkan menjadi satu angka 'segel hilang' di bagian mana pun karena satu tanker dengan satu segel hilang berbeda keadaannya dari dua tanker masing-masing satu segel hilang; pengiriman yang kehilangan kedua segel terhitung di KEDUA penghitung karena keduanya memang hilang sehingga itu DUA FAKTA bukan penghitungan ganda; ketiganya disajikan sebagai penghitung KEHADIRAN dan bukan ukuran produksi sehingga nomornya tidak pernah dirata-rata, diurutkan, maupun digrafikkan; dan penghitung yang bernilai nol tetap dirender supaya pembaca tahu pemeriksaannya memang berjalan"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — rekap harian per hari berpengiriman, kelengkapan atas hari yang sudah berjalan, draft ikut terhitung, dan pengiriman tanpa tanggal tidak dapat terjadi",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan mill punya satu periode tiga puluh hari yang baru berjalan sepuluh hari dengan pengiriman pada enam hari di antaranya serta sebagian pengirimannya masih berstatus draft, dan satu periode lain yang tanggal awalnya belum tiba; setiap catatan pengiriman selalu membawa tanggal pengirimannya karena kolom itu wajib terisi",
+      "when": "Pengguna membaca rekap harian, kelengkapan pencatatan, dan jumlah pengiriman draft pada kedua periode",
+      "then": "Rekap harian memuat satu baris untuk masing-masing dari enam hari yang ADA pengirimannya beserta baris total periode, hari tanpa pengiriman tidak dibuatkan baris nol, dan tidak ada baris 'tanggal tidak tercatat' karena 'pengiriman tanpa tanggal' bukan keadaan operasional yang wajar sehingga tempatnya tidak disediakan di layar; kelengkapan diukur atas hari yang SUDAH BERJALAN yaitu enam dari sepuluh dan bukan enam dari tiga puluh sehingga penyebutnya berhenti di hari ini dan hal itu dinyatakan, sementara untuk periode yang belum mulai kelengkapan tampil '—' beserta kalimat 'periode belum dimulai' alih-alih 0,0% yang akan terbaca sebagai kelalaian pencatatan; dan pengiriman berstatus draft TETAP ikut terhitung di seluruh angka termasuk sebaran jam dan waktu putar dengan jumlahnya dinyatakan sebagai angka tersendiri, sehingga bila ia sama dengan jumlah seluruh pengiriman pembaca langsung melihat laporan ini sepenuhnya berdiri di atas data yang belum final"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — temuan satu-satunya daftar kejadian, dan tanpa penandaan nilai mutu di luar batas",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak; pada satu periode beberapa pengiriman mengisi temuan dan terdapat nilai kadar asam lemak bebas yang jauh lebih tinggi dari pengiriman lainnya, sementara pada periode lain tidak satu pun pengiriman mengisi temuan; stasiun ini tidak punya daftar induk ambang mutu",
+      "when": "Pengguna membaca bagian temuan dan kartu mutu pada kedua periode",
+      "then": "Temuan diterbitkan sebagai daftar bertanggal berisi teks apa adanya pada periode yang terisi dan sebagai keterangan tidak ada temuan pada periode yang kosong alih-alih tabel kosong tanpa penjelasan, dan hanya ADA SATU bagian catatan kejadian di layar ini tanpa bagian 'catatan' kedua seperti pada laporan Solid Waste Disposal karena stasiun ini hanya punya satu kolom teks bebas untuk itu; sementara nilai tertinggi tiap ukuran mutu ditampilkan sebagai angka TANPA penandaan 'di luar batas' dalam bentuk apa pun — tanpa warna peringatan, tanpa lencana, tanpa hitungan pelanggaran — karena tidak ada ambang untuk membandingkannya, dan layar MENYATAKAN ketiadaan penandaan itu beserta sebabnya sehingga pembaca tidak mengira angka tanpa tanda berarti seluruh mutunya memenuhi syarat; ketiadaan itu sejajar dengan ketiadaan batas kewajaran waktu putar — keduanya batas data, bukan pilihan laporan"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — giliran kerja tidak di layar tetapi ada di ekspor, dan ekspor membawa jam apa adanya tanpa penafsiran",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan pada periode serta line terpilih terdapat pengiriman yang catatannya membawa giliran kerja, nomor surat jalan, nomor tanker, nama pengemudi, kedua nomor segel, dan nama operator timbang, termasuk satu pengiriman yang tankernya masuk pukul 23:30 dan keluar pukul 00:45 yang di layar terbaca menyeberang tengah malam dengan waktu putar satu jam lima belas menit",
+      "when": "Pengguna membaca seluruh bagian laporan di layar, lalu menjalankan Ekspor CSV dan membuka baris pengiriman itu",
+      "then": "Giliran kerja tidak muncul di layar dalam BENTUK APA PUN — tidak sebagai rekap, tidak sebagai kolom, tidak sebagai penyaring — dan keterangan itu dirender di layar; nomor tanker, nama pengemudi dan nama operator timbang juga tidak muncul di satu angka pun di layar, sementara nomor surat jalan dan kedua segel hadir HANYA sebagai penghitung ketidakhadirannya pada jejak kepatuhan; namun seluruh kolom itu TETAP ikut pada berkas ekspor dengan satu baris per pengiriman dan kolom konteks — mill, Production Line, periode, tanggal — diulang di setiap baris sehingga satu baris dapat dibaca sendirian; dan berkas itu membawa jam masuk 23:30 serta jam keluar 00:45 APA ADANYA tanpa penafsiran menyeberang tengah malam, tanpa satu hari ditambahkan pada jam keluar, tanpa kolom waktu putar hasil hitungan, dan tanpa penanda 'menyeberang tengah malam' pada barisnya — karena ekspor adalah rincian MENTAH dan penafsiran adalah pekerjaan laporan, sehingga pembaca dapat memeriksa sendiri apakah pembacaan laporan masuk akal untuk pengiriman itu"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — ekspor hanya CSV, tanpa Excel, dan dua kali tekan menghasilkan satu unduhan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan laporan periode sudah tampil dengan tombol ekspor tersedia",
+      "when": "Pengguna menekan tombol ekspor dua kali berturut-turut dalam waktu singkat lalu memeriksa format yang ditawarkan",
+      "then": "Tepat SATU permintaan ekspor terkirim dan tepat SATU berkas terunduh dengan tombol menunjukkan keadaan sedang berjalan selama permintaan berlangsung, dan satu-satunya format yang ditawarkan adalah CSV — tidak ada tombol ekspor Excel di layar ini, karena WebView ponsel tidak membuka berkas .xlsx dan menawarkan tombol yang menghasilkan berkas tak terbuka lebih buruk daripada tidak menawarkannya"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — rekap menggulir mendatar di dalam kartunya, dapat dilipat, dan kartu mutu bertumpuk tetap terbaca",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan periodenya cukup panjang serta nilai teks bebasnya cukup banyak sehingga rekapnya puluhan baris, sementara keempat ukuran mutu dan ketiga angka waktu putar berangka penuh",
+      "when": "Pengguna menutup dan membuka bagian rekap serta kartu sebaran jam, lalu menggulir tabel rekap yang lebar",
+      "then": "Ketiga rekap teks bebas, rekap harian dan kartu sebaran jam DAPAT dilipat supaya layar sempit tetap dapat ditelusuri, sementara kartu tonase, kartu mutu dan kartu waktu putar TIDAK dapat dilipat sehingga ketiganya tetap terlihat tanpa satu tindakan pun; tabel rekap yang lebar menggulir mendatar DI DALAM kartunya sendiri dan halaman itu sendiri tidak pernah bergeser mendatar pada lebar ponsel mana pun; keempat ukuran mutu BERTUMPUK di dalam kartu mutu dengan ketiga angkanya beserta PENYEBUTNYA tetap terbaca utuh tanpa terpotong oleh kartu yang memuatnya; dan menutup atau membuka sebuah bagian tidak memicu satu permintaan data pun dan tidak mengubah satu angka pun"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — luring menutup angkanya, baik sejak awal maupun sesudah angka termuat",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak; pada satu keadaan perangkat sudah tidak terhubung jaringan sebelum layar dibuka, pada keadaan lain perangkat kehilangan koneksi setelah seluruh angka selesai dimuat termasuk kedua puluh lima baris sebaran jam dan ketiga angka waktu putar",
+      "when": "Pengguna membuka atau membaca layar Laporan CPO Dispatch pada kedua keadaan itu",
+      "then": "Layar MENYATAKAN bahwa laporan ini memerlukan jaringan dan TIDAK menampilkan satu angka pun dari pemuatan sebelumnya — luring MENUTUP angkanya, bukan sekadar menambah spanduk di atasnya; ketika perangkat menjadi luring sesudah angka termuat, angka yang sudah tampil DITUTUP termasuk seluruh baris sebaran jam dan ketiga angka waktu putar alih-alih dibiarkan basi tanpa penanda; dan NOL permintaan dikirim selama perangkat luring — karena angka basi tanpa penanda lebih berbahaya daripada tidak ada angka, dan laporan ini memilih tidak ada angka"
+    },
+    {
+      "scenario": "Laporan CPO Dispatch Mobile — sesi berakhir mengarahkan ke Login tanpa galat jaringan, dan galat jaringan dapat dicoba lagi dengan penjagaan line tetap berlaku",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran yang berhak dan layar Laporan CPO Dispatch sedang terbuka; pada satu keadaan server menjawab bahwa sesi sudah tidak sah, pada keadaan lain permintaan ringkasan gagal padahal perangkat terhubung jaringan",
+      "when": "Pengguna memuat ringkasan atau menjalankan ekspor pada kedua keadaan itu",
+      "then": "Ketika sesi berakhir, pengguna diarahkan ke layar Login TANPA satu pesan galat jaringan pun karena sesi berakhir bukan kegagalan jaringan dan menyebutnya begitu mengirim pengguna memeriksa sinyal alih-alih masuk kembali, dan tidak ada angka yang tertinggal di layar; ketika permintaan gagal padahal perangkat terhubung, keadaan galat ditampilkan dengan aksi coba lagi, penjagaan Production Line TETAP berlaku pada jalur coba lagi itu sehingga line yang belum dipilih tidak lolos lewat tombol itu, dan tidak ada angka separuh jadi yang ditampilkan — kartu mutu maupun kartu waktu putar tidak pernah tampil berisi sementara kartu tonase kosong"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-167--laporan-cpo-dispatch-mobile"
+  ]
+}

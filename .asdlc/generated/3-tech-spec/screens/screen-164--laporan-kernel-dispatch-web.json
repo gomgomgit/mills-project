@@ -547,7 +547,318 @@
         "Kolom shift tidak diterbitkan, tetap diekspor",
         "Ketiadaan sebuah blok dinyatakan di layar beserta sebabnya"
       ],
-      "unit_test_cases": []
+      "unit_test_cases": [
+        {
+          "description": "businessUnitOptions menolak non-admin dengan 403 dari DALAM service",
+          "given": "User berperan Supervisor; diulang untuk Mill Management dan Station Operator; ketiganya diterima middleware prefix ini karena ketiga rute data di bawahnya memang menerima mereka",
+          "expect": "throw ForbiddenException kode FORBIDDEN untuk ketiga peran. Asersi tambahan: penolakan datang dari service, bukan middleware — KernelDispatchReportService dipanggil LANGSUNG tanpa HTTP kernel dan tetap menolak"
+        },
+        {
+          "description": "businessUnitOptions mengembalikan seluruh mill bagi Admin; master kosong mengembalikan [] bukan galat",
+          "given": "User Admin (business_unit_id null). Varian A: tiga BusinessUnit disemai bernama 'Mill C','Mill A','Mill B'. Varian B: nol BusinessUnit",
+          "expect": "Varian A: tiga entri {id,name} urut nama naik. Varian B: array KOSONG tanpa exception — 'belum ada mill' adalah jawaban sah, bukan 404"
+        },
+        {
+          "description": "periods menolak 422 ketika Admin tidak menyertakan business_unit_id",
+          "given": "Sesi Admin; query tanpa business_unit_id; DUA mill tersedia dan keduanya punya periode kernel-dispatch bertanggal eksplisit",
+          "expect": "ValidationException kode VALIDATION_ERROR dengan pesan Indonesia yang menyebut parameter yang kurang. Asersi NEGATIF: nol periode terbit — tidak ada mill default dan tidak ada 'mill pertama'"
+        },
+        {
+          "description": "business_unit_id kiriman DIABAIKAN bagi peran terikat mill — bukan 403",
+          "given": "Supervisor terikat mill-A mengirim business_unit_id = mill-B. Kedua mill punya periode kernel-dispatch bernama berbeda ('P-A' dan 'P-B'), keduanya bertanggal eksplisit",
+          "expect": "200 dan hanya periode mill-A terbit. Asersi NEGATIF EKSPLISIT: 'P-B' TIDAK ada di hasil — dicek atas id DAN nama, bukan atas jumlah entri saja. Menolak dengan 403 akan membocorkan keberadaan mill-B kepada orang yang tidak berhak mengetahuinya"
+        },
+        {
+          "description": "Akun terikat mill yang business_unit_id-nya NULL di DB menghasilkan 422, BUKAN 403",
+          "given": "User Supervisor yang kolom business_unit_id-nya NULL — master rusak, bukan izin kurang",
+          "expect": "assertThrows atas KELAS exception (ValidationException) DAN atas kode VALIDATION_ERROR, bukan hanya mencocokkan potongan pesan. Asersi negatif: bukan ForbiddenException dan bukan 403"
+        },
+        {
+          "description": "periods hanya memuat periode yang punya baris period_stations berjenis 'kernel-dispatch'",
+          "given": "Mill punya tiga periode bertanggal EKSPLISIT: satu dengan period_station 'kernel-dispatch', satu dengan 'solid-waste-disposal' saja, satu tanpa period_station apa pun",
+          "expect": "Tepat SATU periode terbit; station_type = 'kernel-dispatch' dan station_type_label terisi. Kedua periode lain diasersikan ABSEN atas id-nya, bukan lewat jumlah"
+        },
+        {
+          "description": "periods TIDAK menyaring status periode — draft, open dan closed sama-sama terbaca",
+          "given": "Tiga periode kernel-dispatch pada satu mill berstatus 'draft', 'open' dan 'closed', semuanya bertanggal eksplisit",
+          "expect": "Ketiga periode terbit dan field status tiap entri sama dengan status di DB. Keanggotaan diasersikan dengan $this->assertContains() atas kumpulan id — expect()->toContain($a,$b) membaca argumen kedua sebagai needle KEDUA dan tidak boleh dipakai di sini"
+        },
+        {
+          "description": "periods mengembalikan [] ketika mill belum punya satu pun periode kernel-dispatch",
+          "given": "Mill punya dua periode bertanggal eksplisit, tetapi period_stations-nya hanya 'weighbridge' dan 'grading'",
+          "expect": "Array KOSONG dengan 200 — bukan exception dan bukan 404. Layar memakainya untuk mencetak keadaan 'belum ada periode yang mencakup Kernel Dispatch'"
+        },
+        {
+          "description": "summary menolak 422 ketika period_id absen",
+          "given": "Sesi Supervisor terikat mill; production_line_id dikirim, period_id tidak",
+          "expect": "ValidationException kode VALIDATION_ERROR. Asersi negatif: tidak ada payload yang terbit sebagian — nol blok angka dihitung"
+        },
+        {
+          "description": "summary menolak 422 ketika production_line_id absen — tanpa fallback 'line pertama' dan tanpa mode semua-line",
+          "given": "Mill punya DUA Production Line yang MASING-MASING berpengiriman kernel-dispatch pada periode terpilih, bertanggal eksplisit; query mengirim period_id saja",
+          "expect": "ValidationException kode VALIDATION_ERROR dan NOL payload terbit. Fixture dua-line itulah asersinya: implementasi yang diam-diam memilih 'line pertama' atau menjumlahkan semua line akan mengembalikan 200 berisi angka, dan test ini memerah"
+        },
+        {
+          "description": "summary menolak 403 ketika periode milik mill lain",
+          "given": "Supervisor terikat mill-A; period_id dan production_line_id keduanya milik mill-B, bertanggal eksplisit",
+          "expect": "ForbiddenException kode FORBIDDEN, diperiksa SEBELUM satu agregat pun dihitung"
+        },
+        {
+          "description": "summary menolak 403 ketika production_line_id milik mill lain — DITOLAK, bukan diabaikan; dikontraskan dengan business_unit_id dalam satu test",
+          "given": "Supervisor terikat mill-A. Bagian 1: period_id mill-A + production_line_id mill-B. Bagian 2: permintaan yang sama ditambah business_unit_id = mill-B",
+          "expect": "Bagian 1: ForbiddenException kode FORBIDDEN. Bagian 2: business_unit_id mill-B DIABAIKAN tanpa galat sementara production_line_id mill-B TETAP 403. Kedua perilaku dijalankan berurutan DALAM SATU TEST supaya perbedaannya tidak dihapus belakangan: business_unit_id adalah konteks yang diturunkan dari akun sehingga diabaikan, production_line_id adalah parameter yang dipilih sadar sehingga ditolak"
+        },
+        {
+          "description": "Station Operator DITERIMA di periods, summary dan export sejak commit pertama; DITOLAK 403 hanya di rute web",
+          "given": "Sesi Station Operator pada mill yang punya periode kernel-dispatch dan pengiriman bertanggal eksplisit",
+          "expect": "periods 200, summary 200 dengan angka penuh, export 200 beraliran. GET rute WEB /reports/kernel-dispatch → 403. Asersi ini mengunci bahwa screen-165 (mobile) tidak perlu melebarkan satu gate pun"
+        },
+        {
+          "description": "dispatch_count menghitung BARIS DETAIL, bukan record induk",
+          "given": "Satu record induk kernel-dispatch bertanggal eksplisit di dalam periode dengan 5 baris detail; satu record induk lain bertanggal eksplisit dengan 2 baris detail",
+          "expect": "dispatch_count = 7, bukan 2. Asersi tambahan: dispatch_count tetap 7 meski sebagian baris ber-net_weight_mt null — satuan hitungnya pengiriman, bukan penimbangan yang selesai"
+        },
+        {
+          "description": "Lingkup baris menyingkirkan record stasiun lain dan record line lain",
+          "given": "Pada periode dan tanggal EKSPLISIT yang sama: 3 detail kernel-dispatch di line-1, 4 detail kernel-dispatch di line-2, dan 5 detail solid-waste-disposal di line-1",
+          "expect": "Untuk line-1: dispatch_count = 3. Kebocoran dibuat terlihat sebagai ANGKA, bukan hanya sebagai jumlah: netto tiap kelompok disemai berbeda (line-1 = 10/baris, line-2 = 100/baris) sehingga net_weight_total = 30 dan setiap kebocoran line-2 langsung mengubahnya"
+        },
+        {
+          "description": "Keanggotaan periode ditentukan kolom `date` pada INDUK, inklusif di kedua ujung",
+          "given": "Periode 2026-03-01 s/d 2026-03-31. Record induk bertanggal 2026-02-28, 2026-03-01, 2026-03-31 dan 2026-04-01, masing-masing 1 detail",
+          "expect": "dispatch_count = 2 — 01 dan 31 IKUT, 2026-02-28 dan 2026-04-01 tidak. Perbandingan tanggal memakai whereDate() bukan where(): suite berjalan di SQLite in-memory sementara produksi dan e2e di PostgreSQL"
+        },
+        {
+          "description": "Satu line dengan LEBIH DARI SATU unit stasiun kernel-dispatch digabung tepat sekali",
+          "given": "Line-1 punya DUA baris stations berjenis 'kernel-dispatch'; masing-masing punya satu record induk bertanggal eksplisit dengan 2 detail",
+          "expect": "dispatch_count = 4 — digabung, tidak diduplikasi menjadi 8 dan tidak hanya satu unit yang terbaca (2)"
+        },
+        {
+          "description": "summary menghitung normal untuk periode berstatus draft maupun closed",
+          "given": "Dua periode kernel-dispatch yang isinya identik, satu berstatus 'draft' dan satu 'closed', pengiriman bertanggal eksplisit",
+          "expect": "Kedua payload punya dispatch_count, net_weight_total dan KEEMPAT measured_count mutu yang sama persis. Status periode TIDAK menyaring apa pun di satu angka pun"
+        },
+        {
+          "description": "net_weight_total dan net_weight_avg dihitung HANYA atas baris ber-net_weight_mt non-null; net_weight_dispatch_count DITERBITKAN sebagai penyebut",
+          "given": "5 detail bertanggal eksplisit dengan net_weight_mt: 10, 20, 30, null, null",
+          "expect": "net_weight_total = 60, net_weight_dispatch_count = 3, net_weight_avg = 20. Asersi NEGATIF: avg BUKAN 12 (60/5) — penyebutnya baris yang tertimbang, bukan seluruh pengiriman"
+        },
+        {
+          "description": "net_weight_dispatch_count = 0 memberi net_weight_total dan net_weight_avg NULL, BUKAN 0",
+          "given": "4 detail bertanggal eksplisit, keempatnya net_weight_mt null",
+          "expect": "net_weight_total NULL dan net_weight_avg NULL (assertNull, bukan assertEquals(0)), net_weight_dispatch_count 0, missing_net_weight_dispatch_count 4, dispatch_count 4. '0,00 MT' adalah pernyataan palsu bahwa penimbangan sudah selesai dan hasilnya nol"
+        },
+        {
+          "description": "Penyebut rata-rata adalah net_weight_dispatch_count dan penyebut itu DITERBITKAN di payload",
+          "given": "6 detail bertanggal eksplisit dengan net_weight_mt: 12, 12, 12, null, null, null",
+          "expect": "net_weight_avg = 12 DAN net_weight_dispatch_count = 3 ada sebagai kunci di blok dispatches. Kehadiran kunci penyebut diasersikan dengan array_key_exists — rata-rata tanpa penyebut yang terbaca adalah angka yang tidak dapat dinilai orang"
+        },
+        {
+          "description": "missing_net_weight_dispatch_count = dispatch_count − net_weight_dispatch_count, dan nol tetap diterbitkan",
+          "given": "Varian A: 7 detail bertanggal eksplisit, 4 ber-netto dan 3 tanpa netto. Varian B: ketujuh detail ber-netto",
+          "expect": "A: dispatch_count 7, net_weight_dispatch_count 4, missing_net_weight_dispatch_count 3. B: missing = 0 dan KUNCINYA TETAP ADA (array_key_exists) — bukan kunci yang hilang. Netto adalah kolom TURUNAN SERVICE, jadi null berarti penimbangan BELUM SELESAI dan angka itu perlu ditonjolkan tersendiri"
+        },
+        {
+          "description": "net_weight_mt DIBACA APA ADANYA — tidak pernah dihitung ulang dari bruto − tara",
+          "given": "Baris 1 bertanggal eksplisit: net_weight_mt = 18.5 sementara gross_weight_mt DAN tare_weight_mt KEDUANYA null. Baris 2: bruto 30, tara 8, net_weight_mt 17.0 (sengaja tidak sama dengan 22)",
+          "expect": "Baris 1 IKUT net_weight_total dan net_weight_dispatch_count dengan nilai 18.5 — tidak dilewati karena bruto/tara kosong; baris yang ditulis lewat jalur selain form dapat punya netto tanpa bruto/tara. Baris 2 menyumbang 17.0 BUKAN 22. net_weight_total = 35.5, net_weight_dispatch_count = 2"
+        },
+        {
+          "description": "KEEMPAT measured_count mutu dihitung TERPISAH dan INDEPENDEN, dengan angka yang berbeda satu dengan lainnya DAN berbeda dari dispatch_count",
+          "given": "9 pengiriman bertanggal EKSPLISIT, disusun supaya keempat penyebut berbeda. Kombinasi wajib hadir: satu pengiriman punya kernel_moisture_percent TANPA ffa_percent, satu punya ffa_percent TANPA kernel_moisture_percent, satu punya KEDUANYA, dan satu TIDAK punya satu hasil uji pun; dirt_impurities_percent dan broken_kernel_percent diisi dengan pola berbeda lagi sehingga measured_count menjadi kernel_moisture 6, dirt_impurities 5, ffa 4, broken_kernel 3",
+          "expect": "quality.kernel_moisture_percent.measured_count = 6, dirt_impurities_percent.measured_count = 5, ffa_percent.measured_count = 4, broken_kernel_percent.measured_count = 3, dan dispatch_count = 9 — LIMA angka yang semuanya BERBEDA, diasersikan satu per satu. Inilah jebakan utama layar ini: satu penyebut tunggal untuk keempat ukuran membuat keempatnya sama (dan biasanya sama dengan dispatch_count), sehingga test ini memerah tepat pada implementasi yang 'tampak rapi' dan salah secara sistematis"
+        },
+        {
+          "description": "Penyebut NOL pada satu ukuran TIDAK mengosongkan ukuran lain — diperiksa PER UKURAN, bukan lewat satu penjaga 'ada data mutu atau tidak'",
+          "given": "4 pengiriman bertanggal eksplisit; ffa_percent NULL pada KEEMPATNYA, sementara kernel_moisture_percent, dirt_impurities_percent dan broken_kernel_percent terisi pada keempatnya dengan nilai yang berbeda-beda",
+          "expect": "ffa_percent.min, .avg dan .max KETIGANYA NULL (assertNull masing-masing) dengan measured_count 0; SEKALIGUS kernel_moisture_percent, dirt_impurities_percent dan broken_kernel_percent masing-masing BERANGKA dengan measured_count 4. Satu penjaga global 'ada data mutu atau tidak' akan mengosongkan keempatnya dan test ini memerah"
+        },
+        {
+          "description": "Keempat ukuran mutu kosong SEMENTARA tonase ada — blok mutu dan blok berat independen di kedua arah",
+          "given": "Varian A: 5 pengiriman bertanggal eksplisit dengan net_weight_mt = 10 pada semuanya dan KEEMPAT kolom mutu NULL. Varian B (terbalik): keempat kolom mutu terisi pada semuanya sementara net_weight_mt NULL pada semuanya",
+          "expect": "A: keempat ukuran min/avg/max NULL dengan measured_count 0, SEMENTARA net_weight_total = 50, net_weight_avg = 10, net_weight_dispatch_count = 5 — blok mutu menyatakan belum ada hasil uji dan blok berat tetap berangka. B: keempat ukuran mutu berangka dengan measured_count 5 SEMENTARA net_weight_total dan net_weight_avg NULL. Mutu dan berat adalah kolom berbeda dan tidak boleh saling menjaga"
+        },
+        {
+          "description": "min, avg dan max benar untuk tiap ukuran, dihitung DI PHP bukan lewat agregat SQL",
+          "given": "Tiga pengiriman bertanggal eksplisit: kernel_moisture_percent = 6.2, 7.8, 7.0; dirt_impurities_percent = 0.01 dan 0.03 pada dua di antaranya, null pada yang ketiga",
+          "expect": "kernel_moisture: min 6.2, max 7.8, avg 7.0 (21.0/3), measured_count 3. dirt_impurities: min 0.01, max 0.03, avg 0.02, measured_count 2. Dibandingkan dengan toleransi float eksplisit. Asersi pendamping: perhitungan terjadi DI PHP, bukan lewat AVG()/MIN()/MAX() basis data — angka yang sama harus keluar di SQLite (suite) dan PostgreSQL (e2e), dan agregat SQL membedakan pembulatan antar-mesin"
+        },
+        {
+          "description": "Satu nilai saja pada sebuah ukuran memberi min = avg = max; dan nilai negatif yang tidak masuk akal DILAPORKAN APA ADANYA, tidak disaring",
+          "given": "Varian A: tepat satu pengiriman bertanggal eksplisit punya broken_kernel_percent = 4.5, sisanya null. Varian B: ffa_percent = -1.2 dan 3.4 pada dua pengiriman bertanggal eksplisit — skema mengizinkannya karena tidak ada CHECK constraint pada kolom persen",
+          "expect": "A: min = avg = max = 4.5 dengan measured_count 1 — bukan null dan bukan 0. B: min = -1.2, max = 3.4, avg = 1.1, measured_count 2 — nilai negatif IKUT, tidak dibuang dan tidak dijadikan 0. Laporan melaporkan apa yang tersimpan; menyaring di lapisan laporan akan menyembunyikan data masukan yang rusak dari orang yang justru harus memperbaikinya"
+        },
+        {
+          "description": "Satu pengiriman yang punya kadar air tetapi tidak punya ALB masuk penyebut yang satu dan TIDAK masuk yang lain — bentuk terkecil dari jebakan penyebut tunggal",
+          "given": "TEPAT SATU pengiriman bertanggal eksplisit: kernel_moisture_percent = 7.1 sementara ffa_percent, dirt_impurities_percent dan broken_kernel_percent NULL",
+          "expect": "kernel_moisture_percent.measured_count = 1 dengan min = avg = max = 7.1; ffa_percent.measured_count = 0 dengan ketiga nilainya NULL; begitu pula dirt_impurities dan broken_kernel. Dua penyebut berbeda dari SATU baris yang sama"
+        },
+        {
+          "description": "quality._note DITERBITKAN sebagai kunci dan berisi prosa yang menyatakan keempat penyebut boleh berbeda",
+          "given": "Payload apa pun, termasuk periode tanpa satu pun hasil uji",
+          "expect": "array_key_exists('_note', quality) TRUE dan nilainya string non-kosong. Diasersikan atas KEHADIRAN KUNCI, bukan atas kalimat tertentu. Tanpa kalimat itu, pembaca yang melihat kadar air atas 12 pengiriman dan ALB atas 7 akan menyimpulkan ada data yang hilang — padahal yang terjadi adalah dua uji yang tidak selalu dilakukan bersama"
+        },
+        {
+          "description": "by_gate_status menerbitkan KODE MENTAH di payload; label TIDAK ada di payload",
+          "given": "Pengiriman bertanggal eksplisit dengan remarks_gate_status 'released' dan 'not_released'",
+          "expect": "by_gate_status[].value berisi PERSIS 'released' dan 'not_released'. Asersi NEGATIF: tidak ada nilai 'Released' maupun 'Not Released' di payload mana pun. Label adalah kosakata lapisan tampilan; menerbitkannya di payload memindahkan kosakata ke lapisan yang salah dan membuat pasangan mobile (screen-165) menerima label yang tidak dapat ia ubah"
+        },
+        {
+          "description": "not_released_count menghitung HANYA value === 'not_released' persis; baris null ADA di by_gate_status tetapi TIDAK masuk hitungan",
+          "given": "Fixture bertanggal eksplisit memuat KETIGA keadaan sekaligus: 3 pengiriman 'released', 2 pengiriman 'not_released', dan 4 pengiriman remarks_gate_status NULL",
+          "expect": "not_released_count = 2 — bukan 6 (null tidak digabung) dan bukan 0. SEKALIGUS, dalam test yang sama: by_gate_status MEMUAT baris value null dengan dispatch_count 4 (assertNull atas value-nya, bukan pencarian string 'tidak tercatat'). Justru pasangan dua asersi itu yang membuktikan: 'tidak tercatat' dan 'tidak dilepas' adalah dua keadaan berbeda, dan menggabungkannya MENUDUH pengiriman yang sekadar belum diisi statusnya — tuduhan yang akan sampai ke orang. Varian kedua: nol pengiriman 'not_released' → not_released_count = 0 dan kuncinya TETAP diterbitkan"
+        },
+        {
+          "description": "Nilai remarks_gate_status di luar kedua pilihan yang dikenal mendapat barisnya SENDIRI, apa adanya",
+          "given": "6 pengiriman bertanggal eksplisit: 2 'released', 1 'not_released', 2 berisi 'HOLD_BY_SECURITY' (nilai yang TIDAK ada di <select> form — KernelDispatchRecordService menyimpan filled(...) ? value : null tanpa daftar tertutup, sehingga jalur selain form web dapat menyimpan apa pun), 1 NULL",
+          "expect": "by_gate_status punya EMPAT baris: 'released', 'not_released', 'HOLD_BY_SECURITY', dan null. Baris 'HOLD_BY_SECURITY' berisi nilai MENTAH apa adanya; diasersikan secara eksplisit bahwa ia TIDAK dibuang, TIDAK dipaksa masuk salah satu dari kedua pilihan, dan TIDAK dilipat ke baris null. not_released_count TETAP 1 — nilai tak dikenal bukan 'tidak dilepas'"
+        },
+        {
+          "description": "Penjumlahan dispatch_count by_gate_status TETAP SAMA DENGAN dispatch_count meski ada nilai tak dikenal dan baris null",
+          "given": "Fixture yang sama seperti case nilai tak dikenal: 6 pengiriman bertanggal eksplisit menyebar di 'released', 'not_released', 'HOLD_BY_SECURITY' dan null",
+          "expect": "array_sum(array_column(by_gate_status,'dispatch_count')) === dispatch_count === 6. Inilah asersi yang menangkap implementasi yang 'merapikan' dengan membuang nilai tak dikenal atau membuang baris null: begitu satu baris hilang, rekapnya tidak lagi berjumlah ke angka di atasnya, dan selisihnya langsung menunjuk baris yang dibuang"
+        },
+        {
+          "description": "Display::OPTION_LABELS memuat 'released' dan 'not_released'; option() jatuh ke nilai mentah untuk yang tak dikenal dan '-' untuk kosong",
+          "given": "Pemanggilan LANGSUNG Display::option() atas 'released', 'not_released', 'HOLD_BY_SECURITY', null dan ''",
+          "expect": "'Released', 'Not Released' (label DISALIN VERBATIM dari <select> form, tidak diterjemahkan — dua label untuk satu nilai adalah dua kosakata), 'HOLD_BY_SECURITY' apa adanya, lalu '-' untuk null dan untuk ''. Asersi pendamping: pemetaannya hidup di SATU tempat — grep memastikan kedua kode tidak dituliskan ulang di blade laporan, blade detail, maupun exporter (keputusan proyek 2026-10-14: blade MENDELEGASIKAN, jangan menyalin)"
+        },
+        {
+          "description": "Tiga rekap teks bebas mengelompokkan nilai APA ADANYA — nol join, nol pemetaan; net_weight_total per entri hanya menjumlah netto non-null",
+          "given": "Pengiriman bertanggal eksplisit dengan transporter_contractor 'PT Angkut Jaya' pada 3 baris bernetto 10 / 20 / null; silo_source_id 'SILO-A' dan destination_buyer 'PT Pembeli' pada baris yang sama",
+          "expect": "by_transporter punya entri value 'PT Angkut Jaya' dengan dispatch_count 3, net_weight_total 30, net_weight_dispatch_count 2 dan net_weight_avg 15 — tiap baris rekap menerbitkan penyebutnya SENDIRI. Nilai yang muncul sekali TETAP berbaris sendiri dan tidak pernah dilipat menjadi 'lainnya'. Asersi negatif atas query log: NOL kueri tambahan ke tabel master apa pun untuk menerjemahkan nilai ketiga kolom itu"
+        },
+        {
+          "description": "silo_source_id dikelompokkan sebagai TEKS — nilai yang tampak seperti uuid TETAP dicetak apa adanya, tidak dicari namanya",
+          "given": "Dua pengiriman bertanggal eksplisit dengan silo_source_id = '9f1c2a44-5e21-4b6f-8c0d-7a3e51b9d012' (sengaja berbentuk uuid) dan satu dengan 'Silo Timur 2'",
+          "expect": "by_silo_source memuat kedua nilai itu VERBATIM sebagai string; string berbentuk uuid TIDAK ditukar dengan nama apa pun, tidak dipotong, dan tidak dibuang. Asersi negatif atas query log: nol join dan nol kueri ke tabel mana pun bernama silo — kolomnya string nullable di migrasi 2026_08_31, tidak ada tabel silo di satu migrasi pun, dan form merendernya <input type=\"text\">. Nama kolom yang berakhiran _id di sini menyesatkan, dan join yang 'masuk akal' tidak mungkin dibuat"
+        },
+        {
+          "description": "Baris value null ('tidak tercatat') adalah entri TERSENDIRI; kolom kosong pada SELURUH pengiriman memberi satu baris berisi semuanya, bukan rekap kosong",
+          "given": "Varian A: 5 pengiriman bertanggal eksplisit, 2 di antaranya destination_buyer NULL. Varian B: 6 pengiriman, destination_buyer NULL pada SEMUANYA",
+          "expect": "A: by_destination_buyer punya baris value null dengan dispatch_count 2, TERPISAH dari baris-baris bernilai. B: by_destination_buyer berisi TEPAT SATU baris, value null, dispatch_count 6 — bukan array kosong dan bukan blok yang dihilangkan dari payload"
+        },
+        {
+          "description": "Penjumlahan dispatch_count tiap rekap SAMA DENGAN dispatch_count — diasersikan di KEEMPAT rekap termasuk by_gate_status",
+          "given": "8 pengiriman bertanggal eksplisit; tiap kolom kategoris punya sebagian nilai dan sebagian NULL, dengan POLA NULL YANG BERBEDA antar-kolom supaya satu rekap tidak membuktikan rekap lain",
+          "expect": "EMPAT asersi penjumlahan terpisah: by_transporter, by_silo_source, by_destination_buyer dan by_gate_status, masing-masing array_sum atas dispatch_count-nya === 8. Pola null yang berbeda itulah yang membuat keempat asersi tidak saling menumpang — baris null yang dibuang di satu rekap saja akan tetap tertangkap"
+        },
+        {
+          "description": "String kosong dan whitespace di kolom kategoris di-trim lalu diperlakukan SAMA DENGAN null — satu entri, bukan dua atau tiga",
+          "given": "4 pengiriman bertanggal eksplisit dengan transporter_contractor: NULL, '', '   ' (tiga spasi), dan 'PT Angkut Jaya'",
+          "expect": "by_transporter punya TEPAT DUA baris: value null dengan dispatch_count 3, dan 'PT Angkut Jaya' dengan 1. Asersi negatif: tidak ada entri yang value-nya '' maupun '   ' di rekap"
+        },
+        {
+          "description": "Nilai kategoris yang berbeda hanya pada huruf besar/kecil TETAP dua entri terpisah",
+          "given": "3 pengiriman bertanggal eksplisit dengan destination_buyer: 'PT Pembeli', 'pt pembeli', dan ' PT Pembeli ' (berspasi di kedua ujung)",
+          "expect": "DUA baris: 'PT Pembeli' dengan dispatch_count 2 (yang berspasi ikut setelah trim) dan 'pt pembeli' dengan 1. Hanya spasi di ujung yang di-trim; beda huruf besar/kecil TIDAK disatukan — menyatukannya berarti memutuskan atas nama orang bahwa keduanya pembeli yang sama"
+        },
+        {
+          "description": "Urutan tiap rekap: net_weight_total DESC → dispatch_count DESC → value ASC, dengan SERI SEMPURNA pada kedua kunci pertama supaya pemutus ketiga TERUJI",
+          "given": "Pengiriman bertanggal eksplisit menghasilkan tiga entri by_transporter yang SERI SEMPURNA pada net_weight_total DAN dispatch_count: 'Charlie' (2 baris, total 40), 'Alpha' (2 baris, total 40), 'Bravo' (2 baris, total 40) — disemai dalam urutan Charlie, Alpha, Bravo supaya urutan masuk tidak sama dengan urutan keluar; plus satu entri 'Delta' (1 baris, total 100)",
+          "expect": "Urutan PERSIS: ['Delta','Alpha','Bravo','Charlie'], dibandingkan sebagai URUTAN LENGKAP atas array_column(by_transporter,'value') — bukan lewat assertContains, yang akan lolos pada urutan apa pun. Tanpa seri sempurna pada kedua kunci pertama, pemutus value ASC tidak pernah dieksekusi dan asersi urutannya vakum"
+        },
+        {
+          "description": "null diurutkan sebagai 0.0 UNTUK PENGURUTAN SAJA; kelompok null bertonase besar muncul DI ATAS dan BUKAN baris terakhir",
+          "given": "by_silo_source menghasilkan: baris null dengan net_weight_total 500 (5 pengiriman), 'SILO-A' dengan 80, 'SILO-B' dengan 80 tetapi dispatch_count lebih besar, dan 'SILO-C' yang seluruh nettonya kosong sehingga net_weight_total-nya NULL. Semua tanggal disemai eksplisit",
+          "expect": "Baris null berada di INDEKS 0 — tonasenya yang menentukan posisinya, bukan null-nya. Asersi NEGATIF eksplisit: baris null BUKAN entri terakhir (assertNotSame(count−1, indeks baris null)) — 'null dipaku di akhir' adalah kesalahan yang paling sering tersamar sebagai rapi. 'SILO-C' diurutkan sebagai 0.0 sehingga ia yang terakhir, SEMENTARA net_weight_total-nya di payload TETAP null (assertNull), bukan 0 — pengurutan tidak boleh merembes ke nilai yang diterbitkan. 'SILO-B' di atas 'SILO-A' karena pemutus kedua"
+        },
+        {
+          "description": "TIGA penghitung kepatuhan TERPISAH menghitung null DAN string kosong setelah trim; nol tetap diterbitkan; TIDAK ADA kunci gabungan di payload",
+          "given": "6 pengiriman bertanggal eksplisit: waybill_number NULL pada 1 dan '  ' pada 1; security_seal_no_top NULL pada 2; security_seal_no_bottom '' pada 3",
+          "expect": "missing_waybill_count 2, missing_seal_top_count 2, missing_seal_bottom_count 3 — tiga angka yang diasersikan terpisah. Asersi NEGATIF atas NAMA KUNCI (array_key_exists, bukan pencarian teks): compliance TIDAK punya kunci 'missing_seal_count' maupun nama gabungan lain apa pun. Varian kedua: seluruh jejak lengkap → ketiganya 0 dan ketiga kunci TETAP ada"
+        },
+        {
+          "description": "Satu pengiriman yang kehilangan KEDUA nomor segel terhitung di KEDUA penghitung — itu DUA FAKTA, bukan penghitungan ganda",
+          "given": "3 pengiriman bertanggal eksplisit: satu kehilangan KEDUA segel (atas dan bawah), satu kehilangan hanya segel atas, satu lengkap",
+          "expect": "missing_seal_top_count = 2 dan missing_seal_bottom_count = 1. Pengiriman yang kehilangan keduanya menyumbang ke KEDUANYA, dan test ini MENYATAKAN DI DESKRIPSINYA bahwa itu dua fakta dan bukan penghitungan ganda: satu kendaraan kehilangan satu segel ≠ dua kendaraan masing-masing kehilangan satu, dan satu angka gabungan (di sini 3) akan menghapus perbedaan itu. Asersi negatif: tidak ada angka 3 yang diterbitkan di mana pun sebagai 'total segel hilang'"
+        },
+        {
+          "description": "Record draft ikut terhitung di SELURUH angka termasuk keempat ukuran mutu; draft_dispatch_count menyatakan berapa",
+          "given": "Dua record induk bertanggal eksplisit pada periode yang sama: satu berstatus draft dengan 3 detail (keempat kolom mutu terisi), satu berstatus final dengan 2 detail (keempat kolom mutu terisi)",
+          "expect": "dispatch_count 5; net_weight_total mencakup kelima baris; dan KEEMPAT measured_count mutu MENYERTAKAN ketiga baris draft — dibuktikan dengan membandingkan terhadap varian yang draft-nya dihapus (keempat measured_count turun dari 5 ke 2). draft_dispatch_count = 3. Angka itu ADALAH pernyataan bahwa draft ikut terhitung, bukan penyaring"
+        },
+        {
+          "description": "undated_dispatch_count SELALU diterbitkan dan bernilai 0 dalam praktik, karena skema MENOLAK event_date NULL",
+          "given": "Pengiriman normal bertanggal eksplisit; lalu percobaan menyimpan satu baris detail ber-event_date NULL lewat factory maupun insert langsung",
+          "expect": "Payload punya kunci undated_dispatch_count dengan nilai 0 — diasersikan dengan array_key_exists DAN nilainya, bukan hanya nilainya. Percobaan insert melempar QueryException: asersi atas KELAS exception itu yang membuktikan kolomnya NOT NULL di migrasi, bukan sekadar 'belum pernah terjadi'"
+        },
+        {
+          "description": "Cabang undated_dispatch_count > 0 diuji lewat service-ganda in-memory, bukan lewat DB",
+          "given": "KernelDispatchReportService diberi koleksi baris detail IN-MEMORY (test double atas sumber barisnya) berisi 2 baris ber-event_date null dan 5 baris bertanggal eksplisit",
+          "expect": "undated_dispatch_count = 2; kedua baris itu MASUK dispatch_count (7) dan masuk keempat rekap kategoris, TETAPI TIDAK masuk daily[] — array_sum(daily[].dispatch_count) = 5, tepat kurang 2. Cabang ini tidak dapat dicapai lewat DB (factory tidak dapat menyimpan barisnya) dan tetap diuji karena ia penjaga invarian"
+        },
+        {
+          "description": "daily[] berisi satu entri per hari BERPENGIRIMAN, bukan per hari kalender; daily_total DIJUMLAHKAN dari daily[], bukan disalin",
+          "given": "Periode 2026-03-01 s/d 2026-03-31 (31 hari). Pengiriman disemai pada TEPAT 9 tanggal EKSPLISIT yang berbeda, beberapa hari dengan lebih dari satu pengiriman, sebagian baris ber-netto null",
+          "expect": "count(daily) === 9 — bukan 31 (hari kalender) dan bukan jumlah pengiriman. Urut tanggal naik. daily_total.dispatch_count === array_sum(daily[].dispatch_count) dan daily_total.net_weight_total === jumlah net_weight_total daily[], plus daily_total.net_weight_dispatch_count === jumlah penyebut harian. Bahwa ia DIJUMLAHKAN dan bukan disalin dari blok dispatches dibedakan lewat skenario undated in-memory, tempat kedua angka itu memang berbeda"
+        },
+        {
+          "description": "completeness lewat ReportPeriodDays::counted — periode belum mulai memberi days_counted 0 dan percent NULL; periode berjalan memakai penyebut start..hari ini",
+          "given": "Varian A: periode mulai 10 hari di MASA DEPAN. Varian B: periode mulai 9 hari lalu dan berakhir 20 hari ke depan, dengan pengiriman pada 3 tanggal EKSPLISIT di dalam bagian yang sudah berjalan. Varian C: periode yang sudah SELESAI, panjang 10 hari, pengiriman pada 5 tanggal eksplisit",
+          "expect": "A: days_counted 0, percent NULL (assertNull — blade mencetak '—'), days_with_dispatch 0. B: days_counted = 10 (start..hari ini inklusif, hari ini diambil WIB dari config dan bukan dari waktu server), days_with_dispatch 3, percent 30. C: days_counted 10, percent 50. days_in_period tetap PANJANG PENUH periode di ketiga varian — periode berjalan tidak dihukum atas hari yang belum datang, dan panjang periode tidak dihitung ulang secara lokal"
+        },
+        {
+          "description": "Payload TIDAK punya kunci hourly, busiest_hour, empty_hour_count, maupun apa pun bernama turnaround / time_in / time_out — diasersikan ATAS NAMA KUNCI lewat penelusur rekursif",
+          "given": "Payload summary lengkap dari periode berdata bertanggal eksplisit",
+          "expect": "Penelusur REKURSIF atas seluruh NAMA KUNCI payload (flatten path, bukan array_walk_recursive yang hanya menjangkau nilai daun) memastikan tidak ada kunci bernama 'hourly', 'busiest_hour', 'empty_hour_count', 'turnaround', 'turnaround_minutes', 'time_in' maupun 'time_out' di level mana pun. WAJIB atas nama kunci dan BUKAN atas teks payload: _note_no_hourly MEMUAT kata 'jam' dan menyebut 'CPO Dispatch', sehingga asersi berbasis teks akan cocok dengan prosa yang justru MENYATAKAN ketiadaan itu — jebakan ini sudah terbukti dua kali di proyek ini. Asersi pendamping: kunci _note_no_hourly dan _note_no_quality_thresholds ADA dan berisi string non-kosong"
+        },
+        {
+          "description": "text_entries HANYA punya findings — TIDAK ADA kunci remarks; entri kosong dibuang, daftar kosong tetap diterbitkan",
+          "given": "4 pengiriman bertanggal eksplisit: dua ber-findings terisi, satu findings '' (whitespace), satu findings NULL",
+          "expect": "array_keys(text_entries) === ['findings'] dan array_key_exists('remarks', text_entries) FALSE — stasiun ini TIDAK punya kolom catatan kedua, berbeda dari Solid Waste Disposal yang punya remarks juga, jadi struktur text_entries dua-daftar tidak boleh disalin dari sana. findings berisi 2 entri {date,value} urut tanggal naik; entri kosong/whitespace dibuang. Varian kedua: nol findings → findings [] dengan KUNCI TETAP ADA, dan layar mencetaknya sebagai pernyataan 'tidak ada'"
+        },
+        {
+          "description": "Kunci shift ABSEN dari payload /summary tetapi ADA di header ekspor — dua asersi di dua lapisan",
+          "given": "Pengiriman bertanggal eksplisit dengan kolom shift terisi 'Shift 1'",
+          "expect": "(a) Penelusur rekursif atas nama kunci payload summary TIDAK menemukan kunci 'shift' di level mana pun. (b) Header baris pertama ekspor MEMUAT kolom shift, dan baris datanya berisi 'Shift 1'. Kolom itu teks bebas pada tabel detail, BUKAN FK ke tabel shifts"
+        },
+        {
+          "description": "Baris ekspor: SATU BARIS PER PENGIRIMAN, kolom konteks diulang verbatim, dan DUA PULUH SATU kolom detail hadir — kelima kolom yang tidak muncul di layar diasersikan EKSPLISIT",
+          "given": "Satu periode dengan 3 pengiriman bertanggal eksplisit yang tersebar di 2 record induk; seluruh 21 kolom detail diisi nilai yang dapat dibedakan satu dari lainnya",
+          "expect": "3 baris data — satu per pengiriman, bukan satu per record induk. Kolom konteks (nama mill, nama line, nama periode, rentang tanggal) diulang VERBATIM di ketiga baris, dibandingkan ANTAR-BARIS dan bukan hanya dicek keberadaannya. Ke-21 kolom detail hadir: event_date, shift, weighbridge_ticket_no, waybill_number, transporter_contractor, vehicle_plate_no, driver_name, silo_source_id, destination_buyer, gross_weight_mt, tare_weight_mt, net_weight_mt, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent, security_seal_no_top, security_seal_no_bottom, weighbridge_operator_id, remarks_gate_status, findings. LIMA di antaranya diasersikan TERPISAH beserta nilainya karena tidak muncul di satu angka pun di layar dan karenanya paling mudah tertinggal: weighbridge_ticket_no, waybill_number, vehicle_plate_no, driver_name, weighbridge_operator_id. Label kolom mengikuti layar Detail stasiun ini, bukan nama kolom database. Asersi keanggotaan memakai $this->assertContains() atas array header — bukan expect()->toContain() yang membaca argumen kedua sebagai needle kedua"
+        },
+        {
+          "description": "remarks_gate_status di EKSPOR memakai Display::option() juga — satu kosakata, bukan dua",
+          "given": "Tiga pengiriman bertanggal eksplisit dengan remarks_gate_status 'released', 'not_released' dan NULL",
+          "expect": "Kolom ekspornya berisi 'Released', 'Not Released' dan '-' — label yang SAMA dengan yang dicetak blade laporan dan blade detail. Asersi NEGATIF: tidak ada string 'not_released' mentah di keluaran ekspor. Ekspor rincian mentah tetap memakai satu kosakata; dua label untuk satu nilai adalah dua kosakata"
+        },
+        {
+          "description": "Ekspor menolak 422 untuk format tak dikenal SEBELUM satu byte dialirkan; trim dan default 'csv' ditetapkan CONTROLLER atas nilai yang sudah di-trim",
+          "given": "Permintaan HTTP ke /api/kernel-dispatch-reports/export dengan format berturut-turut: absen, '', '  ', ' csv ', 'CSV', 'pdf', 'xlsx'. Diuji DI LEVEL HTTP karena default-nya ditetapkan controller dan bukan service",
+          "expect": "absen / '' / '  ' / ' csv ' → 200 beraliran CSV — default ditetapkan atas nilai yang SUDAH di-trim. 'CSV' → 422 VALIDATION_ERROR (daftar tertutupnya peka huruf; yang dilakukan hanya trim, bukan lowercase). 'pdf' → 422 VALIDATION_ERROR. 'xlsx' → 200 beraliran xlsx. Asersi tambahan pada kasus 422: TIDAK ada header unduhan yang terkirim — galat sesudah header mendarat di komputer orang sebagai berkas rusak"
+        },
+        {
+          "description": "Ekspor menolak 422 EAGER ketika melampaui 50.000 baris",
+          "given": "Batas dibaca sebagai nilai terkonfigurasi sehingga test dapat menurunkannya alih-alih menyemai 50.001 baris; fixture menyemai baris detail bertanggal eksplisit yang melewati batas, lalu varian kedua TEPAT DI batas",
+          "expect": "Melewati batas → 422 VALIDATION_ERROR, dan pemeriksaannya terjadi SEBELUM aliran: nol byte isi terkirim dan tidak ada header content-disposition. Tepat di batas → 200 beraliran"
+        },
+        {
+          "description": "Ekspor xlsx menghasilkan workbook .xlsx SUNGGUHAN lewat SheetWriter, bukan CSV berekstensi .xlsx",
+          "given": "format = 'xlsx' atas periode berdata bertanggal eksplisit",
+          "expect": "Keluaran dibuka sebagai arsip zip dan MEMUAT entri xl/workbook.xml — diperiksa dari isi berkasnya, bukan dari nama berkas maupun content-type. Baris pertama sheet memuat header yang sama dengan varian CSV"
+        },
+        {
+          "description": "/summary memuat details DAN station dengan jumlah kueri TETAP meski jumlah record bertambah — dibuktikan NON-VAKUM",
+          "given": "Varian A: 2 record induk × 3 detail. Varian B: 12 record induk × 10 detail. Keduanya bertanggal EKSPLISIT. DB::enableQueryLog() membungkus pemanggilan summary pada kedua varian",
+          "expect": "Jumlah kueri varian B SAMA dengan varian A. Asersi ini DINYATAKAN NON-VAKUM di deskripsinya dan prosedurnya wajib dijalankan: eager load `details` dan `station` DILEPAS lebih dulu dan test dijalankan sampai MEMERAH (jumlah kueri varian B melonjak sebanding jumlah record), baru eager load-nya dipasang kembali. Asersi jumlah kueri yang belum pernah merah tidak membuktikan eager load-nya ada"
+        },
+        {
+          "description": "StationReportService::REPORT_ROUTES memuat kunci 'kernel-dispatch' BERTANDA HUBUNG, dan array_keys-nya tetap urut sort_order dengan entri ini di POSISI TERAKHIR",
+          "given": "Konstanta REPORT_ROUTES dibaca langsung, dan daftar station_types beserta sort_order dibaca dari DB",
+          "expect": "array_key_exists('kernel-dispatch', REPORT_ROUTES) TRUE dengan nilai 'reports.kernel-dispatch'. array_keys(REPORT_ROUTES) sama dengan urutan sort_order station_types yang sudah berlaporan — dibandingkan sebagai URUTAN LENGKAP — dan 'kernel-dispatch' (sort_order 160) berada di INDEKS TERAKHIR, di belakang 'solid-waste-disposal' (150). Urutan diverifikasi dari tabel station_types, BUKAN dari urutan deklarasi enum"
+        },
+        {
+          "description": "Contoh 'stasiun belum berlaporan' TIDAK memerah: REPORT_ROUTES masih TIDAK punya 'process-quality-control', dan StationReportServiceTest memakai kode fiktif",
+          "given": "REPORT_ROUTES sesudah penambahan entri kernel-dispatch, plus berkas-berkas yang memakai contoh stasiun belum-berlaporan: tests/Unit/Services/StationReportServiceTest.php, tests/Feature/Api/LaporanStasiunTest.php, tests/Feature/Livewire/LaporanStasiunTest.php, e2e-web/tests/laporan-stasiun.spec.ts",
+          "expect": "array_key_exists('process-quality-control', REPORT_ROUTES) FALSE — ketiga berkas yang memakai stasiun NYATA sebagai contoh 'belum berlaporan' sudah memakai kode itu (sort_order 180), sehingga pekerjaan ini TIDAK memerahkannya; dan StationReportServiceTest memakai kode fiktif 'zz-stasiun-fiktif' sehingga juga tidak terpengaruh. Keadaan itu DIASERSIKAN secara eksplisit supaya pergeseran berikutnya — ketika process-quality-control mulai berlaporan — tidak lolos diam-diam. Riaknya dicari dengan grep atas KODE STASIUNNYA, bukan atas urutan entri, dan suite PENUH tetap dijalankan karena pada screen-162 berkas keempat hanya ditemukan oleh suite"
+        },
+        {
+          "description": "Layar mencetak blok undated_dispatch_count HANYA ketika > 0 — DUA TEST TERPISAH, bukan satu test dengan dua cabang",
+          "given": "Test A: komponen dirender atas periode berdata normal bertanggal eksplisit, undated_dispatch_count = 0 (keadaan satu-satunya yang mungkin di DB). Test B: komponen dirender dengan service-ganda in-memory yang mengembalikan undated_dispatch_count = 2",
+          "expect": "Test A: blok peringatan 'pengiriman tanpa tanggal' ABSEN dari markup — diasersikan atas KETIDAKHADIRAN testid bloknya, bukan atas teks (prosa lain di halaman menyebut tanggal). Test B: blok itu HADIR dan menampilkan 2. Dipisah jadi dua test karena keduanya menjaga hal yang berbeda: A menjaga agar laporan tidak mengarang kekhawatiran atas keadaan yang DILARANG SKEMA — mencetak 'nol pengiriman tanpa tanggal' pada setiap laporan adalah pelajaran yang sudah dibayar sekali di screen-162 — sementara B menjaga agar penjaga invariannya benar-benar terlihat kalau keadaan mustahil itu pernah terjadi. Kuncinya SELALU diterbitkan di payload di kedua test; yang berbeda hanya perenderannya"
+        }
+      ]
     }
   ],
   "screen_dependencies": [
@@ -593,5 +904,1376 @@
     "Factory record stasiun di proyek ini dapat membuat record stasiun LAIN bertanggal acak, sehingga asersi 'tepat N pengiriman hari ini' dapat gagal ~1:30. Semai tanggal secara EKSPLISIT di setiap test.",
     "UJI BROWSER: `beforeAll` WAJIB `seedOpenPeriodForForms(browser, 'kernel-dispatch')` — tanpanya ia MENGGANTUNG, bukan gagal. PROFIL FIXTURE E2E DIVERIFIKASI LANGSUNG DI `mill_smart_log_e2e` pada 2026-10-18, bukan diasumsikan: 2 baris detail, 3 baris period_stations 'kernel-dispatch'. Kedua baris: event_date = 2025-03-10 (termuat oleh periode fixture 2020-01-01 s/d hari-ini+7), status induk `draft_ongoing`, net_weight_mt = 20, `waybill_number` TERISI ('SJ-PL-A' dan 'SJ-PL-B'), sementara KETIGA kolom kategoris teks, KEEMPAT kolom mutu, KEDUA nomor segel, dan `remarks_gate_status` SEMUANYA NULL. Profil itu menentukan apa yang dapat dibuktikan di browser, dan ia lebih berguna daripada dugaan awal saya. YANG LAYAK DIASERSIKAN DI SANA: (a) keempat ukuran mutu menampilkan '—' dengan measured_count 0 sementara tonase tetap menampilkan angkanya — justru jalur 'mutu kosong tetapi berat ada' yang paling mudah ditulis salah; (b) missing_seal_top_count DAN missing_seal_bottom_count keduanya ≥ 1, dua angka terpisah; (c) missing_waybill_count = NOL — sebuah penghitung kepatuhan yang benar-benar nol, yang membuktikan penghitungnya tidak sekadar mengembalikan jumlah baris; (d) by_gate_status punya baris 'tidak tercatat' SEMENTARA not_released_count = 0 — inilah pembuktian paling langsung bahwa 'tidak tercatat' TIDAK dihitung sebagai 'tidak dilepas', dan fixture ini memberikannya tanpa penyemaian tambahan; (e) ketiga rekap teks punya baris 'tidak tercatat'; (f) draft_dispatch_count ≥ 1 dan pengiriman draft ikut terhitung. YANG TIDAK DAPAT DIBUKTIKAN DI SANA, dan jangan ditulis seolah dapat: urutan rekap (tiap rekap hanya punya SATU baris, sehingga asersi posisi vakum — satu baris selalu pertama sekaligus terakhir), nilai mutu yang sesungguhnya, dan jumlah pengiriman yang persis (spec form menulis ke DB e2e yang sama; pakai ≥ 1). Urutan dan angka mutu diuji di unit test, tempat fixture-nya dapat disusun."
   ],
-  "test_scenarios": []
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — sukses sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor terikat mill-A; business_unit_id tidak dikirim"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data.0.id}}",
+            "production_line_id": "<line mill-A>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.data.0.id}}",
+            "production_line_id": "<line mill-A>",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); set productionLineId lalu periodId. Pengiriman disemai bertanggal EKSPLISIT di dalam periode: sebagian ber-netto null, keempat kolom mutu terisi dengan pola BERBEDA sehingga keempat measured_count berbeda",
+        "assert": "Blok terbit: dispatch_count; net_weight_total dan net_weight_avg DENGAN penyebut net_weight_dispatch_count tercetak di elemen yang sama; missing_net_weight_dispatch_count sebagai angka tersendiri; KEEMPAT ukuran mutu masing-masing dengan min/avg/max dan measured_count-nya SENDIRI, dirender BERDAMPINGAN dengan blok tonase; tiga rekap teks bebas; by_gate_status plus not_released_count yang ditonjolkan; TIGA penghitung kepatuhan; daily[] dan daily_total; completeness; draft_dispatch_count; text_entries.findings. _note quality, _note_no_hourly, _note_no_quality_thresholds dan _note_shift_not_published dirender UTUH. Pemilih Mill TIDAK dirender bagi peran terikat mill. Diasersikan dengan assertSet atas data yang DIPUBLIKASIKAN komponen, bukan assertSee atas prosa"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch') dari ./support/period-fixture — tanpanya beforeAll MENGGANTUNG, bukan gagal. Login Supervisor, pilih Production Line, pilih periode yang memuat 2025-03-10",
+        "assert": "dispatch_count ≥ 1 (spec form menulis ke DB e2e yang sama, jadi angka persis tidak dapat dipakai) dan tonase berangka. KEEMPAT ukuran mutu menampilkan '—' dengan measured_count 0 — keempat kolom mutu NULL pada kedua baris fixture — SEMENTARA tonase tetap berangka: justru jalur 'mutu kosong tetapi berat ada' yang paling mudah ditulis salah. Penyebut rata-rata terlihat DI DALAM kartu rata-rata, disasarkan ke testid kartunya dan bukan ke halaman. Nol permintaan tulis: jumlah record dibandingkan sebelum dan sesudah"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — Operator ditolak di rute web",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/reports/kernel-dispatch"
+          },
+          "request_example": {
+            "_given": "Sesi Station Operator; ini rute WEB, bukan API"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Station Operator yang SAMA; business_unit_id tidak dikirim"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "<line mill akun Operator>",
+            "_given": "Sesi Station Operator"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "<line mill akun Operator>",
+            "format": "csv",
+            "_given": "Sesi Station Operator; seluruh params valid"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 5,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/business-units/options"
+          },
+          "request_example": {
+            "_given": "Sesi Station Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(operator)->test(komponen)",
+        "assert": "403 dari middleware rute web; nol data terpublikasi — nol periode, nol line, nol angka pada STATE komponen (diasersikan atas state, bukan atas HTML). Ketiga rute data tetap menerima Operator: itu jalur screen-165 dan tidak ada gate yang perlu dilebarkan nanti"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Tidak butuh data tersimpan. Login Operator, buka URL langsung",
+        "assert": "Halaman 403; URL tidak berisi laporan — dicocokkan dengan REGEX, bukan toHaveURL('**/x') yang dengan baseURL tidak pernah cocok; tidak ada tabel rekap di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/business-units/options"
+          },
+          "request_example": {
+            "_given": "Sesi Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Admin; business_unit_id TIDAK dikirim"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}",
+            "_given": "Sesi Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step3.data.0.id}}",
+            "production_line_id": "<line mill itu>",
+            "business_unit_id": "{{step1.data.0.id}}",
+            "_given": "Sesi Admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(admin)->test(komponen) tanpa memilih apa pun, lalu set businessUnitId, lalu productionLineId, lalu periodId",
+        "assert": "Sebelum mill dipilih: pemilih Mill DIRENDER, daftar line DAN daftar periode keduanya kosong, nol angka terpublikasi. Sesudah ketiganya dipilih: payload sebentuk dengan peran terikat mill, dan business_unit.id pada payload sama dengan mill yang dipilih Admin"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Admin, pilih mill, pilih line, pilih periode",
+        "assert": "Pemilih Mill hanya terlihat bagi Admin; sebelum mill dipilih nol kartu angka di DOM; sesudahnya nama mill terpilih tampil di header laporan, disasarkan ke elemen header dan bukan ke halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — Admin mengganti mill setelah periode dan line terpilih",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode mill-A>",
+            "production_line_id": "<line mill-A>",
+            "business_unit_id": "<mill-A>",
+            "_given": "Sesi Admin; keadaan awal"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode mill-A>",
+            "production_line_id": "<line mill-A>",
+            "business_unit_id": "<mill-B>",
+            "_given": "Sesi Admin mengganti mill tanpa mengganti periode dan line"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<mill-B>",
+            "_given": "Sesi Admin sesudah mengganti mill"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(admin)->test(komponen); pilih mill-A, line-A, periode-A sampai angka terbit; lalu set businessUnitId = mill-B",
+        "assert": "Pergantian mill MENGOSONGKAN productionLineId dan periodId serta seluruh angka — tidak ada satu angka mill-A yang tertinggal di state (diasersikan atas state, bukan atas HTML). Daftar line dan periode dimuat ulang untuk mill-B. Asersi negatif: tidak ada permintaan summary yang terbit dengan kombinasi mill-B + periode mill-A"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Admin, pilih mill fixture + line + periode sampai angka tampil, lalu ganti mill ke mill lain",
+        "assert": "Kartu angka hilang dari DOM sesudah mill diganti dan pemilih periode kembali ke keadaan belum dipilih. Angka mill sebelumnya diasersikan ABSEN lewat testid kartunya, bukan lewat teks"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — mill kiriman dari peran terikat mill diabaikan, bukan ditolak",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<mill-B>",
+            "_given": "Sesi Supervisor terikat mill-A; mill-B punya periode kernel-dispatch bernama 'P-B'"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data.0.id}}",
+            "production_line_id": "<line mill-A>",
+            "business_unit_id": "<mill-B>",
+            "_given": "Sesi Supervisor terikat mill-A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor mill-A)->test(komponen); businessUnitId di-set paksa ke mill-B lewat set() seolah dari klien",
+        "assert": "Daftar periode HANYA memuat periode mill-A dan business_unit.id pada payload adalah mill-A. Asersi NEGATIF eksplisit: periode 'P-B' TIDAK ada di hasil — dicek atas id DAN nama, bukan atas jumlah entri. 403 di sini akan membocorkan keberadaan mill-B; diabaikan adalah perilaku yang benar. Kontrasnya diasersikan di test yang sama: production_line_id mill lain TETAP 403"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Tidak dapat dibuktikan di browser — UI tidak merender pemilih Mill bagi peran terikat mill sehingga nilai itu tidak dapat dikirim dari halaman. Browser hanya memastikan pemilih Mill ABSEN",
+        "assert": "Pemilih Mill tidak ada di DOM bagi Supervisor (asersi atas testid pemilihnya). Perilaku 'diabaikan' itu sendiri diasersikan di unit/feature test, bukan di sini — menuliskannya sebagai asersi browser akan vakum"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor yang business_unit_id-nya NULL di DB — master rusak, bukan izin kurang"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode apa pun>",
+            "production_line_id": "<line apa pun>",
+            "_given": "Sesi yang sama"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor tanpa business_unit_id)->test(komponen)",
+        "assert": "Pesan Indonesia yang menyebut akun belum terhubung ke mill; nol periode dan nol angka. Diasersikan atas KELAS exception (ValidationException) dan kode VALIDATION_ERROR, bukan 403 dan bukan hanya potongan pesan"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Butuh akun e2e tanpa business_unit_id. Bila akun seperti itu tidak ada di DB e2e, skenario ini DILEWATI di browser dan tetap tercakup di feature test — jangan membuatnya dengan menulis ke DB e2e dari spec",
+        "assert": "Bila akun tersedia: halaman memuat pesan 'akun belum terhubung ke mill' dan nol kartu angka di DOM (asersi atas testid kartu, bukan atas prosa)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — Production Line wajib dipilih, tanpa opsi 'semua line'",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "_given": "production_line_id TIDAK dikirim; mill punya DUA line yang masing-masing berpengiriman pada periode itu"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "format": "csv",
+            "_given": "production_line_id TIDAK dikirim"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); set periodId SAJA, productionLineId dibiarkan null. Fixture: mill punya DUA line yang masing-masing berpengiriman bertanggal eksplisit",
+        "assert": "Nol angka terpublikasi dan layar meminta memilih line. Pemilih line TIDAK punya opsi 'semua line' (diasersikan atas daftar opsi yang dipublikasikan komponen). Fixture dua-line itulah asersinya: implementasi yang memilih 'line pertama' atau menjumlahkan semua line akan menerbitkan angka dan test ini memerah"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, buka halaman tanpa memilih line",
+        "assert": "Nol kartu angka di DOM; pemilih line dalam keadaan belum dipilih; daftar opsinya tidak memuat entri bermakna 'semua line' (asersi atas opsi select, bukan atas teks halaman)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — mill hanya punya satu Production Line dan line itu tetap tidak dipilihkan",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "_given": "Mill hanya punya SATU line, dan line itu berpengiriman; production_line_id tetap tidak dikirim"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada mill yang hanya punya satu line; set periodId saja",
+        "assert": "productionLineId TETAP null dan nol angka terpublikasi — line tunggal TIDAK dipilihkan otomatis. Line adalah konteks yang DIPILIH, bukan ikatan akun, dan 'kebetulan hanya ada satu' bukan alasan memilihkan"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Butuh mill e2e berline tunggal; bila DB e2e tidak menyediakannya, DILEWATI di browser dan tetap tercakup di component/feature test",
+        "assert": "Bila tersedia: pemilih line terrender dalam keadaan belum dipilih meski opsinya hanya satu, dan nol kartu angka di DOM sebelum dipilih"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — mill belum punya periode yang mencakup Kernel Dispatch",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor pada mill yang periodenya hanya punya period_stations 'weighbridge' dan 'grading'"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) pada mill tanpa period_station 'kernel-dispatch'",
+        "assert": "Daftar periode KOSONG (array kosong, bukan null dan bukan galat) dan layar mencetak keadaan 'belum ada periode yang mencakup Kernel Dispatch'. Nol angka terpublikasi. Asersi negatif: periode berstasiun lain tidak bocor ke daftar — dicek atas id"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Butuh mill e2e tanpa period_station kernel-dispatch. DB e2e punya 3 baris period_stations 'kernel-dispatch', jadi keadaan ini TIDAK tersedia di sana — DILEWATI di browser dan tercakup di component/feature test",
+        "assert": "Tidak diasersikan di browser. Menuliskan asersi 'daftar periode kosong' di sini akan memerah karena fixture justru menyediakan periodenya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — periode atau line milik mill lain ditolak",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode mill-B>",
+            "production_line_id": "<line mill-B>",
+            "_given": "Sesi Supervisor terikat mill-A"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode mill-A>",
+            "production_line_id": "<line mill-B>",
+            "_given": "Sesi Supervisor terikat mill-A; HANYA line-nya milik mill lain"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode mill-A>",
+            "production_line_id": "<line mill-B>",
+            "format": "csv",
+            "_given": "Gate berjalan EAGER sebelum aliran"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor mill-A)->test(komponen); set productionLineId ke line mill-B lewat set() seolah dari klien",
+        "assert": "ForbiddenException kode FORBIDDEN dan nol angka terpublikasi. Kontras DINYATAKAN dalam satu deskripsi: production_line_id mill lain DITOLAK karena ia parameter yang dipilih sadar, sementara business_unit_id mill lain DIABAIKAN karena ia konteks yang diturunkan dari akun — dua perilaku berbeda atas dua jenis parameter"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Butuh dua mill e2e dengan line masing-masing. Bila DB e2e hanya punya satu mill berisi, DILEWATI di browser dan tercakup di feature test",
+        "assert": "Bila tersedia: pemilih line tidak pernah menawarkan line mill lain (asersi atas opsi select). Penolakan 403-nya diasersikan di API/feature test — UI tidak menyediakan jalan mengirim line mill lain, sehingga asersi browser atasnya akan vakum"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — periode tanpa satu pun pengiriman",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode ber-period_station kernel-dispatch>",
+            "production_line_id": "<line tanpa record>",
+            "_given": "Periode sah, line sah, NOL record kernel-dispatch"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); pilih line dan periode yang tidak punya satu record pun",
+        "assert": "200 dengan KERANGKA LENGKAP, bukan galat dan bukan nol di mana-mana: dispatch_count 0; net_weight_total dan net_weight_avg NULL (assertNull, bukan 0); KEEMPAT ukuran mutu min/avg/max NULL dengan measured_count 0; keempat rekap []; daily []; ketiga penghitung kepatuhan 0 dengan ketiga kuncinya TETAP ADA; not_released_count 0; draft_dispatch_count 0; undated_dispatch_count 0; text_entries.findings []. Layar mencetak keadaan kosong yang MENYEBUT nama periode dan nama line. Keadaan ini nyata hari ini — tabel detail stasiun ini nol baris di dev"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Pilih line yang TIDAK memuat kedua baris detail fixture (bila DB e2e punya line lain); bila tidak, DILEWATI",
+        "assert": "Bila tersedia: kartu-kartu angka terrender dengan '—' alih-alih 0,00 MT, dan pernyataan kosong menyebut nama periode dan line (disasarkan ke elemen pernyataannya)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — seluruh pengiriman belum selesai ditimbang",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Seluruh baris detail ber-net_weight_mt NULL; keempat kolom mutu TERISI"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); 4 pengiriman bertanggal EKSPLISIT, net_weight_mt null pada semuanya, keempat kolom mutu terisi",
+        "assert": "net_weight_total dan net_weight_avg NULL → blade mencetak '—', TIDAK PERNAH 0,00 MT. net_weight_dispatch_count 0, missing_net_weight_dispatch_count 4, dispatch_count 4. KEEMPAT ukuran mutu TETAP BERANGKA dengan measured_count 4 — mutu dan berat adalah kolom berbeda dan blok berat yang kosong tidak boleh mengosongkan blok mutu. Diasersikan atas state yang dipublikasikan komponen"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Tidak tersedia di DB e2e — kedua baris fixture justru ber-net_weight_mt 20. DILEWATI di browser; tercakup di unit dan component test",
+        "assert": "Tidak diasersikan di browser. Asersi '— pada tonase' akan memerah karena fixture punya netto"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — sebagian pengiriman belum selesai ditimbang dan penyebut berat dicetak",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "7 pengiriman: 4 ber-netto, 3 tanpa netto"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); 7 pengiriman bertanggal eksplisit, netto 10/20/30/40 pada empat baris dan null pada tiga",
+        "assert": "dispatch_count 7, net_weight_total 100, net_weight_dispatch_count 4, net_weight_avg 25 (bukan 100/7). missing_net_weight_dispatch_count 3 sebagai angka TERSENDIRI. Penyebut net_weight_dispatch_count tercetak DI DALAM kartu rata-rata — disasarkan ke elemen kartunya, bukan ke halaman"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "Kartu rata-rata memuat penyebutnya di dalam elemen yang SAMA (disasarkan ke testid kartu). missing_net_weight_dispatch_count terrender sebagai angka tersendiri. Nilai persisnya TIDAK diasersikan — spec form menulis ke DB e2e yang sama; yang diasersikan adalah penyebutnya hadir dan tonasenya berangka"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — berat bersih dibaca apa adanya dan tidak pernah dihitung ulang",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Baris 1: netto 18.5 dengan bruto DAN tara KEDUANYA null. Baris 2: bruto 30, tara 8, netto 17.0 (sengaja ≠ 22)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) dengan kedua baris di atas, bertanggal EKSPLISIT",
+        "assert": "net_weight_total = 35.5 dan net_weight_dispatch_count = 2. Baris bernetto-tanpa-bruto/tara IKUT terpakai — tidak dilewati karena bruto/tara kosong; baris yang ditulis lewat jalur selain form dapat punya netto tanpa keduanya. Baris kedua menyumbang 17.0 BUKAN 22 — turunan terjadi di KernelDispatchRecordService, bukan di laporan"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Tidak dapat dibuktikan di DB e2e — profil fixture tidak memuat kombinasi bruto/tara null dengan netto terisi. DILEWATI; tercakup di unit test",
+        "assert": "Tidak diasersikan di browser"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — hitungan transaksi dan ukuran mutu dirender berdampingan",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Pengiriman dengan netto DAN keempat kolom mutu terisi — laporan hibrida pertama di proyek ini"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); render penuh atas periode berdata bertanggal eksplisit",
+        "assert": "Blok dispatches (hitungan transaksi, bentuk dari screen-162) DAN blok quality (min/avg/max per ukuran dengan penyebut per ukuran, bentuk dari screen-160) KEDUANYA terbit di payload yang sama dan KEDUANYA terrender. Diasersikan atas KEHADIRAN kedua blok di state plus testid kedua wadahnya di markup — menyalin dari satu preseden saja akan kehilangan separuh bentuknya"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "Kedua wadah terlihat di DOM pada halaman yang sama (asersi atas testid, bukan atas teks). Wadah mutu berisi '—' karena fixture bermutu null, SEMENTARA wadah tonase berangka — keduanya hadir bersamaan dan itulah yang dibuktikan. Asersi geometri: wadah mutu tidak terpotong oleh induknya (bandingkan boundingBox-nya dengan boundingBox induk)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — empat ukuran mutu dengan terendah, rata-rata, tertinggi, dan penyebutnya masing-masing",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "kernel_moisture 6.2/7.8/7.0; dirt_impurities 0.01/0.03; ffa dan broken_kernel terisi pada sebagian"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); nilai mutu disemai eksplisit beserta tanggalnya",
+        "assert": "Keempat ukuran — kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent — masing-masing menerbitkan min, avg, max DAN measured_count. kernel_moisture: min 6.2, avg 7.0, max 7.8, measured_count 3. dirt_impurities: min 0.01, avg 0.02, max 0.03, measured_count 2. Keempat kartu mutu punya testid masing-masing, dan penyebut tiap ukuran tercetak DI DALAM kartunya sendiri — disasarkan ke kartunya, bukan ke halaman; label pendek seperti '3' wajib menyasar elemen, bukan dicari di seluruh halaman"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "KEEMPAT kartu mutu hadir, masing-masing menampilkan '—' untuk min/avg/max dengan measured_count 0 — keempat kolom mutu NULL pada kedua baris fixture. Diasersikan per kartu lewat testid-nya, empat asersi terpisah. Nilai mutu yang SESUNGGUHNYA tidak dapat dibuktikan di sini dan tidak diasersikan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — penyebut keempat ukuran mutu dapat berbeda satu dengan lainnya dan berbeda dari jumlah pengiriman",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "9 pengiriman disusun supaya measured_count menjadi 6 / 5 / 4 / 3 sementara dispatch_count 9 — satu punya kadar air tanpa ALB, satu punya ALB tanpa kadar air, satu punya keduanya, satu tidak punya sama sekali"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas fixture 9 pengiriman bertanggal EKSPLISIT di atas",
+        "assert": "LIMA angka yang semuanya BERBEDA diasersikan satu per satu: kernel_moisture.measured_count 6, dirt_impurities 5, ffa 4, broken_kernel 3, dispatch_count 9. Keempat penyebut terrender di kartunya masing-masing. quality._note dirender UTUH — tanpa kalimat itu, pembaca yang melihat kadar air atas 6 pengiriman dan ALB atas 4 akan menyimpulkan ada data yang hilang. Ini jebakan utama layar ini: satu penyebut tunggal membuat keempatnya sama dan test ini memerah"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "Yang dapat dibuktikan di sini hanya bahwa keempat penyebut DIRENDER terpisah (empat elemen measured_count dengan testid berbeda, keempatnya bernilai 0 pada fixture ini) SEMENTARA dispatch_count ≥ 1 — yakni penyebut mutu TIDAK sama dengan jumlah pengiriman. Penyebut yang berbeda-beda satu dari lainnya butuh fixture yang disusun dan diasersikan di unit test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — satu ukuran mutu tanpa hasil uji tampil '—' tanpa mengosongkan ukuran lain",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "ffa_percent NULL pada keempat pengiriman; ketiga ukuran lain terisi pada keempatnya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); 4 pengiriman bertanggal eksplisit, ffa_percent null pada semuanya, tiga ukuran lain terisi dengan nilai berbeda",
+        "assert": "ffa_percent.min/.avg/.max KETIGANYA NULL dengan measured_count 0 → kartunya mencetak '—'; SEKALIGUS kartu kernel_moisture, dirt_impurities dan broken_kernel masing-masing BERANGKA dengan measured_count 4. Empat asersi per kartu lewat testid-nya. Satu penjaga global 'ada data mutu atau tidak' akan mengosongkan keempat kartu dan test ini memerah"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Tidak dapat dibuktikan di DB e2e — fixture punya KEEMPAT kolom mutu NULL, sehingga tidak ada kontras 'satu kosong, tiga berangka'. DILEWATI; tercakup di unit dan component test",
+        "assert": "Tidak diasersikan di browser"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — keempat ukuran mutu kosong sementara tonasenya ada",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "5 pengiriman: net_weight_mt 10 pada semuanya, KEEMPAT kolom mutu NULL pada semuanya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas fixture di atas, bertanggal EKSPLISIT; lalu varian terbalik — mutu terisi dan netto null pada semuanya",
+        "assert": "Varian 1: blok mutu menyatakan BELUM ADA HASIL UJI pada periode ini (pernyataan dirender, bukan blok yang dihilangkan) dengan keempat measured_count 0, SEMENTARA net_weight_total 50, net_weight_avg 10, net_weight_dispatch_count 5 tetap berangka. Varian 2 (terbalik): keempat ukuran mutu berangka SEMENTARA kedua angka berat '—'. Keduanya INDEPENDEN di kedua arah"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode. Profil fixture e2e MEMBERIKAN keadaan ini tanpa penyemaian tambahan: keempat kolom mutu NULL sementara net_weight_mt 20",
+        "assert": "Inilah skenario browser yang paling bernilai di layar ini. Keempat kartu mutu menampilkan '—' dengan measured_count 0 (empat asersi lewat testid masing-masing) SEMENTARA kartu tonase berangka dan kartu rata-rata berangka beserta penyebutnya. Pernyataan 'belum ada hasil uji' hadir sebagai elemen tersendiri. Jalur 'mutu kosong tetapi berat ada' adalah yang paling mudah ditulis salah, dan di sini ia dibuktikan di aplikasi nyata"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — tiga rekap teks bebas diterbitkan apa adanya dan menjumlah ke jumlah pengiriman",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "8 pengiriman; transporter_contractor, silo_source_id dan destination_buyer masing-masing sebagian terisi dengan POLA NULL BERBEDA antar-kolom"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas 8 pengiriman bertanggal EKSPLISIT dengan pola null berbeda per kolom",
+        "assert": "by_transporter, by_silo_source dan by_destination_buyer ketiganya terbit dan terrender, masing-masing dengan baris value null yang dicetak 'tidak tercatat' SEBAGAI BARIS TERSENDIRI. EMPAT asersi penjumlahan terpisah — ketiga rekap teks DAN by_gate_status — masing-masing array_sum dispatch_count-nya === 8. Tiap baris rekap menerbitkan penyebutnya sendiri (net_weight_dispatch_count). Pola null yang berbeda antar-kolom membuat keempat asersi tidak saling menumpang"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode. Ketiga kolom kategoris NULL pada kedua baris fixture",
+        "assert": "Ketiga tabel rekap teks hadir dan masing-masing punya baris 'tidak tercatat' (tiga asersi lewat testid tabelnya). Baris 'tidak tercatat' ber-dispatch_count ≥ 1. URUTAN rekap TIDAK diasersikan: tiap rekap hanya punya satu baris pada fixture ini, sehingga asersi posisi vakum — satu baris selalu pertama sekaligus terakhir"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — silo sumber diperlakukan sebagai teks meski nama kolomnya menyesatkan",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "silo_source_id berisi '9f1c2a44-5e21-4b6f-8c0d-7a3e51b9d012' (berbentuk uuid) pada dua baris dan 'Silo Timur 2' pada satu baris"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas fixture di atas, bertanggal eksplisit; DB::enableQueryLog() membungkus render",
+        "assert": "by_silo_source memuat kedua nilai VERBATIM — string berbentuk uuid DICETAK APA ADANYA di layar, tidak ditukar dengan nama apa pun, tidak dipotong, tidak dibuang. Asersi NEGATIF atas query log: nol join dan nol kueri ke tabel mana pun bernama silo. Kolomnya string nullable di migrasi 2026_08_31, tidak ada tabel silo di satu migrasi pun, dan form merendernya <input type=\"text\">"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Tidak dapat dibuktikan di DB e2e — silo_source_id NULL pada kedua baris fixture, sehingga tidak ada nilai berbentuk uuid untuk diperiksa. DILEWATI untuk nilainya; browser hanya memastikan tabelnya ada",
+        "assert": "Tabel by_silo_source hadir dengan baris 'tidak tercatat'. Perlakuan 'uuid dicetak apa adanya' diasersikan di unit dan component test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — nilai kategoris berbeda hanya pada huruf besar-kecil atau spasi tetap dua baris",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "destination_buyer: 'PT Pembeli', 'pt pembeli', ' PT Pembeli '; transporter_contractor: NULL, '', '   ', 'PT Angkut Jaya'"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas fixture di atas, bertanggal EKSPLISIT",
+        "assert": "by_destination_buyer punya DUA baris: 'PT Pembeli' dengan dispatch_count 2 (yang berspasi ikut setelah trim) dan 'pt pembeli' dengan 1 — beda huruf TIDAK disatukan, karena menyatukannya berarti memutuskan atas nama orang bahwa keduanya pembeli yang sama. by_transporter punya TEPAT DUA baris: value null dengan 3 (NULL, '' dan '   ' menyatu setelah trim) dan 'PT Angkut Jaya' dengan 1; tidak ada entri value '' maupun '   '. Kemungkinan dua-baris-mirip DINYATAKAN di layar supaya pembaca mengenalinya"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Tidak dapat dibuktikan di DB e2e — ketiga kolom kategoris NULL pada kedua baris fixture. DILEWATI; tercakup di unit dan component test",
+        "assert": "Tidak diasersikan di browser"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — rekap status pelepasan gerbang menampilkan label dari kosakata bersama, bukan kodenya",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "remarks_gate_status 'released' dan 'not_released' pada pengiriman berbeda"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "csv",
+            "_given": "Ekspor atas data yang sama"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas pengiriman bertanggal eksplisit ber-remarks_gate_status 'released' dan 'not_released'",
+        "assert": "DUA ASERSI DI DUA LAPISAN. (a) PAYLOAD berisi KODE MENTAH: by_gate_status[].value === 'released' / 'not_released', dan tidak ada 'Released'/'Not Released' di state — menerbitkan label di payload akan membuat screen-165 menerima label yang tidak dapat ia ubah. (b) MARKUP menampilkan LABEL: baris rekap mencetak 'Released' dan 'Not Released' lewat Display::option() DI BLADE, disasarkan ke sel barisnya. Asersi pendamping: blade MENDELEGASIKAN — grep memastikan pemetaan tidak disalin ke blade laporan, blade detail, maupun exporter. Ekspor memakai option() yang SAMA: satu kosakata, bukan dua"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). remarks_gate_status NULL pada kedua baris fixture, jadi label 'Released'/'Not Released' tidak muncul di sana",
+        "assert": "Yang dapat dibuktikan: baris 'tidak tercatat' hadir di tabel by_gate_status dan TIDAK berisi string mentah 'not_released' maupun kode lain — null pun melewati Display::option() dan menjadi '-'. Label kedua kode yang dikenal diasersikan di component dan unit test"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — nilai status di luar kedua pilihan yang dikenal ditampilkan apa adanya",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "6 pengiriman: 2 'released', 1 'not_released', 2 'HOLD_BY_SECURITY' (di luar kedua <option> form), 1 NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas 6 pengiriman bertanggal EKSPLISIT di atas",
+        "assert": "by_gate_status punya EMPAT baris: 'released', 'not_released', 'HOLD_BY_SECURITY' dan null. Baris 'HOLD_BY_SECURITY' terrender dengan nilai MENTAH apa adanya (Display::option() jatuh ke mentah untuk yang tak dikenal) — diasersikan secara eksplisit bahwa ia TIDAK dibuang, TIDAK dipaksa masuk salah satu pilihan, dan TIDAK dilipat ke baris null. not_released_count TETAP 1. Asersi pengunci: array_sum(by_gate_status[].dispatch_count) === dispatch_count === 6 — itulah yang menangkap implementasi yang 'merapikan' dengan membuang nilai tak dikenal, karena rekapnya langsung tidak lagi berjumlah"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "Tidak dapat dibuktikan di DB e2e — remarks_gate_status NULL pada kedua baris fixture dan spec tidak boleh menyemai nilai tak dikenal ke DB e2e. DILEWATI; tercakup di unit dan component test",
+        "assert": "Tidak diasersikan di browser"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — tidak tercatat dan tidak dilepas adalah dua keadaan berbeda, dan tidak dilepas ditonjolkan",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "KETIGA keadaan sekaligus: 3 'released', 2 'not_released', 4 NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas 9 pengiriman bertanggal EKSPLISIT yang memuat ketiga keadaan; lalu varian tanpa 'not_released' sama sekali",
+        "assert": "not_released_count = 2 — bukan 6 dan bukan 0 — DAN pada saat yang sama by_gate_status MEMUAT baris value null dengan dispatch_count 4 (assertNull atas value-nya, bukan pencarian string). Justru pasangan dua asersi itu yang mencegah tuduhan: baris 'tidak tercatat' ADA di rekap sementara ia TIDAK masuk hitungan tidak-dilepas. not_released_count terrender sebagai angka TERSENDIRI di luar tabel rekapnya, disasarkan ke testid elemennya. Varian kedua: nol 'not_released' → angka 0 dan kuncinya TETAP diterbitkan"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Profil fixture memberikan keadaan ini tanpa penyemaian tambahan: remarks_gate_status NULL pada kedua baris",
+        "assert": "Skenario browser bernilai kedua di layar ini: tabel by_gate_status PUNYA baris 'tidak tercatat' (dispatch_count ≥ 1) SEMENTARA elemen not_released_count bernilai TEPAT 0. Dua asersi berpasangan atas dua testid berbeda — pembuktian paling langsung di aplikasi nyata bahwa 'tidak tercatat' tidak dihitung sebagai 'tidak dilepas'"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — tiga penghitung kepatuhan terpisah dan segel atas serta bawah tidak pernah dijumlahkan",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "3 pengiriman: satu kehilangan KEDUA segel, satu kehilangan hanya segel atas, satu lengkap; waybill_number NULL pada 1 dan '  ' pada 1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas fixture di atas, bertanggal EKSPLISIT; lalu varian dengan seluruh jejak lengkap",
+        "assert": "TIGA angka terpisah terrender di tiga elemen bertestid berbeda: missing_waybill_count, missing_seal_top_count, missing_seal_bottom_count. Pengiriman yang kehilangan KEDUA segel terhitung di KEDUA penghitung — dinyatakan di deskripsi test bahwa itu DUA FAKTA dan bukan penghitungan ganda. Asersi NEGATIF atas NAMA KUNCI: payload TIDAK punya 'missing_seal_count' maupun nama gabungan lain (array_key_exists, bukan pencarian teks), dan tidak ada angka gabungan segel yang terrender. Prosa di layar menyatakan ketiganya jejak kepatuhan, bukan ukuran. Varian lengkap: ketiganya 0 dengan ketiga elemen TETAP terrender"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Profil fixture: kedua nomor segel NULL pada kedua baris, sementara waybill_number TERISI ('SJ-PL-A' dan 'SJ-PL-B')",
+        "assert": "missing_seal_top_count ≥ 1 DAN missing_seal_bottom_count ≥ 1 — dua elemen terpisah, bukan satu angka gabungan. missing_waybill_count = TEPAT 0 — sebuah penghitung kepatuhan yang benar-benar nol, dan itulah yang membuktikan penghitungnya tidak sekadar mengembalikan jumlah baris. Ketiga asersi lewat testid masing-masing"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — rekap diurutkan dari total netto terbesar",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "by_transporter: 'Delta' (1 baris, 100); lalu 'Charlie','Alpha','Bravo' SERI SEMPURNA pada net_weight_total (40) DAN dispatch_count (2). by_silo_source: baris null bertonase 500, plus 'SILO-C' yang net_weight_total-nya NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas fixture di atas, bertanggal EKSPLISIT; entri disemai dalam urutan Charlie, Alpha, Bravo supaya urutan masuk ≠ urutan keluar",
+        "assert": "by_transporter urut PERSIS ['Delta','Alpha','Bravo','Charlie'] — dibandingkan sebagai URUTAN LENGKAP atas array_column(...,'value'), bukan lewat assertContains yang lolos pada urutan apa pun. Seri sempurna pada kedua kunci pertama itulah yang membuat pemutus ketiga (value ASC) benar-benar dieksekusi. by_silo_source: baris null ada di INDEKS 0 karena tonasenya, DAN asersi NEGATIF bahwa ia BUKAN entri terakhir (assertNotSame(count−1, indeksnya)); 'SILO-C' diurutkan sebagai 0.0 sehingga terakhir SEMENTARA net_weight_total-nya di payload TETAP null (assertNull)"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "TIDAK DAPAT DIBUKTIKAN di DB e2e — tiap rekap hanya punya SATU baris pada fixture, sehingga asersi posisi vakum: satu baris selalu pertama sekaligus terakhir. DILEWATI dengan sengaja",
+        "assert": "Tidak diasersikan di browser. Urutan diuji di unit dan component test, tempat fixture-nya dapat disusun"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — tanpa sebaran per jam dan tanpa waktu putar kendaraan, dengan sebabnya dinyatakan",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Periode berdata; catatan pengiriman hanya membawa event_date, tanpa jam masuk maupun jam keluar"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas periode berdata bertanggal EKSPLISIT",
+        "assert": "Penelusur REKURSIF atas seluruh NAMA KUNCI payload memastikan tidak ada kunci 'hourly', 'busiest_hour', 'empty_hour_count', 'turnaround', 'turnaround_minutes', 'time_in' maupun 'time_out' di level mana pun. WAJIB atas nama kunci dan BUKAN atas teks: _note_no_hourly MEMUAT kata 'jam' dan menyebut 'CPO Dispatch', sehingga asersi berbasis teks akan cocok dengan prosa yang justru MENYATAKAN ketiadaan itu — jebakan ini sudah terbukti dua kali di proyek ini. _note_no_hourly DIRENDER UTUH, menyebut bahwa di CPO Dispatch (screen-166/167) keduanya JUSTRU ADA karena tabel itu punya time_in/time_out. Asersi negatif tambahan: tidak ada jam yang ditebak dari created_at"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "Tidak ada tabel/grid per jam di DOM — diasersikan atas KETIDAKHADIRAN testid wadah per-jam, bukan atas teks halaman (teks catatannya memuat kata 'jam'). Elemen pembawa _note_no_hourly hadir dan tidak kosong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — tanpa penandaan nilai mutu di luar batas",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Nilai mutu tinggi dan rendah yang ekstrem disemai; stasiun ini tidak punya master ambang mutu apa pun"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) dengan kernel_moisture_percent 0.1 dan 99.0 serta ffa_percent -1.2 pada pengiriman bertanggal EKSPLISIT",
+        "assert": "Tidak ada kunci penandaan di payload (penelusur rekursif atas nama kunci: nol 'flag', 'out_of_range', 'threshold', 'exceeds') dan tidak ada kelas/badge peringatan di markup — diasersikan atas ketidakhadiran testid badge-nya. Nilai ekstrem dan nilai NEGATIF terbit APA ADANYA, tidak disaring dan tidak dijadikan 0. _note_no_quality_thresholds DIRENDER UTUH — laporan mutu TANPA penandaan terlihat seperti laporan yang lupa membandingkan, jadi sebabnya harus tertulis"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "Elemen pembawa _note_no_quality_thresholds hadir dan tidak kosong; tidak ada badge peringatan mutu di DOM (asersi atas ketidakhadiran testid badge, bukan atas kata 'batas' yang justru ada di dalam prosa catatannya)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — temuan adalah satu-satunya kolom catatan kejadian",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "4 pengiriman: dua ber-findings terisi, satu findings '' (whitespace), satu NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas fixture di atas bertanggal EKSPLISIT; lalu varian tanpa satu findings pun",
+        "assert": "array_keys(text_entries) === ['findings'] dan array_key_exists('remarks', text_entries) FALSE — stasiun ini TIDAK punya kolom catatan kedua, berbeda dari Solid Waste Disposal, jadi struktur text_entries dua-daftar tidak boleh disalin dari sana. Layar merender SATU bagian catatan, bukan dua: asersi negatif atas ketidakhadiran testid bagian kedua. findings berisi 2 entri {date,value} urut tanggal naik; entri kosong/whitespace dibuang. Varian kedua: findings [] dengan kunci TETAP ADA, dan layar mencetaknya sebagai pernyataan 'tidak ada', bukan menghilangkan bagiannya"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "Bagian temuan hadir SATU kali dan tidak ada bagian catatan kedua di DOM — asersi atas jumlah wadah bertestid catatan (tepat 1), bukan atas teks. Dipakai count() SESUDAH menunggu wadahnya terlihat, bukan count() tanpa penantian"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — giliran kerja tidak di layar tetapi ada di ekspor bersama lima kolom lain",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "_given": "Pengiriman ber-shift 'Shift 1' dan kelima kolom yang tak tampil di layar terisi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "csv",
+            "_given": "Ekspor atas data yang sama"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen) atas pengiriman bertanggal EKSPLISIT dengan shift dan kelima kolom terisi; lalu panggil endpoint ekspor atas data yang sama",
+        "assert": "DUA LAPISAN. (a) Penelusur rekursif atas nama kunci payload summary TIDAK menemukan kunci 'shift' di level mana pun, dan _note_shift_not_published DIRENDER UTUH. (b) Header ekspor MEMUAT kolom shift dengan nilai 'Shift 1', DAN kelima kolom yang tidak muncul di satu angka pun di layar diasersikan EKSPLISIT satu per satu beserta nilainya: weighbridge_ticket_no, waybill_number, vehicle_plate_no, driver_name, weighbridge_operator_id — kelimanya paling mudah tertinggal justru karena layar tidak memakainya. Asersi keanggotaan memakai $this->assertContains() atas array header, bukan expect()->toContain() yang membaca argumen kedua sebagai needle kedua"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode",
+        "assert": "Tidak ada kolom/label giliran kerja di DOM laporan — asersi atas ketidakhadiran testid elemen shift, bukan atas teks (prosa _note_shift_not_published justru MENYEBUT giliran kerja). Isi ekspor diasersikan di feature test, bukan di browser"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — ekspor CSV dan Excel .xlsx sungguhan dengan satu baris per pengiriman",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "csv",
+            "_given": "3 pengiriman pada 2 record induk; seluruh 21 kolom detail terisi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "xlsx",
+            "_given": "Data yang sama"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "pdf",
+            "_given": "Format tak dikenal"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode>",
+            "production_line_id": "<line>",
+            "format": "CSV",
+            "_given": "Daftar tertutupnya peka huruf — yang dilakukan hanya trim, bukan lowercase"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Panggil endpoint ekspor DI LEVEL HTTP (default format ditetapkan CONTROLLER, bukan service) dengan format: absen, '', '  ', ' csv ', 'CSV', 'pdf', 'xlsx'; data 3 pengiriman bertanggal EKSPLISIT",
+        "assert": "absen / '' / '  ' / ' csv ' → 200 CSV (default ditetapkan atas nilai yang SUDAH di-trim). 'CSV' dan 'pdf' → 422 SEBELUM aliran, nol byte isi dan tidak ada content-disposition — galat sesudah header mendarat sebagai berkas rusak. 'xlsx' → arsip zip yang MEMUAT xl/workbook.xml, diperiksa dari isi berkasnya dan bukan dari nama atau content-type. Isi CSV: 3 baris data (satu per PENGIRIMAN, bukan per record induk), kolom konteks diulang VERBATIM dan dibandingkan ANTAR-BARIS, ke-21 kolom detail hadir. Batas 50.000 baris diuji EAGER: melewati batas → 422 tanpa satu byte isi; tepat di batas → 200"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, pilih line dan periode, klik unduh CSV lalu unduh Excel",
+        "assert": "Kedua tombol unduh aktif dan dapat diklik; unduhan terjadi dengan nama berkas berekstensi .csv dan .xlsx. ISI berkas tidak diasersikan di browser — itu feature test; di sini hanya jalur UI-nya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — status periode tidak disaring dan pengiriman draft tetap terhitung",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_given": "Mill punya periode kernel-dispatch berstatus 'draft', 'open' dan 'closed'"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode berstatus closed>",
+            "production_line_id": "<line>",
+            "_given": "Record draft dan final bercampur di dalamnya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); tiga periode berstatus draft/open/closed bertanggal EKSPLISIT; di periode terpilih ada 1 record induk draft (3 detail, mutu terisi) dan 1 final (2 detail, mutu terisi)",
+        "assert": "Ketiga periode muncul di pemilih — status TIDAK menyaring, diasersikan dengan $this->assertContains() atas kumpulan id. dispatch_count 5 dan KEEMPAT measured_count mutu MENYERTAKAN ketiga baris draft — dibuktikan dengan membandingkan terhadap varian yang draft-nya dihapus (measured_count turun dari 5 ke 2). draft_dispatch_count = 3 terrender sebagai angka tersendiri: ia ADALAH pernyataan bahwa draft ikut, bukan penyaring"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Profil fixture: status induk kedua baris adalah draft_ongoing",
+        "assert": "draft_dispatch_count ≥ 1 DAN dispatch_count ≥ 1 dengan tonase berangka — pengiriman draft ikut terhitung, dibuktikan di aplikasi nyata. Dua asersi atas dua testid. Angka persisnya tidak dipakai: spec form menulis ke DB e2e yang sama"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — rekap harian per hari yang ada pengirimannya dan kelengkapan atas hari yang sudah berjalan",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode 31 hari>",
+            "production_line_id": "<line>",
+            "_given": "Pengiriman pada TEPAT 9 tanggal berbeda di dalam periode 2026-03-01 s/d 2026-03-31"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang belum mulai>",
+            "production_line_id": "<line>",
+            "_given": "Periode mulai 10 hari di masa depan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanKernelDispatch",
+        "action": "Livewire::actingAs(supervisor)->test(komponen); varian A periode 31 hari dengan pengiriman pada 9 tanggal EKSPLISIT (beberapa hari lebih dari satu pengiriman, sebagian baris ber-netto null); varian B periode belum mulai; varian C periode berjalan",
+        "assert": "A: count(daily) === 9 — bukan 31 (hari kalender) dan bukan jumlah pengiriman; urut tanggal naik; baris daily_total terrender dan DIJUMLAHKAN dari daily[] (daily_total.dispatch_count === array_sum(daily[].dispatch_count)), bukan disalin dari blok dispatches. B: days_counted 0, percent NULL → blade '—' dengan kalimat 'periode belum dimulai'; days_with_dispatch 0. C: days_counted = start..hari ini inklusif (hari ini WIB dari config, bukan waktu server) sementara days_in_period tetap panjang penuh periode — periode berjalan tidak dihukum atas hari yang belum datang. ReportPeriodDays::counted dipakai apa adanya, panjang periode tidak dihitung ulang secara lokal"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Periode fixture 2020-01-01 s/d hari-ini+7 memuat event_date 2025-03-10 pada kedua baris",
+        "assert": "Tabel harian hadir dengan ≥ 1 baris dan baris total hadir sekali. Elemen completeness terrender berisi angka atau '—', tidak kosong. Jumlah baris harian yang PERSIS tidak diasersikan — periode fixture sangat panjang dan spec form menulis ke DB e2e yang sama"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Kernel Dispatch (Web) — PINTU MASUK: tile Kernel Dispatch pada Laporan Stasiun aktif dan REPORT_ROUTES tetap urut sort_order",
+      "usecase_id": "usecase-170--laporan-kernel-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/reports"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor; layar Laporan Stasiun (screen-140)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/reports/kernel-dispatch"
+          },
+          "request_example": {
+            "_given": "Sesi Supervisor mengikuti tautan tile"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "Livewire::actingAs(supervisor)->test(komponen layar Laporan Stasiun); plus pembacaan langsung konstanta StationReportService::REPORT_ROUTES dan tabel station_types",
+        "assert": "Tile Kernel Dispatch AKTIF dan tertaut ke route name 'reports.kernel-dispatch'. array_key_exists('kernel-dispatch', REPORT_ROUTES) TRUE — kuncinya BERTANDA HUBUNG. array_keys(REPORT_ROUTES) dibandingkan sebagai URUTAN LENGKAP terhadap sort_order station_types, dengan 'kernel-dispatch' (160) di INDEKS TERAKHIR, di belakang 'solid-waste-disposal' (150); urutan diverifikasi dari tabel station_types, BUKAN dari urutan deklarasi enum. Asersi pengunci riak: array_key_exists('process-quality-control', REPORT_ROUTES) FALSE — ketiga berkas yang memakai stasiun NYATA sebagai contoh 'belum berlaporan' sudah memakai kode itu (180) sehingga pekerjaan ini tidak memerahkannya, dan StationReportServiceTest memakai kode fiktif 'zz-stasiun-fiktif'. Riak dicari lewat grep atas KODE STASIUNNYA, bukan atas urutan entri, dan suite PENUH tetap dijalankan karena pada screen-162 berkas keempat hanya ditemukan oleh suite"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "PRASYARAT beforeAll: seedOpenPeriodForForms(browser, 'kernel-dispatch'). Login Supervisor, buka layar Laporan Stasiun, klik tile Kernel Dispatch",
+        "assert": "Tile Kernel Dispatch terlihat, TIDAK dalam keadaan nonaktif, dan dapat diklik; klik membawa ke halaman laporan — URL dicocokkan dengan REGEX (toHaveURL('**/x') dengan baseURL tidak pernah cocok). Tile diposisikan di akhir daftar tile yang aktif. Asersi geometri: tile tidak terpotong oleh wadah induknya"
+      }
+    }
+  ]
 }

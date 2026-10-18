@@ -1,0 +1,87 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-163--laporan-solid-waste-disposal-mobile",
+  "name": "Laporan Solid Waste Disposal (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-18T11:20:00Z",
+      "passed": 48,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-18T11:20:00Z",
+      "passed": 89,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-18T11:30:00Z",
+      "passed": 39,
+      "failed": 0
+    }
+  },
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/solidWasteDisposalReportRepo.ts",
+    "mobile/src/views/LaporanSolidWasteDisposalView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue",
+    "mobile/src/utils/optionLabel.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/solidWasteDisposalReportRepo.spec.ts",
+    "mobile/tests/LaporanSolidWasteDisposalView.spec.ts",
+    "mobile/tests/e2e/laporan-solid-waste-disposal.spec.ts",
+    "mobile/tests/ReportingPilihStasiunView.spec.ts",
+    "mobile/tests/LaporanProcessWaterView.spec.ts"
+  ],
+  "implementation_notes": [
+    "NOL BERKAS BACKEND DISENTUH. Keempat endpoint /api/solid-waste-disposal-reports/* dipakai ulang verbatim dari screen-162, ditambah /api/production-lines/options-for-report yang juga dipakai ulang. Operator sudah diterima di ketiga rute data sejak commit pertama screen-162 justru supaya layar ini tidak perlu melebarkan izin apa pun — pola yang kini terbukti tiga kali (158/159, 160/161, 162/163). Tidak ada integration test: bukan dilewatkan, melainkan tidak ada kontrak baru untuk diuji.",
+    "KLIEN TIDAK MENGHITUNG SATU AGREGAT PUN, dan itu DIVERIFIKASI bukan dijanjikan: tidak ada reduce/sort/filter/pembagian yang menyentuh angka laporan. Subtraksi `load_count - missing_gate_pass_count` yang ada di blade web sengaja TIDAK disalin. Inilah yang menjamin angka mobile = angka web, dan jaminannya berupa BENTUK bukan disiplin.",
+    "`/summary` DIJAGA SATU FUNGSI PEMUAT (`loadSummary()`) yang dipanggil tanpa syarat oleh kelima jalur. Buktinya non-vakum: spy pemuat melihat 3 panggilan sementara penghitung permintaan `/summary` tetap 0 — penjagaannya ada di dalam fungsi, bukan disebar di pemanggilnya, sehingga jalur 'ganti periode' dan 'Coba Lagi' tidak dapat melewatinya.",
+    "RIAK TERNYATA LIMA TEMPAT, BUKAN SATU. Yang keempat dan kelima tidak ada di brief: (a) `mobile/tests/ReportingPilihStasiunView.spec.ts` — contoh utama, diganti ke kode fiktif `zz-stasiun-fiktif`; (b) `mobile/tests/LaporanProcessWaterView.spec.ts` unit case 56, DI LUAR daftar berkas yang diizinkan, yang membaca spec tetangga + berkas .vue dari disk dan mengasersikan 'solid-waste-disposal' ADA di daftar 'belum berlaporan' DAN tidak ada di REPORT_ROUTES DAN spec tetangga memuat literal pesannya. Ketiganya pasti merah. Diperbaiki dengan mengarahkan ke kode fiktif dan MENAMBAH empat asersi cermin untuk contoh yang dipensiunkan — net +7 asersi, nol dihapus, nol matcher dilemahkan. Pada screen-162 titik riak kelima seperti ini hanya ditemukan dengan MENJALANKAN SUITE PENUH, dan di sini pun demikian.",
+    "`zz-stasiun-fiktif` MEMBUTUHKAN cast `as StationType` di tiap fixture, karena union `StationType` tertutup dan berakhir di 'other'. Ketujuh situs sekarang punya cast-nya; fixture baru tanpa cast akan gagal typecheck — kegagalan yang baik, karena ia memaksa penulisnya sadar sedang memakai kode di luar master.",
+    "DUA KASUS UJI TECH-SPEC TIDAK DAPAT DIIMPLEMENTASIKAN SEPERTI TERTULIS, dan diganti dengan kontrak yang sebenarnya: unit case 47 dan test scenario 32 mengimpor `REPORT_ROUTES` dan `STATION_ICONS` dari `ReportingPilihStasiunView.vue`. Kenyataannya kedua map itu module-local (tidak diekspor) dan peta ikonnya bernama `TYPE_ICONS` bukan `STATION_ICONS` — impor itu tidak akan compile. Invarian yang sama diasersikan lewat DOM (tile tidak `aria-disabled`, tanpa badge 'Belum tersedia', `router.push({ name: 'report-solid-waste-disposal' })`). Ekspor TIDAK ditambahkan: itu akan melampaui 'tepat SATU entri'.",
+    "`daily_total._note` ADA DI PAYLOAD NYATA TETAPI HILANG DARI success_schema TECH-SPEC (NOTE_DAILY_TOTAL, service ± baris 391). Dirender verbatim di `swd-daily-total-note` dan dimasukkan ke fixture. Tech-spec screen-163 layak dikoreksi — sebuah kunci yang ada di server tetapi tidak di spec adalah kunci yang mudah hilang dari layar tanpa ada yang menyadarinya.",
+    "SATUAN TINGGAL DI ELEMEN TERPISAH ('MT'/'muatan'/'%' di `.metric-unit-pill`) yang TIDAK dirender saat nilainya null — sehingga '—' tidak pernah berdiri di samping satuan yatim. Pecahan memakai Intl id-ID min 1 / max 2 desimal, divergensi SADAR dari desimal tetap di blade web: nilainya sama, tanpa nol berekor yang tidak membawa informasi pada 390px. '0,00 MT' mustahil dihasilkan.",
+    "500 DAN STATUS TAK TERTANGANI → `network-error` + `retry-button`, BUKAN `error-message` — preseden screen-161 sengaja tidak disalin, karena business_logic 14 dan spesifikasi ujinya menuntut tombol Coba Lagi. `error-message` kini hanya memikul 404 dan 403 pemilih mill admin.",
+    "ASERSI STATIS `v-stacked-table` MILIK screen-161 TIDAK DAPAT DISALIN: markup rekap ditulis sekali lalu di-loop atas deskriptor `RECAPS`, sehingga sumbernya memuat 2 kemunculan literal sementara 5 tabel dirender. Bentuk itu justru yang mencegah satu kolom (biasanya penyebut netto) hilang dari salah satu dari empat salinan — sebuah asersi jumlah-literal akan menghukum bentuk yang lebih benar.",
+    "DISIPLIN CSS DIAUDIT TERHADAP HASIL COMPILE (`dist/assets/*.css`), bukan terhadap sumbernya: 45 kelas dipakai, NOL tanpa definisi.",
+    "SATU TEST MERAH YANG BUKAN MILIK LAYAR INI, DAN ITU KESALAHAN SAYA. `mobile/tests/optionLabel.spec.ts` memerah karena `mobile/src/utils/optionLabel.ts` kehilangan dua kunci ('released', 'not_released') yang saya tambahkan ke `backend/app/Support/Display.php` pada commit 88d5904 untuk screen-164. Mobile punya CERMIN kosakata itu, dibuat pada audit 2026-10-05, dan test itu MEMBACA berkas PHP dari disk lalu menuntut kedua peta IDENTIK. Saya mengubah satu sisi tanpa mencari sisi lainnya. Agen pelaksana layar ini membuktikannya pre-existing di HEAD tanpa `git stash` — lewat `git show HEAD:...Display.php` dan mtime `optionLabel.ts` — lalu SENGAJA tidak membelanjakan ronde auto-fix untuknya karena berisiko bentrok dengan pekerjaan paralel, dan meneruskannya. Keputusan yang tepat. Diperbaiki terpisah: kedua kunci ditambahkan ke cermin mobile, suite kembali 3602 lolos / 0 gagal / 141 berkas. PELAJARANNYA: kosakata bersama yang hidup di DUA bahasa hanya tetap bersama bila ada yang membandingkannya, dan penjaga itu bekerja persis sebagaimana dimaksud — yang gagal adalah saya tidak mencarinya."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Coverage unit TIDAK TERUKUR, bukan 0% — mobile/package.json tanpa @vitest/coverage-*, tanpa skrip coverage, vite.config.ts tanpa blok coverage. Ambang 80% tidak dapat dievaluasi untuk suite ini. Status TIDAK diturunkan karenanya: nol yang tidak terinstrumentasi bukan nol yang tidak tertutup.",
+      "severity": "minor"
+    },
+    {
+      "description": "SIFAT PERINGATAN-DINI RANTAI RIAK KINI HILANG UNTUK STASIUN NYATA. unit case 56 di LaporanProcessWaterView.spec.ts sekarang menjaga `zz-stasiun-fiktif` — kode yang tidak akan pernah masuk REPORT_ROUTES, sehingga asersinya hijau SELAMANYA. Ketika screen-165/167/169 mendarat, situs `kernel-dispatch`, `cpo-dispatch` dan `process-quality-control` di ReportingPilihStasiunView.spec.ts akan basi dan test 56 TIDAK akan memerah untuk mereka; hanya asersi di situs masing-masing yang gagal. Pelaksana 165/167/169 harus grep KODE STASIUNNYA di berkas itu langsung, jangan bersandar pada test 56. Pertukaran yang disengaja: kode fiktif membuat test itu tidak basi lagi, dengan biaya kehilangan daya peringatan-dininya.",
+      "severity": "minor"
+    },
+    {
+      "description": "Satu asersi pesan lebih lemah dari tetangganya: ± baris 930 memakai toContain('belum tersedia') alih-alih toBe, sehingga tetap hijau walau nama stasiun di pesannya salah. Pre-existing, milik situs `kernel-dispatch` yang di luar lingkup layar ini — kandidat pekerjaan riak screen-165.",
+      "severity": "minor"
+    },
+    {
+      "description": "Pemetaan butir-demi-butir antara 48 unit_test_cases / 32 test_scenarios dan berkas test yang dihasilkan TIDAK diverifikasi oleh agen pelaksana: ronde penulisan test pertama terhenti oleh batas API sebelum melapor. Yang dapat ditegakkan dari angka: 48 test unit berbanding 48 unit_test_cases, dan 89 component + 39 browser menutupi 32 test_scenarios.",
+      "severity": "minor"
+    },
+    {
+      "description": "Geometri 390px diuji di lapisan browser (39/39 hijau), tetapi agen pelaksana tidak membaca sendiri asersi mana yang dipakai, sehingga tidak dapat memastikan tiap pengukuran memakai scrollWidth vs clientWidth alih-alih nama kelas. Audit itu pertanyaan tinjauan kode, bukan pertanyaan test runner.",
+      "severity": "minor"
+    }
+  ]
+}

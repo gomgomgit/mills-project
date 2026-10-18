@@ -1,0 +1,599 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "usecase-175--laporan-process-quality-control-mobile",
+  "name": "Lihat Laporan Periode Process Quality Control (Mobile)",
+  "description": "Operator — bersama Supervisor, Mill Management, dan Admin — membuka laporan periode stasiun Process Quality Control dari ponsel melalui satu-satunya pintu masuknya: tile Process Quality Control pada layar Reporting. Satuan hitungnya SLOT JAM: satu baris catatan adalah satu slot pada satu hari. Layar ini membawa beban tata letak terbesar dari seluruh laporan mobile — DUA BELAS ukuran dalam LIMA blok, masing-masing dengan tiga angka beserta penyebutnya sendiri dan satuannya, yaitu tiga puluh enam angka pada lebar ponsel. Jawabannya bukan memperkecil semuanya melainkan MENGHORMATI LIMA BLOKNYA: kelima blok mengikuti jalur fisik minyak dan masing-masing menjawab satu pertanyaan tentang satu tahap, sehingga kelima-limanya menjadi kartu yang dapat dilipat dan dibuka satu per satu, dengan penanda di judulnya yang memberi tahu apakah blok itu punya data. Kartu kelengkapan pencatatan berdiri DI ATAS kelima blok dan tidak dapat dilipat, karena ia yang memberi tahu seberapa jauh angka di bawahnya dapat dipercaya. Angkanya sama persis dengan pasangan web-nya (screen-168) karena endpoint dipakai ulang apa adanya; yang berubah hanya bentuknya di layar sempit. Ekspornya hanya CSV, karena WebView ponsel tidak membuka .xlsx.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi mobile sebagai Operator, Supervisor, Mill Management, atau Admin",
+    "Mill yang berlaku punya minimal satu Production Line",
+    "Mill yang berlaku punya minimal satu periode pelaporan yang mendaftarkan stasiun Process Quality Control",
+    "Perangkat terhubung jaringan — layar ini tidak punya mode luring"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka layar Reporting lalu menekan tile Process Quality Control — satu-satunya pintu masuk layar ini"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menetapkan mill dari akun bagi Operator, Supervisor, dan Mill Management; khusus Admin, menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Memuat daftar Production Line milik mill yang berlaku, dan memakai line yang diingat perangkat bila nilainya masih sah"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Memilih Production Line bila belum terpakai dari ingatan perangkat, atau menggantinya"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memuat daftar periode yang mendaftarkan stasiun Process Quality Control pada mill yang berlaku, tanpa menyaring statusnya"
+    },
+    {
+      "step": 6,
+      "actor": "actor-station-operator",
+      "description": "Memilih Periode Pelaporan"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Meminta rekap periode ke endpoint yang sama dengan pasangan web-nya, lalu merender apa yang diterbitkan server tanpa menghitung ulang dan tanpa mengurutkan ulang"
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Menampilkan kartu kelengkapan pencatatan DI ATAS kelima blok dan tanpa kemampuan dilipat: jumlah slot terisi terhadap jumlah slot yang diharapkan pada hari-hari yang sudah berjalan"
+    },
+    {
+      "step": 9,
+      "actor": "System",
+      "description": "Mencetak BERDAMPINGAN jumlah slot terisi dan penyebut ukuran, beserta kalimat yang menyatakan bahwa keterisian dihitung atas empat belas kolom pembacaan sehingga jumlah slot terisi dapat melebihi setiap penyebut"
+    },
+    {
+      "step": 10,
+      "actor": "System",
+      "description": "Menyatakan bahwa giliran kerja dan kode inspektur tidak ikut menentukan keterisian slot, dan slot yang hanya mengisi keduanya dihitung kosong"
+    },
+    {
+      "step": 11,
+      "actor": "System",
+      "description": "Menampilkan lima kartu blok yang dapat dilipat, berurutan mengikuti jalur fisik minyak, masing-masing berjudul tahapnya beserta penanda apakah blok itu punya data"
+    },
+    {
+      "step": 12,
+      "actor": "actor-station-operator",
+      "description": "Membuka kartu blok tahap yang ingin dibacanya; di dalamnya setiap ukuran menampilkan nilai terendah, rata-rata, tertinggi, penyebutnya sendiri, dan satuannya"
+    },
+    {
+      "step": 13,
+      "actor": "System",
+      "description": "Menampilkan rekap per-inspektur yang dapat dilipat dengan kode mentah apa adanya, baris 'tidak tercatat' tersendiri, dan urut menurut kode"
+    },
+    {
+      "step": 14,
+      "actor": "System",
+      "description": "Menampilkan rekap harian yang dapat dilipat: satu baris per hari yang ada pembacaannya, beserta baris total periode"
+    },
+    {
+      "step": 15,
+      "actor": "System",
+      "description": "Menampilkan dua daftar kejadian terpisah dan bertanggal — tindakan koreksi teknis, dan temuan — keduanya teks bebas apa adanya"
+    },
+    {
+      "step": 16,
+      "actor": "System",
+      "description": "Menyatakan jumlah slot milik catatan draft, ketiadaan rekap berlabel, ketiadaan penandaan nilai di luar batas beserta sebabnya, ketiadaan blok henti operasi, dan alasan kolom giliran kerja tidak diterbitkan di layar"
+    },
+    {
+      "step": 17,
+      "actor": "actor-station-operator",
+      "description": "Dapat mengunduh rincian pembacaan per slot jam sepanjang periode sebagai CSV"
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rekap periode yang dipilih untuk Production Line yang dipilih, dengan angka yang sama persis dengan pasangan web-nya",
+    "Pengguna mengetahui seberapa lengkap pencatatannya sebelum mempercayai angka di bawahnya, dan tahu kartu blok mana yang berguna dibuka tanpa membuka kelimanya",
+    "Pilihan Production Line dan periode tetap terpakai ketika pengguna kembali ke layar ini",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "alternative_flows": [
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 4, perangkat belum pernah mengingat line dan pengguna belum memilih",
+      "steps": [
+        "Layar meminta memilih Production Line dan menyatakan apa yang ditunggunya",
+        "NOL permintaan rekap terkirim — penjagaannya di fungsi pemuatan, bukan di template",
+        "Tombol ekspor tidak dirender",
+        "Line tidak dipilihkan meski mill hanya punya satu line"
+      ]
+    },
+    {
+      "name": "Line yang diingat perangkat dipakai tanpa diminta memilih lagi",
+      "trigger": "Pada langkah 3, perangkat sudah mengingat Production Line terakhir dan nilainya masih sah",
+      "steps": [
+        "Line itu langsung terpakai tanpa langkah memilih",
+        "Angka dimuat begitu periode dipilih",
+        "Pengguna tetap dapat menggantinya, dan penggantian memuat ulang angkanya"
+      ]
+    },
+    {
+      "name": "Line yang diingat sudah tidak sah",
+      "trigger": "Pada langkah 3, line yang diingat perangkat milik mill lain atau sudah dihapus",
+      "steps": [
+        "Nilai itu DIBUANG, bukan dipakai dan bukan dikirim ke server",
+        "Layar meminta memilih line",
+        "Angka mill lain TIDAK pernah ditampilkan"
+      ]
+    },
+    {
+      "name": "Penyimpanan perangkat tidak dapat dibaca",
+      "trigger": "Pada langkah 3, membaca line yang diingat gagal karena perangkat berada dalam mode privat",
+      "steps": [
+        "Layar TETAP tampil utuh — pembacaan itu tidak mematahkannya",
+        "Layar jatuh ke keadaan 'belum ada line terpilih' dan meminta memilih line",
+        "NOL elemen galat dirender — ini bukan kegagalan yang perlu dilaporkan ke pengguna",
+        "Pengguna memilih line secara manual dan alur berlanjut normal"
+      ]
+    },
+    {
+      "name": "Admin memilih mill lebih dulu",
+      "trigger": "Pada langkah 2, pengguna berperan Admin dan belum memilih mill",
+      "steps": [
+        "Pemilih Mill dan arahan memilih mill ditampilkan",
+        "Tidak ada angka yang ditampilkan sampai mill dipilih"
+      ]
+    },
+    {
+      "name": "Admin mengganti mill",
+      "trigger": "Pada langkah 2, Admin mengganti mill sesudah periode dan line terpilih",
+      "steps": [
+        "Pilihan periode DAN Production Line dikosongkan",
+        "Daftar periode dimuat ulang untuk mill yang baru",
+        "Angka mill sebelumnya tidak dibiarkan tertinggal di layar"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode yang mencakup stasiun ini",
+      "trigger": "Pada langkah 5, daftar periode kosong",
+      "steps": [
+        "Pemilih periode kosong beserta kalimat sebabnya",
+        "Arahan menghubungi Admin ditampilkan",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun terikat mill tetapi mill-nya kosong",
+      "steps": [
+        "Arahan menghubungi Admin ditampilkan — BUKAN pesan galat jaringan dan bukan galat izin",
+        "Pemilih Mill tidak dirender"
+      ]
+    },
+    {
+      "name": "Line milik mill lain dipaksa lewat jalur apa pun",
+      "trigger": "Pada langkah 7, permintaan membawa Production Line yang bukan milik mill yang berlaku",
+      "steps": [
+        "Layar meminta memilih line",
+        "Tidak pernah menampilkan satu angka pun milik mill lain"
+      ]
+    },
+    {
+      "name": "Line tanpa satu pembacaan pun",
+      "trigger": "Pada langkah 7, line terpilih tidak punya satu pembacaan pun pada periode itu",
+      "steps": [
+        "Kerangka laporan TETAP tampil dengan keadaan kosong yang menyebut periode dan line",
+        "Kelima kartu blok TETAP ADA, masing-masing menyatakan belum ada pembacaan",
+        "Kartu kelengkapan tetap tampil di atasnya",
+        "Kedua daftar kejadian menyatakan tidak ada catatan, masing-masing dengan judulnya sendiri"
+      ]
+    },
+    {
+      "name": "Satu ukuran tidak punya pembacaan sementara sebelas lainnya punya",
+      "trigger": "Pada langkah 12, satu dari dua belas ukuran kosong sepanjang periode",
+      "steps": [
+        "Ukuran itu menampilkan '—' untuk ketiga angkanya dengan penyebut nol",
+        "Kesebelas ukuran lain tetap berangka dengan penyebutnya masing-masing",
+        "Bloknya tetap dapat dibuka dan tetap menampilkan ukuran lainnya"
+      ]
+    },
+    {
+      "name": "Satu blok seluruh ukurannya kosong",
+      "trigger": "Pada langkah 11, seluruh ukuran pada satu blok kosong sementara empat blok lain berisi",
+      "steps": [
+        "Blok itu TETAP ADA di layar dengan penanda 'belum ada data' pada judulnya",
+        "Blok itu tidak dihilangkan — blok yang hilang akan dibaca sebagai tahap yang tidak ada",
+        "Penanda judul itu membuat pembaca tahu kartu mana yang berguna dibuka tanpa membuka kelimanya"
+      ]
+    },
+    {
+      "name": "Slot hanya memuat catatan teks",
+      "trigger": "Pada langkah 9, sebuah slot mengisi tindakan koreksi teknis atau temuan tanpa satu pun ukuran numerik",
+      "steps": [
+        "Slot itu TERHITUNG terisi, karena kedua kolom teks termasuk dalam keempat belas kolom pembacaan",
+        "Slot itu TIDAK menambah penyebut ukuran numerik mana pun",
+        "Jumlah slot terisi karena itu dapat MELEBIHI penyebut setiap ukuran numerik",
+        "Kedua angka dicetak berdampingan di kartu kelengkapan beserta kalimat yang menyatakan hubungannya, supaya selisihnya tidak terbaca sebagai cacat"
+      ]
+    },
+    {
+      "name": "Slot hanya mengisi giliran kerja dan kode inspektur",
+      "trigger": "Pada langkah 10, sebuah slot hanya mengisi kedua kolom identitas tanpa satu pun dari keempat belas kolom pembacaan",
+      "steps": [
+        "Slot itu dihitung KOSONG — kebalikan dari slot yang hanya memuat catatan teks, dan keduanya harus dapat dibedakan pembaca",
+        "TETAPI kode inspekturnya TETAP masuk rekap per-inspektur",
+        "Kedua hal itu tidak bertentangan: rekap menghitung ATRIBUSI, kelengkapan menghitung PEMBACAAN"
+      ]
+    },
+    {
+      "name": "Kode inspektur kosong atau berbeda hanya pada kapitalisasinya",
+      "trigger": "Pada langkah 13, sebagian slot tidak mencatat kode inspektur, dan dua kode hanya berbeda huruf besar kecilnya",
+      "steps": [
+        "Satu baris 'tidak tercatat' berdiri sendiri berisi slot yang kode inspekturnya kosong",
+        "Kedua kode yang berbeda kapitalisasinya tetap DUA baris terpisah dengan kode mentah apa adanya",
+        "Teks bebas tidak menjamin keduanya orang yang sama, dan tidak ada master inspektur untuk memastikannya"
+      ]
+    },
+    {
+      "name": "Rekap per-inspektur atau rekap harian sangat panjang",
+      "trigger": "Pada langkah 13 atau 14, barisnya berjumlah puluhan",
+      "steps": [
+        "Urutan rekap per-inspektur tetap menurut KODE, bukan menurut jumlah slot",
+        "Tabelnya menggulir mendatar DI DALAM kartunya sendiri",
+        "Halaman itu sendiri tidak pernah bergeser mendatar",
+        "Kedua rekap dapat dilipat"
+      ]
+    },
+    {
+      "name": "Kelima blok dibuka sekaligus pada lebar ponsel",
+      "trigger": "Pada langkah 12, pengguna membuka kelima kartu blok bersamaan",
+      "steps": [
+        "Tiga puluh enam angka beserta dua belas penyebut dan satuannya tetap terbaca",
+        "Tidak satu pun angka terpotong kartu induknya",
+        "Halaman TIDAK pernah bergeser mendatar",
+        "Keadaan terbuka maupun terlipat tidak mengubah satu angka pun — ia hanya menyembunyikan dan menampilkan"
+      ]
+    },
+    {
+      "name": "Periode belum mulai atau masih berjalan",
+      "trigger": "Pada langkah 8, tanggal mulai periode masih di masa depan, atau tanggal akhirnya masih di masa depan",
+      "steps": [
+        "Bila belum mulai: kelengkapan tampil '—' beserta kalimat sebabnya, bukan 0,0%",
+        "Bila masih berjalan: penyebut kelengkapan berhenti di hari ini dan hal itu dinyatakan",
+        "Hari yang belum terjadi tidak menurunkan persentase"
+      ]
+    },
+    {
+      "name": "Periode memuat catatan berstatus draft",
+      "trigger": "Pada langkah 16, sebagian catatan pada periode itu masih berstatus draft",
+      "steps": [
+        "Catatan draft IKUT terhitung di seluruh angka",
+        "Jumlah slot miliknya dinyatakan di layar",
+        "Status periode maupun status catatan tidak menyaring laporan, dan periode draft maupun tertutup tetap terbaca"
+      ]
+    },
+    {
+      "name": "Permintaan rekap gagal",
+      "trigger": "Pada langkah 7, permintaan ke server gagal",
+      "steps": [
+        "Keadaan galat ditampilkan beserta aksi coba lagi",
+        "Penjagaan Production Line tetap berlaku pada jalur coba lagi",
+        "Angka dari pemuatan sebelumnya tidak dibiarkan tertinggal"
+      ]
+    },
+    {
+      "name": "Perangkat luring sebelum angka termuat",
+      "trigger": "Pada langkah 1, perangkat tidak terhubung jaringan",
+      "steps": [
+        "Layar menyatakan laporan memerlukan jaringan",
+        "Kelima blok ditutup SELURUHNYA — bukan dibiarkan terlipat dengan isi basi",
+        "NOL permintaan dikirim",
+        "Bukan diam, dan bukan menampilkan angka basi tanpa penanda"
+      ]
+    },
+    {
+      "name": "Perangkat menjadi luring sesudah angka termuat",
+      "trigger": "Pada langkah 12, jaringan terputus ketika angka sudah tampil di layar",
+      "steps": [
+        "Angkanya DITUTUP, bukan dibiarkan terlipat dengan isi basi",
+        "Kelima blok ditutup seluruhnya, termasuk kartu blok yang sedang terbuka",
+        "Layar menyatakan laporan memerlukan jaringan",
+        "NOL permintaan dikirim selama luring"
+      ]
+    },
+    {
+      "name": "Sesi berakhir saat layar terbuka",
+      "trigger": "Pada langkah 7 atau 17, sesi pengguna sudah berakhir",
+      "steps": [
+        "Pengguna diarahkan ke layar Login",
+        "TANPA pesan galat jaringan — sesi berakhir bukan kegagalan jaringan"
+      ]
+    },
+    {
+      "name": "Ekspor ditekan dua kali cepat",
+      "trigger": "Pada langkah 17, pengguna menekan tombol ekspor dua kali berurutan dengan cepat",
+      "steps": [
+        "Tepat SATU permintaan ekspor terkirim",
+        "Tepat SATU berkas terunduh"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini baca saja: nol kontrol tulis, dan tidak satu pun data stasiun berubah.",
+    "Angka layar ini WAJIB sama persis dengan screen-168 untuk periode dan line yang sama — endpoint pasangan web-nya dipakai ulang apa adanya, NOL endpoint baru. Seluruh agregasi, urutan baris, DAN urutan blok MILIK SERVER: layar ini tidak menghitung agregat apa pun dan tidak mengurutkan ulang satu pun di antaranya.",
+    "Operator adalah PENGGUNA layar ini, bersama Supervisor, Mill Management, dan Admin.",
+    "Pintu masuk tunggal: tile Process Quality Control pada layar Reporting. Kembali ke layar ini memakai periode dan Production Line terakhir yang terpakai.",
+    "Mill diturunkan dari akun bagi Operator, Supervisor, dan Mill Management; hanya Admin yang memilih. Mengganti mill mengosongkan periode dan Production Line.",
+    "Production Line WAJIB dipilih sebelum satu angka pun tampil. Tidak ada opsi 'semua line', line tidak pernah dipilihkan meski mill hanya punya satu, dan penjagaannya di FUNGSI PEMUATAN bukan di template.",
+    "Line yang diingat perangkat dipakai tanpa diminta memilih lagi, tetapi tetap dapat diganti; nilai yang tidak lagi sah DIBUANG, bukan dipakai dan bukan dikirim ke server.",
+    "Penyimpanan perangkat yang tidak dapat dibaca tidak mematahkan layar: layar tetap tampil, meminta memilih line, dan NOL elemen galat dirender.",
+    "Satuan hitungnya SLOT JAM, bukan transaksi: satu baris catatan = satu slot pada satu hari, dua puluh empat slot per hari.",
+    "Kartu kelengkapan pencatatan ditempatkan DI ATAS kelima blok dan TIDAK dapat dilipat — ia yang memberi tahu seberapa jauh angka di bawahnya dapat dipercaya.",
+    "KELIMA BLOK adalah unit tampilan layar ini, bukan dua belas ukuran: kelimanya menjadi kartu yang dapat dilipat dan dibuka SATU PER SATU, dan keadaan terlipat atau terbuka tidak memengaruhi satu angka pun — ia hanya menyembunyikan dan menampilkan.",
+    "Urutan kelima blok mengikuti jalur fisik minyak dan merupakan urutan PROSES — bukan abjad dan bukan urutan kolom di basis data.",
+    "Kelima blok TETAP ADA di layar meskipun seluruh ukurannya kosong, karena blok yang hilang akan dibaca sebagai tahap yang tidak ada.",
+    "Judul setiap kartu blok membawa PENANDA apakah blok itu punya data, supaya pembaca tidak perlu membuka kelimanya untuk mengetahuinya.",
+    "Dua belas ukuran menempati blok tetapnya: Fruit Press (kehilangan minyak di sludge %, kehilangan minyak di fibre %), Purifier & Clarification Balance (suhu masuk °C, tekanan balik Bar), Vacuum Drying Station (suhu pengering °C, tekanan vakum Bar), Decanter/Centrifuge (laju umpan MT/jam, kehilangan minyak di cake %), dan Final Storage (ALB %, kadar air %, kadar kotoran %, Indeks DOBI).",
+    "SETIAP ukuran punya penyebutnya SENDIRI — jumlah slot yang ukuran ITU terisi — dan kedua belas penyebut boleh berbeda satu dengan lainnya. Kenyataan itu DINYATAKAN di layar, dan penyebut yang sama pada kedua belas ukuran adalah cacat.",
+    "Penyebut nol pada satu ukuran TIDAK mengosongkan ukuran lain DAN TIDAK mengosongkan bloknya; ukuran itu sendiri menampilkan '—' untuk ketiga angkanya, bukan 0.",
+    "SATUAN tercetak pada setiap ukuran, dan diambil dari label resmi stasiun ini — bukan dituliskan ulang.",
+    "Indeks DOBI sengaja TANPA satuan — ia satu-satunya dari dua belas yang bukan besaran bersatuan, dan memberinya satuan akan salah.",
+    "Slot dihitung TERISI bila SALAH SATU dari EMPAT BELAS kolom pembacaan terisi: dua belas ukuran numerik ditambah tindakan koreksi teknis dan temuan.",
+    "Giliran kerja dan kode inspektur DIKECUALIKAN dari pemeriksaan keterisian — keduanya kolom identitas, bukan pembacaan — sehingga slot yang hanya mengisi keduanya dihitung KOSONG.",
+    "AKIBAT kedua aturan di atas: jumlah slot terisi dapat MELEBIHI penyebut setiap ukuran numerik, karena slot yang hanya memuat catatan teks tetap terhitung terisi. Kedua angka dicetak BERDAMPINGAN beserta kalimat yang menyatakan hubungannya — selisih yang tak dijelaskan selalu dicurigai sebagai cacat.",
+    "Kode inspektur pada slot yang dihitung KOSONG tetap masuk rekap per-inspektur; kedua hal itu tidak bertentangan karena rekap menghitung ATRIBUSI sementara kelengkapan menghitung PEMBACAAN.",
+    "Rekap per-inspektur menampilkan KODE MENTAH apa adanya tanpa join dan tanpa pencarian nama — tidak ada master inspektur untuk dicocokkan — dengan baris 'tidak tercatat' berdiri sendiri, dan diurutkan menurut KODE bukan menurut jumlah slot supaya ia tidak menjadi peringkat orang dan posisi sebuah kode tidak berpindah antar periode.",
+    "Dua kolom teks diterbitkan sebagai DUA DAFTAR KEJADIAN TERPISAH dan bertanggal, bukan sebagai sebaran kategoris — keduanya teks bebas, dan menyebarnya berarti memperlakukan prosa sebagai enum.",
+    "Stasiun ini TIDAK punya satu pun kolom berpilihan tertutup, sehingga tidak ada rekap berlabel. Ketiadaan itu dinyatakan.",
+    "TIDAK ADA penandaan nilai di luar batas, karena stasiun ini tidak punya master ambang mutu, dan TIDAK ADA blok henti operasi pada stasiun ini. Keduanya dinyatakan beserta sebabnya.",
+    "Catatan pembacaan tidak punya kolom tanggal sendiri — keanggotaan hari datang dari tanggal pada catatan INDUKNYA, sehingga tidak ada tempat untuk 'pembacaan tanpa tanggal'.",
+    "Rekap harian memuat satu baris per hari YANG ADA PEMBACAANNYA saja beserta baris total periode; kelengkapan diukur atas hari yang SUDAH BERJALAN dan bukan atas panjang periode; dan catatan berstatus draft IKUT terhitung dengan jumlah slotnya dinyatakan.",
+    "Giliran kerja tidak ditampilkan di layar tetapi ADA di berkas ekspor.",
+    "Ekspor HANYA CSV — tombol ekspor Excel tidak dirender sama sekali, karena WebView ponsel tidak membuka .xlsx. Isinya rincian mentah: satu baris per slot jam, kolom konteks diulang di setiap baris, dan seluruh enam belas kolom catatan ikut.",
+    "Luring MENUTUP angkanya: layar menyatakan memerlukan jaringan dan kelima blok ditutup SELURUHNYA — bukan dibiarkan terlipat dengan isi basi — dengan NOL permintaan dikirim. Berlaku sama untuk luring sebelum angka termuat dan luring yang terjadi SESUDAH angka termuat.",
+    "Sesi yang berakhir mengarahkan pengguna ke layar Login TANPA pesan galat jaringan.",
+    "Kelima blok yang dibuka sekaligus pada lebar ponsel tetap terbaca: tiga puluh enam angka beserta dua belas penyebut dan satuannya tidak terpotong kartu induknya, dan halaman TIDAK pernah bergeser mendatar; tabel rekap yang panjang menggulir mendatar DI DALAM kartunya sendiri."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — berhasil sebagai Operator",
+      "given": "Operator terhubung ke sebuah mill yang punya periode mendaftarkan Process Quality Control, dan line itu punya pembacaan per slot jam",
+      "when": "Operator membuka Reporting, menekan tile Process Quality Control, memilih Production Line lalu periode",
+      "then": "Kartu kelengkapan tampil di atas kelima blok, lima kartu blok berjudul tahapnya tampil berurutan dengan penanda data di judulnya, rekap per-inspektur dan rekap harian yang dapat dilipat ikut tampil, dan isinya identik bagi Supervisor maupun Mill Management yang membuka layar yang sama"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — berhasil sebagai Admin",
+      "given": "Admin tidak terikat mill mana pun",
+      "when": "Admin membuka layar ini, memilih mill, lalu Production Line, lalu periode",
+      "then": "Pemilih Mill dirender hanya bagi Admin, daftar periode hanya memuat periode milik mill yang dipilih, dan isi laporannya identik dengan peran terikat mill"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — line yang diingat perangkat dipakai tanpa diminta memilih",
+      "given": "Perangkat sudah mengingat Production Line terakhir dan nilainya masih sah pada mill akun",
+      "when": "Operator membuka layar ini, memilih periode, lalu mengganti line ke line lain",
+      "then": "Line yang diingat langsung terpakai tanpa langkah memilih dan angka dimuat, lalu penggantian line memuat ulang angkanya — ingatan perangkat memudahkan, bukan mengikat"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — line belum dipilih menahan seluruh permintaan",
+      "given": "Perangkat belum pernah mengingat Production Line, dan mill akun hanya punya satu line",
+      "when": "Operator membuka layar ini lalu memilih periode",
+      "then": "Layar meminta memilih line dan menyatakan apa yang ditunggunya, line TIDAK dipilihkan meski cuma ada satu, nol angka tampil, tombol ekspor tidak dirender, dan NOL permintaan rekap terkirim"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — line yang diingat sudah tidak sah dibuang",
+      "given": "Perangkat mengingat Production Line milik mill lain atau line yang sudah dihapus",
+      "when": "Operator membuka layar ini",
+      "then": "Nilai itu dibuang dan tidak pernah dikirim ke server, layar meminta memilih line, dan tidak satu angka pun milik mill lain terlihat"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — penyimpanan perangkat tidak dapat dibaca",
+      "given": "Perangkat berada dalam mode privat sehingga membaca line yang diingat melempar",
+      "when": "Operator membuka layar ini",
+      "then": "Layar tetap tampil utuh dan meminta memilih line, NOL elemen galat dirender, dan alur berlanjut normal begitu line dipilih manual — bukan halaman rusak dan bukan pesan galat"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — akun belum terhubung ke mill",
+      "given": "Akun Supervisor terikat mill tetapi mill-nya kosong",
+      "when": "Pengguna membuka layar ini",
+      "then": "Arahan menghubungi Admin terlihat — BUKAN pesan galat jaringan — pemilih Mill tidak dirender, dan tidak ada angka laporan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — mill belum punya periode yang mencakup stasiun ini",
+      "given": "Mill akun tidak punya satu pun periode yang mendaftarkan Process Quality Control",
+      "when": "Operator membuka pemilih periode",
+      "then": "Pemilih periode kosong beserta kalimat sebabnya dan arahan menghubungi Admin, dan tidak ada angka laporan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — line milik mill lain dipaksa lewat jalur apa pun",
+      "given": "Operator terikat mill A",
+      "when": "Permintaan rekap dipaksa membawa Production Line milik mill B",
+      "then": "Layar meminta memilih line dan tidak pernah menampilkan satu angka pun milik mill B"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — kartu kelengkapan berada di atas dan tidak dapat dilipat",
+      "given": "Periode terpilih punya kelengkapan pencatatan sangat rendah",
+      "when": "Operator membuka layar tanpa menggulir, lalu mencoba melipat kartu kelengkapan",
+      "then": "Kartu kelengkapan terlihat sebelum satu kartu blok pun dan tidak punya kontrol lipat sama sekali — ia yang memberi tahu seberapa jauh angka di bawahnya dapat dipercaya, sehingga ia tidak boleh dapat disembunyikan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — kelima blok dapat dilipat satu per satu tanpa mengubah angka",
+      "given": "Kelima blok punya pembacaan dan kelimanya sedang terbuka",
+      "when": "Operator melipat blok Fruit Press dan blok Final Storage, lalu membukanya kembali",
+      "then": "Hanya kedua blok itu yang tertutup sementara ketiga blok lain tetap terbuka, dan angka di seluruh kartu sama persis sebelum dan sesudahnya — melipat hanya menyembunyikan dan menampilkan, tidak menghitung ulang apa pun"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — penanda data pada judul setiap kartu blok",
+      "given": "Tiga blok punya pembacaan sementara dua blok seluruh ukurannya kosong",
+      "when": "Operator membaca kelima judul kartu tanpa membuka satu pun",
+      "then": "Judul ketiga blok berisi membawa penanda bahwa bloknya punya data dan judul kedua blok kosong membawa penanda 'belum ada data' — sehingga Operator tahu kartu mana yang berguna dibuka tanpa harus membuka kelimanya"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — satu blok seluruh ukurannya kosong tetap ada",
+      "given": "Periode memuat pembacaan pada empat blok sementara seluruh ukuran blok Vacuum Drying Station kosong",
+      "when": "Operator menelusuri kelima kartu lalu membuka kartu Vacuum Drying Station",
+      "then": "Kartu itu TETAP ADA di layar dengan penanda 'belum ada data' di judulnya dan kedua ukurannya menampilkan '—', tidak dihilangkan dari layar — blok yang hilang akan dibaca sebagai tahap yang tidak ada"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — line tanpa satu pembacaan pun",
+      "given": "Line terpilih tidak punya satu pembacaan pun pada periode itu",
+      "when": "Operator memilih periode itu",
+      "then": "Kerangka laporan tetap tampil dengan keadaan kosong yang menyebut periode dan line, kelima kartu blok TETAP ADA dan masing-masing menyatakan belum ada pembacaan, kartu kelengkapan tetap tampil di atasnya, dan kedua daftar kejadian tetap berjudul terpisah dengan keterangan tidak ada catatan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — urutan blok urut proses dan milik server",
+      "given": "Server menerbitkan kelima blok berurutan Fruit Press, Purifier & Clarification Balance, Vacuum Drying Station, Decanter/Centrifuge, lalu Final Storage",
+      "when": "Operator menelusuri kelima kartu dan membaca urutan baris di dalam rekap harian",
+      "then": "Urutan kartu dan urutan baris sama persis dengan yang diterbitkan server — urutan jalur fisik minyak, bukan abjad dan bukan urutan kolom di basis data — dan layar tidak mengurutkan ulang satu pun di antaranya"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — satu ukuran tidak pernah diisi sementara sebelas lainnya diisi",
+      "given": "Periode mengisi sebelas ukuran sementara Indeks DOBI kosong sepanjang periode",
+      "when": "Operator membuka kartu blok Final Storage",
+      "then": "Indeks DOBI menampilkan '—' untuk ketiga angkanya dengan penyebut nol, ketiga ukuran lain di kartu yang sama tetap berangka, dan kartunya tetap berpenanda punya data"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — setiap ukuran punya penyebutnya sendiri",
+      "given": "Periode di mana sebagian slot hanya mengisi ukuran Fruit Press, sebagian lain hanya mengisi ukuran Final Storage, dan sisanya mengisi campuran",
+      "when": "Operator membuka kelima kartu dan membandingkan penyebut kedua belas ukuran",
+      "then": "Penyebutnya berbeda-beda antar ukuran dan setiap rata-rata setara rata-rata slot non-kosong ukuran ITU sendiri — penyebut yang sama pada kedua belas ukuran adalah cacat, dan ukuran yang jarang diisi tidak mengempis ke arah nol"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — penyebut nol tidak mengosongkan ukuran lain maupun bloknya",
+      "given": "Blok Decanter/Centrifuge memuat laju umpan yang terisi dan kehilangan minyak di cake yang tidak pernah diisi",
+      "when": "Operator membuka kartu itu",
+      "then": "Kehilangan minyak di cake tampil '—' untuk ketiga angkanya dan bukan 0 dengan penyebut nol, laju umpan tetap berangka, dan kartu bloknya tidak dikosongkan oleh penyebut nol itu"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — satuan tercetak, dan Indeks DOBI sengaja tanpa satuan",
+      "given": "Kedua belas ukuran terisi pada periode itu",
+      "when": "Operator membuka kelima kartu dan membaca setiap ukuran",
+      "then": "Sebelas ukuran mencetak satuannya dari label resmi stasiun — persen, derajat Celsius, Bar, dan MT per jam — masing-masing pada barisnya sendiri karena di ponsel kedua belas ukuran tidak pernah terlihat bersamaan, sementara Indeks DOBI tidak mencantumkan satuan apa pun karena ia satu-satunya dari dua belas yang bukan besaran bersatuan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — slot terisi dihitung atas empat belas kolom pembacaan",
+      "given": "Periode memuat slot yang masing-masing hanya mengisi satu kolom pembacaan berbeda, mencakup kedua belas ukuran numerik dan kedua kolom teks",
+      "when": "Operator membaca kartu kelengkapan",
+      "then": "Keempat belas slot itu semuanya terhitung terisi, dan kartu kelengkapan menyatakan bahwa keterisian dihitung atas empat belas kolom pembacaan — dua belas ukuran numerik ditambah tindakan koreksi teknis dan temuan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — jumlah slot terisi melebihi penyebut setiap ukuran",
+      "given": "Periode memuat sembilan slot yang hanya mengisi tindakan koreksi teknis atau temuan dan tiga slot yang mengisi ukuran numerik",
+      "when": "Operator membaca kartu kelengkapan lalu membuka kelima kartu blok",
+      "then": "Jumlah slot terisi bernilai dua belas sementara penyebut terbesar di antara dua belas ukuran bernilai tiga, kedua angka itu dicetak BERDAMPINGAN pada kartu kelengkapan, dan kalimat yang menyatakan hubungannya dirender — sebab slot yang hanya memuat catatan teks tetap terhitung terisi tanpa menambah penyebut ukuran numerik mana pun"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — kedua belas penyebut nol sementara slot terisi lebih besar dari nol",
+      "given": "Periode di mana seluruh dua belas ukuran numerik kosong tetapi tujuh slot mengisi catatan teks",
+      "when": "Operator membaca kartu kelengkapan lalu membuka kelima kartu blok",
+      "then": "Jumlah slot terisi bernilai tujuh sementara kedua belas penyebut bernilai nol dan kedua belas ukuran menampilkan '—', kelima kartu tetap ada, dan kalimat yang menjelaskan selisih itu tetap dirender — inilah keadaan yang paling jelas memperlihatkan mengapa kedua angka harus dicetak berdampingan, bukan laporan yang gagal dimuat"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — slot yang hanya mengisi giliran kerja dan kode inspektur",
+      "given": "Sebuah slot hanya mengisi giliran kerja dan kode inspektur tanpa satu pun dari keempat belas kolom pembacaan",
+      "when": "Operator membaca kartu kelengkapan lalu membuka rekap per-inspektur",
+      "then": "Slot itu dihitung KOSONG di kartu kelengkapan — kebalikan dari slot yang hanya memuat catatan teks — TETAPI kode inspekturnya TETAP muncul di rekap per-inspektur, dan layar menyatakan bahwa keduanya tidak bertentangan karena rekap menghitung atribusi sementara kelengkapan menghitung pembacaan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — rekap per-inspektur memakai kode mentah dan urut kode",
+      "given": "Periode memuat kode inspektur 'qc-09' dengan slot terbanyak, 'qc-02' dengan slot lebih sedikit, kode 'QC-02' yang hanya berbeda kapitalisasi, dan delapan slot tanpa kode inspektur",
+      "when": "Operator membuka rekap per-inspektur",
+      "then": "Setiap baris menampilkan kode apa adanya tanpa dipetakan ke nama, 'qc-02' dan 'QC-02' tampil sebagai dua baris terpisah karena teks bebas tidak menjamin keduanya orang yang sama, baris 'tidak tercatat' berdiri sendiri berisi delapan slot itu, dan barisnya diurutkan menurut KODE bukan menurut jumlah slot sehingga rekapnya tidak menjadi peringkat orang"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — dua daftar kejadian terpisah dan nol sebaran kategoris",
+      "given": "Periode memuat isi tindakan koreksi teknis berupa kalimat bebas yang berbeda-beda, dengan satu isi yang sama persis muncul pada lima belas slot, serta temuan pada sebagian slot yang sama",
+      "when": "Operator membaca kedua daftar kejadian",
+      "then": "Keduanya dirender sebagai dua daftar bertanggal yang TERPISAH dan berjudul sendiri, kelima belas slot berisi sama persis tetap dirender sebagai lima belas entri dan tidak dikelompokkan menjadi satu baris berjumlah lima belas, slot yang mengisi kedua kolom muncul sekali di masing-masing daftar tanpa dihitung ganda, dan tidak ada satu pun elemen sebaran kategoris di layar"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — nol rekap berlabel, tanpa penandaan di luar batas, tanpa blok henti operasi",
+      "given": "Periode memuat ALB 9,8 persen dan suhu pengering 140 derajat Celsius yang jauh dari nominal mutu yang dikenal luas",
+      "when": "Operator menelusuri seluruh layar dari atas sampai bawah",
+      "then": "Kedua nilai tampil apa adanya tanpa satu pun penanda peringatan atau di luar batas, tidak ada satu pun rekap berlabel maupun bagian henti operasi, dan ketiga ketiadaan itu DINYATAKAN beserta sebabnya secara UTUH tanpa dipotong — stasiun ini nol kolom berpilihan tertutup, tidak punya master ambang mutu, dan tidak mencatat henti operasi"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — rekap harian dan keanggotaan hari dari catatan induk",
+      "given": "Periode tiga puluh hari di mana satu hari punya dua puluh empat slot terisi penuh dari satu catatan bertanggal, satu hari lain hanya satu slot, dan dua puluh delapan hari sisanya tanpa pembacaan",
+      "when": "Operator membuka rekap harian",
+      "then": "Rekap memuat tepat dua baris hari beserta baris total periode, seluruh pembacaan masuk ke hari milik catatan INDUKNYA karena pembacaan tidak punya kolom tanggal sendiri, tidak ada baris 'pembacaan tanpa tanggal' di mana pun, dan kelengkapan menghitung HARI yang ada pembacaannya bukan rata-rata slot per hari"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — periode belum mulai atau masih berjalan",
+      "given": "Satu periode yang tanggal mulainya masih di masa depan, dan satu periode 1 sampai 30 bulan ini sementara hari ini tanggal 10 dengan hari-hari yang lewat terisi penuh",
+      "when": "Operator membaca kartu kelengkapan pada kedua periode",
+      "then": "Pada periode yang belum mulai kelengkapan tampil '—' beserta kalimat sebabnya dan teks 0,0% tidak muncul; pada periode yang masih berjalan penyebut berhenti di hari ini, hal itu dinyatakan, dan hari yang belum terjadi tidak menurunkan persentase"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — catatan draft ikut terhitung dan jumlahnya dinyatakan",
+      "given": "Periode berstatus tertutup yang memuat enam slot dari catatan berstatus draft dan empat belas slot dari catatan final",
+      "when": "Operator membaca laporan lalu mengunduh ekspor",
+      "then": "Kedua puluh slot ikut terhitung di seluruh angka, jumlah slot draft dinyatakan di layar, penanda status periode tampil, dan ekspor CSV tetap dapat dijalankan — status periode maupun status catatan tidak menyaring laporan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — ekspor hanya CSV",
+      "given": "Production Line sudah dipilih dan periode memuat slot yang mengisi giliran kerja serta kode inspektur",
+      "when": "Operator melihat daerah tombol ekspor lalu mengunduh berkasnya",
+      "then": "Hanya tombol Ekspor CSV yang dirender dan tidak ada tombol ekspor Excel di mana pun karena WebView ponsel tidak membuka .xlsx, dan berkasnya memuat satu baris per slot jam dengan kolom konteks diulang di setiap baris dan seluruh enam belas kolom catatan ikut — termasuk giliran kerja yang tidak diterbitkan di layar dan kode inspektur, sebab pengecualian keduanya dari pemeriksaan keterisian tidak berarti keduanya dibuang dari berkas"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — ekspor ditekan dua kali cepat",
+      "given": "Laporan termuat penuh dan tombol Ekspor CSV tampil",
+      "when": "Operator menekan tombol itu dua kali berurutan dengan cepat",
+      "then": "Tepat satu permintaan ekspor terkirim dan tepat satu berkas terunduh"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — angka sama persis dengan pasangan web dan layar tidak menghitung",
+      "given": "Periode dan Production Line yang sama dibuka di screen-168 pada web dan di layar ini pada ponsel",
+      "when": "Kedua layar dibandingkan angka per angka, lalu permintaan yang dikirim layar ini diperiksa",
+      "then": "Ketiga puluh enam angka, kedua belas penyebut, kelengkapan, rekap per-inspektur, rekap harian, dan kedua daftar kejadian sama persis; layar ini memakai endpoint pasangan web-nya apa adanya dengan NOL endpoint baru; tidak ada agregat yang dihitung di ponsel; dan tidak ada kontrol tulis maupun permintaan yang mengubah data stasiun"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — galat jaringan dapat dicoba lagi",
+      "given": "Permintaan rekap gagal sesudah line dan periode dipilih",
+      "when": "Operator menekan aksi coba lagi, lalu mengosongkan pilihan line dan menekannya kembali",
+      "then": "Percobaan pertama mengirim permintaan ulang, sementara percobaan sesudah line dikosongkan tidak mengirim satu permintaan pun — penjagaan Production Line tetap berlaku pada jalur coba lagi"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — luring sebelum angka termuat",
+      "given": "Perangkat tidak terhubung jaringan",
+      "when": "Operator membuka layar ini dan memilih line serta periode",
+      "then": "Layar menyatakan laporan memerlukan jaringan, kelima blok ditutup SELURUHNYA, dan NOL permintaan dikirim — bukan diam, dan bukan menampilkan angka basi tanpa penanda"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — luring sesudah angka termuat",
+      "given": "Laporan sudah termuat penuh dengan kelima kartu blok terbuka",
+      "when": "Jaringan terputus ketika Operator sedang membaca kartu blok Final Storage",
+      "then": "Angkanya DITUTUP dan kelima blok ditutup seluruhnya termasuk kartu yang sedang terbuka, layar menyatakan laporan memerlukan jaringan, dan nol permintaan dikirim — angka basi tidak dibiarkan terlipat menunggu dibuka kembali"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — sesi berakhir saat layar terbuka",
+      "given": "Sesi pengguna sudah berakhir sementara layar laporan terbuka",
+      "when": "Operator memilih periode lain atau menekan ekspor",
+      "then": "Pengguna diarahkan ke layar Login TANPA pesan galat jaringan — sesi berakhir bukan kegagalan jaringan, dan menampilkannya sebagai galat jaringan akan menyuruh pengguna mencoba lagi untuk sesuatu yang tidak akan pernah berhasil"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Mobile) — kelima blok dibuka sekaligus pada lebar ponsel",
+      "given": "Kelima blok punya pembacaan pada kedua belas ukuran, dan rekap per-inspektur serta rekap harian masing-masing puluhan baris",
+      "when": "Operator membuka kelima kartu blok sekaligus pada lebar 390 piksel, lalu membuka kedua rekap dan menggulirnya mendatar",
+      "then": "Tiga puluh enam angka beserta dua belas penyebut dan satuannya tetap terbaca dan tidak satu pun terpotong kartu induknya, kedua tabel rekap menggulir mendatar DI DALAM kartunya sendiri, dan halaman itu sendiri TIDAK pernah bergeser mendatar"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-169--laporan-process-quality-control-mobile"
+  ]
+}

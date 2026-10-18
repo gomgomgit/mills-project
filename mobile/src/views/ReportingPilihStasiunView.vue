@@ -155,6 +155,16 @@ const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   // berurut sort_order dan TIDAK punya asersi urutan, jadi entrinya cukup
   // di-APPEND. Ikon 'process-water' sudah ada di STATION_ICONS di bawah.
   'process-water': 'report-process-water',
+  // screen-163--laporan-solid-waste-disposal-mobile. Satu baris yang sama
+  // menentukannya: tanpa entri ini layar laporan Solid Waste Disposal ada,
+  // rutenya ada, seluruh test-nya lulus, dan tile-nya tetap kelabu — pola
+  // kegagalan yang sudah pernah terjadi. Kuncinya WAJIB DIKUTIP karena
+  // bertanda hubung — kunci bergaris-bawah ('solid_waste_disposal') akan
+  // terkompilasi, terlihat benar, dan tidak pernah cocok dengan satu
+  // station.type pun. Peta ini TIDAK berurut sort_order dan TIDAK punya asersi
+  // urutan, jadi entrinya cukup di-APPEND. Ikon 'solid-waste-disposal' SUDAH
+  // ADA di TYPE_ICONS di bawah dan tidak ditambah ulang.
+  'solid-waste-disposal': 'report-solid-waste-disposal',
 }
 
 function isReportAvailable(station: StationSlot): boolean {

@@ -1,0 +1,614 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-166--laporan-cpo-dispatch-web",
+  "name": "Laporan CPO Dispatch (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/cpo-dispatch (Livewire, layout app; terdaftar di routes/web.php sebagai `reports.cpo-dispatch`)",
+  "auth_requirement": "authenticated — sesi web. Aktor: Supervisor, Mill Management, Admin. Operator DITOLAK di rute web; jalurnya di mobile (screen-167).",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id kiriman klien DIABAIKAN, bukan divalidasi"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat mill; satu-satunya peran yang melihat pemilih Mill"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Ditolak di rute web. Tetapi ketiga rute DATA menerimanya SEJAK COMMIT PERTAMA, supaya screen-167 tidak perlu melebarkan akses — pola yang sudah terbukti empat kali."
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "cpo-dispatch-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "cpo-dispatch-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-172--laporan-cpo-dispatch-web",
+      "usecase_name": "Lihat Laporan Periode CPO Dispatch (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/cpo-dispatch-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — ADMIN SAJA, ditegakkan DI DALAM service dan bukan oleh middleware, karena middleware prefix ini menerima keempat peran demi ketiga rute data di bawahnya. Master kosong adalah jawaban sah: [] dengan 200.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cpo-dispatch-reports/periods",
+          "description": "Periode yang punya baris period_stations berjenis 'cpo-dispatch' pada satu mill. Status periode TIDAK menyaring. business_unit_id WAJIB bagi Admin, DIABAIKAN bagi peran terikat mill termasuk Operator.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "WAJIB bagi Admin (422 bila absen); DIABAIKAN bagi peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string — selalu 'cpo-dispatch'",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "business_unit_id absen bagi Admin, atau akun terikat mill ber-business_unit_id NULL"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran di luar keempatnya"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cpo-dispatch-reports/summary",
+          "description": "SELURUH angka laporan. Satu baris detail = SATU PENGIRIMAN (satu tanker). Payload ini SATU-SATUNYA di proyek yang membawa SEBARAN PER JAM dan WAKTU PUTAR pada laporan per-transaksi — karena hanya tabel ini yang punya `time_in`/`time_out`. Ia juga menerbitkan EMPAT PENYEBUT yang berbeda, dan kenyataan itu dinyatakan di payload.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya dihormati bagi Admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string"
+              },
+              "dispatches": {
+                "dispatch_count": "integer — PENYEBUT (a): seluruh pengiriman periode",
+                "net_weight_total": "float|null",
+                "net_weight_avg": "float|null",
+                "net_weight_dispatch_count": "integer — PENYEBUT (b): pengiriman yang beratnya terisi",
+                "missing_net_weight_dispatch_count": "integer — penimbangan belum selesai; kartu tersendiri"
+              },
+              "quality": {
+                "ffa_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "moisture_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "impurities_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "dobi": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer",
+                  "_note": "string — prosa yang menyatakan DOBI adalah INDEKS TANPA SATUAN, berbeda dari ketiga ukuran lain yang berupa persen"
+                },
+                "_note": "string — prosa yang menyatakan keempat measured_count boleh BERBEDA satu dengan lainnya dan berbeda dari dispatch_count. Dirender UTUH."
+              },
+              "turnaround": {
+                "min_minutes": "integer|null",
+                "avg_minutes": "float|null",
+                "max_minutes": "integer|null",
+                "measured_count": "integer — PENYEBUT (d): pengiriman yang jam masuk DAN jam keluarnya KEDUANYA tercatat",
+                "crossed_midnight_count": "integer — pengiriman yang jam keluarnya LEBIH KECIL daripada jam masuk, karenanya dibaca sebagai hari berikutnya. DITERBITKAN TERSENDIRI karena angka waktu putarnya lahir dari PENAFSIRAN, bukan dari pembacaan langsung.",
+                "uncomputable_count": "integer — pengiriman yang salah satu jamnya tidak tercatat, sehingga waktu putarnya tidak dapat dihitung",
+                "_note": "string — prosa yang menyatakan: jam dicatat tanpa tanggal; jam keluar yang lebih kecil dibaca sebagai hari berikutnya; angka yang tampak tidak wajar TIDAK dipotong dan TIDAK dibuang karena tidak ada master batas kewajaran, dan karenanya patut DIPERIKSA PEMBACA. Dirender UTUH."
+              },
+              "hourly": {
+                "buckets": [
+                  {
+                    "hour": "integer 0..23",
+                    "dispatch_count": "integer",
+                    "net_weight_total": "float|null"
+                  }
+                ],
+                "not_recorded_count": "integer — kelompok 'jam tidak tercatat': pengiriman yang jam MASUKNYA kosong",
+                "recorded_count": "integer — PENYEBUT (c): pengiriman yang jam masuknya tercatat",
+                "busiest_hour": "integer|null — null ketika tidak ada satu jam pun tercatat",
+                "empty_hour_count": "integer — jumlah dari 24 kelompok yang nol",
+                "_note": "string — prosa yang menyatakan sebaran dihitung menurut JAM MASUK (bukan jam keluar) karena yang ditanyakan adalah kapan tanker datang; DAN bahwa penafsiran menyeberang tengah malam TIDAK menggeser kelompok jam — pengiriman 23:30 tetap di kelompok 23"
+              },
+              "_note_four_denominators": "string — prosa yang MENAMAI keempat penyebut (a) dispatch_count, (b) net_weight_dispatch_count, (c) hourly.recorded_count, (d) turnaround.measured_count, plus penyebut masing-masing empat ukuran mutu; beserta sebabnya (keempat kolom terisi saling bebas) dan akibatnya (satu angka 'jumlah pengiriman' sebagai penyebut semuanya akan salah sistematis). Dirender UTUH.",
+              "by_transport_company": [
+                {
+                  "value": "string|null",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_storage_tank_source": [
+                {
+                  "value": "string|null",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_destination_buyer": [
+                {
+                  "value": "string|null",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "compliance": {
+                "missing_waybill_count": "integer",
+                "missing_seal_top_count": "integer",
+                "missing_seal_bottom_count": "integer",
+                "_note": "string — ketiganya jejak kepatuhan bukan ukuran; segel atas dan bawah TIDAK PERNAH dijumlahkan"
+              },
+              "draft_dispatch_count": "integer",
+              "daily": [
+                {
+                  "date": "date",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "daily_total": {
+                "dispatch_count": "integer",
+                "net_weight_total": "float|null",
+                "net_weight_dispatch_count": "integer",
+                "net_weight_avg": "float|null"
+              },
+              "completeness": {
+                "days_in_period": "integer",
+                "days_with_dispatch": "integer",
+                "days_counted": "integer — ReportPeriodDays::counted",
+                "percent": "number|null"
+              },
+              "text_entries": {
+                "findings": [
+                  {
+                    "date": "date",
+                    "value": "string"
+                  }
+                ]
+              },
+              "_note_no_labeled_recap": "string — prosa yang menyatakan stasiun ini TIDAK punya satu pun kolom berpilihan tertutup, sehingga tidak ada rekap berlabel — berbeda dari Kernel Dispatch. Dirender UTUH, karena pembaca yang datang dari laporan itu akan mencarinya.",
+              "_note_no_quality_thresholds": "string — tidak ada penandaan nilai mutu di luar batas; tidak ada master ambang mutu",
+              "_note_shift_not_published": "string — kolom shift tidak di layar, tetapi ada di ekspor"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cpo-dispatch-reports/export",
+          "description": "Unduhan CSV/Excel — SATU BARIS PER PENGIRIMAN, kolom konteks diulang verbatim, disusul seluruh kolom detail. JAM MASUK DAN JAM KELUAR DIEKSPOR APA ADANYA, TANPA penafsiran menyeberang tengah malam dan TANPA kolom waktu putar: ekspor adalah rincian MENTAH, dan penafsiran adalah pekerjaan laporan. Excel adalah .xlsx SUNGGUHAN lewat SheetWriter. Seluruh gate berjalan EAGER sebelum aliran dimulai.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "'csv' atau 'xlsx'; nilai lain → 422. Default ditetapkan CONTROLLER atas nilai query yang sudah di-trim."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_": "Aliran CSV atau .xlsx, bukan JSON."
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen, format tidak dikenal, atau batas 50.000 baris terlampaui"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain — ditolak sebelum aliran dimulai"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "GATE PERAN, RESOLUSI MILL/PERIODE/LINE — identik dengan screen-162/164 dan tidak diulang panjang: Operator diterima di ketiga rute data sejak commit pertama; business_unit_id DIABAIKAN bagi peran terikat mill (menolak akan membocorkan keberadaan mill lain); WAJIB bagi Admin; akun terikat mill ber-business_unit_id NULL → 422 bukan 403; production_line_id WAJIB dan line mill lain → 403 DITOLAK (line adalah parameter yang dipilih sadar, bukan konteks dari akun); status periode TIDAK diperiksa.",
+        "LINGKUP BARIS. Record induk disaring: production_line_id = line terpilih, DAN station.station_type = 'cpo-dispatch', DAN `date` INDUK di dalam rentang periode. Agregasi atas baris DETAIL yang ter-flatten — satu baris = satu pengiriman. `details` dan `station` di-eager-load sekaligus; test integrasi menghitung kueri dan dibuktikan non-vakum dengan melepas eager load lebih dulu.",
+        "WAKTU PUTAR: JAM KELUAR YANG LEBIH KECIL DARIPADA JAM MASUK DIBACA SEBAGAI HARI BERIKUTNYA. `time_in` dan `time_out` bertipe `time` TANPA TANGGAL, sehingga tanker yang masuk 23:30 dan keluar 00:45 secara mentah memberi selisih NEGATIF 22 jam 45 menit. Rumusnya: menit = minuteOfDay(time_out) − minuteOfDay(time_in); bila hasilnya NEGATIF, tambahkan 1440. 23:30→00:45 karenanya menghasilkan 75 menit. Ini BUKAN kasus tepi langka — tanker memang berangkat melewati tengah malam — dan bentuk masalahnya SAMA dengan shift melewati tengah malam yang sudah diselesaikan di ShiftService.",
+        "DAN JUMLAHNYA DITERBITKAN TERSENDIRI: `turnaround.crossed_midnight_count`. Pembaca harus dapat melihat berapa banyak angka waktu putar yang lahir dari PENAFSIRAN alih-alih dari pembacaan langsung — tafsir yang tidak terlihat adalah tafsir yang tidak dapat dibantah. Angka ini TETAP DIRENDER sebagai nol ketika tidak ada yang menyeberang, supaya terbukti pembacaannya memang berjalan.",
+        "JAM MASUK SAMA DENGAN JAM KELUAR → NOL MENIT, dilaporkan APA ADANYA. BUKAN dibuang, dan BUKAN dibaca menyeberang tengah malam — jam keluarnya tidak lebih KECIL, melainkan SAMA, sehingga cabang +1440 tidak berlaku. Nol tetap masuk `measured_count`, tetap memengaruhi `min_minutes` dan `avg_minutes`, dan TIDAK masuk `crossed_midnight_count`. Nol adalah angka, bukan ketiadaan.",
+        "WAKTU PUTAR YANG TAMPAK TIDAK WAJAR TIDAK DIBUANG DAN TIDAK DIPOTONG. Stasiun ini tidak punya master batas kewajaran, sehingga memilih batas berarti MENGARANGNYA. Angkanya dilaporkan apa adanya — ia tetap menjadi `max_minutes` dan tetap ikut `avg_minutes` — dan `turnaround._note` menyatakan bahwa angka seperti itu patut DIPERIKSA PEMBACA. NOL penandaan: tidak ada warna, tidak ada lencana, tidak ada hitungan pelanggaran.",
+        "WAKTU PUTAR HANYA DIHITUNG BILA KEDUA JAM TERCATAT. `turnaround.measured_count` adalah penyebutnya dan DITERBITKAN; `uncomputable_count` menghitung pengiriman yang salah satu jamnya kosong. Keduanya dicetak berdampingan dan jumlahnya = dispatch_count.",
+        "SEBARAN JAM DIHITUNG MENURUT JAM MASUK, BUKAN JAM KELUAR — yang ditanyakan adalah kapan tanker DATANG, karena itulah yang membebani jembatan timbang. Jam keluar TIDAK PERNAH dipakai sebagai pengganti ketika jam masuk kosong.",
+        "DAN PENAFSIRAN MENYEBERANG TENGAH MALAM TIDAK MENGGESER KELOMPOK JAM. Pengiriman yang masuk 23:30 tetap di kelompok jam 23, meskipun waktu putarnya dihitung dengan menambahkan satu hari pada jam keluarnya. Dua perhitungan yang berbeda atas dua kolom yang berbeda; mencampurnya akan memindahkan beban jembatan timbang ke jam yang salah. Ini titik gagal yang mudah lolos bila tidak diuji tersendiri.",
+        "SEBARAN JAM PUNYA KELOMPOK 'jam tidak tercatat' TERSENDIRI (`not_recorded_count`), dan penjumlahan 24 kelompok DITAMBAH kelompok itu WAJIB sama dengan dispatch_count. Sejajar dengan baris 'tidak tercatat' pada rekap kategoris, dan dengan alasan yang sama: selisih yang tak dijelaskan tidak dapat dibedakan dari cacat.",
+        "`busiest_hour` NULL ketika tidak ada satu jam pun tercatat — bukan 0, yang akan terbaca sebagai 'tersibuk pukul 00'. `empty_hour_count` menghitung dari 24 kelompok yang nol, dan karenanya 24 ketika tidak ada jam yang tercatat.",
+        "EMPAT PENYEBUT DITERBITKAN DAN DINAMAI. `_note_four_denominators` menyebut keempatnya secara berlabel: (a) dispatch_count, (b) net_weight_dispatch_count, (c) hourly.recorded_count, (d) turnaround.measured_count — plus penyebut masing-masing empat ukuran mutu. Sebabnya: keempat kolom (berat, jam masuk, jam keluar, dan tiap kolom mutu) terisi SALING BEBAS. Akibatnya: satu angka 'jumlah pengiriman' yang dipakai sebagai penyebut semuanya akan salah SECARA SISTEMATIS. Setiap kartu mencetak penyebutnya SENDIRI, termasuk ketika keempatnya kebetulan bernilai sama.",
+        "EMPAT UKURAN MUTU, MASING-MASING DENGAN PENYEBUTNYA SENDIRI: ffa_percent, moisture_percent, impurities_percent, dobi — tiap-tiap {min, avg, max, measured_count} dihitung HANYA atas baris yang kolom ITU-nya non-null. Keempat measured_count INDEPENDEN. Penjaga '—' diperiksa PER UKURAN; satu penjaga 'ada data mutu atau tidak' akan mengosongkan keempatnya sekaligus.",
+        "DOBI ADALAH INDEKS TANPA SATUAN, dan prosanya diterbitkan di dalam blok `quality.dobi`. Ketiga ukuran lain berupa persen. Memberi DOBI satuan akan salah, dan karena ia duduk berdampingan dengan tiga kolom persen, kesalahan itu sangat mudah dibuat.",
+        "net_weight_mt DIBACA APA ADANYA — TIDAK dihitung ulang dari gross − tare. Total dan rata-rata hanya atas baris non-null; penyebutnya diterbitkan; nol → keduanya null BUKAN 0; missing_net_weight_dispatch_count ditonjolkan tersendiri.",
+        "TIGA REKAP KATEGORIS TEKS BEBAS: by_transport_company (`transport_company`), by_storage_tank_source (`storage_tank_source`), by_destination_buyer (`destination_buyer`). Nilai APA ADANYA — nol join, nol pemetaan, nol penerjemahan. Masing-masing punya baris value = null ('tidak tercatat') TERSENDIRI, dan penjumlahan dispatch_count tiap rekap = dispatch_count.",
+        "STASIUN INI TIDAK PUNYA SATU PUN KOLOM BERPILIHAN TERTUTUP, sehingga TIDAK ADA rekap berlabel — kebalikan dari Kernel Dispatch, yang punya satu. Diverifikasi: satu-satunya `<select>` di form CPO adalah pemilih production line. `_note_no_labeled_recap` menyatakannya dan DIRENDER UTUH, karena pembaca yang datang dari Laporan Kernel Dispatch akan mencari rekap itu dan perlu tahu mengapa ia tidak ada.",
+        "URUTAN TIAP REKAP: net_weight_total DESC → dispatch_count DESC → value ASC sebagai pemutus seri, null diurutkan sebagai 0.0 UNTUK PENGURUTAN SAJA dan tetap null di payload, null terakhir hanya di antara yang SERI. Disalin dari WeighbridgeReportService::groupedBreakdownOf().",
+        "TIGA PENGHITUNG KEPATUHAN TERPISAH: missing_waybill_count (`waybill_number`), missing_seal_top_count (`seal_no_top`), missing_seal_bottom_count (`seal_no_bottom`) — masing-masing null atau kosong setelah trim. NAMA KOLOM SEGEL DI SINI `seal_no_top`/`seal_no_bottom`, TANPA awalan `security_` — berbeda dari kernel_dispatch_details. Kedua penghitung segel TIDAK PERNAH dijumlahkan; satu pengiriman yang kehilangan keduanya terhitung di KEDUANYA (dua fakta, bukan penghitungan ganda).",
+        "draft_dispatch_count menghitung baris milik record draft; baris itu TETAP terhitung di seluruh angka termasuk waktu putar dan sebaran jam.",
+        "daily[] satu entri per hari BERPENGIRIMAN; daily_total DIJUMLAHKAN dari daily[] bukan disalin dari blok dispatches. completeness mengukur HARI lewat ReportPeriodDays::counted; days_counted 0 → percent null → blade '—'.",
+        "text_entries HANYA punya `findings` — stasiun ini tidak punya kolom catatan kedua. Entri kosong/whitespace dibuang; daftar kosong dicetak sebagai pernyataan 'tidak ada'.",
+        "KOLOM `shift` TIDAK DITERBITKAN di payload maupun layar — hanya di ekspor; ia teks bebas pada tabel detail, bukan FK ke `shifts`.",
+        "EKSPOR: satu baris per pengiriman; kolom konteks diulang verbatim; disusul seluruh kolom detail — event_date, shift, time_in, time_out, waybill_number, tanker_plate_no, transport_company, driver_name, storage_tank_source, seal_no_top, seal_no_bottom, gross_weight_mt, tare_weight_mt, net_weight_mt, ffa_percent, moisture_percent, impurities_percent, dobi, destination_buyer, weighbridge_operator, findings. JAM DIEKSPOR APA ADANYA: 23:30 tetap 23:30 dan 00:45 tetap 00:45; TIDAK ADA kolom waktu putar dan TIDAK ADA penanda menyeberang di ekspor. Memasukkan tafsir ke ekspor akan membuat dua sumber angka yang dapat menyimpang. Label kolom mengikuti layar Detail stasiun ini. Gate peran, resolusi mill/line, format dan batas baris berjalan EAGER."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "SELECT",
+          "description": "Induk pengiriman: station_id, production_line_id, date, status."
+        },
+        {
+          "entity_id": "cpo-dispatch-detail",
+          "operation": "SELECT",
+          "description": "SATU BARIS PER PENGIRIMAN, berkunci event_date (NOT NULL) DITAMBAH time_in dan time_out yang bertipe `time` TANPA TANGGAL dan KEDUANYA nullable. Membawa bruto/tara/netto MT, EMPAT kolom mutu (tiga persen + satu indeks), tiga kolom kategoris teks, dua nomor segel, nomor surat jalan, nomor tanker, nama pengemudi, nama operator timbang, dan satu kolom teks temuan."
+        },
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Pemilih periode dan rentang tanggal."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Pemilih line; wajib dipilih sebelum satu angka pun."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Jam keluar LEBIH KECIL daripada jam masuk (23:30 → 00:45)",
+          "handling": "Dibaca menyeberang tengah malam: menit = (minuteOfDay(out) − minuteOfDay(in)) + 1440 = 75 menit. Diasersikan dengan angka KONKRET 75, dan secara eksplisit BUKAN −1365. Pengiriman itu masuk measured_count DAN crossed_midnight_count."
+        },
+        {
+          "condition": "Jam masuk SAMA dengan jam keluar",
+          "handling": "Waktu putar NOL menit, dilaporkan apa adanya. Masuk measured_count; memengaruhi min_minutes dan avg_minutes; TIDAK masuk crossed_midnight_count — cabang +1440 hanya berlaku ketika keluar < masuk, bukan ketika sama. Dan 'nol menit' berbeda dari 'tidak dapat dihitung': yang pertama di measured_count, yang kedua di uncomputable_count."
+        },
+        {
+          "condition": "Waktu putar tampak tidak wajar (mis. 23 jam)",
+          "handling": "Dilaporkan APA ADANYA; tetap menjadi max_minutes; tetap ikut avg_minutes; NOL penandaan. turnaround._note menyatakan angka seperti itu patut diperiksa pembaca. Tidak ada batas yang dipaksakan, karena tidak ada master untuk mendasarinya."
+        },
+        {
+          "condition": "Jam masuk tercatat tetapi jam keluar tidak",
+          "handling": "MASUK sebaran jam (dan hourly.recorded_count), TIDAK masuk waktu putar (masuk uncomputable_count). Kedua penyebut itu berbeda, dan keduanya tercetak."
+        },
+        {
+          "condition": "Jam keluar tercatat tetapi jam masuk tidak",
+          "handling": "TIDAK masuk sebaran jam — ia masuk kelompok 'jam tidak tercatat' — DAN tidak masuk waktu putar. Jam keluar TIDAK PERNAH dipakai sebagai pengganti jam masuk."
+        },
+        {
+          "condition": "Kedua jam tidak tercatat",
+          "handling": "Masuk kelompok 'jam tidak tercatat' DAN uncomputable_count."
+        },
+        {
+          "condition": "Seluruh pengiriman tidak punya satu jam pun",
+          "handling": "hourly.recorded_count 0, not_recorded_count = dispatch_count, busiest_hour NULL (bukan 0), empty_hour_count 24; turnaround min/avg/max NULL dengan measured_count 0 dan uncomputable_count = dispatch_count. KEDUA blok TETAP DIRENDER, bukan dihilangkan dari layar."
+        },
+        {
+          "condition": "Seluruh pengiriman terjadi pada satu jam yang sama",
+          "handling": "Satu kelompok terisi, empty_hour_count 23, busiest_hour = jam itu."
+        },
+        {
+          "condition": "Satu ukuran mutu tidak punya satu hasil uji pun sementara tiga lainnya punya",
+          "handling": "Ukuran ITU min/avg/max NULL dengan measured_count 0; ketiga lainnya TETAP berangka. Diperiksa PER UKURAN."
+        },
+        {
+          "condition": "Keempat ukuran mutu kosong tetapi tonasenya ada",
+          "handling": "Blok mutu menyatakan belum ada hasil uji; blok berat tetap berangka. Independen."
+        },
+        {
+          "condition": "Seluruh pengiriman belum selesai ditimbang",
+          "handling": "Kedua angka berat NULL ('—'); ukuran mutu DAN waktu putar DAN sebaran jam TIDAK terpengaruh — kolom yang berbeda."
+        },
+        {
+          "condition": "Ketiga kolom kategoris kosong pada sebagian pengiriman",
+          "handling": "Satu entri value = null per rekap, 'tidak tercatat', dan penjumlahan rekap tetap = dispatch_count. String kosong/whitespace di-trim lalu sama dengan null."
+        },
+        {
+          "condition": "Nilai kategoris berbeda hanya pada huruf besar/kecil atau spasi",
+          "handling": "DIBIARKAN dua entri terpisah — hanya spasi di ujung di-trim. Kemungkinan ini DINYATAKAN di layar."
+        },
+        {
+          "condition": "Satu pengiriman kehilangan KEDUA nomor segel",
+          "handling": "Terhitung di missing_seal_top_count DAN missing_seal_bottom_count — dua fakta, keduanya benar."
+        },
+        {
+          "condition": "Periode punya baris period_stations tetapi NOL record di line terpilih",
+          "handling": "200 dengan kerangka lengkap: dispatch_count 0, kedua angka berat NULL, keempat ukuran mutu NULL, waktu putar NULL, sebaran 24 kelompok nol dengan busiest_hour NULL, ketiga rekap []. Layar mencetak keadaan kosong yang menyebut periode dan line. Ini keadaan NYATA hari ini — tabel detail ini nol baris di dev."
+        },
+        {
+          "condition": "Periode belum mulai / masih berjalan",
+          "handling": "days_counted 0 → percent NULL → '—' dengan kalimat 'periode belum dimulai'; atau penyebut berhenti di hari ini (WIB dari config, bukan waktu server)."
+        },
+        {
+          "condition": "Record draft ikut dalam lingkup",
+          "handling": "Ikut terhitung di SELURUH angka termasuk waktu putar dan sebaran jam; draft_dispatch_count menyatakan berapa."
+        },
+        {
+          "condition": "Admin tanpa business_unit_id / peran terikat mill mengirim mill lain / akun ber-business_unit_id NULL",
+          "handling": "422 menyebut parameter yang kurang / DIABAIKAN tanpa galat / 422 bukan 403 (master rusak, bukan izin kurang)."
+        },
+        {
+          "condition": "production_line_id absen / milik mill lain",
+          "handling": "422 bila absen (tanpa fallback 'line pertama', tanpa mode semua-line); 403 bila milik mill lain."
+        },
+        {
+          "condition": "Operator membuka rute web",
+          "handling": "403 pada rute WEB; ketiga rute data API tetap menerimanya — jalur screen-167."
+        },
+        {
+          "condition": "format tak dikenal / ekspor melampaui batas",
+          "handling": "422 SEBELUM aliran dimulai; nilai di-trim lebih dulu. Batas 50.000 baris diperiksa EAGER."
+        }
+      ],
+      "business_rules_applied": [
+        "Isolasi Production Line: line WAJIB dipilih, tanpa agregat lintas line",
+        "Isolasi business unit: dari akun bagi peran terikat mill, dipilih oleh Admin",
+        "Laporan tidak menyaring status periode",
+        "Satuan hitung = baris detail (satu pengiriman)",
+        "Jam keluar < jam masuk dibaca sebagai hari berikutnya, bukan data salah",
+        "Jumlah yang ditafsirkan menyeberang tengah malam DITERBITKAN tersendiri",
+        "Jam masuk = jam keluar → nol menit apa adanya, bukan menyeberang tengah malam",
+        "Waktu putar tak wajar tidak dibuang dan tidak dipotong; nol penandaan",
+        "Waktu putar hanya dihitung bila KEDUA jam tercatat",
+        "Sebaran jam menurut JAM MASUK; jam keluar tidak pernah jadi penggantinya",
+        "Penafsiran menyeberang tengah malam TIDAK menggeser kelompok jam",
+        "Sebaran jam punya kelompok 'jam tidak tercatat'; penjumlahannya = jumlah pengiriman",
+        "EMPAT penyebut diterbitkan dan dinamai; tiap kartu mencetak penyebutnya sendiri",
+        "Setiap ukuran mutu punya penyebutnya sendiri; penjaga '—' per ukuran",
+        "DOBI adalah indeks tanpa satuan",
+        "net_weight_mt dibaca apa adanya",
+        "Rekap teks bebas: nol join, nol pemetaan",
+        "Stasiun ini nol kolom berpilihan tertutup — ketiadaan rekap berlabel dinyatakan",
+        "Segel atas dan bawah tidak pernah dijumlahkan; nama kolomnya tanpa awalan security_",
+        "Ekspor mentah: jam apa adanya, tanpa tafsir dan tanpa kolom waktu putar",
+        "Ketiadaan sebuah blok dinyatakan di layar beserta sebabnya"
+      ],
+      "unit_test_cases": []
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Pintu masuk satu-satunya. Tile CPO Dispatch menyala setelah REPORT_ROUTES ditambah entri 'cpo-dispatch' => 'reports.cpo-dispatch'. sort_order cpo-dispatch = 170, di belakang kernel-dispatch (160) — jadi DI-APPEND di akhir."
+    },
+    {
+      "screen_id": "screen-164--laporan-kernel-dispatch-web",
+      "reason": "Preseden terdekat: laporan hibrida transaksi + mutu, dengan rekap kategoris teks bebas, tiga penghitung kepatuhan, dan penyebut per ukuran mutu. Layar ini MENAMBAHKAN sebaran jam dan waktu putar, dan MENGHILANGKAN rekap berlabel — ambil kerangkanya, periksa kedua perbedaan itu."
+    },
+    {
+      "screen_id": "screen-143--laporan-weighbridge-web",
+      "reason": "Satu-satunya laporan lain yang punya blok `hourly` dan `busiest_hour`/`empty_hour_count`. Bentuk sebaran jamnya disalin dari sana — TETAPI di sana jamnya datang dari `record_datetime` (datetime lengkap), sementara di sini dari `time_in` (time tanpa tanggal, nullable). Perbedaan itu yang melahirkan kelompok 'jam tidak tercatat' dan jebakan tengah malam."
+    },
+    {
+      "screen_id": "screen-167--laporan-cpo-dispatch-mobile",
+      "reason": "Pasangan mobile. Ketiga rute data menerima Operator SEJAK COMMIT PERTAMA supaya layar itu tidak perlu melebarkan akses apa pun."
+    }
+  ],
+  "implementation_notes": [
+    "JEBAKAN TERBESAR LAYAR INI: WAKTU PUTAR NEGATIF. `time_in`/`time_out` bertipe `time` TANPA TANGGAL (diverifikasi di migrasi: `time('time_in')->nullable()`), sehingga selisih mentah 23:30→00:45 adalah −1365 menit. Rumus yang benar: hitung selisih menit-dalam-hari, lalu TAMBAHKAN 1440 bila hasilnya NEGATIF. Bentuk masalahnya SAMA dengan shift melewati tengah malam yang sudah diselesaikan di `ShiftService` — baca `segmentsFor()`/`shiftBlocks()` di sana sebelum menulis yang baru, dan pakai helper menit-dalam-hari yang sudah ada bila cocok alih-alih menulis yang kedua.",
+    "DAN JEBAKAN TURUNANNYA, yang lebih mudah lolos: PENAFSIRAN ITU TIDAK BOLEH MENGGESER KELOMPOK SEBARAN JAM. Pengiriman yang masuk 23:30 tetap di kelompok jam 23, meskipun waktu putarnya dihitung dengan menambahkan satu hari pada jam KELUARNYA. Dua perhitungan atas dua kolom yang berbeda; sebuah implementasi yang 'menormalkan' barisnya lebih dulu lalu memakai hasil normalisasi itu untuk kedua keperluan akan memindahkan beban jembatan timbang ke jam yang salah. Uji ini TERSENDIRI.",
+    "`crossed_midnight_count` BUKAN sekadar statistik — ia pernyataan kejujuran. Tanpa angka itu, pembaca tidak dapat membedakan waktu putar yang dibaca langsung dari waktu putar yang ditafsirkan, dan tafsir yang tidak terlihat adalah tafsir yang tidak dapat dibantah. Ia TETAP dirender sebagai nol ketika tak ada yang menyeberang — sebuah angka yang hanya muncul ketika tidak nol tidak membuktikan pembacaannya berjalan.",
+    "JAM MASUK = JAM KELUAR ADALAH KASUS KETIGA, bukan varian dari dua yang lain. Cabang +1440 berlaku ketika keluar < masuk; ketika keluar = masuk, selisihnya 0 dan cabang itu TIDAK berlaku. Nol tetap masuk penyebut, tetap memengaruhi min dan rata-rata, dan TIDAK masuk crossed_midnight_count. Sebuah implementasi yang memakai `<=` alih-alih `<` akan menambahkan 1440 pada nol dan melaporkan waktu putar 24 jam — kesalahan satu karakter yang hasilnya tampak masuk akal.",
+    "TIDAK ADA BATAS KEWAJARAN YANG DIPAKSAKAN. Tidak ada master-nya, jadi memilih batas berarti mengarangnya. Angka 23 jam dilaporkan apa adanya, tetap menjadi max, tetap ikut rata-rata, NOL penandaan — tidak ada warna, lencana, maupun hitungan pelanggaran. Yang boleh dilakukan layar hanyalah MENYATAKAN bahwa angka seperti itu patut diperiksa pembaca.",
+    "EMPAT PENYEBUT, DAN INI YANG PALING MUDAH DIRUSAK OLEH 'PENYEDERHANAAN'. (a) dispatch_count, (b) net_weight_dispatch_count, (c) hourly.recorded_count, (d) turnaround.measured_count — keempatnya berbeda karena berat, jam masuk, dan jam keluar terisi SALING BEBAS; ditambah penyebut masing-masing empat ukuran mutu. Satu angka 'jumlah pengiriman' yang dipakai sebagai penyebut semuanya akan tampak rapi dan salah secara sistematis. `_note_four_denominators` menamai keempatnya di payload supaya layar tidak perlu menyusun kalimatnya sendiri, dan supaya ketiadaan salah satu penyebut dapat diasersikan atas nama kunci.",
+    "DOBI DUDUK BERDAMPINGAN DENGAN TIGA KOLOM PERSEN, dan karena itu paling mudah diberi satuan '%' secara refleks. Ia INDEKS TANPA SATUAN — diverifikasi: kolomnya `float`, form merendernya `<input type=\"number\" step=\"0.01\">`, dan label resminya di stasiun lain yang punya kolom serupa (`Final Storage DOBI Index`) juga tanpa satuan. Prosanya diterbitkan DI DALAM blok dobi supaya ia tidak dapat terpisah dari angkanya.",
+    "NAMA KOLOM SEGEL DI SINI `seal_no_top` / `seal_no_bottom` — TANPA awalan `security_`, BERBEDA dari `kernel_dispatch_details` yang memakai `security_seal_no_top`/`security_seal_no_bottom`. Menyalin nama lintas stasiun akan ter-compile dan tidak pernah cocok. Begitu pula operator timbang: di sini `weighbridge_operator`, di kernel-dispatch `weighbridge_operator_id` — keduanya teks, tetapi namanya berbeda.",
+    "`storage_tank_source` adalah TEKS BEBAS — diverifikasi: `string` nullable, form `<input type=\"text\">`, tanpa FK. Sama polanya dengan `silo_source_id` di kernel-dispatch, tetapi di sini namanya tidak menyesatkan.",
+    "STASIUN INI NOL KOLOM BERPILIHAN TERTUTUP — diverifikasi: satu-satunya `<select>` di `form-cpo-dispatch.blade.php` adalah pemilih production line. Jadi JANGAN memakai `Display::option()` di mana pun pada laporan ini, dan JANGAN membuat rekap berlabel. Ketiadaannya DINYATAKAN lewat `_note_no_labeled_recap` dan dirender utuh, karena pembaca yang datang dari Laporan Kernel Dispatch akan mencarinya.",
+    "HANYA SATU KOLOM TEKS KEJADIAN (`findings`) — tidak ada `remarks`, sama dengan kernel-dispatch dan berbeda dari solid-waste-disposal. Jangan menyalin struktur `text_entries` dua-daftar.",
+    "EKSPOR MEMBAWA JAM APA ADANYA, TANPA TAFSIR. 23:30 tetap 23:30; tidak ada kolom waktu putar; tidak ada penanda menyeberang. Ekspor adalah rincian MENTAH, dan penafsiran adalah pekerjaan laporan — memasukkan tafsir ke ekspor akan membuat dua sumber angka yang dapat menyimpang tanpa ada yang membandingkannya. Uji ini tersendiri.",
+    "BLOK `hourly` DISALIN BENTUKNYA DARI WeighbridgeReportService, SATU-SATUNYA PRESEDEN — tetapi dengan satu perbedaan yang menentukan: di sana jamnya datang dari `record_datetime` (datetime lengkap, dan NOT NULL), sementara di sini dari `time_in` (time tanpa tanggal, NULLABLE). Perbedaan itu yang melahirkan kelompok 'jam tidak tercatat' yang tidak ada di Weighbridge. Jangan menyalin blok itu mentah-mentah.",
+    "ENTRI REPORT_ROUTES DI-APPEND DI AKHIR: sort_order cpo-dispatch = 170, di belakang kernel-dispatch (160). Verifikasi dari tabel station_types, bukan dari urutan deklarasi enum. Kunci 'cpo-dispatch' BERTANDA HUBUNG.",
+    "RIAK 'CONTOH STASIUN BELUM BERLAPORAN': keempat berkas sisi web memakai `process-quality-control` (180) yang MASIH belum berlaporan, dan satu memakai kode fiktif — jadi pekerjaan ini SEHARUSNYA tidak memerahkan satu pun. TETAPI pada screen-162 satu dari empat hanya ditemukan oleh MENJALANKAN SUITE PENUH. Jalankan `php artisan test` penuh dan percayai hasilnya, bukan perkiraan. Catat juga: `mobile/tests/ReportingPilihStasiunView.spec.ts` memakai `cpo-dispatch` sebagai contoh di satu tempat — itu riak sisi MOBILE dan milik screen-167, bukan pekerjaan ini.",
+    "`event_date` NOT NULL (sama dengan ketiga stasiun sebelumnya). Tidak ada penghitung 'tanpa tanggal' di layar ini sama sekali — berbeda dari screen-162/164 yang mempertahankannya sebagai penjaga invarian; di sini tidak ada invarian yang perlu dijaga, karena penjumlahan daily[] memang selalu sama dengan dispatch_count.",
+    "ReportPeriodDays::counted DIPAKAI APA ADANYA. min/avg/max dan seluruh agregasi DI PHP, bukan lewat agregat SQL — konsisten dengan tujuh belas laporan sebelumnya dan menghindari perbedaan pembulatan antar-mesin basis data. Suite PHP di SQLite in-memory, produksi/e2e PostgreSQL: `whereDate()` bukan `where()`; jangan mengandalkan urutan tanpa ORDER BY.",
+    "ASERSI YANG TIDAK MEMBUKTIKAN APA PUN — patuhi ketiganya: `expect()->toContain($a,$b)` membaca argumen kedua sebagai needle KEDUA (pakai `$this->assertContains()`); `assertSee` tidak membuktikan cacat tampilan; dan mengasersikan KETIADAAN lewat teks akan cocok dengan prosa yang MENYATAKAN ketiadaan itu — payload ini memuat `_note_no_labeled_recap` (berisi kata 'rekap berlabel') dan `turnaround._note` (berisi 'tidak wajar'), jadi ketiadaan blok diasersikan atas NAMA KUNCI lewat penelusur rekursif.",
+    "Asersi jumlah kueri (N+1) dibuktikan NON-VAKUM: lepas eager load dulu, lihat memerah, baru pasang kembali. Semai tanggal DAN JAM secara EKSPLISIT di setiap test — factory record stasiun dapat membuat record stasiun lain bertanggal acak, dan jam yang tidak disemai akan membuat asersi sebaran jam flake.",
+    "CSS: setiap kelas yang dipakai markup WAJIB punya definisi, diperiksa pada hasil COMPILE bukan pada sumbernya. Sebaran 24 jam adalah elemen tampilan terlebar di laporan ini — pastikan ia menggulir DI DALAM kartunya dan halaman tidak bergeser mendatar, DIUKUR bukan dilihat.",
+    "UJI BROWSER — PROFIL FIXTURE SUDAH DIUKUR LANGSUNG DI `mill_smart_log_e2e` pada 2026-10-18, bukan diasumsikan. `beforeAll` WAJIB `seedOpenPeriodForForms(browser, 'cpo-dispatch')`; tanpanya MENGGANTUNG bukan gagal. Yang ada di sana: 2 baris detail, 3 baris period_stations 'cpo-dispatch'. Kedua baris: event_date 2025-03-10 (termuat periode fixture 2020-01-01 s/d hari-ini+7), status induk `draft_ongoing`, net_weight_mt 30, `waybill_number` TERISI ('SJ-PL-A'/'SJ-PL-B'), dan SELURUH sisanya NULL — termasuk `time_in` DAN `time_out` KEDUANYA NULL, ketiga kolom kategoris, keempat kolom mutu, dan kedua segel. KEBETULAN YANG MENGUNTUNGKAN: profil itu justru menguji tepat kasus tepi yang paling mudah dikodekan salah pada layar ini — 'tidak ada satu jam pun tercatat'. Yang layak diasersikan di browser karenanya: (a) `busiest_hour` NULL dan dirender '—', BUKAN 0 yang akan terbaca 'tersibuk pukul 00'; (b) `empty_hour_count` = 24; (c) `hourly.recorded_count` = 0 dengan `not_recorded_count` = 2, dan penjumlahan 24 kelompok + kelompok tak-tercatat = jumlah pengiriman; (d) waktu putar min/avg/max '—' dengan `measured_count` 0 dan `uncomputable_count` = 2; (e) `crossed_midnight_count` dirender sebagai NOL — membuktikan angka itu memang dirender dan bukan hanya muncul ketika tidak nol; (f) KEDUA blok (sebaran jam dan waktu putar) TETAP DIRENDER meskipun kosong, tidak dihilangkan dari layar; (g) keempat ukuran mutu '—' sementara tonase berangka; (h) `missing_waybill_count` = NOL sementara kedua penghitung segel ≥ 1 — sebuah penghitung kepatuhan yang benar-benar nol membuktikan ia tidak sekadar mengembalikan jumlah baris; (i) ketiga rekap teks punya baris 'tidak tercatat'; (j) draft ikut terhitung. YANG TIDAK DAPAT DIBUKTIKAN DI BROWSER, dan jangan ditulis seolah dapat: jebakan tengah malam (butuh jam sungguhan — diuji di unit test), nol-menit, waktu putar tak wajar, urutan rekap (satu baris per rekap → asersi posisi VAKUM), nilai mutu, dan jumlah pengiriman yang persis (pakai ≥ 1; spec form menulis ke DB e2e yang sama)."
+  ],
+  "test_scenarios": []
+}

@@ -3529,16 +3529,31 @@ describe('rute dan pintu masuk', () => {
 
   /**
    * unit_test_case 56 — RIAK TEST YANG MEMANG DIRANCANG, DAN INI YANG
-   * KEDELAPAN.
+   * KESEMBILAN.
    *
    * mobile/tests/ReportingPilihStasiunView.spec.ts memakai satu kode stasiun
-   * sebagai contoh 'belum berlaporan'. Begitu 'process-water' masuk ke
-   * REPORT_ROUTES, contoh itu berhenti menguji apa pun — jadi contohnya
-   * DIPINDAHKAN ke jenis yang masih belum berlaporan, bukan asersinya
-   * dilemahkan.
+   * sebagai contoh 'belum berlaporan'. Begitu kode itu masuk ke REPORT_ROUTES,
+   * contoh itu berhenti menguji apa pun — jadi contohnya DIPINDAHKAN ke jenis
+   * yang masih belum berlaporan, bukan asersinya dilemahkan. Pemindahan
+   * KEDELAPAN ('process-water' → 'solid-waste-disposal') terjadi pada
+   * screen-161.
    *
    * Test ini menjaga riak itu TETAP BENAR dari sisi berkas ini: ia memeriksa
    * KODE STASIUN yang dipakai spec tetangga, bukan urutan tile-nya.
+   *
+   * DIPERBARUI pada screen-163 (2026-10-18) — PEMINDAHAN KESEMBILAN: laporan
+   * Solid Waste Disposal mobile dibangun, 'solid-waste-disposal' masuk ke
+   * REPORT_ROUTES, dan berkas INI adalah tempat kelima — serta yang paling
+   * mudah terlewat — yang memerah karenanya, sebab ia MEMBACA spec tetangga
+   * dari disk alih-alih mengimpornya. Pada pemindahan-pemindahan sebelumnya
+   * situs ini hanya ditemukan dengan menjalankan seluruh suite, bukan dengan
+   * membaca daftar berkas yang disentuh.
+   *
+   * Asersinya kini melacak kode FIKTIF 'zz-stasiun-fiktif' — kode yang tidak
+   * ada di master station_types dan karena itu tidak akan pernah masuk
+   * REPORT_ROUTES, sehingga pemindahan KESEMBILAN adalah yang TERAKHIR —
+   * DITAMBAH asersi cermin untuk contoh yang pensiun. Lebih kuat, bukan lebih
+   * longgar: tidak satu asersi pun dihapus atau dilonggarkan.
    */
   it('unit_test_case 56: contoh "belum berlaporan" pada spec tetangga BUKAN stasiun yang sudah berlaporan', () => {
     const neighbourSpec = readFileSync(
@@ -3585,12 +3600,37 @@ describe('rute dan pintu masuk', () => {
       `tidak ada satu pun contoh 'belum berlaporan' yang tersisa di spec tetangga`,
     ).not.toEqual([])
 
-    // (c) Dan contoh penggantinya pada pemindahan KEDELAPAN adalah
-    // 'solid-waste-disposal' (sort_order 150) — sort_order TERTINGGI di antara
-    // jenis yang belum terpakai sebagai contoh di berkas itu.
-    expect(unbuilt).toContain('solid-waste-disposal')
-    expect(map).not.toContain("'solid-waste-disposal': 'report-")
-    expect(neighbourSpec).toContain('Laporan Solid Waste Disposal belum tersedia')
+    // (c) Contoh penggantinya pada pemindahan KEDELAPAN adalah
+    // 'solid-waste-disposal' (sort_order 150). Ia bertahan satu hari: pada
+    // screen-163 (2026-10-18) laporan Solid Waste Disposal mobile dibangun,
+    // tile-nya menjadi AKTIF, dan contoh itu PENSIUN — PEMINDAHAN KESEMBILAN.
+    //
+    // DAN PEMINDAHAN KESEMBILAN ITU TIDAK MEMAKAI STASIUN NYATA. Spec tetangga
+    // TIDAK membaca master station_types: ia menyuntikkan daftarnya sendiri
+    // lewat makeStation({...}) + getActiveAndPlaceholderStationsMock, jadi
+    // kode FIKTIF tersedia di sana. Contohnya kini 'zz-stasiun-fiktif', dan
+    // karena tidak ada layar masa depan yang dapat memasukkannya ke
+    // REPORT_ROUTES, inilah pemindahan TERAKHIR — pengejaran yang sempat
+    // dinyatakan "mustahil dilanjutkan" pada screen-161 justru berhenti di
+    // sini. Pernyataan itu keliru; koreksinya ada di docblock spec tetangga.
+    expect(unbuilt).toContain('zz-stasiun-fiktif')
+    expect(map).not.toContain("'zz-stasiun-fiktif'")
+    expect(neighbourSpec).toContain('Laporan Stasiun Fiktif belum tersedia')
+
+    // Kode fiktifnya WAJIB lolos dari pungutan di atas: huruf kecil dan tanda
+    // hubung saja, dan bukan 'other'. Diasersi di sini supaya penjaga ini
+    // tidak diam-diam menjadi hampa bila kelak kodenya diubah bentuknya.
+    expect('zz-stasiun-fiktif').toMatch(/^[a-z-]+$/)
+    expect(usedTypes).toContain('zz-stasiun-fiktif')
+
+    // (d) Dan contoh yang PENSIUN tidak lagi dipakai di sana sama sekali —
+    // asersi cermin yang sama seperti (a), karena 'solid-waste-disposal' kini
+    // berada di pihak yang SUDAH berlaporan.
+    expect(usedTypes).not.toContain('solid-waste-disposal')
+    expect(neighbourSpec).not.toContain("type: 'solid-waste-disposal'")
+    expect(neighbourSpec).not.toContain('station-tile-solid-waste-disposal')
+    expect(neighbourSpec).not.toContain('Laporan Solid Waste Disposal belum tersedia')
+    expect(map).toContain("'solid-waste-disposal': 'report-solid-waste-disposal'")
   })
 })
 

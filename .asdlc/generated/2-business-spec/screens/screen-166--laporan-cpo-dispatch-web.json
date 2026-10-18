@@ -1,0 +1,158 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-166--laporan-cpo-dispatch-web",
+  "name": "Laporan CPO Dispatch (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode untuk stasiun CPO Dispatch — pengiriman minyak sawit mentah keluar pabrik lewat tanker. Satuan hitungnya SATU PENGIRIMAN: satu tanker yang datang, diisi, dan berangkat. Layar ini adalah satu-satunya laporan pengiriman yang dapat menjawab pertanyaan WAKTU, karena hanya catatan stasiun ini yang mencatat jam tanker masuk dan jam tanker keluar. Dari dua kolom itu lahir dua hal yang tidak dimiliki laporan pengiriman lain: sebaran pengiriman menurut JAM MASUK — yang memperlihatkan kapan jembatan timbang padat dan kapan ia menganggur — dan WAKTU PUTAR TANKER, yaitu berapa lama satu tanker berada di dalam pabrik. Waktu putar adalah angka yang paling sering ditanyakan dan paling mudah dihitung salah, karena jam dicatat tanpa tanggal: tanker yang masuk 23:30 dan keluar 00:45 secara mentah menghasilkan selisih negatif dua puluh dua jam. Layar ini juga membawa empat ukuran mutu minyak, dan akibat semua itu ia punya EMPAT penyebut yang berbeda sekaligus — kenyataan yang harus dinyatakan, bukan disembunyikan di balik satu angka 'jumlah pengiriman'.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menekan tile CPO Dispatch pada layar Laporan Stasiun (screen-140) — satu-satunya pintu masuk web",
+    "Tautan langsung ke rutenya dengan mill dan Production Line terbawa di query string"
+  ],
+  "information_displayed": [
+    "Nama periode, rentang tanggalnya, dan penanda statusnya — periode draft maupun tertutup tetap terbaca",
+    "Nama mill yang berlaku; pemilih Mill hanya untuk Admin",
+    "Pemilih Production Line — WAJIB dipilih sebelum satu angka pun muncul",
+    "Jumlah pengiriman pada periode ini, termasuk yang penimbangannya belum selesai",
+    "Total berat bersih minyak terkirim dan rata-rata per pengiriman, DENGAN penyebutnya tercetak di kartu yang sama",
+    "Jumlah pengiriman yang penimbangannya BELUM SELESAI, ditonjolkan tersendiri",
+    "EMPAT UKURAN MUTU, masing-masing dengan terendah, rata-rata, tertinggi, dan PENYEBUTNYA SENDIRI: kadar asam lemak bebas (ALB), kadar air, kadar kotoran, dan DOBI",
+    "Pernyataan bahwa DOBI adalah INDEKS tanpa satuan, berbeda dari ketiga ukuran lain yang berupa persen — memberinya satuan akan salah",
+    "WAKTU PUTAR TANKER: tercepat, rata-rata, terlama, beserta penyebutnya — yaitu jumlah pengiriman yang jam masuk DAN jam keluarnya keduanya tercatat",
+    "Jumlah pengiriman yang MENYEBERANG TENGAH MALAM, dinyatakan tersendiri beserta penjelasan bahwa jam keluar yang lebih kecil daripada jam masuk dibaca sebagai hari berikutnya — bukan sebagai data salah",
+    "Jumlah pengiriman yang waktu putarnya TIDAK DAPAT dihitung karena salah satu jamnya tidak tercatat",
+    "SEBARAN PENGIRIMAN MENURUT JAM MASUK — dua puluh empat kelompok jam, beserta jam tersibuk dan jumlah jam yang kosong",
+    "Satu kelompok 'jam tidak tercatat' tersendiri pada sebaran jam, untuk pengiriman yang jam masuknya kosong — sehingga penjumlahan sebaran tetap sama dengan jumlah pengiriman",
+    "Pernyataan bahwa EMPAT PENYEBUT di layar ini berbeda satu dengan lainnya: jumlah pengiriman, pengiriman yang beratnya terisi, pengiriman yang jam masuknya tercatat, dan pengiriman yang kedua jamnya tercatat — ditambah penyebut masing-masing ukuran mutu",
+    "Rekap menurut perusahaan pengangkut — berapa pengiriman dan berapa tonase",
+    "Rekap menurut tangki penyimpanan sumber — dari tangki mana minyak itu diambil",
+    "Rekap menurut pembeli tujuan — ke mana minyak itu dikirim",
+    "Pada ketiga rekap: satu baris 'tidak tercatat' tersendiri, sehingga penjumlahan tiap rekap tetap sama dengan jumlah pengiriman",
+    "Jumlah pengiriman tanpa nomor surat jalan, tanpa segel atas, dan tanpa segel bawah — tiga penghitung terpisah sebagai jejak kepatuhan, bukan ukuran produksi",
+    "Pernyataan bahwa segel atas dan segel bawah dihitung terpisah dan tidak pernah dijumlahkan",
+    "Rekap harian: satu baris per hari YANG ADA PENGIRIMANNYA, beserta baris total periode",
+    "Kelengkapan pencatatan diukur dalam HARI",
+    "Jumlah pengiriman milik catatan berstatus draft — ikut terhitung, dan jumlahnya dinyatakan",
+    "Daftar temuan bertanggal — teks bebas apa adanya",
+    "Pernyataan bahwa stasiun ini TIDAK punya kolom berpilihan tertutup satu pun, sehingga tidak ada rekap berlabel — berbeda dari Kernel Dispatch",
+    "Pernyataan bahwa tidak ada penandaan nilai mutu di luar batas, beserta sebabnya",
+    "Pernyataan bahwa kolom giliran kerja tidak ditampilkan di layar tetapi ada di berkas ekspor"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih periode pelaporan",
+      "description": "Daftar periode hanya memuat periode yang mendaftarkan stasiun CPO Dispatch pada mill yang berlaku; status periode tidak menyaringnya.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Wajib. Sebelum ini dipilih, layar tidak menampilkan satu angka pun. Tidak ada opsi 'semua line'.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Hanya Admin.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Unduh ekspor CSV",
+      "description": "Rincian mentah: satu baris per pengiriman, kolom konteks diulang, dan seluruh kolom catatan ikut — termasuk jam masuk, jam keluar, giliran kerja, nomor surat jalan, nomor tanker, nama pengemudi, kedua nomor segel, dan nama operator timbang.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Unduh ekspor Excel",
+      "description": "Berkas .xlsx sungguhan dengan isi yang sama persis dengan CSV.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Production Line WAJIB dipilih sebelum satu angka pun tampil. Tidak ada 'semua line', dan tidak ada line yang dipilihkan.",
+    "Mill diturunkan dari akun bagi Supervisor dan Mill Management; hanya Admin yang memilih. Mill kiriman dari peran terikat mill DIABAIKAN, bukan ditolak.",
+    "Operator tidak punya akses ke rute web ini; jalurnya ada di screen-167 (mobile).",
+    "Laporan tidak menyaring status periode.",
+    "Satu baris catatan pengiriman = satu pengiriman.",
+    "JAM MASUK DAN JAM KELUAR DICATAT TANPA TANGGAL. Karena itu jam keluar yang LEBIH KECIL daripada jam masuk dibaca sebagai HARI BERIKUTNYA, bukan sebagai data salah: tanker memang berangkat melewati tengah malam. Waktu putar dihitung dengan menambahkan satu hari penuh pada jam keluar seperti itu.",
+    "Jumlah pengiriman yang dibaca menyeberang tengah malam DINYATAKAN sebagai angka tersendiri. Pembaca harus dapat melihat berapa banyak angka waktu putar yang lahir dari penafsiran, bukan dari pembacaan langsung — tafsir yang tidak terlihat adalah tafsir yang tidak dapat dibantah.",
+    "Waktu putar yang tampak tidak wajar TIDAK DIBUANG dan TIDAK DIPOTONG. Stasiun ini tidak punya master batas kewajaran, sehingga memilih batas berarti mengarangnya. Angkanya dilaporkan apa adanya, dan kemungkinan salah input dinyatakan di layar sebagai hal yang perlu diperiksa pembaca — bukan diputuskan oleh laporan.",
+    "Waktu putar hanya dihitung untuk pengiriman yang jam masuk DAN jam keluarnya KEDUANYA tercatat. Penyebutnya diterbitkan, dan jumlah pengiriman yang tidak dapat dihitung dinyatakan tersendiri.",
+    "Sebaran jam dihitung menurut JAM MASUK, bukan jam keluar — yang ditanyakan adalah kapan tanker datang, karena itulah yang membebani jembatan timbang.",
+    "Sebaran jam punya satu kelompok 'jam tidak tercatat' tersendiri, dan penjumlahan seluruh kelompok wajib sama dengan jumlah pengiriman.",
+    "EMPAT PENYEBUT di layar ini berbeda satu dengan lainnya, dan kenyataan itu DINYATAKAN: jumlah pengiriman, pengiriman yang beratnya terisi, pengiriman yang jam masuknya tercatat, dan pengiriman yang kedua jamnya tercatat — ditambah penyebut masing-masing ukuran mutu. Satu angka 'jumlah pengiriman' yang dipakai sebagai penyebut semuanya akan salah secara sistematis.",
+    "SETIAP ukuran mutu punya penyebutnya SENDIRI, dan keempatnya boleh berbeda.",
+    "DOBI adalah INDEKS tanpa satuan; ketiga ukuran lain berupa persen. Memberi DOBI satuan akan salah.",
+    "Nol pengukuran pada sebuah ukuran mutu atau pada waktu putar menghasilkan '—' untuk ketiga angkanya, bukan 0.",
+    "Total dan rata-rata berat dihitung HANYA atas pengiriman yang beratnya terisi, dan penyebut itu diterbitkan.",
+    "Berat bersih dibaca APA ADANYA; laporan tidak pernah menghitungnya ulang dari bruto dikurangi tara.",
+    "Ketiga rekap menampilkan nilai APA ADANYA tanpa penerjemahan — ketiganya teks bebas yang diketik, dan tidak ada master untuk mencocokkannya.",
+    "Stasiun ini TIDAK punya satu pun kolom berpilihan tertutup, sehingga tidak ada rekap berlabel. Ketiadaan itu dinyatakan — pembaca yang datang dari Laporan Kernel Dispatch akan mencarinya.",
+    "Setiap rekap punya baris 'tidak tercatat' tersendiri, dan penjumlahan baris tiap rekap wajib sama dengan jumlah pengiriman.",
+    "Rekap diurutkan dari total netto terbesar.",
+    "Segel atas dan segel bawah dihitung TERPISAH dan tidak pernah dijumlahkan.",
+    "Catatan berstatus draft IKUT terhitung di seluruh angka, dan jumlahnya dinyatakan.",
+    "Rekap harian memuat satu baris per hari yang ada pengirimannya saja.",
+    "Kelengkapan diukur atas hari yang sudah berjalan.",
+    "Ketiadaan sebuah bagian DINYATAKAN di layar beserta sebabnya.",
+    "Giliran kerja tidak ditampilkan di layar tetapi ada di ekspor; ekspor juga membawa jam masuk dan jam keluar APA ADANYA, tanpa penafsiran menyeberang tengah malam — ekspor adalah rincian mentah, dan penafsiran adalah pekerjaan laporan.",
+    "Ekspor Excel adalah .xlsx sungguhan.",
+    "Layar ini baca saja: nol kontrol tulis."
+  ],
+  "usecase_ids": [
+    "usecase-172--laporan-cpo-dispatch-web"
+  ],
+  "edge_cases": [
+    "Line terpilih tidak punya satu pengiriman pun — kerangka laporan tetap tampil dengan keadaan kosong yang menyebut periode dan line. Ini keadaan NYATA hari ini: tabel catatan pengiriman CPO masih kosong di basis data pengembangan.",
+    "Jam keluar LEBIH KECIL daripada jam masuk — dibaca menyeberang tengah malam; waktu putarnya positif, dan pengiriman itu masuk hitungan 'menyeberang tengah malam'.",
+    "Jam masuk dan jam keluar SAMA — waktu putar nol menit. Dilaporkan apa adanya sebagai nol, bukan dibuang dan bukan dibaca sebagai menyeberang tengah malam. Nol adalah angka, bukan ketiadaan.",
+    "Jam masuk tercatat tetapi jam keluar tidak — masuk sebaran jam, TIDAK masuk waktu putar. Kedua penyebut itu berbeda, dan keduanya tercetak.",
+    "Jam keluar tercatat tetapi jam masuk tidak — TIDAK masuk sebaran jam (masuk kelompok 'jam tidak tercatat') dan TIDAK masuk waktu putar.",
+    "Kedua jam tidak tercatat — masuk kelompok 'jam tidak tercatat' pada sebaran, dan masuk hitungan 'waktu putar tidak dapat dihitung'.",
+    "Seluruh pengiriman tidak punya satu jam pun — bagian sebaran jam menyatakan bahwa tidak ada jam yang tercatat, dan bagian waktu putar menampilkan '—'. Keduanya tetap dirender, bukan dihilangkan dari layar.",
+    "Waktu putar tampak tidak wajar (mis. lebih dari dua belas jam) — dilaporkan apa adanya; layar menyatakan bahwa angka seperti itu patut diperiksa, tanpa memutuskannya sebagai salah.",
+    "Satu ukuran mutu tidak punya satu hasil uji pun sementara tiga lainnya punya — ukuran itu '—', ketiga lainnya tetap berangka.",
+    "Keempat ukuran mutu kosong tetapi tonasenya ada — bagian mutu menyatakan belum ada hasil uji; bagian tonase tetap berangka.",
+    "Seluruh pengiriman belum selesai ditimbang — kedua angka berat '—'; ukuran mutu dan waktu putar TIDAK terpengaruh.",
+    "Ketiga kolom kategoris kosong pada sebagian pengiriman — masuk baris 'tidak tercatat'.",
+    "Nilai kategoris berbeda hanya pada huruf besar/kecil atau spasi — tetap dua baris terpisah; kemungkinan ini dinyatakan di layar.",
+    "Satu pengiriman kehilangan KEDUA nomor segel — terhitung di kedua penghitung; dua fakta, bukan penghitungan ganda.",
+    "Seluruh pengiriman terjadi pada satu jam yang sama — sebaran jam memperlihatkan satu kelompok terisi dan dua puluh tiga jam kosong; jumlah jam kosong dinyatakan.",
+    "Periode belum mulai / masih berjalan — kelengkapan '—' dengan kalimat sebabnya, atau penyebut berhenti di hari ini.",
+    "Mill belum punya periode yang mencakup stasiun ini — pemilih periode kosong dengan kalimat sebabnya.",
+    "Admin belum memilih mill — arahan memilih mill tampil.",
+    "Akun belum terhubung ke mill — arahan menghubungi Admin, bukan pesan galat izin.",
+    "Periode atau line milik mill lain — ditolak, dan tidak satu angka pun terhitung.",
+    "Operator membuka rute web ini — ditolak.",
+    "Ekspor melampaui batas baris — ditolak sebelum satu byte pun dialirkan.",
+    "Rekap atau sebaran jam sangat panjang — tabel menggulir di dalam kartunya; halaman tidak bergeser mendatar."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Tidak ada master batas kewajaran waktu putar tanker, sehingga laporan ini tidak dapat menandai angka yang tidak wajar — ia hanya dapat melaporkannya dan menyatakan bahwa angka seperti itu patut diperiksa. Bila penandaan itu diinginkan (mis. waktu putar maksimum per jenis tanker), ia pekerjaan master data tersendiri. Dicatat karena pemilik produk mungkin mengharapkan penandaan itu ada — dan ketiadaannya adalah batas data, bukan pilihan laporan.",
+    "Stasiun ini tidak punya master ambang mutu, sehingga tidak ada nilai mutu yang dapat ditandai di luar batas. Sama seperti Kernel Dispatch."
+  ]
+}

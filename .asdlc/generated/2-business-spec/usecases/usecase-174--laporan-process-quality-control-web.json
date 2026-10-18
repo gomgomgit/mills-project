@@ -1,0 +1,549 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "usecase-174--laporan-process-quality-control-web",
+  "name": "Lihat Laporan Periode Process Quality Control (Web)",
+  "description": "Pengguna web memilih Production Line lalu periode pelaporan, dan membaca mutu proses di sepanjang jalur pengolahan minyak sepanjang periode itu. Stasiun ini TIDAK mencatat transaksi melainkan PEMBACAAN: satuan hitungnya SLOT JAM — satu baris catatan adalah satu slot pada satu hari, dua puluh empat slot per hari — sehingga bentuknya sama dengan Laporan Process Water dan Engine Room, bukan dengan laporan pengiriman. Yang membuatnya berbeda dari laporan bergrid mana pun sebelumnya adalah jumlahnya: DUA BELAS ukuran numerik dalam LIMA blok yang mengikuti jalur fisik minyak — Fruit Press, Purifier & Clarification Balance, Vacuum Drying Station, Decanter/Centrifuge, dan Final Storage — sehingga layar dikelompokkan menurut TAHAP, bukan menurut jenis angka. Setiap ukuran membawa penyebutnya sendiri, kelengkapan pencatatan berdiri di atas segalanya, kedua kolom teks diterbitkan sebagai dua daftar kejadian terpisah, dan rekap per-inspektur memakai kode mentah. Stasiun ini nol kolom berpilihan tertutup, tanpa penandaan nilai di luar batas, dan tanpa blok henti operasi — ketiga ketiadaan itu dinyatakan beserta sebabnya.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+    "Mill sudah punya minimal satu Production Line",
+    "Mill sudah punya minimal satu periode pelaporan yang mendaftarkan stasiun Process Quality Control"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka layar Laporan Process Quality Control dengan menekan tile stasiun itu pada Laporan Stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem menetapkan mill dari akun pengguna; khusus Admin, sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih Production Line; selama line belum dipilih tidak ada satu angka pun yang ditampilkan dan tombol ekspor belum tampil"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem memuat daftar periode yang mendaftarkan stasiun Process Quality Control pada mill yang berlaku, tanpa menyaring statusnya"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Sistem menghimpun pembacaan per slot jam sepanjang periode untuk line yang dipilih, dan menghitung setiap ukuran dari slot yang ukuran ITU terisi beserta penyebutnya masing-masing"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Sistem menampilkan kelengkapan pencatatan DI ATAS seluruh angka lain: jumlah slot terisi terhadap jumlah slot yang diharapkan pada hari-hari yang sudah berjalan"
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Sistem mencetak BERDAMPINGAN jumlah slot terisi dan penyebut ukuran, beserta kalimat yang menyatakan bahwa keterisian dihitung atas empat belas kolom pembacaan sehingga jumlah slot terisi dapat melebihi setiap penyebut"
+    },
+    {
+      "step": 9,
+      "actor": "System",
+      "description": "Sistem menyatakan bahwa giliran kerja dan kode inspektur tidak ikut menentukan keterisian slot, karena keduanya kolom identitas dan bukan pembacaan"
+    },
+    {
+      "step": 10,
+      "actor": "System",
+      "description": "Sistem menampilkan lima blok berjudul tahapnya dalam urutan proses, berisi dua belas kartu ukuran dengan nilai terendah, rata-rata, tertinggi, penyebutnya sendiri, dan satuannya"
+    },
+    {
+      "step": 11,
+      "actor": "System",
+      "description": "Sistem menampilkan rekap per-inspektur dengan kode mentah apa adanya, baris 'tidak tercatat' tersendiri, dan urut menurut kode"
+    },
+    {
+      "step": 12,
+      "actor": "System",
+      "description": "Sistem menampilkan rekap harian: satu baris per hari yang ada pembacaannya, beserta baris total periode"
+    },
+    {
+      "step": 13,
+      "actor": "System",
+      "description": "Sistem menampilkan dua daftar kejadian terpisah dan bertanggal — tindakan koreksi teknis, dan temuan — keduanya sebagai teks bebas apa adanya"
+    },
+    {
+      "step": 14,
+      "actor": "System",
+      "description": "Sistem menyatakan ketiadaan rekap berlabel, ketiadaan penandaan nilai di luar batas beserta sebabnya, ketiadaan blok henti operasi, jumlah slot milik catatan draft, dan alasan kolom giliran kerja tidak diterbitkan di layar"
+    },
+    {
+      "step": 15,
+      "actor": "actor-supervisor",
+      "description": "Pengguna dapat mengunduh rincian pembacaan per slot jam sepanjang periode sebagai CSV atau sebagai Excel"
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rekap periode yang dipilih untuk Production Line yang dipilih",
+    "Pengguna mengetahui seberapa lengkap pencatatannya sebelum mempercayai dua belas angkanya",
+    "Pengguna mengetahui tahap mana yang pembacaannya kurang dan kode inspektur mana yang dapat ditanyai",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "alternative_flows": [
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 3, pengguna belum memilih Production Line",
+      "steps": [
+        "Tidak ada satu angka pun yang ditampilkan, dan layar menyatakan apa yang ditunggunya",
+        "Sistem tidak menampilkan angka seluruh mill sebagai penggantinya",
+        "Tombol ekspor belum tampil",
+        "Line tidak dipilihkan meski mill hanya punya satu line",
+        "Penjagaannya ada di fungsi pemuatan, sehingga jalur coba-lagi dan ganti-periode ikut terlindung"
+      ]
+    },
+    {
+      "name": "Admin memilih mill lebih dulu",
+      "trigger": "Pada langkah 2, pengguna berperan Admin dan belum memilih mill",
+      "steps": [
+        "Sistem menampilkan pemilih Mill beserta arahan memilih mill",
+        "Tidak ada angka yang ditampilkan sampai mill dipilih"
+      ]
+    },
+    {
+      "name": "Admin mengganti mill",
+      "trigger": "Pada langkah 2, Admin mengganti mill sesudah periode dan line terpilih",
+      "steps": [
+        "Pilihan periode DAN Production Line dikosongkan",
+        "Daftar periode dimuat ulang untuk mill yang baru",
+        "Keduanya milik tepat satu mill, jadi membawanya ke mill lain akan menampilkan galat untuk sesuatu yang tidak dilakukan pengguna"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode yang mencakup stasiun ini",
+      "trigger": "Pada langkah 4, mill tidak punya periode yang mendaftarkan Process Quality Control",
+      "steps": [
+        "Pemilih periode kosong beserta kalimat sebabnya",
+        "Arahan menghubungi Admin ditampilkan"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun terikat mill tetapi mill-nya kosong",
+      "steps": [
+        "Arahan menghubungi Admin ditampilkan, bukan pesan galat izin",
+        "Pemilih Mill tidak dirender, sehingga daftar seluruh mill tidak ditawarkan"
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka rute web ini",
+      "trigger": "Pada langkah 1, pengguna berperan Station Operator",
+      "steps": [
+        "Akses ditolak pada rute web",
+        "Jalur laporan Process Quality Control bagi Operator ada di mobile (screen-169)"
+      ]
+    },
+    {
+      "name": "Mill kiriman dari peran terikat mill",
+      "trigger": "Pada langkah 6, permintaan membawa mill selain mill pada akun",
+      "steps": [
+        "Server MENGABAIKAN nilai itu dan memakai mill pada akun — bukan menolak permintaannya",
+        "Angka yang tampil tetap milik mill pada akun"
+      ]
+    },
+    {
+      "name": "Periode atau line milik mill lain",
+      "trigger": "Pada langkah 3 atau 5, permintaan membawa line atau periode yang bukan milik mill yang berlaku",
+      "steps": [
+        "Permintaan ditolak",
+        "Tidak satu angka pun terhitung, dan tidak ada angka milik mill lain yang terlihat"
+      ]
+    },
+    {
+      "name": "Line tanpa satu pembacaan pun",
+      "trigger": "Pada langkah 6, line terpilih tidak punya satu pembacaan pun pada periode itu",
+      "steps": [
+        "Kerangka laporan TETAP tampil dengan keadaan kosong yang menyebut periode dan line",
+        "Kelima blok tetap dirender dan kedua belas ukuran menampilkan '—', bukan 0",
+        "Kelengkapan pencatatan TETAP ditampilkan"
+      ]
+    },
+    {
+      "name": "Satu ukuran tidak punya pembacaan sementara sebelas lainnya punya",
+      "trigger": "Pada langkah 10, satu dari dua belas ukuran kosong sepanjang periode",
+      "steps": [
+        "Ukuran itu menampilkan '—' untuk ketiga angkanya dengan penyebut nol",
+        "Kesebelas ukuran lain tetap berangka dengan penyebutnya masing-masing",
+        "Diperiksa per ukuran, bukan lewat satu penjaga 'ada data atau tidak'"
+      ]
+    },
+    {
+      "name": "Satu blok seluruh ukurannya kosong",
+      "trigger": "Pada langkah 10, seluruh ukuran pada satu blok kosong sementara empat blok lain berisi",
+      "steps": [
+        "Blok itu TETAP DIRENDER dengan '—' pada setiap ukurannya",
+        "Blok itu tidak dihilangkan dari layar — blok yang hilang akan dibaca sebagai tahap yang tidak ada",
+        "Penyebut nol pada blok itu tidak memengaruhi keempat blok lain"
+      ]
+    },
+    {
+      "name": "Slot hanya memuat catatan teks",
+      "trigger": "Pada langkah 8, sebuah slot mengisi tindakan koreksi teknis atau temuan tanpa satu pun ukuran numerik",
+      "steps": [
+        "Slot itu TERHITUNG terisi, karena kedua kolom teks termasuk dalam keempat belas kolom pembacaan",
+        "Slot itu TIDAK menambah penyebut ukuran numerik mana pun",
+        "Jumlah slot terisi karena itu dapat MELEBIHI penyebut setiap ukuran numerik",
+        "Kedua angka dicetak berdampingan beserta kalimat yang menyatakan hubungannya, supaya selisihnya tidak terbaca sebagai cacat"
+      ]
+    },
+    {
+      "name": "Slot hanya mengisi giliran kerja dan kode inspektur",
+      "trigger": "Pada langkah 9, sebuah slot hanya mengisi kedua kolom identitas tanpa satu pun dari keempat belas kolom pembacaan",
+      "steps": [
+        "Slot itu dihitung KOSONG — kebalikan dari slot yang hanya memuat catatan teks, dan keduanya harus dapat dibedakan pembaca",
+        "TETAPI kode inspekturnya TETAP masuk rekap per-inspektur",
+        "Kedua hal itu tidak bertentangan: rekap menghitung ATRIBUSI, kelengkapan menghitung PEMBACAAN"
+      ]
+    },
+    {
+      "name": "Kode inspektur kosong pada sebagian slot",
+      "trigger": "Pada langkah 11, sebagian slot terisi tidak mencatat kode inspektur",
+      "steps": [
+        "Rekap per-inspektur menampilkan satu baris 'tidak tercatat' tersendiri berisi slot-slot itu",
+        "Bukan rekap kosong tanpa penjelasan, dan bukan dibaurkan ke baris kode mana pun"
+      ]
+    },
+    {
+      "name": "Dua kode inspektur berbeda hanya pada huruf besar atau kecil",
+      "trigger": "Pada langkah 11, dua kode yang hanya berbeda kapitalisasinya muncul pada periode yang sama",
+      "steps": [
+        "Keduanya tetap DUA baris terpisah",
+        "Teks bebas tidak menjamin keduanya orang yang sama, dan tidak ada master inspektur untuk memastikannya"
+      ]
+    },
+    {
+      "name": "Rekap per-inspektur sangat panjang",
+      "trigger": "Pada langkah 11, kode inspektur yang muncul pada periode itu berjumlah puluhan",
+      "steps": [
+        "Urutannya tetap menurut KODE, bukan menurut jumlah slot — supaya ia tidak menjadi peringkat orang dan posisi sebuah kode tidak berpindah antar periode",
+        "Tabelnya menggulir DI DALAM kartunya sendiri",
+        "Halaman itu sendiri tidak pernah bergeser mendatar"
+      ]
+    },
+    {
+      "name": "Periode memuat catatan berstatus draft",
+      "trigger": "Pada langkah 6, sebagian catatan pada periode itu masih berstatus draft",
+      "steps": [
+        "Catatan draft IKUT terhitung di seluruh angka",
+        "Jumlah slot miliknya dinyatakan di layar, supaya pembaca tahu seberapa besar bagian yang belum final",
+        "Status periode maupun status catatan tidak menyaring laporan"
+      ]
+    },
+    {
+      "name": "Isi tindakan koreksi berulang sama persis",
+      "trigger": "Pada langkah 13, isi kolom teks yang sama persis muncul pada banyak slot",
+      "steps": [
+        "Tetap diterbitkan sebagai daftar kejadian bertanggal per slot",
+        "TIDAK dikelompokkan menjadi sebaran — keduanya teks bebas, dan menyebarnya berarti memperlakukan prosa sebagai enum"
+      ]
+    },
+    {
+      "name": "Kedua daftar kejadian kosong",
+      "trigger": "Pada langkah 13, tidak ada tindakan koreksi maupun temuan sepanjang periode",
+      "steps": [
+        "Kedua daftar tetap berjudul TERPISAH",
+        "Masing-masing menampilkan keterangan tidak ada catatan, bukan tabel kosong tanpa penjelasan"
+      ]
+    },
+    {
+      "name": "Periode belum mulai atau masih berjalan",
+      "trigger": "Pada langkah 7, tanggal mulai periode masih di masa depan, atau tanggal akhirnya masih di masa depan",
+      "steps": [
+        "Bila belum mulai: kelengkapan tampil '—' beserta kalimat 'periode belum dimulai', bukan 0,0%",
+        "Bila masih berjalan: penyebut kelengkapan berhenti di hari ini dan hal itu dinyatakan",
+        "Hari yang belum terjadi tidak menurunkan persentase"
+      ]
+    },
+    {
+      "name": "Sebaran slot per hari sangat tidak merata",
+      "trigger": "Pada langkah 12, satu hari punya dua puluh empat slot terisi penuh sementara hari lain hanya satu",
+      "steps": [
+        "Rekap harian memperlihatkan kedua hari itu apa adanya",
+        "Kelengkapan menghitung HARI yang ada pembacaannya, bukan rata-rata slot per hari",
+        "Hari tanpa pembacaan tidak muncul sebagai baris rekap harian"
+      ]
+    },
+    {
+      "name": "Ekspor melampaui batas baris",
+      "trigger": "Pada langkah 15, rincian per slot pada periode itu melampaui batas baris ekspor",
+      "steps": [
+        "Permintaan ditolak SEBELUM satu byte pun dialirkan",
+        "Pengguna diberi tahu batasnya dan diarahkan mempersempit periode",
+        "Tidak ada berkas setengah jadi yang terunduh"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini baca saja: nol kontrol tulis, dan tidak satu pun data stasiun berubah.",
+    "Mill diturunkan dari akun bagi Supervisor dan Mill Management; hanya Admin yang memilih. Mill kiriman dari peran terikat mill DIABAIKAN, bukan ditolak.",
+    "Operator tidak punya akses ke rute web ini; jalurnya ada di screen-169 (mobile).",
+    "Production Line WAJIB dipilih sebelum satu angka pun tampil. Tidak ada opsi 'semua line', dan line tidak pernah dipilihkan meski mill hanya punya satu.",
+    "Mengganti mill mengosongkan pilihan periode DAN Production Line — keduanya milik tepat satu mill.",
+    "Daftar periode hanya memuat periode yang mendaftarkan stasiun Process Quality Control pada mill yang berlaku; status periode tidak menyaringnya.",
+    "Satuan hitungnya SLOT JAM, bukan transaksi: satu baris catatan = satu slot pada satu hari, dua puluh empat slot per hari.",
+    "LIMA BLOK mengikuti jalur fisik minyak dan urutannya adalah urutan PROSES — bukan abjad dan bukan urutan kolom di basis data. Kelima blok tetap dirender meskipun seluruh ukurannya kosong, karena blok yang hilang akan dibaca sebagai tahap yang tidak ada.",
+    "Dua belas ukuran menempati blok tetapnya: Fruit Press (kehilangan minyak di sludge %, kehilangan minyak di fibre %), Purifier & Clarification Balance (suhu masuk °C, tekanan balik Bar), Vacuum Drying Station (suhu pengering °C, tekanan vakum Bar), Decanter/Centrifuge (laju umpan MT/jam, kehilangan minyak di cake %), dan Final Storage (ALB %, kadar air %, kadar kotoran %, Indeks DOBI).",
+    "SETIAP ukuran punya penyebutnya SENDIRI — jumlah slot yang ukuran ITU terisi — dan kedua belas penyebut boleh berbeda satu dengan lainnya. Kenyataan itu DINYATAKAN di layar, dan penyebutnya dicetak berdampingan dengan ketiga angkanya.",
+    "Penyebut nol pada satu ukuran TIDAK mengosongkan ukuran lain DAN TIDAK mengosongkan bloknya; ukuran itu sendiri menampilkan '—' untuk ketiga angkanya, bukan 0.",
+    "SATUAN tercetak pada setiap kartu ukuran, dan diambil dari label resmi stasiun ini — bukan dituliskan ulang.",
+    "Indeks DOBI sengaja TANPA satuan — ia satu-satunya dari dua belas yang bukan besaran bersatuan, dan memberinya satuan akan salah.",
+    "Slot dihitung TERISI bila SALAH SATU dari EMPAT BELAS kolom pembacaan terisi: dua belas ukuran numerik ditambah tindakan koreksi teknis dan temuan.",
+    "Giliran kerja dan kode inspektur DIKECUALIKAN dari pemeriksaan keterisian — keduanya kolom identitas, bukan pembacaan — sehingga slot yang hanya mengisi keduanya dihitung KOSONG.",
+    "AKIBAT kedua aturan di atas: jumlah slot terisi dapat MELEBIHI penyebut setiap ukuran numerik, karena slot yang hanya memuat catatan teks tetap terhitung terisi. Kedua angka dicetak BERDAMPINGAN beserta kalimat yang menyatakan hubungannya — selisih yang tak dijelaskan selalu dicurigai sebagai cacat.",
+    "Kode inspektur pada slot yang dihitung KOSONG tetap masuk rekap per-inspektur; kedua hal itu tidak bertentangan karena rekap menghitung ATRIBUSI sementara kelengkapan menghitung PEMBACAAN.",
+    "Rekap per-inspektur menampilkan KODE MENTAH apa adanya, tanpa join dan tanpa pencarian nama — tidak ada master inspektur untuk dicocokkan — dan baris 'tidak tercatat' berdiri sendiri.",
+    "Rekap per-inspektur diurutkan menurut KODE, bukan menurut jumlah slot — supaya ia tidak menjadi peringkat orang dan posisi sebuah kode tidak berpindah antar periode.",
+    "Dua kolom teks diterbitkan sebagai DUA DAFTAR KEJADIAN TERPISAH dan bertanggal, bukan sebagai sebaran kategoris — keduanya teks bebas, dan menyebarnya berarti memperlakukan prosa sebagai enum.",
+    "Stasiun ini TIDAK punya satu pun kolom berpilihan tertutup, sehingga tidak ada rekap berlabel. Ketiadaan itu dinyatakan.",
+    "TIDAK ADA penandaan nilai di luar batas, karena stasiun ini tidak punya master ambang mutu. Dinyatakan beserta sebabnya — sebuah laporan mutu tanpa penandaan terlihat seperti laporan yang lupa membandingkan.",
+    "TIDAK ADA blok henti operasi pada stasiun ini, dan ketiadaannya dinyatakan.",
+    "Catatan pembacaan tidak punya kolom tanggal sendiri — keanggotaan hari datang dari tanggal pada catatan INDUKNYA, sehingga tidak ada tempat untuk 'pembacaan tanpa tanggal'.",
+    "Rekap harian memuat satu baris per hari YANG ADA PEMBACAANNYA saja, beserta baris total periode.",
+    "Kelengkapan diukur atas hari yang SUDAH BERJALAN, bukan atas panjang periode; bila slot yang diharapkan nol, kelengkapan tampil '—' beserta sebabnya dan bukan 0,0%.",
+    "Catatan berstatus draft IKUT terhitung di seluruh angka, dan jumlah slot miliknya dinyatakan.",
+    "Giliran kerja tidak ditampilkan di layar tetapi ADA di berkas ekspor.",
+    "Ekspor adalah rincian mentah: satu baris per slot jam, kolom konteks diulang di setiap baris, dan seluruh enam belas kolom catatan ikut. Tersedia sebagai CSV dan sebagai Excel .xlsx sungguhan dengan isi yang sama persis.",
+    "Seluruh agregasi dihitung di server; tata letak lima blok dan dua belas kartu tetap terbaca tanpa halaman bergeser mendatar, dan tabel rekap panjang menggulir DI DALAM kartunya sendiri."
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Laporan Process Quality Control (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "given": "Supervisor terikat mill A, mill itu punya Production Line dan periode yang mendaftarkan Process Quality Control dengan pembacaan per slot jam terkumpul",
+      "when": "Pengguna membuka layar dari tile stasiun, memilih Production Line, lalu memilih periode",
+      "then": "Kelengkapan pencatatan tampil di atas seluruh angka lain, lima blok berjudul tahapnya tampil dalam urutan proses berisi dua belas kartu ukuran dengan terendah/rata-rata/tertinggi beserta penyebut dan satuan masing-masing, rekap per-inspektur, rekap harian, dan dua daftar kejadian terpisah ikut tampil — tanpa pemilih Mill, dan tanpa satu pun data stasiun berubah"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — berhasil sebagai Admin",
+      "given": "Admin tidak terikat mill mana pun",
+      "when": "Admin memilih mill, lalu Production Line, lalu periode",
+      "then": "Pemilih Mill dirender, daftar periode hanya memuat periode milik mill yang dipilih, dan isi laporannya identik dengan peran terikat mill"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — Production Line belum dipilih menahan seluruh angka",
+      "given": "Mill sudah ditetapkan dan mill itu hanya punya satu Production Line, tetapi line belum dipilih",
+      "when": "Pengguna membuka layar, lalu mengganti periode, lalu menekan aksi coba lagi",
+      "then": "Pada ketiga percobaan tidak ada satu angka pun yang dirender, line TIDAK dipilihkan otomatis meski cuma ada satu, tidak ada angka seluruh mill sebagai penggantinya, dan tombol ekspor tidak tampil — penjagaannya di fungsi pemuatan sehingga ketiga jalur itu terlindung sekaligus"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — Admin mengganti mill",
+      "given": "Admin sudah memilih mill A beserta line dan periode sehingga laporan tampil",
+      "when": "Admin mengganti mill ke mill B",
+      "then": "Pilihan periode dan Production Line dikosongkan, daftar periode dimuat ulang untuk mill B, dan tidak ada laporan mill B yang terisi diam-diam"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — mill belum punya periode yang mencakup stasiun ini",
+      "given": "Mill tidak punya satu pun periode yang mendaftarkan Process Quality Control",
+      "when": "Pengguna membuka pemilih periode",
+      "then": "Pemilih periode kosong dengan kalimat sebabnya dan arahan menghubungi Admin, dan tidak ada angka laporan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — akun belum terhubung ke mill",
+      "given": "Akun Supervisor terikat mill tetapi mill-nya kosong",
+      "when": "Pengguna membuka layar",
+      "then": "Arahan menghubungi Admin terlihat — bukan pesan galat izin — pemilih Mill TIDAK dirender sehingga daftar seluruh mill tidak ditawarkan, dan tidak ada angka laporan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — Operator ditolak di rute web",
+      "given": "Pengguna berperan Station Operator",
+      "when": "Operator membuka rute web laporan Process Quality Control secara langsung",
+      "then": "Akses ditolak dan tidak ada angka laporan yang terlihat, sementara jalur Operator untuk laporan stasiun ini tetap tersedia di layar mobile screen-169"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — mill kiriman diabaikan, bukan ditolak",
+      "given": "Supervisor terikat mill A",
+      "when": "Permintaan laporan dikirim dengan membawa identitas mill B",
+      "then": "Permintaan tetap berhasil dan angka yang tampil milik mill A karena nilai kiriman DIBUANG — bukan ditolak dengan galat izin"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — periode atau line milik mill lain ditolak",
+      "given": "Supervisor terikat mill A",
+      "when": "Permintaan dikirim dengan Production Line milik mill B, lalu dicoba membuka periode milik mill B",
+      "then": "Kedua permintaan ditolak, tidak satu angka pun terhitung, dan tidak ada angka milik mill B yang terlihat"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — lima blok urut proses, bukan abjad",
+      "given": "Periode memuat pembacaan pada kedua belas ukuran",
+      "when": "Pengguna menelusuri halaman dari atas ke bawah",
+      "then": "Blok muncul berurutan Fruit Press, Purifier & Clarification Balance, Vacuum Drying Station, Decanter/Centrifuge, lalu Final Storage — urutan jalur fisik minyak, bukan urutan abjad dan bukan urutan kolom di basis data — dan setiap ukuran berada di blok tahapnya sendiri"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — satu blok seluruh ukurannya kosong tetap dirender",
+      "given": "Periode memuat pembacaan pada empat blok sementara seluruh ukuran blok Vacuum Drying Station kosong",
+      "when": "Pengguna menelusuri kelima blok",
+      "then": "Blok Vacuum Drying Station TETAP dirender dengan '—' pada kedua ukurannya dan tidak hilang dari layar — blok yang hilang akan dibaca sebagai tahap yang tidak ada — dan keempat blok lain tetap berangka"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — satu ukuran tidak pernah diisi sementara sebelas lainnya diisi",
+      "given": "Periode mengisi sebelas ukuran sementara Indeks DOBI kosong sepanjang periode",
+      "when": "Pengguna membuka blok Final Storage",
+      "then": "Indeks DOBI menampilkan '—' untuk ketiga angkanya dengan penyebut nol, ketiga ukuran lain di blok yang sama tetap berangka, dan pemeriksaannya per ukuran — bukan lewat satu penjaga 'ada data atau tidak' yang akan mengosongkan seluruh blok"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — setiap ukuran punya penyebutnya sendiri",
+      "given": "Periode di mana sebagian slot hanya mengisi ukuran Fruit Press, sebagian lain hanya mengisi ukuran Final Storage, dan sisanya mengisi campuran",
+      "when": "Pengguna membandingkan penyebut kedua belas kartu ukuran",
+      "then": "Penyebutnya berbeda-beda antar ukuran dan setiap rata-rata setara rata-rata slot non-kosong ukuran ITU sendiri — tidak ada satu penyebut bersama bagi dua belas ukuran, dan ukuran yang jarang diisi tidak mengempis ke arah nol"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — penyebut nol tampil sebagai garis, bukan nol",
+      "given": "Periode memuat satu ukuran yang tidak pernah diisi",
+      "when": "Pengguna membaca kartu ukuran itu",
+      "then": "Ketiga angkanya tampil '—' dan bukan 0, penyebutnya tampil nol, dan ukuran-ukuran lain di blok yang sama tidak ikut dikosongkan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — satuan tercetak, dan Indeks DOBI sengaja tanpa satuan",
+      "given": "Kedua belas ukuran terisi pada periode itu",
+      "when": "Pengguna membaca setiap kartu ukuran",
+      "then": "Sebelas kartu mencetak satuannya dari label resmi stasiun — persen, derajat Celsius, Bar, dan MT per jam — sementara kartu Indeks DOBI tidak mencantumkan satuan apa pun, karena ia satu-satunya dari dua belas yang bukan besaran bersatuan dan memberinya satuan akan salah"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — slot terisi dihitung atas empat belas kolom pembacaan",
+      "given": "Periode memuat slot yang masing-masing hanya mengisi satu kolom pembacaan berbeda, mencakup kedua belas ukuran numerik dan kedua kolom teks",
+      "when": "Pengguna membaca blok kelengkapan",
+      "then": "Keempat belas slot itu semuanya terhitung terisi, dan layar menyatakan bahwa keterisian dihitung atas empat belas kolom pembacaan — dua belas ukuran numerik ditambah tindakan koreksi teknis dan temuan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — jumlah slot terisi melebihi penyebut setiap ukuran",
+      "given": "Periode memuat sembilan slot yang hanya mengisi tindakan koreksi teknis atau temuan dan tiga slot yang mengisi ukuran numerik",
+      "when": "Pengguna membandingkan jumlah slot terisi dengan penyebut kedua belas kartu ukuran",
+      "then": "Jumlah slot terisi bernilai dua belas sementara penyebut terbesar di antara dua belas ukuran bernilai tiga, kedua angka itu dicetak BERDAMPINGAN, dan kalimat yang menyatakan hubungannya dirender — sebab slot yang hanya memuat catatan teks tetap terhitung terisi tanpa menambah penyebut ukuran numerik mana pun"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — kedua belas penyebut nol sementara slot terisi lebih besar dari nol",
+      "given": "Periode di mana seluruh dua belas ukuran numerik kosong tetapi tujuh slot mengisi catatan teks",
+      "when": "Pengguna membaca blok kelengkapan lalu kelima blok ukuran",
+      "then": "Jumlah slot terisi bernilai tujuh sementara kedua belas penyebut bernilai nol dan kedua belas ukuran menampilkan '—', dan kalimat yang menjelaskan selisih itu tetap dirender — inilah keadaan yang paling jelas memperlihatkan mengapa kedua angka harus dicetak berdampingan, bukan laporan yang gagal dimuat"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — slot yang hanya mengisi giliran kerja dan kode inspektur",
+      "given": "Sebuah slot hanya mengisi giliran kerja dan kode inspektur tanpa satu pun dari keempat belas kolom pembacaan",
+      "when": "Pengguna membaca blok kelengkapan lalu rekap per-inspektur",
+      "then": "Slot itu dihitung KOSONG di blok kelengkapan — kebalikan dari slot yang hanya memuat catatan teks — TETAPI kode inspekturnya TETAP muncul di rekap per-inspektur, dan layar menyatakan bahwa keduanya tidak bertentangan karena rekap menghitung atribusi sementara kelengkapan menghitung pembacaan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — kode inspektur kosong pada sebagian slot",
+      "given": "Dua puluh slot terisi, delapan di antaranya tidak mencatat kode inspektur",
+      "when": "Pengguna membuka rekap per-inspektur",
+      "then": "Satu baris 'tidak tercatat' berdiri sendiri berisi delapan slot itu, baris-baris kode lain menjumlah ke dua belas slot sisanya, dan kedelapan slot itu tidak dibaurkan ke baris kode mana pun"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — dua kode inspektur berbeda hanya pada huruf besar kecil",
+      "given": "Periode memuat kode inspektur 'qc-01' dan 'QC-01'",
+      "when": "Pengguna membuka rekap per-inspektur",
+      "then": "Keduanya tampil sebagai DUA baris terpisah dengan kode mentah apa adanya, tidak digabungkan dan tidak dinormalkan — teks bebas tidak menjamin keduanya orang yang sama, dan tidak ada master inspektur untuk memastikannya"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — rekap per-inspektur urut kode, bukan jumlah slot",
+      "given": "Periode pertama di mana kode 'qc-09' punya slot terbanyak dan periode kedua di mana kode 'qc-02' punya slot terbanyak",
+      "when": "Pengguna membuka rekap per-inspektur pada kedua periode dan membandingkan urutannya",
+      "then": "Urutan barisnya sama pada kedua periode karena diurutkan menurut KODE — bukan menurut jumlah slot — sehingga rekapnya tidak menjadi peringkat orang dan posisi sebuah kode tidak berpindah antar periode"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — dua daftar kejadian terpisah, nol sebaran kategoris",
+      "given": "Periode memuat isi tindakan koreksi teknis dan temuan berupa kalimat-kalimat bebas yang berbeda-beda",
+      "when": "Pengguna membaca kedua daftar kejadian",
+      "then": "Keduanya dirender sebagai dua daftar bertanggal yang TERPISAH dan berjudul sendiri, isinya teks bebas apa adanya per slot, dan tidak ada satu pun elemen sebaran kategoris di layar — menyebarnya berarti memperlakukan prosa sebagai enum"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — isi catatan berulang sama persis tetap dicetak satu per satu",
+      "given": "Isi tindakan koreksi teknis yang sama persis muncul pada lima belas slot",
+      "when": "Pengguna membaca daftar tindakan koreksi teknis",
+      "then": "Kelima belas slot itu dirender sebagai lima belas entri bertanggal, tidak dikelompokkan menjadi satu baris berjumlah lima belas — mengelompokkannya akan membuat kolom teks bebas tampak kategoris padahal bukan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — kedua daftar kejadian kosong",
+      "given": "Periode tidak memuat satu pun tindakan koreksi teknis maupun temuan",
+      "when": "Pengguna menggulir ke kedua daftar",
+      "then": "Keduanya tetap berjudul TERPISAH dan masing-masing menampilkan keterangan tidak ada catatan, bukan satu tabel kosong tanpa penjelasan dan bukan satu daftar gabungan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — nol rekap berlabel karena nol kolom berpilihan tertutup",
+      "given": "Laporan termuat penuh dengan kedua belas ukuran dan kedua daftar kejadian terisi",
+      "when": "Pengguna mencari rekap berlabel atau sebaran jumlah slot per nilai",
+      "then": "Tidak ada satu pun rekap berlabel di layar, dan layar MENYATAKAN bahwa stasiun ini tidak punya satu pun kolom berpilihan tertutup — sehingga ketiadaannya tidak terbaca sebagai bagian yang gagal dimuat"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — tanpa penandaan nilai di luar batas, beserta sebabnya",
+      "given": "Periode memuat ALB 9,8 persen dan suhu pengering 140 derajat Celsius yang jauh dari nominal mutu yang dikenal luas",
+      "when": "Pengguna menelusuri kelima blok",
+      "then": "Kedua nilai tampil apa adanya tanpa satu pun penanda peringatan, pelanggaran, atau di luar batas, dan keterangan ketiadaan penandaan dirender UTUH beserta sebabnya — stasiun ini tidak punya master ambang mutu dan ambang tidak diturunkan dari data periode"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — tanpa blok henti operasi",
+      "given": "Periode memuat pembacaan lengkap",
+      "when": "Pengguna menelusuri halaman dari atas sampai bawah lalu memeriksa header berkas ekspor",
+      "then": "Tidak ada bagian maupun kolom henti operasi di halaman dan di berkas, dan keterangan bahwa stasiun ini tidak mencatat henti operasi terlihat sehingga tidak terbaca sebagai bagian yang gagal dimuat"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — rekap harian hanya memuat hari yang ada pembacaannya",
+      "given": "Periode tiga puluh hari di mana satu hari punya dua puluh empat slot terisi penuh, satu hari lain hanya satu slot, dan dua puluh delapan hari sisanya tanpa pembacaan",
+      "when": "Pengguna membaca rekap harian",
+      "then": "Rekap memuat tepat dua baris hari beserta baris total periode, kedua hari itu tampil apa adanya tanpa diratakan, dan kelengkapan menghitung HARI yang ada pembacaannya — bukan rata-rata slot per hari"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — keanggotaan hari datang dari catatan induk",
+      "given": "Sebuah catatan bertanggal di dalam periode memuat beberapa pembacaan slot jam",
+      "when": "Pengguna membaca rekap harian dan blok kelengkapan",
+      "then": "Seluruh pembacaan itu masuk ke hari milik catatan INDUKNYA karena pembacaan tidak punya kolom tanggal sendiri, dan tidak ada baris maupun golongan 'pembacaan tanpa tanggal' di mana pun"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — periode belum mulai",
+      "given": "Periode terpilih tanggal mulainya masih di masa depan",
+      "when": "Pengguna membaca blok kelengkapan",
+      "then": "Kelengkapan tampil '—' beserta kalimat 'periode belum dimulai', dan teks 0,0% tidak muncul di mana pun"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — periode masih berjalan",
+      "given": "Periode 1 sampai 30 bulan ini sementara hari ini tanggal 10 dan hari-hari yang lewat terisi penuh",
+      "when": "Pengguna membaca blok kelengkapan",
+      "then": "Penyebut kelengkapan berhenti di hari ini sehingga persentasenya tinggi, kalimat yang menyatakan hal itu dirender, dan hari yang belum terjadi tidak menurunkan persentase"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — catatan draft ikut terhitung dan jumlahnya dinyatakan",
+      "given": "Periode memuat enam slot dari catatan berstatus draft dan empat belas slot dari catatan final, dan periodenya sendiri berstatus tertutup",
+      "when": "Pengguna membaca laporan lalu mengunduh ekspor",
+      "then": "Kedua puluh slot ikut terhitung di seluruh angka, jumlah slot draft dinyatakan di layar, penanda status periode tampil, dan ekspor tetap dapat dijalankan — status periode maupun status catatan tidak menyaring laporan"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — ekspor memuat enam belas kolom termasuk kolom identitas",
+      "given": "Periode terisi, Production Line terpilih, dan sebagian slot mengisi giliran kerja serta kode inspektur",
+      "when": "Pengguna mengunduh berkas CSV lalu berkas Excel dan membandingkan header serta barisnya",
+      "then": "Kedua berkas memuat satu baris per slot jam dengan kolom konteks diulang di setiap baris dan seluruh enam belas kolom catatan ikut — termasuk giliran kerja yang tidak diterbitkan di layar dan kode inspektur, sebab pengecualian keduanya dari pemeriksaan keterisian TIDAK berarti keduanya dibuang dari berkas — dan berkas Excel terbuka sebagai .xlsx sungguhan tanpa peringatan format dengan isi sama persis dengan CSV"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — ekspor melampaui batas baris",
+      "given": "Periode yang rincian per slot jamnya melampaui batas baris ekspor",
+      "when": "Pengguna menekan Ekspor CSV lalu Ekspor Excel",
+      "then": "Kedua permintaan ditolak SEBELUM satu byte pun dialirkan, batasnya disebutkan beserta arahan mempersempit periode, dan tidak ada berkas setengah jadi yang terunduh"
+    },
+    {
+      "scenario": "Laporan Process Quality Control (Web) — layar baca saja dan tata letak tidak bergeser mendatar",
+      "given": "Laporan termuat penuh dengan lima blok, dua belas kartu ukuran, rekap per-inspektur puluhan baris, dan rekap harian puluhan baris",
+      "when": "Pengguna menelusuri seluruh bagian, menggulir kedua tabel rekap, lalu menutup halaman dan memeriksa data stasiun",
+      "then": "Kedua tabel menggulir DI DALAM kartunya sendiri sementara halaman tidak pernah bergeser mendatar, kelima blok dan dua belas kartu tetap terbaca dengan kartu bertumpuk bila perlu, tidak ada kontrol tulis yang terlihat, dan jumlah serta isi catatan Process Quality Control tidak berubah"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-168--laporan-process-quality-control-web"
+  ]
+}

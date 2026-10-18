@@ -1,0 +1,149 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-165--laporan-kernel-dispatch-mobile",
+  "name": "Laporan Kernel Dispatch (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Versi mobile dari Laporan Periode Kernel Dispatch — pasangan screen-164, dengan angka yang SAMA PERSIS dan tata letak layar sempit. Satuan hitungnya SATU PENGIRIMAN: satu kendaraan yang berangkat membawa inti ke pembeli. Layar ini membawa dua jenis angka yang harus dibaca bersama — berapa banyak yang terkirim, dan sebaik apa mutunya — karena tonase tinggi dengan kadar air tinggi adalah kabar buruk yang menyamar sebagai kabar baik. Pada layar sempit kedua jenis itu tidak dapat diletakkan berdampingan seperti di web, jadi keduanya menjadi dua kartu yang BERURUTAN dan tidak terpisah oleh bagian lain: mutu menyusul tonase langsung, bukan di bawah empat rekap. Layar ini BACA SAJA, dan Operator memang penggunanya — ia yang berada di jembatan timbang ketika angkanya dipertanyakan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menekan tile Kernel Dispatch pada layar Reporting (screen-141) — satu-satunya pintu masuk",
+    "Kembali ke layar ini dari Back, dengan periode dan Production Line terakhir tetap terpakai"
+  ],
+  "information_displayed": [
+    "Nama periode, rentang tanggalnya, dan penanda statusnya — periode draft maupun tertutup tetap terbaca",
+    "Nama mill yang berlaku; pemilih Mill hanya untuk Admin",
+    "Pemilih Production Line — WAJIB dipilih sebelum satu angka pun muncul",
+    "Jumlah pengiriman pada periode ini, termasuk yang penimbangannya belum selesai",
+    "Total berat bersih inti terkirim dan rata-rata per pengiriman, DENGAN penyebutnya tercetak di kartu yang sama",
+    "Jumlah pengiriman yang penimbangannya BELUM SELESAI, ditonjolkan tersendiri",
+    "EMPAT ukuran mutu dalam satu kartu bertumpuk, masing-masing dengan terendah, rata-rata, tertinggi, DAN PENYEBUTNYA SENDIRI: kadar air inti, kadar kotoran, ALB, dan inti pecah",
+    "Pernyataan bahwa penyebut keempat ukuran mutu dapat BERBEDA SATU DENGAN LAINNYA dan berbeda dari jumlah pengiriman, karena satu pengiriman boleh punya sebagian hasil uji saja",
+    "Rekap menurut pengangkut/kontraktor — dapat dilipat",
+    "Rekap menurut silo sumber — dapat dilipat",
+    "Rekap menurut pembeli tujuan — dapat dilipat",
+    "Rekap status pelepasan gerbang, menampilkan LABEL-nya bukan kodenya",
+    "Jumlah pengiriman berstatus TIDAK DILEPAS, ditonjolkan tersendiri di luar rekapnya",
+    "Pada keempat rekap: satu baris 'tidak tercatat' tersendiri, sehingga penjumlahan tiap rekap tetap sama dengan jumlah pengiriman",
+    "Tiga penghitung kepatuhan terpisah: tanpa nomor surat jalan, tanpa segel atas, tanpa segel bawah",
+    "Pernyataan bahwa segel atas dan bawah dihitung terpisah dan tidak pernah dijumlahkan",
+    "Rekap harian: satu baris per hari YANG ADA PENGIRIMANNYA, beserta baris total periode — dapat dilipat",
+    "Kelengkapan pencatatan diukur dalam HARI",
+    "Jumlah pengiriman milik catatan berstatus draft — ikut terhitung, dan jumlahnya dinyatakan",
+    "Daftar temuan bertanggal — satu daftar, bukan dua",
+    "Pernyataan bahwa SEBARAN PER JAM dan WAKTU PUTAR KENDARAAN tidak dapat dibuat untuk stasiun ini, beserta sebabnya",
+    "Pernyataan bahwa tidak ada penandaan nilai mutu di luar batas, beserta sebabnya",
+    "Pernyataan bahwa kolom giliran kerja tidak ditampilkan di layar tetapi ada di berkas ekspor"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih periode pelaporan",
+      "description": "Daftar periode hanya memuat periode yang mendaftarkan stasiun Kernel Dispatch pada mill yang berlaku; status periode tidak menyaringnya.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Wajib. Sebelum ini dipilih, layar tidak menampilkan satu angka pun dan menyatakan apa yang ditunggunya. Tidak ada opsi 'semua line'.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Hanya Admin.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Unduh ekspor",
+      "description": "Rincian mentah: satu baris per pengiriman, kolom konteks diulang, dan seluruh kolom catatan ikut — termasuk lima kolom yang tidak muncul di satu angka pun di layar: nomor tiket timbang, nomor surat jalan, nomor kendaraan, nama pengemudi, dan kode operator timbang.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka dan tutup bagian rekap",
+      "description": "Keempat rekap dan rekap harian dapat dilipat, supaya layar sempit tetap dapat ditelusuri. Kartu tonase dan kartu mutu TIDAK dapat dilipat — keduanya angka utama layar ini dan harus terlihat tanpa tindakan.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Angka layar ini WAJIB sama persis dengan screen-164 untuk periode dan line yang sama — ia membaca sumber yang sama, bukan menghitung ulang.",
+    "Kartu tonase dan kartu mutu berurutan dan tidak dapat dilipat; keduanya harus terlihat tanpa tindakan pengguna. Rekap boleh dilipat, angka utama tidak.",
+    "SETIAP ukuran mutu punya penyebutnya SENDIRI, dan keempatnya boleh berbeda satu dengan lainnya. Kenyataan itu DINYATAKAN di layar.",
+    "Penyebut nol pada satu ukuran mutu tidak mengosongkan ukuran yang lain.",
+    "Nol pengukuran pada sebuah ukuran mutu menghasilkan '—' untuk ketiga angkanya, bukan 0,00.",
+    "Production Line WAJIB dipilih; tidak ada 'semua line'; tidak pernah dipilihkan meski mill hanya punya satu.",
+    "Mill diturunkan dari akun bagi Supervisor, Mill Management dan Operator; hanya Admin memilih.",
+    "Line yang diingat perangkat dipakai tanpa diminta memilih lagi, tetapi tetap dapat diganti.",
+    "Laporan tidak menyaring status periode.",
+    "Satu baris catatan pengiriman = satu pengiriman.",
+    "Total dan rata-rata berat dihitung hanya atas pengiriman yang beratnya terisi, dan penyebut itu diterbitkan.",
+    "Berat bersih dibaca APA ADANYA; layar tidak pernah menghitungnya ulang dari bruto dikurangi tara.",
+    "Ketiga rekap teks menampilkan nilai apa adanya tanpa penerjemahan; silo sumber adalah TEKS meskipun namanya berakhiran '_id'.",
+    "Rekap status pelepasan gerbang menampilkan LABEL, dan label itu diambil dari kosakata bersama aplikasi — bukan dituliskan ulang di layar ini.",
+    "Nilai status pelepasan gerbang yang tidak dikenal kosakata bersama ditampilkan APA ADANYA: tidak dibuang, tidak dipaksa masuk salah satu pilihan, dan tidak dilipat ke baris 'tidak tercatat' — karena ia tercatat, hanya tidak dikenal.",
+    "'Tidak tercatat' TIDAK dihitung sebagai 'tidak dilepas'. Menggabungkannya akan menuduh.",
+    "Segel atas dan segel bawah dihitung terpisah dan tidak pernah dijumlahkan.",
+    "Setiap rekap punya baris 'tidak tercatat' tersendiri, dan penjumlahan baris tiap rekap wajib sama dengan jumlah pengiriman.",
+    "Urutan baris milik server; layar tidak mengurutkan ulang.",
+    "Catatan berstatus draft IKUT terhitung, dan jumlahnya dinyatakan.",
+    "Rekap harian memuat satu baris per hari yang ada pengirimannya saja.",
+    "Kelengkapan diukur atas hari yang sudah berjalan.",
+    "Ketiadaan sebuah bagian DINYATAKAN di layar beserta sebabnya.",
+    "Giliran kerja tidak ditampilkan di layar tetapi ada di ekspor.",
+    "Layar ini baca saja: nol kontrol tulis.",
+    "Luring MENUTUP angkanya: layar menyatakan memerlukan jaringan dan TIDAK menampilkan satu angka pun dari pemuatan sebelumnya."
+  ],
+  "usecase_ids": [
+    "usecase-171--laporan-kernel-dispatch-mobile"
+  ],
+  "edge_cases": [
+    "Line terpilih tidak punya satu pengiriman pun — kerangka laporan tetap tampil dengan keadaan kosong yang menyebut periode dan line.",
+    "Seluruh pengiriman belum selesai ditimbang — kedua angka berat '—'; ukuran mutu TIDAK terpengaruh, karena mutu dan berat adalah kolom yang berbeda.",
+    "Satu ukuran mutu tidak punya satu hasil uji pun sementara tiga lainnya punya — ukuran itu '—', ketiga lainnya tetap berangka.",
+    "Keempat ukuran mutu kosong tetapi tonasenya ada — kartu mutu menyatakan belum ada hasil uji; kartu tonase tetap berangka.",
+    "Status pelepasan gerbang kosong pada sebagian pengiriman — baris 'tidak tercatat' di rekapnya, dan TIDAK dihitung sebagai tidak dilepas.",
+    "Status pelepasan gerbang berisi nilai yang tidak dikenal — barisnya sendiri dengan nilainya apa adanya.",
+    "Satu pengiriman kehilangan KEDUA nomor segel — terhitung di kedua penghitung; itu dua fakta, bukan penghitungan ganda.",
+    "Periode belum mulai / masih berjalan — kelengkapan '—' dengan kalimat sebabnya, atau penyebut berhenti di hari ini.",
+    "Mill belum punya periode yang mencakup stasiun ini — pemilih periode kosong dengan kalimat sebabnya.",
+    "Admin belum memilih mill — arahan memilih mill tampil.",
+    "Akun belum terhubung ke mill — arahan menghubungi Admin, bukan galat jaringan.",
+    "Line milik mill lain dipaksa lewat jalur apa pun — layar meminta memilih line, dan tidak pernah menampilkan angka mill lain.",
+    "Sesi berakhir saat layar terbuka — diarahkan ke Login tanpa pesan galat jaringan.",
+    "Perangkat luring — layar menyatakannya dan menutup angkanya; nol permintaan dikirim.",
+    "Perangkat menjadi luring sesudah angka termuat — angka ditutup, bukan dibiarkan basi tanpa penanda.",
+    "Penyimpanan perangkat tidak dapat dibaca (mode privat) — layar tetap tampil dan meminta memilih line, tanpa elemen galat.",
+    "Ekspor ditekan dua kali cepat — satu unduhan, satu permintaan.",
+    "Kartu mutu pada layar sempit — keempat ukuran bertumpuk, dan tiga angkanya (terendah/rata-rata/tertinggi) beserta penyebutnya tetap terbaca tanpa halaman bergeser mendatar.",
+    "Rekap sangat panjang — tabel menggulir mendatar DI DALAM kartunya; halaman tidak pernah bergeser."
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

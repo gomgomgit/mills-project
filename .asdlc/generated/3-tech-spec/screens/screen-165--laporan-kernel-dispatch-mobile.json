@@ -1,0 +1,2035 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-165--laporan-kernel-dispatch-mobile",
+  "name": "Laporan Kernel Dispatch (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports/kernel-dispatch (router mobile, nama rute `report-kernel-dispatch`, meta.public false)",
+  "auth_requirement": "authenticated — token Sanctum perangkat. Aktor: Station Operator, Supervisor, Mill Management, Admin. Tidak ada penjagaan berbasis peran di router mobile — ia hanya punya satu penjaga global `meta.public`; pembatasan peran yang sebenarnya ada di server pada ketiga rute data.",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; pemilih Mill tidak dirender untuknya. Ia PENGGUNA layar ini, dan servernya sudah menerimanya sejak commit pertama screen-164."
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat mill; satu-satunya peran yang melihat pemilih Mill"
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "kernel-dispatch-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "kernel-dispatch-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "usecase_name": "Lihat Laporan Periode Kernel Dispatch (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/kernel-dispatch-reports/business-units/options",
+          "description": "DIPAKAI ULANG APA ADANYA dari screen-164 — nol endpoint baru di layar ini. ADMIN SAJA; 403 untuk ketiga peran lain, ditegakkan di dalam service. Layar hanya memanggilnya ketika peran pengguna admin.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan admin"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku — layar mengarahkan ke Login"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-dispatch-reports/periods",
+          "description": "DIPAKAI ULANG APA ADANYA. business_unit_id dikirim HANYA ketika peran pengguna admin — bagi peran terikat mill ia DIABAIKAN server, jadi mengirimnya tidak berguna dan tidak boleh.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya untuk admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tanpa business_unit_id, atau akun terikat mill ber-business_unit_id NULL — layar menampilkan arahan menghubungi Admin, BUKAN galat jaringan"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-dispatch-reports/summary",
+          "description": "DIPAKAI ULANG APA ADANYA — sumber SELURUH angka layar ini, dan alasan angka mobile wajib sama persis dengan web: keduanya membaca satu endpoint yang sama. Payload HIBRIDA: blok `dispatches` (transaksi) + blok `quality` (empat ukuran min/avg/max dengan penyebut MASING-MASING) + empat rekap + tiga penghitung kepatuhan.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB — selama kosong, layar TIDAK memanggil endpoint ini sama sekali"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Hanya untuk admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string"
+              },
+              "dispatches": {
+                "dispatch_count": "integer",
+                "net_weight_total": "float|null",
+                "net_weight_avg": "float|null",
+                "net_weight_dispatch_count": "integer — PENYEBUT, dicetak di kartu yang sama",
+                "missing_net_weight_dispatch_count": "integer — penimbangan belum selesai; kartu tersendiri"
+              },
+              "quality": {
+                "kernel_moisture_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer — PENYEBUT UKURAN INI SENDIRI"
+                },
+                "dirt_impurities_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "ffa_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "broken_kernel_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "measured_count": "integer"
+                },
+                "_note": "string — prosa yang menyatakan keempat measured_count boleh BERBEDA satu dengan lainnya dan berbeda dari dispatch_count. Dirender UTUH."
+              },
+              "by_transporter": [
+                {
+                  "value": "string|null",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_silo_source": [
+                {
+                  "value": "string|null — TEKS, bukan rujukan master",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_destination_buyer": [
+                {
+                  "value": "string|null",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "by_gate_status": [
+                {
+                  "value": "string|null — KODE MENTAH; label diturunkan DI KLIEN, lihat business_logic",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "not_released_count": "integer — HANYA value === 'not_released'; TIDAK termasuk null",
+              "compliance": {
+                "missing_waybill_count": "integer",
+                "missing_seal_top_count": "integer",
+                "missing_seal_bottom_count": "integer",
+                "_note": "string — dirender UTUH"
+              },
+              "draft_dispatch_count": "integer",
+              "undated_dispatch_count": "integer — selalu 0 dalam praktik; dirender HANYA ketika > 0",
+              "daily": [
+                {
+                  "date": "date",
+                  "dispatch_count": "integer",
+                  "net_weight_total": "float|null",
+                  "net_weight_dispatch_count": "integer",
+                  "net_weight_avg": "float|null"
+                }
+              ],
+              "daily_total": {
+                "dispatch_count": "integer",
+                "net_weight_total": "float|null",
+                "net_weight_dispatch_count": "integer",
+                "net_weight_avg": "float|null"
+              },
+              "completeness": {
+                "days_in_period": "integer",
+                "days_with_dispatch": "integer",
+                "days_counted": "integer",
+                "percent": "number|null"
+              },
+              "text_entries": {
+                "findings": [
+                  {
+                    "date": "date",
+                    "value": "string"
+                  }
+                ]
+              },
+              "_note_no_hourly": "string — dirender UTUH; menyebut bahwa di CPO Dispatch sebaran jam dan waktu putar justru ADA",
+              "_note_no_quality_thresholds": "string — dirender UTUH",
+              "_note_shift_not_published": "string — dirender UTUH"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain — layar meminta memilih line lagi, BUKAN menampilkan galat jaringan, dan angka yang sudah ada DIBERSIHKAN"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi berakhir — arahkan ke Login"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-dispatch-reports/export",
+          "description": "DIPAKAI ULANG APA ADANYA. Satu baris per pengiriman, dua puluh satu kolom detail termasuk `shift`, weighbridge_ticket_no, waybill_number, vehicle_plate_no, driver_name dan weighbridge_operator_id — lima yang terakhir tidak muncul di satu angka pun di layar. Perangkat mengunduhnya lewat jalur unduhan biasa; `format=csv` saja.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "Layar mobile mengirim 'csv' saja"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_": "Aliran CSV, bukan JSON."
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen atau batas baris terlampaui"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode atau line milik mill lain"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "NOL BERKAS BACKEND DISENTUH. Keempat endpoint sudah ada dari screen-164, dan Operator sudah diterima di ketiga rute data SEJAK COMMIT PERTAMA layar itu — supaya layar ini tidak perlu melebarkan izin apa pun. Pola yang sama sudah terbukti tiga kali: screen-158/159, screen-160/161, screen-162/163. Tidak ada integration test di sini, bukan karena dilewatkan melainkan karena tidak ada kontrak baru.",
+        "ANGKA MOBILE = ANGKA WEB, DAN YANG MENJAMINNYA BENTUK BUKAN DISIPLIN: layar ini TIDAK PERNAH menghitung satu agregat pun. Tidak ada penjumlahan, tidak ada rata-rata, tidak ada min/max, tidak ada pembulatan ulang di klien. Ia membaca `/summary` dan MEMILIH field. Setiap kali klien menghitung sendiri, ia menjadi rumus KEDUA yang dapat menyimpang tanpa ada yang membandingkannya — dan pada layar ini bahaya itu lebih besar daripada di mana pun, karena min/avg/max tampak mudah dihitung ulang.",
+        "KARTU TONASE DAN KARTU MUTU BERURUTAN, TIDAK TERPISAH BAGIAN LAIN, DAN KEDUANYA TIDAK DAPAT DILIPAT. Di web keduanya berdampingan; pada lebar ponsel itu tidak mungkin, jadi yang dipertahankan adalah MAKSUDNYA: tonase tinggi dengan kadar air tinggi adalah kabar buruk yang menyamar sebagai kabar baik, sehingga keduanya harus terbaca dalam satu tarikan tanpa tindakan pengguna. Rekap boleh dilipat; angka utama tidak.",
+        "KEEMPAT UKURAN MUTU DIRENDER DENGAN PENYEBUTNYA MASING-MASING, dan `quality._note` DIRENDER UTUH. Penyebut yang berbeda-beda akan terlihat seperti data hilang bagi pembaca yang tidak diberi tahu — dan di layar sempit, tempat keempat ukuran bertumpuk berdekatan, perbedaan itu justru LEBIH mencolok daripada di web.",
+        "PENJAGA '—' DIPERIKSA PER UKURAN, bukan sekali untuk seluruh kartu mutu. Bila `measured_count` sebuah ukuran 0, ketiga angkanya menjadi '—' sementara ketiga ukuran lain tetap berangka. Satu penjaga 'ada data mutu atau tidak' akan mengosongkan keempatnya sekaligus — kesalahan yang sama yang diperingatkan di screen-164, dan di klien ia bahkan lebih mudah dibuat karena satu `v-if` di tingkat kartu terasa rapi.",
+        "LABEL STATUS GERBANG DITURUNKAN DI KLIEN DARI SATU TABEL PEMETAAN TUNGGAL yang menyalin `Display::OPTION_LABELS` untuk kedua nilai itu ('released' → 'Released', 'not_released' → 'Not Released'). Payload membawa KODE MENTAH, jadi klien harus memetakannya. INI SATU-SATUNYA PEMETAAN YANG DIIZINKAN DI LAYAR INI, dan ia ditulis SEKALI sebagai konstanta — bukan disebar sebagai ekspresi inline di template. Nilai yang TIDAK ADA di tabel itu dirender APA ADANYA, persis seperti `Display::option()` jatuh ke nilai mentah di server.",
+        "DAN NILAI TAK DIKENAL TIDAK DIBUANG, TIDAK DIPAKSA MASUK PILIHAN, DAN TIDAK DILIPAT KE BARIS 'tidak tercatat' — karena ia TERCATAT, hanya tidak dikenal. Penjumlahan `dispatch_count` rekap itu harus tetap sama dengan `dispatch_count` di atasnya; sebuah klien yang 'merapikan' dengan membuang nilai tak dikenal akan menghilangkan baris dan memecah penjumlahan itu.",
+        "'TIDAK TERCATAT' BUKAN 'TIDAK DILEPAS'. `not_released_count` datang dari server dan klien HANYA MENAMPILKANNYA — jangan menghitungnya ulang dari rekap, karena itu cara paling mudah memasukkan baris null ke dalamnya secara tidak sengaja.",
+        "URUTAN BARIS MILIK SERVER; klien TIDAK mengurutkan ulang satu baris pun. Server sudah mengurutkan netto DESC → jumlah DESC → nilai ASC, dan konsekuensi yang disengaja ('tidak tercatat' bertonase besar muncul DI ATAS) akan hilang bila klien ikut mengurutkan.",
+        "URUTAN BOOTSTRAP: baca sesi → bila luring, BERHENTI sebelum permintaan pertama → bila admin, ambil opsi mill → ambil daftar periode → ambil opsi production line → pakai line yang diingat perangkat bila ada dan sah → HANYA bila periode DAN line keduanya terisi, ambil `/summary`. Penjagaan terakhir ada di SATU fungsi pemuat, bukan disebar di pemanggilnya, supaya jalur 'ganti periode' dan 'Coba Lagi' tidak dapat melewatinya.",
+        "LINE YANG DIINGAT PERANGKAT dibaca dari kunci penyimpanan yang SAMA dengan yang ditulis layar daftar stasiun — kunci itu memuat id pengguna, sehingga dua akun di satu perangkat tidak saling mewarisi pilihan. Nilai yang tidak lagi sah DIBUANG dan layar meminta memilih, bukan dipakai diam-diam.",
+        "PENYIMPANAN PERANGKAT DIBACA DI DALAM try/catch — di mode privat sebagian peramban MELEMPAR, bukan mengembalikan null. Layar tetap merender dan meminta memilih line, tanpa satu elemen galat pun.",
+        "LURING MENUTUP ANGKANYA: ketika `navigator.onLine === false`, bootstrap kembali SEBELUM permintaan pertama dan layar merender pernyataan 'memerlukan jaringan' beserta kalimat bahwa ia tidak menampilkan satu angka pun dari pemuatan sebelumnya. Nol kartu tonase, nol kartu mutu, nol rekap. Layar juga mendengarkan event `online`/`offline`, dan listener itu WAJIB dilepas saat unmount.",
+        "`undated_dispatch_count` DIRENDER HANYA KETIKA > 0 — kolom tanggal kejadian NOT NULL di database, jadi angkanya selalu 0 dalam praktik.",
+        "KETIGA PROSA `_note_*` DAN `compliance._note` SERTA `quality._note` DIRENDER UTUH, tidak diringkas dan tidak dipotong — kalimat-kalimat itu disusun SERVER supaya penjelasan yang sama muncul di web dan mobile.",
+        "NILAI null PADA ANGKA DICETAK '—', BUKAN 0, diperiksa PER FIELD — bukan lewat default `?? 0` di satu tempat, yang akan mengubah 'tidak diketahui' menjadi 'nol' di seluruh layar sekaligus.",
+        "TATA LETAK LAYAR SEMPIT: kartu angka BERTUMPUK satu kolom; keempat ukuran mutu bertumpuk DI DALAM satu kartu dengan tiga angka dan penyebutnya tetap terbaca; keempat rekap dan rekap harian menjadi kartu yang DAPAT DILIPAT; tabel lebar menggulir mendatar DI DALAM kartunya. Halaman itu sendiri TIDAK BOLEH bergeser mendatar — dan itu DIUKUR, bukan dilihat.",
+        "EKSPOR: hanya CSV. Tombol dinonaktifkan selama permintaan berjalan supaya ketukan ganda mengirim SATU permintaan.",
+        "PEMETAAN GALAT KE KEADAAN LAYAR, tiap galat punya keadaannya sendiri: 401 → arahkan ke Login tanpa pesan jaringan; 403 → minta pilih line lagi dan BERSIHKAN angka yang sudah ada; 422 akun tanpa mill → arahan menghubungi Admin; galat lain → keadaan galat dengan Coba Lagi. Menyeragamkannya menjadi satu 'galat jaringan' akan mengirim pengguna mencari masalah di tempat yang salah.",
+        "PINTU MASUK: satu entri pada REPORT_ROUTES di ReportingPilihStasiunView.vue, DI-APPEND. Map itu TIDAK urut sort_order dan TIDAK punya asersi urutan, jadi append aman — berbeda dari REPORT_ROUTES di backend, yang urutannya load-bearing."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "kernel-dispatch-detail",
+          "operation": "SELECT",
+          "description": "Tidak langsung — lewat endpoint /summary dan /export milik screen-164. Layar ini tidak punya akses basis data."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Perangkat luring saat layar dibuka",
+          "handling": "Bootstrap berhenti sebelum permintaan pertama; pernyataan 'memerlukan jaringan' + kalimat nol-angka-lama; nol kartu tonase DAN nol kartu mutu di DOM; nol permintaan terkirim (DIHITUNG, bukan diasumsikan)."
+        },
+        {
+          "condition": "Perangkat menjadi luring SESUDAH angka termuat",
+          "handling": "Event `offline` menutup angkanya. Diuji dengan memalsukan `navigator.onLine` dan memicu event — BUKAN dengan `context.setOffline()` lalu `page.reload()`, yang memutus pengambilan dokumen aplikasinya sendiri dari Vite sehingga yang teruji bukan layar ini."
+        },
+        {
+          "condition": "Production Line belum dipilih",
+          "handling": "Nol angka, nol tombol ekspor, kalimat yang menyatakan apa yang ditunggu. `/summary` TIDAK dipanggil — dihitung TEPAT 0, juga sesudah ganti periode dan juga pada jalur Coba Lagi. Tiga jalur, tiga test."
+        },
+        {
+          "condition": "Mill hanya punya SATU production line",
+          "handling": "Tetap TIDAK dipilihkan."
+        },
+        {
+          "condition": "Line yang diingat perangkat sudah tidak sah",
+          "handling": "Dibuang; layar meminta memilih."
+        },
+        {
+          "condition": "Penyimpanan perangkat melempar saat dibaca (mode privat)",
+          "handling": "Ditangkap; layar tetap merender; nol elemen galat. Spy WAJIB pada `Storage.prototype`, bukan pada instance `window.localStorage` — di jsdom instance-nya dibungkus Proxy sehingga spy instance menerima NOL panggilan dan test-nya hijau tanpa menguji apa pun."
+        },
+        {
+          "condition": "Satu ukuran mutu tidak punya hasil uji sementara tiga lainnya punya",
+          "handling": "Ukuran ITU '—' dengan measured_count 0; ketiga lainnya TETAP berangka. Diperiksa per ukuran."
+        },
+        {
+          "condition": "Keempat ukuran mutu kosong tetapi tonasenya ada",
+          "handling": "Kartu mutu menyatakan belum ada hasil uji; kartu tonase tetap berangka. Keduanya independen, dan KEDUANYA tetap dirender."
+        },
+        {
+          "condition": "Seluruh pengiriman belum selesai ditimbang",
+          "handling": "Kedua angka berat '—'; ukuran mutu TIDAK terpengaruh — mutu dan berat adalah kolom yang berbeda."
+        },
+        {
+          "condition": "Status pelepasan gerbang kosong pada sebagian pengiriman",
+          "handling": "Baris 'tidak tercatat' di rekapnya, dan TIDAK ikut `not_released_count` — yang datang dari server dan hanya ditampilkan."
+        },
+        {
+          "condition": "Status pelepasan gerbang berisi nilai yang tidak ada di tabel pemetaan klien",
+          "handling": "Barisnya sendiri dengan nilainya APA ADANYA; tidak dibuang, tidak dipaksa masuk pilihan, tidak dilipat ke baris null. Penjumlahan rekap tetap sama dengan dispatch_count."
+        },
+        {
+          "condition": "Satu pengiriman kehilangan KEDUA nomor segel",
+          "handling": "Terhitung di kedua penghitung — dua fakta, bukan penghitungan ganda. Klien hanya menampilkan kedua angka itu."
+        },
+        {
+          "condition": "Admin belum memilih mill",
+          "handling": "Arahan memilih mill; nol angka."
+        },
+        {
+          "condition": "Akun terikat mill ber-business_unit_id NULL (422)",
+          "handling": "Arahan menghubungi Admin — bukan galat jaringan dan bukan permintaan hak akses."
+        },
+        {
+          "condition": "Periode atau line milik mill lain (403)",
+          "handling": "Minta pilih line lagi; angka yang sudah ada DIBERSIHKAN; angka mill lain tidak pernah terender."
+        },
+        {
+          "condition": "Sesi berakhir (401)",
+          "handling": "Arahkan ke Login tanpa pesan jaringan."
+        },
+        {
+          "condition": "`/summary` gagal sekali lalu berhasil",
+          "handling": "Keadaan galat + Coba Lagi; jumlah permintaan DIHITUNG supaya 'coba lagi' tidak diam-diam memanggil dua kali."
+        },
+        {
+          "condition": "Nol pengiriman pada line terpilih",
+          "handling": "Kerangka laporan penuh dengan keadaan kosong yang menyebut periode dan line."
+        },
+        {
+          "condition": "Periode belum mulai / masih berjalan",
+          "handling": "Kelengkapan '—' dengan kalimat sebabnya, atau penyebut berhenti di hari ini. Keduanya datang dari server."
+        },
+        {
+          "condition": "Kartu mutu pada lebar 390px",
+          "handling": "Keempat ukuran bertumpuk; tiga angka dan penyebutnya tetap terbaca; kartu tidak memotong isinya dan halaman tidak bergeser mendatar. DIUKUR: scrollWidth halaman dibanding clientWidth, dan geometri kartu dibanding isinya — bukan diasersikan lewat nama kelas."
+        },
+        {
+          "condition": "Rekap atau rekap harian sangat panjang",
+          "handling": "Gulir mendatar DI DALAM kartunya; halaman tidak bergeser. Dan angka utama TETAP TERBUKA — melipat rekap tidak boleh ikut melipat kartu tonase atau kartu mutu."
+        },
+        {
+          "condition": "Ekspor ditekan dua kali cepat",
+          "handling": "Tombol dinonaktifkan selama permintaan; satu unduhan, satu permintaan. Ketukan kedua dikirim dengan force supaya yang teruji penjagaan APLIKASI, bukan penjagaan alat uji."
+        }
+      ],
+      "business_rules_applied": [
+        "Angka mobile = angka web, dijamin oleh bentuk: klien tidak menghitung agregat apa pun",
+        "Kartu tonase dan kartu mutu berurutan dan tidak dapat dilipat",
+        "Setiap ukuran mutu punya penyebutnya sendiri; penjaga '—' per ukuran",
+        "Label status dari satu tabel pemetaan tunggal; nilai tak dikenal apa adanya",
+        "'Tidak tercatat' bukan 'tidak dilepas'; not_released_count hanya ditampilkan, tidak dihitung ulang",
+        "Urutan baris milik server; klien tidak mengurutkan ulang",
+        "Prosa penjelas server dirender utuh",
+        "null dicetak '—' per field",
+        "Luring menutup angkanya",
+        "Production Line wajib; tidak pernah dipilihkan",
+        "Segel atas dan bawah tidak pernah dijumlahkan",
+        "Layar baca saja; halaman tidak pernah bergeser mendatar"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "repo memanggil TEPAT kelima jalur yang sudah ada, nol endpoint baru",
+          "given": "api-client mobile di-mock; fetchBusinessUnits(), fetchPeriods(), fetchLines(), fetchSummary(), buildExportUrl() dipanggil masing-masing satu kali dengan peran admin",
+          "expect": "daftar URL yang terkumpul TEPAT '/api/kernel-dispatch-reports/business-units/options', '/api/kernel-dispatch-reports/periods', '/api/kernel-dispatch-reports/summary', '/api/kernel-dispatch-reports/export' ditambah '/api/production-lines/options-for-report' yang dipakai ulang VERBATIM (pola yang sama dengan solidWasteDisposalReportRepo.ts LINES_PATH) — assert atas DAFTAR URL yang terkumpul; tidak ada URL keenam, tidak ada path ber-prefix lain, dan nol berkas backend disentuh"
+        },
+        {
+          "description": "business_unit_id dikirim HANYA untuk admin — diasersikan atas QUERY STRING pada kedua arah",
+          "given": "fetchPeriods() dan fetchSummary() dipanggil untuk keempat peran; setiap URL yang terkumpul diparse dengan URLSearchParams",
+          "expect": "untuk operator, supervisor dan mill-management: searchParams.has('business_unit_id') === false pada KEDUA jalur — bukan string kosong, bukan 'null', bukan 'undefined'. Untuk admin: searchParams.get('business_unit_id') sama PENUH (toBe) dengan id mill terpilih. Asersi atas query string yang DIPARSE, bukan atas substring URL, karena substring akan cocok pada nama parameter lain yang memuatnya"
+        },
+        {
+          "description": "pemilih Mill hanya untuk Admin, dan /business-units/options nol kali untuk ketiga peran lain",
+          "given": "mount empat kali: operator, supervisor, mill-management, admin",
+          "expect": "[data-testid='mill-select'] toHaveCount(0) pada ketiga peran terikat mill dan toHaveCount(1) untuk admin; penghitung permintaan ke '/api/kernel-dispatch-reports/business-units/options' TEPAT 0 untuk ketiga peran itu dan TEPAT 1 untuk admin"
+        },
+        {
+          "description": "layar baca saja: nol permintaan bermetode tulis",
+          "given": "seluruh jalur dijalankan dalam satu test: muat awal, ganti periode, ganti line, lipat dan buka keempat rekap serta rekap harian, tekan ekspor",
+          "expect": "penghitung permintaan bermetode POST/PUT/PATCH/DELETE TEPAT 0; nol kontrol tulis di DOM (nol <form>, nol <input> selain pemilih, nol tombol simpan)"
+        },
+        {
+          "description": "line belum dipilih pada MUAT AWAL menahan /summary — dihitung tepat 0",
+          "given": "mount tanpa line terpilih dan tanpa ingatan perangkat; daftar periode tersedia dan periode pertama terpilih",
+          "expect": "penghitung '/api/kernel-dispatch-reports/summary' TEPAT 0; [data-testid='production-line-required-hint'] hadir dan menyatakan apa yang ditunggu; [data-testid='kd-card-tonnage'] dan [data-testid='kd-card-quality'] keduanya toHaveCount(0)"
+        },
+        {
+          "description": "line belum dipilih pada jalur GANTI PERIODE menahan /summary — dihitung tepat 0",
+          "given": "mount tanpa line terpilih; pemilih periode diganti tiga kali ke periode yang berbeda",
+          "expect": "penghitung /summary tetap TEPAT 0 sesudah ketiga penggantian; ganti periode adalah pemanggil KEDUA dari fungsi pemuat yang sama, jadi jalur ini diuji terpisah dari muat awal"
+        },
+        {
+          "description": "line belum dipilih pada jalur COBA LAGI menahan /summary — dihitung tepat 0",
+          "given": "mount tanpa line terpilih; keadaan galat dipaksa pada daftar periode sehingga [data-testid='retry-button'] dirender; tombol itu ditekan tiga kali",
+          "expect": "penghitung /summary tetap TEPAT 0 sesudah ketiga ketukan; Coba Lagi adalah pemanggil KETIGA dari fungsi pemuat yang sama"
+        },
+        {
+          "description": "penjagaan line ada di SATU fungsi pemuat, bukan disebar di pemanggilnya",
+          "given": "satu test menjalankan KETIGA jalur berurutan tanpa line terpilih: muat awal, ganti periode tiga kali, lalu Coba Lagi tiga kali",
+          "expect": "penghitung /summary TEPAT 0 sesudah ketujuh tindakan. Yang diuji di sini BUKAN ketiga jalur secara terpisah melainkan bahwa penjagaannya tunggal: penjagaan yang disebar di pemanggil akan meloloskan satu jalur yang terlewat dan angka ini menjadi > 0"
+        },
+        {
+          "description": "kunci penyimpanan perangkat sama PENUH dengan yang ditulis layar daftar stasiun",
+          "given": "vi.spyOn(Storage.prototype, 'getItem'); authStore.currentUser.id = 'user-1'; mount",
+          "expect": "kunci yang diminta sama PENUH (toBe) dengan 'msl_production_line_user-1' — kunci yang SAMA PERSIS yang ditulis StationListView.vue dan sudah dibaca ReportingPilihStasiunView.vue. BUKAN toContain dan BUKAN regex: kunci berprefiks lain akan terkompilasi, terlihat benar, dan tidak pernah cocok"
+        },
+        {
+          "description": "line yang diingat perangkat dipakai tanpa diminta memilih, DAN terbawa ke query /summary",
+          "given": "localStorage memuat 'msl_production_line_user-1' = 'pl-7'; pl-7 ADA di daftar line yang dipulangkan server; periode terpilih",
+          "expect": "searchParams.get('production_line_id') pada permintaan /summary sama PENUH dengan 'pl-7'; [data-testid='production-line-required-hint'] toHaveCount(0); pemilih line TETAP dirender dan nilainya 'pl-7' — dipakai tanpa diminta memilih bukan berarti tidak dapat diganti"
+        },
+        {
+          "description": "line yang diingat sudah tidak sah DIBUANG, bukan dipakai diam-diam",
+          "given": "ingatan berisi 'pl-lama' yang TIDAK ada di daftar line yang dipulangkan server",
+          "expect": "penghitung /summary TEPAT 0; layar meminta memilih line lewat [data-testid='production-line-required-hint']; nol kartu angka; dan 'pl-lama' tidak pernah muncul di satu query string pun — diasersikan atas seluruh URL yang terkumpul"
+        },
+        {
+          "description": "penyimpanan perangkat MELEMPAR saat dibaca (mode privat) tidak merusak layar",
+          "given": "vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('storage disabled') }) — WAJIB pada Storage.prototype, karena di jsdom instance window.localStorage dibungkus Proxy sehingga spy instance menerima NOL panggilan dan test-nya hijau tanpa menguji apa pun",
+          "expect": "LANGKAH PERTAMA: expect(getItemSpy).toHaveBeenCalled() — spy dibuktikan menerima >= 1 panggilan SEBELUM asersi lain dipercaya. Lalu: [data-testid='laporan-kernel-dispatch-mobile'] tetap terender; [data-testid='production-line-required-hint'] hadir; [data-testid='error-message'] dan [data-testid='network-error'] keduanya toHaveCount(0) — nol elemen galat, karena penyimpanan yang tidak dapat dibaca bukan galat"
+        },
+        {
+          "description": "mill dengan SATU production line tetap TIDAK dipilihkan",
+          "given": "daftar line berisi TEPAT satu entri; ingatan perangkat kosong; periode terpilih",
+          "expect": "pemilih line TETAP dirender dengan satu opsi dan nilainya KOSONG; penghitung /summary TEPAT 0 sampai pengguna memilih, lalu TEPAT 1 sesudah memilih. Memilihkan satu-satunya line akan menerbitkan angka yang pengguna tidak pernah minta, dan kebiasaan itu berubah tanpa pemberitahuan ketika line kedua ditambahkan"
+        },
+        {
+          "description": "KLIEN TIDAK MENGHITUNG SATU AGREGAT PUN — dibuktikan dengan satu fixture yang ARITMETIKANYA SENGAJA TIDAK KONSISTEN",
+          "given": "fixture /summary yang disengaja mustahil pada EMPAT tempat sekaligus: (a) dispatches.net_weight_total = 1000, net_weight_dispatch_count = 4, net_weight_avg = 777 — bukan 250; (b) daily[] berisi tiga baris net_weight_total 10 / 20 / 30 sementara daily_total.net_weight_total = 999 — bukan 60, dan daily_total.dispatch_count = 88 sementara jumlah kolomnya 6; (c) completeness { days_in_period: 30, days_with_dispatch: 3, days_counted: 10, percent: 88.8 } — bukan 30; (d) quality.kernel_moisture_percent { min: 9, avg: 3, max: 4, measured_count: 5 } — avg DI LUAR rentang min..max, sehingga tidak mungkin berasal dari nilai mana pun",
+          "expect": "setiap elemen mencetak ANGKA PAYLOAD apa adanya dengan toBe: kd-kpi-net-weight-avg = '777', kd-daily-total-net-weight-total = '999', kd-daily-total-dispatch-count = '88', kd-coverage-percent = '88,8', dan ketiga angka kd-quality-kernel-moisture-min/-avg/-max = '9' / '3' / '4'. SETIAP penghitungan ulang di klien PASTI memerahkan test ini. Fixture ini satu-satunya yang membuktikan aturan 'angka mobile = angka web' dari BENTUK dan bukan dari disiplin — dan di layar ini bahayanya LEBIH BESAR daripada di screen-163, karena min/avg/max tampak mudah dihitung ulang dari tiga angka yang sudah ada di tangan"
+        },
+        {
+          "description": "dispatch_count dicetak dari payload meski BERBEDA dari penjumlahan baris rekap",
+          "given": "fixture dengan dispatches.dispatch_count = 42 sementara penjumlahan dispatch_count pada by_transporter = 7 — SENGAJA tidak konsisten",
+          "expect": "[data-testid='kd-kpi-dispatch-count'] toBe '42'. Test ini dan test 'penjumlahan rekap = dispatch_count' memakai fixture BERBEDA dengan maksud berbeda, dan itu disengaja: yang ini membuktikan klien MENAMPILKAN field, yang itu membuktikan KONTRAK server"
+        },
+        {
+          "description": "min/avg/max keempat ukuran mutu dibaca dari payload — dua belas asersi angka terpisah",
+          "given": "fixture dengan keempat ukuran mutu berangka dan berbeda satu dengan lainnya: kernel_moisture_percent { 6.1 / 7.4 / 9.9 }, dirt_impurities_percent { 0.2 / 0.6 / 1.8 }, ffa_percent { 0.9 / 1.7 / 3.4 }, broken_kernel_percent { 11 / 14.5 / 22 }",
+          "expect": "dua belas elemen ber-testid sendiri — kd-quality-{kernel-moisture,dirt-impurities,ffa,broken-kernel}-{min,avg,max} — masing-masing toBe nilai payload-nya lewat peta testid→field. Dua belas asersi TERPISAH, bukan satu asersi atas teks kartu: satu kartu yang kebetulan memuat semua angka akan meloloskan ukuran yang tertukar nilainya"
+        },
+        {
+          "description": "null → '—' PER FIELD, bukan lewat default ?? 0 di satu tempat",
+          "given": "satu fixture dengan TIGA null yang berbeda sifat: dispatches.net_weight_total = null, completeness.percent = null, dan ffa_percent { min: null, avg: null, max: null, measured_count: 0 } — sementara field lain di sekitarnya tetap berangka",
+          "expect": "kd-kpi-net-weight-total toBe '—'; kd-coverage-percent toBe '—'; ketiga angka kd-quality-ffa-* toBe '—'. TIDAK SATU PUN mencetak '0', '0,0' atau '0,00'. Dan field berangka di sekitarnya TETAP berangka — itulah yang membuktikan penjaganya per field, bukan satu default global yang mengubah 'tidak diketahui' menjadi 'nol' di seluruh layar sekaligus"
+        },
+        {
+          "description": "angka 0 yang SUNGGUHAN tetap dicetak 0, bukan '—'",
+          "given": "fixture dengan not_released_count = 0, draft_dispatch_count = 0, missing_net_weight_dispatch_count = 0, ketiga penghitung kepatuhan = 0, dan dirt_impurities_percent { min: 0, avg: 0, max: 0, measured_count: 12 }",
+          "expect": "ketujuh elemen itu mencetak '0' dan ketiga angka kadar kotoran mencetak '0,00' — BUKAN '—'. Nol yang terukur dan nilai yang tidak ada adalah dua hal berbeda, dan penjaga '—' yang memakai falsiness JavaScript akan menukar keduanya; penjaganya WAJIB memeriksa null, bukan kebenaran nilai"
+        },
+        {
+          "description": "seluruh pengiriman belum selesai ditimbang: kedua angka berat '—' dengan penyebut nol, dan keempat ukuran mutu TIDAK terpengaruh",
+          "given": "fixture dengan net_weight_total = null, net_weight_avg = null, net_weight_dispatch_count = 0, missing_net_weight_dispatch_count = 17, dispatch_count = 17, sementara keempat ukuran mutu berangka dengan measured_count masing-masing > 0",
+          "expect": "kd-kpi-net-weight-total dan kd-kpi-net-weight-avg keduanya toBe '—'; kd-kpi-net-weight-dispatch-count toBe '0'; kd-kpi-missing-net-weight toBe '17'; dan dua belas angka mutu TETAP berangka. Mutu dan berat adalah kolom yang berbeda — penjaga berat yang mengosongkan kartu mutu adalah cacat"
+        },
+        {
+          "description": "net_weight_dispatch_count dicetak di KARTU YANG SAMA dengan rata-ratanya",
+          "given": "fixture lengkap; wadah [data-testid='kd-card-tonnage'] diambil sebagai elemen",
+          "expect": "kd-card-tonnage.find('[data-testid=\"kd-kpi-net-weight-avg\"]').exists() === true DAN kd-card-tonnage.find('[data-testid=\"kd-kpi-net-weight-dispatch-count\"]').exists() === true — asersi KETERKANDUNGAN di dalam wadah yang sama, bukan dua pencarian terpisah di tingkat wrapper, karena pencarian tingkat wrapper akan hijau walau penyebutnya terpisah dua kartu. Rata-rata tanpa penyebutnya di sebelahnya adalah angka yang tidak dapat ditafsirkan"
+        },
+        {
+          "description": "missing_net_weight_dispatch_count adalah kartu TERSENDIRI dengan kalimat 'penimbangan belum selesai', BUKAN 'data tidak lengkap'",
+          "given": "fixture dengan missing_net_weight_dispatch_count = 3",
+          "expect": "[data-testid='kd-card-missing-net-weight'] hadir sebagai wadah TERPISAH dari kd-card-tonnage (keterkandungan diasersikan terbalik: kd-card-tonnage TIDAK memuatnya); teksnya memuat 'penimbangan belum selesai'; dan teks kartu itu TIDAK memuat 'data tidak lengkap' maupun 'tidak valid' — berat kosong berarti kendaraan belum kembali ditimbang kosong, bukan catatan yang cacat"
+        },
+        {
+          "description": "v-if KARTU MUTU ADA DI TINGKAT UKURAN, BUKAN DI TINGKAT KARTU",
+          "given": "fixture dengan TEPAT satu ukuran kosong dan tiga berangka: dirt_impurities_percent { min: null, avg: null, max: null, measured_count: 0 }, sementara kernel_moisture_percent, ffa_percent dan broken_kernel_percent masing-masing berangka dengan measured_count 5 / 8 / 11",
+          "expect": "ketiga angka kd-quality-dirt-impurities-* toBe '—' dan kd-quality-dirt-impurities-count toBe '0', SEMENTARA kesembilan angka ketiga ukuran lain TETAP mencetak nilai payload-nya. Satu v-if=\"adaDataMutu\" di pembungkus [data-testid='kd-card-quality'] akan MEMERAHKAN test ini — itu kesalahan yang paling mudah dibuat di klien, terasa rapi, dan menyembunyikan tiga ukuran yang punya data karena satu ukuran kosong. Penjaganya WAJIB per ukuran"
+        },
+        {
+          "description": "keempat ukuran mutu kosong tetapi tonase ada: kartu mutu TETAP dirender dan menyatakan belum ada hasil uji",
+          "given": "fixture dengan keempat ukuran mutu min/avg/max null dan measured_count 0, sementara net_weight_total dan dispatch_count berangka",
+          "expect": "[data-testid='kd-card-quality'] TETAP hadir (toHaveCount(1), bukan 0) dan memuat kalimat yang menyatakan belum ada hasil uji; kedua belas angkanya '—'; dan [data-testid='kd-card-tonnage'] tetap mencetak angkanya. Kedua kartu independen, dan KEDUANYA tetap dirender — kartu yang hilang dari DOM menghapus penjelasannya bersama angkanya"
+        },
+        {
+          "description": "keempat measured_count DIRENDER, keempatnya BERBEDA satu dengan lainnya DAN berbeda dari dispatch_count — lima asersi angka terpisah",
+          "given": "fixture dengan dispatch_count = 40 dan measured_count kernel_moisture 31, dirt_impurities 24, ffa 19, broken_kernel 7 — lima angka yang tidak ada dua pun bernilai sama",
+          "expect": "kd-kpi-dispatch-count toBe '40'; kd-quality-kernel-moisture-count toBe '31'; kd-quality-dirt-impurities-count toBe '24'; kd-quality-ffa-count toBe '19'; kd-quality-broken-kernel-count toBe '7'. Lima asersi angka TERPISAH atas lima testid berbeda — satu penyebut tunggal yang dipakai berempat, atau penyebut yang jatuh ke dispatch_count, akan memerahkan test ini. Inilah pembuktian paling langsung bahwa tiap ukuran punya penyebutnya sendiri"
+        },
+        {
+          "description": "quality._note dirender UTUH — kesetaraan penuh, bukan contains",
+          "given": "fixture dengan quality._note berisi prosa panjang yang menyatakan keempat measured_count boleh berbeda",
+          "expect": "[data-testid='kd-quality-note'].text() sama PENUH (toBe) dengan nilai quality._note pada payload, sesudah normalisasi spasi putih saja. BUKAN toContain: prosa yang terpotong di tengah tetap meloloskan toContain atas potongan awalnya, dan yang hilang justru bagian yang menjelaskan sebabnya. Elemen catatan diasersikan TEPAT 1, supaya prosa yang terender dua kali juga tertangkap"
+        },
+        {
+          "description": "kartu tonase dan kartu mutu BERURUTAN di DOM tanpa bagian lain di antaranya",
+          "given": "fixture lengkap dengan keempat rekap, rekap harian, kepatuhan dan temuan terisi",
+          "expect": "daftar testid seluruh bagian tingkat atas dibaca sebagai ARRAY BERURUT dari DOM; indeks kd-card-quality tepat satu lebih besar daripada indeks kd-card-tonnage. Nol bagian di antaranya — di web keduanya berdampingan, dan pada lebar ponsel inilah satu-satunya cara maksudnya bertahan: tonase tinggi dengan kadar air tinggi harus terbaca dalam satu tarikan"
+        },
+        {
+          "description": "melipat sebuah rekap TIDAK ikut melipat kartu tonase maupun kartu mutu",
+          "given": "fixture lengkap; [data-testid='kd-recap-transporter-toggle'] dan [data-testid='kd-daily-recap-toggle'] masing-masing ditekan untuk melipatnya",
+          "expect": "sesudah kedua lipatan: [data-testid='kd-recap-transporter-table'] dan [data-testid='kd-daily-table'] toHaveCount(0), SEMENTARA kd-card-tonnage dan kd-card-quality tetap toHaveCount(1) dan angkanya tetap terbaca. Dan sebaliknya: nol kontrol lipat di dalam kedua kartu itu — [data-testid$='-toggle'] dicari DI DALAM kd-card-tonnage dan kd-card-quality dan hasilnya toHaveCount(0) pada keduanya. Rekap boleh dilipat; angka utama tidak"
+        },
+        {
+          "description": "label gate status datang dari helper bersama `optionLabel()`, bukan dari peta di dalam view: released → 'Released', not_released → 'Not Released', dan nilai di luar keduanya APA ADANYA",
+          "given": "Payload dengan `by_gate_status` memuat empat baris: value 'released', value 'not_released', value 'HOLD_BY_SECURITY' (di luar kedua pilihan yang dikenal), dan value null. Komponen di-mount dengan payload itu.",
+          "expect": "Sel label keempat baris berbunyi, berturut-turut: 'Released', 'Not Released', 'HOLD_BY_SECURITY' (apa adanya — helper jatuh ke nilai mentah untuk yang tak dikenal, persis seperti Display::option() di server), dan 'tidak tercatat'. Asersi kesetaraan penuh per sel, bukan `contains`. KOREKSI 2026-10-18: versi pertama case ini mengandaikan view punya 'satu tabel pemetaan' sendiri — itu salah. Mobile sudah punya cermin kosakata bersama di `mobile/src/utils/optionLabel.ts`, dijaga oleh `mobile/tests/optionLabel.spec.ts` yang membaca `backend/app/Support/Display.php` dari disk dan menuntut kedua peta identik. View MENDELEGASIKAN ke helper itu."
+        },
+        {
+          "description": "AUDIT SUMBER: view TIDAK punya peta label gate status sendiri — ia memanggil helper bersama `optionLabel()`",
+          "given": "Sumber `mobile/src/views/LaporanKernelDispatchView.vue` dibaca dari disk dan KOMENTARNYA DILUCUTI lebih dulu — pelucutan itu wajib, karena docblock layar ini memang menyebut kedua label saat menjelaskan dari mana mereka datang, dan audit tanpa pelucutan akan memerah atas prosanya sendiri.",
+          "expect": "Pada sumber yang sudah dilucuti: literal 'Released' dan 'Not Released' muncul NOL kali, dan tidak ada objek pemetaan nilai→label untuk gate status di berkas itu. Sebaliknya, `optionLabel` DIIMPOR dari '@/utils/optionLabel' dan dipanggil pada nilai gate status. ALASANNYA: aturan rumah 'delegasikan, jangan salin' berlaku di sisi mobile juga — sebuah peta kedua di dalam view dapat menyimpang dari backend tanpa ada yang membandingkannya, dan penjaga yang membandingkan hanya melihat `OPTION_LABELS`, bukan peta liar di dalam komponen. Dan JANGAN menambah entri ke `OPTION_LABELS`: kedua nilai itu sudah ada di sana sejak 2026-10-18."
+        },
+        {
+          "description": "nilai gate status tak dikenal punya BARISNYA SENDIRI dan penjumlahan rekap tetap sama dengan dispatch_count",
+          "given": "fixture by_gate_status: { 'released', 20 }, { 'not_released', 5 }, { 'held_by_security', 3 }, { null, 2 }; dispatches.dispatch_count = 30",
+          "expect": "jumlah baris [data-testid^='kd-recap-gate-status-row-'] TEPAT 4 — nilai tak dikenal tidak dibuang; sel nilainya 'held_by_security' apa adanya — tidak dipaksa masuk 'Released' maupun 'Not Released'; baris null tetap baris TERSENDIRI bernilai 'tidak tercatat' dengan dispatch_count 2 — nilai tak dikenal tidak dilipat ke dalamnya, karena ia TERCATAT, hanya tidak dikenal; dan penjumlahan keempat sel dispatch_count yang DIBACA DARI DOM toBe 30, sama dengan kd-kpi-dispatch-count. Klien yang 'merapikan' dengan membuang nilai tak dikenal akan memecah penjumlahan itu, dan penjumlahan inilah yang menangkapnya"
+        },
+        {
+          "description": "not_released_count HANYA DITAMPILKAN, tidak dihitung ulang dari rekap",
+          "given": "fixture yang SENGAJA tidak konsisten: not_released_count = 9 sementara satu-satunya baris by_gate_status bernilai 'not_released' punya dispatch_count = 5, dan ada pula baris value null dengan dispatch_count = 4",
+          "expect": "[data-testid='kd-kpi-not-released'] toBe '9' — angka payload apa adanya. Klien yang menghitungnya ulang dari rekap akan mencetak '5', dan klien yang keliru menganggap 'tidak tercatat' sebagai 'tidak dilepas' akan mencetak '9' dari jalur yang salah — karena itu baris null fixture ini SENGAJA berjumlah 4 sehingga 5+4 = 9 juga: angka yang sama dari rumus yang salah. Pembedanya ada pada test berikutnya, yang memakai fixture berbeda"
+        },
+        {
+          "description": "'tidak tercatat' TIDAK ikut not_released_count — dibuktikan dengan fixture pembeda",
+          "given": "fixture kedua: not_released_count = 5, by_gate_status berisi { 'not_released', 5 } dan { null, 4 }",
+          "expect": "kd-kpi-not-released toBe '5', BUKAN '9'. Elemen ini dan elemen baris 'tidak tercatat' adalah dua testid berbeda dan diasersikan terpisah: kd-recap-gate-status-row-3-count toBe '4'. Menggabungkan keduanya akan MENUDUH — pengiriman tanpa status bukan pengiriman yang tidak dilepas"
+        },
+        {
+          "description": "baris value null pada KEEMPAT rekap dicetak 'tidak tercatat'",
+          "given": "fixture dengan satu baris value null di by_transporter, by_silo_source, by_destination_buyer DAN by_gate_status",
+          "expect": "sel nilai keempat baris itu masing-masing toBe 'tidak tercatat' — empat asersi atas empat testid rekap yang berbeda, bukan satu asersi atas teks halaman; dan tidak satu pun dari keempatnya mencetak 'null', 'undefined', '-' atau string kosong"
+        },
+        {
+          "description": "penjumlahan dispatch_count tiap rekap = dispatches.dispatch_count — keempat rekap",
+          "given": "fixture KONSISTEN (berbeda dari fixture 'dispatch_count dicetak dari payload'): dispatch_count = 30, dan keempat rekap masing-masing punya baris yang dispatch_count-nya berjumlah 30, termasuk baris 'tidak tercatat' masing-masing",
+          "expect": "untuk KEEMPAT rekap: penjumlahan sel dispatch_count yang DIBACA DARI DOM toBe 30. Empat penjumlahan terpisah — yang diuji di sini kontrak server, bukan aritmetika klien, dan ia diuji dari DOM supaya baris yang tidak terender ikut tertangkap"
+        },
+        {
+          "description": "URUTAN DOM keempat rekap SAMA PERSIS dengan urutan payload sebagai ARRAY BERURUT",
+          "given": "payload yang urutannya SENGAJA bukan alfabetis dan bukan urut jumlah — by_transporter: [ { 'Zulkifli Trans', 3 }, { null, 11 }, { 'Amanah Logistik', 7 }, { 'Bintang Mas', 9 } ]; ketiga rekap lain disusun dengan ketidakteraturan yang sama",
+          "expect": "array nilai yang dibaca berurut dari DOM toEqual [ 'Zulkifli Trans', 'tidak tercatat', 'Amanah Logistik', 'Bintang Mas' ] — toEqual atas ARRAY BERURUT, bukan atas himpunan dan bukan atas panjangnya. Klien yang menyortir alfabetis, menyortir turun menurut jumlah, atau memindahkan baris null ke bawah akan memerahkannya. Konsekuensi yang disengaja: kelompok 'tidak tercatat' bertonase besar MUNCUL DI ATAS, bukan terkubur di baris terakhir tempat tak seorang pun membacanya"
+        },
+        {
+          "description": "nilai yang hanya berbeda besar-kecil huruf atau spasi tepi tampil dua baris; nilai berfrekuensi satu tetap punya baris; nol 'lainnya'",
+          "given": "fixture by_destination_buyer berisi 'PT Sawit Jaya', 'pt sawit jaya', ' PT Sawit Jaya' sebagai TIGA baris terpisah dari server, ditambah satu nilai yang dispatch_count-nya 1",
+          "expect": "jumlah baris TEPAT 4; ketiga varian itu dirender sebagai tiga baris dengan teks masing-masing apa adanya; baris berfrekuensi 1 TETAP ada; dan nol elemen bernilai 'lainnya' / 'Lainnya' / 'others' pada keempat rekap. Klien tidak menormalkan, tidak menggabungkan, dan tidak melipat — teks bebas diterbitkan apa adanya dengan NOL penerjemahan"
+        },
+        {
+          "description": "silo sumber diperlakukan sebagai TEKS — nol pencarian nama meski kunci payload berakhiran '_id'",
+          "given": "fixture by_silo_source berisi value 'Silo 3 Utara' dan value 'SL-02'; penghitung seluruh permintaan diaktifkan",
+          "expect": "sel nilainya toBe 'Silo 3 Utara' dan 'SL-02' APA ADANYA; dan penghitung permintaan sesudah /summary TEPAT 0 — nol permintaan master, nol pencarian nama. Tidak ada daftar induk silo di sistem ini: nama kolomnya menyesatkan, dan satu-satunya pencegahnya adalah test yang menghitung permintaan"
+        },
+        {
+          "description": "TIGA penghitung kepatuhan sebagai TIGA angka terpisah, dan NOL elemen gabungan 'segel hilang'",
+          "given": "fixture compliance { missing_waybill_count: 4, missing_seal_top_count: 6, missing_seal_bottom_count: 2 } — tiga angka yang tidak ada dua pun sama dan yang jumlah berpasangannya (6+2=8) tidak sama dengan satu pun di antaranya",
+          "expect": "kd-compliance-missing-waybill toBe '4'; kd-compliance-missing-seal-top toBe '6'; kd-compliance-missing-seal-bottom toBe '2' — tiga testid, tiga asersi. DAN: nol elemen yang mencetak '8'; [data-testid='kd-compliance-missing-seal'] toHaveCount(0) — testid gabungan yang dipakai screen-163 untuk stasiun lain TIDAK boleh ada di sini. Satu kendaraan dengan satu segel hilang berbeda keadaannya dari satu kendaraan tanpa kedua segel, dan menjumlahkannya menghapus pembedaan itu"
+        },
+        {
+          "description": "compliance._note, _note_no_hourly, _note_no_quality_thresholds dan _note_shift_not_published dirender UTUH — kesetaraan penuh",
+          "given": "fixture dengan keempat prosa itu terisi penuh; _note_no_hourly SENGAJA memuat kata 'jam' dan menyebut CPO Dispatch sebagaimana server menyusunnya",
+          "expect": "kd-compliance-note, kd-note-no-hourly, kd-note-no-quality-thresholds dan kd-note-shift masing-masing text() sama PENUH (toBe) dengan field payload-nya sesudah normalisasi spasi putih — empat asersi kesetaraan penuh, BUKAN toContain. Dan masing-masing toHaveCount(1), supaya prosa yang terender dua kali juga tertangkap. Kalimat-kalimat itu disusun SERVER supaya penjelasan yang sama muncul di web dan mobile; yang diringkas di klien memecah janji itu tanpa terlihat"
+        },
+        {
+          "description": "NOL elemen sebaran per jam dan waktu putar — diasersikan lewat TESTID dan NAMA KUNCI, bukan sapuan teks",
+          "given": "fixture lengkap; layar terender penuh",
+          "expect": "[data-testid='kd-hourly'], [data-testid='kd-hourly-distribution'], [data-testid='kd-peak-hour'], [data-testid='kd-turnaround'] masing-masing toHaveCount(0); dan Object.keys(payload) tidak memuat satu kunci pun yang cocok /hour|hourly|turnaround|peak/ — asersi atas NAMA KUNCI payload, bukan atas nilainya. SAPUAN TEKS DILARANG di sini: kd-note-no-hourly MEMUAT kata 'jam' dan menyebut CPO Dispatch, dan layar merendernya UTUH, sehingga expect(text).not.toContain('jam') akan memerah atas prosa yang justru MENYATAKAN ketiadaannya. Hal yang sama berlaku untuk 'batas' pada kd-note-no-quality-thresholds"
+        },
+        {
+          "description": "NOL kontrol Excel/xlsx — lewat TESTID dan ROLE, bukan sapuan 'excel'/'xlsx'",
+          "given": "fixture lengkap dengan periode dan line terpilih sehingga tombol ekspor dirender",
+          "expect": "[data-testid='kd-export-xlsx'] toHaveCount(0); daftar seluruh elemen ber-role button yang teksnya dinormalkan TIDAK memuat satu pun yang cocok /excel|xlsx/i — diperiksa per ELEMEN role button, bukan atas teks halaman, karena prosa lingkup ekspor menyebut format berkasnya; dan [data-testid='kd-export-csv'] toHaveCount(1). WebView ponsel tidak membuka .xlsx, dan tombol yang menghasilkan berkas tak terbuka lebih buruk daripada tidak ada tombol"
+        },
+        {
+          "description": "undated_dispatch_count = 0 → blok TIDAK dirender",
+          "given": "fixture dengan undated_dispatch_count = 0",
+          "expect": "[data-testid='kd-undated-dispatch-count'] dan [data-testid='kd-undated-note'] keduanya toHaveCount(0) — bukan hadir bernilai '0'. Kolom tanggal kejadian NOT NULL di basis data, jadi angkanya selalu 0 dalam praktik dan blok yang selalu tampil bernilai nol hanya menambah kebisingan"
+        },
+        {
+          "description": "undated_dispatch_count > 0 → blok DIRENDER",
+          "given": "fixture dengan undated_dispatch_count = 2",
+          "expect": "kd-undated-dispatch-count toHaveCount(1) dan toBe '2'; kd-undated-note hadir. Dua test TERPISAH dan bukan satu test berparameter: v-if yang terbalik akan meloloskan salah satu arah saja, dan arah yang tidak diuji adalah arah yang rusak di produksi"
+        },
+        {
+          "description": "draft_dispatch_count dinyatakan tersendiri dan pengiriman draft IKUT terhitung",
+          "given": "fixture dengan dispatch_count = 30 dan draft_dispatch_count = 11",
+          "expect": "kd-kpi-dispatch-count toBe '30' dan kd-draft-dispatch-count toBe '11' — 11 TERMASUK di dalam 30, bukan di luarnya: tidak ada elemen yang mencetak '19', dan kd-draft-note menyatakan bahwa draft ikut terhitung. Pembaca diberi tahu, bukan dilindungi dari mengetahuinya"
+        },
+        {
+          "description": "daily[] satu baris per hari BERPENGIRIMAN — nol baris nol, dan urutan DOM = urutan payload",
+          "given": "fixture periode 30 hari dengan daily[] berisi TEPAT 9 entri yang urutannya SENGAJA bukan urut tanggal naik",
+          "expect": "jumlah baris [data-testid^='kd-daily-row-'] TEPAT 9 — nol baris nol untuk 21 hari lainnya; array tanggal yang dibaca berurut dari DOM toEqual array tanggal payload PERSIS (bukan himpunan); tiap baris mencetak net_weight_dispatch_count-nya sendiri; dan [data-testid='kd-daily-total'] mencetak nilai daily_total payload, bukan hasil penjumlahan kolom"
+        },
+        {
+          "description": "temuan adalah SATU-SATUNYA daftar kejadian, dan line tanpa pengiriman tetap merender kerangka laporan",
+          "given": "dua fixture: (a) text_entries.findings berisi 2 entri bertanggal; (b) dispatch_count = 0 dengan daily[] kosong, keempat rekap kosong, dan keempat ukuran mutu kosong",
+          "expect": "pada (a): [data-testid='kd-findings'] toHaveCount(1) dengan 2 baris bertanggal; dan NOL bagian kedua — [data-testid='kd-remarks'] toHaveCount(0), karena stasiun ini hanya punya satu kolom teks bebas, berbeda dari Solid Waste Disposal yang punya dua. Pada (b): kd-card-tonnage, kd-card-quality, keempat wadah rekap dan kd-daily-recap SEMUANYA tetap hadir dengan keadaan kosong, dan [data-testid='kd-empty-period-note'] menyebut NAMA PERIODE dan NAMA LINE — keduanya diasersikan dengan toContain atas elemen catatan itu, bukan atas halaman"
+        },
+        {
+          "description": "luring saat layar dibuka: bootstrap berhenti SEBELUM permintaan pertama — nol permintaan DIHITUNG, nol kartu tonase, nol kartu mutu, nol rekap",
+          "given": "Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true }) sebelum mount; penghitung permintaan dipasang pada KELIMA jalur; ingatan line berisi line yang sah supaya bootstrap akan berlanjut seandainya penjagaan luringnya tidak ada",
+          "expect": "penghitung KELIMA jalur masing-masing TEPAT 0 — dihitung, bukan diasumsikan; [data-testid='offline-notice'] hadir, teksnya menyatakan layar MEMERLUKAN JARINGAN dan memuat kalimat bahwa ia tidak menampilkan satu angka pun dari pemuatan sebelumnya; dan kd-card-tonnage, kd-card-quality, keempat wadah rekap serta kd-daily-recap SEMUANYA toHaveCount(0). Kartu mutu diasersikan TERPISAH dari kartu tonase: keduanya dirender oleh cabang yang berbeda, dan satu penjaga luring yang hanya menutup salah satunya akan meloloskan separuh angka"
+        },
+        {
+          "description": "event 'offline' SESUDAH angka termuat menutup angkanya",
+          "given": "mount dengan navigator.onLine true dan fixture lengkap sampai angka terender; DIBUKTIKAN dulu bahwa kd-card-tonnage dan kd-card-quality hadir; lalu onLine dipalsukan menjadi false dan window.dispatchEvent(new Event('offline')) dipicu",
+          "expect": "sesudah await nextTick: kd-card-tonnage, kd-card-quality, keempat rekap dan kd-daily-recap toHaveCount(0); offline-notice hadir. Angka yang sudah tampil DITUTUP, bukan dibiarkan basi dengan spanduk di atasnya — angka basi tanpa penanda adalah angka yang akan dikutip di rapat"
+        },
+        {
+          "description": "listener online/offline DILEPAS saat unmount",
+          "given": "spy pada window.addEventListener dan window.removeEventListener; wrapper di-mount lalu di-unmount",
+          "expect": "untuk 'online' dan untuk 'offline': setiap pasangan (event, handler) yang tercatat pada addEventListener juga tercatat pada removeEventListener dengan REFERENSI FUNGSI YANG SAMA — bukan sekadar jumlah panggilan yang cocok, karena handler yang dibuat ulang saat pelepasan akan meloloskan hitungan dan tetap membocorkan listener. CATATAN BERKAS: setiap wrapper WAJIB di-unmount pada afterEach — wrapper yang bocor menghitung GANDA permintaan bootstrap pada test berikutnya, dan kegagalan itu akan tampak seperti bug di layar"
+        },
+        {
+          "description": "401 pada /summary mengarahkan ke Login tanpa pesan jaringan",
+          "given": "/summary distub memulangkan 401 UNAUTHENTICATED; pushMock router dipasang",
+          "expect": "pushMock dipanggil TEPAT sekali dengan rute Login; [data-testid='network-error'] toHaveCount(0) dan nol elemen yang teksnya memuat 'jaringan' — sesi berakhir bukan kegagalan jaringan, dan menyebutnya demikian mengirim pengguna mencari masalah di tempat yang salah"
+        },
+        {
+          "description": "403 meminta memilih line lagi DAN MEMBERSIHKAN angka yang sudah ada",
+          "given": "pemuatan pertama berhasil sehingga angka terender — DIBUKTIKAN dulu kd-card-tonnage dan kd-card-quality hadir; lalu periode diganti dan /summary memulangkan 403 FORBIDDEN",
+          "expect": "[data-testid='production-line-rejected'] (atau production-line-required-hint) hadir meminta memilih line lagi; network-error toHaveCount(0); DAN kd-card-tonnage, kd-card-quality, keempat rekap, kd-daily-recap, kd-kpi-not-released, kd-compliance SEMUANYA toHaveCount(0) — HILANG dari DOM, bukan sekadar tertutup atau berubah menjadi '—'. Angka mill lain tidak pernah terender, dan angka mill SENDIRI yang tertinggal di layar bersama pesan 403 akan dibaca sebagai angka yang baru"
+        },
+        {
+          "description": "422 akun tanpa mill menampilkan arahan menghubungi Admin",
+          "given": "/periods memulangkan 422 VALIDATION_ERROR untuk akun terikat mill ber-business_unit_id NULL",
+          "expect": "[data-testid='no-mill-for-account'] hadil dan teksnya mengarahkan MENGHUBUNGI ADMIN; network-error toHaveCount(0); retry-button toHaveCount(0) — mencoba lagi tidak akan mengubah apa pun; dan pushMock TIDAK dipanggil — ini bukan sesi berakhir. Penyebabnya bukan jaringan dan bukan hak akses, melainkan data akun yang belum lengkap"
+        },
+        {
+          "description": "galat lain menampilkan keadaan galat + Coba Lagi, dengan jumlah permintaan DIHITUNG",
+          "given": "/summary memulangkan 500 pada panggilan pertama lalu 200 pada panggilan kedua; line dan periode terpilih; penghitung /summary aktif",
+          "expect": "sesudah kegagalan: [data-testid='network-error'] dan [data-testid='retry-button'] hadir, penghitung /summary TEPAT 1. Sesudah SATU ketukan Coba Lagi: penghitung TEPAT 2 — bukan 3 dan bukan 4, supaya 'coba lagi' yang diam-diam memanggil dua kali tertangkap; angka terender; network-error toHaveCount(0)"
+        },
+        {
+          "description": "URL ekspor tepat: format=csv dan kedua parameter lingkup",
+          "given": "buildExportUrl() dipanggil dengan period_id 'p-1' dan production_line_id 'pl-7'; URL hasilnya diparse dengan URL + URLSearchParams",
+          "expect": "pathname toBe '/api/kernel-dispatch-reports/export'; searchParams.get('format') toBe 'csv'; get('period_id') toBe 'p-1'; get('production_line_id') toBe 'pl-7'. Untuk peran terikat mill: has('business_unit_id') === false. Dan nol nilai 'xlsx' di seluruh query string"
+        },
+        {
+          "description": "ketukan ganda cepat pada ekspor mengirim SATU permintaan dan menghasilkan SATU unduhan",
+          "given": "[data-testid='kd-export-csv'] ditekan dua kali berturut-turut TANPA menunggu permintaan pertama selesai; ketukan kedua dikirim dengan force supaya yang teruji penjagaan APLIKASI dan bukan penjagaan alat uji",
+          "expect": "penghitung permintaan ekspor TEPAT 1; penghitung pemicu unduhan TEPAT 1; tombol ber-atribut disabled selama permintaan berjalan dan kembali aktif sesudahnya"
+        },
+        {
+          "description": "stub berkas ekspor WAJIB DISALIN dari konstanta EXPORT_HEADER di servernya, bukan dikarang",
+          "given": "test apa pun yang menstub respons /export WAJIB mengambil barisan kolomnya dari konstanta EXPORT_HEADER pada backend/app/Services/KernelDispatchReportService.php — DIVERIFIKASI ADA di baris 357, berisi 27 kolom yang enam pertamanya (Periode, Rentang Periode, Mill, Production Line, Tanggal Record, Status) adalah KONTEKS yang diulang per baris. Konstanta itu disalin APA ADANYA, termasuk urutan dan ejaan judulnya",
+          "expect": "jumlah kolom stub TEPAT 27 dan urutannya sama dengan EXPORT_HEADER — dicek dengan toEqual atas array judul, bukan atas panjangnya saja; keenam kolom yang tidak muncul di satu angka pun di layar HADIR di barisan itu: 'Shift', 'Weighbridge Ticket No', 'Waybill Number', 'Vehicle Plate No', 'Driver Name', 'Weighbridge Operator ID'. JANGAN MENGARANG dan JANGAN MENYESUAIKAN ANGKA ASERSI ke stub: pada screen-161 stub CSV dikarang dan menghasilkan jumlah kolom yang salah; seandainya angka asersinya yang disesuaikan, berkasnya hijau sambil membuktikan NOL hal tentang berkas yang sungguh diunduh pengguna — layar mengunduh dari endpoint ASLI"
+        },
+        {
+          "description": "pintu masuk: TEPAT SATU baris ditambahkan ke REPORT_ROUTES, ikon tidak disentuh",
+          "given": "mobile/src/views/ReportingPilihStasiunView.vue dibaca sebagai teks; sudah DIVERIFIKASI bahwa ikon 'kernel-dispatch' ADA di STATION_ICONS (baris 372, sebuah <path> SVG) dan TIDAK ADA di REPORT_ROUTES (yang mulai baris 96)",
+          "expect": "sesudah perubahan: jumlah kemunculan kunci 'kernel-dispatch' di dalam blok STATION_ICONS TEPAT 1 — tidak bertambah menjadi entri ganda; dan di dalam blok REPORT_ROUTES TEPAT 1 dengan nilai 'report-kernel-dispatch'. Unit test perilakunya: mount ReportingPilihStasiunView dengan StationSlot type 'kernel-dispatch', tile-nya aria-disabled 'false', ketukan memanggil pushMock dengan { name: 'report-kernel-dispatch' } — satu baris itulah yang menentukan tile hidup atau kelabu, dan tanpanya layar ini ada, rutenya ada, seluruh test-nya lulus, dan tile-nya tetap kelabu"
+        },
+        {
+          "description": "RIAK: contoh 'belum ada laporan mobile' pada ReportingPilihStasiunView.spec.ts DIPERIKSA lebih dulu",
+          "given": "nilai contoh pada mobile/tests/ReportingPilihStasiunView.spec.ts diperiksa SEBELUM disentuh. KEADAAN YANG TERVERIFIKASI saat spec ini ditulis: berkas itu masih memakai stasiun NYATA — 'kernel-dispatch' dipakai pada test 'tile tanpa laporan tetap tidak berpindah rute' (makeStation type 'kernel-dispatch' di sekitar baris 901 dan asersi [data-testid='station-tile-kernel-dispatch'] di baris 907), ditambah dua penyebutan docblock di baris 60 dan 71",
+          "expect": "bila pada saat implementasi screen-163 SUDAH menggantinya dengan kode fiktif 'zz-stasiun-fiktif', berkas itu TIDAK memerah dan TIDAK perlu disentuh sama sekali. Bila masih 'kernel-dispatch' seperti yang terverifikasi di atas, ganti HANYA ketiga tempat itu ke kode fiktif 'zz-stasiun-fiktif' — type-nya di-cast (as unknown as StationType) karena kode itu memang sengaja tidak ada di StationType, dan testid asersinya menjadi 'station-tile-zz-stasiun-fiktif'. JANGAN memindahkannya ke 'cpo-dispatch' maupun 'process-quality-control': keduanya dibangun pada screen-167/169 dan akan basi lagi dalam hitungan hari. Berkas itu MENYUNTIKKAN daftar stasiunnya sendiri lewat makeStation(...) + getActiveAndPlaceholderStations*Mock.mockResolvedValue(...), jadi kode fiktif memang tersedia di sana. JANGAN melemahkan, menghapus, atau melonggarkan satu asersi pun sebagai gantinya — yang diuji sejak awal bukan stasiun tertentu melainkan aturannya: ketersediaan laporan ditentukan HANYA oleh keanggotaan di REPORT_ROUTES, bukan oleh StationSlot.isActive"
+        },
+        {
+          "description": "setiap kelas CSS yang dipakai markup punya definisi — diperiksa pada hasil COMPILE",
+          "given": "seluruh nilai atribut class pada LaporanKernelDispatchView.vue dikumpulkan (termasuk yang di dalam :class statis), lalu dicocokkan terhadap CSS HASIL COMPILE — bukan terhadap berkas sumber .vue/.css",
+          "expect": "setiap kelas punya setidaknya satu definisi pada keluaran compile. Kartu mutu memperkenalkan kelas tata letak BARU yang tidak ada di screen-163 (tumpukan empat ukuran dengan tiga angka dan penyebutnya), jadi inilah layar yang paling mungkin memakai kelas yang tidak pernah didefinisikan — dan kelas tanpa definisi terkompilasi, lulus seluruh test perilaku, dan muncul sebagai tampilan yang rusak"
+        }
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-164--laporan-kernel-dispatch-web",
+      "reason": "Pasangan web — pemilik keempat endpoint yang dipakai layar ini apa adanya DAN pemilik seluruh aturan angkanya. Perubahan bentuk payload di sana adalah perubahan di sini; tidak ada lapisan penyangga, dan itu disengaja."
+    },
+    {
+      "screen_id": "screen-141--reporting-mobile",
+      "reason": "Pintu masuk satu-satunya. Tile Kernel Dispatch menyala setelah satu entri ditambahkan ke REPORT_ROUTES di ReportingPilihStasiunView.vue. RIAKNYA ADA DI SPEC-NYA — lihat implementation_notes."
+    },
+    {
+      "screen_id": "screen-163--laporan-solid-waste-disposal-mobile",
+      "reason": "Preseden kode terdekat: laporan mobile per-transaksi dengan rekap kategoris, baris 'tidak tercatat', penghitung kepatuhan, dan penanganan luring. Layar ini MENAMBAHKAN kartu mutu empat-ukuran yang tidak ada di sana."
+    }
+  ],
+  "implementation_notes": [
+    "RIAK WAJIB, DAN SUDAH DIVERIFIKASI DI BERKASNYA — bukan 'periksa dulu'. `mobile/tests/ReportingPilihStasiunView.spec.ts` memakai BEBERAPA jenis stasiun sebagai contoh untuk test yang BERBEDA, dan itu sebabnya 'kolam kandidat' tidak pernah dapat dijawab dengan satu angka. Keadaan per 2026-10-18 sesudah screen-163 mendarat: `zz-stasiun-fiktif` 8 kemunculan (contoh utama, sudah kode fiktif), `process-quality-control` 5, `sterilizer` 5, `kernel-dispatch` 1, `cpo-dispatch` 1. YANG AKAN MEMERAH OLEH PEKERJAAN INI hanya satu test — di sekitar baris 899–910: `makeStation({ type: 'kernel-dispatch' })` dan asersi `[data-testid=\"station-tile-kernel-dispatch\"]` pada test 'tile tanpa laporan tetap tidak berpindah rute', plus dua sebutan di docblock (± baris 60 dan 71). Komentar DI DALAM berkas itu sendiri sudah menjelaskan mengapa pemindahan kedelapan (screen-161) dan kesembilan (screen-163) TIDAK menyentuh test ini: yang berpindah adalah contoh di tempat LAIN, sementara Kernel Dispatch di sini masih belum berlaporan. PERBAIKANNYA: ganti ketiga tempat itu ke `'zz-stasiun-fiktif'` — kode yang SAMA dengan yang sudah dipakai contoh utama — dengan cast `as unknown as StationType` dan testid `station-tile-zz-stasiun-fiktif`. JANGAN memindahkannya ke cpo-dispatch atau process-quality-control: keduanya dibangun pada screen-167/169 dan akan basi lagi dalam hitungan hari. Berkas itu MENYUNTIKKAN daftar stasiunnya sendiri lewat `makeStation(...)` + `getActiveAndPlaceholderStationsMock.mockResolvedValue(...)`, jadi kode fiktif memang tersedia — dan docblock-nya sendiri sudah memerintahkan peralihan itu, jadi perintah ini konsisten dengan niat penulis aslinya. JANGAN melemahkan satu asersi pun.",
+    "IKON 'kernel-dispatch' SUDAH ADA di STATION_ICONS pada ReportingPilihStasiunView.vue — DIVERIFIKASI di baris 372, sebuah `<path>` SVG. Dan ia TIDAK ADA di REPORT_ROUTES (yang mulai di baris 96), jadi pekerjaan ini menambahkan TEPAT SATU baris: entri REPORT_ROUTES-nya. Jangan menambahkan ikon — itu akan menjadi entri ganda.",
+    "LABEL GATE STATUS: DELEGASIKAN KE HELPER BERSAMA YANG SUDAH ADA — JANGAN MEMBUAT PETA SENDIRI. KOREKSI 2026-10-18 atas versi pertama catatan ini, yang menyuruh menulis 'satu tabel pemetaan tunggal' di dalam view. Itu salah: mobile SUDAH punya cermin kosakata bersama di `mobile/src/utils/optionLabel.ts` (`OPTION_LABELS` + `optionLabel()`), dibuat pada audit 2026-10-05, dan ia DIJAGA oleh `mobile/tests/optionLabel.spec.ts` yang MEMBACA `backend/app/Support/Display.php` dari disk lalu menuntut kedua peta IDENTIK. Jadi aturan rumah 'blade mendelegasikan, jangan menyalin' berlaku di sisi mobile juga, lewat helper itu: view memanggil `optionLabel(value)`, dan nilai tak dikenal otomatis dirender apa adanya karena helper itu sudah jatuh ke nilai mentah — perilaku yang sama persis dengan `Display::option()` di server. JANGAN menambah entri ke `OPTION_LABELS` dari pekerjaan ini: kedua nilai ('released' → 'Released', 'not_released' → 'Not Released') SUDAH ADA di sana sejak 2026-10-18. CARA KETAHUANNYA LAYAK DICATAT: backend diubah lebih dulu tanpa memeriksa bahwa cermin ini ada, dan test penjaga itu memerahkan SELURUH suite mobile. Sebuah kosakata bersama yang hidup di dua bahasa hanya tetap bersama bila ada yang membandingkannya — dan membandingkannya tidak dapat diserahkan pada ingatan orang yang mengubah salah satu sisinya. Sertakan satu unit case yang mengasersikan view MEMANGGIL helper itu dan TIDAK punya peta label sendiri (audit sumber yang komentarnya dilucuti, karena docblock layar ini menyebut kedua label).",
+    "KEEMPAT UKURAN MUTU: `v-if` ADA DI TINGKAT UKURAN, BUKAN DI TINGKAT KARTU. Satu `v-if=\"adaDataMutu\"` di pembungkus kartu terasa rapi dan akan menyembunyikan tiga ukuran yang punya data ketika satu ukuran kosong. Ini kesalahan yang SAMA yang diperingatkan di screen-164, dan di klien ia lebih mudah dibuat.",
+    "`net_weight_mt` DIBACA APA ADANYA dari payload; klien tidak pernah menghitungnya dari bruto−tara — dan karena klien tidak menghitung apa pun, aturan ini otomatis terpenuhi selama tidak ada yang menambahkan 'perbaikan'.",
+    "JANGAN MENGUJI LURING DENGAN `context.setOffline(true)` + `page.reload()`. Itu memutus jaringan pada tingkat browser sehingga dokumen dan bundle aplikasinya sendiri gagal diambil dari Vite dev server: navigasinya mati dengan ERR_INTERNET_DISCONNECTED dan aplikasinya TIDAK PERNAH DIJALANKAN — yang teruji adalah Chromium, bukan layar ini. Palsukan `navigator.onLine` lewat `addInitScript` + `Object.defineProperty`, dan BIARKAN stub API terpasang supaya penolakan permintaan DAPAT dibantah oleh penghitungnya. Terbukti pada screen-161.",
+    "STUB APA PUN YANG MENIRU RESPONS SERVER WAJIB DISALIN DARI SERVERNYA, bukan dikarang. Header ekspor ada di `backend/app/Services/KernelDispatchReportService.php`. Pada screen-161 stub CSV dikarang dan menghasilkan jumlah kolom yang salah; seandainya angka asersinya yang disesuaikan, berkasnya hijau sambil membuktikan nol hal tentang berkas yang sungguh diunduh pengguna — layar mengunduh dari endpoint ASLI.",
+    "KETIADAAN BLOK DIASERSIKAN LEWAT TESTID DAN NAMA KUNCI, tidak pernah lewat sapuan teks. Payload memuat `_note_no_hourly` (berisi kata 'jam' DAN menyebut CPO Dispatch) dan `_note_no_quality_thresholds` (berisi 'batas'), dan layar merendernya UTUH. Ketiadaan tombol Excel juga lewat testid + role, bukan sapuan 'excel'/'xlsx'.",
+    "SPY PENYIMPANAN PADA `Storage.prototype`, bukan `window.localStorage` — di jsdom instance-nya dibungkus Proxy sehingga spy instance menerima NOL panggilan. Buktikan dulu spy-nya menerima ≥ 1 panggilan sebelum mempercayai test-nya.",
+    "WRAPPER YANG DI-MOUNT WAJIB DI-UNMOUNT PADA `afterEach` — layar ini mendaftarkan listener `online`/`offline`, dan wrapper yang bocor menghitung ganda permintaan bootstrap pada test berikutnya, kegagalan yang akan tampak seperti bug di layar.",
+    "GEOMETRI DIUKUR, BUKAN DIASERSIKAN LEWAT NAMA KELAS. 'Halaman tidak bergeser mendatar' = scrollWidth dibanding clientWidth pada 390px. 'Kartu mutu tidak memotong isinya' = geometri kartu dibanding isinya. Markup yang benar tetap dapat menghasilkan elemen yang terpotong induknya, dan assertSee tidak pernah menangkapnya.",
+    "SETIAP KELAS CSS YANG DIPAKAI MARKUP WAJIB PUNYA DEFINISI, diperiksa pada hasil COMPILE bukan pada sumbernya.",
+    "`toContain(a, b)` memperlakukan argumen kedua sebagai NEEDLE KEDUA, bukan pesan.",
+    "UJI BROWSER MOBILE lewat Vite :5174 dengan `reuseExistingServer`, dan login DIBIARKAN NYATA terhadap backend :8000 — jadi backend dev HARUS hidup, atau setiap test akan membakar timeout navigasi 30s dan gagal karena sebab yang tidak ada hubungannya dengan layar. Jangan `db:prepare`, jangan menyentuh database dev."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — berhasil membaca laporan periode",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_note": "peran Operator — tanpa business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_note": "endpoint bersama yang dipakai ulang verbatim"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "{{step2.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan repo distub mengembalikan fixture /summary lengkap, line dan periode terpilih",
+        "assert": "nama periode + rentang + [data-testid='period-status-badge'] hadir; kelima kartu angka utama (kd-kpi-dispatch-count, kd-kpi-net-weight-total, kd-kpi-net-weight-avg, kd-kpi-net-weight-dispatch-count, kd-kpi-missing-net-weight) masing-masing mencetak field payload-nya lewat peta testid→field dengan toBe; kd-card-quality hadir dengan dua belas angka mutu + empat measured_count + kd-quality-note; keempat rekap, kd-kpi-not-released, ketiga penghitung kepatuhan, kd-daily-table + kd-daily-total, blok kelengkapan, kd-draft-dispatch-count dan kd-findings hadir; nol penjumlahan di klien"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "login nyata ke backend :8000, buka Reporting lalu tekan tile Kernel Dispatch, pilih Production Line dan Periode; keempat rute kernel-dispatch + rute line options distub page.route",
+        "assert": "seluruh blok laporan terlihat pada viewport 390x844; angka yang dirender sama dengan angka fixture; kd-card-quality terlihat tanpa menggulir melewati satu bagian pun sesudah kd-card-tonnage; nol galat console"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — line terpilih otomatis dari yang diingat perangkat, tetap dapat diganti, dan yang tidak lagi sah dibuang",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "_note": "daftar line mill yang berlaku"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-7 — line yang diingat perangkat"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "localStorage memuat 'msl_production_line_user-1' = 'pl-7' dan pl-7 ada di daftar line; mount; lalu pemilih line diganti ke pl-9; lalu varian kedua dengan ingatan 'pl-lama' yang tidak ada di daftar",
+        "assert": "kunci yang diminta Storage.prototype.getItem sama PENUH (toBe) dengan 'msl_production_line_user-1' — kunci yang sama persis yang ditulis StationListView.vue; searchParams.get('production_line_id') pada /summary toBe 'pl-7'; production-line-required-hint toHaveCount(0); sesudah diganti ke pl-9, permintaan /summary berikutnya membawa 'pl-9'; pada varian 'pl-lama': /summary TEPAT 0 kali, layar meminta memilih, dan 'pl-lama' tidak pernah muncul di satu query string pun"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "setel localStorage lewat addInitScript dengan kunci 'msl_production_line_{userId}' lalu buka layar",
+        "assert": "angka langsung terbit tanpa pengguna memilih line; pemilih line tetap terlihat dan nilainya line itu; mengganti line memuat ulang angkanya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — line belum dipilih menahan seluruh permintaan",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "_note": "production_line_id sengaja absen — server menolak"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount tanpa line terpilih dan tanpa ingatan perangkat, lalu ganti periode tiga kali, lalu tekan Coba Lagi tiga kali — KETIGA jalur pemanggil fungsi pemuat dalam satu test",
+        "assert": "penghitung '/api/kernel-dispatch-reports/summary' TEPAT 0 sesudah ketujuh tindakan; production-line-required-hint hadir dan menyatakan apa yang ditunggu; kd-card-tonnage, kd-card-quality dan kd-export-csv masing-masing toHaveCount(0). Ketiga jalur juga diuji satu per satu pada tiga unit test terpisah; yang di sini membuktikan penjagaannya TUNGGAL"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka layar tanpa ingatan line; stub /summary dipasang dengan penghitung permintaan",
+        "assert": "nol permintaan ke /summary tercatat; arahan memilih line terlihat; nol kartu angka dan nol tombol ekspor di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — penyimpanan perangkat tidak dapat dibaca",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_note": "bootstrap tetap berjalan — penyimpanan yang melempar bukan galat jaringan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('storage disabled') }) — WAJIB pada Storage.prototype, karena di jsdom instance window.localStorage dibungkus Proxy sehingga spy instance menerima NOL panggilan; lalu mount",
+        "assert": "LANGKAH PERTAMA expect(getItemSpy).toHaveBeenCalled() — spy dibuktikan menerima >= 1 panggilan sebelum asersi lain dipercaya; akar [data-testid='laporan-kernel-dispatch-mobile'] tetap terender; production-line-required-hint hadir; [data-testid='error-message'] dan [data-testid='network-error'] keduanya toHaveCount(0)"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "addInitScript yang menimpa Storage.prototype.getItem agar melempar, lalu buka layar",
+        "assert": "layar tetap terender dan meminta memilih line; nol elemen galat terlihat; memilih line secara manual tetap menerbitkan angkanya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — Admin memilih mill dan mengganti mill mengosongkan line serta periode",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/business-units/options"
+          },
+          "request_example": {
+            "_note": "peran admin"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/business-units/options"
+          },
+          "request_example": {
+            "_note": "peran Supervisor — ditolak di dalam service"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step3.data[0].id}}",
+            "production_line_id": "pl-7",
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount empat kali untuk keempat peran; untuk admin: mill dipilih, line dan periode dipilih sampai angka terbit, lalu mill DIGANTI",
+        "assert": "[data-testid='mill-select'] toHaveCount(1) untuk admin dan toHaveCount(0) untuk ketiga peran terikat mill; penghitung /business-units/options TEPAT 0 untuk ketiga peran itu; business_unit_id ada di query /periods dan /summary HANYA untuk admin — diasersikan atas query string yang diparse, dan has('business_unit_id') === false untuk peran lain; sesudah mill diganti: pemilih line dan pemilih periode kembali kosong, dan kd-card-tonnage serta kd-card-quality toHaveCount(0) sampai keduanya dipilih lagi"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "login sebagai Admin, pilih mill, pilih line + periode, lalu ganti mill",
+        "assert": "pemilih Mill terlihat untuk Admin; sesudah mill diganti, angka hilang dan arahan memilih line + periode terlihat; nol angka mill sebelumnya tertinggal di layar"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — akun belum terhubung ke mill",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_note": "akun Operator ber-business_unit_id NULL"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan /periods distub memulangkan 422 VALIDATION_ERROR",
+        "assert": "[data-testid='no-mill-for-account'] hadir dan teksnya mengarahkan MENGHUBUNGI ADMIN; network-error toHaveCount(0); retry-button toHaveCount(0); pushMock TIDAK dipanggil; nol kartu angka"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /periods memulangkan 422 lalu buka layar",
+        "assert": "arahan menghubungi Admin terlihat; nol pesan galat jaringan; nol tombol coba lagi"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — mill belum punya periode yang mencakup stasiun ini",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_note": "mill tanpa satu periode pun yang mendaftarkan stasiun Kernel Dispatch"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan /periods distub memulangkan data kosong",
+        "assert": "[data-testid='no-periods'] hadir dengan kalimat yang menyatakan sebabnya; pemilih periode kosong; penghitung /summary TEPAT 0; kd-card-tonnage dan kd-card-quality toHaveCount(0); network-error toHaveCount(0) — daftar kosong bukan kegagalan"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /periods memulangkan data kosong lalu buka layar",
+        "assert": "kalimat sebab terlihat; nol kartu angka; nol permintaan /summary tercatat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — periode tanpa satu pun pengiriman pada line terpilih",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-kosong",
+            "production_line_id": "pl-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan fixture dispatch_count 0, daily[] kosong, keempat rekap kosong, keempat ukuran mutu min/avg/max null dengan measured_count 0, ketiga penghitung kepatuhan 0, findings kosong",
+        "assert": "KERANGKA PENUH tetap terender: kd-card-tonnage, kd-card-quality, keempat wadah rekap, kd-daily-recap, kd-compliance, kd-coverage dan kd-findings SEMUANYA toHaveCount(1) — bukan hilang dari DOM; [data-testid='kd-empty-period-note'] menyebut NAMA PERIODE dan NAMA LINE (toContain atas elemen catatan itu, bukan atas halaman); angka nol yang sungguhan dicetak '0' dan angka null dicetak '—'; kd-findings-empty hadir"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /summary dengan periode kosong lalu buka layar",
+        "assert": "kerangka laporan penuh terlihat dengan keadaan kosong yang menyebut periode dan line; tombol ekspor tetap tersedia"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — berat bersih dibaca apa adanya tanpa pernah dihitung ulang",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "respons memuat net_weight_total/avg beserta penyebutnya"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan FIXTURE YANG ARITMETIKANYA SENGAJA TIDAK KONSISTEN pada empat tempat: net_weight_total 1000 / net_weight_dispatch_count 4 / net_weight_avg 777; daily[] 10+20+30 sementara daily_total.net_weight_total 999 dan daily_total.dispatch_count 88 atas 6 baris; completeness days_with_dispatch 3 / days_counted 10 / percent 88.8; kernel_moisture_percent { min 9, avg 3, max 4 } — avg di luar rentang min..max",
+        "assert": "kd-kpi-net-weight-avg toBe '777'; kd-daily-total-net-weight-total toBe '999'; kd-daily-total-dispatch-count toBe '88'; kd-coverage-percent toBe '88,8'; kd-quality-kernel-moisture-min/-avg/-max toBe '9'/'3'/'4'. Setiap penghitungan ulang di klien PASTI memerahkan test ini. Nol pembagian, nol penjumlahan, nol Math.min/max, nol reduce atas angka payload di seluruh berkas view — diaudit juga lewat sumber yang komentarnya dilucuti"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /summary dengan fixture tidak konsisten yang sama lalu buka layar",
+        "assert": "angka yang terlihat sama dengan angka fixture, termasuk rata-rata 777 dan persen 88,8 yang mustahil — bukti bahwa layar membaca dan bukan menghitung"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — seluruh pengiriman belum selesai ditimbang menghasilkan garis bukan nol",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "seluruh pengiriman tanpa berat bersih"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan net_weight_total null, net_weight_avg null, net_weight_dispatch_count 0, missing_net_weight_dispatch_count 17, dispatch_count 17, sementara keempat ukuran mutu BERANGKA dengan measured_count masing-masing > 0",
+        "assert": "kd-kpi-net-weight-total dan kd-kpi-net-weight-avg keduanya toBe '—' — bukan '0' dan bukan '0,00'; kd-kpi-net-weight-dispatch-count toBe '0'; kd-kpi-missing-net-weight toBe '17' pada kartu TERSENDIRI yang teksnya memuat 'penimbangan belum selesai' dan TIDAK memuat 'data tidak lengkap'; dan dua belas angka mutu TETAP berangka — mutu dan berat adalah kolom yang berbeda"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /summary dengan seluruh berat kosong lalu buka layar",
+        "assert": "garis '—' terlihat pada kedua angka berat; kartu penimbangan-belum-selesai terlihat dengan angkanya; kartu mutu tetap berangka"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — rata-rata selalu bersama penyebutnya",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan fixture lengkap; wadah [data-testid='kd-card-tonnage'] diambil sebagai elemen dan pencarian dilakukan DI DALAMNYA",
+        "assert": "kd-card-tonnage memuat kd-kpi-net-weight-avg DAN kd-kpi-net-weight-dispatch-count — asersi KETERKANDUNGAN di dalam wadah yang sama, bukan dua pencarian terpisah di tingkat wrapper yang akan hijau walau penyebutnya terpisah dua kartu; kd-card-tonnage TIDAK memuat kd-kpi-missing-net-weight (kartu tersendiri); dan setiap baris rekap serta baris harian mencetak net_weight_dispatch_count-nya sendiri di sel yang sama dengan net_weight_avg-nya"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka layar pada 390x844 dan ukur kotak pembatas kedua elemen",
+        "assert": "penyebut terlihat di dalam kotak pembatas kartu yang sama dengan rata-ratanya, tanpa perlu menggulir di antara keduanya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — kartu tonase dan kartu mutu berurutan dan tidak dapat dilipat",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "payload hibrida: blok dispatches + blok quality"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan fixture lengkap; daftar testid seluruh bagian tingkat atas dibaca sebagai ARRAY BERURUT dari DOM; lalu kd-recap-transporter-toggle dan kd-daily-recap-toggle masing-masing ditekan untuk melipatnya",
+        "assert": "indeks kd-card-quality TEPAT satu lebih besar daripada indeks kd-card-tonnage — nol bagian di antaranya; sesudah kedua lipatan: kd-recap-transporter-table dan kd-daily-table toHaveCount(0) SEMENTARA kd-card-tonnage dan kd-card-quality tetap toHaveCount(1) dengan angkanya tetap terbaca; dan pencarian [data-testid$='-toggle'] DI DALAM kd-card-tonnage serta DI DALAM kd-card-quality masing-masing toHaveCount(0) — nol kontrol lipat pada angka utama"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka layar pada 390x844, bandingkan posisi vertikal kedua kartu, lalu lipat rekap pengangkut dan rekap harian",
+        "assert": "kartu mutu langsung menyusul kartu tonase tanpa bagian lain di antaranya; sesudah rekap dilipat, kedua kartu tetap terbuka dengan angkanya terlihat; nol kontrol lipat di dalam kedua kartu"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — empat ukuran mutu dengan terendah, rata-rata, tertinggi, dan penyebutnya masing-masing",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "blok quality dengan empat ukuran min/avg/max"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan keempat ukuran berangka dan semuanya berbeda: kernel_moisture { 6.1 / 7.4 / 9.9 }, dirt_impurities { 0.2 / 0.6 / 1.8 }, ffa { 0.9 / 1.7 / 3.4 }, broken_kernel { 11 / 14.5 / 22 }",
+        "assert": "dua belas elemen ber-testid sendiri — kd-quality-{kernel-moisture,dirt-impurities,ffa,broken-kernel}-{min,avg,max} — masing-masing toBe nilai payload-nya lewat peta testid→field; dua belas asersi TERPISAH, bukan satu asersi atas teks kartu, karena satu kartu yang memuat semua angka akan meloloskan ukuran yang nilainya tertukar; dan nol nilai mutu yang dihitung di klien"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka layar pada 390x844 dengan keempat ukuran berangka",
+        "assert": "keempat ukuran terlihat bertumpuk di dalam satu kartu dengan ketiga angkanya masing-masing terbaca; nol galat console"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — penyebut keempat ukuran mutu dapat berbeda satu dengan lainnya dan berbeda dari jumlah pengiriman",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "measured_count tiap ukuran berdiri sendiri"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan dispatch_count 40 dan measured_count kernel_moisture 31, dirt_impurities 24, ffa 19, broken_kernel 7 — lima angka yang tidak ada dua pun bernilai sama",
+        "assert": "LIMA asersi angka terpisah atas lima testid berbeda: kd-kpi-dispatch-count '40', kd-quality-kernel-moisture-count '31', kd-quality-dirt-impurities-count '24', kd-quality-ffa-count '19', kd-quality-broken-kernel-count '7'. Satu penyebut tunggal yang dipakai berempat, atau penyebut yang jatuh ke dispatch_count, akan memerahkannya — inilah pembuktian paling langsung bahwa tiap ukuran punya penyebutnya sendiri. Dan [data-testid='kd-quality-note'].text() sama PENUH (toBe) dengan quality._note payload, toHaveCount(1), bukan toContain"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka layar dengan keempat penyebut berbeda",
+        "assert": "keempat penyebut terlihat sebagai empat angka berbeda; prosa penjelas penyebut yang berbeda-beda terlihat utuh di dalam kartu mutu"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — ukuran mutu tanpa hasil uji tampil '—' tanpa mengosongkan ukuran lain",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "satu ukuran measured_count 0, tiga lainnya berangka"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "VARIAN A: dirt_impurities { min null, avg null, max null, measured_count 0 } sementara kernel_moisture, ffa dan broken_kernel berangka dengan measured_count 5 / 8 / 11. VARIAN B: keempat ukuran kosong sementara tonasenya berangka",
+        "assert": "VARIAN A: ketiga angka kd-quality-dirt-impurities-* toBe '—' dan -count toBe '0', SEMENTARA kesembilan angka ketiga ukuran lain TETAP mencetak nilai payload-nya. NYATAKAN DI TEST: satu v-if=\"adaDataMutu\" di pembungkus kd-card-quality akan MEMERAHKAN test ini — itu kesalahan yang paling mudah dibuat di klien karena terasa rapi, dan ia menyembunyikan tiga ukuran yang punya data gara-gara satu ukuran kosong. Penjaganya WAJIB di tingkat ukuran. VARIAN B: kd-card-quality TETAP toHaveCount(1) dengan kalimat 'belum ada hasil uji'; kedua belas angkanya '—'; kd-card-tonnage tetap berangka"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /summary dengan satu ukuran kosong dan tiga berangka lalu buka layar",
+        "assert": "ukuran yang kosong menampilkan garis sementara ketiga ukuran lain menampilkan angkanya pada layar yang sama; kartu mutu tidak hilang"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — tiga rekap teks bebas diterbitkan apa adanya, menjumlah ke jumlah pengiriman, dan urutannya milik server",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "by_transporter / by_silo_source / by_destination_buyer"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan dispatch_count 30 dan ketiga rekap teks yang urutannya SENGAJA bukan alfabetis dan bukan urut jumlah — by_transporter: [ { 'Zulkifli Trans', 3 }, { null, 11 }, { 'Amanah Logistik', 7 }, { 'Bintang Mas', 9 } ]",
+        "assert": "array nilai yang dibaca berurut dari DOM toEqual [ 'Zulkifli Trans', 'tidak tercatat', 'Amanah Logistik', 'Bintang Mas' ] — toEqual atas ARRAY BERURUT, bukan himpunan dan bukan panjang; penjumlahan sel dispatch_count tiap rekap yang DIBACA DARI DOM toBe 30; nol elemen bernilai 'lainnya'; dan nol permintaan master sesudah /summary (penghitung permintaan) — teks bebas diterbitkan dengan NOL penerjemahan"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /summary dengan urutan tidak teratur lalu buka ketiga rekap",
+        "assert": "baris muncul dalam urutan payload; kelompok 'tidak tercatat' bertonase besar terlihat DI ATAS, bukan di baris terakhir"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — silo sumber diperlakukan sebagai teks meski nama kolomnya menyesatkan",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "by_silo_source berisi teks bebas, bukan rujukan master"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan by_silo_source berisi 'Silo 3 Utara' dan 'SL-02'; penghitung SELURUH permintaan diaktifkan",
+        "assert": "sel nilainya toBe 'Silo 3 Utara' dan 'SL-02' APA ADANYA; penghitung permintaan sesudah /summary TEPAT 0 — nol permintaan master, nol pencarian nama. Tidak ada daftar induk silo di sistem ini; nama kolom yang berakhiran '_id' menyesatkan, dan satu-satunya pencegahnya adalah test yang MENGHITUNG permintaan"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka rekap silo sumber dengan penghitung permintaan terpasang",
+        "assert": "nilai terlihat apa adanya; nol permintaan tambahan tercatat sesudah /summary"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — nilai berbeda hanya pada huruf atau spasi tetap dua baris, dan nilai langka tidak dilipat",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "server menerbitkan varian huruf sebagai baris terpisah"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan by_destination_buyer berisi 'PT Sawit Jaya', 'pt sawit jaya', ' PT Sawit Jaya' sebagai TIGA baris terpisah dari server, ditambah satu baris yang dispatch_count-nya 1",
+        "assert": "jumlah baris TEPAT 4; ketiga varian dirender sebagai tiga baris dengan teksnya masing-masing apa adanya (kesetaraan penuh per sel, termasuk spasi tepi yang dipertahankan); baris berfrekuensi 1 TETAP ada; nol elemen bernilai 'lainnya'/'Lainnya'/'others' pada keempat rekap. Klien tidak menormalkan, tidak menggabungkan, dan tidak melipat"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /summary dengan tiga varian huruf lalu buka rekap pembeli tujuan",
+        "assert": "tiga baris terlihat, bukan satu; baris berfrekuensi satu terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — rekap status pelepasan gerbang menampilkan label dari kosakata bersama, bukan kodenya",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "by_gate_status membawa KODE MENTAH; label diturunkan di klien"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan by_gate_status berisi value 'released', 'not_released' dan null; LALU audit sumber: berkas view dibaca sebagai teks dan KOMENTARNYA DILUCUTI (blok /* */ dan baris //) sebelum dicocokkan, karena docblock layar ini memang MENYEBUT kedua label itu sebagai penjelasan dan tanpa pelucutan auditnya memerah karena prosanya sendiri",
+        "assert": "sel nilai baris pertama toBe 'Released', baris kedua toBe 'Not Released', baris ketiga toBe 'tidak tercatat' — kesetaraan penuh per sel, bukan atas teks tabel. AUDIT SUMBER: pada sumber yang sudah dilucuti, literal 'Not Released' muncul TEPAT 1 kali dan 'Released' muncul TEPAT 1 kali di luar yang itu — satu tabel pemetaan TUNGGAL sebagai konstanta. Pemetaan yang disebar sebagai ekspresi inline di template akan menaikkan angka itu, dan audit sumber adalah SATU-SATUNYA cara menguji aturan ini, karena pemetaan yang disebar menghasilkan DOM yang identik"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka rekap status pelepasan gerbang",
+        "assert": "label 'Released' dan 'Not Released' terlihat; kode mentah 'released'/'not_released' TIDAK terlihat di dalam sel nilai rekap itu"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — nilai status yang tidak dikenal kosakata bersama ditampilkan apa adanya",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "nilai di luar kedua pilihan, mungkin dari jalur lain"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan by_gate_status: { 'released', 20 }, { 'not_released', 5 }, { 'held_by_security', 3 }, { null, 2 } dan dispatches.dispatch_count 30",
+        "assert": "jumlah baris kd-recap-gate-status-row-* TEPAT 4 — nilai tak dikenal TIDAK dibuang; sel nilainya toBe 'held_by_security' APA ADANYA — bukan 'Held By Security', bukan 'Tidak dikenal', dan TIDAK dipaksa menjadi 'Released'/'Not Released'; baris null tetap baris TERSENDIRI 'tidak tercatat' dengan count 2 — nilai tak dikenal tidak dilipat ke dalamnya karena ia TERCATAT, hanya tidak dikenal; dan penjumlahan keempat sel dispatch_count yang dibaca dari DOM toBe 30, sama dengan kd-kpi-dispatch-count. Klien yang 'merapikan' dengan membuang nilai tak dikenal memecah penjumlahan itu, dan penjumlahan inilah yang menangkapnya"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /summary dengan nilai 'held_by_security' lalu buka rekapnya",
+        "assert": "baris bernilai 'held_by_security' terlihat sebagai barisnya sendiri; empat baris terlihat; jumlah angkanya cocok dengan jumlah pengiriman di atasnya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — tidak tercatat dan tidak dilepas adalah dua keadaan berbeda, dan tidak dilepas ditonjolkan",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "not_released_count datang dari server; HANYA value === 'not_released', TIDAK termasuk null"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "DUA fixture pembeda. FIXTURE A (sengaja tidak konsisten): not_released_count 9 sementara baris 'not_released' berjumlah 5 dan baris null berjumlah 4 — 5+4 juga 9, jadi rumus yang salah menghasilkan angka yang sama. FIXTURE B: not_released_count 5 dengan baris 'not_released' 5 dan baris null 4",
+        "assert": "FIXTURE A: kd-kpi-not-released toBe '9'. FIXTURE B: kd-kpi-not-released toBe '5', BUKAN '9' — inilah fixture yang MEMBEDAKAN, dan klien yang menghitung ulang dari rekap (atau yang melipat baris null ke dalamnya) akan memerah di sini. kd-kpi-not-released dan baris 'tidak tercatat' adalah dua testid berbeda dan diasersikan terpisah; kd-kpi-not-released berada DI LUAR wadah rekapnya (keterkandungan diasersikan terbalik)"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka layar dengan fixture B",
+        "assert": "angka tidak-dilepas terlihat ditonjolkan di luar rekapnya dan nilainya 5; baris 'tidak tercatat' terlihat di dalam rekap dengan nilainya sendiri"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — tiga penghitung kepatuhan terpisah dan segel atas serta bawah tidak pernah dijumlahkan",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "compliance: missing_waybill / missing_seal_top / missing_seal_bottom"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan compliance { missing_waybill_count 4, missing_seal_top_count 6, missing_seal_bottom_count 2 } — tiga angka berbeda yang jumlah berpasangannya (8) tidak sama dengan satu pun di antaranya; dan varian kedua dengan ketiganya 0",
+        "assert": "TIGA asersi atas tiga testid: kd-compliance-missing-waybill '4', kd-compliance-missing-seal-top '6', kd-compliance-missing-seal-bottom '2'. DAN: nol elemen yang mencetak '8'; [data-testid='kd-compliance-missing-seal'] toHaveCount(0) — testid gabungan tidak boleh ada; teks kd-compliance tidak memuat frasa 'segel hilang' sebagai satu angka. Pada varian nol: ketiganya tetap DIRENDER bernilai '0', dan kd-compliance-note.text() sama PENUH dengan compliance._note payload pada KEDUA keadaan"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka blok kepatuhan",
+        "assert": "tiga angka terlihat terpisah; nol angka gabungan segel; prosa kepatuhan terlihat utuh"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — draft ikut terhitung dan jumlahnya dinyatakan",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "draft_dispatch_count termasuk di dalam dispatch_count"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan dispatch_count 30 dan draft_dispatch_count 11",
+        "assert": "kd-kpi-dispatch-count toBe '30' dan kd-draft-dispatch-count toBe '11' — 11 TERMASUK di dalam 30, bukan di luarnya: nol elemen yang mencetak '19'; kd-draft-note hadir dan menyatakan bahwa draft ikut terhitung; dan nol kontrol penyaring status catatan di DOM — pembaca diberi tahu, bukan dilindungi dari mengetahuinya"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka layar dengan fixture berdraft",
+        "assert": "jumlah draft terlihat sebagai angka tersendiri beserta kalimat yang menyatakan draft ikut terhitung; nol penyaring status"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — periode tertutup tetap dapat dibaca dan diekspor",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_note": "daftar memuat periode draft, terbuka DAN tertutup — status tidak menyaring"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode berstatus tertutup>",
+            "production_line_id": "pl-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan periode berstatus tertutup terpilih",
+        "assert": "[data-testid='period-status-badge'] mencetak status tertutup; seluruh kartu angka, keempat rekap dan kartu mutu terender penuh; [data-testid='kd-export-csv'] hadir dan TIDAK ber-atribut disabled; dan daftar opsi pemilih periode memuat ketiga status — status periode tidak menyaring pembacaan maupun ekspor"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "pilih periode tertutup lalu tekan ekspor",
+        "assert": "angka terlihat penuh; penanda status tertutup terlihat; unduhan terjadi"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — rekap harian per hari berpengiriman dan kelengkapan atas hari yang sudah berjalan",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode 30 hari dengan pengiriman pada 9 hari>",
+            "production_line_id": "pl-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang belum mencapai tanggal awalnya>",
+            "production_line_id": "pl-3",
+            "_note": "completeness.percent null"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan periode 30 hari dan daily[] berisi TEPAT 9 entri yang urutannya SENGAJA bukan urut tanggal naik, ditambah daily_total yang net_weight_total-nya BUKAN jumlah kolomnya; varian kedua dengan completeness.percent null",
+        "assert": "jumlah baris kd-daily-row-* TEPAT 9 — nol baris nol untuk 21 hari lainnya; array tanggal yang dibaca berurut dari DOM toEqual array tanggal payload PERSIS (bukan himpunan); tiap baris mencetak net_weight_dispatch_count-nya sendiri; kd-daily-total mencetak nilai daily_total payload, bukan penjumlahan kolom; kd-coverage-days-with-dispatch / -days-counted / -days-in-period masing-masing mencetak field payload-nya; kd-coverage-percent mencetak completeness.percent payload — BUKAN days_with/days_counted. Pada varian null: kd-coverage-percent toBe '—' beserta kalimat sebabnya, BUKAN '0,0%'"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /summary dengan periode 30 hari / 9 hari berpengiriman lalu buka rekap harian",
+        "assert": "tepat 9 baris terlihat beserta baris total; nol baris bertanggal tanpa pengiriman; blok kelengkapan terlihat dalam satuan hari"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — pengiriman tanpa tanggal kejadian tidak dapat terjadi",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "undated_dispatch_count selalu 0 dalam praktik — kolom tanggal kejadian NOT NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "DUA test TERPISAH, bukan satu test berparameter: (A) undated_dispatch_count 0; (B) undated_dispatch_count 2",
+        "assert": "(A) kd-undated-dispatch-count dan kd-undated-note keduanya toHaveCount(0) — bukan hadir bernilai '0'. (B) kd-undated-dispatch-count toHaveCount(1) dan toBe '2'; kd-undated-note hadir. Dipisah karena v-if yang terbalik meloloskan salah satu arah saja, dan arah yang tidak diuji adalah arah yang rusak di produksi"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka layar dengan undated_dispatch_count 0",
+        "assert": "nol blok pengiriman-tanpa-tanggal terlihat di layar"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — tanpa sebaran per jam, tanpa waktu putar kendaraan, dan tanpa penandaan nilai mutu di luar batas, semuanya dengan sebabnya",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "_note_no_hourly dan _note_no_quality_thresholds disusun server"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan fixture lengkap yang _note_no_hourly-nya SENGAJA memuat kata 'jam' dan menyebut CPO Dispatch, dan _note_no_quality_thresholds-nya memuat kata 'batas' — sebagaimana server menyusunnya",
+        "assert": "KETIADAAN DIASERSIKAN LEWAT TESTID DAN NAMA KUNCI: [data-testid='kd-hourly'], [data-testid='kd-hourly-distribution'], [data-testid='kd-peak-hour'], [data-testid='kd-turnaround'] dan [data-testid='kd-quality-threshold-badge'] masing-masing toHaveCount(0); dan Object.keys(payload) tidak memuat satu kunci pun yang cocok /hour|hourly|turnaround|peak|threshold/. SAPUAN TEKS DILARANG: expect(text).not.toContain('jam') akan MEMERAH atas prosa yang justru MENYATAKAN ketiadaannya, dan hal yang sama berlaku untuk 'batas'. KEHADIRAN prosanya: kd-note-no-hourly dan kd-note-no-quality-thresholds masing-masing text() sama PENUH (toBe) dengan field payload-nya, toHaveCount(1), bukan toContain; nilai tertinggi tiap ukuran mutu dirender tanpa kelas peringatan dan tanpa lencana — diasersikan lewat testid lencana yang toHaveCount(0)"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "gulir seluruh layar dari atas ke bawah pada 390x844",
+        "assert": "nol elemen sebaran per jam, nol jam tersibuk, nol waktu putar, nol lencana peringatan mutu — dicari lewat testid; kedua prosa sebab terlihat utuh"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — temuan adalah satu-satunya daftar kejadian",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "text_entries hanya punya findings — satu kolom teks bebas"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan text_entries.findings berisi 2 entri bertanggal; varian kedua dengan findings kosong",
+        "assert": "[data-testid='kd-findings'] toHaveCount(1) dengan TEPAT 2 baris, masing-masing mencetak tanggal dan teksnya apa adanya (kesetaraan penuh per baris); dan NOL bagian kedua — [data-testid='kd-remarks'] dan [data-testid='kd-remarks-empty'] keduanya toHaveCount(0), karena stasiun ini hanya punya satu kolom teks bebas, berbeda dari Solid Waste Disposal yang punya dua. Pada varian kosong: kd-findings-empty hadir dan kd-findings tetap dirender"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka bagian temuan",
+        "assert": "satu daftar bertanggal terlihat; nol bagian catatan kedua terlihat di seluruh layar"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — giliran kerja tidak di layar tetapi ada di ekspor bersama lima kolom lain",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan fixture lengkap; lalu audit kolom ekspor terhadap konstanta EXPORT_HEADER pada backend/app/Services/KernelDispatchReportService.php",
+        "assert": "[data-testid='kd-shift'] toHaveCount(0) dan Object.keys(payload) tidak memuat kunci yang cocok /shift/ selain '_note_shift_not_published' — diasersikan lewat NAMA KUNCI, bukan lewat sapuan teks, karena kd-note-shift merender prosa yang MENYEBUT giliran kerja; kd-note-shift.text() sama PENUH (toBe) dengan _note_shift_not_published payload. STUB WAJIB DISALIN: barisan kolom stub ekspor diambil dari konstanta EXPORT_HEADER pada backend/app/Services/KernelDispatchReportService.php — DIVERIFIKASI ADA di baris 357, 27 kolom dengan enam kolom konteks pertama yang diulang per baris; toEqual atas array judulnya, bukan atas panjangnya saja. Keenam kolom yang tidak muncul di satu angka pun di layar wajib hadir: Shift, Weighbridge Ticket No, Waybill Number, Vehicle Plate No, Driver Name, Weighbridge Operator ID. Jangan mengarang dan jangan menyesuaikan angka asersi ke stub — pada screen-161 stub CSV dikarang, jumlah kolomnya salah, dan berkasnya hijau sambil membuktikan nol hal tentang berkas yang sungguh diunduh pengguna"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "tekan ekspor dan tangkap unduhannya",
+        "assert": "berkas terunduh memuat 27 kolom dengan urutan dan ejaan judul yang sama dengan EXPORT_HEADER, termasuk Shift, Weighbridge Ticket No, Waybill Number, Vehicle Plate No, Driver Name dan Weighbridge Operator ID; nol elemen giliran kerja terlihat di layar"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — ekspor hanya CSV, tanpa Excel, dan dua kali tekan menghasilkan satu unduhan",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/export"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan line dan periode terpilih; kd-export-csv ditekan DUA KALI berturut-turut tanpa menunggu permintaan pertama selesai, ketukan kedua dikirim dengan force supaya yang teruji penjagaan APLIKASI dan bukan penjagaan alat uji",
+        "assert": "penghitung permintaan ekspor TEPAT 1; penghitung pemicu unduhan TEPAT 1; tombol ber-atribut disabled selama permintaan dan aktif kembali sesudahnya. URL: pathname '/api/kernel-dispatch-reports/export', searchParams format 'csv', period_id dan production_line_id sama penuh dengan yang terpilih, dan has('business_unit_id') === false untuk peran terikat mill. KETIADAAN EXCEL: [data-testid='kd-export-xlsx'] toHaveCount(0) dan daftar elemen ber-role button yang teksnya dinormalkan tidak memuat satu pun yang cocok /excel|xlsx/i — diperiksa per ELEMEN role button, bukan sapuan teks halaman"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "tekan tombol ekspor dua kali cepat dengan penghitung permintaan dan penangkap unduhan terpasang",
+        "assert": "satu permintaan, satu unduhan; nol tombol Excel terlihat — dicari lewat testid dan role"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — rekap menggulir mendatar di dalam kartunya, dapat dilipat, dan kartu mutu bertumpuk tetap terbaca",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode 31 hari dengan rekap puluhan baris>",
+            "production_line_id": "pl-3"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan rekap puluhan baris; keempat rekap dan rekap harian dilipat lalu dibuka kembali",
+        "assert": "kelima wadah punya kontrol lipat ber-aria-expanded yang berubah nilainya; tabelnya hilang dari DOM saat terlipat dan kembali saat dibuka; kd-card-tonnage dan kd-card-quality tetap toHaveCount(1) pada kedua keadaan dan tidak punya kontrol lipat sendiri. GEOMETRI TIDAK DIUJI DI SINI — ia diuji di browser_test, karena jsdom tidak punya tata letak dan setiap asersi geometri di jsdom bernilai nol"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "buka layar pada viewport 390x844 dengan fixture rekap panjang, lalu UKUR geometrinya — bukan asersi atas nama kelas CSS",
+        "assert": "(1) HALAMAN TIDAK BERGESER MENDATAR: document.documentElement.scrollWidth <= clientWidth (toleransi 1px) — diukur, bukan dilihat, dan diukur SESUDAH kartu mutu serta kelima rekap terender. (2) KARTU MUTU TIDAK MEMOTONG ISINYA: untuk kd-card-quality dan setiap anak ukurannya, boundingBox anak berada DI DALAM boundingBox kartu pada kedua sumbu — geometri kartu dibanding isinya, dan markup yang benar tetap dapat menghasilkan elemen yang terpotong induknya; keempat ukuran BERTUMPUK (nilai top keempatnya menaik, nilai left-nya sama) dan ketiga angkanya beserta penyebutnya terlihat. (3) TABEL LEBAR MENGGULIR DI DALAM KARTUNYA: untuk tiap wadah rekap, scrollWidth elemen tabel > clientWidth wadahnya DAN wadah itu dapat digulir mendatar, sementara scrollWidth halaman TIDAK berubah sesudah penggulirannya. Nol asersi atas nama kelas; nol galat console"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — luring menutup angkanya, baik sejak awal maupun sesudah angka termuat",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "_note": "tidak pernah terkirim saat luring — penghitungnya TEPAT 0"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true }) SEBELUM mount; ingatan line berisi line yang SAH supaya bootstrap akan berlanjut seandainya penjagaan luringnya tidak ada; penghitung dipasang pada KELIMA jalur",
+        "assert": "penghitung KELIMA jalur masing-masing TEPAT 0 — DIHITUNG, bukan diasumsikan; [data-testid='offline-notice'] hadir, teksnya menyatakan layar MEMERLUKAN JARINGAN dan memuat kalimat bahwa ia tidak menampilkan satu angka pun dari pemuatan sebelumnya; dan kd-card-tonnage, kd-card-quality, keempat wadah rekap, kd-daily-recap, kd-compliance dan kd-coverage SEMUANYA toHaveCount(0). Kartu mutu diasersikan TERPISAH dari kartu tonase — keduanya dirender oleh cabang berbeda, dan penjaga luring yang hanya menutup salah satunya meloloskan separuh angka"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "palsukan navigator.onLine lewat addInitScript + Object.defineProperty, dan BIARKAN stub API terpasang dengan penghitung permintaan supaya penolakan permintaan DAPAT dibantah. JANGAN context.setOffline(true) + page.reload(): itu memutus pengambilan dokumen dan bundle aplikasi dari Vite dev server, navigasinya mati dengan ERR_INTERNET_DISCONNECTED, aplikasinya TIDAK PERNAH DIJALANKAN, dan yang teruji adalah Chromium — terbukti pada screen-161",
+        "assert": "pernyataan 'memerlukan jaringan' terlihat beserta kalimat nol-angka-lama; nol kartu tonase, nol kartu mutu, nol rekap di DOM; penghitung permintaan kelima jalur TEPAT 0"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — perangkat menjadi luring sesudah angka termuat dan listener dilepas saat unmount",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "berhasil lebih dulu, lalu perangkat kehilangan koneksi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "mount dengan onLine true dan fixture lengkap sampai angka terender; DIBUKTIKAN dulu kd-card-tonnage dan kd-card-quality hadir; lalu onLine dipalsukan false dan window.dispatchEvent(new Event('offline')); test kedua memasang spy pada window.addEventListener/removeEventListener lalu mount dan unmount",
+        "assert": "sesudah event offline dan await nextTick: kd-card-tonnage, kd-card-quality, keempat rekap, kd-daily-recap toHaveCount(0) dan offline-notice hadir — angka DITUTUP, bukan dibiarkan basi dengan spanduk di atasnya. PELEPASAN LISTENER: untuk 'online' dan 'offline', setiap pasangan (event, handler) yang tercatat pada addEventListener juga tercatat pada removeEventListener dengan REFERENSI FUNGSI YANG SAMA — bukan sekadar jumlah panggilan yang cocok, karena handler yang dibuat ulang saat pelepasan meloloskan hitungan dan tetap membocorkan listener. CATATAN BERKAS: setiap wrapper WAJIB di-unmount pada afterEach — wrapper yang bocor menghitung GANDA permintaan bootstrap pada test berikutnya, kegagalan yang akan tampak seperti bug di layar"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "muat angka lebih dulu, lalu palsukan navigator.onLine menjadi false lewat page.evaluate dan picu event 'offline' — tanpa reload dan tanpa setOffline",
+        "assert": "angka yang sudah terlihat menghilang dan pernyataan luring muncul; nol angka tertinggal di layar"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — sesi berakhir mengarahkan ke Login tanpa pesan galat jaringan",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "token tidak lagi sah"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "DUA test terpisah untuk DUA keadaan: (A) /summary memulangkan 401; (B) /summary memulangkan 403 FORBIDDEN sesudah pemuatan pertama BERHASIL sehingga angka sudah terender",
+        "assert": "(A) pushMock dipanggil TEPAT sekali dengan rute Login; network-error toHaveCount(0) dan nol elemen yang teksnya memuat 'jaringan'. (B) production-line-rejected (atau production-line-required-hint) hadir meminta memilih line lagi; network-error toHaveCount(0); DAN kd-card-tonnage, kd-card-quality, keempat rekap, kd-daily-recap, kd-kpi-not-released serta kd-compliance SEMUANYA toHaveCount(0) — HILANG dari DOM, bukan sekadar tertutup atau berubah menjadi '—'. Angka mill sendiri yang tertinggal bersama pesan 403 akan dibaca sebagai angka yang baru. Varian ketiga: 422 akun tanpa mill menampilkan no-mill-for-account dengan arahan menghubungi Admin, tanpa retry-button dan tanpa pushMock — tiap galat punya keadaannya sendiri, dan menyeragamkannya menjadi satu 'galat jaringan' mengirim pengguna mencari masalah di tempat yang salah"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /summary memulangkan 401 lalu ganti periode; varian kedua stub 403 sesudah pemuatan pertama berhasil",
+        "assert": "pada 401: berpindah ke layar Login tanpa pesan jaringan. Pada 403: arahan memilih line terlihat dan nol kartu angka tertinggal di layar"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — galat jaringan dapat dicoba lagi dengan penjagaan line tetap berlaku",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "gagal sekali"
+          },
+          "expected_status": 500,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/summary"
+          },
+          "request_example": {
+            "period_id": "p-1",
+            "production_line_id": "pl-3",
+            "_note": "berhasil pada coba lagi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanKernelDispatchView.vue",
+        "action": "/summary memulangkan 500 pada panggilan pertama lalu 200 pada panggilan kedua; line dan periode terpilih; penghitung /summary aktif. Lalu varian kedua: TANPA line terpilih, Coba Lagi ditekan tiga kali",
+        "assert": "sesudah kegagalan: network-error dan retry-button hadir, penghitung /summary TEPAT 1. Sesudah SATU ketukan Coba Lagi: penghitung TEPAT 2 — bukan 3 dan bukan 4, supaya 'coba lagi' yang diam-diam memanggil dua kali tertangkap; angka terender; network-error toHaveCount(0). Varian kedua: penghitung /summary TEPAT 0 sesudah ketiga ketukan — penjagaan line TETAP berlaku pada jalur coba lagi, karena penjagaannya ada di fungsi pemuat"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "stub /summary gagal sekali lalu berhasil; tekan Coba Lagi satu kali dengan penghitung permintaan terpasang",
+        "assert": "keadaan galat lalu angka terbit; tepat dua permintaan tercatat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Kernel Dispatch Mobile — pintu masuk tile Reporting menyala, DAN riak pada ReportingPilihStasiunView.spec.ts",
+      "usecase_id": "usecase-171--laporan-kernel-dispatch-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-dispatch-reports/periods"
+          },
+          "request_example": {
+            "_note": "dipanggil hanya SESUDAH tile menavigasi ke layar ini — pintu masuknya tunggal"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "ReportingPilihStasiunView.vue",
+        "action": "mount dengan StationSlot type 'kernel-dispatch'; lalu audit sumber ReportingPilihStasiunView.vue; lalu PERIKSA nilai contoh 'belum ada laporan mobile' pada mobile/tests/ReportingPilihStasiunView.spec.ts",
+        "assert": "PERILAKU: tile kernel-dispatch ber-aria-disabled 'false' dan ketukannya memanggil pushMock dengan { name: 'report-kernel-dispatch' }. AUDIT SUMBER: kunci 'kernel-dispatch' muncul TEPAT 1 kali di dalam blok STATION_ICONS — ikonnya SUDAH ADA (diverifikasi di baris 372, sebuah <path> SVG) sehingga menambahkannya lagi menjadi entri ganda — dan TEPAT 1 kali di dalam blok REPORT_ROUTES dengan nilai 'report-kernel-dispatch'; pekerjaan ini menambahkan TEPAT SATU BARIS. RIAK — PERIKSA DULU: keadaan yang TERVERIFIKASI saat spec ini ditulis adalah berkas itu masih memakai stasiun NYATA, yakni 'kernel-dispatch' pada test 'tile tanpa laporan tetap tidak berpindah rute' (makeStation type 'kernel-dispatch' di sekitar baris 901, asersi [data-testid='station-tile-kernel-dispatch'] di baris 907) ditambah penyebutan docblock di baris 60 dan 71. BILA pada saat implementasi screen-163 sudah menggantinya dengan kode fiktif 'zz-stasiun-fiktif', berkas itu TIDAK memerah dan TIDAK perlu disentuh sama sekali. BILA masih 'kernel-dispatch', ganti HANYA ketiga tempat itu ke 'zz-stasiun-fiktif' dengan type di-cast (as unknown as StationType) dan testid asersinya menjadi 'station-tile-zz-stasiun-fiktif' — JANGAN ke 'cpo-dispatch' maupun 'process-quality-control', keduanya dibangun pada screen-167/169 dan akan basi lagi dalam hitungan hari. Berkas itu MENYUNTIKKAN daftar stasiunnya sendiri lewat makeStation(...) + getActiveAndPlaceholderStations*Mock.mockResolvedValue(...), jadi kode fiktif memang tersedia di sana. JANGAN melemahkan, menghapus atau melonggarkan satu asersi pun sebagai gantinya"
+      },
+      "browser_test": {
+        "route": "/reports/kernel-dispatch",
+        "action": "login nyata ke backend :8000 lewat Vite :5174 dengan reuseExistingServer, buka Reporting, tekan tile Kernel Dispatch",
+        "assert": "tile aktif (tidak kelabu) dan menavigasi ke layar ini; kerangka laporan terlihat pada 390x844; backend dev WAJIB hidup — tanpanya setiap test membakar timeout navigasi 30s dan gagal karena sebab yang tidak ada hubungannya dengan layar; jangan db:prepare dan jangan menyentuh database dev"
+      }
+    }
+  ]
+}

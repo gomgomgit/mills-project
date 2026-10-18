@@ -1,0 +1,143 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-18"
+  },
+  "id": "screen-168--laporan-process-quality-control-web",
+  "name": "Laporan Process Quality Control (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode untuk stasiun Process Quality Control — pengawasan mutu proses di sepanjang jalur pengolahan. Berbeda dari ketiga laporan pengiriman sebelumnya, stasiun ini TIDAK mencatat transaksi: ia mencatat PEMBACAAN, satu baris per slot jam, dua puluh empat slot per hari. Bentuknya karena itu sama dengan Laporan Process Water dan Engine Room, bukan dengan Laporan Kernel Dispatch maupun CPO Dispatch. Yang membuatnya berbeda dari laporan bergrid mana pun sebelumnya adalah jumlahnya: DUA BELAS kolom ukur numerik dalam LIMA blok yang mengikuti jalur fisik minyak — Fruit Press, Purifier & Clarification Balance, Vacuum Drying Station, Decanter/Centrifuge, dan Final Storage. Dua belas angka yang berdiri sendiri tidak dapat dibaca; yang dapat dibaca adalah lima blok yang masing-masing menjawab satu pertanyaan tentang satu tahap. Karena itu layar ini dikelompokkan menurut tahap, bukan menurut jenis angka. Ini juga laporan stasiun TERAKHIR: sesudahnya setiap jenis stasiun di pabrik punya laporan periodenya sendiri.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menekan tile Process Quality Control pada layar Laporan Stasiun (screen-140) — satu-satunya pintu masuk web, dan tile TERAKHIR yang masih kelabu di grid itu",
+    "Tautan langsung ke rutenya dengan mill dan Production Line terbawa di query string"
+  ],
+  "information_displayed": [
+    "Nama periode, rentang tanggalnya, dan penanda statusnya — periode draft maupun tertutup tetap terbaca",
+    "Nama mill yang berlaku; pemilih Mill hanya untuk Admin",
+    "Pemilih Production Line — WAJIB dipilih sebelum satu angka pun muncul",
+    "LIMA BLOK UKURAN yang mengikuti jalur fisik minyak, masing-masing berjudul tahapnya",
+    "Blok Fruit Press: kehilangan minyak di sludge (%) dan kehilangan minyak di fibre (%)",
+    "Blok Purifier & Clarification Balance: suhu masuk (°C) dan tekanan balik (Bar)",
+    "Blok Vacuum Drying Station: suhu pengering (°C) dan tekanan vakum (Bar)",
+    "Blok Decanter/Centrifuge: laju umpan (MT/jam) dan kehilangan minyak di cake (%)",
+    "Blok Final Storage: ALB (%), kadar air (%), kadar kotoran (%), dan INDEKS DOBI",
+    "Untuk setiap dari dua belas ukuran: nilai terendah, rata-rata, tertinggi, DAN PENYEBUTNYA SENDIRI — yaitu jumlah slot yang ukuran ITU terisi",
+    "SATUAN tercetak pada setiap kartu ukuran, dan Indeks DOBI sengaja TANPA satuan — ia satu-satunya dari dua belas yang bukan besaran bersatuan, dan memberinya satuan akan salah",
+    "Pernyataan bahwa penyebut dua belas ukuran dapat BERBEDA satu dengan lainnya, karena satu slot boleh terisi sebagian saja",
+    "Kelengkapan pencatatan: jumlah slot terisi terhadap jumlah slot yang diharapkan pada periode",
+    "Pernyataan bahwa slot dihitung TERISI bila SALAH SATU dari empat belas kolom pembacaan terisi — dua belas ukuran numerik ditambah dua kolom teks — sehingga jumlah slot terisi dapat MELEBIHI penyebut setiap ukuran numerik. Kedua angka dicetak berdampingan beserta kalimat yang menyatakan hubungannya",
+    "Pernyataan bahwa giliran kerja dan kode inspektur TIDAK ikut menentukan keterisian slot — keduanya kolom identitas, bukan pembacaan. Slot yang hanya mengisi keduanya dihitung KOSONG",
+    "REKAP PER-INSPEKTUR: berapa slot diatribusikan ke setiap kode inspektur, dengan KODE MENTAH apa adanya tanpa pencarian nama, dan satu baris 'tidak tercatat' tersendiri untuk slot yang kode inspekturnya kosong",
+    "Rekap harian: satu baris per hari YANG ADA PEMBACAANNYA, beserta baris total periode",
+    "Dua daftar kejadian TERPISAH dan bertanggal: tindakan koreksi teknis, dan temuan — keduanya teks bebas apa adanya, bukan sebaran kategoris",
+    "Pernyataan bahwa stasiun ini TIDAK punya satu pun kolom berpilihan tertutup, sehingga tidak ada rekap berlabel",
+    "Pernyataan bahwa tidak ada penandaan nilai di luar batas, beserta sebabnya: stasiun ini tidak punya master ambang mutu",
+    "Pernyataan bahwa tidak ada blok henti operasi pada stasiun ini",
+    "Pernyataan bahwa kolom giliran kerja tidak ditampilkan di layar tetapi ada di berkas ekspor"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih periode pelaporan",
+      "description": "Daftar periode hanya memuat periode yang mendaftarkan stasiun Process Quality Control pada mill yang berlaku; status periode tidak menyaringnya.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Production Line",
+      "description": "Wajib. Sebelum ini dipilih, layar tidak menampilkan satu angka pun. Tidak ada opsi 'semua line'.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Hanya Admin.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Unduh ekspor CSV",
+      "description": "Rincian mentah: satu baris per slot jam, kolom konteks diulang di setiap baris, dan seluruh enam belas kolom catatan ikut — termasuk giliran kerja dan kode inspektur, yang keduanya dikecualikan dari pemeriksaan keterisian slot tetapi tetap ada di berkas.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Unduh ekspor Excel",
+      "description": "Berkas .xlsx sungguhan dengan isi yang sama persis dengan CSV.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Production Line WAJIB dipilih sebelum satu angka pun tampil. Tidak ada 'semua line', dan tidak ada line yang dipilihkan.",
+    "Mill diturunkan dari akun bagi Supervisor dan Mill Management; hanya Admin yang memilih. Mill kiriman dari peran terikat mill DIABAIKAN, bukan ditolak.",
+    "Operator tidak punya akses ke rute web ini; jalurnya ada di screen-169 (mobile).",
+    "Laporan tidak menyaring status periode.",
+    "Satuan hitungnya SLOT JAM, bukan transaksi. Satu baris catatan = satu slot pada satu hari.",
+    "LIMA BLOK mengikuti jalur fisik minyak, dan urutannya adalah urutan proses — bukan abjad dan bukan urutan kolom di basis data. Dua belas angka yang berdiri sendiri tidak dapat dibaca; lima blok yang masing-masing menjawab satu pertanyaan tentang satu tahap dapat dibaca.",
+    "SETIAP ukuran punya penyebutnya SENDIRI — jumlah slot yang ukuran ITU terisi — dan kedua belas penyebut boleh berbeda satu dengan lainnya. Kenyataan itu DINYATAKAN di layar.",
+    "Penyebut nol pada satu ukuran TIDAK mengosongkan ukuran yang lain; ukuran itu sendiri menampilkan '—' untuk ketiga angkanya, bukan 0.",
+    "SATUAN tercetak pada setiap kartu, dan diambil dari label resmi stasiun ini — bukan dituliskan ulang. Indeks DOBI TANPA satuan.",
+    "Slot dihitung TERISI bila SALAH SATU dari EMPAT BELAS kolom pembacaan terisi: dua belas ukuran numerik ditambah tindakan koreksi teknis dan temuan. Giliran kerja dan kode inspektur DIKECUALIKAN — keduanya kolom identitas, dan slot yang hanya mengisi keduanya dihitung KOSONG.",
+    "AKIBAT ATURAN DI ATAS: jumlah slot terisi dapat MELEBIHI penyebut setiap ukuran numerik, karena sebuah slot yang hanya memuat catatan teks tetap terhitung terisi. Kedua angka dicetak BERDAMPINGAN beserta kalimat yang menyatakan hubungannya — selisih yang tak dijelaskan selalu dicurigai sebagai cacat.",
+    "Rekap per-inspektur menampilkan KODE MENTAH apa adanya, tanpa join dan tanpa pencarian nama — tidak ada master inspektur untuk dicocokkan. Baris 'tidak tercatat' berdiri sendiri.",
+    "Rekap per-inspektur diurutkan menurut KODE, bukan menurut jumlah slot — supaya ia tidak menjadi peringkat orang, dan supaya posisi sebuah kode tidak berpindah antar periode.",
+    "Dua kolom teks diterbitkan sebagai DUA DAFTAR KEJADIAN TERPISAH, bukan sebagai sebaran kategoris — keduanya teks bebas, dan menyebarnya berarti memperlakukan prosa sebagai enum.",
+    "Stasiun ini TIDAK punya satu pun kolom berpilihan tertutup, sehingga tidak ada rekap berlabel. Ketiadaan itu dinyatakan.",
+    "TIDAK ADA penandaan nilai di luar batas — stasiun ini tidak punya master ambang mutu. Dinyatakan beserta sebabnya; sebuah laporan mutu TANPA penandaan terlihat seperti laporan yang lupa membandingkan.",
+    "TIDAK ADA blok henti operasi pada stasiun ini. Dinyatakan.",
+    "Rekap harian memuat satu baris per hari yang ada pembacaannya saja.",
+    "Kelengkapan diukur atas hari yang sudah berjalan, bukan atas panjang periode.",
+    "Catatan berstatus draft IKUT terhitung di seluruh angka, dan jumlahnya dinyatakan.",
+    "Ketiadaan sebuah bagian DINYATAKAN di layar beserta sebabnya.",
+    "Giliran kerja tidak ditampilkan di layar tetapi ada di ekspor.",
+    "Ekspor Excel adalah .xlsx sungguhan.",
+    "Layar ini baca saja: nol kontrol tulis."
+  ],
+  "usecase_ids": [
+    "usecase-174--laporan-process-quality-control-web"
+  ],
+  "edge_cases": [
+    "Line terpilih tidak punya satu pembacaan pun — kerangka laporan tetap tampil dengan keadaan kosong yang menyebut periode dan line. Ini keadaan NYATA hari ini.",
+    "Satu ukuran tidak punya satu pembacaan pun sementara sebelas lainnya punya — ukuran itu '—' dengan penyebut nol; kesebelas lainnya tetap berangka. Diperiksa per ukuran, bukan lewat satu penjaga 'ada data atau tidak'.",
+    "Seluruh dua belas ukuran kosong tetapi ada slot yang terisi hanya oleh catatan teks — jumlah slot terisi LEBIH BESAR dari nol sementara kedua belas penyebut nol. Inilah keadaan yang paling jelas memperlihatkan mengapa kedua angka itu harus dicetak berdampingan.",
+    "Satu blok seluruh ukurannya kosong sementara empat blok lain berisi — blok itu tetap DIRENDER dengan '—', tidak dihilangkan dari layar. Blok yang hilang akan dibaca sebagai tahap yang tidak ada.",
+    "Slot yang hanya mengisi giliran kerja dan kode inspektur — dihitung KOSONG, tetapi kode inspekturnya TETAP masuk rekap per-inspektur. Kedua hal itu tidak bertentangan: rekap menghitung atribusi, kelengkapan menghitung pembacaan.",
+    "Kode inspektur kosong pada sebagian slot — baris 'tidak tercatat' tersendiri di rekapnya.",
+    "Dua kode inspektur berbeda hanya pada huruf besar/kecil — tetap dua baris terpisah; teks bebas tidak menjamin keduanya orang yang sama.",
+    "Periode belum mulai — kelengkapan '—' dengan kalimat 'periode belum dimulai'.",
+    "Periode masih berjalan — penyebut kelengkapan berhenti di hari ini.",
+    "Mill belum punya periode yang mencakup stasiun ini — pemilih periode kosong dengan kalimat sebabnya.",
+    "Admin belum memilih mill — arahan memilih mill tampil.",
+    "Akun belum terhubung ke mill — arahan menghubungi Admin, bukan pesan galat izin.",
+    "Periode atau line milik mill lain — ditolak, dan tidak satu angka pun terhitung.",
+    "Operator membuka rute web ini — ditolak.",
+    "Satu hari punya dua puluh empat slot terisi penuh sementara hari lain hanya satu — rekap harian memperlihatkan keduanya; kelengkapan menghitung HARI yang ada pembacaannya, bukan rata-rata slot per hari.",
+    "Ekspor melampaui batas baris — ditolak sebelum satu byte pun dialirkan.",
+    "Lima blok dan dua belas kartu pada satu halaman — tata letak harus tetap terbaca tanpa halaman bergeser mendatar; kartu bertumpuk bila perlu.",
+    "Rekap per-inspektur sangat panjang — tabel menggulir di dalam kartunya; halaman tidak bergeser mendatar."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Stasiun ini tidak punya master ambang mutu, sehingga tidak ada nilai yang dapat ditandai di luar batas — sama seperti Kernel Dispatch dan CPO Dispatch. Pada stasiun ini ketiadaan itu paling terasa, karena dua belas ukurannya justru ukuran MUTU PROSES yang gunanya dibandingkan dengan ambang. Bila ambang itu diinginkan, ia pekerjaan master data tersendiri — dan ia akan berlaku untuk ketiga stasiun sekaligus, bukan hanya yang ini.",
+    "SESUDAH LAYAR INI TIDAK ADA LAGI JENIS STASIUN YANG BELUM BERLAPORAN, DAN RIAKNYA LEBIH BESAR DARIPADA YANG DIPERKIRAKAN. Diukur langsung di pohon kerja pada 2026-10-18, bukan ditaksir: ENAM berkas uji akan terpengaruh bersamaan ketika laporan ini terbit, bukan tiga. Empat di antaranya memakai 'process-quality-control' sebagai contoh 'laporan belum dibangun' — satu uji unit layanan laporan stasiun, dua uji di sisi web (komponen dan API), dan satu spec browser. DUA LAGI adalah ASERSI PENJAGA yang sengaja ditambahkan pada pekerjaan sebelumnya justru supaya pergeseran ini tidak lolos diam-diam: uji layanan Solid Waste Disposal dan spec browsernya masing-masing mengasersikan bahwa 'process-quality-control' BELUM ada di daftar rute laporan. Penjaga itu bekerja sebagaimana dimaksud — ia akan memerah, dan itu benar. Uji layanan Kernel Dispatch kemungkinan membawa penjaga yang sama, sehingga angkanya bisa menjadi tujuh. KEEMPAT berkas yang memakainya sebagai CONTOH membaca master jenis stasiun yang NYATA, sehingga contohnya tidak dapat dipindahkan lagi — tidak ada kandidat berikutnya, dan inilah sebabnya tenggat ini tidak dapat ditunda lebih jauh. Ketiganya harus BERUBAH BENTUK: menyuntikkan jenis stasiun fiktif ke master yang dibacanya, seperti yang sudah dilakukan uji unit layanan laporan stasiun dengan kode 'zz-stasiun-fiktif'. KEDUA berkas penjaga cukup diperbarui pernyataannya menjadi 'seluruh delapan belas jenis stasiun kini berlaporan' — sebuah asersi yang sejak saat itu tidak akan pernah basi lagi. Dicatat sebagai open question karena ia menyentuh enam berkas di luar laporan ini, dan karena perkiraan awal saya (tiga berkas) salah separuh — angka yang dipakai orang lain sebagai patokan harus datang dari pengukuran."
+  ]
+}

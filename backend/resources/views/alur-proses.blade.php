@@ -114,6 +114,14 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
 .tgt{margin-top:6px}
 .tgt dt{font-size:12.5px}
 .tgt dd{font-size:11.5px;max-width:52%}
+.card dd small{font-weight:500;color:var(--mute);font-size:11px}
+.card dd .na{color:var(--mute)}
+.picker{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;pointer-events:auto}
+.picker select{font:500 11.5px/1 var(--mono);letter-spacing:.02em;color:var(--text);background:var(--card);
+  border:1px solid var(--line);border-radius:999px;padding:7px 26px 7px 12px;cursor:pointer;appearance:none;max-width:200px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-gradient(135deg,var(--mute) 50%,transparent 50%);
+  background-position:calc(100% - 14px) 12px,calc(100% - 9px) 12px;background-size:5px 5px;background-repeat:no-repeat}
+.picker select:disabled{opacity:.5;cursor:not-allowed}
 .card dl div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
 .card dt{color:var(--mute)}
 .card dd{margin:0;font:500 12.5px/1.45 var(--mono);font-variant-numeric:tabular-nums;text-align:right}
@@ -169,11 +177,43 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
 <body>
 <header class="top">
   <div class="mark"><b>PKS</b><span>Alur Stasiun Pabrik Kelapa Sawit</span></div>
-  {{-- Lencana ini DULU berbunyi "Angka contoh". Ia diganti, bukan dihapus:
-       selama kartunya memuat angka, pembaca berhak tahu angka itu mencakup
-       apa. Admin melihat "Seluruh mill"; peran terikat mill melihat nama
-       mill-nya sendiri. --}}
-  <span class="tag" data-testid="scope-label">{{ $overview['scope_label'] }}</span>
+  {{-- PEMILIH DI HEADER, BUKAN DI KARTU. Kartunya berganti isi tiap kali
+       pengguna menggulir; sebuah pemilih yang ikut berganti akan kehilangan
+       fokus di tengah pemilihan. Header tidak pernah berganti, jadi di
+       sanalah tempatnya.
+
+       Ketiganya <form method="GET"> biasa yang memuat ulang halaman, bukan
+       fetch: halaman ini sudah punya tautan dalam berkode (#weighbridge),
+       jadi hash-nya dibawa serta dan perhentian yang sedang dibaca kembali ke
+       tempatnya sesudah muat ulang. Satu jalur, bukan dua. --}}
+  <form class="picker" method="GET" action="{{ route('alur-proses') }}" data-testid="scope-form">
+    @if ($overview['scope']['is_admin'])
+    <select name="mill" data-testid="mill-select" aria-label="Mill">
+      <option value="">Pilih mill…</option>
+      @foreach ($overview['mills'] as $mill)
+      <option value="{{ $mill['id'] }}" @selected($mill['id'] === $overview['scope']['business_unit_id'])>{{ $mill['name'] }}</option>
+      @endforeach
+    </select>
+    @else
+    {{-- Peran terikat mill tidak memilih mill: service membuang nilai kiriman
+         apa pun, jadi sebuah <select> di sini hanya akan berbohong. --}}
+    <span class="tag" data-testid="mill-fixed">{{ $overview['scope']['business_unit_name'] ?? 'Tanpa mill' }}</span>
+    @endif
+
+    <select name="line" data-testid="line-select" aria-label="Production Line" @disabled($overview['scope']['needs_mill'])>
+      <option value="">Pilih Production Line…</option>
+      @foreach ($overview['lines'] as $line)
+      <option value="{{ $line['id'] }}" @selected($line['id'] === $overview['scope']['production_line_id'])>{{ $line['name'] }}</option>
+      @endforeach
+    </select>
+
+    <select name="hari" data-testid="days-select" aria-label="Jendela hari">
+      @foreach ($overview['scope']['allowed_days'] as $d)
+      <option value="{{ $d }}" @selected($d === $overview['scope']['days'])>{{ $d }} hari terakhir</option>
+      @endforeach
+    </select>
+    <noscript><button type="submit" class="tag">Terapkan</button></noscript>
+  </form>
   {{-- Halaman ini penuh layar tanpa sidebar, jadi ia butuh jalan keluar;
        tanpanya pembaca terjebak di sini. Mengarah ke `home`, yang sudah
        mengalihkan tiap peran ke berandanya masing-masing — satu tautan
@@ -192,9 +232,8 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
         <span class="lbl">Peralatan</span>
         <div class="eq" id="sEq"><span>Weighbridge</span><span>Timbangan truk</span></div>
         <div class="flow"><div><small>Masuk</small><span id="sIn">Truk TBS dari kebun</span></div><i aria-hidden="true">→</i><div><small>Keluar</small><span id="sOut">Tonase TBS tercatat</span></div></div>
-        <span class="lbl">Fasilitas terdaftar</span>
-        <dl id="sFacility"></dl>
-        <span class="lbl" id="sRecLbl">Pencatatan</span>
+        <span class="lbl" id="sProdLbl">Produksi</span>
+        <dl id="sProd"></dl>
         <p class="rec" id="sRec"></p>
         <div id="sTargets"></div>
       </div>
@@ -250,16 +289,17 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
    ANGKA DI `rows` MASIH CONTOH — belum satu pun tersambung ke data nyata.
    Lencana 'Angka contoh' di kanan atas menyatakannya, dan lencana itu JANGAN
    dihapus sebelum angkanya sungguh datang dari basis data. ============ */
-/* DATA NYATA dari App\Services\StationOverviewService, berkunci kode
+/* ANGKA PRODUKSI dari App\Services\StationProductionService, berkunci kode
    stasiun. Digabung ke STOPS di bawah lewat `code` — BUKAN lewat indeks:
    urutan STOPS mengikuti sort_order master dan akan bergeser lagi bila master
    berubah, sementara kodenya tidak. Penggabungan berbasis indeks sudah pernah
    salah di proyek ini ketika FFB Reception dipecah menjadi dua. */
 const LIVE = @json($overview['stations']);
-/* Jendela "terkini" datang dari App\Services\StationOverviewService::RECENT_DAYS,
-   bukan diketik ulang di sini: angka yang hidup di dua tempat akan berbeda di
-   salah satunya, dan yang berbeda diam-diam adalah kalimat di layar. */
-const REC_DAYS = {{ App\Services\StationOverviewService::RECENT_DAYS }};
+const SCOPE = @json($overview['scope']);
+/* Jendela hari datang dari SCOPE, yang diisi service — bukan diketik ulang
+   di sini. Angka yang hidup di dua tempat akan berbeda di salah satunya, dan
+   yang berbeda diam-diam adalah kalimat di layar. */
+const REC_DAYS = SCOPE.days;
 
 const STOPS = [
   {code:'weighbridge', title:'Weighbridge', key:'Jembatan timbang', focus:[-48,-18], size:40, mark:10,
@@ -379,6 +419,28 @@ STOPS.forEach((s,i) => {
   const opt = new Option(`${i+1}. ${s.title} · ${s.key}`, i); opt.dataset.stationCode = s.code; jump.add(opt);
 });
 jump.addEventListener('change', () => goTo(Number(jump.value)));
+
+/* PEMILIH: kirim saat berubah, dan BAWA SERTA HASH-NYA.
+   Tanpa baris hash itu, mengganti line akan melempar pembaca kembali ke
+   stasiun 01 — ia memilih line justru KARENA sedang melihat stasiun
+   tertentu, dan memulangkannya ke awal adalah cara tercepat membuat
+   pemilihnya terasa rusak.
+   <form> tetap dipakai apa adanya supaya tanpa JavaScript halaman ini masih
+   berfungsi lewat tombol Terapkan di dalam <noscript>. */
+const scopeForm = document.querySelector('[data-testid="scope-form"]');
+if (scopeForm) {
+  scopeForm.addEventListener('change', (e) => {
+    // Mengganti mill membatalkan line yang dipilih: line milik mill lama
+    // tidak sah di mill baru, dan service akan membuangnya. Mengosongkannya
+    // di sini membuat alasannya terlihat alih-alih tampak seperti bug.
+    if (e.target.name === 'mill') {
+      const line = scopeForm.querySelector('[name="line"]');
+      if (line) line.value = '';
+    }
+    const params = new URLSearchParams(new FormData(scopeForm));
+    location.href = `${scopeForm.action}?${params}${location.hash}`;
+  });
+}
 const stepPx = () => (intro.offsetHeight - innerHeight) / (N - 1);
 function goTo(i){ i = Math.max(0, Math.min(N-1, i)); scrollTo({top: intro.offsetTop + i * stepPx(), behavior: reduced ? 'auto' : 'smooth'}); }
 prev.addEventListener('click', () => goTo(current - 1));
@@ -428,38 +490,57 @@ function formatDateId(iso){
 }
 function plural(n, kata){ return `${n.toLocaleString('id-ID')} ${kata}`; }
 
-/* Tiga blok data nyata. Nol angka dihitung di sini — seluruhnya datang jadi
-   dari StationOverviewService; klien hanya memilih kalimatnya. */
+/* Blok produksi + target. Nol angka dihitung di sini — seluruhnya datang jadi
+   dari StationProductionService; klien hanya memilih kalimatnya. */
 function renderLive(code){
   const d = LIVE[code] || {};
-  const fac = document.getElementById('sFacility');
+  const prod = document.getElementById('sProd');
+  const lbl = document.getElementById('sProdLbl');
   const rec = document.getElementById('sRec');
-  const recLbl = document.getElementById('sRecLbl');
   const tg = document.getElementById('sTargets');
 
-  fac.innerHTML = [
-    ['Alat terdaftar', plural(d.machinery_count || 0, 'unit')],
-    ['Stasiun aktif', plural(d.active_station_count || 0, 'stasiun')],
-    ['Production line', plural(d.production_line_count || 0, 'line')],
-  ].map(([k,v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+  lbl.textContent = SCOPE.production_line_id
+    ? `Produksi · ${REC_DAYS} hari terakhir`
+    : 'Produksi';
 
-  const last = formatDateId(d.last_record_date);
-  if (!d.record_count) {
-    /* "Belum ada pencatatan" DITULIS, bukan disembunyikan di balik em dash.
-       Pada stasiun yang alatnya terdaftar tetapi belum pernah dicatat, itulah
-       satu-satunya informasi yang tidak ada di tempat lain mana pun di sistem. */
+  /* SELAMA MILL/LINE BELUM DIPILIH, KARTUNYA MENGATAKANNYA — bukan
+     memperlihatkan em dash berderet yang tidak dapat dibedakan dari stasiun
+     yang memang tidak berproduksi. Dua keadaan yang berbeda harus terbaca
+     berbeda, dan ini yang pertama. */
+  if (SCOPE.needs_mill || SCOPE.needs_line) {
+    prod.innerHTML = '';
     rec.className = 'rec rec--none';
-    rec.textContent = 'Belum ada pencatatan di stasiun ini.';
+    rec.textContent = SCOPE.needs_mill
+      ? 'Pilih mill dan Production Line untuk menampilkan angka produksi.'
+      : 'Pilih Production Line untuk menampilkan angka produksi.';
+    tg.innerHTML = renderTargets(d.targets);
+    return;
+  }
+
+  prod.innerHTML = (d.metrics || []).map(m => {
+    const v = m.value === null || m.value === undefined
+      ? '<span class="na">—</span>'
+      : `${esc(m.value.toLocaleString('id-ID'))} <small>${esc(m.unit)}</small>`;
+    return `<div><dt>${esc(m.label)}</dt><dd>${v}</dd></div>`;
+  }).join('');
+
+  if (!d.row_count) {
+    /* "Tidak ada produksi tercatat" DITULIS, bukan disembunyikan di balik em
+       dash. Pada line yang memang tidak menjalankan stasiun ini, itulah
+       satu-satunya informasi yang tidak ada di tempat lain. */
+    rec.className = 'rec rec--none';
+    rec.textContent = `Tidak ada pencatatan di line ini dalam ${REC_DAYS} hari terakhir.`;
   } else {
     rec.className = 'rec';
-    rec.innerHTML = `<b>${esc(plural(d.record_count, 'record'))}</b>`
-      + ` · ${esc(plural(d.recent_record_count || 0, 'record'))} dalam ${REC_DAYS} hari terakhir`
-      + (last ? `<br>Terakhir dicatat ${esc(last)}` : '');
+    rec.innerHTML = `Dari <b>${esc(d.row_count.toLocaleString('id-ID'))}</b> baris tercatat`
+      + ` di ${esc(SCOPE.production_line_name || '')}.`;
   }
-  recLbl.textContent = 'Pencatatan';
 
-  const targets = d.targets || [];
-  tg.innerHTML = targets.length
+  tg.innerHTML = renderTargets(d.targets);
+}
+
+function renderTargets(targets){
+  return (targets && targets.length)
     ? `<span class="lbl">Target operasi</span><dl class="tgt">`
       + targets.map(t => `<div><dt>${esc(t.parameter)}</dt><dd>${esc(t.benchmark)}</dd></div>`).join('')
       + `</dl>`

@@ -88,7 +88,7 @@ use App\Livewire\Settings\ChangePasswordForm;
 use App\Livewire\Settings\MillsSetting;
 use App\Livewire\UserManagement\KelolaUserRole;
 use App\Services\AuthService;
-use App\Services\StationOverviewService;
+use App\Services\StationProductionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -125,26 +125,29 @@ Route::middleware(['auth', 'role:operator'])
     ->get('/beranda', fn () => view('operator.home'))
     ->name('operator.home');
 
-// Alur Proses Stasiun — ikhtisar 18 stasiun PKS sebagai tur isometrik, urut
-// `sort_order` master station_types. DI DALAM SISTEM (middleware 'auth')
-// sejak 2026-10-20 atas keputusan pemilik produk: kartunya kini membawa DATA
-// NYATA dari StationOverviewService, bukan angka contoh.
+// Alur Proses Stasiun — tur isometrik 18 stasiun PKS, urut `sort_order`
+// master station_types, dengan ANGKA PRODUKSI per stasiun.
 //
-// SEBELUMNYA PUBLIK, dan perubahan itu disengaja: begitu sebuah halaman
-// membaca data mill, ia tidak boleh lagi dibuka tanpa akun. Cakupan millnya
-// TIDAK diambil dari parameter mana pun — ia diturunkan dari akun yang sedang
-// masuk di dalam service, karena halaman ini tidak punya pemilih mill dan
-// parameter yang tidak dapat diisi siapa pun hanya akan menjadi lubang yang
-// menunggu dipakai.
+// Tiga parameter kueri, ketiganya opsional dan ketiganya DIVALIDASI DI
+// SERVICE, bukan di sini: `mill` (hanya dihormati untuk Admin; peran terikat
+// mill selalu mendapat mill akunnya dan nilai kiriman dibuang), `line`
+// (wajib dipilih sebelum satu angka pun dihitung — isolasi Production Line),
+// dan `hari` (7/30/90, selain itu jatuh ke bawaan).
 //
-// MASIH DI LUAR BLOK ASDLC, DAN ITU UTANG YANG DICATAT BUKAN DISEMBUNYIKAN.
-// Preseden /beranda di atas berlaku untuk halaman STATIS; halaman ini membaca
-// data, sehingga ia melewati aturan "jangan menulis kode sebelum Phase 3
-// selesai" di CLAUDE.md. Ia perlu retrofit business-spec + tech-spec lewat
-// /asdlc-fast-screen sebelum tumbuh lebih jauh — khususnya sebelum ia
-// menumbuhkan pemilih periode/line atau memakai report service mana pun.
-Route::middleware('auth')->get('/alur-proses', function (StationOverviewService $overview) {
-    return view('alur-proses', ['overview' => $overview->overview()]);
+// MASIH DI LUAR BLOK ASDLC, DAN UTANGNYA BERTAMBAH. Halaman ini kini membaca
+// data produksi dan punya dua pemilih — ia sudah menjadi layar, bukan
+// halaman statis, sehingga melewati aturan "jangan menulis kode sebelum
+// Phase 3 selesai" di CLAUDE.md lebih jauh daripada sebelumnya. Retrofit
+// business-spec + tech-spec lewat /asdlc-fast-screen sudah menjadi pekerjaan
+// yang harus dijadwalkan, bukan lagi catatan kaki.
+Route::middleware('auth')->get('/alur-proses', function (Request $request, StationProductionService $production) {
+    return view('alur-proses', [
+        'overview' => $production->overview(
+            $request->query('mill'),
+            $request->query('line'),
+            $request->filled('hari') ? (int) $request->query('hari') : null,
+        ),
+    ]);
 })->name('alur-proses');
 
 // Logout — not a screen route (no tech-spec entry), infrastructure like

@@ -95,7 +95,15 @@ it('#2 login web Operator diarahkan ke /beranda, bukan /dashboard', function () 
     $this->assertAuthenticatedAs($operator, 'web');
 });
 
-it('#2 beranda Operator: pesan akses terbatas + sidebar hanya Beranda & Ganti Password', function () {
+// DIPERBARUI 2026-10-20: sidebar Operator bertambah SATU entri, /alur-proses.
+// Perubahan yang DISENGAJA (keputusan pemilik produk: halaman Alur Proses untuk
+// SEMUA peran), bukan kebocoran menu admin — rutenya tidak punya middleware
+// 'role:' sama sekali, sehingga RouteAccess membukanya untuk setiap akun yang
+// sudah masuk. Asersinya TETAP kesetaraan penuh atas himpunan tautannya:
+// melonggarkannya menjadi toContain akan membuat test ini berhenti menangkap
+// menu admin yang bocor ke Operator, dan itulah satu-satunya hal yang dijaganya.
+// Kembarannya di e2e-web/tests/audit-web-admin.spec.ts diperbarui bersamaan.
+it('#2 beranda Operator: pesan akses terbatas + sidebar hanya Alur Proses, Beranda & Ganti Password', function () {
     $operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->bu)->create();
 
     $html = $this->actingAs($operator)->get('/beranda')->assertOk()->getContent();
@@ -103,7 +111,11 @@ it('#2 beranda Operator: pesan akses terbatas + sidebar hanya Beranda & Ganti Pa
 
     expect($html)->toContain('aplikasi mobile')->toContain('data-testid="logout-button"');
     preg_match_all('#<a href="([^"]+)"#', $sidebar, $links);
-    expect($links[1])->toEqualCanonicalizing([route('operator.home'), route('settings.password')]);
+    expect($links[1])->toEqualCanonicalizing([
+        route('alur-proses'),
+        route('operator.home'),
+        route('settings.password'),
+    ]);
 
     $this->actingAs($operator)->get('/settings/password')->assertOk();
     $this->actingAs($operator)->get('/dashboard')->assertForbidden();

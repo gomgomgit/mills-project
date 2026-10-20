@@ -461,6 +461,27 @@
             @if (\App\Support\RouteAccess::allows('master-data.tree-view'))
             <li><a href="{{ route('master-data.tree-view') }}"{!! request()->routeIs('master-data.tree-view') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h3.6l1.4 1.7h7A1.5 1.5 0 0 1 17 7.2v7.3A1.5 1.5 0 0 1 15.5 16h-12A1.5 1.5 0 0 1 2 14.5v-9z"/></svg><span class="label">Struktur Mills</span></a></li>
             @endif
+            {{-- Alur Proses Stasiun — tur isometrik 18 stasiun, urut sort_order
+                 master station_types. DITARUH DI SINI, tepat di bawah Struktur
+                 Mills, karena keduanya menjawab pertanyaan yang sama ("pabrik ini
+                 isinya apa") dan membaca data yang sama (stations, machinery).
+
+                 TANPA middleware 'role:' pada rutenya, sehingga RouteAccess
+                 memulangkan true untuk SETIAP peran yang sudah login — itulah
+                 cara "semua peran" dinyatakan di berkas ini, dan sengaja BUKAN
+                 dengan menuliskan daftar peran di sini: daftar kedua adalah
+                 daftar yang akan menyimpang ketika guard rutenya berubah.
+
+                 KEADAAN 'active' TIDAK AKAN PERNAH MENYALA, dan itu diketahui
+                 bukan terlewat: halaman tujuannya penuh layar dan TIDAK memakai
+                 <x-layouts.app> (panggung sticky 100dvh; sidebar 240px akan
+                 memotongnya), jadi sidebar ini tidak pernah dirender di sana.
+                 request()->routeIs('alur-proses') tetap ditulis supaya bila kelak
+                 halaman itu dipindah ke dalam shell, penandanya sudah benar dan
+                 tidak perlu ditemukan ulang. --}}
+            @if (\App\Support\RouteAccess::allows('alur-proses'))
+            <li><a href="{{ route('alur-proses') }}"{!! request()->routeIs('alur-proses') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="4.5" cy="4.5" r="1.8"/><circle cx="15.5" cy="16.5" r="1.8"/><path d="M6.3 4.5h5.2a3 3 0 0 1 0 6h-3a3 3 0 0 0 0 6h5.2"/></svg><span class="label">Alur Proses</span></a></li>
+            @endif
             {{-- Corporate -> Company -> Business Unit -> Production Line are one
                  hierarchy and were four separate sidebar entries; folded into a single
                  collapsible group to shorten the rail. Opens automatically when the

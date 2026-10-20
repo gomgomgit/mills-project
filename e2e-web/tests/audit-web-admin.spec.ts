@@ -61,13 +61,21 @@ test.describe('Audit web admin & auth', () => {
     expect(problems).toEqual([])
   })
 
-  test('#2 Operator login web → /beranda dengan shell terbatas (Beranda + Ganti Password + Logout)', async ({ page }) => {
+  // DIPERBARUI 2026-10-20: shell Operator kini bertambah SATU entri, /alur-proses.
+  // Itu perubahan yang DISENGAJA (keputusan pemilik produk: halaman Alur Proses
+  // untuk SEMUA peran), bukan kebocoran menu admin — rutenya tidak punya
+  // middleware 'role:' sama sekali, sehingga RouteAccess membukanya untuk setiap
+  // akun yang sudah masuk. Asersinya tetap kesetaraan PENUH atas himpunan
+  // tautannya: melonggarkannya menjadi toContain akan membuat test ini berhenti
+  // menangkap menu admin yang bocor ke Operator, dan itulah satu-satunya hal
+  // yang dijaganya.
+  test('#2 Operator login web → /beranda dengan shell terbatas (Alur Proses + Beranda + Ganti Password + Logout)', async ({ page }) => {
     const problems = watchProblems(page)
     await login(page, 'webtest-operator01', PASSWORD)
 
     await expect(page).toHaveURL(/\/beranda$/)
     await expect(page.locator('[data-testid="operator-home"]')).toContainText('aplikasi mobile')
-    expect((await sidebarLinks(page)).sort()).toEqual(['/beranda', '/settings/password'])
+    expect((await sidebarLinks(page)).sort()).toEqual(['/alur-proses', '/beranda', '/settings/password'])
     await page.locator('#shell-sidebar a', { hasText: 'Ganti Password' }).click()
     await expect(page).toHaveURL(/\/settings\/password$/)
     await expect(page.locator('[data-testid="logout-button"]')).toBeVisible()

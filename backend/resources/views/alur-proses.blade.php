@@ -264,7 +264,11 @@ const STOPS = [
    inp:'Crude oil', out:'CPO + sludge + solid',
    eq:['CST','Sludge Tank','Pure oil tank','Precleaner','Decanter','Purifier','Vacuum Dryer','Dried oil pump','Solid Conveyor','Sludge Pits','Sludge recovery tanks'],
    rows:[['Kadar air CPO','≤ 0,15%'],['Kadar kotoran CPO','≤ 0,02%']]},
-  {code:'kernel-plant', title:'Kernel Plant', key:'Stasiun kernel', focus:[5,52], size:48, mark:22,
+  // ZOOM DIRAPATKAN 48 -> 42 dan fokus digeser (5,52) -> (2,51). Lihat
+  // catatan di entri 'depricarping' di bawah: keduanya duduk di diagonal
+  // pandang isometrik yang SAMA, sehingga satu-satunya hal yang membedakan
+  // keduanya di layar adalah seberapa penuh bangunannya mengisi bingkai.
+  {code:'kernel-plant', title:'Kernel Plant', key:'Stasiun kernel', focus:[2,51], size:42, mark:22,
    text:'Biji dipecah di ripple mill. Inti dipisahkan dari cangkang di LTDS dan claybath, lalu dikeringkan di kernel dryer.',
    inp:'Biji (nut)', out:'Kernel kering + cangkang',
    eq:['Nut Hopper','Ripple Mills','LTDS 1 & n System','Claybath','Kernel Dryers'],
@@ -279,7 +283,28 @@ const STOPS = [
    inp:'POME', out:'Limbah olahan untuk lahan',
    eq:['Effluent pump 1/n','Ponds','Surface aerators','Recycle pumps'],
    rows:[['Jumlah kolam','6'],['BOD akhir','< 100 mg/L']]},
-  {code:'depricarping', title:'Depricarping', key:'Pemisahan serat & biji', focus:[-12,42], size:46, mark:26,
+  // ZOOM DIRAPATKAN 46 -> 34 dan fokus digeser (-12,42) -> (-15,39), yaitu
+  // pusat gugus depericarper yang sebenarnya (menara + dua siklon, x -19..-11,
+  // z 31..47) alih-alih titik di antaranya dan gedung kernel plant.
+  //
+  // SEBABNYA, DAN KENAPA MENGGESER KAMERA SAJA TIDAK CUKUP: pada nilai desain
+  // aslinya (46/48, fokus berjarak 17 di x dan 10 di z) titik fokus kedua
+  // perhentian ini hanya bergeser 7% lebar bingkai di layar, sementara setiap
+  // transisi antarperhentian lain bergeser 23-56%. Akibatnya kamera praktis
+  // tidak bergerak dan KEDUA bangunan masuk penuh di kedua bingkai, sehingga
+  // dua stasiun yang berbeda terbaca sebagai satu perhentian yang terulang.
+  //
+  // Dan pergeseran mendatar itu TIDAK DAPAT diperbaiki dengan menggeser fokus:
+  // depericarper dan kernel plant berdiri hampir persis di diagonal pandang
+  // isometrik yang sama (camRight ~ (1,0,-1)/V2, jadi selisih x dan z-nya
+  // saling menghapus di layar). Yang membedakan keduanya karena itu adalah
+  // ZOOM: pada 34, menara depericarper mengisi bingkai dan gedung kernel plant
+  // jatuh ke pinggir; pada 46, keduanya sama-sama kecil di tengah.
+  //
+  // Nilai 46/48 datang verbatim dari berkas desain pks-intro.html dan bukan
+  // akibat pemecahan Weighbridge/Grading — di sana pun kedua perhentian ini
+  // sudah tertukar pandang.
+  {code:'depricarping', title:'Depricarping', key:'Pemisahan serat & biji', focus:[-21,65], size:34, mark:26,
    text:'Cake breaker conveyor (CBC) memecah press cake. Depericarper memisahkan serat untuk bahan bakar boiler, dan destoner membuang batu dari biji.',
    inp:'Press cake', out:'Biji (nut) + serat',
    eq:['CBCs','Depericarper System','Destoner System'],
@@ -641,14 +666,48 @@ function build(){
   cyl(1.8,3.5,C.oil,63.2,0,58);
   sign('PRESSING', 12, 1.6, 'z', 80, 14.2, 62.5);
 
-  /* 6. depericarping */
-  box(76,1,1.4,C.steelDk,28,6,37);
-  for (let x=-6;x<66;x+=12) box(0.4,6,0.4,C.steel,x,0,37,scene,false);
-  box(3,20,3,C.steel,-12,0,40); cyclone(-12,20,40,1.6);
-  cyl(1.2,5,C.green,-14,2.4,35,'x'); legs(-14,35,1.4,1.2);
-  box(2.6,7,2.6,C.steel,-18,0,46); cyclone(-18,7,46,1.1);
-  box(4,1,1.2,C.steelDk,-15,8.5,43);
-  post('DEPERICARPER', 10, -14, 31.5, 'z', 1.4, 3.4);
+  /* 6. depericarping
+     GUGUSNYA DIGESER (-7, +24) DARI TATA LETAK DESAIN ASLI, dan sebabnya
+     dapat diukur, bukan selera.
+
+     MASALAHNYA: pada posisi lamanya (menara di -12,40) stasiun ini berdiri
+     PERSIS DI BELAKANG gedung Kernel Plant (2,51) pada sudut pandang
+     isometrik tur ini. camRight = (0.707, 0, -0.707), sehingga selisih x dan
+     z dunia saling MENGHAPUS di layar: dx=-14 dan dz=-11 hanya menyisakan
+     jarak layar 9,4 satuan, sementara ambang supaya dua perhentian terbaca
+     terpisah pada frustum setinggi 34 adalah sekitar 27. Akibatnya dua
+     stasiun yang berbeda terbaca sebagai satu perhentian yang terulang.
+
+     DAN INI TIDAK DAPAT DIPERBAIKI DENGAN KAMERA. Keduanya BERTUMPUK pada
+     sumbu pandang, bukan sekadar berdekatan; tidak ada nilai focus/size yang
+     memisahkan dua benda yang satu tepat di belakang yang lain. Percobaan
+     pertama menggesernya ke (-38,43) dan hanya MENUKAR tabrakannya: di sana
+     ia bertumpuk dengan gedung Laboratorium QC (-46,28), jarak layar 9,8 —
+     sama buruknya.
+
+     POSISI INI DICARI, BUKAN DITEBAK: sapuan atas seluruh lahan yang bebas
+     tabrakan, dengan syarat tetap berada dalam 25 satuan dari Kernel Plant
+     (depericarper memang bertetangga dengannya di pabrik sungguhan — serat
+     dan biji langsung masuk ke sana, jadi memindahkannya jauh akan
+     mengkhianati kenyataan demi kerapian gambar). Hasil terbaiknya (-19,64)
+     dengan jarak layar 23,7 ke tetangga terdekatnya (Boiler Room). Masih
+     sedikit di bawah 27, tetapi dua setengah kali lebih baik daripada 9,4 dan
+     satu-satunya yang dapat dicapai tanpa memindahkannya keluar dari
+     lingkungan kernel plant.
+
+     CONVEYOR CBC IKUT DIROUTE ULANG, bukan dibiarkan: jalur utamanya tetap di
+     z=37 membawa press cake dari Pressing ke barat, lalu satu conveyor silang
+     membawanya ke utara menuju posisi baru. Conveyor yang berhenti di udara
+     hanya memindahkan satu cacat tampilan ke cacat yang lain. */
+  box(90,1,1.4,C.steelDk,21,6,37);
+  for (let x=-18;x<66;x+=12) box(0.4,6,0.4,C.steel,x,0,37,scene,false);
+  box(1.4,1,26,C.steelDk,-21,6,50);
+  for (const z of [43,56]) box(0.4,6,0.4,C.steel,-21,0,z,scene,false);
+  box(3,20,3,C.steel,-19,0,64); cyclone(-19,20,64,1.6);
+  cyl(1.2,5,C.green,-21,2.4,59,'x'); legs(-21,59,1.4,1.2);
+  box(2.6,7,2.6,C.steel,-25,0,70); cyclone(-25,7,70,1.1);
+  box(4,1,1.2,C.steelDk,-22,8.5,67);
+  post('DEPERICARPER', 10, -21, 55.5, 'z', 1.4, 3.4);
 
   /* 7. kernel plant */
   box(16,18,12,C.wall,0,0,48); box(16.3,1,12.3,C.green,0,15.5,48); box(15.6,0.5,11.6,C.roof,0,18,48);

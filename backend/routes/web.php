@@ -124,6 +124,24 @@ Route::middleware(['auth', 'role:operator'])
     ->get('/beranda', fn () => view('operator.home'))
     ->name('operator.home');
 
+// Alur Proses Stasiun — halaman informasi PUBLIK, tur isometrik 18 stasiun
+// PKS urut `sort_order` master station_types. DI LUAR BLOK ASDLC karena belum
+// punya business-spec maupun tech-spec, sama alasannya dengan /beranda di
+// atas: ia halaman statis tanpa satu pun panggilan data. Angka yang
+// ditampilkannya CONTOH, dan halamannya menyatakan itu sendiri lewat lencana
+// "Angka contoh".
+//
+// TANPA middleware 'auth' DENGAN SENGAJA: ia tidak membaca satu baris data
+// pun, dan nilainya justru paling besar SEBELUM login — operator atau tamu
+// yang belum punya akun dapat memahami alur pabrik lebih dulu. 'noindex'
+// dipasang di <head>-nya supaya halaman internal ini tidak terindeks mesin
+// pencari meski publik.
+//
+// Begitu angkanya disambungkan ke basis data, atau stasiunnya dibuat dapat
+// diketuk menuju form/laporannya, ia BERHENTI menjadi halaman statis dan
+// WAJIB dipindahkan ke dalam blok ASDLC lewat Phase 2 -> 3 -> 4 lebih dulu.
+Route::get('/alur-proses', fn () => view('alur-proses'))->name('alur-proses');
+
 // Logout — not a screen route (no tech-spec entry), infrastructure like
 // /health above, so it lives outside the ASDLC-managed block. POST +
 // 'auth' middleware (session-guarded, same as every other web route here)

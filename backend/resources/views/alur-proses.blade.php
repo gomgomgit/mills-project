@@ -108,6 +108,12 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
 .flow span{font:600 13px/1.3 var(--display)}
 .flow i{align-self:center;font-style:normal;color:var(--fruit);font-weight:700}
 .card dl{margin:10px 0 0;display:grid}
+.rec{margin:0;font-size:13px;line-height:1.5;color:var(--text)}
+.rec b{font-weight:700}
+.rec--none{color:var(--mute);font-style:italic}
+.tgt{margin-top:6px}
+.tgt dt{font-size:12.5px}
+.tgt dd{font-size:11.5px;max-width:52%}
 .card dl div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
 .card dt{color:var(--mute)}
 .card dd{margin:0;font:500 12.5px/1.45 var(--mono);font-variant-numeric:tabular-nums;text-align:right}
@@ -134,7 +140,19 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
   .tag{display:none}
   .card{left:12px;right:12px;width:auto;top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:none;padding:14px 14px 12px;max-height:58%}
   .card h1{font-size:19px;margin:8px 0 4px}
-  .card p,.card dl{display:none}
+  /* Pada 390px prosa deskriptif disembunyikan supaya kartunya muat, TETAPI
+     data nyata TIDAK: .card > p menyasar paragraf deskripsi stasiun saja,
+     bukan .rec, dan #sFacility tetap tampil. Aturan lama (.card p, .card dl)
+     menyembunyikan keduanya dan akan membuat versi ponsel kehilangan
+     satu-satunya angka nyata di halaman ini. */
+  /* `:not(.rec)` BUKAN hiasan: .rec juga sebuah <p> di dalam .fade, jadi
+     tanpa pengecualian ini aturannya ikut menyembunyikannya — dan itu
+     persis yang terjadi pada versi pertama, yang komentarnya justru
+     mengklaim sebaliknya. Diukur di browser pada 390px, bukan dibaca dari
+     sumbernya. */
+  .card > .fade > p:not(.rec){display:none}
+  .tgt{display:none}
+  .rec{font-size:12px}
   .lbl{margin:8px 0 5px}
   .eq{max-height:48px;overflow:hidden}
   .eq span{font-size:10.5px;padding:4px 6px}
@@ -151,13 +169,16 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
 <body>
 <header class="top">
   <div class="mark"><b>PKS</b><span>Alur Stasiun Pabrik Kelapa Sawit</span></div>
-  <span class="tag">Angka contoh</span>
-  {{-- Halaman ini publik dan dapat dibuka tanpa login, jadi ia butuh jalan
-       keluar; tanpanya pembaca yang datang dari tautan langsung terjebak di
-       sini. Mengarah ke `home`, bukan `login`: rute itu sudah mengalihkan
-       pengguna yang sudah masuk ke beranda perannya dan yang belum ke Login,
-       jadi satu tautan melayani keduanya. --}}
-  <a class="tag tag--link" href="{{ route('home') }}">Masuk aplikasi &rarr;</a>
+  {{-- Lencana ini DULU berbunyi "Angka contoh". Ia diganti, bukan dihapus:
+       selama kartunya memuat angka, pembaca berhak tahu angka itu mencakup
+       apa. Admin melihat "Seluruh mill"; peran terikat mill melihat nama
+       mill-nya sendiri. --}}
+  <span class="tag" data-testid="scope-label">{{ $overview['scope_label'] }}</span>
+  {{-- Halaman ini penuh layar tanpa sidebar, jadi ia butuh jalan keluar;
+       tanpanya pembaca terjebak di sini. Mengarah ke `home`, yang sudah
+       mengalihkan tiap peran ke berandanya masing-masing — satu tautan
+       melayani semuanya, dan tidak ada daftar peran kedua yang bisa basi. --}}
+  <a class="tag tag--link" href="{{ route('home') }}">Beranda &rarr;</a>
 </header>
 
 <section class="intro" id="intro" aria-label="Tur stasiun pabrik kelapa sawit">
@@ -171,10 +192,11 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
         <span class="lbl">Peralatan</span>
         <div class="eq" id="sEq"><span>Weighbridge</span><span>Timbangan truk</span></div>
         <div class="flow"><div><small>Masuk</small><span id="sIn">Truk TBS dari kebun</span></div><i aria-hidden="true">→</i><div><small>Keluar</small><span id="sOut">Tonase TBS tercatat</span></div></div>
-        <dl id="sRows">
-          <div><dt>Kapasitas timbang</dt><dd>60 ton</dd></div>
-          <div><dt>Truk per hari</dt><dd>± 90 unit</dd></div>
-        </dl>
+        <span class="lbl">Fasilitas terdaftar</span>
+        <dl id="sFacility"></dl>
+        <span class="lbl" id="sRecLbl">Pencatatan</span>
+        <p class="rec" id="sRec"></p>
+        <div id="sTargets"></div>
       </div>
       <div class="foot">
         <div class="ticks" id="ticks" role="group" aria-label="Pilih stasiun"></div>
@@ -228,42 +250,46 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
    ANGKA DI `rows` MASIH CONTOH — belum satu pun tersambung ke data nyata.
    Lencana 'Angka contoh' di kanan atas menyatakannya, dan lencana itu JANGAN
    dihapus sebelum angkanya sungguh datang dari basis data. ============ */
+/* DATA NYATA dari App\Services\StationOverviewService, berkunci kode
+   stasiun. Digabung ke STOPS di bawah lewat `code` — BUKAN lewat indeks:
+   urutan STOPS mengikuti sort_order master dan akan bergeser lagi bila master
+   berubah, sementara kodenya tidak. Penggabungan berbasis indeks sudah pernah
+   salah di proyek ini ketika FFB Reception dipecah menjadi dua. */
+const LIVE = @json($overview['stations']);
+/* Jendela "terkini" datang dari App\Services\StationOverviewService::RECENT_DAYS,
+   bukan diketik ulang di sini: angka yang hidup di dua tempat akan berbeda di
+   salah satunya, dan yang berbeda diam-diam adalah kalimat di layar. */
+const REC_DAYS = {{ App\Services\StationOverviewService::RECENT_DAYS }};
+
 const STOPS = [
   {code:'weighbridge', title:'Weighbridge', key:'Jembatan timbang', focus:[-48,-18], size:40, mark:10,
    text:'Truk TBS dari kebun ditimbang masuk dan keluar di jembatan timbang. Selisih bruto dan tara menjadi tonase TBS yang diterima pabrik hari itu.',
    inp:'Truk TBS dari kebun', out:'Tonase TBS tercatat',
-   eq:['Weighbridge','Timbangan truk'],
-   rows:[['Kapasitas timbang','60 ton'],['Truk per hari','± 90 unit']]},
+   eq:['Weighbridge','Timbangan truk']},
   {code:'grading', title:'Grading', key:'Sortasi mutu', focus:[-47,9], size:38, mark:9,
    text:'Sebagian muatan diturunkan di lantai grading dan disortir mutunya: janjang matang, mentah, lewat matang, dan brondolan. Hasilnya menentukan potongan harga ke pemasok.',
    inp:'Sampel muatan TBS', out:'TBS di loading ramp',
-   eq:['Grading','Loading Ramp'],
-   rows:[['Loading ramp','16 pintu'],['Sampel','± 10% muatan']]},
+   eq:['Grading','Loading Ramp']},
   {code:'cages-track', title:'Cages Track', key:'Lori & rel', focus:[12,10], size:46, mark:8,
    text:'TBS dari ramp diisi ke lori (cage), lalu ditarik capstan di atas rel. Transfer carriage memindahkan lori antarjalur rebusan.',
    inp:'TBS di loading ramp', out:'Lori berisi TBS',
-   eq:['Cages','Rail tracks','Transfer Carriage','Capstan'],
-   rows:[['Kapasitas lori','2,5 ton TBS'],['Jumlah lori','40 unit']]},
+   eq:['Cages','Rail tracks','Transfer Carriage','Capstan']},
   {code:'sterilizer', title:'Sterilizer', key:'Rebusan', focus:[42,10], size:52, mark:10,
    text:'Lori masuk sterilizer lewat drawbridge dan direbus dengan uap. Uap dibuang lewat blow off, kondensat lewat blow down lalu ke recovery.',
    inp:'Lori berisi TBS', out:'TBS masak + kondensat',
-   eq:['Drawbridges','Sterilizer','Blow off / blow down','Recovery'],
-   rows:[['Tekanan uap','2,8–3,0 kg/cm²'],['Waktu rebus','90 menit · 3 puncak']]},
+   eq:['Drawbridges','Sterilizer','Blow off / blow down','Recovery']},
   {code:'threshing', title:'Threshing', key:'Penebahan', focus:[82,12], size:52, mark:21,
    text:'Tippler membalik lori ke bunch elevator. Thresher memisahkan brondolan dari janjangan, dan janjang kosong (EFB) dibawa conveyor keluar.',
    inp:'TBS masak', out:'Brondolan + EFB',
-   eq:['Tippler','Bunch Elevator','FFB Conveyors','Thresher','Fruit Elevator','Conveyor Under Thresher','FFB Distribution Conveyor','EFB Recycle Conveyor','EFB Conveyors'],
-   rows:[['Putaran thresher','23 rpm'],['EFB','± 22% dari TBS']]},
+   eq:['Tippler','Bunch Elevator','FFB Conveyors','Thresher','Fruit Elevator','Conveyor Under Thresher','FFB Distribution Conveyor','EFB Recycle Conveyor','EFB Conveyors']},
   {code:'pressing', title:'Pressing', key:'Kempa', focus:[78,50], size:50, mark:17,
    text:'Brondolan dilumatkan di digester dan diperas screw press. Minyak kasar diencerkan, disaring vibrating screen, lalu ditampung di crude oil tank.',
    inp:'Brondolan', out:'Crude oil + press cake',
-   eq:['Digester Feed Conveyor','Press/Digester','Top Cross Conveyor','Dilution tanks','Vibrating Screen','Crude oil tank & pumps'],
-   rows:[['Suhu digester','90–95 °C'],['Screw press','4 unit · 15 ton/jam']]},
+   eq:['Digester Feed Conveyor','Press/Digester','Top Cross Conveyor','Dilution tanks','Vibrating Screen','Crude oil tank & pumps']},
   {code:'clarification', title:'Clarification', key:'Klarifikasi', focus:[41,52], size:52, mark:16,
    text:'Minyak kasar diendapkan di CST. Minyak dimurnikan di purifier dan dikeringkan di vacuum dryer, sementara sludge diolah decanter untuk mengambil sisa minyak.',
    inp:'Crude oil', out:'CPO + sludge + solid',
-   eq:['CST','Sludge Tank','Pure oil tank','Precleaner','Decanter','Purifier','Vacuum Dryer','Dried oil pump','Solid Conveyor','Sludge Pits','Sludge recovery tanks'],
-   rows:[['Kadar air CPO','≤ 0,15%'],['Kadar kotoran CPO','≤ 0,02%']]},
+   eq:['CST','Sludge Tank','Pure oil tank','Precleaner','Decanter','Purifier','Vacuum Dryer','Dried oil pump','Solid Conveyor','Sludge Pits','Sludge recovery tanks']},
   // ZOOM DIRAPATKAN 48 -> 42 dan fokus digeser (5,52) -> (2,51). Lihat
   // catatan di entri 'depricarping' di bawah: keduanya duduk di diagonal
   // pandang isometrik yang SAMA, sehingga satu-satunya hal yang membedakan
@@ -271,18 +297,15 @@ const STOPS = [
   {code:'kernel-plant', title:'Kernel Plant', key:'Stasiun kernel', focus:[2,51], size:42, mark:22,
    text:'Biji dipecah di ripple mill. Inti dipisahkan dari cangkang di LTDS dan claybath, lalu dikeringkan di kernel dryer.',
    inp:'Biji (nut)', out:'Kernel kering + cangkang',
-   eq:['Nut Hopper','Ripple Mills','LTDS 1 & n System','Claybath','Kernel Dryers'],
-   rows:[['Efisiensi ripple mill','≥ 98%'],['Kadar air kernel','≤ 7%']]},
+   eq:['Nut Hopper','Ripple Mills','LTDS 1 & n System','Claybath','Kernel Dryers']},
   {code:'boiler-room', title:'Boiler Room', key:'Boiler', focus:[-10,98], size:58, mark:19,
    text:'Air diolah di RO dan demin plant supaya aman untuk boiler. Serat dan cangkang dibawa conveyor sebagai bahan bakar untuk membuat uap.',
    inp:'Serat, cangkang, air demin', out:'Uap bertekanan',
-   eq:['RO Feed pump','Carbon Filter','RO Plant','Demin Plant','Boiler 1/2/n','Boiler Feeding Conveyors 1/2/3/n'],
-   rows:[['Tekanan boiler','20 bar'],['Kapasitas uap','30 ton/jam']]},
+   eq:['RO Feed pump','Carbon Filter','RO Plant','Demin Plant','Boiler 1/2/n','Boiler Feeding Conveyors 1/2/3/n']},
   {code:'effluent-plant', title:'Effluent Plant', key:'IPAL', focus:[117,102], size:54, mark:7,
    text:'Limbah cair (POME) dipompa ke kolam bertahap. Surface aerator menambah oksigen, dan sebagian limbah dipompa balik lewat recycle pump.',
    inp:'POME', out:'Limbah olahan untuk lahan',
-   eq:['Effluent pump 1/n','Ponds','Surface aerators','Recycle pumps'],
-   rows:[['Jumlah kolam','6'],['BOD akhir','< 100 mg/L']]},
+   eq:['Effluent pump 1/n','Ponds','Surface aerators','Recycle pumps']},
   // ZOOM DIRAPATKAN 46 -> 34 dan fokus digeser (-12,42) -> (-15,39), yaitu
   // pusat gugus depericarper yang sebenarnya (menara + dua siklon, x -19..-11,
   // z 31..47) alih-alih titik di antaranya dan gedung kernel plant.
@@ -307,43 +330,35 @@ const STOPS = [
   {code:'depricarping', title:'Depricarping', key:'Pemisahan serat & biji', focus:[-21,65], size:34, mark:26,
    text:'Cake breaker conveyor (CBC) memecah press cake. Depericarper memisahkan serat untuk bahan bakar boiler, dan destoner membuang batu dari biji.',
    inp:'Press cake', out:'Biji (nut) + serat',
-   eq:['CBCs','Depericarper System','Destoner System'],
-   rows:[['Serat ke boiler','± 13% dari TBS'],['Biji ke nut hopper','± 12% dari TBS']]},
+   eq:['CBCs','Depericarper System','Destoner System']},
   {code:'engine-room', title:'Engine Room', key:'Kamar mesin', focus:[18,96], size:42, mark:13,
    text:'Turbin uap memutar generator. Uap bekasnya ditampung BPV lalu dibagi ke rebusan dan klarifikasi, dan listriknya dibagi lewat MSB/MCC.',
    inp:'Uap dari boiler', out:'Listrik + uap proses',
-   eq:['Turbine 1/2/n','Aircompressor 1/n','BPV','MSB/MCC'],
-   rows:[['Turbin uap','2 × 1.200 kW'],['Tekanan BPV','3 bar']]},
+   eq:['Turbine 1/2/n','Aircompressor 1/n','BPV','MSB/MCC']},
   {code:'process-water', title:'Process Water', key:'Air proses', focus:[129,14], size:48, mark:9,
    text:'Air sungai dipompa ke water clarifier, disaring di sand filter, ditampung di water basin dan ground storage tank, lalu dibagi ke seluruh pabrik.',
    inp:'Air sungai', out:'Air bersih proses',
-   eq:['Raw water pump','Water clarifier','Sand Filters','Water Basin','Ground Storage tank','Distribution pump / Clean water pump'],
-   rows:[['Kebutuhan air','± 1,2 m³/ton TBS'],['Kapasitas clarifier','60 m³/jam']]},
+   eq:['Raw water pump','Water clarifier','Sand Filters','Water Basin','Ground Storage tank','Distribution pump / Clean water pump']},
   {code:'storage-tank', title:'Storage Tank', key:'Tangki timbun', focus:[52,100], size:62, mark:17,
    text:'CPO disimpan di tangki timbun yang dipanaskan, sedangkan kernel ditampung di bulk silo sampai dikirim.',
    inp:'CPO + kernel kering', out:'Stok siap kirim',
-   eq:['CPO Tank 1/2/n','Bulk Silo 1/n'],
-   rows:[['Tangki CPO','2 × 2.000 ton'],['Bulk silo kernel','1 × 500 ton']]},
+   eq:['CPO Tank 1/2/n','Bulk Silo 1/n']},
   {code:'solid-waste-disposal', title:'Solid Waste Disposal', key:'Limbah padat', focus:[-42,112], size:46, mark:10,
    text:'Limbah padat seperti EFB dan serat sisa dikumpulkan, lalu dimuat excavator ke truk dan dikembalikan ke kebun sebagai mulsa.',
    inp:'EFB + solid', out:'Mulsa ke kebun',
-   eq:['Excavator','Solids/Fibers'],
-   rows:[['EFB per hari','± 200 ton'],['Truk angkut','6 unit']]},
+   eq:['Excavator','Solids/Fibers']},
   {code:'kernel-dispatch', title:'Kernel Dispatch', key:'Pengiriman kernel', focus:[115,46], size:44, mark:11,
    text:'Kernel dikemas dalam karung goni, ditumpuk di gudang, lalu dimuat ke truk oleh tenaga muat.',
    inp:'Kernel dari bulk silo', out:'Kernel terkirim',
-   eq:['Gunny Sacks','Despatch Labor'],
-   rows:[['Isi per karung','50 kg'],['Muat per truk','8 ton']]},
+   eq:['Gunny Sacks','Despatch Labor']},
   {code:'cpo-dispatch', title:'CPO Dispatch', key:'Pengiriman CPO', focus:[153,64], size:56, mark:9,
    text:'CPO dipompa dari tangki timbun lewat pumping station ke jetty, lalu dimuat ke tongkang di sungai.',
    inp:'CPO di tangki', out:'CPO di tongkang',
-   eq:['Pumping stations','Jetty'],
-   rows:[['Laju pompa','120 ton/jam'],['Tongkang','1.500 ton']]},
+   eq:['Pumping stations','Jetty']},
   {code:'process-quality-control', title:'Process Quality Control', key:'Lab QC', focus:[-46,28], size:40, mark:10,
    text:'Laboratorium memeriksa sampel dari tiap stasiun: ALB, kadar air, kotoran, serta losses minyak dan kernel.',
    inp:'Sampel tiap stasiun', out:'Laporan mutu & losses',
-   eq:['Laboratory Chemicals/Consumables','Labor'],
-   rows:[['Sampel per shift','± 60'],['Laporan','tiap 2 jam']]},
+   eq:['Laboratory Chemicals/Consumables','Labor']},
 ];
 const N = STOPS.length;
 const pad = n => String(n).padStart(2,'0');
@@ -391,12 +406,66 @@ function setStop(i){
     document.getElementById('sText').textContent = s.text;
     document.getElementById('sIn').textContent = s.inp;
     document.getElementById('sOut').textContent = s.out;
-    document.getElementById('sEq').innerHTML = s.eq.map(e => `<span>${e}</span>`).join('');
-    document.getElementById('sRows').innerHTML = s.rows.map(([k,v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+    document.getElementById('sEq').innerHTML = s.eq.map(e => `<span>${esc(e)}</span>`).join('');
+    renderLive(s.code);
     card.classList.remove('swap');
   };
   if (first || reduced) apply(); else { card.classList.add('swap'); setTimeout(apply, 180); }
 }
+/* Seluruh nilai di bawah berasal dari basis data (nama parameter target
+   ditulis manusia lewat master), jadi ia di-escape sebelum masuk innerHTML.
+   Angkanya sendiri sudah int di server, tetapi meloloskan sebagian dan tidak
+   sebagian lain adalah cara aturan ini berhenti dipatuhi. */
+function esc(v){
+  return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+const MONTHS_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function formatDateId(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  if (!m) return null;
+  return `${Number(m[3])} ${MONTHS_ID[Number(m[2])-1]} ${m[1]}`;
+}
+function plural(n, kata){ return `${n.toLocaleString('id-ID')} ${kata}`; }
+
+/* Tiga blok data nyata. Nol angka dihitung di sini — seluruhnya datang jadi
+   dari StationOverviewService; klien hanya memilih kalimatnya. */
+function renderLive(code){
+  const d = LIVE[code] || {};
+  const fac = document.getElementById('sFacility');
+  const rec = document.getElementById('sRec');
+  const recLbl = document.getElementById('sRecLbl');
+  const tg = document.getElementById('sTargets');
+
+  fac.innerHTML = [
+    ['Alat terdaftar', plural(d.machinery_count || 0, 'unit')],
+    ['Stasiun aktif', plural(d.active_station_count || 0, 'stasiun')],
+    ['Production line', plural(d.production_line_count || 0, 'line')],
+  ].map(([k,v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+
+  const last = formatDateId(d.last_record_date);
+  if (!d.record_count) {
+    /* "Belum ada pencatatan" DITULIS, bukan disembunyikan di balik em dash.
+       Pada stasiun yang alatnya terdaftar tetapi belum pernah dicatat, itulah
+       satu-satunya informasi yang tidak ada di tempat lain mana pun di sistem. */
+    rec.className = 'rec rec--none';
+    rec.textContent = 'Belum ada pencatatan di stasiun ini.';
+  } else {
+    rec.className = 'rec';
+    rec.innerHTML = `<b>${esc(plural(d.record_count, 'record'))}</b>`
+      + ` · ${esc(plural(d.recent_record_count || 0, 'record'))} dalam ${REC_DAYS} hari terakhir`
+      + (last ? `<br>Terakhir dicatat ${esc(last)}` : '');
+  }
+  recLbl.textContent = 'Pencatatan';
+
+  const targets = d.targets || [];
+  tg.innerHTML = targets.length
+    ? `<span class="lbl">Target operasi</span><dl class="tgt">`
+      + targets.map(t => `<div><dt>${esc(t.parameter)}</dt><dd>${esc(t.benchmark)}</dd></div>`).join('')
+      + `</dl>`
+    : '';
+}
+
 function stopFloat(){
   const p = (scrollY - intro.offsetTop) / Math.max(1, intro.offsetHeight - innerHeight);
   return Math.min(1, Math.max(0, p)) * (N - 1);

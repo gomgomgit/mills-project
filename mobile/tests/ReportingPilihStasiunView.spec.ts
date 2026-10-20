@@ -67,9 +67,11 @@
  * KONSEKUENSINYA: ini pemindahan TERAKHIR. Tidak ada layar masa depan yang
  * dapat membuat 'zz-stasiun-fiktif' punya laporan mobile, jadi contoh ini
  * tidak akan pernah basi lagi — dan pengejaran yang berulang delapan kali itu
- * selesai di sini. Contohnya SENGAJA tidak dipindahkan ke 'kernel-dispatch',
- * 'cpo-dispatch' atau 'process-quality-control': ketiganya sedang dibangun
- * pada screen-165/167/169 dan akan basi dalam hitungan hari.
+ * selesai di sini. Contohnya SENGAJA tidak dipindahkan ke 'cpo-dispatch'
+ * atau 'process-quality-control': keduanya sedang dibangun pada
+ * screen-167/169 dan akan basi dalam hitungan hari. ('kernel-dispatch' sudah
+ * terbukti demikian: ia dipakai sebagai contoh di bawah sampai screen-165
+ * mendarat pada 2026-10-19, lalu harus ikut dipindahkan ke kode fiktif ini.)
  *
  * Kode fiktifnya ditulis LOWERCASE DAN BERTANDA HUBUNG dengan sengaja:
  * LaporanProcessWaterView.spec.ts (unit_test_case 56) memungut kode stasiun
@@ -93,14 +95,20 @@
  * dilemahkan, dihapus, atau dilonggarkan. Keempat asersi pesan tetap
  * kesetaraan penuh `toBe`.
  *
- * Tiga contoh "belum dibangun" lain di berkas ini TIDAK ikut berubah, karena
- * ketiganya masih benar-benar belum berlaporan:
+ * Dua contoh "belum dibangun" lain di berkas ini TIDAK ikut berubah, karena
+ * keduanya masih benar-benar belum berlaporan:
  *   - 'process-quality-control' (sort_order 180) — hasil pemindahan KELIMA,
  *     dipakai pada st-3/st-5 dan pada asersi urutan tile;
  *   - 'cpo-dispatch' (sort_order 170) — hasil pemindahan KEENAM, dipakai pada
- *     st-4 di fixture lima-stasiun;
- *   - 'kernel-dispatch' (sort_order 160) — hasil pemindahan KETUJUH, dipakai
- *     pada test "tile tanpa laporan tetap tidak berpindah rute".
+ *     st-4 di fixture lima-stasiun.
+ *
+ * 'kernel-dispatch' (sort_order 160) DULU ada di daftar ini sebagai hasil
+ * pemindahan KETUJUH, dipakai pada test "tile tanpa laporan tetap tidak
+ * berpindah rute". Ia PENSIUN pada 2026-10-19 bersama screen-165: laporan
+ * Kernel Dispatch mobile dibangun, tile-nya menjadi AKTIF, dan contoh itu
+ * berhenti menguji apa pun. Penggantinya 'zz-stasiun-fiktif' — kode fiktif
+ * yang sama dengan contoh utama berkas ini — bukan stasiun nyata berikutnya,
+ * persis sebagaimana diperintahkan paragraf di atas.
  *
  * Strategi mocking (mengikuti StationListView.spec.ts / DashboardReportingView.spec.ts):
  *   - 'vue-router' dimock di tingkat modul sehingga `router.push` dapat
@@ -907,24 +915,39 @@ describe('ReportingPilihStasiunView — membawa Production Line ke laporan', () 
     // (screen-163, 2026-10-18) TIDAK menyentuh test ini: yang berpindah adalah
     // contoh di tempat LAIN pada berkas ini ('process-water' →
     // 'solid-waste-disposal' → 'zz-stasiun-fiktif'), sementara Kernel Dispatch
-    // di sini MASIH belum punya laporan mobile.
+    // di sini masih belum punya laporan mobile.
     //
-    // Kalau suatu hari Kernel Dispatch pun dibuatkan laporan (ia sedang
-    // dibangun pada screen-165), test ini akan gagal lagi — dan itu justru
-    // benar: ia memaksa contohnya diperbarui alih-alih diam-diam menjadi
-    // selalu hijau. Penggantinya kelak TIDAK perlu stasiun nyata: pakai kode
-    // FIKTIF seperti 'zz-stasiun-fiktif' yang dipakai di tempat lain pada
-    // berkas ini, karena masternya DISUNTIK lewat makeStation — lihat koreksi
-    // "kolam kandidat habis" pada docblock berkas.
+    // PEMINDAHAN KESEPULUH, 2026-10-19 (screen-165) — DAN YANG TERAKHIR UNTUK
+    // TEST INI. Laporan Kernel Dispatch mobile mendarat, entri
+    // 'kernel-dispatch' masuk REPORT_ROUTES, tile-nya menjadi AKTIF, dan
+    // contoh lama berhenti menguji apa pun: test ini akan hijau karena
+    // tile-nya berpindah rute, bukan karena aturannya berlaku. Persis seperti
+    // yang diramalkan komentar sebelumnya, ia memaksa contohnya diperbarui
+    // alih-alih diam-diam menjadi selalu hijau.
+    //
+    // Penggantinya TIDAK memakai stasiun nyata: 'zz-stasiun-fiktif', kode
+    // FIKTIF yang sudah dipakai contoh utama berkas ini. Masternya DISUNTIK
+    // lewat makeStation(...) + getActiveAndPlaceholderStations*Mock, jadi kode
+    // yang tidak ada di StationType pun tersedia — lihat koreksi "kolam
+    // kandidat habis" pada docblock berkas. Karena tidak ada layar masa depan
+    // yang dapat memasukkan kode itu ke REPORT_ROUTES, pengejarannya berhenti
+    // di sini. Tidak satu asersi pun dilemahkan: yang diuji sejak awal bukan
+    // stasiun tertentu melainkan aturannya — ketersediaan laporan ditentukan
+    // HANYA oleh keanggotaan di REPORT_ROUTES, bukan oleh StationSlot.isActive.
     window.localStorage.setItem('msl_production_line_user-1', 'pl-2')
     getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([
-      makeStation({ id: 'st-x', name: 'Kernel Dispatch', type: 'kernel-dispatch', isActive: true }),
+      makeStation({
+        id: 'st-x',
+        name: 'Stasiun Fiktif',
+        type: 'zz-stasiun-fiktif' as StationType,
+        isActive: true,
+      }),
     ])
 
     const wrapper = mount(ReportingPilihStasiunView)
     await flushPromises()
 
-    await wrapper.get('[data-testid="station-tile-kernel-dispatch"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]').trigger('click')
 
     expect(pushMock).not.toHaveBeenCalled()
     expect(wrapper.get('[data-testid="info-message"]').text()).toContain('belum tersedia')

@@ -1,0 +1,90 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-20"
+  },
+  "id": "screen-165--laporan-kernel-dispatch-mobile",
+  "name": "Laporan Kernel Dispatch (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "partial",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-20T06:01:00Z",
+      "passed": 59,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-20T06:01:00Z",
+      "passed": 59,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  },
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/kernelDispatchReportRepo.ts",
+    "mobile/src/views/LaporanKernelDispatchView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/LaporanKernelDispatchView.spec.ts",
+    "mobile/tests/e2e/laporan-kernel-dispatch.spec.ts",
+    "mobile/tests/LaporanSolidWasteDisposalView.spec.ts",
+    "mobile/tests/ReportingPilihStasiunView.spec.ts"
+  ],
+  "implementation_notes": [
+    "STATUS 'partial' KARENA SATU SEBAB SAJA, DAN SEBABNYA BUKAN CACAT: berkas spec browser `mobile/tests/e2e/laporan-kernel-dispatch.spec.ts` (3053 baris, 44 test) SUDAH DITULIS tetapi BELUM PERNAH DIJALANKAN — pemilik produk menghentikan jalur test pada 2026-10-20 dengan instruksi 'langsung implement screen saja, tidak perlu test dulu', dan `test_generation_level` dipindah ke `none` pada saat yang sama supaya keputusan itu tercatat di config, bukan menjadi kebiasaan tak tertulis. Berkasnya TIDAK dihapus: ia utuh, lengkap sampai skenario 36, siap dijalankan kapan pun. Sampai dijalankan, statusnya TIDAK DIKETAHUI — bukan hijau. Mencatatnya sebagai hijau adalah kebohongan yang paling mudah dilakukan di berkas seperti ini.",
+    "NOL BERKAS BACKEND DISENTUH — diverifikasi lewat `git diff --name-only -- backend/` yang memulangkan 0 berkas. Keempat endpoint /api/kernel-dispatch-reports/* dipakai ulang VERBATIM dari screen-164, ditambah /api/production-lines/options-for-report. Tidak ada integration test: bukan dilewatkan, melainkan tidak ada kontrak baru untuk diuji. Pola yang kini terbukti empat kali (158/159, 160/161, 162/163, 164/165).",
+    "KLIEN TIDAK MENGHITUNG SATU AGREGAT PUN, DIVERIFIKASI pada sumber yang komentarnya dilucuti: `reduce(` 0, `.sort(` 0, `Math.min` 0, `Math.max` 0. Kartu 'Status Gerbang Tercatat' yang ada di blade web SENGAJA TIDAK DIPORT karena blade menghitungnya sendiri (`dispatch_count − baris null`) — itu aritmetika klien dan business_rule 1 melarangnya. Angkanya tetap terbaca dari baris 'tidak tercatat' pada rekap gate status, yang dirender. Inilah yang menjamin angka mobile = angka web, dan jaminannya berupa BENTUK bukan disiplin.",
+    "TIGA PERTENTANGAN DI DALAM TECH-SPEC INI SENDIRI, tidak dapat dipenuhi sekaligus. Ditemukan agen pelaksana, diperiksa ulang di berkas case-nya, lalu diputuskan: (a) case 14 menuntut angka mutu '9'/'3'/'4' sementara case 18 menuntut '0,00' untuk payload 0 — tidak ada satu Intl.NumberFormat pun yang mencetak keduanya; case 18 menang karena ia menguji perbedaan nol-TERUKUR lawan nilai-TIDAK-ADA, dan penjaga '—' yang memakai falsiness JavaScript akan menukar keduanya, sementara jumlah desimal tidak mengubah arti apa pun. formatQuality = min 2 / max 3; formatWeight = min 1 / max 2, identik preseden screen-163. (b) case 30 menghitung baris lewat prefiks `kd-recap-gate-status-row-` dan menuntut TEPAT 4, sementara case 32 menamai selnya `...-row-3-count` — pencarian berprefiks menemukan 8, jadi case 30 memerah karena PENAMAAN bukan cacat; dipisahkan sesuai konvensi repo (baris `-row-{i}`, sel `-dispatch-count-{i}`). (c) case 27 menuntut tabel yang dilipat menjadi `toHaveCount(0)` sementara `CollapsibleSection.vue` memakai `v-show` (isinya tetap di DOM) dan bawaannya tertutup; kontrol lipat ditulis lokal dengan `v-if`, bawaan TERBUKA — komponen bersamanya tidak diubah karena 24 layar lain memakainya.",
+    "SATU PENYIMPANGAN URUTAN DARI BLADE WEB, DIPAKSA OLEH DUA CASE YANG SALING MENJEPIT: 'Penimbangan Belum Selesai' diletakkan SESUDAH kartu mutu, bukan di antara tonase dan mutu seperti di web. Case 26 menuntut `kd-card-tonnage` dan `kd-card-quality` berurutan tanpa bagian lain di antaranya; case 21 menuntut `kd-card-missing-net-weight` adalah wadah TERPISAH yang tidak terkandung di `kd-card-tonnage`. Yang dimenangkan adalah kedekatan tonase–mutu, karena itulah kontrak layar pada lebar ponsel: tonase tinggi dengan kadar air tinggi harus terbaca dalam satu tarikan. Angka, testid dan kalimatnya sama persis dengan web.",
+    "LABEL GATE STATUS MENDELEGASIKAN KE `optionLabel()` dari `mobile/src/utils/optionLabel.ts`, DIVERIFIKASI pada sumber yang komentarnya dilucuti: literal 'Released' 0 kemunculan, 'Not Released' 0 kemunculan, nol peta nilai→label di dalam view. `optionLabel.ts` TIDAK DISENTUH — kedua kunci sudah ada sejak 2026-10-18, dan menambah entri akan memerahkan `mobile/tests/optionLabel.spec.ts` yang membaca `backend/app/Support/Display.php` dari disk lalu menuntut kedua peta identik. Pada screen-163 justru itu yang terjadi: satu sisi diubah tanpa mencari sisi lainnya, dan SELURUH suite mobile memerah.",
+    "RIAK TERNYATA EMPAT TEMPAT, DAN YANG KEDUA TIDAK ADA DI TECH-SPEC INI. Tech-spec hanya menyebut `mobile/tests/ReportingPilihStasiunView.spec.ts`, dan bahkan angkanya salah (ditulis 1 kemunculan, terukur 4). Yang tidak tercatat sama sekali: `mobile/tests/LaporanSolidWasteDisposalView.spec.ts` unit case 47 baris 3295-3331, yang memaku HIMPUNAN KUNCI LENGKAP `REPORT_ROUTES` pada 15 kunci plus `toHaveLength(15)` — menambah satu entri membuatnya 16 dan test itu PASTI merah. Ditemukan dengan GREP ATAS KODENYA, bukan dengan mempercayai catatan riak di spec; ini kali keempat berturut-turut ruang lingkup riak ditaksir terlalu kecil. Perbaikannya menambah kunci dan mengubah 15 → 16 tanpa melemahkan matcher apa pun: sifat 'bertambah tepat satu' itulah gunanya.",
+    "CONTOH 'BELUM BERLAPORAN' DI SPEC TETANGGA DIPINDAH KE KODE FIKTIF, BUKAN KE STASIUN NYATA BERIKUTNYA. Keempat kemunculan `kernel-dispatch` di `ReportingPilihStasiunView.spec.ts` (docblock baris 70 dan 102, fixture baris 921, testid baris 927) diarahkan ke `zz-stasiun-fiktif`, kode yang SUDAH dipakai sebagai contoh utama di berkas itu. Memindahkannya ke `cpo-dispatch` atau `process-quality-control` akan basi lagi dalam hitungan hari karena keduanya dibangun pada screen-167/169; komentar di dalam berkas itu sendiri sudah memerintahkan peralihan ini. Diff asersinya hanya dua baris testid; `expect(pushMock).not.toHaveBeenCalled()` dan asersi pesannya tidak tersentuh.",
+    "`daily_total._note` TIDAK ADA DI PAYLOAD STASIUN INI — berbeda dari Solid Waste Disposal, dan itu diperiksa di service bukan diasumsikan dari preseden. Paragraf kaki rekap harian karena itu prosa KLIEN (`kd-daily-total-note`) yang menyalin maksud paragraf blade. Kelima prosa SERVER (`quality._note`, `compliance._note`, `_note_no_hourly`, `_note_no_quality_thresholds`, `_note_shift_not_published`) dirender UTUH di elemen yang hanya memuat kalimat server.",
+    "DISIPLIN CSS DIAUDIT TERHADAP HASIL COMPILE (`dist/assets/*.css`), bukan sumbernya: 55 kelas dipakai markup, NOL tanpa definisi. Pada audit sebelumnya glob aset tidak cocok sehingga `shell.css` tidak pernah terbaca dan audit melaporkan 14 cacat PALSU dengan nada seyakin cacat nyata — path aset karena itu diambil dari atribut `href` milik dokumennya sendiri.",
+    "SATU KLAIM TECH-SPEC DIKOREKSI SEBELUM MENJADI ASERSI: deskripsi endpoint ekspor menyebut `Waybill Number` dan kedua kolom segel di antara 'yang tidak muncul di satu angka pun di layar'. Keliru — ketiganya MENYUMBANG angka lewat blok `compliance`. Yang tidak muncul adalah NILAINYA, bukan keberadaannya. Kolom yang benar-benar tidak menyumbang angka apa pun: `Weighbridge Ticket No`, `Vehicle Plate No`, `Driver Name`, `Weighbridge Operator ID`, ditambah `Shift` yang sengaja tidak diterbitkan di payload maupun layar tetapi ADA di ekspor.",
+    "DUA RONDE PEKERJAAN HILANG SELURUHNYA KE BATAS SESI API SEBELUM BERKAS TEST APA PUN TERSIMPAN, dan sebabnya layak dicatat: kedua agen penulis test menyusun berkas ribuan baris di dalam konteksnya lalu berniat menyimpannya SEKALI di akhir. Ketika permintaan ditolak, tidak ada apa pun di disk. Ronde ketiga diberi instruksi eksplisit menyimpan BERTAHAP dan SEDINI MUNGKIN, dan kedua berkas bertahan meski batasnya memutus lagi di titik yang sama. Pekerjaan panjang yang hanya ada di konteks adalah pekerjaan yang belum ada."
+  ],
+  "deferred_items": [
+    {
+      "description": "Menjalankan `mobile/tests/e2e/laporan-kernel-dispatch.spec.ts` (44 test, 3053 baris). Berkasnya utuh dan lengkap sampai skenario 36; hanya eksekusinya yang ditunda. Perintahnya: `cd mobile && npx playwright test tests/e2e/laporan-kernel-dispatch.spec.ts` dengan backend dev :8000 dan Vite :5174 hidup. Lima klaim yang HANYA berkas ini dapat membuktikan dan karena itu kini tidak terbukti: tabel benar-benar bertumpuk menjadi kartu pada 390px, halaman tidak menggulir mendatar, kartu mutu empat ukuran tidak memotong isinya, prosa ketiadaan terbaca utuh, dan unduhan CSV benar-benar terpicu dengan 27 kolom header.",
+      "reason": "Instruksi pemilik produk 2026-10-20: 'langsung implement screen saja, tidak perlu test dulu'. `test_generation_level` dipindah ke `none` pada saat yang sama. Bukan hambatan teknis — berkasnya siap jalan dan servernya hidup."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "SPEC BROWSER BELUM PERNAH DIJALANKAN — 44 test, status TIDAK DIKETAHUI. Konsekuensinya spesifik, bukan umum: geometri 390px adalah separuh kontrak layar ini (empat ukuran mutu min/avg/max di satu kolom sempit adalah godaan pemotongan terbesarnya), dan jsdom TIDAK DAPAT membuktikannya sama sekali — direktif `v-stacked-table` bahkan tidak terdaftar di sana, yang terlihat sebagai 'Failed to resolve directive: stacked-table' pada setiap mount di suite unit. Jadi 59/59 hijau di lapisan komponen TIDAK menyentuh satu pun klaim tata letak.",
+      "severity": "major"
+    },
+    {
+      "description": "Coverage unit TIDAK TERUKUR, bukan 0% — mobile/package.json tanpa @vitest/coverage-*, tanpa skrip coverage, vite.config.ts tanpa blok coverage. Ambang 80% tidak dapat dievaluasi untuk suite ini. Status TIDAK diturunkan karenanya: nol yang tidak terinstrumentasi bukan nol yang tidak tertutup.",
+      "severity": "minor"
+    },
+    {
+      "description": "Pemetaan butir-demi-butir antara 59 unit_test_cases dan 59 blok `it(` tidak diaudit baris-demi-baris; yang diukur adalah nomor case tertinggi (59) dan jumlah blok (59), jadi pemetaannya 1:1 secara hitungan. Tiga case yang hurufnya DIKOREKSI (14, 27, 32) tercatat di implementation_notes beserta sebabnya.",
+      "severity": "minor"
+    },
+    {
+      "description": "Asersi tata letak di dalam berkas e2e yang belum dijalankan juga belum pernah ditinjau manusia maupun dibaca ulang oleh pemanggil agen penulisnya. Apakah setiap pengukuran benar-benar memakai scrollWidth lawan clientWidth alih-alih nama kelas adalah pertanyaan TINJAUAN KODE, bukan pertanyaan test runner — dan kini keduanya belum dijawab.",
+      "severity": "minor"
+    },
+    {
+      "description": "Rantai riak kehilangan daya peringatan-dininya untuk dua stasiun yang tersisa. unit case 56 di LaporanProcessWaterView.spec.ts menjaga `zz-stasiun-fiktif`, kode yang tidak akan pernah masuk REPORT_ROUTES, sehingga asersinya hijau SELAMANYA. Ketika screen-167/169 mendarat, situs `cpo-dispatch` dan `process-quality-control` di ReportingPilihStasiunView.spec.ts akan basi dan test 56 TIDAK akan memerah untuk mereka. Pelaksana 167/169 harus GREP KODE STASIUNNYA di berkas itu langsung — jumlah terukur per 2026-10-19: `cpo-dispatch` 3 kemunculan, `process-quality-control` 11. Dan `LaporanSolidWasteDisposalView.spec.ts` unit case 47 kini memaku 16 kunci: ia akan memerah lagi pada screen-167 dan screen-169, dengan sengaja.",
+      "severity": "minor"
+    }
+  ]
+}

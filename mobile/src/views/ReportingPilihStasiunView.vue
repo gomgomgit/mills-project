@@ -165,6 +165,16 @@ const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   // urutan, jadi entrinya cukup di-APPEND. Ikon 'solid-waste-disposal' SUDAH
   // ADA di TYPE_ICONS di bawah dan tidak ditambah ulang.
   'solid-waste-disposal': 'report-solid-waste-disposal',
+  // screen-165--laporan-kernel-dispatch-mobile. Satu baris yang sama
+  // menentukannya: tanpa entri ini layar laporan Kernel Dispatch ada, rutenya
+  // ada, seluruh test-nya lulus, dan tile-nya tetap kelabu — pola kegagalan
+  // yang sudah pernah terjadi. Kuncinya WAJIB DIKUTIP karena bertanda hubung —
+  // kunci bergaris-bawah ('kernel_dispatch') akan terkompilasi, terlihat
+  // benar, dan tidak pernah cocok dengan satu station.type pun. Peta ini TIDAK
+  // berurut sort_order dan TIDAK punya asersi urutan, jadi entrinya cukup
+  // di-APPEND. Ikon 'kernel-dispatch' SUDAH ADA di STATION_ICONS di bawah dan
+  // tidak ditambah ulang — menambahkannya akan menjadi entri ganda.
+  'kernel-dispatch': 'report-kernel-dispatch',
 }
 
 function isReportAvailable(station: StationSlot): boolean {

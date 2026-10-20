@@ -3304,6 +3304,13 @@ describe('pintu masuk tile Reporting', () => {
     // "Bertambah tepat satu" diasersi atas HIMPUNAN KUNCI LENGKAPNYA: keempat
     // belas entri sebelum pekerjaan ini, ditambah satu. Entri yang
     // tertambah/terhapus diam-diam akan memerah di sini.
+    //
+    // RIAK screen-165 (2026-10-19): laporan Kernel Dispatch mobile menambahkan
+    // entri 'kernel-dispatch' pada peta yang SAMA, jadi himpunannya kini
+    // berisi ENAM BELAS kunci. Yang diperbarui hanya DAFTAR PEMBANDINGNYA —
+    // sifat "bertambah tepat satu per layar" sengaja DIPERTAHANKAN sebagai
+    // kesetaraan penuh atas himpunan lengkap; melonggarkannya menjadi
+    // toContain atau toBeGreaterThan akan menghapus justru yang diuji.
     const keys = [...map.matchAll(/^\s*'?([a-z-]+)'?\s*:\s*'report-[a-z-]+'/gm)].map(
       (match) => match[1],
     )
@@ -3317,6 +3324,7 @@ describe('pintu masuk tile Reporting', () => {
         'effluent-plant',
         'engine-room',
         'grading',
+        'kernel-dispatch',
         'kernel-plant',
         'pressing',
         'process-water',
@@ -3327,7 +3335,7 @@ describe('pintu masuk tile Reporting', () => {
         'weighbridge',
       ].sort(),
     )
-    expect(keys).toHaveLength(15)
+    expect(keys).toHaveLength(16)
 
     // Dan nama rutenya SAMA PERSIS dengan yang terdaftar di router.
     const routerSource = readSource('src/router/index.ts')

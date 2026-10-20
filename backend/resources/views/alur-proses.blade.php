@@ -111,9 +111,6 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
 .rec{margin:0;font-size:13px;line-height:1.5;color:var(--text)}
 .rec b{font-weight:700}
 .rec--none{color:var(--mute);font-style:italic}
-.tgt{margin-top:6px}
-.tgt dt{font-size:12.5px}
-.tgt dd{font-size:11.5px;max-width:52%}
 .card dd small{font-weight:500;color:var(--mute);font-size:11px}
 .card dd .na{color:var(--mute)}
 .picker{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;pointer-events:auto}
@@ -159,7 +156,6 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
      mengklaim sebaliknya. Diukur di browser pada 390px, bukan dibaca dari
      sumbernya. */
   .card > .fade > p:not(.rec){display:none}
-  .tgt{display:none}
   .rec{font-size:12px}
   .lbl{margin:8px 0 5px}
   .eq{max-height:48px;overflow:hidden}
@@ -235,7 +231,6 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
         <span class="lbl" id="sProdLbl">Produksi</span>
         <dl id="sProd"></dl>
         <p class="rec" id="sRec"></p>
-        <div id="sTargets"></div>
       </div>
       <div class="foot">
         <div class="ticks" id="ticks" role="group" aria-label="Pilih stasiun"></div>
@@ -474,10 +469,12 @@ function setStop(i){
   };
   if (first || reduced) apply(); else { card.classList.add('swap'); setTimeout(apply, 180); }
 }
-/* Seluruh nilai di bawah berasal dari basis data (nama parameter target
-   ditulis manusia lewat master), jadi ia di-escape sebelum masuk innerHTML.
-   Angkanya sendiri sudah int di server, tetapi meloloskan sebagian dan tidak
-   sebagian lain adalah cara aturan ini berhenti dipatuhi. */
+/* esc() TETAP DIPERLUKAN walaupun Target Operasi sudah dibuang, dan
+   alasannya bergeser bukan hilang: nama Production Line
+   (SCOPE.production_line_name) ditulis manusia lewat master data dan masuk ke
+   innerHTML di renderLive(). Label dan satuan metriknya memang konstanta
+   server, tetapi meloloskan sebagian nilai dan tidak sebagian lain adalah
+   cara aturan ini berhenti dipatuhi. */
 function esc(v){
   return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -490,14 +487,13 @@ function formatDateId(iso){
 }
 function plural(n, kata){ return `${n.toLocaleString('id-ID')} ${kata}`; }
 
-/* Blok produksi + target. Nol angka dihitung di sini — seluruhnya datang jadi
-   dari StationProductionService; klien hanya memilih kalimatnya. */
+/* Blok produksi. Nol angka dihitung di sini — seluruhnya datang jadi dari
+   StationProductionService; klien hanya memilih kalimatnya. */
 function renderLive(code){
   const d = LIVE[code] || {};
   const prod = document.getElementById('sProd');
   const lbl = document.getElementById('sProdLbl');
   const rec = document.getElementById('sRec');
-  const tg = document.getElementById('sTargets');
 
   lbl.textContent = SCOPE.production_line_id
     ? `Produksi · ${REC_DAYS} hari terakhir`
@@ -513,7 +509,6 @@ function renderLive(code){
     rec.textContent = SCOPE.needs_mill
       ? 'Pilih mill dan Production Line untuk menampilkan angka produksi.'
       : 'Pilih Production Line untuk menampilkan angka produksi.';
-    tg.innerHTML = renderTargets(d.targets);
     return;
   }
 
@@ -535,16 +530,6 @@ function renderLive(code){
     rec.innerHTML = `Dari <b>${esc(d.row_count.toLocaleString('id-ID'))}</b> baris tercatat`
       + ` di ${esc(SCOPE.production_line_name || '')}.`;
   }
-
-  tg.innerHTML = renderTargets(d.targets);
-}
-
-function renderTargets(targets){
-  return (targets && targets.length)
-    ? `<span class="lbl">Target operasi</span><dl class="tgt">`
-      + targets.map(t => `<div><dt>${esc(t.parameter)}</dt><dd>${esc(t.benchmark)}</dd></div>`).join('')
-      + `</dl>`
-    : '';
 }
 
 function stopFloat(){

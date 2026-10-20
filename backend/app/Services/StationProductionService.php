@@ -237,25 +237,6 @@ class StationProductionService
     ];
 
     /**
-     * Master target operasi — HANYA EMPAT jenis stasiun yang punya.
-     *
-     * Nama kolomnya BERBEDA di keempat tabel; itu bukan dugaan, versi pertama
-     * kelas pendahulunya menyimpulkan dari satu tabel dan gagal di tabel
-     * kedua. Nilainya TEKS BEBAS ("≤ 7.0%"), dicetak apa adanya dan tidak
-     * pernah dibandingkan dengan angka terukur di atas: membandingkannya
-     * berarti mengurai prosa menjadi ambang, dan ambang yang diurai dari
-     * prosa adalah ambang yang dikarang.
-     *
-     * @var array<string, array{0: string, 1: string, 2: string}>
-     */
-    protected const TARGET_TABLES = [
-        'kernel-plant' => ['kernel_plant_operational_targets', 'equipment_parameter', 'target_benchmark'],
-        'depricarping' => ['depricarping_operational_targets', 'parameter_metric', 'target_range'],
-        'pressing' => ['pressing_operational_targets', 'parameter_metric', 'target_operating_range'],
-        'threshing' => ['threshing_operational_targets', 'parameter', 'standard_operational_target'],
-    ];
-
-    /**
      * @return array{
      *   scope: array<string, mixed>,
      *   mills: list<array{id: string, name: string}>,
@@ -403,7 +384,6 @@ class StationProductionService
                 'metrics' => array_map(fn (array $m) => [
                     'label' => $m[0], 'value' => null, 'unit' => $m[3],
                 ], $config['metrics']),
-                'targets' => [],
             ];
         }
 
@@ -422,7 +402,6 @@ class StationProductionService
     protected function productionFor(string $businessUnitId, string $lineId, int $days): array
     {
         $since = now()->subDays($days)->toDateString();
-        $targets = $this->targets();
         $out = [];
 
         foreach (self::METRICS as $code => $config) {
@@ -474,27 +453,10 @@ class StationProductionService
             $out[$code] = [
                 'row_count' => (int) ($row->row_count ?? 0),
                 'metrics' => $metrics,
-                'targets' => $targets[$code] ?? [],
             ];
         }
 
         return $out;
     }
 
-    /** @return array<string, list<array{parameter: string, benchmark: string}>> */
-    protected function targets(): array
-    {
-        $out = [];
-
-        foreach (self::TARGET_TABLES as $code => [$table, $parameterColumn, $benchmarkColumn]) {
-            $out[$code] = DB::table($table)->orderBy('sort_order')
-                ->get([$parameterColumn, $benchmarkColumn])
-                ->map(fn ($r) => [
-                    'parameter' => (string) $r->{$parameterColumn},
-                    'benchmark' => (string) $r->{$benchmarkColumn},
-                ])->all();
-        }
-
-        return $out;
-    }
 }

@@ -714,10 +714,11 @@ function build(){
     if (kind === 'tanker') { cyl(1.35,8.2,0xD7DBDF,-1.4,2.5,0,'x',g); box(8.2,0.35,2.75,C.green,-1.4,2.3,0,g,false); }
     else if (kind === 'sacks') { box(7.6,0.4,2.5,C.green,-1.4,1,0,g); for (let i=0;i<5;i++) box(1.3,1.2,2.2,C.sack,-4.4+i*1.5,1.4,0,g); }
     else {
-      // bak berengsel di ujung belakang (x -5.2), supaya truk TBS bisa jungkit di loading ramp
-      const bed = new THREE.Group(); bed.position.set(-5.2,1,0); g.add(bed);
-      box(7.6,1.8,2.5,kind === 'waste' ? C.yellow : C.green,3.8,0,0,bed);
-      g.userData.load = box(7.2,0.7,2.2,kind === 'waste' ? C.efb : C.fruitDk,3.8,1.6,0,bed);
+      // bak berengsel di tepi samping (z -1.25), supaya truk TBS bisa jungkit ke samping:
+      // jungkit belakang di loading ramp tersembunyi di bawah dek ramp dari sudut kamera
+      const bed = new THREE.Group(); bed.position.set(-1.4,1,-1.25); g.add(bed);
+      box(7.6,1.8,2.5,kind === 'waste' ? C.yellow : C.green,0,0,1.25,bed);
+      g.userData.load = box(7.2,0.7,2.2,kind === 'waste' ? C.efb : C.fruitDk,0,1.6,1.25,bed);
       g.userData.bed = bed;
     }
     const wg = new THREE.CylinderGeometry(0.55,0.55,0.4,12).rotateX(Math.PI/2);
@@ -1084,7 +1085,7 @@ function build(){
   // mulai dengan truk pertama tepat di timbangan 1, juga untuk reduced-motion
   const tipFrom = tipSteps[1].t0;
   // tumpukan TBS hasil jungkit di kaki loading ramp; tumbuh selagi bak menumpahkan
-  const tipHeap = new THREE.Group(); tipHeap.position.set(-22.6,0,10); scene.add(tipHeap);
+  const tipHeap = new THREE.Group(); tipHeap.position.set(-28.6,0,13.7); scene.add(tipHeap);
   { const hg = new THREE.IcosahedronGeometry(0.55,0), tones = [C.fruit,C.fruitDk,C.fruitBk];
     for (let i=0;i<24;i++){
       const a = i*2.4, r = Math.sqrt((i%8 + 1)/8)*1.9, m = new THREE.Mesh(hg, mat(tones[i%3]));
@@ -1144,11 +1145,11 @@ function build(){
     for (const tr of tippers){
       const p = tipPose((clock + tipFrom + tr.ph) % tipT), f = p.rev ? -1 : 1;
       tr.m.position.copy(p.at); tr.m.rotation.y = Math.atan2(-p.dir.z*f, p.dir.x*f);
-      // jungkit: bak naik, muatan meluncur keluar ke ramp, bak turun; muatan kembali di putaran berikutnya
+      // jungkit samping ke arah kamera: sisi jauh bak naik, muatan meluncur ke tanah, bak turun; muatan kembali di putaran berikutnya
       const {bed, load} = tr.m.userData, d = p.step === tipDump ? p.k : 0;
-      bed.rotation.z = 0.75 * smooth(Math.min(1, d/0.3, (1-d)/0.3));
+      bed.rotation.x = -0.8 * smooth(Math.min(1, d/0.3, (1-d)/0.3));
       const out = smooth(Math.min(1, Math.max(0, (d-0.3)/0.35)));
-      load.position.x = 3.8 - out*7;
+      load.position.z = 1.25 - out*5.5;
       load.visible = p.step < tipDump || (p.step === tipDump && out < 1);
       // satu truk saja yang menumpahkan pada satu waktu; tumpukan baru dibuang saat truk berikutnya mulai
       if (p.step === tipDump) tipHeap.scale.setScalar(Math.max(0.001, out));

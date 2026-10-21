@@ -135,9 +135,10 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
   background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-gradient(135deg,var(--mute) 50%,transparent 50%);
   background-position:calc(100% - 17px) 15px,calc(100% - 12px) 15px;background-size:5px 5px;background-repeat:no-repeat}
 .nav{position:absolute;z-index:5;right:max(20px,calc(env(safe-area-inset-right,0px) + 12px));bottom:calc(20px + env(safe-area-inset-bottom,0px));display:flex;gap:6px}
-.nav button{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--text);font:600 18px/1 var(--display);cursor:pointer;
+.zoom{position:absolute;z-index:5;right:max(20px,calc(env(safe-area-inset-right,0px) + 12px));bottom:calc(20px + 42px + 8px + env(safe-area-inset-bottom,0px));display:flex;gap:6px}
+.nav button,.zoom button{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--text);font:600 18px/1 var(--display);cursor:pointer;
   box-shadow:0 8px 24px -12px rgba(20,32,26,.4)}
-.nav button:disabled{opacity:.4;cursor:default}
+.nav button:disabled,.zoom button:disabled{opacity:.4;cursor:default}
 .hint{position:absolute;z-index:4;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
   font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mute);transition:opacity .4s;white-space:nowrap}
 @media (max-width:720px){
@@ -163,7 +164,8 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
   .flow{margin-top:8px}.flow div{padding:6px 8px}.flow span{font-size:12px}
   .foot{margin-top:10px;padding-top:10px;gap:8px}
   .nav{top:calc(70px + env(safe-area-inset-top,0px));bottom:auto;right:12px}
-  .nav button{width:36px;height:36px;font-size:15px}
+  .nav button,.zoom button{width:36px;height:36px;font-size:15px}
+  .zoom{top:calc(70px + 36px + 6px + env(safe-area-inset-top,0px));bottom:auto;right:12px}
   .hint{display:none}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
@@ -172,7 +174,7 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
 </head>
 <body>
 <header class="top">
-  <div class="mark"><b>PKS</b><span>Alur Stasiun Pabrik Kelapa Sawit</span></div>
+  <div class="mark"><span>Mills Smart Log</span></div>
   {{-- PEMILIH DI HEADER, BUKAN DI KARTU. Kartunya berganti isi tiap kali
        pengguna menggulir; sebuah pemilih yang ikut berganti akan kehilangan
        fokus di tengah pemilihan. Header tidak pernah berganti, jadi di
@@ -239,6 +241,7 @@ a.tag--link:hover{background:var(--tint);color:var(--green-dk)}
       </div>
     </aside>
     <div class="nav"><button type="button" id="prev" aria-label="Stasiun sebelumnya">↑</button><button type="button" id="next" aria-label="Stasiun berikutnya">↓</button></div>
+    <div class="zoom"><button type="button" id="zoomOut" aria-label="Perkecil (−)" title="Perkecil (−)">−</button><button type="button" id="zoomIn" aria-label="Perbesar (+)" title="Perbesar (+)">+</button></div>
     <div class="hint" id="hint">Gulir untuk menyusuri stasiun</div>
   </div>
 </section>
@@ -297,8 +300,8 @@ const SCOPE = @json($overview['scope']);
 const REC_DAYS = SCOPE.days;
 
 const STOPS = [
-  {code:'weighbridge', title:'Weighbridge', key:'Jembatan timbang', focus:[-48,-18], size:40, mark:10,
-   text:'Truk TBS dari kebun ditimbang masuk dan keluar di jembatan timbang. Selisih bruto dan tara menjadi tonase TBS yang diterima pabrik hari itu.',
+  {code:'weighbridge', title:'Weighbridge', key:'Jembatan timbang', focus:[-42,-1], size:48, mark:8,
+   text:'Truk TBS dari kebun berhenti di timbangan masuk untuk ditimbang bruto, membongkar muatan di loading ramp, lalu berhenti di timbangan keluar untuk ditimbang tara. Selisih bruto dan tara menjadi tonase TBS yang diterima pabrik hari itu.',
    inp:'Truk TBS dari kebun', out:'Tonase TBS tercatat',
    eq:['Weighbridge','Timbangan truk']},
   {code:'grading', title:'Grading', key:'Sortasi mutu', focus:[-47,9], size:38, mark:9,
@@ -440,8 +443,31 @@ const stepPx = () => (intro.offsetHeight - innerHeight) / (N - 1);
 function goTo(i){ i = Math.max(0, Math.min(N-1, i)); scrollTo({top: intro.offsetTop + i * stepPx(), behavior: reduced ? 'auto' : 'smooth'}); }
 prev.addEventListener('click', () => goTo(current - 1));
 next.addEventListener('click', () => goTo(current + 1));
+/* Zoom: pengali ukuran pandang kamera, lepas dari stasiun yang sedang dipilih.
+   Gulir biasa tetap berarti pindah stasiun, jadi roda hanya memperbesar bila
+   Ctrl/⌘ ditahan (itu juga yang dikirim pinch di trackpad). */
+const ZOOM_MIN = 0.6, ZOOM_MAX = 3, ZOOM_STEP = 1.25;
+const zoomInBtn = document.getElementById('zoomIn'), zoomOutBtn = document.getElementById('zoomOut');
+let zoomTarget = 1;
+function setZoom(z){
+  zoomTarget = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+  zoomOutBtn.disabled = zoomTarget <= ZOOM_MIN + 1e-6;
+  zoomInBtn.disabled = zoomTarget >= ZOOM_MAX - 1e-6;
+}
+zoomInBtn.addEventListener('click', () => setZoom(zoomTarget * ZOOM_STEP));
+zoomOutBtn.addEventListener('click', () => setZoom(zoomTarget / ZOOM_STEP));
+stage.addEventListener('wheel', e => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  e.preventDefault();
+  setZoom(zoomTarget * Math.exp(-e.deltaY * 0.0025));
+}, {passive: false});
 addEventListener('keydown', e => {
   if (e.target.closest('input,textarea,select')) return;
+  if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.key === '+' || e.key === '=') { e.preventDefault(); setZoom(zoomTarget * ZOOM_STEP); }
+    if (e.key === '-' || e.key === '_') { e.preventDefault(); setZoom(zoomTarget / ZOOM_STEP); }
+    if (e.key === '0') { e.preventDefault(); setZoom(1); }
+  }
   if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); goTo(current + 1); }
   if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goTo(current - 1); }
 });
@@ -569,7 +595,7 @@ function build(){
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.setClearColor(0xF3F4F6);
+  renderer.setClearColor(0xA3BE86);
 
   const scene = new THREE.Scene();
   const cam = new THREE.OrthographicCamera(-1,1,1,-1,1,2000);
@@ -586,7 +612,7 @@ function build(){
   scene.add(sun, sun.target);
   const SUN_OFF = new THREE.Vector3(-35, 130, 75);
 
-  const C = {ground:0xF3F4F6, pave:0xE1E4DE, road:0xCFD3CB, white:0xF8F9F7, roof:0xE1E5DE, wall:0xD5DBD3,
+  const C = {ground:0xA3BE86, pave:0xC2C6B6, road:0x9CA196, white:0xF8F9F7, roof:0xE1E5DE, wall:0xD5DBD3,
     green:0x249360, greenDk:0x1D7A4E, fruit:0xE8641B, fruitDk:0x9A3412, fruitBk:0x3B1F14, efb:0x6B4E36, fiber:0xA88A5E,
     steel:0xA9B1B8, steelDk:0x5E6770, dark:0x2C332F, glass:0x3A4A44, rail:0x6B7280, sleeper:0x8D7660,
     accent:0xD97706, tank:0xE7EAE4, oil:0xD9A23B, soil:0xB9A283, palm1:0x4F8F3A, palm2:0x5F9F46, trunk:0x8A6E4E,
@@ -687,7 +713,13 @@ function build(){
     box(10.4,0.45,2.1,C.dark,-0.2,0.55,0,g);
     if (kind === 'tanker') { cyl(1.35,8.2,0xD7DBDF,-1.4,2.5,0,'x',g); box(8.2,0.35,2.75,C.green,-1.4,2.3,0,g,false); }
     else if (kind === 'sacks') { box(7.6,0.4,2.5,C.green,-1.4,1,0,g); for (let i=0;i<5;i++) box(1.3,1.2,2.2,C.sack,-4.4+i*1.5,1.4,0,g); }
-    else { box(7.6,1.8,2.5,kind === 'waste' ? C.yellow : C.green,-1.4,1,0,g); box(7.2,0.7,2.2,kind === 'waste' ? C.efb : C.fruitDk,-1.4,2.6,0,g); }
+    else {
+      // bak berengsel di ujung belakang (x -5.2), supaya truk TBS bisa jungkit di loading ramp
+      const bed = new THREE.Group(); bed.position.set(-5.2,1,0); g.add(bed);
+      box(7.6,1.8,2.5,kind === 'waste' ? C.yellow : C.green,3.8,0,0,bed);
+      g.userData.load = box(7.2,0.7,2.2,kind === 'waste' ? C.efb : C.fruitDk,3.8,1.6,0,bed);
+      g.userData.bed = bed;
+    }
     const wg = new THREE.CylinderGeometry(0.55,0.55,0.4,12).rotateX(Math.PI/2);
     for (const x of [-4,-2.8,3.8]) for (const z of [-1.1,1.1]) { const w = new THREE.Mesh(wg, mat(C.dark)); w.position.set(x,0.55,z); g.add(w); }
     g.traverse(o => { o.castShadow = true; });
@@ -709,10 +741,14 @@ function build(){
   box(440,0.12,7,C.road,-5,0,-14,scene,false);
   for (let x=-222;x<212;x+=6) box(2.6,0.14,0.25,C.white,x,0,-14,scene,false);
   box(440,0.12,7,C.road,55,0,128,scene,false);
-  box(7,0.12,18,C.road,-34,0,-4,scene,false);
+  box(7,0.12,35,C.road,-34,0,4.5,scene,false);
+  for (const z of [-9.5,-3.5]) box(32,0.12,4.6,C.road,-50,0,z,scene,false);
 
-  /* 1. FFB reception */
-  box(16,0.3,4,C.steelDk,-48,0,-14,scene,false);
+  /* 1. FFB reception — dua jembatan timbang di halaman, bukan di badan jalan:
+        timbangan 1 (masuk, bruto) lalu timbangan 2 (keluar, tara) */
+  for (const z of [-9.5,-3.5]) box(16,0.3,4,C.steelDk,-50,0,z,scene,false);
+  post('SCALE 1 · IN', 8, -50, -12.1, 'z', 1.1, 3.6);
+  post('SCALE 2 · OUT', 8, -50, -0.6, 'z', 1.1, 3);
   box(5,3.2,4,C.white,-48,0,-20); box(5.2,0.4,4.2,C.green,-48,3.2,-20); box(0.08,1.1,3,C.glass,-45.45,1.5,-20,scene,false);
   post('WEIGHBRIDGE', 9, -48, -23.5, 'z', 1.4, 4);
   box(11,0.25,9,C.wall,-47,0,8,scene,false);
@@ -739,7 +775,6 @@ function build(){
     }
     meshes.forEach(m => { m.castShadow = true; scene.add(m); });
   }
-  { const t = makeTruck('tbs'); t.rotation.y = Math.PI/2; t.position.set(-34,0,0); }
 
   /* 2. cages / tracks: main line, transfer carriage, capstan */
   rail(-8,70,10); rail(20,64,3); rail(20,64,17);
@@ -1004,6 +1039,60 @@ function build(){
   for (let i=0;i<4;i++){ const t = makeTruck('tbs'); trucks.push({m:t, pos:-210 + i*55, z:-15.7, dir:1, min:-215, max:205, v:8}); }
   for (let i=0;i<2;i++){ const t = makeTruck(i ? 'sacks' : 'tanker'); t.rotation.y = Math.PI; trucks.push({m:t, pos:30 + i*100, z:129.7, dir:-1, min:-150, max:260, v:7}); }
 
+  /* truk TBS satu putaran penuh: berhenti di timbangan 1 (bruto), mundur ke
+     loading ramp dan menjungkit bak, berhenti di timbangan 2 (tara), keluar.
+     Dua truk, berjarak setengah putaran — tidak pernah berpapasan: saat yang
+     satu di jalan raya, yang lain sedang di halaman. */
+  const P = (x,z) => new THREE.Vector3(x,0,z);
+  const L = (a,b) => new THREE.LineCurve3(P(...a),P(...b));
+  const Q = (a,c,b) => new THREE.QuadraticBezierCurve3(P(...a),P(...c),P(...b));
+  const S = (a,c1,c2,b) => new THREE.CubicBezierCurve3(P(...a),P(...c1),P(...c2),P(...b));
+  function lane(...cs){ const p = new THREE.CurvePath(); cs.forEach(c => p.add(c)); return p; }
+  const TIP_V = 10, TIP_ACC = 1.2;
+  const tipSteps = [
+    {path: lane(L([-170,-12.3],[-80,-12.3]), S([-80,-12.3],[-72,-12.3],[-72,-9.5],[-64,-9.5]), L([-64,-9.5],[-50,-9.5]))},
+    {wait: 5},
+    {path: lane(L([-50,-9.5],[-38,-9.5]), Q([-38,-9.5],[-34,-9.5],[-34,-5.5]), L([-34,-5.5],[-34,19]))},
+    {wait: 0.8},
+    {path: lane(L([-34,19],[-34,14]), Q([-34,14],[-34,10],[-30,10])), rev: true},
+    {wait: 6, dump: true},
+    {path: lane(Q([-30,10],[-34,10],[-34,6]), L([-34,6],[-34,0.5]), Q([-34,0.5],[-34,-3.5],[-38,-3.5]), L([-38,-3.5],[-50,-3.5]))},
+    {wait: 5},
+    {path: lane(L([-50,-3.5],[-58,-3.5]), S([-58,-3.5],[-66,-3.5],[-64,-12.3],[-72,-12.3]), L([-72,-12.3],[-170,-12.3]))},
+  ];
+  let tipT = 0;
+  for (const s of tipSteps){
+    if (s.path){ const run = s.path.getLength() / TIP_V; s.acc = Math.min(TIP_ACC, run); s.dur = run + s.acc; }
+    else s.dur = s.wait;
+    s.t0 = tipT; tipT += s.dur;
+  }
+  const tipDump = tipSteps.findIndex(s => s.dump);
+  // jarak tempuh berprofil trapesium: mulai dan berhenti dengan halus
+  function tipRun(t, T, a){
+    const v = 1 / (T - a);
+    if (t < a) return 0.5*v*t*t/a;
+    if (t > T - a) { const r = T - t; return 1 - 0.5*v*r*r/a; }
+    return v*(t - a/2);
+  }
+  function tipPose(t){
+    let i = tipSteps.length - 1; while (tipSteps[i].t0 > t) i--;
+    const s = tipSteps[i], k = t - s.t0;
+    if (s.path) { const u = Math.min(1, Math.max(0, tipRun(k, s.dur, s.acc))); return {at:s.path.getPointAt(u), dir:s.path.getTangentAt(u), rev:!!s.rev, step:i, k:0}; }
+    const p = tipSteps[i-1];
+    return {at:p.path.getPointAt(1), dir:p.path.getTangentAt(1), rev:!!p.rev, step:i, k:k/s.dur};
+  }
+  // mulai dengan truk pertama tepat di timbangan 1, juga untuk reduced-motion
+  const tipFrom = tipSteps[1].t0;
+  // tumpukan TBS hasil jungkit di kaki loading ramp; tumbuh selagi bak menumpahkan
+  const tipHeap = new THREE.Group(); tipHeap.position.set(-22.6,0,10); scene.add(tipHeap);
+  { const hg = new THREE.IcosahedronGeometry(0.55,0), tones = [C.fruit,C.fruitDk,C.fruitBk];
+    for (let i=0;i<24;i++){
+      const a = i*2.4, r = Math.sqrt((i%8 + 1)/8)*1.9, m = new THREE.Mesh(hg, mat(tones[i%3]));
+      m.position.set(Math.cos(a)*r*0.7, 0.45 + Math.max(0, 1.5 - r*0.7) + (i%3)*0.18, Math.sin(a)*r);
+      m.rotation.set(i, i*1.7, 0); m.castShadow = true; tipHeap.add(m);
+    } }
+  const tippers = [0, 0.5].map(h => ({m: makeTruck('tbs'), ph: h*tipT}));
+
   const puffs = [], puffG = new THREE.IcosahedronGeometry(1,1);
   function emitter(x,y,z,n,color,spread,rise,life){
     for (let i=0;i<n;i++){
@@ -1033,9 +1122,10 @@ function build(){
   let W = 1, H = 1;
   function resize(){ W = stage.clientWidth; H = stage.clientHeight; renderer.setSize(W, H, false); }
   addEventListener('resize', resize); resize();
+  let zoomCur = zoomTarget;
   const focusV = new THREE.Vector3(), target = new THREE.Vector3();
   function applyCamera(){
-    const aspect = W / H, viewH = cur.size * (aspect < 1 ? 1.5 : 1), viewW = viewH * aspect;
+    const aspect = W / H, viewH = cur.size * (aspect < 1 ? 1.5 : 1) / zoomCur, viewW = viewH * aspect;
     cam.left = -viewW/2; cam.right = viewW/2; cam.top = viewH/2; cam.bottom = -viewH/2; cam.updateProjectionMatrix();
     let sx = 0, sy = 0;
     if (W > 720) sx = ((card.offsetLeft + card.offsetWidth) / 2) / W * viewW;
@@ -1051,6 +1141,18 @@ function build(){
     clock += dt;
     for (const l of lorries){ l.pos += 2.6*dt; if (l.pos > 66) l.pos -= 72; l.g.position.x = l.pos; }
     for (const t of trucks){ t.pos += t.dir*t.v*dt; if (t.pos > t.max) t.pos = t.min; if (t.pos < t.min) t.pos = t.max; t.m.position.set(t.pos,0,t.z); }
+    for (const tr of tippers){
+      const p = tipPose((clock + tipFrom + tr.ph) % tipT), f = p.rev ? -1 : 1;
+      tr.m.position.copy(p.at); tr.m.rotation.y = Math.atan2(-p.dir.z*f, p.dir.x*f);
+      // jungkit: bak naik, muatan meluncur keluar ke ramp, bak turun; muatan kembali di putaran berikutnya
+      const {bed, load} = tr.m.userData, d = p.step === tipDump ? p.k : 0;
+      bed.rotation.z = 0.75 * smooth(Math.min(1, d/0.3, (1-d)/0.3));
+      const out = smooth(Math.min(1, Math.max(0, (d-0.3)/0.35)));
+      load.position.x = 3.8 - out*7;
+      load.visible = p.step < tipDump || (p.step === tipDump && out < 1);
+      // satu truk saja yang menumpahkan pada satu waktu; tumpukan baru dibuang saat truk berikutnya mulai
+      if (p.step === tipDump) tipHeap.scale.setScalar(Math.max(0.001, out));
+    }
     drum.rotation.x += dt * 2.4;
     capDrum.rotation.y += dt * 1.5;
     const tp = (clock % 8) / 8; tippler.rotation.x = tp < 0.5 ? smooth(Math.min(1, tp*3)) * 2.3 : smooth(Math.max(0, 1 - (tp-0.5)*3)) * 2.3;
@@ -1071,6 +1173,7 @@ function build(){
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     const d = desired(), k = reduced ? 1 : 1 - Math.pow(0.0025, dt);
     for (const key of ['x','z','size','mark']) cur[key] += (d[key] - cur[key]) * k;
+    zoomCur += (zoomTarget - zoomCur) * k;
     if (!reduced) animate(dt);
     marker.position.set(cur.x, cur.mark + (reduced ? 0 : Math.sin(now/400)*0.6), cur.z);
     pin.rotation.y = now/900;

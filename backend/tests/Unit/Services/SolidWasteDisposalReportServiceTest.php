@@ -2327,18 +2327,21 @@ it("case 47 — array_keys(REPORT_ROUTES) urut sort_order station_types, dengan 
     $index = array_search('solid-waste-disposal', $keys, true);
 
     // solid-waste-disposal (150) TIDAK lagi di posisi terakhir sejak
-    // screen-164 menambahkan kernel-dispatch (160) SETELAHNYA — kini ia kedua
-    // dari belakang. Yang diasersikan tetap sebuah POSISI, bukan sekadar
+    // screen-164 menambahkan kernel-dispatch (160) SETELAHNYA, dan screen-166
+    // menambahkan cpo-dispatch (170) sesudah itu — kini ia ketiga dari
+    // belakang. Yang diasersikan tetap sebuah POSISI, bukan sekadar
     // keanggotaan: menyisipkan stasiun berikutnya di tempat yang salah harus
     // tetap memerahkan baris-baris ini.
-    expect($index)->toBe(count($keys) - 2);
+    expect($index)->toBe(count($keys) - 3);
     expect($keys[$index - 1])->toBe('storage-tank');
     expect($keys[$index + 1])->toBe('kernel-dispatch');
+    expect($keys[$index + 2])->toBe('cpo-dispatch');
 
     // Dan sort_order-nya memang yang membuat urutan itu benar.
     expect($berlaporan['storage-tank'])->toBe(140);
     expect($berlaporan['solid-waste-disposal'])->toBe(150);
     expect($berlaporan['kernel-dispatch'])->toBe(160);
+    expect($berlaporan['cpo-dispatch'])->toBe(170);
 });
 
 // ---------------------------------------------------------------------
@@ -2365,11 +2368,17 @@ it("case 48 — contoh 'stasiun belum berlaporan' kini kode FIKTIF; solid-waste-
     $this->assertArrayHasKey('kernel-dispatch', StationReportService::REPORT_ROUTES);
     expect(StationReportService::REPORT_ROUTES['kernel-dispatch'])->toBe('reports.kernel-dispatch');
 
-    // (4) Sisa dua stasiun nyata yang belum berlaporan. KOPLINGNYA DISENGAJA:
-    //     baris ini HARUS memerah di screen-166 (cpo-dispatch) dan screen-168
-    //     (process-quality-control), supaya dua pergeseran terakhir dipaksa
+    // (3b) screen-166 JUGA sudah terjadi: cpo-dispatch kini BERLAPORAN dan
+    //      keluar dari daftar kandidat di bawah — transisi kedua dicatat di
+    //     sini, bukan dilupakan.
+    $this->assertArrayHasKey('cpo-dispatch', StationReportService::REPORT_ROUTES);
+    expect(StationReportService::REPORT_ROUTES['cpo-dispatch'])->toBe('reports.cpo-dispatch');
+
+    // (4) Sisa SATU stasiun nyata yang belum berlaporan. KOPLINGNYA
+    //     DISENGAJA: baris ini HARUS memerah di screen-168
+    //     (process-quality-control), supaya pergeseran terakhir dipaksa
     //     ditangani alih-alih lolos diam-diam.
-    foreach (['cpo-dispatch', 'process-quality-control'] as $kandidat) {
+    foreach (['process-quality-control'] as $kandidat) {
         expect(StationType::query()->where('code', $kandidat)->exists())->toBeTrue();
         $this->assertArrayNotHasKey($kandidat, StationReportService::REPORT_ROUTES);
     }

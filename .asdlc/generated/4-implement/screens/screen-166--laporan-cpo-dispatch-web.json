@@ -1,0 +1,77 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-21"
+  },
+  "id": "screen-166--laporan-cpo-dispatch-web",
+  "name": "Laporan CPO Dispatch (Web)",
+  "module_id": "module-dashboard",
+  "status": "partial",
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/CpoDispatchReportService.php",
+    "backend/app/Http/Controllers/Api/CpoDispatchReportController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/SolidWasteDisposalReportServiceTest.php",
+    "backend/tests/Unit/Services/KernelDispatchReportServiceTest.php",
+    "backend/tests/Feature/Livewire/LaporanKernelDispatchTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanCpoDispatch.php",
+    "backend/resources/views/livewire/dashboard/laporan-cpo-dispatch.blade.php",
+    "backend/resources/views/dashboard/laporan-cpo-dispatch.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "TIDAK ADA TEST BARU UNTUK LAYAR INI. test_generation_level = none, sehingga 72 unit_test_cases dan 39 test_scenarios dari tech spec tidak dibuat maupun dijalankan. Tiga berkas di test_files_generated BUKAN test layar ini: ketiganya test milik screen-162 dan screen-164 yang memerah karena REPORT_ROUTES bertambah, lalu di-re-point (lihat catatan riak). Layar ini dapat diverifikasi kemudian lewat impl-2-screen mode 'add/complete tests (keep existing code)'.",
+    "KERANGKA SERVICE DISALIN DARI KernelDispatchReportService (gate peran, resolusi mill/periode/line, ekspor dan streaming, helper). Yang ditulis ulang: rekap, sebaran jam, waktu putar, dan ukuran mutu. Relasi detail bernama `cpoDispatchDetails`, bukan `details` seperti bunyi spec (pola yang sama dengan `kernelDispatchDetails` di screen-164).",
+    "WAKTU PUTAR MEMAKAI ShiftService::minuteOfDayOf(), BUKAN ShiftService::durationMinutes(). durationMinutes() membaca jam yang sama sebagai 1440 menit, padahal spec menetapkan jam masuk sama dengan jam keluar adalah NOL menit. Rumus: menit = minuteOfDay(keluar) - minuteOfDay(masuk); bila negatif tambah 1440. 23:30 -> 00:45 = 75 menit, dan jam sama = 0. Min/avg/max dihitung di PHP, bukan lewat agregat SQL, karena suite berjalan di SQLite dan produksi di PostgreSQL. Jam yang tidak dapat di-parse dihitung sebagai tidak tercatat.",
+    "SEBARAN JAM HANYA MEMBACA time_in. Tafsir menyeberang tengah malam tidak dapat menggeser kelompok jam: pengiriman 23:30 tetap di kelompok 23. Kelompok jam selalu 24 entri, ditambah not_recorded_count, sehingga jumlahnya sama dengan dispatch_count.",
+    "KEEMPAT PENYEBUT DITERBITKAN DAN DINAMAI (_note_four_denominators): dispatch_count, net_weight_dispatch_count, hourly.recorded_count, turnaround.measured_count. Tiap ukuran mutu punya measured_count sendiri dan penjaga '-' sendiri. Blok dobi membawa _note bahwa DOBI indeks tanpa satuan.",
+    "TIDAK ADA LITERAL Display::option ATAU ExportValue::option di service ini — stasiun CPO tidak punya satu pun kolom berpilihan tertutup (diaudit oleh case 58 spec). Rekap kategoris memakai tiga kolom teks bebas dan menampilkan nilai apa adanya setelah trim.",
+    "EKSPOR 27 KOLOM: 6 konteks + 21 detail, header dari konstanta EXPORT_HEADER. Label detail disalin verbatim dari detail-cpo-dispatch.blade.php. Jam diekspor sebagai string mentah dari DB, tanpa tafsir tengah malam dan tanpa kolom waktu putar. Satu-satunya transformasi adalah status record lewat ExportValue::status(). Nama segel seal_no_top/seal_no_bottom tanpa awalan security_, operator timbang weighbridge_operator tanpa _id — keduanya diverifikasi di migrasi dan berbeda dari kernel-dispatch.",
+    "RIAK REPORT_ROUTES, PERSIS SEPERTI YANG DIPERINGATKAN CATATAN SCREEN-164: suite penuh memerah di 5 test (6191 hijau, 5 merah) pada dua bentuk. (1) Asersi POSISI: SolidWasteDisposalReportServiceTest case 47 (count-2 menjadi count-3, tetangga kanan ditambah cpo-dispatch, sort_order 170 ditambah), KernelDispatchReportServiceTest case 60 dan LaporanKernelDispatchTest skenario 35 (kernel-dispatch kini kedua dari belakang, bukan terakhir). (2) Contoh 'belum berlaporan': SolidWasteDisposalReportServiceTest case 48 dan KernelDispatchReportServiceTest case 61 memakai cpo-dispatch sebagai kandidat; keduanya di-re-point menjadi asersi bahwa cpo-dispatch KINI berlaporan ('reports.cpo-dispatch'), dengan satu kandidat tersisa (process-quality-control, screen-168). Tidak ada asersi yang dilemahkan atau dihapus. Setelahnya 165 test di tiga berkas itu hijau.",
+    "RIAK DI LUAR PHP DICARI DENGAN GREP, BUKAN DITEBAK DARI URUTAN: e2e-web dan mobile tidak memakai cpo-dispatch sebagai contoh 'belum dibangun' untuk laporan web. Daftar stasiun mobile berdiri sendiri; yang memakai cpo-dispatch di sana (mis. mobile/tests/StationListView.spec.ts, ReportingPilihStasiunView.spec.ts) milik screen-167 dan baru perlu diperbarui ketika layar itu dibangun.",
+    "VERIFIKASI DI BROWSER (bukan hanya test sementara agen): /reports/cpo-dispatch dibuka sebagai Mill Management di server pengembangan, status 200, tanpa error JS. Line dan periode dipilih; keadaan kosong NYATA (tabel pengiriman CPO masih kosong) merender kalimat keadaan-kosong yang menyebut periode dan line, kartu waktu putar dengan '—', 24 kolom sebaran jam, dan seluruh bagian rekap/kepatuhan/harian/temuan/kelengkapan/draft. 167 data-testid terdeteksi, termasuk empty-state, four-denominators-note, turnaround-none, hourly-none-recorded dan no-labeled-recap-note. Audit CSS agen atas 72 kelas pada HTML hasil render: tidak ada kelas tanpa definisi; layar tidak menambah CSS baru dan memakai ulang kelas md-*.",
+    "KEPUTUSAN YANG DIAMBIL SENDIRI OLEH PELAKSANA (spec diam): avg_minutes dibulatkan 2 desimal (konstanta TURNAROUND_DECIMALS); jam tersibuk saat seri adalah jam paling awal; hourly.buckets[] hanya membawa hour, dispatch_count dan net_weight_total (null bila tak ada pengiriman bertimbang pada jam itu); label ukuran mutu 'Kadar Asam Lemak Bebas (FFA)', 'Kadar Air (Moisture)', 'Kadar Kotoran (Impurities)', 'DOBI'; kalimat keadaan-kosong tersendiri ditampilkan di samping baris tabel kosong.",
+    "KOMENTAR DI KODE BARU MERUJUK screen-167 (mobile) YANG BELUM DIBANGUN: rute data /api/cpo-dispatch-reports/* menerima Operator sejak commit pertama supaya screen-167 tidak perlu melebarkan akses, sedangkan rute web /reports/cpo-dispatch menolak Operator."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Test tidak dibuat dan tidak dijalankan untuk layar ini (test_generation_level = none) — layar BELUM TERVERIFIKASI oleh test otomatis. Bukti yang ada hanya: php -l bersih, rute terdaftar, suite penuh tanpa regresi (setelah 5 riak diperbaiki), dan satu pemeriksaan visual di browser pada keadaan kosong. Jalur dengan DATA (waktu putar, sebaran jam, empat penyebut) hanya diuji lewat test sementara milik agen yang sudah dihapus. Tabel pengiriman CPO kosong di basis data pengembangan, jadi jalur itu belum pernah terlihat dengan angka sungguhan di browser.",
+      "severity": "major"
+    },
+    {
+      "description": "Layar ini belum punya pintu masuk mobile: screen-167 (Laporan CPO Dispatch mobile) belum dibangun, jadi Operator tidak dapat membuka laporan ini. Rute data sudah menerima Operator; hanya layarnya yang belum ada. Test mobile yang memakai cpo-dispatch sebagai contoh 'belum dibangun' (mis. ReportingPilihStasiunView.spec.ts) akan perlu diperbarui saat screen-167 dikerjakan.",
+      "severity": "minor"
+    }
+  ]
+}

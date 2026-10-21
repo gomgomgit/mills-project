@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\EngineRoomReportController;
 use App\Http\Controllers\Api\KernelPlantReportController;
 use App\Http\Controllers\Api\PressingReportController;
 use App\Http\Controllers\Api\ThreshingReportController;
+use App\Http\Controllers\Api\CpoDispatchReportController;
 use App\Http\Controllers\Api\KernelDispatchReportController;
 use App\Http\Controllers\Api\KernelDispatchRecordController;
 use App\Http\Controllers\Api\KernelPlantRecordController;
@@ -1803,6 +1804,39 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/kernel-dispatch-reports/periods', [KernelDispatchReportController::class, 'periods']);
     Route::get('/kernel-dispatch-reports/summary', [KernelDispatchReportController::class, 'summary']);
     Route::get('/kernel-dispatch-reports/export', [KernelDispatchReportController::class, 'export']);
+});
+
+// === LAPORAN PERIODE CPO DISPATCH (screen-166 web + screen-167 mobile) ===
+// Bentuk empat endpoint dan daftar peran yang sama persis dengan prefix
+// kernel-dispatch-reports di atas — `operator` IKUT pada ketiga rute data sejak
+// commit pertama, karena pasangan mobile screen-167 dibangun dalam SERI YANG
+// SAMA (alasan dan jebakannya diuraikan panjang di blok kernel-dispatch di
+// atas, dan tidak diulang).
+//
+// ADMISINYA SATU PERUBAHAN DI TIGA TEMPAT: daftar peran ini,
+// CpoDispatchReportService::guardAccess(), DAN cabang TERIKAT-MILL pada
+// CpoDispatchReportService::resolveBusinessUnit(). Dua yang pertama saja
+// menjatuhkan Operator ke cabang Admin, tempat business_unit_id kiriman klien
+// JUSTRU dihormati — kebocoran lintas mill.
+//
+// /business-units/options tetap Admin saja, ditegakkan DI DALAM service dan
+// bukan oleh middleware ini (yang menerima keempat peran demi ketiga rute
+// data). Rute WEB /reports/cpo-dispatch juga TIDAK dilebarkan. business_unit_id
+// DIABAIKAN untuk peran terikat mill; penjaga lintas mill yang sungguhan ada
+// pada production_line_id dan period_id, dan keduanya menjawab 403.
+//
+// YANG BARU dibanding kernel-dispatch: /summary membawa `hourly` (sebaran
+// menurut JAM MASUK, 24 kelompok) dan `turnaround` (waktu putar tanker, jam
+// keluar yang lebih kecil dibaca sebagai hari berikutnya) karena tabel ini
+// PUNYA time_in/time_out, serta EMPAT PENYEBUT yang dinamai di
+// `_note_four_denominators`. Tidak ada rekap berlabel (`_note_no_labeled_recap`):
+// stasiun ini tidak punya kolom berpilihan tertutup. /export membawa jam APA
+// ADANYA, tanpa penafsiran. Format ekspornya daftar tertutup {csv, xlsx}.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/cpo-dispatch-reports/business-units/options', [CpoDispatchReportController::class, 'businessUnitOptions']);
+    Route::get('/cpo-dispatch-reports/periods', [CpoDispatchReportController::class, 'periods']);
+    Route::get('/cpo-dispatch-reports/summary', [CpoDispatchReportController::class, 'summary']);
+    Route::get('/cpo-dispatch-reports/export', [CpoDispatchReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

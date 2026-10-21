@@ -11,6 +11,7 @@ use App\Livewire\Dashboard\LaporanEffluentPlant;
 use App\Livewire\Dashboard\LaporanEngineRoom;
 use App\Livewire\Dashboard\LaporanProcessWater;
 use App\Livewire\Dashboard\LaporanSolidWasteDisposal;
+use App\Livewire\Dashboard\LaporanCpoDispatch;
 use App\Livewire\Dashboard\LaporanKernelDispatch;
 use App\Livewire\Dashboard\LaporanKernelPlant;
 use App\Livewire\Dashboard\LaporanPressing;
@@ -1201,5 +1202,29 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/kernel-dispatch', LaporanKernelDispatch::class)
     ->name('reports.kernel-dispatch');
+
+// screen-166--laporan-cpo-dispatch-web (Laporan Periode CPO Dispatch).
+//
+// Supervisor / Mill Management / Admin saja. OPERATOR DITOLAK DI SINI MESKI API
+// MENERIMANYA SEJAK COMMIT PERTAMA: ketiga rute data di bawah
+// /api/cpo-dispatch-reports menerima Operator karena
+// screen-167--laporan-cpo-dispatch-mobile dibangun dalam seri yang sama dan
+// merupakan pemanggil sahnya — dan menerima sebuah peran di API TIDAK boleh
+// melebarkan layar web. Rute web ini dan LaporanCpoDispatch::canAccess()
+// sengaja tetap tertutup, dan itulah sebab canAccess() mempertahankan daftar
+// perannya sendiri alih-alih meminjam CpoDispatchReportService::guardAccess().
+//
+// Rutenya /reports/cpo-dispatch (konvensi prefix Inggris /reports/*), berbeda
+// dari layar DATA stasiun yang sama di bawah /data/cpo-dispatch — laporan ini
+// MEMBACA apa yang ditulis layar-layar itu dan tidak pernah menulis apa pun.
+//
+// Dapat dicapai dari UI HANYA melalui tile CPO Dispatch pada screen-140
+// (/reports), yang menyala karena StationReportService::REPORT_ROUTES kini
+// memetakan kode 'cpo-dispatch' (BERTANDA HUBUNG) ke nama rute ini. Tanpa satu
+// baris itu laporannya ada, seluruh test-nya sendiri lolos, dan tile-nya tetap
+// kelabu.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/cpo-dispatch', LaporanCpoDispatch::class)
+    ->name('reports.cpo-dispatch');
 
 // === ASDLC_ROUTES_END ===

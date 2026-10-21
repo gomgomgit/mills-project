@@ -2434,10 +2434,15 @@ it('skenario 35 — PINTU MASUK: tile Kernel Dispatch pada Laporan Stasiun AKTIF
 
     $keys = array_keys(StationReportService::REPORT_ROUTES);
 
-    expect(array_search('kernel-dispatch', $keys, true))->toBe(count($keys) - 1);
-    expect($keys[count($keys) - 2])->toBe('solid-waste-disposal');
+    // kernel-dispatch TIDAK lagi terakhir sejak screen-166 menambahkan
+    // cpo-dispatch (170) SETELAHNYA — kini ia kedua dari belakang, dengan
+    // tetangga di kedua sisi.
+    expect(array_search('kernel-dispatch', $keys, true))->toBe(count($keys) - 2);
+    expect($keys[count($keys) - 3])->toBe('solid-waste-disposal');
+    expect($keys[count($keys) - 1])->toBe('cpo-dispatch');
     expect($berlaporan['solid-waste-disposal'])->toBe(150);
     expect($berlaporan['kernel-dispatch'])->toBe(160);
+    expect($berlaporan['cpo-dispatch'])->toBe(170);
 
     // ASERSI PENGUNCI RIAK — ketiga berkas yang memakai stasiun NYATA sebagai
     // contoh 'belum berlaporan' sudah memakai kode ini (sort_order 180),

@@ -2887,12 +2887,16 @@ it("case 60 — REPORT_ROUTES memuat kunci 'kernel-dispatch' BERTANDA HUBUNG, da
     $keys = array_keys(StationReportService::REPORT_ROUTES);
     $index = array_search('kernel-dispatch', $keys, true);
 
-    expect($index)->toBe(count($keys) - 1);
+    // kernel-dispatch TIDAK lagi terakhir sejak screen-166 menambahkan
+    // cpo-dispatch (170) SETELAHNYA — kini ia kedua dari belakang.
+    expect($index)->toBe(count($keys) - 2);
     expect($keys[$index - 1])->toBe('solid-waste-disposal');
+    expect($keys[$index + 1])->toBe('cpo-dispatch');
 
     // Dan sort_order-nya memang yang membuat urutan itu benar.
     expect($berlaporan['solid-waste-disposal'])->toBe(150);
     expect($berlaporan['kernel-dispatch'])->toBe(160);
+    expect($berlaporan['cpo-dispatch'])->toBe(170);
 });
 
 it("case 61 — PENJAGA RIAK: REPORT_ROUTES masih TIDAK punya 'process-quality-control', dan StationReportServiceTest memakai kode fiktif", function () {
@@ -2917,10 +2921,12 @@ it("case 61 — PENJAGA RIAK: REPORT_ROUTES masih TIDAK punya 'process-quality-c
     $this->assertArrayNotHasKey('zz-stasiun-fiktif', StationReportService::REPORT_ROUTES);
     expect(StationType::query()->where('code', 'zz-stasiun-fiktif')->exists())->toBeFalse();
 
-    // cpo-dispatch (screen-166) juga belum berlaporan hari ini — dicatat di
-    // sini supaya pergeseran berikutnya terlihat sebagai dua langkah, bukan
-    // satu.
-    $this->assertArrayNotHasKey('cpo-dispatch', StationReportService::REPORT_ROUTES);
+    // cpo-dispatch (screen-166) SUDAH berlaporan — pergeseran yang dulu
+    // dicatat di sini sebagai 'langkah berikutnya' kini terjadi. Tinggal satu
+    // pergeseran (screen-168), jadi penjaga di atas tetap satu-satunya yang
+    // akan memerah.
+    $this->assertArrayHasKey('cpo-dispatch', StationReportService::REPORT_ROUTES);
+    expect(StationReportService::REPORT_ROUTES['cpo-dispatch'])->toBe('reports.cpo-dispatch');
 });
 
 // =====================================================================

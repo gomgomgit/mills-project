@@ -196,6 +196,15 @@ class StationReportService
         // master pun. Tanpa satu baris ini laporannya ada, seluruh test-nya
         // sendiri lolos, dan tile-nya tetap kelabu.
         StationTypeEnum::KernelDispatch->value => 'reports.kernel-dispatch',
+        // screen-166--laporan-cpo-dispatch-web. DI-APPEND DI AKHIR, sesudah
+        // kernel-dispatch: station_types.sort_order menempatkan cpo-dispatch di
+        // 170 (urutan ke-17 pada SEED migrasi 2026_09_22_000029), di belakang
+        // kernel-dispatch (160) yang hari ini entri terakhir — diverifikasi dari
+        // tabel station_types, bukan ditebak dari urutan deklarasi enum. Kuncinya
+        // 'cpo-dispatch' BERTANDA HUBUNG, yaitu nilai yang dibawa
+        // StationTypeEnum::CpoDispatch->value. Tanpa satu baris ini laporannya
+        // ada dan tile-nya tetap kelabu.
+        StationTypeEnum::CpoDispatch->value => 'reports.cpo-dispatch',
     ];
 
     /**

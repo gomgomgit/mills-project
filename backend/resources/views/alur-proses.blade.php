@@ -748,7 +748,7 @@ function build(){
         timbangan 1 (masuk, bruto) lalu timbangan 2 (keluar, tara) */
   for (const z of [-9.5,-3.5]) box(16,0.3,4,C.steelDk,-50,0,z,scene,false);
   post('SCALE 1 · IN', 8, -50, -12.1, 'z', 1.1, 3.6);
-  post('SCALE 2 · OUT', 8, -50, -0.6, 'z', 1.1, 3);
+  post('SCALE 2 · OUT', 8, -50, -0.6, 'z', 1.1, 4.8);
   box(5,3.2,4,C.white,-48,0,-20); box(5.2,0.4,4.2,C.green,-48,3.2,-20); box(0.08,1.1,3,C.glass,-45.45,1.5,-20,scene,false);
   post('WEIGHBRIDGE', 9, -48, -23.5, 'z', 1.4, 4);
   box(11,0.25,9,C.wall,-47,0,8,scene,false);

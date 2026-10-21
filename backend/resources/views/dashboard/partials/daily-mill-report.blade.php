@@ -1,53 +1,337 @@
 {{--
     Laporan harian mill (tampilan DEMO, data DUMMY) — isi utama menu Dashboard.
-    Mereproduksi contoh laporan harian CPO Mill Demo (2026-09-17): ringkasan visual
-    di atas, tabel lengkap format laporan di bawah (bisa dibuka/tutup). Semua angka
-    hard-coded; pemetaan ke tabel stasiun ada di docs/analisis-laporan-harian-mill.pdf.
+    Mereproduksi format laporan harian CPO Mill Demo: ringkasan visual di atas,
+    tabel lengkap format laporan di bawah (bisa dibuka/tutup). Pemetaan ke tabel
+    stasiun ada di docs/analisis-laporan-harian-mill.pdf.
+
+    Angkanya dummy, tetapi TIDAK saling bebas: setiap angka adalah masukan
+    terukur atau turunan dari masukan itu, sekali saja — lihat blok di bawah.
 --}}
 @php
     /*
-       SUMBER TUNGGAL jam per line. Sebelum 2026-09-30 angka-angka ini ditulis
-       tangan di TIGA tempat — panel 'Hours per Line', panel 'Today Reliability',
-       dan array $lines untuk grafik — sehingga ketiganya bisa berselisih tanpa
-       ada yang menangkapnya. Kini ketiganya diturunkan dari sini.
+       ────────────────────────────────────────────────────────────────────────
+       SUMBER TUNGGAL. Setiap angka di halaman ini salah satu dari dua hal:
+       MASUKAN — yang diukur di lapangan (timbangan, cacahan lori, jam, hasil
+       lab, stok fisik) — atau TURUNAN dari masukan itu. Tidak ada angka yang
+       ditulis di dua tempat.
 
-         Total Downtime                = CDT + SDT + EDT
-         Available Milling Hours       = Available − Total Downtime
-         Milling Hours                 = jam benar-benar mengolah (≤ Available Milling Hours)
-         Available (segmen abu-abu)    = Available Milling Hours − Milling Hours
-         (keputusan user 2026-10-05: segmen hijau grafik = Milling; sisa Available
-          Milling Hours yang tidak terpakai = segmen abu-abu)
+       Alasannya bukan kerapian. Sampai 2026-10-20 ringkasan kartu dan tabel
+       laporan menulis ulang angka yang sama, dan sembilan di antaranya sudah
+       berselisih tanpa ada yang menangkapnya dari layar:
 
-       Singkatan MDH dan AMH sengaja TIDAK dipakai — keduanya tidak lazim di mill,
-       tidak seperti CDT/SDT/EDT yang memang istilah baku. Ditulis penuh.
+         1. Throughput MTD meleset 0.18 MT/jam dari Crushed / Milling Hours
+            (kedua line); Today Line 2 dan kedua YTD juga tidak pas.
+         2. Kartu Milling Hours membandingkan 21.50 jam terhadap "rata-rata
+            harian MTD 21.58" — nilai benarnya 21.45 — sehingga badge-nya
+            menunjuk TURUN 0.4% padahal naik 0.2%.
+         3. Penerimaan FFB persis sama dengan FFB diolah di KETIGA periode,
+            padahal stok FFB tersedia turun 26.10 MT hari itu. Mustahil, dan
+            justru relasi yang paling cepat terbaca palsu.
+         4. Penyesuaian stok Kernel -2.50 MT tampil di kolomnya tetapi tidak
+            pernah ikut terhitung ke stok hari ini.
+         5. Pembelian shell 12.50 MT (Product Arrival) hilang dari neraca shell.
+         6. Kolom 'Days' panel Reliability berbunyi 15 / 15; yang kedua adalah
+            panjang bulan, bukan hari berjalan lagi.
+         7. Tanggal hero diambil dari now()->subDay() sementara hari MTD dan
+            garis pro-rata budget dipatok 15: laporan bisa bertanggal 19 tetapi
+            mengaku baru 15 hari berjalan.
+         8. Kartu Stok CPO memakai penyebut "kapasitas 4 tangki (3,000 MT)"
+            sementara blok Kualitas & Stok Tangki menggambar 4 x 1,000 MT.
+         9. Catatan operasional menyebut CDT Line 2 9 jam; tabel jamnya 7.50.
 
-       Angkanya tetap dummy; yang hilang adalah kemungkinan angka dummy itu
+       Angkanya tetap dummy. Yang hilang adalah kemungkinan angka dummy itu
        saling bertentangan.
+       ────────────────────────────────────────────────────────────────────────
     */
-    $hoursByLine = [
+
+    /* ── Hari pelaporan ──────────────────────────────────────────────────── */
+    /*
+       Tanggal di hero, kolom 'Days', Available = 24 jam x hari, dan garis
+       pro-rata budget semuanya lahir dari SATU masukan: jumlah hari berjalan
+       dalam bulan. Tanggal laporan menyusul dari sana — tanggal ke-$mtdDays
+       pada bulan berjalan, atau bulan sebelumnya kalau hari itu belum lewat,
+       supaya laporan HARIAN tidak pernah bertanggal di masa depan.
+
+       Total MTD di bawah ditulis sebagai total 15 hari. Kalau $mtdDays diubah,
+       total MTD itu harus ikut diubah — hanya Available MTD yang menyesuaikan
+       diri sendiri.
+    */
+    $mtdDays    = 15;
+    $reportBase = now()->day >= $mtdDays ? now() : now()->subMonthNoOverflow();
+    $reportDate = $reportBase->copy()->startOfMonth()->addDays($mtdDays - 1);
+    $ytdDays    = $reportDate->dayOfYear;
+    $monthDays  = $reportDate->daysInMonth;
+
+    $periods    = ['Today', 'MTD', 'YTD'];
+    $periodDays = ['Today' => 1, 'MTD' => $mtdDays, 'YTD' => $ytdDays];
+
+    $num0 = fn (float $v) => number_format($v, 0);
+    $num2 = fn (float $v) => number_format($v, 2);
+    $pct  = fn (float $v, float $of) => number_format($of > 0 ? $v / $of * 100 : 0, 2);
+
+    /*
+       MTD sebagai total, YTD sebagai LAJU HARIAN. YTD harus laju karena
+       $ytdDays bergerak tiap bulan: total YTD yang ditulis tangan akan langsung
+       berselisih dengan Available YTD (24 jam x $ytdDays) begitu bulan berganti,
+       dan itulah yang dulu terjadi — Available YTD 3,096 jam setara 129 hari
+       pada laporan yang bertanggal Oktober.
+    */
+    $overPeriods = fn (array $in) => [
+        'Today' => $in['Today'],
+        'MTD'   => $in['MTD'],
+        'YTD'   => $in['rateYTD'] * $ytdDays,
+    ];
+
+    /* ── Jam per line ────────────────────────────────────────────────────── */
+    // MASUKAN: jam mengolah dan tiga jenis downtime. Available TIDAK ditulis —
+    // ia 24 jam x jumlah hari periode.
+    //     Total Downtime          = CDT + SDT + EDT
+    //     Available Milling Hours = Available - Total Downtime
+    //     Milling Hours           = jam benar-benar mengolah (<= Available Milling Hours)
+    // Singkatan MDH dan AMH sengaja TIDAK dipakai — keduanya tidak lazim di
+    // mill, tidak seperti CDT/SDT/EDT yang memang istilah baku.
+    $hoursInput = [
         'Line 1' => [
-            'available' => ['Today' => 24.00, 'MTD' => 360.00, 'YTD' => 3096.00],
-            'milling'   => ['Today' => 11.00, 'MTD' => 164.80, 'YTD' => 1430.10],
-            'CDT'       => ['Today' =>  7.00, 'MTD' => 140.20, 'YTD' => 1212.40],
-            'SDT'       => ['Today' =>  1.50, 'MTD' =>  22.00, 'YTD' =>  190.50],
-            'EDT'       => ['Today' =>  3.00, 'MTD' =>  32.00, 'YTD' =>  262.00],
+            'milling' => ['Today' => 11.00, 'MTD' => 164.80, 'rateYTD' => 10.44],
+            'CDT'     => ['Today' =>  7.00, 'MTD' => 140.20, 'rateYTD' =>  9.30],
+            'SDT'     => ['Today' =>  1.50, 'MTD' =>  22.00, 'rateYTD' =>  1.46],
+            'EDT'     => ['Today' =>  3.00, 'MTD' =>  32.00, 'rateYTD' =>  2.08],
         ],
         'Line 2' => [
-            'available' => ['Today' => 24.00, 'MTD' => 360.00, 'YTD' => 3096.00],
-            'milling'   => ['Today' => 10.50, 'MTD' => 156.90, 'YTD' => 1362.20],
-            'CDT'       => ['Today' =>  7.50, 'MTD' => 146.00, 'YTD' => 1250.00],
-            'SDT'       => ['Today' =>  1.50, 'MTD' =>  22.00, 'YTD' =>  190.50],
-            'EDT'       => ['Today' =>  3.00, 'MTD' =>  34.10, 'YTD' =>  292.30],
+            'milling' => ['Today' => 10.50, 'MTD' => 156.90, 'rateYTD' =>  9.92],
+            'CDT'     => ['Today' =>  7.50, 'MTD' => 146.00, 'rateYTD' =>  9.65],
+            'SDT'     => ['Today' =>  1.50, 'MTD' =>  22.00, 'rateYTD' =>  1.46],
+            'EDT'     => ['Today' =>  3.00, 'MTD' =>  34.10, 'rateYTD' =>  2.20],
         ],
     ];
-    $periods = ['Today', 'MTD', 'YTD'];
+    $hoursByLine = [];
+    foreach ($hoursInput as $lineName => $items) {
+        $line = ['available' => []];
+        foreach ($periods as $p) {
+            $line['available'][$p] = 24.0 * $periodDays[$p];
+        }
+        foreach ($items as $key => $in) {
+            $line[$key] = $overPeriods($in);
+        }
+        $hoursByLine[$lineName] = $line;
+    }
 
     $mdhFor = fn (array $l, string $p) => $l['CDT'][$p] + $l['SDT'][$p] + $l['EDT'][$p];
     $amhFor = fn (array $l, string $p) => $l['available'][$p] - $mdhFor($l, $p);
-    $num2   = fn (float $v) => number_format($v, 2);
-    $pct    = fn (float $v, float $of) => number_format($of > 0 ? $v / $of * 100 : 0, 2);
 
-    // Panel 'Hours per Line': jam + persentase terhadap Available, keduanya diturunkan.
+    $millingHoursTotal = [];
+    $availableTotal    = [];
+    foreach ($periods as $p) {
+        $millingHoursTotal[$p] = array_sum(array_map(fn ($l) => $l['milling'][$p], $hoursByLine));
+        $availableTotal[$p]    = array_sum(array_map(fn ($l) => $l['available'][$p], $hoursByLine));
+    }
+
+    /* ── Milling per line ───────────────────────────────────────────────── */
+    // MASUKAN: cacahan lori dan berat FFB dari timbangan.
+    // TURUNAN: Avg Cage Weight = crushed / cages, Throughput = crushed / jam
+    // mengolah. Keduanya dulu ditulis tangan, dan throughput-lah yang melenceng.
+    $millingInput = [
+        'Line 1' => [
+            'cages'   => ['Today' =>     64, 'MTD' =>     958, 'rateYTD' =>  60.10],
+            'crushed' => ['Today' => 316.80, 'MTD' => 4742.10, 'rateYTD' => 297.55],
+        ],
+        'Line 2' => [
+            'cages'   => ['Today' =>     58, 'MTD' =>     872, 'rateYTD' =>  54.80],
+            'crushed' => ['Today' => 283.20, 'MTD' => 4248.25, 'rateYTD' => 266.85],
+        ],
+    ];
+    $milling = [];
+    foreach ($millingInput as $lineName => $in) {
+        $cages = $overPeriods($in['cages']);
+        $milling[$lineName] = [
+            'cages'   => array_map(fn ($v) => (int) round($v), $cages),
+            'crushed' => $overPeriods($in['crushed']),
+        ];
+    }
+    $crushedTotal = [];
+    foreach ($periods as $p) {
+        $crushedTotal[$p] = array_sum(array_map(fn ($m) => $m['crushed'][$p], $milling));
+    }
+
+    /* ── Produksi ───────────────────────────────────────────────────────── */
+    // MASUKAN: tonase produk. Yield TURUNAN = produk / FFB diolah, jadi kolom
+    // Yield (%) selalu persis pembagian dua kolom di sebelahnya.
+    $produced = array_map($overPeriods, [
+        'CPO'    => ['Today' => 128.40, 'MTD' => 1933.55, 'rateYTD' => 120.78],
+        'Kernel' => ['Today' =>  31.20, 'MTD' =>  466.80, 'rateYTD' =>  29.12],
+        'EB'     => ['Today' => 126.00, 'MTD' => 1852.30, 'rateYTD' => 115.70],
+        'Fibre'  => ['Today' =>  75.60, 'MTD' => 1114.80, 'rateYTD' =>  69.42],
+        'Shell'  => ['Today' =>  33.00, 'MTD' =>  485.20, 'rateYTD' =>  30.48],
+    ]);
+    $yieldOf = fn (string $product, string $p) => $produced[$product][$p] / $crushedTotal[$p] * 100;
+
+    /* ── Pengiriman dan pemakaian sendiri ───────────────────────────────── */
+    // MASUKAN. Kolom 'As Fuel' = dipakai sendiri sebagai bahan bakar boiler,
+    // bukan dikirim keluar; keduanya mengurangi stok dan ikut ke neraca.
+    $dispatchInput = [
+        'CPO'      => ['fuel' => null,  'Today' => 120.45, 'MTD' => 1805.30, 'rateYTD' => 125.90],
+        'Kernel'   => ['fuel' => null,  'Today' =>  28.10, 'MTD' =>  402.75, 'rateYTD' =>  28.05],
+        'EB'       => ['fuel' => 85.00, 'Today' =>   0.00, 'MTD' =>  310.00, 'rateYTD' =>  22.79],
+        'Acid Oil' => ['fuel' => null,  'Today' =>   0.00, 'MTD' =>    4.20, 'rateYTD' =>   0.30],
+        'Fibre'    => ['fuel' => 72.30, 'Today' =>   0.00, 'MTD' =>    0.00, 'rateYTD' =>   0.00],
+        'Shell'    => ['fuel' => 18.40, 'Today' =>  15.00, 'MTD' =>  210.60, 'rateYTD' =>  14.77],
+        'Solid'    => ['fuel' => null,  'Today' =>   6.20, 'MTD' =>   92.40, 'rateYTD' =>   6.44],
+    ];
+    $dispatched = array_map($overPeriods, $dispatchInput);
+    $fuelUse    = array_map(fn ($d) => $d['fuel'], $dispatchInput);
+
+    /* ── Stok FFB dan penerimaan ────────────────────────────────────────── */
+    /*
+       MASUKAN: stok fisik per lokasi (hari ini dan kemarin) plus posisi awal
+       bulan dan awal tahun. Penerimaan FFB TURUNAN dari neraca:
+
+           penerimaan = FFB diolah + (stok akhir - stok awal periode)
+
+       Dulu penerimaan ditulis tangan dan kebetulan PERSIS sama dengan FFB
+       diolah di ketiga periode. Akibatnya dua kartu teratas memajang 600.00 MT
+       yang sama dua kali, padahal stok FFB hari itu turun 26.10 MT — sekarang
+       kedua kartu itu bercerita: buah masuk 573.90 MT, diolah 600.00 MT,
+       selisihnya diambil dari stok ramp.
+    */
+    $ffbStockInput = [
+        ['label' => 'Loading Ramp #1',    'legend' => 'Loading Ramp #1', 'unprocessed' => true,  'today' => 85.20, 'yesterday' => 92.40, 'color' => '#249360'],
+        ['label' => 'Loading Ramp #2',    'legend' => 'Loading Ramp #2', 'unprocessed' => true,  'today' => 64.80, 'yesterday' => 71.10, 'color' => '#5bb88a'],
+        ['label' => 'Sterilized',         'legend' => 'Sterilized',      'unprocessed' => true,  'today' => 42.00, 'yesterday' => 38.50, 'color' => '#f59e0b'],
+        ['label' => 'Unsterilized',       'legend' => 'Unsterilized',    'unprocessed' => true,  'today' => 28.00, 'yesterday' => 31.50, 'color' => '#fbbf24'],
+        ['label' => 'FFB in Parking Area','legend' => 'Parking Area',    'unprocessed' => false, 'today' => 35.60, 'yesterday' => 48.20, 'color' => '#64748b'],
+    ];
+    $ffbStockMonthStart = 318.40;   // posisi stok FFB tersedia pada 1 bulan laporan
+    $ffbStockYearStart  = 184.20;   // posisi stok FFB tersedia pada 1 Januari
+
+    $sumStock = fn (string $when, ?bool $unprocessedOnly = null) => array_sum(array_map(
+        fn ($s) => $unprocessedOnly === null || $s['unprocessed'] === $unprocessedOnly ? $s[$when] : 0.0,
+        $ffbStockInput,
+    ));
+    $ffbUnprocessed = ['today' => $sumStock('today', true), 'yesterday' => $sumStock('yesterday', true)];
+    $ffbAvailable   = ['today' => $sumStock('today'),       'yesterday' => $sumStock('yesterday')];
+
+    $ffbArrival = [
+        'Today' => $crushedTotal['Today'] + ($ffbAvailable['today'] - $ffbAvailable['yesterday']),
+        'MTD'   => $crushedTotal['MTD']   + ($ffbAvailable['today'] - $ffbStockMonthStart),
+        'YTD'   => $crushedTotal['YTD']   + ($ffbAvailable['today'] - $ffbStockYearStart),
+    ];
+    $plasmaShare = 0.3127;   // porsi buah dari kebun Plasma; sisanya kebun Inti
+    $ffbPlasma = array_map(fn ($v) => round($v * $plasmaShare, 2), $ffbArrival);
+    $ffbInti   = array_map(fn ($p, $t) => $t - $p, $ffbPlasma, $ffbArrival);
+    $ffbInti   = array_combine($periods, $ffbInti);
+
+    // Budget bulan berjalan = MASUKAN; budget sampai bulan ini TURUNAN dari
+    // laju hariannya, supaya tidak berselisih dengan $ytdDays.
+    $budgetMonth = ['Inti' => 12500.00, 'Plasma' => 5500.00];
+    // Dibulatkan per komponen, baru dijumlahkan: kalau totalnya dijumlahkan dari
+    // nilai mentah, baris Total bisa meleset sesen dari Inti + Plasma di layar.
+    $budgetYtm   = array_map(fn ($b) => round($b / $monthDays * $ytdDays, 2), $budgetMonth);
+
+    // Produk yang DIBELI, bukan diproduksi — ikut menambah stok.
+    $purchased = array_map($overPeriods, [
+        'CPO'   => ['Today' =>  0.00, 'MTD' => 45.20, 'rateYTD' => 2.42],
+        'Shell' => ['Today' => 12.50, 'MTD' => 98.40, 'rateYTD' => 6.55],
+    ]);
+
+    /* ── Mutu dan isi tangki ────────────────────────────────────────────── */
+    // SUMBER TUNGGAL untuk tiga tempat: blok kartu 'Kualitas & Stok Tangki',
+    // panel tabel 'Product Quality', dan stok CPO/Kernel di 'Inventory Level'.
+    // 'Kernel On' adalah mutu kernel di jalur, bukan wadah — tanpa stok.
+    $tanks = [
+        ['label' => 'CPO Tank 1', 'short' => 'CPO Tank 1', 'product' => 'CPO', 'stock' => 612.40, 'cap' => 1000.00, 'params' => [
+            ['short' => 'FFA',   'panel' => 'FFA (%)',      'limit' => 5.00, 'Today' => 3.42, 'MTD' => 3.51, 'YTD' => 3.60],
+            ['short' => 'Moist', 'panel' => 'Moisture (%)', 'limit' => 0.20, 'Today' => 0.18, 'MTD' => 0.19, 'YTD' => 0.20],
+        ]],
+        ['label' => 'CPO Tank 2', 'short' => 'CPO Tank 2', 'product' => 'CPO', 'stock' => 598.10, 'cap' => 1000.00, 'params' => [
+            ['short' => 'FFA',   'panel' => 'FFA (%)',      'limit' => 5.00, 'Today' => 3.55, 'MTD' => 3.48, 'YTD' => 3.58],
+            ['short' => 'Moist', 'panel' => 'Moisture (%)', 'limit' => 0.20, 'Today' => 0.19, 'MTD' => 0.18, 'YTD' => 0.19],
+        ]],
+        ['label' => 'CPO Tank 3', 'short' => 'CPO Tank 3', 'product' => 'CPO', 'stock' => 604.25, 'cap' => 1000.00, 'params' => [
+            ['short' => 'FFA',   'panel' => 'FFA (%)',      'limit' => 5.00, 'Today' => 3.61, 'MTD' => 3.57, 'YTD' => 3.62],
+            ['short' => 'Moist', 'panel' => 'Moisture (%)', 'limit' => 0.20, 'Today' => 0.20, 'MTD' => 0.19, 'YTD' => 0.20],
+        ]],
+        ['label' => 'CPO Tank 4', 'short' => 'CPO Tank 4', 'product' => 'CPO', 'stock' => 603.60, 'cap' => 1000.00, 'params' => [
+            ['short' => 'FFA',   'panel' => 'FFA (%)',      'limit' => 5.00, 'Today' => 3.38, 'MTD' => 3.45, 'YTD' => 3.55],
+            ['short' => 'Moist', 'panel' => 'Moisture (%)', 'limit' => 0.20, 'Today' => 0.17, 'MTD' => 0.18, 'YTD' => 0.19],
+        ]],
+        ['label' => 'Kernel On', 'short' => null, 'product' => null, 'stock' => null, 'cap' => null, 'params' => [
+            ['short' => 'Admix', 'panel' => 'Admixture (%)', 'limit' => 6.10, 'Today' => 6.20, 'MTD' => 6.35, 'YTD' => 6.40],
+            ['short' => 'Moist', 'panel' => 'Moisture (%)',  'limit' => 7.00, 'Today' => 7.10, 'MTD' => 7.05, 'YTD' => 7.00],
+        ]],
+        ['label' => 'PK Bulk Silo 1', 'short' => 'PK Silo 1', 'product' => 'Kernel', 'stock' => 308.40, 'cap' => 500.00, 'params' => [
+            ['short' => 'Admix', 'panel' => 'Admixture (%)', 'limit' => 6.10, 'Today' => 6.05, 'MTD' => 6.20, 'YTD' => 6.30],
+            ['short' => 'Moist', 'panel' => 'Moisture (%)',  'limit' => 7.00, 'Today' => 6.90, 'MTD' => 6.95, 'YTD' => 6.98],
+        ]],
+        ['label' => 'PK Bulk Silo 2', 'short' => 'PK Silo 2', 'product' => 'Kernel', 'stock' => 304.40, 'cap' => 500.00, 'params' => [
+            ['short' => 'Admix', 'panel' => 'Admixture (%)', 'limit' => 6.10, 'Today' => 6.15, 'MTD' => 6.25, 'YTD' => 6.32],
+            ['short' => 'Moist', 'panel' => 'Moisture (%)',  'limit' => 7.00, 'Today' => 7.00, 'MTD' => 6.98, 'YTD' => 7.01],
+        ]],
+    ];
+    $tankCards  = array_values(array_filter($tanks, fn ($t) => $t['short'] !== null));
+    $stockIn    = fn (string $product) => array_sum(array_map(fn ($t) => $t['product'] === $product ? $t['stock'] : 0.0, $tanks));
+    $capacityOf = fn (string $product) => array_sum(array_map(fn ($t) => $t['product'] === $product ? $t['cap'] : 0.0, $tanks));
+
+    /* ── Stok produk ────────────────────────────────────────────────────── */
+    /*
+       Stok CPO dan Kernel hari ini TURUNAN dari isi tangki dan silo di atas —
+       dua tempat yang dulu menulis angka yang sama.
+
+       Kolom 'Yesterday' juga TURUNAN, dari neraca yang dibalik:
+
+           kemarin = hari ini - diproduksi - dibeli + dikirim + bahan bakar - penyesuaian
+
+       Dulu ketiga kolom ditulis tangan dan dua barisnya tidak menutup:
+       penyesuaian Kernel -2.50 MT tidak pernah ikut terhitung, dan pembelian
+       shell 12.50 MT hilang. Dengan 'Yesterday' diturunkan, kolom itu tidak
+       bisa lagi tidak menutup — lima dari tujuh barisnya tetap pada angka
+       semula, dua yang berubah memang yang dulu timpang.
+    */
+    $inventoryToday = [
+        'CPO'      => $stockIn('CPO'),
+        'Kernel'   => $stockIn('Kernel'),
+        'EB'       => 1540.00,
+        'Acid Oil' => 18.40,
+        'Fibre'    => 96.20,
+        'Shell'    => 410.60,
+        'Solid'    => 58.30,
+    ];
+    $adjustment = ['CPO' => 0.00, 'Kernel' => -2.50, 'EB' => 0.00, 'Acid Oil' => 0.00, 'Fibre' => 0.00, 'Shell' => 0.00, 'Solid' => 0.40];
+    $inventoryYesterday = [];
+    foreach ($inventoryToday as $product => $today) {
+        $inventoryYesterday[$product] = $today
+            - ($produced[$product]['Today'] ?? 0.0)
+            - ($purchased[$product]['Today'] ?? 0.0)
+            + ($dispatched[$product]['Today'] ?? 0.0)
+            + ($fuelUse[$product] ?? 0.0)
+            - $adjustment[$product];
+    }
+
+    /* ── Energi dan air ─────────────────────────────────────────────────── */
+    // MASUKAN: laju pemakaian per ton FFB diolah. Totalnya TURUNAN, jadi baris
+    // rasio di tabel selalu persis sama dengan laju ini dan tidak bisa
+    // berselisih dengan total FFB diolah.
+    $energyRates = ['power' => 19.00, 'heat' => 520.00];           // kWh/t FFB, MCal/t FFB
+    $waterRates  = ['Process' => 0.80, 'Boiler' => 0.60];          // m3/t FFB
+
+    $energyUse = ['power' => [], 'heat' => []];
+    $waterUse  = ['Process' => [], 'Boiler' => [], 'total' => []];
+    foreach ($periods as $p) {
+        $energyUse['power'][$p] = $energyRates['power'] * $crushedTotal[$p];
+        $energyUse['heat'][$p]  = $energyRates['heat'] * $crushedTotal[$p];
+        $waterUse['Process'][$p] = $waterRates['Process'] * $crushedTotal[$p];
+        $waterUse['Boiler'][$p]  = $waterRates['Boiler'] * $crushedTotal[$p];
+        $waterUse['total'][$p]   = $waterUse['Process'][$p] + $waterUse['Boiler'][$p];
+    }
+
+    /* ── OER ────────────────────────────────────────────────────────────── */
+    // Theoretical OER = MASUKAN (analisa lab buah masuk). DCR OER adalah yield
+    // CPO yang sama dengan panel Production — dulu ditulis dua kali.
+    $oerTheoretical = ['Today' => 22.10, 'MTD' => 22.05, 'YTD' => 21.98];
+    $kerTheoretical = 5.50;
+
+    /* ── Panel tabel laporan harian ─────────────────────────────────────── */
+    $overAll = fn (callable $f) => array_map($f, $periods);
+
     $hoursGroups = [];
     foreach ($hoursByLine as $lineName => $l) {
         $rows = [];
@@ -56,25 +340,52 @@
             ['CDT (Commercial Down Time)',  fn ($p) => $l['CDT'][$p]],
             ['SDT (Scheduled Down Time)',   fn ($p) => $l['SDT'][$p]],
             ['EDT (Emergency Down Time)',   fn ($p) => $l['EDT'][$p]],
-            ['Total Downtime', fn ($p) => $mdhFor($l, $p)],
-            ['Available Milling Hours', fn ($p) => $amhFor($l, $p)],
-            ['Milling Hours', fn ($p) => $l['milling'][$p]],
+            ['Total Downtime',              fn ($p) => $mdhFor($l, $p)],
+            ['Available Milling Hours',     fn ($p) => $amhFor($l, $p)],
+            ['Milling Hours',               fn ($p) => $l['milling'][$p]],
         ] as [$label, $valueFor]) {
-            $hours = array_map(fn ($p) => $num2($valueFor($p)), $periods);
-            $pcts  = array_map(fn ($p) => $pct($valueFor($p), $l['available'][$p]), $periods);
-            $rows[] = array_merge([$label], $hours, $pcts);
+            $rows[] = array_merge(
+                [$label],
+                array_map(fn ($p) => $num2($valueFor($p)), $periods),
+                array_map(fn ($p) => $pct($valueFor($p), $l['available'][$p]), $periods),
+            );
         }
         $hoursGroups[$lineName] = $rows;
     }
 
-    // Panel 'Reliability': Available Milling Hours dan Total Downtime per periode.
+    // Kolom 'Days': hari berjalan dalam bulan, lalu panjang bulan itu — pasangan
+    // yang sama dengan garis pro-rata pada blok budget. Dulu keduanya 15.
     $reliabilityRows = [];
     foreach ($hoursByLine as $lineName => $l) {
         $reliabilityRows[] = array_merge(
             [$lineName],
             array_map(fn ($p) => $num2($amhFor($l, $p)), $periods),
             array_map(fn ($p) => $num2($mdhFor($l, $p)), $periods),
-            ['15', '15'],
+            [$num0($mtdDays), $num0($monthDays)],
+        );
+    }
+
+    $millingGroups = [];
+    foreach ($milling as $lineName => $m) {
+        $l = $hoursByLine[$lineName];
+        $millingGroups[$lineName] = [
+            array_merge(['Cages Tipped'],         $overAll(fn ($p) => $num0($m['cages'][$p]))),
+            array_merge(['FFB Crushed (MT)'],     $overAll(fn ($p) => $num2($m['crushed'][$p]))),
+            array_merge(['Avg Cage Weight (MT)'], $overAll(fn ($p) => $num2($m['crushed'][$p] / $m['cages'][$p]))),
+            array_merge(['Throughput (MT/hr)'],   $overAll(fn ($p) => $num2($m['crushed'][$p] / $l['milling'][$p]))),
+        ];
+    }
+
+    $qualityGroups = [];
+    foreach ($tanks as $t) {
+        $qualityGroups[$t['label']] = array_map(
+            fn ($param, $i) => array_merge(
+                [$param['panel']],
+                $overAll(fn ($p) => $num2($param[$p])),
+                [$i === 0 && $t['stock'] !== null ? $num2($t['stock']) : ''],
+            ),
+            $t['params'],
+            array_keys($t['params']),
         );
     }
 
@@ -86,11 +397,11 @@
                 [['Today', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1], ['CM', 1, 1], ['YTM', 1, 1]],
             ],
             'rows' => [
-                ['FFB Inti (MT)', '412.38', '6,184.20', '52,917.45', '12,500.00', '58,000.00'],
-                ['FFB Plasma (MT)', '187.62', '2,806.15', '24,110.90', '5,500.00', '26,000.00'],
-                ['Total FFB (MT)', '600.00', '8,990.35', '77,028.35', '18,000.00', '84,000.00'],
-                ['CPO (MT)', '0.00', '45.20', '312.80', '-', '-'],
-                ['Shell (MT)', '12.50', '98.40', '845.10', '-', '-'],
+                array_merge(['FFB Inti (MT)'],   $overAll(fn ($p) => $num2($ffbInti[$p])),    [$num2($budgetMonth['Inti']),   $num2($budgetYtm['Inti'])]),
+                array_merge(['FFB Plasma (MT)'], $overAll(fn ($p) => $num2($ffbPlasma[$p])),  [$num2($budgetMonth['Plasma']), $num2($budgetYtm['Plasma'])]),
+                array_merge(['Total FFB (MT)'],  $overAll(fn ($p) => $num2($ffbArrival[$p])), [$num2(array_sum($budgetMonth)), $num2(array_sum($budgetYtm))]),
+                array_merge(['CPO (MT)'],        $overAll(fn ($p) => $num2($purchased['CPO'][$p])),   ['-', '-']),
+                array_merge(['Shell (MT)'],      $overAll(fn ($p) => $num2($purchased['Shell'][$p])), ['-', '-']),
             ],
             'total' => [2],
         ],
@@ -99,15 +410,13 @@
             'head' => [
                 [['Product', 1, 1], ['As Fuel', 1, 1], ['Today', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1]],
             ],
-            'rows' => [
-                ['CPO (MT)', '-', '120.45', '1,805.30', '16,240.10'],
-                ['Kernel (MT)', '-', '28.10', '402.75', '3,618.40'],
-                ['EB (MT)', '85.00', '0.00', '310.00', '2,940.00'],
-                ['Acid Oil (MT)', '-', '0.00', '4.20', '38.90'],
-                ['Fibre (MT)', '72.30', '0.00', '0.00', '0.00'],
-                ['Shell (MT)', '18.40', '15.00', '210.60', '1,905.20'],
-                ['Solid (MT)', '-', '6.20', '92.40', '830.75'],
-            ],
+            'rows' => array_map(
+                fn ($product) => array_merge(
+                    [$product.' (MT)', $fuelUse[$product] === null ? '-' : $num2($fuelUse[$product])],
+                    $overAll(fn ($p) => $num2($dispatched[$product][$p])),
+                ),
+                array_keys($dispatchInput),
+            ),
         ],
         [
             'title' => 'Production',
@@ -115,13 +424,14 @@
                 [['Product', 1, 2], ['Produced (MT)', 3, 1], ['Yield (%)', 3, 1]],
                 [['Today', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1], ['Today', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1]],
             ],
-            'rows' => [
-                ['CPO', '128.40', '1,933.55', '16,487.20', '21.40', '21.51', '21.40'],
-                ['Kernel', '31.20', '466.80', '3,974.60', '5.20', '5.19', '5.16'],
-                ['EB', '126.00', '1,852.30', '15,790.40', '21.00', '20.60', '20.50'],
-                ['Fibre', '75.60', '1,114.80', '9,473.50', '12.60', '12.40', '12.30'],
-                ['Shell', '33.00', '485.20', '4,159.30', '5.50', '5.40', '5.40'],
-            ],
+            'rows' => array_map(
+                fn ($product) => array_merge(
+                    [$product],
+                    $overAll(fn ($p) => $num2($produced[$product][$p])),
+                    $overAll(fn ($p) => $num2($yieldOf($product, $p))),
+                ),
+                array_keys($produced),
+            ),
         ],
         [
             'title' => 'FFB Stock (MT)',
@@ -129,13 +439,10 @@
                 [['Location', 1, 1], ['Today', 1, 1], ['Yesterday', 1, 1]],
             ],
             'rows' => [
-                ['Loading Ramp #1', '85.20', '92.40'],
-                ['Loading Ramp #2', '64.80', '71.10'],
-                ['Sterilized', '42.00', '38.50'],
-                ['Unsterilized', '28.00', '31.50'],
-                ['Total Unprocessed FFB', '220.00', '233.50'],
-                ['FFB in Parking Area', '35.60', '48.20'],
-                ['Total Available FFB', '255.60', '281.70'],
+                ...array_map(fn ($s) => [$s['label'], $num2($s['today']), $num2($s['yesterday'])], array_filter($ffbStockInput, fn ($s) => $s['unprocessed'])),
+                ['Total Unprocessed FFB', $num2($ffbUnprocessed['today']), $num2($ffbUnprocessed['yesterday'])],
+                ...array_map(fn ($s) => [$s['label'], $num2($s['today']), $num2($s['yesterday'])], array_filter($ffbStockInput, fn ($s) => ! $s['unprocessed'])),
+                ['Total Available FFB', $num2($ffbAvailable['today']), $num2($ffbAvailable['yesterday'])],
             ],
             'total' => [4, 6],
         ],
@@ -144,37 +451,19 @@
             'head' => [
                 [['Product', 1, 1], ['Today', 1, 1], ['Yesterday', 1, 1], ['Adjustment', 1, 1]],
             ],
-            'rows' => [
-                ['CPO', '2,418.35', '2,410.40', '0.00'],
-                ['Kernel', '612.80', '609.70', '-2.50'],
-                ['EB', '1,540.00', '1,499.00', '0.00'],
-                ['Acid Oil', '18.40', '18.40', '0.00'],
-                ['Fibre', '96.20', '92.90', '0.00'],
-                ['Shell', '410.60', '411.00', '0.00'],
-                ['Solid', '58.30', '64.10', '0.40'],
-            ],
+            'rows' => array_map(
+                fn ($product) => [$product, $num2($inventoryToday[$product]), $num2($inventoryYesterday[$product]), $num2($adjustment[$product])],
+                array_keys($inventoryToday),
+            ),
         ],
         [
             'title' => 'Milling Summary',
             'head' => [
                 [['Item', 1, 1], ['Today', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1]],
             ],
-            'groups' => [
-                'Line 1' => [
-                    ['Cages Tipped', '64', '958', '8,210'],
-                    ['FFB Crushed (MT)', '316.80', '4,742.10', '40,639.50'],
-                    ['Avg Cage Weight (MT)', '4.95', '4.95', '4.95'],
-                    ['Throughput (MT/hr)', '28.80', '28.60', '28.40'],
-                ],
-                'Line 2' => [
-                    ['Cages Tipped', '58', '872', '7,478'],
-                    ['FFB Crushed (MT)', '283.20', '4,248.25', '36,388.85'],
-                    ['Avg Cage Weight (MT)', '4.88', '4.87', '4.87'],
-                    ['Throughput (MT/hr)', '27.00', '26.90', '26.70'],
-                ],
-            ],
+            'groups' => $millingGroups,
             'rows' => [
-                ['Total FFB Crushed (MT)', '600.00', '8,990.35', '77,028.35'],
+                array_merge(['Total FFB Crushed (MT)'], $overAll(fn ($p) => $num2($crushedTotal[$p]))),
             ],
             'total' => [0],
         ],
@@ -191,15 +480,7 @@
             'head' => [
                 [['Item', 1, 1], ['Today', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1], ['Stock (MT)', 1, 1]],
             ],
-            'groups' => [
-                'CPO Tank 1' => [['FFA (%)', '3.42', '3.51', '3.60', '612.40'], ['Moisture (%)', '0.18', '0.19', '0.20', '']],
-                'CPO Tank 2' => [['FFA (%)', '3.55', '3.48', '3.58', '598.10'], ['Moisture (%)', '0.19', '0.18', '0.19', '']],
-                'CPO Tank 3' => [['FFA (%)', '3.61', '3.57', '3.62', '604.25'], ['Moisture (%)', '0.20', '0.19', '0.20', '']],
-                'CPO Tank 4' => [['FFA (%)', '3.38', '3.45', '3.55', '603.60'], ['Moisture (%)', '0.17', '0.18', '0.19', '']],
-                'Kernel On' => [['Admixture (%)', '6.20', '6.35', '6.40', ''], ['Moisture (%)', '7.10', '7.05', '7.00', '']],
-                'PK Bulk Silo 1' => [['Admixture (%)', '6.05', '6.20', '6.30', '308.40'], ['Moisture (%)', '6.90', '6.95', '6.98', '']],
-                'PK Bulk Silo 2' => [['Admixture (%)', '6.15', '6.25', '6.32', '304.40'], ['Moisture (%)', '7.00', '6.98', '7.01', '']],
-            ],
+            'groups' => $qualityGroups,
         ],
         [
             'title' => 'Energy Used',
@@ -207,10 +488,10 @@
                 [['Item', 1, 1], ['Today', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1]],
             ],
             'rows' => [
-                ['Power Mill (kWh)', '11,400', '170,820', '1,463,540'],
-                ['Power / t FFB (kWh/t)', '19.00', '19.00', '19.00'],
-                ['Heat (MCal)', '312,000', '4,674,980', '40,054,740'],
-                ['Heat / t FFB (kCal/t)', '520,000', '520,000', '520,000'],
+                array_merge(['Power Mill (kWh)'],         $overAll(fn ($p) => $num0($energyUse['power'][$p]))),
+                array_merge(['Power / t FFB (kWh/t)'],    $overAll(fn ($p) => $num2($energyUse['power'][$p] / $crushedTotal[$p]))),
+                array_merge(['Heat (MCal)'],              $overAll(fn ($p) => $num0($energyUse['heat'][$p]))),
+                array_merge(['Heat / t FFB (kCal/t)'],    $overAll(fn ($p) => $num0($energyUse['heat'][$p] / $crushedTotal[$p] * 1000))),
             ],
         ],
         [
@@ -219,23 +500,23 @@
                 [['Item', 1, 1], ['Today', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1]],
             ],
             'rows' => [
-                ['Process', '480.00', '7,192.30', '61,622.70'],
-                ['Boiler', '360.00', '5,394.20', '46,217.00'],
-                ['For Mill Operation', '840.00', '12,586.50', '107,839.70'],
-                ['Usage (M3/Ton FFB)', '1.40', '1.40', '1.40'],
+                array_merge(['Process'],                  $overAll(fn ($p) => $num2($waterUse['Process'][$p]))),
+                array_merge(['Boiler'],                   $overAll(fn ($p) => $num2($waterUse['Boiler'][$p]))),
+                array_merge(['For Mill Operation'],       $overAll(fn ($p) => $num2($waterUse['total'][$p]))),
+                array_merge(['Usage (M3/Ton FFB)'],       $overAll(fn ($p) => $num2($waterUse['total'][$p] / $crushedTotal[$p]))),
             ],
             'total' => [2],
         ],
         /*
-           Dulu 'Today Reliability' dengan kolom EE (%) dan BE (%). Dua cacat sekaligus:
-           judulnya berbunyi 'Today' padahal kolomnya MTD/YTD, dan ketiga angkanya
-           ternyata metrik yang SAMA pada tiga periode berbeda (hari ini / MTD / YTD)
+           Dulu 'Today Reliability' dengan kolom EE (%) dan BE (%). Dua cacat
+           sekaligus: judulnya berbunyi 'Today' padahal kolomnya MTD/YTD, dan
+           ketiga angkanya ternyata metrik yang SAMA pada tiga periode berbeda
            — bukan dua metrik EE dan BE. Terbukti: semuanya sama dengan
-           Milling ÷ (Available − CDT − SDT), cocok pada kedua line.
+           Milling / (Available - CDT - SDT), cocok pada kedua line.
 
-           Diganti Available Milling Hours dan Total Downtime per periode (user 2026-09-30), diturunkan
-           dari $hoursByLine sehingga tidak dapat berselisih dengan panel 'Hours per
-           Line' maupun grafik Distribusi Jam.
+           Diganti Available Milling Hours dan Total Downtime per periode (user
+           2026-09-30), diturunkan dari $hoursByLine sehingga tidak dapat
+           berselisih dengan panel 'Hours per Line' maupun grafik jam.
         */
         [
             'title' => 'Reliability per Line',
@@ -253,80 +534,130 @@
                 [['Item', 1, 1], ['Today', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1]],
             ],
             'rows' => [
-                ['Theoretical OER', '22.10', '22.05', '21.98'],
-                ['DCR OER', '21.40', '21.51', '21.40'],
-                ['Difference', '-0.70', '-0.54', '-0.58'],
+                array_merge(['Theoretical OER'], $overAll(fn ($p) => $num2($oerTheoretical[$p]))),
+                array_merge(['DCR OER'],         $overAll(fn ($p) => $num2($yieldOf('CPO', $p)))),
+                array_merge(['Difference'],      $overAll(fn ($p) => $num2($yieldOf('CPO', $p) - $oerTheoretical[$p]))),
             ],
             'total' => [2],
         ],
     ];
 
+    // Jam pada catatan ikut $hoursByLine, bukan ditulis ulang di prosa: dulu
+    // catatan Line 2 berbunyi 'CDT 9 jam' sementara tabelnya 7.50 jam.
     $explanations = [
-        'Line 1' => 'EDT 3 jam — penggantian bearing screw press No. 2 (08:15–11:15). Throughput kembali normal setelah perbaikan.',
-        'Line 2' => 'CDT 9 jam — menunggu buah masuk dari afdeling Plasma akibat jalan rusak. Tidak ada kerusakan mesin.',
+        'Line 1' => 'EDT '.$num2($hoursByLine['Line 1']['EDT']['Today']).' jam — penggantian bearing screw press No. 2 (08:15–11:15). Throughput kembali normal setelah perbaikan.',
+        'Line 2' => 'CDT '.$num2($hoursByLine['Line 2']['CDT']['Today']).' jam — menunggu buah masuk dari afdeling Plasma akibat jalan rusak. Tidak ada kerusakan mesin.',
     ];
-
 @endphp
 @php
-    // Ringkasan visual — diturunkan dari angka dummy yang sama dengan tabel di bawah.
     /*
-       Setiap kartu memakai barometer yang sama: satu bar progres terhadap acuan
-       tetap (budget / kapasitas / nilai teoritis) DAN satu badge deviasi terhadap
-       pembanding waktu. Keduanya wajib ada di setiap kartu — lihat
-       DashboardHomeTest 'every KPI card carries both a progress bar and a deviation'.
+       Ringkasan visual. SEMUA angka di blok ini turunan dari masukan di blok
+       sebelumnya — tidak ada satu pun yang ditulis ulang. Dulu keenam kartu
+       membawa nilai, persentase, pembanding, dan arah tren sebagai literal,
+       dan dua di antaranya sudah melenceng: kartu Milling Hours membandingkan
+       terhadap 21.58 jam (benarnya 21.45) sehingga badge-nya menunjuk turun
+       padahal naik, dan kartu Stok CPO memakai penyebut 3,000 MT sementara
+       blok tangki di bawahnya menggambar 4 x 1,000 MT.
 
-       Angka tetap dummy, tetapi diturunkan dari panel tabel di bawah agar konsisten:
-         FFB Diterima  MTD 8,990.35 / budget 18,000                       = 49.9%
-         FFB Diolah    600.00 / (21.50 jam × 30 MT/jam = 645.00)           = 93.0%
-         CPO           OER 21.40 / OER teoritis 22.10                     = 96.8%
-         Kernel        KER 5.20 / KER teoritis 5.50                       = 94.5%
-         Stok CPO      2,418.35 / kapasitas 4 tangki 3,000                = 80.6%
-         Milling Hours      21.50 / tersedia 2 line × 24.00 = 48.00            = 44.8%
-       Rata-rata harian MTD memakai 15 hari (panel 'Reliability per Line').
-       Tren SEMUA kartu = nilai Today vs rata-rata harian MTD (keputusan user 2026-10-05):
-         FFB Diterima/Diolah 8,990.35/15 = 599.36 · CPO 1,933.55/15 = 128.90 · Kernel 466.80/15 = 31.12
-         Stok CPO = rata-rata posisi stok harian MTD 2,396.80 (dummy; tidak ada panel histori stok)
-         Milling Hours = rata-rata harian MTD 21.58 jam
-       EE tidak lagi ditaruh di kartu Milling Hours — sudah tampil per line di blok
-       'Milling Hours per Line'.
+       Setiap kartu memakai barometer yang sama: satu bar progres terhadap
+       acuan tetap (budget / kapasitas / nilai teoritis) DAN satu badge deviasi
+       terhadap pembanding waktu. Keduanya wajib ada di setiap kartu — lihat
+       DashboardHomeTest 'every KPI card carries both a progress bar and a
+       deviation'. Tren SEMUA kartu = nilai Today vs rata-rata harian MTD
+       (keputusan user 2026-10-05).
     */
+    $mtdAvg  = fn (float $total) => $total / $mtdDays;
+    $trendVs = function (float $today, float $base) {
+        $deviation = $base > 0 ? ($today / $base - 1) * 100 : 0.0;
+
+        return [sprintf('%+.1f%%', $deviation), $deviation >= 0 ? 'up' : 'down'];
+    };
+    // Dipakai sebagai label bar DAN sebagai lebar bar, dari satu pembulatan:
+    // kalau dibulatkan dua kali, bar dan angkanya bisa berselisih sedesimal.
+    $progressLabel = fn (float $progress, string $against) => number_format($progress, 1).'% '.$against;
+
+    $cpoStockMtdAvg = 2396.80;   // rata-rata posisi stok CPO harian MTD (dummy; tidak ada panel histori stok)
+    $ratedPerLine   = 30.00;     // kapasitas terpasang per line, MT/jam
+    $ratedToday     = $millingHoursTotal['Today'] * $ratedPerLine;
+    $cpoTankCount   = count(array_filter($tanks, fn ($t) => $t['product'] === 'CPO'));
+    $lineCount      = count($hoursByLine);
+
     $kpis = [
-        ['label' => 'FFB Diterima', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'MTD 8,990.35 MT', 'icon' => 'truck', 'period' => 'Today',
-            'progress' => 49.9, 'progressLabel' => '49.9% dari budget bulan ini (18,000 MT)',
-            'trend' => ['+0.1%', 'up'], 'trendLabel' => 'vs rata-rata harian MTD (599.36 MT)'],
-        ['label' => 'FFB Diolah', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'Rata-rata 27.90 MT/jam', 'icon' => 'factory', 'period' => 'Today',
-            'progress' => 93.0, 'progressLabel' => '93.0% dari kapasitas 645.00 MT saat milling hours',
-            'trend' => ['+0.1%', 'up'], 'trendLabel' => 'vs rata-rata harian MTD (599.36 MT)'],
-        ['label' => 'CPO Diproduksi', 'value' => '128.40', 'unit' => 'MT', 'meta' => 'OER 21.40%', 'icon' => 'drop', 'period' => 'Today',
-            'progress' => 96.8, 'progressLabel' => '96.8% dari OER teoritis 22.10%',
-            'trend' => ['-0.4%', 'down'], 'trendLabel' => 'vs rata-rata harian MTD (128.90 MT)'],
-        ['label' => 'Kernel Diproduksi', 'value' => '31.20', 'unit' => 'MT', 'meta' => 'KER 5.20%', 'icon' => 'seed', 'period' => 'Today',
-            'progress' => 94.5, 'progressLabel' => '94.5% dari KER teoritis 5.50%',
-            'trend' => ['+0.3%', 'up'], 'trendLabel' => 'vs rata-rata harian MTD (31.12 MT)'],
-        ['label' => 'Stok CPO', 'value' => '2,418.35', 'unit' => 'MT', 'meta' => 'Kemarin 2,410.40 MT', 'icon' => 'tank', 'period' => 'Today',
-            'progress' => 80.6, 'progressLabel' => '80.6% dari kapasitas 4 tangki (3,000 MT)',
-            'trend' => ['+0.9%', 'up'], 'trendLabel' => 'vs rata-rata harian MTD (2,396.80 MT)'],
-        ['label' => 'Milling Hours', 'value' => '21.50', 'unit' => 'jam', 'meta' => 'Line 1 11.00 jam · Line 2 10.50 jam', 'icon' => 'clock', 'period' => 'Today',
-            'progress' => 44.8, 'progressLabel' => '44.8% dari 48.00 jam tersedia (2 line)',
-            'trend' => ['-0.4%', 'down'], 'trendLabel' => 'vs rata-rata harian MTD (21.58 jam)'],
+        [
+            'label' => 'FFB Diterima', 'unit' => 'MT', 'icon' => 'truck', 'period' => 'Today',
+            'value' => $num2($ffbArrival['Today']),
+            'meta'  => 'MTD '.$num2($ffbArrival['MTD']).' MT',
+            'progress' => $ffbArrival['MTD'] / array_sum($budgetMonth) * 100,
+            'against'  => 'dari budget bulan ini ('.$num0(array_sum($budgetMonth)).' MT)',
+            'today' => $ffbArrival['Today'], 'base' => $mtdAvg($ffbArrival['MTD']), 'baseUnit' => 'MT',
+        ],
+        [
+            'label' => 'FFB Diolah', 'unit' => 'MT', 'icon' => 'factory', 'period' => 'Today',
+            'value' => $num2($crushedTotal['Today']),
+            'meta'  => 'Rata-rata '.$num2($crushedTotal['Today'] / $millingHoursTotal['Today']).' MT/jam',
+            'progress' => $crushedTotal['Today'] / $ratedToday * 100,
+            'against'  => 'dari kapasitas '.$num2($ratedToday).' MT saat milling hours',
+            'today' => $crushedTotal['Today'], 'base' => $mtdAvg($crushedTotal['MTD']), 'baseUnit' => 'MT',
+        ],
+        [
+            'label' => 'CPO Diproduksi', 'unit' => 'MT', 'icon' => 'drop', 'period' => 'Today',
+            'value' => $num2($produced['CPO']['Today']),
+            'meta'  => 'OER '.$num2($yieldOf('CPO', 'Today')).'%',
+            'progress' => $yieldOf('CPO', 'Today') / $oerTheoretical['Today'] * 100,
+            'against'  => 'dari OER teoritis '.$num2($oerTheoretical['Today']).'%',
+            'today' => $produced['CPO']['Today'], 'base' => $mtdAvg($produced['CPO']['MTD']), 'baseUnit' => 'MT',
+        ],
+        [
+            'label' => 'Kernel Diproduksi', 'unit' => 'MT', 'icon' => 'seed', 'period' => 'Today',
+            'value' => $num2($produced['Kernel']['Today']),
+            'meta'  => 'KER '.$num2($yieldOf('Kernel', 'Today')).'%',
+            'progress' => $yieldOf('Kernel', 'Today') / $kerTheoretical * 100,
+            'against'  => 'dari KER teoritis '.$num2($kerTheoretical).'%',
+            'today' => $produced['Kernel']['Today'], 'base' => $mtdAvg($produced['Kernel']['MTD']), 'baseUnit' => 'MT',
+        ],
+        [
+            'label' => 'Stok CPO', 'unit' => 'MT', 'icon' => 'tank', 'period' => 'Today',
+            'value' => $num2($inventoryToday['CPO']),
+            'meta'  => 'Kemarin '.$num2($inventoryYesterday['CPO']).' MT',
+            'progress' => $inventoryToday['CPO'] / $capacityOf('CPO') * 100,
+            'against'  => 'dari kapasitas '.$cpoTankCount.' tangki ('.$num0($capacityOf('CPO')).' MT)',
+            'today' => $inventoryToday['CPO'], 'base' => $cpoStockMtdAvg, 'baseUnit' => 'MT',
+        ],
+        [
+            // EE tidak ditaruh di kartu ini — sudah tampil per line di blok
+            // 'Milling Hours per Line'.
+            'label' => 'Milling Hours', 'unit' => 'jam', 'icon' => 'clock', 'period' => 'Today',
+            'value' => $num2($millingHoursTotal['Today']),
+            'meta'  => implode(' · ', array_map(
+                fn ($name, $l) => $name.' '.$num2($l['milling']['Today']).' jam',
+                array_keys($hoursByLine),
+                $hoursByLine,
+            )),
+            'progress' => $millingHoursTotal['Today'] / $availableTotal['Today'] * 100,
+            'against'  => 'dari '.$num2($availableTotal['Today']).' jam tersedia ('.$lineCount.' line)',
+            'today' => $millingHoursTotal['Today'], 'base' => $mtdAvg($millingHoursTotal['MTD']), 'baseUnit' => 'jam',
+        ],
     ];
+    $kpis = array_map(fn ($k) => $k + [
+        'progressText' => $progressLabel($k['progress'], $k['against']),
+        'trend'        => $trendVs($k['today'], $k['base']),
+        'trendLabel'   => 'vs rata-rata harian MTD ('.$num2($k['base']).' '.$k['baseUnit'].')',
+    ], $kpis);
 
     $arrivalBudget = [
-        ['label' => 'FFB Inti', 'actual' => 6184.20, 'budget' => 12500],
-        ['label' => 'FFB Plasma', 'actual' => 2806.15, 'budget' => 5500],
-        ['label' => 'Total FFB', 'actual' => 8990.35, 'budget' => 18000],
+        ['label' => 'FFB Inti',   'actual' => $ffbInti['MTD'],    'budget' => $budgetMonth['Inti']],
+        ['label' => 'FFB Plasma', 'actual' => $ffbPlasma['MTD'],  'budget' => $budgetMonth['Plasma']],
+        ['label' => 'Total FFB',  'actual' => $ffbArrival['MTD'], 'budget' => array_sum($budgetMonth)],
     ];
+    // Garis pro-rata memakai pasangan hari yang sama dengan kolom 'Days'.
+    $proRataPct = $mtdDays / $monthDays * 100;
 
     // Satuan ikut per baris, bukan ditulis di template: kalau kelak ada pos stok
     // dengan satuan lain (lori, bukan MT), ia tidak akan diberi label 'MT' begitu saja.
-    $ffbStock = [
-        ['label' => 'Loading Ramp #1', 'value' => 85.20, 'unit' => 'MT', 'color' => '#249360'],
-        ['label' => 'Loading Ramp #2', 'value' => 64.80, 'unit' => 'MT', 'color' => '#5bb88a'],
-        ['label' => 'Sterilized', 'value' => 42.00, 'unit' => 'MT', 'color' => '#f59e0b'],
-        ['label' => 'Unsterilized', 'value' => 28.00, 'unit' => 'MT', 'color' => '#fbbf24'],
-        ['label' => 'Parking Area', 'value' => 35.60, 'unit' => 'MT', 'color' => '#64748b'],
-    ];
-    $ffbStockTotal = array_sum(array_column($ffbStock, 'value'));
+    $ffbStock = array_map(fn ($s) => [
+        'label' => $s['legend'], 'value' => $s['today'], 'unit' => 'MT', 'color' => $s['color'],
+    ], $ffbStockInput);
+    $ffbStockTotal = $ffbAvailable['today'];
     $stops = []; $acc = 0;
     foreach ($ffbStock as $s) {
         $from = $acc; $acc += $s['value'] / $ffbStockTotal * 100;
@@ -336,62 +667,65 @@
 
     $hourSegments = ['Milling' => '#249360', 'Available' => '#64748b', 'CDT' => '#f59e0b', 'SDT' => '#60a5fa', 'EDT' => '#ef4444'];
     /*
-       Available Milling Hours dan Total Downtime untuk grafik memakai $amhFor/$mdhFor — closure yang SAMA dengan
-       kedua panel tabel, bukan salinannya. Sempat ada sepasang closure kembar di
-       sini; akibatnya label grafik tetap benar saat rumus di sumbernya dirusak,
-       sehingga kesalahan rumus tidak terdeteksi dari layar. Jangan definisikan
-       ulang di sini.
+       Jam grafik ditarik dari $hoursByLine periode 'Today' lewat $amhFor/$mdhFor
+       — closure yang SAMA dengan kedua panel tabel, bukan salinannya. Sempat ada
+       sepasang closure kembar di sini; akibatnya label grafik tetap benar saat
+       rumus di sumbernya dirusak, sehingga kesalahan rumus tidak terdeteksi dari
+       layar. Jangan definisikan ulang di sini.
+
+       Segmen hijau = Milling, abu-abu = sisa Available Milling Hours yang tidak
+       terpakai (keputusan user 2026-10-05), jadi hijau + abu-abu = Available
+       Milling Hours dan batangnya selalu berjumlah persis Available.
 
        Milling dan Available TIDAK ditulis lagi di label baris: nilainya sudah
-       tergambar sebagai segmen hijau dan abu-abu pada batang tepat di bawahnya, jadi menulisnya di
-       label berarti angka yang sama muncul dua kali berdekatan. Label kini hanya
-       membawa Total Downtime — satu-satunya dari dua angka itu yang tidak punya segmen
-       sendiri, karena ia jumlah dari tiga segmen downtime.
+       tergambar sebagai kedua segmen itu pada batang tepat di bawahnya. Label
+       hanya membawa Total Downtime — satu-satunya dari ketiganya yang tidak
+       punya segmen sendiri, karena ia jumlah dari tiga segmen downtime.
     */
-    $lineStats = [
-        'Line 1' => ['cages' => 64, 'crushed' => 316.80, 'avgCage' => 4.95, 'throughput' => 28.80],
-        'Line 2' => ['cages' => 58, 'crushed' => 283.20, 'avgCage' => 4.88, 'throughput' => 27.00],
-    ];
-
-    // Jam grafik ditarik dari $hoursByLine periode 'Today' — satu sumber dengan kedua
-    // panel tabel. Segmen hijau = Milling, abu-abu = Available (sisa Available Milling Hours yang tidak terpakai),
-    // jadi hijau + abu-abu = Available Milling Hours dan batangnya selalu berjumlah persis Available.
     $lines = [];
-    foreach ($lineStats as $lineName => $stat) {
+    foreach ($milling as $lineName => $m) {
         $l = $hoursByLine[$lineName];
-        $lines[] = $stat + [
-            'name'      => $lineName,
-            // Penyebut lebar batang — dulu angka 24 yang ditulis langsung di template,
-            // sehingga batang berhenti penuh begitu Available bukan 24.
-            'available' => $l['available']['Today'],
-            'mdh'       => $mdhFor($l, 'Today'),
+        $lines[] = [
+            'name'       => $lineName,
+            'cages'      => $m['cages']['Today'],
+            'crushed'    => $m['crushed']['Today'],
+            'avgCage'    => $m['crushed']['Today'] / $m['cages']['Today'],
+            'throughput' => $m['crushed']['Today'] / $l['milling']['Today'],
+            // Pangsa terhadap total FFB diolah hari ini, bukan terhadap angka
+            // 600 yang dulu ditulis langsung di template.
+            'share'      => $m['crushed']['Today'] / $crushedTotal['Today'] * 100,
+            // Penyebut lebar batang — dulu angka 24 yang ditulis langsung di
+            // template, sehingga batang berhenti penuh begitu Available bukan 24.
+            'available'  => $l['available']['Today'],
+            'mdh'        => $mdhFor($l, 'Today'),
             'hours' => [
-                'Milling' => $l['milling']['Today'],
+                'Milling'   => $l['milling']['Today'],
                 'Available' => $amhFor($l, 'Today') - $l['milling']['Today'],
-                'CDT'     => $l['CDT']['Today'],
-                'SDT'     => $l['SDT']['Today'],
-                'EDT'     => $l['EDT']['Today'],
+                'CDT'       => $l['CDT']['Today'],
+                'SDT'       => $l['SDT']['Today'],
+                'EDT'       => $l['EDT']['Today'],
             ],
         ];
     }
-
-    $tanks = [
-        ['name' => 'CPO Tank 1', 'stock' => 612.40, 'cap' => 1000, 'a' => ['FFA', 3.42, 5.00], 'b' => ['Moist', 0.18, 0.20]],
-        ['name' => 'CPO Tank 2', 'stock' => 598.10, 'cap' => 1000, 'a' => ['FFA', 3.55, 5.00], 'b' => ['Moist', 0.19, 0.20]],
-        ['name' => 'CPO Tank 3', 'stock' => 604.25, 'cap' => 1000, 'a' => ['FFA', 3.61, 5.00], 'b' => ['Moist', 0.20, 0.20]],
-        ['name' => 'CPO Tank 4', 'stock' => 603.60, 'cap' => 1000, 'a' => ['FFA', 3.38, 5.00], 'b' => ['Moist', 0.17, 0.20]],
-        ['name' => 'PK Silo 1', 'stock' => 308.40, 'cap' => 500, 'a' => ['Admix', 6.05, 6.10], 'b' => ['Moist', 6.90, 7.00]],
-        ['name' => 'PK Silo 2', 'stock' => 304.40, 'cap' => 500, 'a' => ['Admix', 6.15, 6.10], 'b' => ['Moist', 7.00, 7.00]],
-    ];
+    $availablePerLine = $hoursByLine['Line 1']['available']['Today'];
 
     $utilities = [
-        ['label' => 'Listrik Mill', 'value' => '11,400', 'unit' => 'kWh', 'ratio' => '19.00 kWh/t FFB', 'icon' => 'bolt'],
-        ['label' => 'Panas', 'value' => '312,000', 'unit' => 'MCal', 'ratio' => '520,000 kCal/t FFB', 'icon' => 'flame'],
-        ['label' => 'Air Proses', 'value' => '480', 'unit' => 'm³', 'ratio' => 'Boiler 360 m³', 'icon' => 'water'],
-        ['label' => 'Pemakaian Air', 'value' => '1.40', 'unit' => 'm³/t', 'ratio' => 'Total 840 m³', 'icon' => 'water'],
+        ['label' => 'Listrik Mill',  'value' => $num0($energyUse['power']['Today']), 'unit' => 'kWh',
+         'ratio' => $num2($energyRates['power']).' kWh/t FFB', 'icon' => 'bolt'],
+        ['label' => 'Panas',         'value' => $num0($energyUse['heat']['Today']),  'unit' => 'MCal',
+         'ratio' => $num0($energyRates['heat'] * 1000).' kCal/t FFB', 'icon' => 'flame'],
+        ['label' => 'Air Proses',    'value' => $num0($waterUse['Process']['Today']), 'unit' => 'm³',
+         'ratio' => 'Boiler '.$num0($waterUse['Boiler']['Today']).' m³', 'icon' => 'water'],
+        ['label' => 'Pemakaian Air', 'value' => $num2($waterUse['total']['Today'] / $crushedTotal['Today']), 'unit' => 'm³/t',
+         'ratio' => 'Total '.$num0($waterUse['total']['Today']).' m³', 'icon' => 'water'],
     ];
 
-    $oer = ['theoretical' => 22.10, 'actual' => 21.40, 'mtd' => 21.51, 'ytd' => 21.40];
+    $oer = [
+        'theoretical' => $oerTheoretical['Today'],
+        'actual'      => $yieldOf('CPO', 'Today'),
+        'mtd'         => $yieldOf('CPO', 'MTD'),
+        'ytd'         => $yieldOf('CPO', 'YTD'),
+    ];
 
     $icons = [
         'truck' => '<path d="M1 6h11v9H1z"/><path d="M12 9h4l3 3v3h-7z"/><circle cx="5" cy="16" r="1.6"/><circle cx="15" cy="16" r="1.6"/>',
@@ -416,7 +750,7 @@
         <div class="md-hero__meta">
             <span class="md-chip md-chip--date">
                 <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="2"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="7" y1="2" x2="7" y2="5"/><line x1="13" y1="2" x2="13" y2="5"/></svg>
-                {{ now()->subDay()->translatedFormat('l, d F Y') }}
+                {{ $reportDate->translatedFormat('l, d F Y') }}
             </span>
             <span class="md-chip md-chip--dummy" title="Semua angka pada bagian ini fiktif dan belum terhubung ke data stasiun">Data dummy</span>
         </div>
@@ -435,7 +769,7 @@
                 <p class="md-kpi__meta">{{ $kpi['meta'] }}</p>
                 {{-- Barometer seragam: bar progres + badge deviasi, keduanya di setiap kartu. --}}
                 <div class="md-bar"><span style="width: {{ number_format($kpi['progress'], 1) }}%"></span></div>
-                <p class="md-kpi__foot">{{ $kpi['progressLabel'] }}</p>
+                <p class="md-kpi__foot">{{ $kpi['progressText'] }}</p>
                 <p class="md-kpi__foot md-kpi__foot--trend"><span class="md-trend md-trend--{{ $kpi['trend'][1] }}">{{ $kpi['trend'][0] }}</span> {{ $kpi['trendLabel'] }}</p>
             </article>
         @endforeach
@@ -456,11 +790,11 @@
                             <span>{{ $row['label'] }}</span>
                             <span class="md-budget__nums"><strong>{{ number_format($row['actual'], 2) }}</strong> / {{ number_format($row['budget'], 0) }} MT</span>
                         </div>
-                        <div class="md-bar md-bar--lg"><span style="width: {{ min($budgetPct, 100) }}%"></span><em style="left: 50%" title="Pro-rata hari ke-15"></em></div>
+                        <div class="md-bar md-bar--lg"><span style="width: {{ min($budgetPct, 100) }}%"></span><em style="left: {{ $proRataPct }}%" title="Pro-rata hari ke-{{ $mtdDays }}"></em></div>
                         <span class="md-budget__pct">{{ number_format($budgetPct, 1) }}%</span>
                     </div>
                 @endforeach
-                <p class="md-note"><span class="md-note__tick"></span> Garis tegak = target pro-rata (hari ke-15 dari 30)</p>
+                <p class="md-note"><span class="md-note__tick"></span> Garis tegak = target pro-rata (hari ke-{{ $mtdDays }} dari {{ $monthDays }})</p>
             </div>
         </article>
 
@@ -505,8 +839,8 @@
                             <div><dt>FFB Crushed</dt><dd>{{ number_format($line['crushed'], 2) }} <small>MT</small></dd></div>
                             <div><dt>Avg Cage Weight</dt><dd>{{ number_format($line['avgCage'], 2) }} <small>MT</small></dd></div>
                         </dl>
-                        <div class="md-bar"><span style="width: {{ $line['crushed'] / 600 * 100 }}%"></span></div>
-                        <p class="md-kpi__foot">{{ round($line['crushed'] / 600 * 100, 1) }}% dari total FFB diolah</p>
+                        <div class="md-bar"><span style="width: {{ $line['share'] }}%"></span></div>
+                        <p class="md-kpi__foot">{{ number_format($line['share'], 1) }}% dari total FFB diolah</p>
                     </div>
                 @endforeach
             </div>
@@ -516,7 +850,7 @@
         <article class="md-card">
             <header class="md-card__head">
                 <h3>Milling Hours per Line</h3>
-                <span class="md-card__hint">Today · 24 jam tersedia</span>
+                <span class="md-card__hint">Today · {{ $num0($availablePerLine) }} jam tersedia</span>
             </header>
             <div class="md-hours">
                 @foreach ($lines as $line)
@@ -552,22 +886,24 @@
             <span class="md-card__hint">Today · terhadap batas mutu</span>
         </header>
         <div class="md-tanks">
-            @foreach ($tanks as $tank)
+            @foreach ($tankCards as $tank)
                 @php
                     $fill = round($tank['stock'] / $tank['cap'] * 100);
-                    $warn = $tank['a'][1] > $tank['a'][2] || $tank['b'][1] > $tank['b'][2];
+                    // Ambang dibandingkan terhadap nilai Today — kolom yang sama
+                    // yang dicetak di bawahnya, bukan nilai MTD/YTD.
+                    $warn = collect($tank['params'])->contains(fn ($param) => $param['Today'] > $param['limit']);
                 @endphp
                 <div class="md-tank{{ $warn ? ' md-tank--warn' : '' }}">
                     <div class="md-tank__gauge"><span style="height: {{ $fill }}%"></span><b>{{ $fill }}%</b></div>
                     <div class="md-tank__body">
                         <div class="md-tank__head">
-                            <strong>{{ $tank['name'] }}</strong>
+                            <strong>{{ $tank['short'] }}</strong>
                             <span class="md-status{{ $warn ? ' md-status--warn' : '' }}">{{ $warn ? 'Perhatian' : 'Normal' }}</span>
                         </div>
                         <p class="md-tank__stock">{{ number_format($tank['stock'], 2) }} <small>/ {{ number_format($tank['cap']) }} MT</small></p>
                         <div class="md-tank__params">
-                            @foreach ([$tank['a'], $tank['b']] as [$param, $val, $limit])
-                                <span @class(['md-param', 'md-param--warn' => $val > $limit])>{{ $param }} <b>{{ number_format($val, 2) }}%</b> <small>≤ {{ number_format($limit, 2) }}%</small></span>
+                            @foreach ($tank['params'] as $param)
+                                <span @class(['md-param', 'md-param--warn' => $param['Today'] > $param['limit']])>{{ $param['short'] }} <b>{{ number_format($param['Today'], 2) }}%</b> <small>≤ {{ number_format($param['limit'], 2) }}%</small></span>
                             @endforeach
                         </div>
                     </div>

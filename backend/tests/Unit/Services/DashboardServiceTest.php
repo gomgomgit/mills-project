@@ -61,17 +61,28 @@ it('defaults date_from/date_to to today when not provided', function () {
 it('returns success result with correct counts and sums when all conditions pass', function () {
     $today = Carbon::today()->toDateString();
 
-    WeighbridgeRecord::factory()->forStation($this->station)->arrivedAt($today.' 08:00:00')
+    $ticket = WeighbridgeRecord::factory()->forStation($this->station)->arrivedAt($today.' 08:00:00')
         ->create(['gross_weight' => 6000, 'tare_weight' => 1000]);
     WeighbridgeRecord::factory()->forStation($this->station)->arrivedAt($today.' 09:00:00')
         ->create(['gross_weight' => 4000, 'tare_weight' => 1000]);
 
+    // Disambungkan ke tiket timbangan yang SUDAH ada, bukan dibiarkan memakai
+    // WeighbridgeRecord::factory() tersarang dari GradingRecordFactory: tanggal
+    // tiket tersarang itu acak dalam 30 hari terakhir, jadi sekitar satu dari
+    // tiga puluh kali ia jatuh pada hari ini dan membuat weighbridge count
+    // menjadi 3. Selain itu memang begitu kenyataannya — satu grading milik
+    // satu tiket timbangan, bukan tiket ketiga yang muncul sendiri.
     GradingRecord::factory()->forStation($this->station)->onDate($today)
-        ->create(['netto' => 4000, 'quantity' => 100]);
+        ->create(['weighbridge_record_id' => $ticket->id, 'netto' => 4000, 'quantity' => 100]);
 
     $cagesTrack = CagesTrackRecord::factory()->forStation($this->station)->onDate($today)->create();
     CagesTippedTime::factory()->forRecord($cagesTrack)->create(['total_cages' => 5]);
     CagesTippedTime::factory()->forRecord($cagesTrack)->create(['total_cages' => 3]);
+
+    // Dijaga di sini, bukan dipercaya begitu saja: begitu grading memakai
+    // factory tiket tersarang lagi, jumlahnya menjadi 3 dan test ini akan
+    // memerah pada baris INI — bukan sesekali pada asersi agregat di bawah.
+    expect(WeighbridgeRecord::count())->toBe(2);
 
     $summary = $this->service->getSummary(['date_from' => $today, 'date_to' => $today]);
 

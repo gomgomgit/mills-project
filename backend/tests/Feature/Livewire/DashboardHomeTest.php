@@ -387,7 +387,13 @@ it('prints the budget percentages with the same number of decimals', function ()
 
     preg_match_all('/md-budget__pct">([\d.]+)%/', $block, $m);
 
-    expect($m[1])->toBe(['49.5', '51.0', '49.9']);
+    // Penerimaan FFB kini DITURUNKAN dari neraca stok (lihat test neraca di
+    // bawah), jadi ketiga persentase ini berubah ketika stok atau FFB diolah
+    // berubah — yang dikunci di sini tetap bentuknya: satu desimal, ketiganya.
+    expect($m[1])->toBe(['49.1', '50.8', '49.6']);
+    foreach ($m[1] as $pct) {
+        expect($pct)->toMatch('/^\d+\.\d$/');
+    }
 });
 
 /*
@@ -402,4 +408,237 @@ it('names the cage stock rows without the word Cages', function () {
         ->assertSee('Unsterilized')
         ->assertDontSee('Sterilized Cages')
         ->assertDontSee('Unsterilized Cages');
+});
+
+/*
+ * ────────────────────────────────────────────────────────────────────────────
+ * Koherensi angka dummy (audit 2026-10-20).
+ *
+ * Angka di dashboard ini dummy, tetapi tidak saling bebas: pembaca laporan
+ * mill memeriksa relasinya — Crushed / jam = Throughput, stok kemarin +
+ * produksi − kirim = stok hari ini, penerimaan − olahan = perubahan stok. Audit
+ * 2026-10-20 menemukan sembilan relasi yang sudah melenceng tanpa terlihat dari
+ * kode, karena angka yang sama ditulis ulang di ringkasan kartu DAN di tabel.
+ *
+ * Blok test di bawah mengunci relasinya, bukan angkanya: ia MENGHITUNG dari
+ * yang dirender, jadi ia tetap berlaku ketika angka dummy-nya diganti.
+ * ────────────────────────────────────────────────────────────────────────────
+ */
+
+/** Baris satu panel tabel, ter-key label (dengan dan tanpa nama grup). */
+function dmrRows(string $html, string $title): array
+{
+    // Jangkar pada markup penutup judul panel, bukan teks telanjang: judul
+    // grafik <h3>Milling Hours per Line</h3> memuat 'Hours per Line'.
+    $start = strpos($html, '>'.$title.'</h4>');
+    expect($start)->not->toBeFalse("panel '{$title}' tidak ada di halaman");
+    $table = substr($html, $start, strpos($html, '</table>', $start) - $start);
+
+    $rows = [];
+    $group = '';
+    foreach (array_slice(preg_split('/<tr/', $table), 1) as $chunk) {
+        // Potongannya mulai SETELAH '<tr', jadi atributnya masih ikut sebagai
+        // teks biasa: tanpa dipotong di '>' pertama, nama grup terbaca
+        // 'class="dmr-table__group">Line 1'.
+        $gt = strpos($chunk, '>');
+        $inner = substr($chunk, $gt + 1);
+        if (str_contains(substr($chunk, 0, $gt), 'dmr-table__group')) {
+            $group = trim(html_entity_decode(strip_tags($inner)));
+
+            continue;
+        }
+        preg_match_all('/<td[^>]*>(.*?)<\/td>/s', $inner, $m);
+        if ($m[1] === []) {
+            continue;
+        }
+        $cells = array_map(fn ($c) => trim(html_entity_decode(strip_tags($c))), $m[1]);
+        $label = array_shift($cells);
+        $rows[$group === '' ? $label : $group.' / '.$label] = $cells;
+        $rows[$label] = $cells;
+    }
+
+    return $rows;
+}
+
+/** Satu sel angka; '-' dan sel kosong jadi null. */
+function dmrNum(array $rows, string $label, int $col): ?float
+{
+    expect($rows)->toHaveKey($label);
+    $cell = $rows[$label][$col] ?? '';
+
+    return $cell === '-' || $cell === '' ? null : (float) str_replace(',', '', $cell);
+}
+
+/*
+ * Throughput dan Avg Cage Weight adalah PEMBAGIAN dari dua kolom lain, bukan
+ * angka tersendiri. Dulu ditulis tangan: throughput MTD kedua line meleset
+ * 0.18 MT/jam dari Crushed / Milling Hours — selisih yang hanya terlihat kalau
+ * pembacanya benar-benar membagi.
+ */
+it('derives throughput and average cage weight from the columns beside them', function () {
+    $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
+    $milling = dmrRows($html, 'Milling Summary');
+    $hours = dmrRows($html, 'Hours per Line');
+
+    foreach (['Line 1', 'Line 2'] as $line) {
+        foreach ([0 => 'Today', 1 => 'MTD', 2 => 'YTD'] as $col => $period) {
+            $crushed = dmrNum($milling, "{$line} / FFB Crushed (MT)", $col);
+            $cages = dmrNum($milling, "{$line} / Cages Tipped", $col);
+            $millingHours = dmrNum($hours, "{$line} / Milling Hours", $col);
+
+            expect(dmrNum($milling, "{$line} / Avg Cage Weight (MT)", $col))
+                ->toBe(round($crushed / $cages, 2), "Avg Cage Weight {$line} {$period}");
+            expect(dmrNum($milling, "{$line} / Throughput (MT/hr)", $col))
+                ->toBe(round($crushed / $millingHours, 2), "Throughput {$line} {$period}");
+        }
+    }
+});
+
+/*
+ * Neraca stok produk. Kolom Today / Yesterday / Adjustment harus menutup
+ * terhadap produksi, pembelian, pengiriman, dan pemakaian sebagai bahan bakar:
+ *
+ *     kemarin + diproduksi + dibeli − dikirim − bahan bakar + penyesuaian = hari ini
+ *
+ * Dua baris dulu tidak menutup: penyesuaian Kernel −2.50 MT tampil di kolomnya
+ * tapi tidak ikut terhitung, dan pembelian shell 12.50 MT hilang sama sekali.
+ */
+it('closes the product stock balance on every row', function () {
+    $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
+    $inventory = dmrRows($html, 'Inventory Level (MT)');
+    $production = dmrRows($html, 'Production');
+    $arrival = dmrRows($html, 'Product Arrival');
+    $dispatch = dmrRows($html, 'Product Dispatched');
+
+    foreach (['CPO', 'Kernel', 'EB', 'Acid Oil', 'Fibre', 'Shell', 'Solid'] as $product) {
+        $produced = isset($production[$product]) ? dmrNum($production, $product, 0) : 0.0;
+        $purchased = isset($arrival[$product.' (MT)']) ? dmrNum($arrival, $product.' (MT)', 0) : 0.0;
+        $fuel = dmrNum($dispatch, $product.' (MT)', 0) ?? 0.0;      // kolom 'As Fuel'
+        $dispatched = dmrNum($dispatch, $product.' (MT)', 1) ?? 0.0; // kolom 'Today'
+
+        $closing = dmrNum($inventory, $product, 0)
+            - dmrNum($inventory, $product, 1)   // Yesterday
+            - dmrNum($inventory, $product, 2);  // Adjustment
+
+        expect(round($closing, 2))
+            ->toBe(round($produced + $purchased - $dispatched - $fuel, 2), "neraca stok {$product}");
+    }
+});
+
+/*
+ * Neraca FFB. Penerimaan dulu ditulis tangan dan kebetulan PERSIS sama dengan
+ * FFB diolah di ketiga periode, padahal stok FFB tersedia turun 26.10 MT hari
+ * itu — artinya dua kartu teratas memajang angka identik yang mustahil.
+ */
+it('moves the FFB stock by exactly what arrived minus what was crushed', function () {
+    $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
+    $stock = dmrRows($html, 'FFB Stock (MT)');
+    $arrival = dmrNum(dmrRows($html, 'Product Arrival'), 'Total FFB (MT)', 0);
+    $crushed = dmrNum(dmrRows($html, 'Milling Summary'), 'Total FFB Crushed (MT)', 0);
+
+    $today = dmrNum($stock, 'Total Available FFB', 0);
+    $yesterday = dmrNum($stock, 'Total Available FFB', 1);
+
+    expect(round($today - $yesterday, 2))->toBe(round($arrival - $crushed, 2));
+
+    // Dan keduanya TIDAK boleh sama: stok yang bergerak menuntut selisih.
+    expect($arrival)->not->toBe($crushed);
+});
+
+/*
+ * Kolom 'Days' panel Reliability, Available = 24 jam x hari, dan tanggal di
+ * hero harus bercerita hal yang sama. Dulu kolomnya berbunyi 15 / 15 sementara
+ * Available YTD 3,096 jam setara 129 hari, pada laporan yang tanggalnya diambil
+ * dari now()->subDay() — tiga versi hari yang berbeda di satu halaman.
+ */
+it('keeps the report date, the Days column and the available hours on one calendar', function () {
+    $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
+
+    $start = strpos($html, 'md-chip md-chip--date');
+    expect($start)->not->toBeFalse();
+    $chip = html_entity_decode(strip_tags(substr($html, $start, strpos($html, '</span>', $start) - $start)));
+    expect(preg_match('/(\d{1,2}) (\p{L}+) (\d{4})/u', $chip, $d))->toBe(1, "tanggal tidak terbaca dari '{$chip}'");
+
+    // Nama bulan dibaca lewat locale yang sama dengan yang dipakai merender,
+    // bukan dengan mengulang rumus tanggalnya di sini.
+    $months = [];
+    foreach (range(1, 12) as $m) {
+        $months[\Carbon\Carbon::create((int) $d[3], $m, 1)->translatedFormat('F')] = $m;
+    }
+    expect($months)->toHaveKey($d[2]);
+    $reportDate = \Carbon\Carbon::create((int) $d[3], $months[$d[2]], (int) $d[1]);
+
+    $reliability = dmrRows($html, 'Reliability per Line');
+    $hours = dmrRows($html, 'Hours per Line');
+
+    foreach (['Line 1', 'Line 2'] as $line) {
+        expect(dmrNum($reliability, $line, 6))->toBe((float) $reportDate->day, "Days MTD {$line}");
+        expect(dmrNum($reliability, $line, 7))->toBe((float) $reportDate->daysInMonth, "Days Total {$line}");
+        expect(dmrNum($hours, "{$line} / Available", 0))->toBe(24.0);
+        expect(dmrNum($hours, "{$line} / Available", 1))->toBe(24.0 * $reportDate->day);
+        expect(dmrNum($hours, "{$line} / Available", 2))->toBe(24.0 * $reportDate->dayOfYear);
+    }
+
+    // Garis pro-rata budget memakai pasangan hari yang sama.
+    expect($html)->toContain('Pro-rata hari ke-'.$reportDate->day);
+    expect($html)->toContain('(hari ke-'.$reportDate->day.' dari '.$reportDate->daysInMonth.')');
+});
+
+/*
+ * Kapasitas tangki CPO disebut di dua tempat: penyebut bar kartu 'Stok CPO' dan
+ * gauge tiap tangki di blok Kualitas & Stok Tangki. Dulu kartu memakai 3,000 MT
+ * sementara blok di bawahnya menggambar 4 x 1,000 MT.
+ */
+it('quotes the same CPO tank capacity on the KPI card as on the tank gauges', function () {
+    $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
+    $text = html_entity_decode(strip_tags($html));
+
+    expect(preg_match('/dari kapasitas (\d+) tangki \(([\d,]+) MT\)/', $text, $card))->toBe(1);
+    preg_match_all('/md-tank__stock">[\d,.]+ <small>\/ ([\d,]+) MT/', $html, $gauges);
+
+    // Gauge CPO = sebanyak yang disebut kartu, diambil dari urutan blok tangki.
+    $cpoGauges = array_slice(array_map(fn ($v) => (float) str_replace(',', '', $v), $gauges[1]), 0, (int) $card[1]);
+
+    expect(count($cpoGauges))->toBe((int) $card[1]);
+    expect(array_sum($cpoGauges))->toBe((float) str_replace(',', '', $card[2]));
+
+    // Dan stok yang dipajang kartu = jumlah isi keempat tangki itu.
+    $tanks = dmrRows($html, 'Product Quality');
+    $sum = 0.0;
+    foreach (range(1, (int) $card[1]) as $i) {
+        $sum += dmrNum($tanks, "CPO Tank {$i} / FFA (%)", 3);
+    }
+    expect($sum)->toBe(dmrNum(dmrRows($html, 'Inventory Level (MT)'), 'CPO', 0));
+});
+
+/*
+ * Badge deviasi tiap kartu KPI harus mengikuti nilainya sendiri dan pembanding
+ * yang ia sebutkan. Dulu kartu Milling Hours menyebut pembanding 21.58 jam
+ * (benarnya 21.45) dan karenanya menunjuk TURUN 0.4% padahal naik 0.2% — arah
+ * panah yang salah adalah satu-satunya hal yang dibaca orang dari badge itu.
+ */
+it('points every KPI deviation badge the way its own figures point', function () {
+    $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
+
+    $start = strpos($html, '<div class="md-kpis">');
+    expect($start)->not->toBeFalse();
+    $block = substr($html, $start, strpos($html, '<div class="md-row', $start) - $start);
+
+    preg_match_all('/<article class="md-kpi">(.*?)<\/article>/s', $block, $cards);
+    expect($cards[1])->toHaveCount(6);
+
+    foreach ($cards[1] as $card) {
+        preg_match('/md-kpi__label">(.*?)</s', $card, $label);
+        preg_match('/md-kpi__value">([\d,.]+)/s', $card, $value);
+        preg_match('/md-trend md-trend--(\w+)">([+-][\d.]+)%/s', $card, $badge);
+        preg_match('/vs rata-rata harian MTD \(([\d,.]+)/s', $card, $base);
+
+        $name = trim($label[1]);
+        $today = (float) str_replace(',', '', $value[1]);
+        $against = (float) str_replace(',', '', $base[1]);
+        $deviation = ($today / $against - 1) * 100;
+
+        expect((float) $badge[2])->toBe(round($deviation, 1), "besar deviasi kartu {$name}");
+        expect($badge[1])->toBe($deviation >= 0 ? 'up' : 'down', "arah deviasi kartu {$name}");
+    }
 });

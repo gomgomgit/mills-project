@@ -1,0 +1,2438 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-22"
+  },
+  "id": "screen-171--jadwal-shift",
+  "name": "Jadwal Shift",
+  "module_id": "module-master-data",
+  "route": "/master-data/shift-schedules (Livewire App\\Livewire\\MasterData\\JadwalShift, nama rute 'master-data.shift-schedules', middleware ['auth','role:admin,supervisor,mill_management'])",
+  "auth_requirement": "authenticated — sesi web. Peran: admin, supervisor, mill_management. Tujuh role setara Admin lolos lewat pemetaan role efektif (App\\Casts\\EffectiveUserRole → admin), sehingga guard cukup menyebut 'admin'. Operator ditolak 403. Dijaga di middleware rute, di mount() komponen, DAN di dalam service (tiga lapis, sama seperti screen-170). Supervisor dan Mill Management dibatasi pada business_unit_id miliknya sendiri di service.",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu mill — wajib memilih mill, lalu satu Production Line"
+    },
+    {
+      "actor_id": "actor-engineer",
+      "can_access": true,
+      "conditions": "Setara Admin (dibaca sebagai admin oleh model User)"
+    },
+    {
+      "actor_id": "actor-shift-supervisor",
+      "can_access": true,
+      "conditions": "Setara Admin"
+    },
+    {
+      "actor_id": "actor-maintenance",
+      "can_access": true,
+      "conditions": "Setara Admin"
+    },
+    {
+      "actor_id": "actor-mekanik",
+      "can_access": true,
+      "conditions": "Setara Admin"
+    },
+    {
+      "actor_id": "actor-logistics",
+      "can_access": true,
+      "conditions": "Setara Admin"
+    },
+    {
+      "actor_id": "actor-qa-qc",
+      "can_access": true,
+      "conditions": "Setara Admin"
+    },
+    {
+      "actor_id": "actor-mill-admin",
+      "can_access": true,
+      "conditions": "Setara Admin"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "HANYA mill miliknya (users.business_unit_id); pemilih mill hanya memuat mill itu dan business_unit_id lain ditolak 403 FORBIDDEN"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "HANYA mill miliknya (users.business_unit_id); pemilih mill hanya memuat mill itu dan business_unit_id lain ditolak 403 FORBIDDEN"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Akses web Operator terbatas pada Beranda, Ganti Password, dan Data Saya; layar ini 403 dan menunya tersembunyi"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-177--jadwal-shift",
+      "usecase_name": "Atur Jadwal Shift Bulanan per Production Line",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/shift-schedules/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill. Admin (dan role setara): semua mill. Supervisor / Mill Management: hanya mill miliknya (satu elemen).",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ],
+              "fixed": "boolean — true bila pemanggil terikat satu mill (Supervisor/Mill Management), supaya UI tidak menampilkan pemilih"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran operator"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/shift-schedules/production-lines/options",
+          "description": "Production Line milik satu mill untuk pemilih Line. Wajib business_unit_id.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Mill yang dipilih; bagi Supervisor/Mill Management harus sama dengan mill akunnya"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "live_shift_count": "integer — jumlah shift hidup, agar UI dapat memberi tahu line yang belum punya shift sebelum dipilih"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran operator, atau Supervisor/Mill Management meminta mill lain"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "business_unit_id absen"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/shift-schedules",
+          "description": "Grid satu bulan untuk SATU Production Line: kolom shift, baris tanggal, isi tiap sel, dan ringkasan bulan — seluruhnya dihitung SERVER.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB. Tidak ada mode 'semua line'; absen atau 'all' → 422"
+              },
+              {
+                "name": "month",
+                "type": "string YYYY-MM",
+                "required": false,
+                "default": "bulan berjalan menurut zona waktu aplikasi",
+                "description": "Jendela pandang; bukan satuan simpan"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": {
+                "production_line": {
+                  "id": "uuid",
+                  "name": "string",
+                  "business_unit_id": "uuid"
+                },
+                "month": "YYYY-MM",
+                "days": [
+                  {
+                    "date": "YYYY-MM-DD",
+                    "weekday": "integer 1..7 (Senin=1)",
+                    "weekday_label": "Sen|Sel|Rab|Kam|Jum|Sab|Min",
+                    "is_weekend": "boolean",
+                    "is_today": "boolean"
+                  }
+                ],
+                "shifts": [
+                  {
+                    "id": "uuid",
+                    "name": "string",
+                    "start_time": "HH:MM",
+                    "end_time": "HH:MM",
+                    "crosses_midnight": "boolean",
+                    "label": "string — mis. 'Malam 23:00 — 07:00 +1'",
+                    "position": "integer — urutan dari menit-ke-dalam-hari start_time, sumbu 00:00, SAMA dengan Kelola Shift",
+                    "closed": "boolean",
+                    "closed_from": "YYYY-MM-DD|null — tanggal penutupan; kolom hanya berlaku untuk date < closed_from dan read-only"
+                  }
+                ],
+                "cells": [
+                  {
+                    "shift_id": "uuid",
+                    "date": "YYYY-MM-DD",
+                    "editable": "boolean — false untuk shift tertutup",
+                    "assignees": [
+                      {
+                        "user_id": "uuid",
+                        "name": "string",
+                        "role_label": "string",
+                        "is_active": "boolean — false → UI menulis 'nonaktif'",
+                        "also_on_other_shift_today": "boolean"
+                      }
+                    ]
+                  }
+                ],
+                "summary": {
+                  "total_cells": "integer — jumlah (tanggal × shift yang berlaku pada tanggal itu)",
+                  "filled_cells": "integer",
+                  "empty_cells": "integer",
+                  "text": "string — mis. '61 dari 93 sel sudah terisi'"
+                },
+                "state": "string — 'ready' | 'no_live_shift'; 'no_live_shift' bila line tidak punya shift hidup, disertai arahan ke Kelola Shift"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Operator; atau Supervisor/Mill Management atas line milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "production_line_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "production_line_id absen atau bukan uuid; month bukan YYYY-MM"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — roster diubah banyak orang; selalu dibaca segar",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/shift-schedules/candidates",
+          "description": "Calon peserta untuk panel pengisi sel: user AKTIF berperan Operator atau Supervisor (role yang DIPILIH) pada mill dari line itu.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Menentukan mill"
+              },
+              {
+                "name": "q",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Pencarian nama, huruf besar-kecil tidak dibedakan (lower()+LIKE, bukan ILIKE)"
+              },
+              {
+                "name": "date",
+                "type": "string YYYY-MM-DD",
+                "required": false,
+                "default": null,
+                "description": "Bila diisi, tiap kandidat menyertakan shift lain pada tanggal itu tempat ia sudah bertugas (penanda informasi)"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "user_id": "uuid",
+                  "name": "string",
+                  "role_label": "Operator|Supervisor",
+                  "already_on_shifts": [
+                    {
+                      "shift_id": "uuid",
+                      "shift_name": "string"
+                    }
+                  ]
+                }
+              ],
+              "empty_reason": "string|null — 'no_candidates' bila mill tidak punya calon, supaya panel menyatakannya"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Operator; atau mill lain bagi Supervisor/Mill Management"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "production_line_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "production_line_id absen; date bukan tanggal"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "PUT",
+          "path": "/api/shift-schedules/cell",
+          "description": "Mengganti isi SATU sel (shift × tanggal) dengan daftar user yang dikirim. Daftar kosong = mengosongkan sel.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "shift_id": "uuid — wajib; harus shift HIDUP",
+              "date": "string YYYY-MM-DD — wajib",
+              "user_ids": "array<uuid> — wajib (boleh kosong); duplikat dalam array dilebur",
+              "loaded_user_ids": "array<uuid> — opsional; isi sel yang dilihat klien saat memuat, untuk mendeteksi perubahan orang lain"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "data": {
+                "shift_id": "uuid",
+                "date": "YYYY-MM-DD",
+                "assignees": [
+                  {
+                    "user_id": "uuid",
+                    "name": "string",
+                    "is_active": "boolean"
+                  }
+                ],
+                "changed_by_others": "boolean — true bila isi sel saat disimpan berbeda dari loaded_user_ids; penyimpanan tetap berlaku (last-write-wins)",
+                "previous_user_ids": "array<uuid> — isi sel tepat sebelum penimpaan, hanya diisi bila changed_by_others"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Operator; atau shift milik mill lain bagi Supervisor/Mill Management"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "shift_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Field wajib absen; date bukan tanggal"
+              },
+              {
+                "http_code": 422,
+                "error_code": "SHIFT_CLOSED",
+                "condition": "Shift sudah ditutup (soft delete) — tidak dapat ditulisi sama sekali"
+              },
+              {
+                "http_code": 422,
+                "error_code": "NOT_A_CANDIDATE",
+                "condition": "Ada user_id yang bukan user aktif berperan Operator/Supervisor pada mill line itu. Pesan menyebut user mana dan alasannya (nonaktif / role / mill lain). Seluruh penyimpanan ditolak, sel tidak berubah."
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/shift-schedules/apply",
+          "description": "Menerapkan satu daftar user ke banyak tanggal pada SATU shift. dry_run=true hanya menghitung dan tidak menulis.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "shift_id": "uuid — wajib; shift HIDUP",
+              "month": "string YYYY-MM — wajib; hanya tanggal pada bulan ini yang dapat terpengaruh",
+              "dates": "array<YYYY-MM-DD> — opsional; tanggal eksplisit",
+              "range": "{from: YYYY-MM-DD, to: YYYY-MM-DD, weekdays?: array<1..7>} — opsional; rentang dengan penyaring hari dalam seminggu",
+              "user_ids": "array<uuid> — wajib (boleh kosong = mengosongkan sel sasaran)",
+              "dry_run": "boolean — default false",
+              "confirm_overwrite": "boolean — wajib true untuk benar-benar menulis bila ada sel sasaran yang sudah berisi atau bila user_ids kosong dan ada yang terkosongkan"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "data": {
+                "target_cells": "integer",
+                "cells_already_filled": "integer",
+                "people_affected": "integer",
+                "outside_month_ignored": "integer",
+                "applied": "boolean — false pada dry_run",
+                "written_cells": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Operator; atau shift milik mill lain bagi Supervisor/Mill Management"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "shift_id tidak ada"
+              },
+              {
+                "http_code": 409,
+                "error_code": "CONFIRMATION_REQUIRED",
+                "condition": "Bila dates maupun range tidak diisi, atau keduanya diisi; format tanggal/bulan salah; range terbalik"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Ni dates maupun range diisi; format tanggal/bulan salah; range terbalik"
+              },
+              {
+                "http_code": 422,
+                "error_code": "SHIFT_CLOSED",
+                "condition": "Shift sudah ditutup"
+              },
+              {
+                "http_code": 422,
+                "error_code": "NOT_A_CANDIDATE",
+                "condition": "Ada user_id yang bukan calon peserta"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/shift-schedules/copy-previous",
+          "description": "Menyalin pola bulan sebelumnya (tanggal ke tanggal) ke bulan yang dibuka untuk SATU Production Line. dry_run=true hanya menghitung.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "production_line_id": "uuid — wajib",
+              "month": "string YYYY-MM — wajib; bulan TUJUAN. Sumbernya adalah bulan kalender sebelumnya",
+              "dry_run": "boolean — default false"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "data": {
+                "source_month": "YYYY-MM",
+                "filled": "integer — sel tujuan yang terisi",
+                "kept": "integer — sel tujuan yang sudah berisi dan dipertahankan",
+                "skipped": {
+                  "closed_shift": "integer",
+                  "inactive_or_not_candidate": "integer",
+                  "missing_day": "integer — tanggal sumber yang tak ada di bulan tujuan"
+                },
+                "nothing_to_copy": "boolean — true bila bulan sumber tak punya penugasan",
+                "applied": "boolean — false pada dry_run"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Sesi tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Operator; atau line milik mill lain bagi Supervisor/Mill Management"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "production_line_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "production_line_id atau month absen/format salah"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Gate peran, tiga lapis: middleware rute 'role:admin,supervisor,mill_management', mount() komponen, dan di dalam ShiftScheduleService. Peran dibaca dari $user->role (role EFEKTIF), sehingga tujuh role setara Admin lolos sebagai admin. Operator → 403 FORBIDDEN, nol kueri shift_assignments.",
+        "2. Lingkup mill: Supervisor/Mill Management → mill efektif = users.business_unit_id; business_unit_id atau production_line/shift milik mill lain → 403 FORBIDDEN. Admin (dan setara) → mill mana pun.",
+        "3. URUTAN PENDAFTARAN RUTE: ketujuh rute literal di bawah /shift-schedules; tidak ada rute ber-{id}, tetapi 'cell', 'apply', 'candidates', 'copy-previous', 'business-units/options', 'production-lines/options' didaftarkan LITERAL sebelum rute GET /shift-schedules agar tidak tertelan pola lain.",
+        "4. GET grid: production_line_id wajib (tanpa 'semua line'); month default bulan berjalan; hitung days untuk bulan itu (28–31 hari, bukan 31 tetap).",
+        "5. Kolom shift = shift hidup line itu (Shift::query()) DITAMBAH shift yang ditutup (withTrashed) yang deleted_at-nya jatuh SESUDAH tanggal 1 bulan itu → closed=true, closed_from=tanggal deleted_at (zona waktu aplikasi); cell untuk date >= closed_from tidak dikirim. Urut menurut position (menit-ke-dalam-hari start_time, sumbu 00:00).",
+        "6. Line tanpa satu pun shift hidup → state 'no_live_shift', shifts/cells kosong, 200 (bukan galat); UI menyatakan dan menautkan ke Kelola Shift.",
+        "7. cells: SATU kueri shift_assignments WHERE shift_id IN (kolom) AND work_date BETWEEN awal-akhir bulan, di-join users untuk nama/is_active; dikelompokkan per (shift_id, date) di PHP. Sel tanpa baris tetap dikirim dengan assignees=[] agar UI menulis 'belum ada petugas'.",
+        "8. summary dihitung server: total_cells = jumlah pasangan (tanggal, shift) yang BERLAKU (shift hidup: semua tanggal; shift tertutup: date < closed_from), filled_cells = pasangan yang punya ≥1 baris; text = 'N dari M sel sudah terisi'.",
+        "9. also_on_other_shift_today dihitung dari data bulan yang sama (user_id yang muncul di ≥2 shift pada date yang sama) — hanya informasi.",
+        "10. GET candidates: mill = business_unit dari production_line; filter users.business_unit_id = mill AND is_active = true AND getRawOriginal('role') IN ('operator','supervisor') (role yang DIPILIH, BUKAN role efektif — seorang 'engineer' bukan calon); q memakai lower(name) LIKE lower(%q%); urut name. Bila date diberikan, sertakan already_on_shifts. Tak ada calon → data=[] + empty_reason 'no_candidates'.",
+        "11. PUT cell: validasi shift_id/date/user_ids → 422 VALIDATION_ERROR; shift = Shift::withTrashed()->find → 404 bila tidak ada; shift ditutup (deleted_at tidak null) → 422 SHIFT_CLOSED; cek lingkup mill (butir 2).",
+        "12. Lebur duplikat user_ids. Validasi SETIAP user_id sebagai calon (butir 10: aktif, role terpilih operator/supervisor, mill = mill line shift) → bila ada yang gagal 422 NOT_A_CANDIDATE yang menyebut user dan alasannya, dan TIDAK ADA yang ditulis (semua-atau-tidak-sama-sekali).",
+        "13. Dalam satu transaksi: baca isi sel sekarang (current_ids); bandingkan dengan loaded_user_ids bila dikirim → changed_by_others = (set berbeda), previous_user_ids = current_ids; DELETE baris sel yang user_id-nya tidak ada di daftar baru; INSERT yang belum ada (UNIQUE (shift_id,user_id,work_date) membuat penaruhan ulang idempoten — pakai insertOrIgnore / firstOrCreate). Last-write-wins.",
+        "14. Mengosongkan sel (user_ids=[]) menghapus semua baris sel itu; sel kosong sah.",
+        "15. Tidak ada pemeriksaan bentrok lintas shift: user_id yang sama boleh ditulis pada beberapa shift di date yang sama.",
+        "16. POST apply: tepat satu dari dates atau range (keduanya/tak satu pun → 422); range diperluas menjadi tanggal dengan penyaring weekdays; hanya tanggal di dalam month yang dipakai, sisanya dihitung ke outside_month_ignored. Shift tertutup → 422 SHIFT_CLOSED. Validasi calon seperti butir 12.",
+        "17. Hitung target_cells, cells_already_filled (sel sasaran yang punya ≥1 baris), people_affected (jumlah baris yang akan ditimpa/dihapus). dry_run=true → kembalikan hitungan, applied=false, NOL tulis.",
+        "18. dry_run=false: bila cells_already_filled>0 atau (user_ids kosong dan ada yang akan dikosongkan) dan confirm_overwrite != true → 409 CONFIRMATION_REQUIRED, nol tulis. Selain itu terapkan per sel seperti butir 13 dalam SATU transaksi; written_cells = sel yang berubah.",
+        "19. POST copy-previous: bulan sumber = bulan kalender sebelum month. Muat penugasan sumber untuk line itu. Tak ada penugasan → nothing_to_copy=true, nol tulis.",
+        "20. Untuk tiap baris sumber: tanggal sumber tak ada di bulan tujuan → skipped.missing_day; shift sumber kini ditutup → skipped.closed_shift; user bukan lagi calon (nonaktif/role/mill) → skipped.inactive_or_not_candidate; sel tujuan yang SUDAH berisi → kept (DIPERTAHANKAN, tidak ditimpa); sisanya INSERT → filled. dry_run hanya menghitung.",
+        "21. Semua respons galat mengikuti shared-decisions.error_format; semua tulis dibungkus transaksi; ShiftScheduleService adalah satu-satunya tempat aturan ini hidup (controller API dan komponen Livewire sama-sama memanggilnya)."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Daftar mill untuk pemilih (semua untuk admin; satu untuk Supervisor/Mill Management)."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Line milik mill terpilih; line + mill untuk lingkup akses dan penentuan calon peserta."
+        },
+        {
+          "entity_id": "shift",
+          "operation": "SELECT",
+          "description": "Shift hidup line terpilih ditambah shift tertutup (withTrashed) yang deleted_at-nya setelah tanggal 1 bulan; juga untuk memvalidasi shift_id pada PUT cell/apply."
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "Calon peserta (aktif, role terpilih operator/supervisor, mill sama) dan nama/is_active pada isi sel."
+        },
+        {
+          "entity_id": "shift-assignment",
+          "operation": "SELECT",
+          "description": "Penugasan satu line pada satu bulan; isi sel saat ini sebelum penimpaan; sumber salinan bulan sebelumnya."
+        },
+        {
+          "entity_id": "shift-assignment",
+          "operation": "INSERT",
+          "description": "Menaruh orang pada sel (idempoten oleh UNIQUE shift_id+user_id+work_date); hasil apply dan copy-previous."
+        },
+        {
+          "entity_id": "shift-assignment",
+          "operation": "DELETE",
+          "description": "Mengeluarkan orang dari sel (hapus fisik) saat sel diganti, dikosongkan, atau ditimpa lewat apply."
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Mill belum dipilih",
+          "handling": "Klien tidak memanggil grid; options mill tetap tersedia. production-lines/options tanpa business_unit_id → 422 VALIDATION_ERROR."
+        },
+        {
+          "condition": "Production Line belum dipilih / diminta 'semua line'",
+          "handling": "GET /shift-schedules tanpa production_line_id atau dengan nilai 'all' → 422 VALIDATION_ERROR; tidak ada grid."
+        },
+        {
+          "condition": "Mill belum punya Production Line",
+          "handling": "production-lines/options mengembalikan data=[] 200; UI menyatakannya dan mengarahkan ke Kelola Production Line."
+        },
+        {
+          "condition": "Line belum punya shift hidup",
+          "handling": "GET grid mengembalikan state='no_live_shift' dengan shifts=[] dan cells=[] (200); UI menyatakan dan menautkan Kelola Shift, tanpa grid tanpa kolom."
+        },
+        {
+          "condition": "Supervisor/Mill Management meminta mill atau line milik mill lain",
+          "handling": "403 FORBIDDEN di service pada options, grid, candidates, cell, apply, dan copy-previous; pemilih mill mereka hanya memuat satu mill."
+        },
+        {
+          "condition": "Operator membuka layar atau memanggil endpoint",
+          "handling": "403 FORBIDDEN dari middleware rute (halaman 403 ramah di web); nol kueri shift_assignments."
+        },
+        {
+          "condition": "Orang yang sama pada dua shift di tanggal yang sama",
+          "handling": "Diterima; tidak ada pemeriksaan bentrok. candidates?date= hanya menyertakan already_on_shifts sebagai informasi."
+        },
+        {
+          "condition": "Orang yang sama dipilih dua kali pada sel yang sama",
+          "handling": "Duplikat dalam array dilebur; baris yang sudah ada tidak diubah; UNIQUE membuat penaruhan ulang idempoten; tanpa galat."
+        },
+        {
+          "condition": "Sel dikosongkan / shift tanpa petugas",
+          "handling": "user_ids=[] menghapus seluruh baris sel; sel dikirim dengan assignees=[] dan dihitung dalam empty_cells."
+        },
+        {
+          "condition": "Mill tanpa calon peserta",
+          "handling": "candidates mengembalikan data=[] dengan empty_reason='no_candidates'; panel menyatakannya."
+        },
+        {
+          "condition": "user_id bukan calon (role Mill Management/Admin/setara Admin, nonaktif, atau mill lain)",
+          "handling": "422 NOT_A_CANDIDATE yang menyebut user dan alasannya; seluruh penyimpanan ditolak, sel tidak berubah. Role diukur dari role yang DIPILIH (getRawOriginal), bukan role efektif."
+        },
+        {
+          "condition": "Shift lintas tengah malam",
+          "handling": "work_date = tanggal MULAI shift; tidak ada logika memecah ke dua tanggal. Header kolom menulis '+1' dari label shift; keterangan di dekat grid menjelaskan aturan ini."
+        },
+        {
+          "condition": "Shift ditutup pertengahan bulan",
+          "handling": "Grid menyertakan kolom closed=true dengan closed_from; sel date < closed_from dikirim editable=false dan histori utuh; sel date >= closed_from tidak dikirim; setiap PUT/apply atas shift itu → 422 SHIFT_CLOSED."
+        },
+        {
+          "condition": "Shift ditutup lalu dibuat shift baru bernama sama",
+          "handling": "Keduanya baris shift berbeda dengan shift_id berbeda; penugasan tetap pada shift_id lama dan tidak berpindah."
+        },
+        {
+          "condition": "Jam shift diubah setelah bulan diisi",
+          "handling": "Tidak ada tindakan: shift_assignments merujuk shift_id, bukan jam; grid memakai start_time/end_time terbaru untuk label dan urutan."
+        },
+        {
+          "condition": "User dinonaktifkan atau pindah mill setelah ditugaskan",
+          "handling": "Baris lama tetap; grid mengirim is_active=false (UI menulis 'nonaktif'); user tidak lagi muncul di candidates dan menaruhnya ke sel baru → NOT_A_CANDIDATE, tetapi mengeluarkannya dari sel selalu diizinkan (PUT yang mengecualikannya tidak memvalidasi user yang sudah ada di sel dan tetap dipertahankan)."
+        },
+        {
+          "condition": "Tanggal lampau diubah",
+          "handling": "Diterima tanpa penguncian waktu; tidak ada pemeriksaan work_date terhadap hari ini."
+        },
+        {
+          "condition": "Dua pengatur mengubah sel yang sama",
+          "handling": "Last-write-wins; bila loaded_user_ids dikirim dan berbeda dari isi saat disimpan → changed_by_others=true + previous_user_ids; UI menyegarkan sel dan menyatakan 'sel telah diubah orang lain', tanpa penimpaan diam-diam."
+        },
+        {
+          "condition": "Apply atas rentang yang melintasi bulan",
+          "handling": "Hanya tanggal di dalam month yang dipakai; sisanya dihitung ke outside_month_ignored dan dinyatakan; tidak ada galat."
+        },
+        {
+          "condition": "Apply tanpa dates dan tanpa range, atau keduanya",
+          "handling": "422 VALIDATION_ERROR."
+        },
+        {
+          "condition": "Apply dengan daftar orang kosong",
+          "handling": "Diperlakukan sebagai mengosongkan sel sasaran: dry_run menghitung target_cells dan people_affected; menulis memerlukan confirm_overwrite=true, jika tidak 409 CONFIRMATION_REQUIRED."
+        },
+        {
+          "condition": "Apply menimpa sel yang berisi tanpa konfirmasi",
+          "handling": "409 CONFIRMATION_REQUIRED, nol tulis; klien menampilkan konfirmasi inline dengan cells_already_filled dari dry_run lalu mengulang dengan confirm_overwrite=true."
+        },
+        {
+          "condition": "Salin dari bulan sebelumnya saat bulan sumber kosong",
+          "handling": "nothing_to_copy=true, nol tulis, 200."
+        },
+        {
+          "condition": "Salin ke bulan yang sudah sebagian terisi",
+          "handling": "Sel yang berisi dipertahankan (kept); hanya sel kosong yang diisi; respons menyatakan filled/kept/skipped."
+        },
+        {
+          "condition": "Salin dari bulan 31 hari ke bulan 30 hari",
+          "handling": "Tanggal sumber yang tak ada di bulan tujuan dilewati dan dihitung ke skipped.missing_day."
+        },
+        {
+          "condition": "Grid pada bulan 28/29/30 hari",
+          "handling": "days hanya memuat tanggal yang ada; total_cells dihitung dari jumlah hari sebenarnya."
+        },
+        {
+          "condition": "Layar pada lebar sempit",
+          "handling": "Murni tampilan: grid digulir mendatar di wrapper sendiri dengan kolom tanggal sticky; teks tidak di bawah 14px."
+        }
+      ],
+      "business_rules_applied": [
+        "Pengatur: admin, tujuh role setara Admin (lewat role efektif), Supervisor, Mill Management; Operator ditolak",
+        "Supervisor dan Mill Management hanya mill sendiri",
+        "Production Line wajib dipilih; tanpa mode 'semua line'",
+        "Assignment = satu orang × satu shift × satu tanggal × satu line; satu sel boleh banyak orang",
+        "Shift boleh tanpa petugas; sel kosong dinyatakan dengan kata",
+        "Orang yang sama boleh di beberapa shift pada hari yang sama tanpa pemeriksaan bentrok; tidak dua kali pada sel yang sama",
+        "Calon peserta hanya user aktif Operator/Supervisor (role terpilih) pada mill line itu",
+        "Data disimpan per tanggal; bulan hanya jendela pandang",
+        "Shift lintas tengah malam dikaitkan ke tanggal mulai",
+        "Shift tertutup: histori terbaca read-only sebelum tanggal penutupan, tidak tampil sesudahnya, tidak dapat ditulisi",
+        "Penugasan melekat pada shift, bukan jam",
+        "Penugasan informasional — tidak memengaruhi hak input record",
+        "Tanggal lampau dapat diubah tanpa penguncian",
+        "Salin dari bulan sebelumnya mempertahankan sel yang sudah berisi",
+        "Status ditulis dengan kata; teks minimal 14px"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "menolak operator dengan 403 FORBIDDEN dan nol kueri shift_assignments",
+          "given": "pemanggil berperan operator; ShiftAssignment dipantau lewat query log",
+          "expect": "lempar ForbiddenException kode FORBIDDEN (403) pada options, grid, candidates, cell, apply, dan copy-previous; jumlah kueri ke shift_assignments = 0"
+        },
+        {
+          "description": "menolak supervisor atas mill lain dengan 403 FORBIDDEN",
+          "given": "supervisor dengan business_unit_id = mill A; production_line/shift/business_unit_id yang diminta milik mill B",
+          "expect": "lempar ForbiddenException kode FORBIDDEN; tidak ada penulisan"
+        },
+        {
+          "description": "menolak mill_management atas mill lain dengan 403 FORBIDDEN",
+          "given": "mill_management dengan business_unit_id = mill A; permintaan atas line milik mill B",
+          "expect": "lempar ForbiddenException kode FORBIDDEN; tidak ada penulisan"
+        },
+        {
+          "description": "supervisor/mill_management hanya melihat satu mill pada options dan fixed=true",
+          "given": "supervisor milik mill A; terdapat mill A dan B",
+          "expect": "data berisi tepat satu elemen (mill A) dan fixed=true"
+        },
+        {
+          "description": "tujuh role setara Admin lolos gate sebagai admin pada mill mana pun",
+          "given": "user dengan role terpilih engineer, shift_supervisor, maintenance, mekanik, logistics, qa_qc, mill_admin (role efektif = admin); line di mill berbeda-beda",
+          "expect": "semua lolos tanpa FORBIDDEN, options mengembalikan semua mill dan fixed=false"
+        },
+        {
+          "description": "kandidat memakai role TERPILIH (getRawOriginal), bukan role efektif: engineer dikecualikan",
+          "given": "mill punya user aktif role terpilih operator, supervisor, engineer, mill_management, admin",
+          "expect": "candidates hanya berisi operator dan supervisor; engineer (efektif admin), mill_management, dan admin tidak muncul"
+        },
+        {
+          "description": "kandidat hanya user aktif pada mill dari line itu, terurut nama, pencarian lower()+LIKE",
+          "given": "ada user nonaktif, user mill lain, dan q='bUd' sementara nama 'Budi' ada",
+          "expect": "nonaktif dan mill lain tidak muncul; 'Budi' cocok tanpa membedakan huruf besar-kecil; hasil urut nama"
+        },
+        {
+          "description": "candidates mengembalikan empty_reason no_candidates bila tidak ada calon",
+          "given": "mill tidak punya user aktif berperan operator/supervisor",
+          "expect": "data=[] dan empty_reason='no_candidates'"
+        },
+        {
+          "description": "candidates dengan date menyertakan already_on_shifts",
+          "given": "user U ditugaskan pada shift A dan shift B pada tanggal yang sama",
+          "expect": "entri U memuat already_on_shifts berisi shift A dan shift B"
+        },
+        {
+          "description": "menolak penulisan ke shift tertutup dengan SHIFT_CLOSED",
+          "given": "Shift::withTrashed()->find mengembalikan shift dengan deleted_at tidak null",
+          "expect": "lempar 422 SHIFT_CLOSED pada PUT cell maupun apply; sel dan histori tidak berubah"
+        },
+        {
+          "description": "menolak shift_id yang tidak ada dengan NOT_FOUND",
+          "given": "Shift::withTrashed()->find mengembalikan null",
+          "expect": "lempar 404 NOT_FOUND"
+        },
+        {
+          "description": "menolak seluruh penyimpanan bila ada user bukan calon (NOT_A_CANDIDATE)",
+          "given": "user_ids=[valid, nonaktif, engineer, user mill lain]; sel berisi [X]",
+          "expect": "lempar 422 NOT_A_CANDIDATE yang menyebut user dan alasannya (nonaktif/role/mill lain); semua-atau-tidak-sama-sekali, sel tetap [X]"
+        },
+        {
+          "description": "peleburan duplikat user_ids",
+          "given": "user_ids=[U1,U1,U2]",
+          "expect": "sel berisi tepat U1 dan U2; satu baris per user; tanpa galat"
+        },
+        {
+          "description": "penaruhan ulang idempoten",
+          "given": "sel sudah berisi U1; PUT user_ids=[U1]",
+          "expect": "tidak ada perubahan baris, tanpa galat, UNIQUE(shift_id,user_id,work_date) tidak dilanggar, changed_by_others=false bila loaded_user_ids=[U1]"
+        },
+        {
+          "description": "user yang sama pada dua shift di tanggal yang sama diterima",
+          "given": "U1 sudah di shift A pada 2026-10-05; PUT shift B tanggal sama dengan user_ids=[U1]",
+          "expect": "berhasil tanpa pemeriksaan bentrok; U1 ada di kedua sel"
+        },
+        {
+          "description": "daftar kosong mengosongkan sel",
+          "given": "sel berisi [U1,U2]; PUT user_ids=[]",
+          "expect": "semua baris sel dihapus; assignees=[]; cabang kosong ditangani eksplisit (bukan whereIn kosong); baris sel lain tidak tersentuh"
+        },
+        {
+          "description": "mengeluarkan user nonaktif dari sel selalu diizinkan",
+          "given": "sel berisi [U_nonaktif,U2]; PUT user_ids=[U2]",
+          "expect": "U_nonaktif dihapus tanpa NOT_A_CANDIDATE; user nonaktif yang tetap dipertahankan juga tidak divalidasi ulang"
+        },
+        {
+          "description": "last-write-wins dengan changed_by_others",
+          "given": "loaded_user_ids=[U1], isi sel saat ini [U2]",
+          "expect": "penyimpanan tetap berlaku; changed_by_others=true; previous_user_ids=[U2]; isi akhir sesuai user_ids terbaru"
+        },
+        {
+          "description": "changed_by_others false bila isi sel sama dengan loaded_user_ids (atau tidak dikirim)",
+          "given": "loaded_user_ids=[U1], isi sel saat ini [U1]; kasus lain tanpa loaded_user_ids",
+          "expect": "changed_by_others=false dan previous_user_ids kosong/absen"
+        },
+        {
+          "description": "apply dry_run tidak menulis apa pun",
+          "given": "dates 3 tanggal, 2 di antaranya sudah berisi, dry_run=true",
+          "expect": "mengembalikan target_cells=3, cells_already_filled=2, people_affected sesuai, applied=false, written_cells=0; jumlah baris shift_assignments tidak berubah"
+        },
+        {
+          "description": "apply menolak dengan CONFIRMATION_REQUIRED bila menimpa tanpa konfirmasi",
+          "given": "dry_run=false, ada sel sasaran berisi (atau user_ids kosong yang akan mengosongkan), confirm_overwrite tidak true",
+          "expect": "lempar 409 CONFIRMATION_REQUIRED; nol tulis; dengan confirm_overwrite=true diterapkan dalam satu transaksi dan applied=true"
+        },
+        {
+          "description": "apply validasi dates XOR range dan bulan",
+          "given": "dates dan range keduanya diisi, atau keduanya kosong, atau range terbalik; tanggal di luar month",
+          "expect": "dates/range ganda atau kosong atau terbalik: 422 VALIDATION_ERROR; tanggal di luar month dihitung ke outside_month_ignored dan tidak ditulis; filter weekdays diterapkan pada range"
+        },
+        {
+          "description": "copy-previous mempertahankan sel berisi dan menghitung skipped",
+          "given": "sumber bulan sebelumnya memuat baris pada tgl 31 (tujuan 30 hari), shift kini tertutup, user nonaktif/bukan calon, dan sel tujuan yang sudah berisi",
+          "expect": "skipped.missing_day, skipped.closed_shift, skipped.inactive_or_not_candidate masing-masing terhitung; sel tujuan berisi masuk kept dan TIDAK ditimpa; sisanya filled; dry_run=true tidak menulis (applied=false)"
+        },
+        {
+          "description": "copy-previous saat bulan sumber kosong",
+          "given": "bulan kalender sebelum month tidak punya penugasan pada line itu",
+          "expect": "nothing_to_copy=true, filled=0, nol tulis, 200"
+        },
+        {
+          "description": "panjang bulan 28 sampai 31 hari",
+          "given": "month=2026-02, 2028-02 (kabisat), 2026-04, 2026-10",
+          "expect": "days berjumlah 28, 29, 30, 31; total_cells = jumlah hari sebenarnya x shift yang berlaku"
+        },
+        {
+          "description": "shift lintas tengah malam dikunci pada tanggal mulai",
+          "given": "shift 23:00-07:00 (crosses_midnight=true); PUT date=2026-10-05",
+          "expect": "baris work_date=2026-10-05; tidak ada baris 2026-10-06; label memuat '+1'"
+        },
+        {
+          "description": "closed_from memakai zona waktu aplikasi",
+          "given": "app.timezone=Asia/Jakarta; shift dihapus dengan deleted_at UTC 2026-10-14 18:30 (= 15 Okt 01:30 WIB) dan kasus 2026-10-14 16:59 UTC (= 14 Okt 23:59 WIB)",
+          "expect": "closed_from = 2026-10-15 untuk kasus pertama dan 2026-10-14 untuk kedua (bukan tanggal UTC); sel date < closed_from editable=false; date >= closed_from tidak dikirim; total_cells hanya menghitung pasangan yang berlaku"
+        },
+        {
+          "description": "grid: production_line_id wajib dan state no_live_shift",
+          "given": "production_line_id absen/'all' dan kasus line tanpa shift hidup",
+          "expect": "absen/'all': 422 VALIDATION_ERROR; line tanpa shift hidup: 200 dengan state='no_live_shift', shifts=[], cells=[]"
+        },
+        {
+          "description": "mengembalikan hasil sukses saat semua kondisi terpenuhi (happy path)",
+          "given": "admin; shift hidup; user_ids semuanya kandidat aktif pada mill line itu; tidak ada kolisi",
+          "expect": "PUT cell mengembalikan assignees sesuai, changed_by_others=false; grid summary.text='N dari M sel sudah terisi' dihitung server dan filled+empty=total"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "shift-assignment",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "shift",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-170--kelola-shift",
+      "reason": "Sumber definisi shift (nama, jam, soft delete). Layar ini membaca shift hidup dan tertutup dari sana, dan diakses lewat tab/tombol di layar itu. Jam atau keberadaan shift TIDAK diatur di sini."
+    },
+    {
+      "screen_id": "screen-036--kelola-production-line",
+      "reason": "Induk Production Line; mill tanpa line diarahkan ke sana."
+    },
+    {
+      "screen_id": "screen-029--kelola-business-unit",
+      "reason": "Sumber daftar mill pada pemilih Mill."
+    },
+    {
+      "screen_id": "screen-032--kelola-user-role",
+      "reason": "Sumber calon peserta (user aktif, role terpilih Operator/Supervisor, mill). Role yang dipilih di sana (assignedRole) menentukan kelayakan, bukan role efektif."
+    }
+  ],
+  "implementation_notes": [
+    "Berkas: app/Livewire/MasterData/JadwalShift.php, app/Services/ShiftScheduleService.php, app/Http/Controllers/Api/ShiftScheduleController.php, app/Models/ShiftAssignment.php, resources/views/livewire/master-data/jadwal-shift.blade.php, satu migrasi create_shift_assignments_table, routes/web.php, routes/api.php, dan tab/tombol 'Jadwal Shift' di kelola-shift.blade.php (tampil hanya bila pemanggil punya akses).",
+    "MIGRASI: shift_assignments(id uuid, shift_id FK shifts — TANPA cascade-on-delete dan merujuk baris tertutup, user_id FK users, work_date date, created_by FK users, timestamps) + UNIQUE (shift_id,user_id,work_date) + INDEX (shift_id,work_date) + INDEX (user_id,work_date). Uji siklus up→rollback→up di DB e2e (down() jangan memakai dropForeign([...nama...]) tanpa memeriksa nama constraint-nya).",
+    "ROLE: calon peserta memakai getRawOriginal('role') / User::assignedRole() — JANGAN $user->role, karena cast EffectiveUserRole memetakan role setara Admin ke Admin. Sebaliknya gate akses memakai $user->role (efektif). Dua pembacaan ini sengaja berbeda; beri komentar di kode.",
+    "Gate akses: middleware 'role:admin,supervisor,mill_management' (rute web dan API). Lingkup mill Supervisor/Mill Management ditegakkan di ShiftScheduleService, bukan hanya di UI. Pemilih mill disembunyikan bila options.fixed=true.",
+    "Sidebar mengikuti guard rute lewat RouteAccess; 'Jadwal Shift' muncul di grup Master Data bagi ketiga kelompok peran. Menu Kelola Shift tetap admin-only — Supervisor/Mill Management hanya melihat Jadwal Shift.",
+    "Sumbu waktu 'hari ini' dan batas bulan memakai zona waktu aplikasi (config app.timezone), bukan UTC — deleted_at disimpan UTC lalu dikonversi ke zona aplikasi sebelum diambil tanggalnya untuk closed_from. Uji dengan shift yang ditutup mendekati tengah malam.",
+    "SQLITE vs POSTGRESQL (suite jalan di SQLite, produksi PostgreSQL): kolom date → pakai whereDate/whereBetween pada string 'YYYY-MM-DD' secara konsisten; pencarian nama lower()+LIKE bukan ILIKE; user_ids kosong tidak boleh jadi whereIn([]) yang berbeda perilaku — tangani cabang kosong secara eksplisit.",
+    "Tulis dalam satu transaksi dan idempoten: insertOrIgnore (UNIQUE) untuk penaruhan, whereNotIn untuk penghapusan — jaga cabang daftar kosong.",
+    "Memuat bulan: SATU kueri penugasan + SATU kueri shift + SATU kueri users; kelompokkan di PHP. Hindari N+1 per sel (hingga 31×shift sel).",
+    "Isi sel panjang: UI menampilkan sebagian + '+N lagi' yang dapat dibuka; jangan memotong dengan overflow tersembunyi.",
+    "Livewire: state bulan/line/mill dipertahankan di query string agar 'kembali dari layar lain' memulihkan konteks; field pencarian dan tanggal tidak boleh disabled/readonly (picker + ketik manual).",
+    "Penugasan INFORMASIONAL: jangan mengaitkannya ke hak input record atau ke penandaan shift_id pada record di putaran ini.",
+    "Kerangka seed/tes: factory ShiftAssignment; tes memakai user dengan role terpilih engineer untuk membuktikan 'setara Admin tetapi bukan calon peserta'.",
+    "REVISI v2 (kalender): TIDAK ADA perubahan API, entitas, maupun kontrak — GET /api/shift-schedules sudah mengirim days (tanggal, weekday, weekday_label, is_weekend, is_today), shifts, dan cells. Kalender dan Tabel dirender dari respons yang SAMA di JadwalShift; jangan menambah endpoint.",
+    "State Livewire baru: viewMode ('calendar'|'table', bawaan 'calendar'), openDate (YYYY-MM-DD|null), openShiftId (uuid|null). Ketiganya BUKAN data tersimpan. viewMode diingat per pengguna di peramban (localStorage lewat Alpine, dibungkus try/catch; halaman wajib benar tanpanya) — jangan disimpan di server.",
+    "Kalender dibangun dari days: kotak kosong di depan = weekday tanggal 1 dikurangi 1 (Senin=1), kotak kosong di belakang melengkapi minggu terakhir; kotak kosong tidak punya handler klik. Tanggal diambil dari respons server, bukan dihitung ulang di klien.",
+    "TIDAK ADA tombol 'Atur' pada sel. Seluruh sel tabel dan seluruh kotak kalender adalah satu target klik (elemen tombol/aksesibel dengan label berisi tanggal dan nama shift, bukan div ber-onclick); mengeklik memanggil openDay(date, shiftId?) yang mengisi openDate/openShiftId. Sel/kotak shift tertutup tetap membuka kartu tetapi dalam mode histori (tanpa bagian pengisi dan tanpa tombol simpan).",
+    "KARTU TANGGAL di sisi grid: tata letak dua kolom (grid di kiri, kartu di kanan) pada layar lebar; pada layar sempit kartu tampil di bawah/menutupi daftar dengan tombol kembali. Kartu memuat semua shift tanggal itu; menyimpan satu shift memanggil PUT /api/shift-schedules/cell sekali untuk shift itu saja — shift lain pada kartu tidak ikut tertimpa. loaded_user_ids diambil dari isi sel saat kartu dibuka.",
+    "Perubahan yang belum disimpan di kartu dilacak per shift (state dirty). Mengeklik tanggal lain atau berpindah bulan: bulan → kartu ditutup tanpa menyimpan; tanggal lain dengan dirty → konfirmasi inline sebelum membuang.",
+    "Kalender pada layar sempit: breakpoint CSS mengubah grid 7 kolom menjadi daftar per minggu (satu baris per tanggal); isi dan perilaku klik sama. Teks minimal 14px di semua breakpoint; kotak padat memakai '+N lagi' yang dapat dibuka (bukan overflow:hidden yang memotong diam-diam).",
+    "Penanda kalender ('Hari ini', 'Dibuka', akhir pekan Sab/Min, 'belum ada petugas', 'shift sudah dihapus') ditulis sebagai TEKS; setiap kelas CSS baru yang dipakai markup WAJIB punya definisi (periksa hasil kompilasi, bukan hanya sumber). Beri data-testid pada: pemilih tampilan, kotak tanggal (data-testid memuat tanggal), sel tabel, kartu tanggal, dan teks 'belum ada petugas' agar tes tidak bergantung pada kelas gaya.",
+    "TES: tes Livewire yang ada (JadwalShiftTest, 63 kasus) dan spec Playwright (jadwal-shift.spec.ts, 32 tes) ditulis terhadap tabel dengan tombol 'Atur' — sebagian akan GAGAL oleh perubahan ini dan WAJIB diperbarui mengikuti perilaku baru (klik sel membuka kartu), bukan dilonggarkan. Tambahkan tes baru untuk kalender, pemilih tampilan, kartu tanggal, dan sel shift tertutup."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Jadwal Shift — success",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/candidates"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "date": "2026-10-05"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "{{step1.data[0].user_id}}"
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "pilih mill dan Production Line, buka sel tanggal x shift, centang satu petugas, klik Simpan",
+        "assert": "sel menampilkan nama petugas, ringkasan 'N dari M sel sudah terisi' bertambah, sel lain tetap 'belum ada petugas'"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "login sebagai admin, pilih mill dan line, buka sel, centang petugas, simpan",
+        "assert": "grid memperlihatkan petugas pada sel, ringkasan terbarui, sel kosong bertuliskan 'belum ada petugas'"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Mill belum dipilih",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/production-lines/options"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "render komponen sebagai admin tanpa memilih mill",
+        "assert": "tidak ada grid, arahan 'pilih mill' tampil, pemilih Line belum aktif"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "buka halaman sebagai admin tanpa query string",
+        "assert": "tidak ada grid dan teks arahan memilih mill terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Production Line belum dipilih",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "month": "2026-10"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "pilih mill tetapi tidak memilih Production Line",
+        "assert": "tidak ada grid, tidak ada opsi 'semua line', arahan memilih line tampil"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "pilih mill lalu buka daftar pemilih Line",
+        "assert": "tidak ada grid dan daftar Line tidak memuat opsi 'semua line'"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Mill belum punya Production Line",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/production-lines/options"
+          },
+          "request_example": {
+            "business_unit_id": "<uuid-mill-tanpa-line>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "pilih mill yang tidak punya Production Line",
+        "assert": "pesan 'mill belum punya Production Line' dan tautan ke Kelola Production Line tampil, tanpa grid"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "pilih mill tanpa Production Line",
+        "assert": "pesan dan tautan ke Kelola Production Line terlihat, tidak ada grid"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Line belum punya shift hidup",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line-tanpa-shift>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "pilih line yang tidak punya shift hidup",
+        "assert": "pesan 'belum punya shift hidup' dengan tautan ke Kelola Shift tampil, tidak ada grid tanpa kolom"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "pilih mill dan line tanpa shift hidup",
+        "assert": "pesan dan tautan ke Kelola Shift terlihat, tidak ada tabel grid"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Supervisor atau Mill Management mencoba mill lain",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/production-lines/options"
+          },
+          "request_example": {
+            "business_unit_id": "<uuid-mill-lain>"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line-mill-lain>"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "render sebagai supervisor lalu coba set mill lain lewat query string",
+        "assert": "pemilih mill tidak tampil (fixed), hanya mill sendiri, mill lain ditolak 403"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "login sebagai supervisor, buka halaman dan coba ?business_unit_id=<mill lain>",
+        "assert": "tidak ada pemilih mill lain, mill lain tidak termuat/403 ramah"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Operator mencoba membuka layar",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "mount komponen sebagai operator",
+        "assert": "mount() menolak dengan 403, tidak ada data shift_assignments dimuat"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "login sebagai operator lalu buka rute",
+        "assert": "halaman 403 ramah tampil dan menu 'Jadwal Shift' tidak ada di sidebar"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Satu orang di beberapa shift pada hari yang sama",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift-A>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "<uuid-U1>"
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift-B>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "<uuid-U1>"
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/candidates"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "date": "2026-10-05"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "isi sel shift A dengan U1, buka panel sel shift B pada tanggal yang sama dan centang U1, simpan",
+        "assert": "tersimpan tanpa galat bentrok; panel menandai U1 'sudah ada di shift lain hari ini'"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "tugaskan orang yang sama pada dua shift di tanggal yang sama",
+        "assert": "kedua sel menampilkan nama itu, penanda 'juga di shift lain' terlihat, tidak ada pesan bentrok"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Orang yang sama dipilih dua kali pada sel yang sama",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "<uuid-U1>"
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "<uuid-U1>",
+              "<uuid-U1>"
+            ],
+            "loaded_user_ids": [
+              "<uuid-U1>"
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "buka sel yang sudah berisi U1, biarkan U1 tercentang, simpan",
+        "assert": "tidak ada perubahan pada sel dan tidak ada pesan galat"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "buka sel berisi satu petugas lalu simpan tanpa mengubah",
+        "assert": "sel tetap berisi satu petugas yang sama, tanpa pesan galat"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Shift dibiarkan tanpa petugas",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-05",
+            "user_ids": []
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "buka sel berisi petugas, hapus centang semua, simpan",
+        "assert": "sel menampilkan 'belum ada petugas' dan sel itu dihitung dalam ringkasan sebagai kosong"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "keluarkan semua petugas dari sebuah sel lalu simpan",
+        "assert": "sel bertuliskan 'belum ada petugas' dan ringkasan bulan diperbarui"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Mill tanpa calon peserta",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/candidates"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line-mill-tanpa-calon>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "buka sel pada mill tanpa user aktif Operator/Supervisor",
+        "assert": "panel menyatakan tidak ada calon peserta (empty_reason no_candidates), bukan daftar kosong tanpa keterangan"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "buka sebuah sel pada mill tanpa calon",
+        "assert": "panel menampilkan teks tidak ada calon peserta"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Role selain Operator dan Supervisor tidak menjadi calon peserta",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/candidates"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "buka panel sel pada mill yang punya user mill_management, admin, dan engineer di samping operator/supervisor",
+        "assert": "hanya operator dan supervisor muncul; engineer, mill_management, dan admin tidak ada di daftar"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "buka sel dan baca daftar calon",
+        "assert": "nama user berperan Engineer, Mill Management, dan Admin tidak muncul"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Shift lintas tengah malam",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift-malam>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "<uuid-U1>"
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "isi sel shift malam (23:00 - 07:00 +1) pada 5 Okt dan simpan",
+        "assert": "petugas tampil di baris 5 Okt dan tidak di baris 6 Okt; header kolom memuat '+1'"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "isi sel shift lintas tengah malam pada satu tanggal",
+        "assert": "petugas hanya tampil pada tanggal mulai, baris tanggal berikutnya untuk shift itu tetap kosong"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Shift dihapus pertengahan bulan",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "render bulan dengan shift tertutup (closed=true, closed_from 2026-10-15)",
+        "assert": "kolom tampil read-only dengan keterangan 'shift sudah dihapus' untuk tanggal < closed_from, tidak ada sel untuk tanggal sesudahnya, histori tetap terlihat"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "buka bulan yang memuat shift yang dihapus pertengahan bulan",
+        "assert": "kolom read-only berketerangan 'shift sudah dihapus', sel sebelum penutupan tidak bisa diklik, sel sesudahnya tidak tampil"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Jam shift diubah setelah bulan diisi",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "render grid setelah start_time/end_time shift diubah",
+        "assert": "petugas tetap pada kolom shift yang sama dengan label jam terbaru, tidak terhapus dan tidak berpindah"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "ubah jam shift di Kelola Shift lalu buka kembali Jadwal Shift",
+        "assert": "penugasan masih pada shift yang sama dan header memakai jam baru"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — User dinonaktifkan setelah ditugaskan",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-06",
+            "user_ids": [
+              "<uuid-U-nonaktif>"
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NOT_A_CANDIDATE"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-05",
+            "user_ids": []
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "render sel berisi user nonaktif, coba tambahkan ke sel lain, lalu keluarkan dari sel semula",
+        "assert": "nama tampil dengan keterangan 'nonaktif', user tidak ada di daftar calon, pengeluaran dari sel berhasil"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "buka sel berisi user nonaktif, keluarkan user itu, simpan",
+        "assert": "keterangan 'nonaktif' terlihat sebelum dikeluarkan, user tidak ditawarkan di sel lain, pengeluaran berhasil"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Terapkan ke banyak tanggal",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shift-schedules/apply"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "month": "2026-10",
+            "dates": [
+              "2026-10-01",
+              "2026-10-02",
+              "2026-11-01"
+            ],
+            "user_ids": [
+              "<uuid-U1>"
+            ],
+            "dry_run": true
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shift-schedules/apply"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "month": "2026-10",
+            "dates": [
+              "2026-10-01",
+              "2026-10-02",
+              "2026-11-01"
+            ],
+            "user_ids": [
+              "<uuid-U1>"
+            ],
+            "dry_run": false
+          },
+          "expected_status": 409,
+          "expected_error_code": "CONFIRMATION_REQUIRED"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shift-schedules/apply"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "month": "2026-10",
+            "dates": [
+              "2026-10-01",
+              "2026-10-02",
+              "2026-11-01"
+            ],
+            "user_ids": [
+              "<uuid-U1>"
+            ],
+            "dry_run": false,
+            "confirm_overwrite": true
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "buka 'Terapkan ke beberapa tanggal', pilih shift, tanggal, dan orang, lihat pratinjau, lalu konfirmasi",
+        "assert": "pratinjau menyebut jumlah sel sasaran dan yang sudah berisi, konfirmasi inline muncul bila menimpa, tanggal luar bulan diabaikan"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "gunakan 'Terapkan ke beberapa tanggal' dengan beberapa tanggal termasuk sel yang sudah berisi lalu konfirmasi",
+        "assert": "jumlah sel sasaran dan terisi tampil sebelum simpan, konfirmasi inline muncul, grid terisi hanya pada bulan terbuka"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Terapkan dengan daftar orang kosong",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shift-schedules/apply"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "month": "2026-10",
+            "dates": [
+              "2026-10-05",
+              "2026-10-06"
+            ],
+            "user_ids": [],
+            "dry_run": true
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shift-schedules/apply"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "month": "2026-10",
+            "dates": [
+              "2026-10-05",
+              "2026-10-06"
+            ],
+            "user_ids": [],
+            "dry_run": false
+          },
+          "expected_status": 409,
+          "expected_error_code": "CONFIRMATION_REQUIRED"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shift-schedules/apply"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "month": "2026-10",
+            "dates": [
+              "2026-10-05",
+              "2026-10-06"
+            ],
+            "user_ids": [],
+            "dry_run": false,
+            "confirm_overwrite": true
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "buka 'Terapkan ke beberapa tanggal', pilih tanggal, kosongkan daftar orang, klik Terapkan",
+        "assert": "konfirmasi inline menyebut jumlah sel dan orang yang terdampak; setelah dikonfirmasi sel sasaran menjadi 'belum ada petugas'"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "terapkan dengan daftar orang kosong pada tanggal terpilih lalu konfirmasi",
+        "assert": "konfirmasi inline menampilkan jumlah sel dan orang terdampak, sel sasaran menjadi kosong"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Salin dari bulan sebelumnya",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shift-schedules/copy-previous"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-11",
+            "dry_run": true
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shift-schedules/copy-previous"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-11"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "klik 'Salin dari bulan sebelumnya' pada bulan yang sebagian sel sudah berisi",
+        "assert": "hasil dinyatakan 'N terisi, M dipertahankan, K dilewati'; sel yang sudah berisi tidak berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "buka bulan yang sebagian terisi dan pilih 'Salin dari bulan sebelumnya'",
+        "assert": "pesan hasil N terisi, M dipertahankan, K dilewati tampil dan sel berisi tetap sama"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Salin saat bulan sebelumnya kosong",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shift-schedules/copy-previous"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-11"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "klik 'Salin dari bulan sebelumnya' saat bulan sumber tidak punya penugasan",
+        "assert": "pesan 'tidak ada yang dapat disalin' tampil (nothing_to_copy=true), grid tidak berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "pilih 'Salin dari bulan sebelumnya' pada line yang bulan sebelumnya kosong",
+        "assert": "pesan tidak ada yang dapat disalin tampil, grid dan ringkasan tidak berubah"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Mengubah tanggal lampau",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-01",
+            "user_ids": [
+              "<uuid-U1>"
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "buka sel pada tanggal yang sudah lewat, ubah petugas, simpan",
+        "assert": "perubahan tersimpan tanpa pesan penguncian"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "ubah sel pada tanggal lampau lalu simpan",
+        "assert": "perubahan diterima, nama petugas baru tampil, tanpa pesan terkunci"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Dua pengatur mengubah sel yang sama",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "<uuid-U2>"
+            ],
+            "loaded_user_ids": []
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "<uuid-U1>"
+            ],
+            "loaded_user_ids": []
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "buka sel, lalu pengatur lain menyimpan, kemudian simpan dari layar lama",
+        "assert": "respons changed_by_others=true; sel disegarkan dengan pesan 'sel telah diubah orang lain'; tidak menimpa diam-diam"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "dua sesi membuka sel yang sama; sesi A menyimpan, sesi B (layar lama) menyimpan",
+        "assert": "sesi B menampilkan pesan sel telah diubah orang lain dan isi sel yang disegarkan; penyimpanan terakhir berlaku"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Bulan 28, 29, atau 30 hari",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-02"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "pindah bulan ke Februari",
+        "assert": "grid dimuat ulang dengan 28 baris tanggal (29 pada tahun kabisat), tidak ada tanggal 29-31 palsu"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "klik navigasi bulan ke bulan yang bukan 31 hari",
+        "assert": "grid hanya memuat tanggal yang ada pada bulan itu"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Layar pada lebar sempit",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "render grid dengan banyak kolom shift",
+        "assert": "grid berada dalam wrapper yang dapat digulir mendatar dan kolom tanggal ditandai sticky"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "set viewport sempit (mis. 375px), buka grid, gulir mendatar",
+        "assert": "grid tergulir mendatar di wrapper sendiri, kolom tanggal tetap terlihat, ukuran font teks >= 14px, sel tidak terpotong induknya"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Menugaskan user bukan calon peserta ditolak",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "<uuid-U-valid>",
+              "<uuid-engineer>"
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NOT_A_CANDIDATE"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "<uuid-U-nonaktif>"
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NOT_A_CANDIDATE"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "<uuid-U-mill-lain>"
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NOT_A_CANDIDATE"
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "kirim penyimpanan sel dengan user bukan calon lewat pemanggilan langsung ke komponen",
+        "assert": "pesan galat menyebut user dan alasannya, isi sel tidak berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "kirim permintaan langsung (request context) PUT sel dengan user engineer, lalu muat ulang halaman",
+        "assert": "respons 422 NOT_A_CANDIDATE dan isi sel di grid tidak berubah"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Mengisi shift terhapus pada tanggal sesudah penutupan ditolak",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift-tertutup>",
+            "date": "2026-10-20",
+            "user_ids": [
+              "<uuid-U1>"
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "SHIFT_CLOSED"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/shift-schedules/apply"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift-tertutup>",
+            "month": "2026-10",
+            "dates": [
+              "2026-10-20"
+            ],
+            "user_ids": [
+              "<uuid-U1>"
+            ],
+            "dry_run": false
+          },
+          "expected_status": 422,
+          "expected_error_code": "SHIFT_CLOSED"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "panggil simpan sel untuk shift tertutup pada tanggal setelah penutupan",
+        "assert": "ditolak dengan pesan shift sudah dihapus; histori sebelum penutupan tetap utuh"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "kirim permintaan langsung PUT sel shift tertutup pada tanggal sesudah penutupan, lalu muat ulang grid",
+        "assert": "respons 422 SHIFT_CLOSED dan sel histori sebelum penutupan tetap terisi"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Membuka tanpa memilih Production Line lewat permintaan langsung ditolak",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "month": "2026-10"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "all",
+            "month": "2026-10"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "set production_line_id kosong/'all' pada komponen",
+        "assert": "tidak ada grid dan pengatur diminta memilih satu Production Line"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "buka dengan query ?production_line_id=all atau tanpa line",
+        "assert": "tidak ada grid, pesan meminta memilih satu Production Line tampil"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Kalender adalah tampilan bawaan",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "mount sebagai admin, pilih mill dan line yang punya shift hidup",
+        "assert": "viewMode = 'calendar'; ada tujuh header Sen–Min; satu kotak per tanggal (data-testid memuat tanggal); tiap kotak memuat satu baris per shift berisi nama shift dan petugasnya; pemilih tampilan menandai Kalender aktif dengan teks"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "login sebagai admin, pilih mill dan line",
+        "assert": "kalender terlihat, tujuh kolom, 31 kotak berisi untuk Oktober; pemilih 'Kalender | Tabel' menandai Kalender"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Berganti ke tampilan Tabel",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "set viewMode ke 'table' dengan data terisi",
+        "assert": "tabel tampil dengan baris tanggal dan kolom shift berurut menurut position; mill, line, bulan tidak berubah; teks ringkasan bulan identik dengan di kalender; jumlah baris shift_assignments tidak berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "klik 'Tabel' lalu 'Kalender'",
+        "assert": "isi dan ringkasan sama di kedua tampilan, tidak ada permintaan tulis"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Mengeklik sel tabel membuka kartu tanggal di samping",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules/candidates"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "date": "2026-10-05"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift-pagi>",
+            "date": "2026-10-05",
+            "user_ids": [
+              "{{step1.data[0].user_id}}"
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "tampilan Tabel; panggil openDay('2026-10-05', shiftPagi) lewat klik sel (bukan tombol Atur)",
+        "assert": "tidak ada elemen/tombol 'Atur' pada tabel; openDate = 2026-10-05, openShiftId = shift Pagi; kartu tanggal terlihat memuat semua shift tanggal itu dengan Pagi terbuka lebih dulu; menyimpan menulis tepat satu sel dan tidak menyentuh shift lain"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "tampilan Tabel, klik sel Pagi tanggal 5",
+        "assert": "kartu tanggal muncul di samping grid (grid masih terlihat), centang petugas lalu simpan menampilkan nama di sel"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Mengeklik kotak kalender membuka kartu tanggal di samping",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "tampilan Kalender; klik kotak tanggal 5",
+        "assert": "kartu tanggal untuk 5 Okt terbuka; kotak itu bertanda teks 'Dibuka'; semua shift tanggal itu dapat diatur dari kartu"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "klik kotak tanggal 5 pada kalender",
+        "assert": "kartu terbuka di samping kalender dan kotak bertanda 'Dibuka'"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Sel shift tertutup hanya menampilkan histori",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PUT",
+            "path": "/api/shift-schedules/cell"
+          },
+          "request_example": {
+            "shift_id": "<uuid-shift-tertutup>",
+            "date": "2026-10-05",
+            "user_ids": []
+          },
+          "expected_status": 422,
+          "expected_error_code": "SHIFT_CLOSED"
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "klik sel/kotak milik shift tertutup sebelum closed_from",
+        "assert": "kartu terbuka dalam mode histori: petugas lama + 'shift sudah dihapus'; tidak ada daftar calon dan tidak ada tombol simpan untuk shift itu; jumlah baris shift_assignments tidak berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "klik sel shift tertutup",
+        "assert": "kartu hanya memuat histori dan tidak ada checkbox maupun tombol simpan untuk shift itu"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Kotak kalender di luar bulan tidak dapat diklik",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "render kalender Oktober 2026 (1 Okt = Kamis) lalu klik kotak kosong pertama",
+        "assert": "ada tepat tiga kotak kosong di depan (Sen–Rab); kotak kosong tidak punya aksi klik; openDate tetap null"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "klik kotak kosong sebelum tanggal 1",
+        "assert": "tidak ada kartu yang terbuka"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Kotak kalender padat memakai +N lagi",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "render kalender dengan satu tanggal berisi banyak petugas pada beberapa shift",
+        "assert": "kotak menampilkan sebagian + teks '+N lagi' dengan N tepat; mengekliknya menampilkan semua nama; tidak ada nama yang hilang dari DOM"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "buka tanggal padat",
+        "assert": "'+N lagi' terlihat, ukuran font >= 14px, tidak ada teks terpotong induknya"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Pindah bulan menutup kartu tanggal",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-11"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "buka kartu tanggal 5 Okt lalu pindah ke bulan berikutnya",
+        "assert": "openDate = null, kartu tidak terlihat, jumlah baris shift_assignments tidak berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "buka kartu lalu klik bulan berikutnya",
+        "assert": "kartu tertutup"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Mengeklik tanggal lain dengan perubahan belum disimpan",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "buka kartu 5 Okt, centang satu petugas tanpa menyimpan, lalu klik tanggal 6 Okt",
+        "assert": "konfirmasi inline muncul dan openDate tetap 5 Okt sampai dikonfirmasi; setelah konfirmasi perubahan dibuang dan openDate = 6 Okt; tidak ada baris yang tertulis ke shift_assignments"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "centang tanpa simpan lalu klik tanggal lain",
+        "assert": "konfirmasi inline terlihat dan kartu tidak berpindah diam-diam"
+      }
+    },
+    {
+      "scenario_ref": "Jadwal Shift — Kalender pada layar sempit menjadi daftar per minggu",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/shift-schedules"
+          },
+          "request_example": {
+            "production_line_id": "<uuid-line>",
+            "month": "2026-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "JadwalShift",
+        "action": "render kalender dan periksa deklarasi responsif pada stylesheet/markup",
+        "assert": "ada aturan breakpoint yang mengubah grid 7 kolom menjadi daftar per minggu; ukuran font minimal 14px pada breakpoint sempit"
+      },
+      "browser_test": {
+        "route": "/master-data/shift-schedules",
+        "action": "set viewport 375px lalu buka kalender",
+        "assert": "tampil daftar per minggu (bukan tujuh kolom), tidak ada gulir mendatar pada halaman, kotak klik tetap membuka kartu"
+      }
+    }
+  ]
+}

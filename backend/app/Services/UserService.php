@@ -263,7 +263,7 @@ class UserService
             'name' => ['required', 'string', 'max:255'],
             'role' => ['required', Rule::in(array_map(fn (UserRole $role) => $role->value, UserRole::cases()))],
             'business_unit_id' => [
-                Rule::requiredIf(fn () => $attributes['role'] !== UserRole::Admin->value),
+                Rule::requiredIf(fn () => ! UserRole::tryFrom($attributes['role'])?->isAdminLike()),
                 'nullable',
                 'string',
                 Rule::exists('business_units', 'id'),
@@ -294,7 +294,7 @@ class UserService
                 'name.max' => 'Nama maksimal 255 karakter.',
                 'role.required' => 'Role wajib dipilih.',
                 'role.in' => 'Role yang dipilih tidak valid.',
-                'business_unit_id.required' => 'Business Unit wajib dipilih untuk role selain Admin.',
+                'business_unit_id.required' => 'Business Unit wajib dipilih untuk role selain Admin dan role setara Admin.',
                 'business_unit_id.exists' => 'Business Unit yang dipilih tidak ditemukan.',
                 'password.required' => 'Password wajib diisi.',
             ]
@@ -333,7 +333,7 @@ class UserService
             'id' => $user->id,
             'username' => $user->username,
             'name' => $user->name,
-            'role' => $user->role instanceof UserRole ? $user->role->value : $user->role,
+            'role' => $user->assignedRole()->value,
             'business_unit_id' => $user->business_unit_id,
             'business_unit_name' => optional($user->businessUnit)->name,
             'is_active' => (bool) $user->is_active,

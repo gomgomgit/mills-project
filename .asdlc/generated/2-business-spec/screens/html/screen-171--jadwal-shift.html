@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jadwal Shift | Mills Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only; every visual value comes from CSS variables */
+    .jadwal, .jadwal * { font-size: max(var(--font-size-sm), 14px); }
+    .jadwal h1.page-title { font-size: var(--font-size-h1); }
+    .filter-bar { display: flex; flex-wrap: wrap; gap: var(--space-md); align-items: flex-end; margin-bottom: var(--space-md); }
+    .filter-bar .input-group { min-width: 200px; }
+    .month-nav { display: flex; align-items: center; gap: var(--space-sm); }
+    .month-name { font-weight: 600; min-width: 140px; text-align: center; }
+    .summary { display: flex; flex-wrap: wrap; gap: var(--space-md); align-items: center; margin-bottom: var(--space-md); }
+    .note-line { color: var(--color-text-muted); margin-bottom: var(--space-md); }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--space-lg); align-items: start; }
+    @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+    .switch { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-button); overflow: hidden; }
+    .switch label { padding: var(--space-sm) var(--space-md); cursor: pointer; min-height: var(--space-touch); display: inline-flex; align-items: center; gap: var(--space-xs); }
+    .switch input { position: absolute; opacity: 0; }
+    .switch label:has(input:checked) { background: var(--color-brand); color: var(--color-background); }
+    .view-root:has(#v-kal:checked) .view-tabel { display: none; }
+    .view-root:has(#v-tab:checked) .view-kalender { display: none; }
+    .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-xs); }
+    .cal-head { background: var(--color-surface); border: 1px solid var(--color-border); padding: var(--space-sm); font-weight: 600; text-align: center; }
+    .cal-box { border: 1px solid var(--color-border); border-radius: var(--radius-input); padding: var(--space-sm); min-height: 150px; cursor: pointer; background: var(--color-background); }
+    .cal-box.blank { background: var(--color-surface); cursor: default; border-style: dashed; }
+    .cal-box.weekend { background: var(--color-surface); }
+    .cal-box.today { border-color: var(--color-brand); border-width: 2px; }
+    .cal-box.opened { box-shadow: var(--shadow-modal); border-color: var(--color-brand); }
+    .cal-date { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-bottom: var(--space-xs); }
+    .cal-date .num { font-weight: 700; }
+    .cal-date .wk { color: var(--color-text-muted); }
+    .sline { margin-bottom: var(--space-xs); overflow-wrap: anywhere; }
+    .sline.closed { color: var(--color-text-muted); background: var(--color-surface); }
+    .cal-scroll { overflow-x: auto; }
+    .cal { min-width: 980px; }
+    .grid-scroll { overflow-x: auto; }
+    .grid { width: 100%; border-collapse: collapse; }
+    .grid th, .grid td { border: 1px solid var(--color-border); padding: var(--space-sm); vertical-align: top; text-align: left; min-width: 170px; }
+    .grid thead th { background: var(--color-surface); }
+    .grid .date-col { min-width: 150px; background: var(--color-surface); white-space: nowrap; }
+    .grid tr.weekend td { background: var(--color-surface); }
+    .grid tr.today .date-col { box-shadow: inset 4px 0 0 var(--color-brand); }
+    .grid td.clickable { cursor: pointer; }
+    .grid td.sel { outline: 2px solid var(--color-brand); outline-offset: -2px; }
+    .col-time { display: block; color: var(--color-text-muted); font-weight: 400; }
+    .more { color: var(--color-brand); text-decoration: underline; cursor: pointer; }
+    .empty-cell { color: var(--color-text-muted); font-style: italic; }
+    .stack-sm { display: flex; flex-direction: column; gap: var(--space-md); }
+    .side-panel .card-header { display: flex; gap: var(--space-sm); align-items: center; flex-wrap: wrap; justify-content: space-between; }
+    .shift-sec { border: 1px solid var(--color-border); border-radius: var(--radius-input); padding: var(--space-sm); }
+    .shift-sec summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; min-height: var(--space-touch); }
+    .panel-list { display: flex; flex-direction: column; gap: var(--space-xs); margin: var(--space-sm) 0; }
+    .panel-list label { display: flex; align-items: center; gap: var(--space-sm); min-height: var(--space-touch); }
+    .role, .info-note { color: var(--color-text-muted); }
+    .inline-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-sm); }
+    .tools { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-md); align-items: center; }
+    @media (max-width: 768px) { .cal { min-width: 0; grid-template-columns: 1fr; } .cal-head, .cal-box.blank { display: none; } }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-header"><span class="label">Mills Smart Log</span></div>
+    <nav class="sidebar-nav">
+      <a class="nav-item"><span class="label">Dashboard</span></a>
+      <a class="nav-item"><span class="label">Data Stasiun</span></a>
+      <a class="nav-item active"><span class="label">Master Data</span></a>
+      <a class="nav-item"><span class="label">User &amp; Role Management</span></a>
+      <a class="nav-item"><span class="label">Pengaturan Akun</span></a>
+    </nav>
+  </aside>
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-start"><span class="topbar-title">Jadwal Shift</span></div>
+      <div class="topbar-end">Admin</div>
+    </header>
+    <main class="content-area jadwal">
+      <div class="page-header">
+        <h1 class="page-title">Jadwal Shift</h1>
+        <div class="page-actions">
+          <button class="btn btn-outline" type="button">Terapkan ke beberapa tanggal</button>
+          <button class="btn btn-outline" type="button">Salin dari bulan sebelumnya</button>
+        </div>
+      </div>
+      <p class="note-line">Jam shift diatur di <a class="more">Kelola Shift</a>. Layar ini mengatur siapa yang bertugas.</p>
+      <div class="filter-bar">
+        <div class="input-group"><label class="input-label" for="mill">Mill</label>
+          <select class="input" id="mill"><option>Mill Sei Rokan</option></select></div>
+        <div class="input-group"><label class="input-label" for="line">Production Line</label>
+          <select class="input" id="line"><option>Line 1 — CPO</option></select></div>
+        <div class="month-nav">
+          <button class="btn btn-outline btn-sm" type="button">Bulan sebelumnya</button>
+          <span class="month-name">Oktober 2026</span>
+          <button class="btn btn-outline btn-sm" type="button">Bulan berikutnya</button>
+          <button class="btn btn-ghost btn-sm" type="button">Bulan ini</button>
+        </div>
+      </div>
+      <div class="view-root">
+        <div class="summary">
+          <div class="switch" role="radiogroup" aria-label="Tampilan">
+            <label><input type="radio" name="v" id="v-kal" checked> Kalender (aktif)</label>
+            <label><input type="radio" name="v" id="v-tab"> Tabel</label>
+          </div>
+          <span class="badge badge-warning">81 dari 93 sel sudah terisi</span>
+          <span class="badge badge-neutral">12 sel belum ada petugas</span>
+        </div>
+        <p class="note-line">Shift lintas tengah malam (Malam 23:00 — 07:00 +1) ditaruh pada tanggal mulainya.</p>
+        <div class="layout">
+          <div>
+            <div class="view-kalender cal-scroll"><div class="cal"><div class="cal-head">Sen</div><div class="cal-head">Sel</div><div class="cal-head">Rab</div><div class="cal-head">Kam</div><div class="cal-head">Jum</div><div class="cal-head">Sab</div><div class="cal-head">Min</div><div class="cal-box blank" aria-hidden="true"></div><div class="cal-box blank" aria-hidden="true"></div><div class="cal-box blank" aria-hidden="true"></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">1</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Dedi Kurniawan, Rina Marlina</div><div class="sline"><strong>Sore</strong> Eko Prasetyo, Hendra Gunawan <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Wati Lestari, Joko Susilo</div><div class="sline closed"><strong>Siang Khusus</strong> Budi Santoso <span class="badge badge-neutral">shift sudah dihapus</span></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">2</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Hendra Gunawan, Wati Lestari</div><div class="sline"><strong>Sore</strong> Joko Susilo, Yanti Puspita <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Budi Santoso, Agus Wijaya</div><div class="sline closed"><strong>Siang Khusus</strong> Budi Santoso <span class="badge badge-neutral">shift sudah dihapus</span></div></div><div class="cal-box weekend" tabindex="0" role="button"><div class="cal-date"><span class="num">3</span> <span class="wk">Sab</span></div><div class="sline"><strong>Pagi</strong> Yanti Puspita, Budi Santoso</div><div class="sline"><strong>Sore</strong> Agus Wijaya, Siti Rahayu <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Dedi Kurniawan, Rina Marlina</div><div class="sline closed"><strong>Siang Khusus</strong> Budi Santoso <span class="badge badge-neutral">shift sudah dihapus</span></div></div><div class="cal-box weekend" tabindex="0" role="button"><div class="cal-date"><span class="num">4</span> <span class="wk">Min</span></div><div class="sline"><strong>Pagi</strong> Siti Rahayu, Dedi Kurniawan</div><div class="sline"><strong>Sore</strong> Rina Marlina, Eko Prasetyo <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Hendra Gunawan, Wati Lestari</div><div class="sline closed"><strong>Siang Khusus</strong> Budi Santoso <span class="badge badge-neutral">shift sudah dihapus</span></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">5</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Eko Prasetyo, Hendra Gunawan</div><div class="sline"><strong>Sore</strong> Wati Lestari, Joko Susilo <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Yanti Puspita, Budi Santoso</div><div class="sline closed"><strong>Siang Khusus</strong> Budi Santoso <span class="badge badge-neutral">shift sudah dihapus</span></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">6</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Joko Susilo</div><div class="sline"><strong>Sore</strong> Budi Santoso</div><div class="sline"><strong>Malam</strong> Siti Rahayu</div><div class="sline closed"><strong>Siang Khusus</strong> Budi Santoso <span class="badge badge-neutral">shift sudah dihapus</span></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">7</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Agus Wijaya</div><div class="sline"><strong>Sore</strong> Dedi Kurniawan</div><div class="sline"><strong>Malam</strong> Eko Prasetyo</div><div class="sline closed"><strong>Siang Khusus</strong> Budi Santoso <span class="badge badge-neutral">shift sudah dihapus</span></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">8</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Rina Marlina, Eko Prasetyo</div><div class="sline"><strong>Sore</strong> Hendra Gunawan, Wati Lestari <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Joko Susilo, Yanti Puspita</div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">9</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Wati Lestari, Joko Susilo</div><div class="sline"><strong>Sore</strong> Yanti Puspita, Budi Santoso <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Agus Wijaya, Siti Rahayu</div></div><div class="cal-box weekend" tabindex="0" role="button"><div class="cal-date"><span class="num">10</span> <span class="wk">Sab</span></div><div class="sline"><strong>Pagi</strong> Budi Santoso, Agus Wijaya</div><div class="sline"><strong>Sore</strong> Siti Rahayu, Dedi Kurniawan <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Rina Marlina, Eko Prasetyo <a class="more">+2 lagi</a></div></div><div class="cal-box weekend" tabindex="0" role="button"><div class="cal-date"><span class="num">11</span> <span class="wk">Min</span></div><div class="sline"><strong>Pagi</strong> Dedi Kurniawan, Rina Marlina</div><div class="sline"><strong>Sore</strong> Eko Prasetyo, Hendra Gunawan <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Wati Lestari, Joko Susilo <a class="more">+2 lagi</a></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">12</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Hendra Gunawan, Wati Lestari</div><div class="sline"><strong>Sore</strong> Joko Susilo, Yanti Puspita <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Budi Santoso, Agus Wijaya</div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">13</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Yanti Puspita</div><div class="sline"><strong>Sore</strong> <span class="empty-cell">belum ada petugas</span></div><div class="sline"><strong>Malam</strong> Dedi Kurniawan</div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">14</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Siti Rahayu</div><div class="sline"><strong>Sore</strong> <span class="empty-cell">belum ada petugas</span></div><div class="sline"><strong>Malam</strong> Hendra Gunawan</div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">15</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Eko Prasetyo, Hendra Gunawan</div><div class="sline"><strong>Sore</strong> Wati Lestari, Joko Susilo <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Yanti Puspita, Budi Santoso</div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">16</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Joko Susilo, Yanti Puspita</div><div class="sline"><strong>Sore</strong> Budi Santoso, Agus Wijaya <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Siti Rahayu, Dedi Kurniawan</div></div><div class="cal-box weekend" tabindex="0" role="button"><div class="cal-date"><span class="num">17</span> <span class="wk">Sab</span></div><div class="sline"><strong>Pagi</strong> Agus Wijaya, Siti Rahayu</div><div class="sline"><strong>Sore</strong> Dedi Kurniawan, Rina Marlina <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Eko Prasetyo, Hendra Gunawan</div></div><div class="cal-box weekend" tabindex="0" role="button"><div class="cal-date"><span class="num">18</span> <span class="wk">Min</span></div><div class="sline"><strong>Pagi</strong> Rina Marlina, Eko Prasetyo</div><div class="sline"><strong>Sore</strong> Hendra Gunawan, Wati Lestari <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Joko Susilo, Yanti Puspita</div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">19</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Wati Lestari, Joko Susilo</div><div class="sline"><strong>Sore</strong> Yanti Puspita, Budi Santoso <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Agus Wijaya, Siti Rahayu</div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">20</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Budi Santoso</div><div class="sline"><strong>Sore</strong> Siti Rahayu</div><div class="sline"><strong>Malam</strong> Rina Marlina</div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">21</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Dedi Kurniawan</div><div class="sline"><strong>Sore</strong> Eko Prasetyo</div><div class="sline"><strong>Malam</strong> Wati Lestari</div></div><div class="cal-box today opened" tabindex="0" role="button"><div class="cal-date"><span class="num">22</span> <span class="wk"></span><span class="badge badge-brand">Hari ini</span> <span class="badge badge-success">Dibuka</span></div><div class="sline"><strong>Pagi</strong> Hendra Gunawan, Wati Lestari <a class="more">+3 lagi</a></div><div class="sline"><strong>Sore</strong> Joko Susilo, Yanti Puspita <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Budi Santoso, Agus Wijaya</div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">23</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Yanti Puspita, Budi Santoso</div><div class="sline"><strong>Sore</strong> Agus Wijaya, Siti Rahayu <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Dedi Kurniawan, Rina Marlina</div></div><div class="cal-box weekend" tabindex="0" role="button"><div class="cal-date"><span class="num">24</span> <span class="wk">Sab</span></div><div class="sline"><strong>Pagi</strong> Siti Rahayu, Dedi Kurniawan</div><div class="sline"><strong>Sore</strong> Rina Marlina, Eko Prasetyo <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> Hendra Gunawan, Wati Lestari</div></div><div class="cal-box weekend" tabindex="0" role="button"><div class="cal-date"><span class="num">25</span> <span class="wk">Min</span></div><div class="sline"><strong>Pagi</strong> Eko Prasetyo, Hendra Gunawan</div><div class="sline"><strong>Sore</strong> Wati Lestari, Joko Susilo <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> <span class="empty-cell">belum ada petugas</span></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">26</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Joko Susilo, Yanti Puspita</div><div class="sline"><strong>Sore</strong> Budi Santoso, Agus Wijaya <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> <span class="empty-cell">belum ada petugas</span></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">27</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Agus Wijaya</div><div class="sline"><strong>Sore</strong> Dedi Kurniawan</div><div class="sline"><strong>Malam</strong> <span class="empty-cell">belum ada petugas</span></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">28</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Rina Marlina</div><div class="sline"><strong>Sore</strong> Hendra Gunawan</div><div class="sline"><strong>Malam</strong> <span class="empty-cell">belum ada petugas</span></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">29</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Wati Lestari, Joko Susilo</div><div class="sline"><strong>Sore</strong> Yanti Puspita, Budi Santoso <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> <span class="empty-cell">belum ada petugas</span></div></div><div class="cal-box" tabindex="0" role="button"><div class="cal-date"><span class="num">30</span> <span class="wk"></span></div><div class="sline"><strong>Pagi</strong> Budi Santoso, Agus Wijaya</div><div class="sline"><strong>Sore</strong> Siti Rahayu, Dedi Kurniawan <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> <span class="empty-cell">belum ada petugas</span></div></div><div class="cal-box weekend" tabindex="0" role="button"><div class="cal-date"><span class="num">31</span> <span class="wk">Sab</span></div><div class="sline"><strong>Pagi</strong> Dedi Kurniawan, Rina Marlina</div><div class="sline"><strong>Sore</strong> Eko Prasetyo, Hendra Gunawan <a class="more">+1 lagi</a></div><div class="sline"><strong>Malam</strong> <span class="empty-cell">belum ada petugas</span></div></div><div class="cal-box blank" aria-hidden="true"></div></div></div>
+            <div class="view-tabel grid-scroll">
+              <table class="grid">
+                <thead><tr><th class="date-col">Tanggal</th>
+                  <th>Pagi <span class="col-time">07:00 — 15:00</span></th>
+                  <th>Sore <span class="col-time">15:00 — 23:00</span></th>
+                  <th>Malam <span class="col-time">23:00 — 07:00 +1</span></th></tr></thead>
+                <tbody><tr class=""><th class="date-col" scope="row">Sen 19</th><td class="clickable" tabindex="0" role="button">Wati Lestari, Joko Susilo</td><td class="clickable" tabindex="0" role="button">Yanti Puspita, Budi Santoso <a class="more">+1 lagi</a></td><td class="clickable" tabindex="0" role="button">Agus Wijaya, Siti Rahayu</td></tr><tr class=""><th class="date-col" scope="row">Sel 20</th><td class="clickable" tabindex="0" role="button">Budi Santoso</td><td class="clickable" tabindex="0" role="button">Siti Rahayu</td><td class="clickable" tabindex="0" role="button">Rina Marlina</td></tr><tr class=""><th class="date-col" scope="row">Rab 21</th><td class="clickable" tabindex="0" role="button">Dedi Kurniawan</td><td class="clickable" tabindex="0" role="button">Eko Prasetyo</td><td class="clickable" tabindex="0" role="button">Wati Lestari</td></tr><tr class="today"><th class="date-col" scope="row">Kam 22 <span class="badge badge-brand">Hari ini</span> <span class="badge badge-success">Dibuka</span></th><td class="clickable sel" tabindex="0" role="button">Hendra Gunawan, Wati Lestari <a class="more">+3 lagi</a></td><td class="clickable" tabindex="0" role="button">Joko Susilo, Yanti Puspita <a class="more">+1 lagi</a></td><td class="clickable" tabindex="0" role="button">Budi Santoso, Agus Wijaya</td></tr><tr class=""><th class="date-col" scope="row">Jum 23</th><td class="clickable" tabindex="0" role="button">Yanti Puspita, Budi Santoso</td><td class="clickable" tabindex="0" role="button">Agus Wijaya, Siti Rahayu <a class="more">+1 lagi</a></td><td class="clickable" tabindex="0" role="button">Dedi Kurniawan, Rina Marlina</td></tr><tr class="weekend "><th class="date-col" scope="row">Sab 24</th><td class="clickable" tabindex="0" role="button">Siti Rahayu, Dedi Kurniawan</td><td class="clickable" tabindex="0" role="button">Rina Marlina, Eko Prasetyo <a class="more">+1 lagi</a></td><td class="clickable" tabindex="0" role="button">Hendra Gunawan, Wati Lestari</td></tr><tr class="weekend "><th class="date-col" scope="row">Min 25</th><td class="clickable" tabindex="0" role="button">Eko Prasetyo, Hendra Gunawan</td><td class="clickable" tabindex="0" role="button">Wati Lestari, Joko Susilo <a class="more">+1 lagi</a></td><td class="clickable" tabindex="0" role="button"><span class="empty-cell">belum ada petugas</span></td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          
+<aside class="card side-panel" aria-label="Kartu tanggal">
+  <div class="card-header"><span>Kamis 22 Oktober 2026</span> <span class="badge badge-brand">Hari ini</span> <button class="btn btn-ghost btn-sm" type="button">Tutup</button></div>
+  <div class="card-body stack-sm">
+    <details class="shift-sec" open>
+      <summary><strong>Pagi</strong> 07:00 — 15:00 <span class="badge badge-neutral">5 petugas</span></summary>
+      <div class="input-group"><label class="input-label" for="cari">Cari calon peserta</label><input class="input" id="cari" type="text" placeholder="Ketik nama..." value=""></div>
+      <div class="panel-list"><label><input type="checkbox" checked> <span>Budi Santoso <span class="role">(Operator)</span></span></label><label><input type="checkbox" checked> <span>Agus Wijaya <span class="role">(Operator)</span> <span class="info-note">sudah di Sore</span></span></label><label><input type="checkbox" checked> <span>Siti Rahayu <span class="role">(Supervisor)</span></span></label><label><input type="checkbox"> <span>Dedi Kurniawan <span class="role">(Operator)</span></span></label><label><input type="checkbox"> <span>Rina Marlina <span class="role">(Operator)</span> <span class="info-note">sudah di Malam</span></span></label><label><input type="checkbox" checked> <span>Hendra Gunawan <span class="role">(Operator)</span> <span class="badge badge-warning">nonaktif</span></span></label></div>
+      <div class="alert alert-warning">Mengosongkan sel ini akan mengeluarkan 5 orang. Lanjutkan?
+        <div class="inline-actions"><button class="btn btn-destructive btn-sm" type="button">Ya, kosongkan</button> <button class="btn btn-outline btn-sm" type="button">Batal</button></div></div>
+      <div class="inline-actions"><button class="btn btn-primary btn-sm" type="button">Simpan shift Pagi</button> <button class="btn btn-outline btn-sm" type="button">Kosongkan sel</button></div>
+    </details>
+    <details class="shift-sec">
+      <summary><strong>Sore</strong> 15:00 — 23:00 <span class="badge badge-neutral">3 petugas</span></summary>
+      <p class="empty-cell">Agus Wijaya, Siti Rahayu, Eko Prasetyo</p>
+    </details>
+    <details class="shift-sec">
+      <summary><strong>Malam</strong> 23:00 — 07:00 +1 <span class="badge badge-neutral">2 petugas</span></summary>
+      <p class="empty-cell">Rina Marlina, Joko Susilo</p>
+    </details>
+    <p class="note-line">Petugas shift Malam ditaruh pada tanggal mulainya (22), walau selesai tanggal 23.</p>
+  </div>
+</aside>
+        </div>
+      </div>
+      <p style="font-size:var(--font-size-sm);color:var(--color-muted-foreground);font-style:italic;margin-top:var(--space-lg)">
+        Actors: Admin, Supervisor, Mill Management, Engineer, Shift Supervisor, Maintenance, Mekanik, Logistics, QA/QC, Mill Admin &nbsp;·&nbsp;
+        Entry points: Tab atau tombol 'Jadwal Shift' di halaman Kelola Shift (screen-170), Menu sidebar 'Master Data' → Jadwal Shift, Kembali dari layar lain dengan mill, Production Line, dan bulan yang sama masih terpilih
+      </p>
+    </main>
+  </div>
+</div>
+</body>
+</html>

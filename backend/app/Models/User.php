@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\EffectiveUserRole;
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,7 +13,9 @@ use Laravel\Sanctum\HasApiTokens;
 /**
  * User — app's auth user model. Replaces Laravel's default User model.
  *
- * Roles: operator, supervisor, mill_management, admin.
+ * Roles: operator, supervisor, mill_management, admin, plus tujuh role setara Admin
+ * (engineer, shift_supervisor, maintenance, mekanik, logistics, qa_qc, mill_admin) —
+ * $user->role membaca role EFEKTIF; role yang dipilih ada di assignedRole().
  * Operators use the offline-first mobile app; Supervisor/Mill Management/Admin
  * primarily use the web app (Livewire), with Supervisor also on mobile.
  *
@@ -40,7 +43,7 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'role' => UserRole::class,
+        'role' => EffectiveUserRole::class,
         'is_active' => 'boolean',
         // Lihat migrasi 2026_10_05_000001 / EnsureUserIsActive.
         'sessions_revoked_at' => 'datetime',
@@ -63,6 +66,12 @@ class User extends Authenticatable
     public function getAuthPassword(): string
     {
         return $this->password_hash;
+    }
+
+    /** Role yang sebenarnya dipilih untuk user ini (tanpa pemetaan ke Admin). */
+    public function assignedRole(): UserRole
+    {
+        return UserRole::from($this->getRawOriginal('role') ?? $this->attributes['role']);
     }
 
     public function businessUnit(): BelongsTo

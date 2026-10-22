@@ -1,0 +1,581 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-22"
+  },
+  "id": "usecase-177--jadwal-shift",
+  "name": "Atur Jadwal Shift Bulanan per Production Line",
+  "description": "Pengatur (Admin, role setara Admin, Supervisor, atau Mill Management) memilih mill dan satu Production Line, membuka sebuah bulan, lalu mengisi siapa yang bertugas pada tiap shift tiap hari. Tampilan berupa grid tanggal × shift hidup milik line itu; satu sel dapat berisi beberapa orang dan orangnya boleh berbeda tiap hari. Data disimpan per tanggal, tampilan dan navigasi per bulan. Calon peserta hanya user aktif berperan Operator atau Supervisor pada mill line itu. Satu orang boleh berada di beberapa shift pada hari yang sama tanpa pemeriksaan bentrok; shift boleh kosong. Shift lintas tengah malam dikaitkan ke tanggal mulainya. Shift yang sudah dihapus tidak menghilangkan histori penugasan. Tersedia pintasan menerapkan satu daftar orang ke banyak tanggal dan menyalin bulan sebelumnya.",
+  "actors": [
+    "actor-admin",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-engineer",
+    "actor-shift-supervisor",
+    "actor-maintenance",
+    "actor-mekanik",
+    "actor-logistics",
+    "actor-qa-qc",
+    "actor-mill-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran yang berhak (bukan Operator)",
+    "Mill yang dikelola punya minimal satu Production Line",
+    "Production Line terpilih punya minimal satu shift hidup (didefinisikan di Kelola Shift)",
+    "Mill punya user aktif berperan Operator atau Supervisor"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Pengatur membuka Jadwal Shift dari tab di Kelola Shift atau menu Master Data"
+    },
+    {
+      "step": 2,
+      "actor": "actor-admin",
+      "description": "Admin atau role setara Admin memilih mill; bagi Supervisor dan Mill Management mill sendiri sudah tetap"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Pengatur memilih satu Production Line (wajib, tidak ada opsi semua line)"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem menampilkan tampilan Kalender (bawaan) bulan berjalan: tujuh kolom Sen–Min, satu kotak per tanggal, satu baris per shift hidup berisi nama shift dan petugasnya; pengatur dapat berganti ke tampilan Tabel (baris tanggal × kolom shift berurut menurut jam mulai)"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Sistem mengisi tiap sel dengan nama petugas yang sudah ditugaskan, menyatakan sel kosong dengan kata 'belum ada petugas', dan menampilkan ringkasan 'N dari M sel terisi'"
+    },
+    {
+      "step": 6,
+      "actor": "actor-admin",
+      "description": "Pengatur mengeklik kotak tanggal pada kalender atau sel pada tabel; sistem membuka kartu tanggal di samping grid, berisi semua shift pada tanggal itu dan, untuk shift yang dibuka, calon peserta (user aktif Operator atau Supervisor pada mill itu) dengan pencarian nama dan penanda siapa yang sudah ada di sel itu atau di shift lain hari itu"
+    },
+    {
+      "step": 7,
+      "actor": "actor-admin",
+      "description": "Pengatur mencentang satu atau beberapa orang dan/atau mengeluarkan orang yang sudah ada, lalu menyimpan"
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Sistem menyimpan isi sel per tanggal dan memperbarui grid beserta ringkasan bulan"
+    },
+    {
+      "step": 9,
+      "actor": "actor-admin",
+      "description": "Pengatur dapat memakai 'Terapkan ke beberapa tanggal' atau 'Salin dari bulan sebelumnya' untuk mengisi banyak sel; sistem menyatakan jumlah sel terpengaruh sebelum disimpan"
+    },
+    {
+      "step": 10,
+      "actor": "actor-admin",
+      "description": "Pengatur berpindah bulan maju atau mundur; sistem memuat ulang grid untuk bulan itu"
+    },
+    {
+      "step": 11,
+      "actor": "actor-admin",
+      "description": "Pengatur dapat berganti antara Kalender dan Tabel kapan saja; mill, line, bulan, dan kartu tanggal yang terbuka tetap"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Mill belum dipilih",
+      "trigger": "Pada langkah 2 mill belum dipilih",
+      "steps": [
+        "Tidak ada grid",
+        "Sistem menampilkan arahan memilih mill"
+      ]
+    },
+    {
+      "name": "Production Line belum dipilih",
+      "trigger": "Pada langkah 3 line belum dipilih",
+      "steps": [
+        "Tidak ada grid",
+        "Tidak ada opsi semua line"
+      ]
+    },
+    {
+      "name": "Mill belum punya Production Line",
+      "trigger": "Pada langkah 3 mill tidak punya line",
+      "steps": [
+        "Sistem menyatakannya dan mengarahkan ke Kelola Production Line"
+      ]
+    },
+    {
+      "name": "Line belum punya shift hidup",
+      "trigger": "Pada langkah 4 line tidak punya shift hidup",
+      "steps": [
+        "Sistem menyatakannya beserta arahan ke Kelola Shift",
+        "Tidak ada grid tanpa kolom"
+      ]
+    },
+    {
+      "name": "Supervisor atau Mill Management mencoba mill lain",
+      "trigger": "Pada langkah 2 pengatur berperan Supervisor atau Mill Management meminta mill lain",
+      "steps": [
+        "Pilihan mill lain tidak tersedia",
+        "Permintaan langsung ditolak"
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka layar",
+      "trigger": "Pada langkah 1 pengguna berperan Operator",
+      "steps": [
+        "Ditolak dengan halaman 403 ramah",
+        "Menu tidak ditampilkan"
+      ]
+    },
+    {
+      "name": "Satu orang di beberapa shift pada hari yang sama",
+      "trigger": "Pada langkah 7 orang yang sama dipilih pada dua shift di tanggal yang sama",
+      "steps": [
+        "Diterima tanpa pemeriksaan bentrok",
+        "Panel hanya menandai bahwa ia sudah ada di shift lain hari itu"
+      ]
+    },
+    {
+      "name": "Orang yang sama dipilih dua kali pada sel yang sama",
+      "trigger": "Pada langkah 7 orang yang sudah ada di sel dipilih lagi",
+      "steps": [
+        "Tidak ada perubahan",
+        "Tidak ada galat"
+      ]
+    },
+    {
+      "name": "Shift dibiarkan tanpa petugas",
+      "trigger": "Pada langkah 7 semua orang dikeluarkan dari sel atau sel tidak pernah diisi",
+      "steps": [
+        "Sah",
+        "Sel dinyatakan 'belum ada petugas' dan dihitung dalam ringkasan bulan"
+      ]
+    },
+    {
+      "name": "Mill tanpa calon peserta",
+      "trigger": "Pada langkah 6 mill tidak punya user aktif Operator atau Supervisor",
+      "steps": [
+        "Panel menyatakan tidak ada calon peserta",
+        "Bukan daftar kosong tanpa penjelasan"
+      ]
+    },
+    {
+      "name": "Role selain Operator dan Supervisor tidak menjadi calon peserta",
+      "trigger": "Pada langkah 6 panel dimuat",
+      "steps": [
+        "User berperan Mill Management, Admin, atau role setara Admin tidak muncul",
+        "Seorang Engineer tidak menjadi calon hanya karena haknya setara Admin"
+      ]
+    },
+    {
+      "name": "Shift lintas tengah malam",
+      "trigger": "Pada langkah 7 sel milik shift yang melintasi tengah malam diisi",
+      "steps": [
+        "Petugas ditaruh pada TANGGAL MULAI shift",
+        "Tidak muncul lagi di baris tanggal berikutnya"
+      ]
+    },
+    {
+      "name": "Shift dihapus pertengahan bulan",
+      "trigger": "Pada langkah 4 sebuah shift sudah dihapus di Kelola Shift pada pertengahan bulan",
+      "steps": [
+        "Kolomnya tampil untuk tanggal sebelum penutupan, read-only, dengan keterangan 'shift sudah dihapus'",
+        "Tidak tampil dan tidak dapat diisi untuk tanggal sesudahnya",
+        "Histori penugasan tidak hilang"
+      ]
+    },
+    {
+      "name": "Jam shift diubah setelah bulan diisi",
+      "trigger": "Pada langkah 5 jam sebuah shift diubah di Kelola Shift",
+      "steps": [
+        "Penugasan tetap melekat pada shift-nya",
+        "Tidak terhapus dan tidak berpindah"
+      ]
+    },
+    {
+      "name": "User dinonaktifkan setelah ditugaskan",
+      "trigger": "Pada langkah 5 sel memuat user yang sudah dinonaktifkan",
+      "steps": [
+        "Penugasan lamanya tetap tampil dengan keterangan 'nonaktif'",
+        "Tidak dapat ditambahkan ke sel baru",
+        "Dapat dikeluarkan dari sel"
+      ]
+    },
+    {
+      "name": "Terapkan ke banyak tanggal",
+      "trigger": "Pada langkah 9 pengatur memilih shift, tanggal, dan orang",
+      "steps": [
+        "Sistem menyatakan jumlah sel sasaran dan berapa yang sudah berisi sebelum disimpan",
+        "Menimpa sel berisi memerlukan konfirmasi inline",
+        "Hanya tanggal pada bulan yang sedang dibuka yang terpengaruh"
+      ]
+    },
+    {
+      "name": "Terapkan dengan daftar orang kosong",
+      "trigger": "Pada langkah 9 daftar orang dikosongkan",
+      "steps": [
+        "Diperlakukan sebagai mengosongkan sel sasaran",
+        "Konfirmasi inline menyebut jumlah sel dan orang yang terdampak"
+      ]
+    },
+    {
+      "name": "Salin dari bulan sebelumnya",
+      "trigger": "Pada langkah 9 pengatur menyalin bulan sebelumnya",
+      "steps": [
+        "Disalin tanggal ke tanggal, melewati tanggal yang tidak ada di bulan tujuan",
+        "Sel yang sudah berisi dipertahankan, tidak ditimpa",
+        "Shift yang sudah dihapus, user nonaktif, dan bukan calon peserta dilewati",
+        "Hasil dinyatakan: N terisi, M dipertahankan, K dilewati"
+      ]
+    },
+    {
+      "name": "Salin saat bulan sebelumnya kosong",
+      "trigger": "Pada langkah 9 bulan sebelumnya tidak punya penugasan",
+      "steps": [
+        "Dinyatakan tidak ada yang dapat disalin",
+        "Tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Mengubah tanggal lampau",
+      "trigger": "Pada langkah 7 sel milik tanggal yang sudah lewat diubah",
+      "steps": [
+        "Diterima tanpa penguncian"
+      ]
+    },
+    {
+      "name": "Dua pengatur mengubah sel yang sama",
+      "trigger": "Pada langkah 8 sel sudah diubah orang lain sejak layar dibuka",
+      "steps": [
+        "Penyimpanan terakhir berlaku",
+        "Layar yang lebih lama menyegarkan isi sel dengan pesan sel telah diubah orang lain, tidak menimpa diam-diam"
+      ]
+    },
+    {
+      "name": "Bulan 28, 29, atau 30 hari",
+      "trigger": "Pada langkah 10 bulan yang dibuka tidak berhari 31",
+      "steps": [
+        "Grid hanya memuat tanggal yang ada"
+      ]
+    },
+    {
+      "name": "Layar pada lebar sempit",
+      "trigger": "Pada langkah 4 lebar jendela sempit",
+      "steps": [
+        "Grid dapat digulir mendatar dengan kolom tanggal tetap terlihat",
+        "Teks tidak mengecil di bawah 14px"
+      ]
+    },
+    {
+      "name": "Mengeklik sel atau kotak milik shift tertutup",
+      "trigger": "Pada langkah 6 pengatur mengeklik sel/kotak milik shift yang sudah dihapus",
+      "steps": [
+        "Kartu tanggal terbuka hanya menampilkan histori dengan keterangan 'shift sudah dihapus'",
+        "Tidak ada bagian pengisi dan tidak ada tombol simpan untuk shift itu"
+      ]
+    },
+    {
+      "name": "Mengeklik kotak kosong di luar bulan pada kalender",
+      "trigger": "Pada langkah 6 pengatur mengeklik kotak sebelum tanggal 1 atau sesudah tanggal terakhir",
+      "steps": [
+        "Tidak terjadi apa pun",
+        "Kartu tanggal tidak terbuka"
+      ]
+    },
+    {
+      "name": "Kotak kalender terlalu padat",
+      "trigger": "Pada langkah 4 sebuah kotak memuat banyak shift atau banyak petugas",
+      "steps": [
+        "Tampil sebagian beserta '+N lagi' yang dapat dibuka",
+        "Tidak ada yang terpotong diam-diam dan teks tidak di bawah 14px"
+      ]
+    },
+    {
+      "name": "Pindah bulan saat kartu tanggal terbuka",
+      "trigger": "Pada langkah 10 kartu tanggal sedang terbuka",
+      "steps": [
+        "Kartu ditutup karena tanggalnya tidak lagi tampil",
+        "Perubahan yang belum disimpan tidak tersimpan diam-diam"
+      ]
+    },
+    {
+      "name": "Mengeklik tanggal lain saat kartu berisi perubahan belum disimpan",
+      "trigger": "Pada langkah 6 kartu memuat perubahan yang belum disimpan",
+      "steps": [
+        "Sistem meminta konfirmasi inline sebelum membuang perubahan itu"
+      ]
+    },
+    {
+      "name": "Berganti tampilan saat kartu terbuka",
+      "trigger": "Pada langkah 11 kartu tanggal sedang terbuka",
+      "steps": [
+        "Kartu tetap terbuka pada tanggal yang sama",
+        "Tidak ada yang disimpan atau dibuang"
+      ]
+    },
+    {
+      "name": "Layar sempit pada kalender",
+      "trigger": "Pada langkah 4 lebar jendela tidak cukup untuk tujuh kolom",
+      "steps": [
+        "Kalender tampil sebagai daftar per minggu dengan isi dan perilaku klik yang sama",
+        "Kartu tanggal tampil di bawah atau menutupi daftar dengan tombol kembali yang jelas"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Roster bulan yang dibuka tersimpan per tanggal untuk Production Line terpilih",
+    "Pengatur mengetahui sel mana yang belum ada petugas",
+    "Histori penugasan pada shift yang sudah dihapus dan user nonaktif tetap terbaca"
+  ],
+  "business_rules": [
+    "Pengatur: Admin, tujuh role setara Admin, Supervisor, dan Mill Management; Operator tidak punya layar ini",
+    "Supervisor dan Mill Management hanya mengelola mill sendiri",
+    "Production Line wajib dipilih; tidak ada opsi semua line",
+    "Assignment = satu orang pada satu shift pada satu tanggal pada satu Production Line; satu sel boleh berisi banyak orang",
+    "Shift boleh tanpa petugas",
+    "Orang yang sama boleh berada di beberapa shift pada hari yang sama tanpa pemeriksaan bentrok; tidak boleh dua kali pada sel yang sama",
+    "Calon peserta hanya user aktif berperan Operator atau Supervisor pada mill line itu, menurut role yang dipilih saat user dibuat",
+    "Data disimpan per tanggal; bulan hanyalah jendela pandang",
+    "Shift lintas tengah malam dikaitkan ke tanggal mulainya",
+    "Shift yang dihapus tidak menghilangkan histori penugasan; kolomnya read-only sebelum tanggal penutupan dan tidak muncul sesudahnya",
+    "Penugasan melekat pada shift, bukan pada jamnya",
+    "Penugasan bersifat informasional dan tidak memengaruhi hak input record",
+    "Tanggal lampau dapat diubah tanpa penguncian",
+    "Salin dari bulan sebelumnya mempertahankan sel yang sudah berisi",
+    "Status ditulis dengan kata, bukan hanya warna; teks minimal 14px",
+    "Dua tampilan atas satu data: Kalender (bawaan) dan Tabel; berganti tampilan tidak menyimpan atau membuang apa pun",
+    "Tidak ada tombol 'Atur' pada sel; mengeklik sel tabel atau kotak kalender membuka kartu tanggal di samping grid",
+    "Kartu tanggal memuat semua shift pada tanggal itu; sel/kotak milik shift tertutup hanya menampilkan histori",
+    "Penanda kalender ditulis dengan kata, bukan hanya warna; teks minimal 14px"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Jadwal Shift — success",
+      "given": "Pengatur (Admin, role setara Admin, Supervisor, atau Mill Management) sudah masuk ke aplikasi web, mill punya minimal satu Production Line dengan minimal satu shift hidup, dan mill punya user aktif berperan Operator atau Supervisor",
+      "when": "Pengatur memilih mill dan satu Production Line, membuka sebuah bulan, lalu mencentang petugas pada sebuah sel tanggal × shift dan menyimpan",
+      "then": "Isi sel tersimpan per tanggal untuk Production Line terpilih, grid dan ringkasan 'N dari M sel terisi' diperbarui, dan sel yang belum ada petugas tetap dinyatakan 'belum ada petugas'"
+    },
+    {
+      "scenario": "Jadwal Shift — Mill belum dipilih",
+      "given": "Pengatur sudah masuk ke aplikasi web dengan peran yang berhak dan dapat memilih mill",
+      "when": "Pengatur membuka Jadwal Shift tanpa memilih mill",
+      "then": "Tidak ada grid yang tampil dan sistem menampilkan arahan memilih mill"
+    },
+    {
+      "scenario": "Jadwal Shift — Production Line belum dipilih",
+      "given": "Pengatur sudah memilih mill yang punya minimal satu Production Line",
+      "when": "Pengatur belum memilih Production Line",
+      "then": "Tidak ada grid yang tampil dan tidak ada opsi semua line"
+    },
+    {
+      "scenario": "Jadwal Shift — Mill belum punya Production Line",
+      "given": "Pengatur sudah masuk dan memilih mill yang tidak punya Production Line",
+      "when": "Pengatur sampai pada langkah memilih Production Line",
+      "then": "Sistem menyatakan mill belum punya Production Line dan mengarahkan ke Kelola Production Line"
+    },
+    {
+      "scenario": "Jadwal Shift — Line belum punya shift hidup",
+      "given": "Pengatur sudah memilih mill dan Production Line yang tidak punya shift hidup",
+      "when": "Sistem hendak menampilkan grid bulan berjalan",
+      "then": "Sistem menyatakan line belum punya shift hidup beserta arahan ke Kelola Shift, dan tidak menampilkan grid tanpa kolom"
+    },
+    {
+      "scenario": "Jadwal Shift — Supervisor atau Mill Management mencoba mill lain",
+      "given": "Pengatur berperan Supervisor atau Mill Management yang mill-nya sudah tetap",
+      "when": "Pengatur meminta mill lain selain mill miliknya",
+      "then": "Pilihan mill lain tidak tersedia dan permintaan langsung ditolak"
+    },
+    {
+      "scenario": "Jadwal Shift — Operator mencoba membuka layar",
+      "given": "Pengguna sudah masuk dengan peran Operator",
+      "when": "Pengguna mencoba membuka Jadwal Shift",
+      "then": "Akses ditolak dengan halaman 403 yang ramah dan menu Jadwal Shift tidak ditampilkan"
+    },
+    {
+      "scenario": "Jadwal Shift — Satu orang di beberapa shift pada hari yang sama",
+      "given": "Pengatur membuka grid bulan untuk line yang punya beberapa shift hidup",
+      "when": "Pengatur memilih orang yang sama pada dua shift di tanggal yang sama lalu menyimpan",
+      "then": "Penugasan diterima tanpa pemeriksaan bentrok, dan panel hanya menandai bahwa orang itu sudah ada di shift lain hari itu"
+    },
+    {
+      "scenario": "Jadwal Shift — Orang yang sama dipilih dua kali pada sel yang sama",
+      "given": "Sebuah sel sudah berisi seorang petugas",
+      "when": "Pengatur memilih lagi orang yang sudah ada di sel itu lalu menyimpan",
+      "then": "Tidak ada perubahan pada sel dan tidak ada galat"
+    },
+    {
+      "scenario": "Jadwal Shift — Shift dibiarkan tanpa petugas",
+      "given": "Sebuah sel berisi satu atau lebih petugas, atau belum pernah diisi",
+      "when": "Pengatur mengeluarkan semua orang dari sel itu lalu menyimpan, atau membiarkannya kosong",
+      "then": "Keadaan itu sah, sel dinyatakan 'belum ada petugas', dan dihitung dalam ringkasan bulan"
+    },
+    {
+      "scenario": "Jadwal Shift — Mill tanpa calon peserta",
+      "given": "Pengatur membuka grid untuk mill yang tidak punya user aktif berperan Operator atau Supervisor",
+      "when": "Pengatur membuka sebuah sel",
+      "then": "Panel menyatakan tidak ada calon peserta, bukan daftar kosong tanpa penjelasan"
+    },
+    {
+      "scenario": "Jadwal Shift — Role selain Operator dan Supervisor tidak menjadi calon peserta",
+      "given": "Mill punya user aktif berperan Mill Management, Admin, role setara Admin (misalnya Engineer), selain Operator dan Supervisor",
+      "when": "Pengatur membuka sebuah sel dan panel calon peserta dimuat",
+      "then": "User berperan Mill Management, Admin, atau role setara Admin tidak muncul, termasuk Engineer yang haknya setara Admin"
+    },
+    {
+      "scenario": "Jadwal Shift — Shift lintas tengah malam",
+      "given": "Production Line punya shift yang melintasi tengah malam",
+      "when": "Pengatur mengisi sel milik shift tersebut dan menyimpan",
+      "then": "Petugas ditempatkan pada tanggal mulai shift dan tidak muncul lagi di baris tanggal berikutnya"
+    },
+    {
+      "scenario": "Jadwal Shift — Shift dihapus pertengahan bulan",
+      "given": "Sebuah shift sudah dihapus di Kelola Shift pada pertengahan bulan yang dibuka",
+      "when": "Sistem menampilkan grid bulan itu",
+      "then": "Kolom shift tampil read-only untuk tanggal sebelum penutupan dengan keterangan 'shift sudah dihapus', tidak tampil dan tidak dapat diisi untuk tanggal sesudahnya, dan histori penugasan tidak hilang"
+    },
+    {
+      "scenario": "Jadwal Shift — Jam shift diubah setelah bulan diisi",
+      "given": "Bulan sudah terisi penugasan dan jam sebuah shift kemudian diubah di Kelola Shift",
+      "when": "Pengatur melihat grid bulan itu",
+      "then": "Penugasan tetap melekat pada shift-nya, tidak terhapus dan tidak berpindah"
+    },
+    {
+      "scenario": "Jadwal Shift — User dinonaktifkan setelah ditugaskan",
+      "given": "Sebuah sel memuat user yang kemudian dinonaktifkan",
+      "when": "Sistem menampilkan sel itu dan pengatur mengubahnya",
+      "then": "Penugasan lama tetap tampil dengan keterangan 'nonaktif', user itu tidak dapat ditambahkan ke sel baru, tetapi dapat dikeluarkan dari sel"
+    },
+    {
+      "scenario": "Jadwal Shift — Terapkan ke banyak tanggal",
+      "given": "Pengatur membuka grid bulan dan memilih 'Terapkan ke beberapa tanggal'",
+      "when": "Pengatur memilih shift, beberapa tanggal, dan daftar orang",
+      "then": "Sistem menyatakan jumlah sel sasaran dan berapa yang sudah berisi sebelum disimpan, menimpa sel berisi memerlukan konfirmasi inline, dan hanya tanggal pada bulan yang sedang dibuka yang terpengaruh"
+    },
+    {
+      "scenario": "Jadwal Shift — Terapkan dengan daftar orang kosong",
+      "given": "Pengatur membuka 'Terapkan ke beberapa tanggal' dengan shift dan tanggal terpilih",
+      "when": "Pengatur mengosongkan daftar orang lalu menerapkan",
+      "then": "Tindakan diperlakukan sebagai mengosongkan sel sasaran, dan konfirmasi inline menyebut jumlah sel dan orang yang terdampak"
+    },
+    {
+      "scenario": "Jadwal Shift — Salin dari bulan sebelumnya",
+      "given": "Bulan sebelumnya punya penugasan dan bulan yang dibuka sebagian sel sudah berisi",
+      "when": "Pengatur memilih 'Salin dari bulan sebelumnya'",
+      "then": "Penugasan disalin tanggal ke tanggal dengan melewati tanggal yang tidak ada di bulan tujuan, sel yang sudah berisi dipertahankan, shift terhapus, user nonaktif, dan bukan calon peserta dilewati, dan hasil dinyatakan: N terisi, M dipertahankan, K dilewati"
+    },
+    {
+      "scenario": "Jadwal Shift — Salin saat bulan sebelumnya kosong",
+      "given": "Bulan sebelumnya tidak punya penugasan sama sekali",
+      "when": "Pengatur memilih 'Salin dari bulan sebelumnya'",
+      "then": "Sistem menyatakan tidak ada yang dapat disalin dan tidak ada perubahan"
+    },
+    {
+      "scenario": "Jadwal Shift — Mengubah tanggal lampau",
+      "given": "Pengatur membuka grid bulan yang memuat tanggal yang sudah lewat",
+      "when": "Pengatur mengubah sel milik tanggal yang sudah lewat lalu menyimpan",
+      "then": "Perubahan diterima tanpa penguncian"
+    },
+    {
+      "scenario": "Jadwal Shift — Dua pengatur mengubah sel yang sama",
+      "given": "Dua pengatur membuka sel yang sama dan salah satunya sudah menyimpan perubahan",
+      "when": "Pengatur dengan layar yang lebih lama menyimpan sel itu",
+      "then": "Penyimpanan terakhir berlaku, dan layar yang lebih lama menyegarkan isi sel dengan pesan bahwa sel telah diubah orang lain, tanpa menimpa diam-diam"
+    },
+    {
+      "scenario": "Jadwal Shift — Bulan 28, 29, atau 30 hari",
+      "given": "Pengatur sudah memilih mill dan Production Line yang punya shift hidup",
+      "when": "Pengatur berpindah ke bulan yang tidak berhari 31",
+      "then": "Grid dimuat ulang dan hanya memuat tanggal yang ada pada bulan itu"
+    },
+    {
+      "scenario": "Jadwal Shift — Layar pada lebar sempit",
+      "given": "Pengatur membuka grid Jadwal Shift pada jendela dengan lebar sempit",
+      "when": "Sistem menampilkan grid",
+      "then": "Grid dapat digulir mendatar dengan kolom tanggal tetap terlihat, dan teks tidak mengecil di bawah 14px"
+    },
+    {
+      "scenario": "Jadwal Shift — Menugaskan user bukan calon peserta ditolak",
+      "given": "Pengatur membuka sebuah sel pada line di suatu mill",
+      "when": "Pengatur mencoba menyimpan penugasan untuk user berperan selain Operator/Supervisor, user nonaktif, atau user dari mill lain (misalnya lewat permintaan langsung)",
+      "then": "Penugasan ditolak dan isi sel tidak berubah"
+    },
+    {
+      "scenario": "Jadwal Shift — Mengisi shift terhapus pada tanggal sesudah penutupan ditolak",
+      "given": "Sebuah shift sudah dihapus di Kelola Shift dengan tanggal penutupan tertentu",
+      "when": "Pengatur mencoba mengisi sel shift itu pada tanggal sesudah penutupan (misalnya lewat permintaan langsung)",
+      "then": "Penugasan ditolak dan histori penugasan sebelum penutupan tetap utuh"
+    },
+    {
+      "scenario": "Jadwal Shift — Membuka tanpa memilih Production Line lewat permintaan langsung ditolak",
+      "given": "Pengatur sudah masuk dengan peran yang berhak",
+      "when": "Pengatur meminta data jadwal tanpa menyebut Production Line atau dengan opsi semua line",
+      "then": "Permintaan tidak menghasilkan grid dan pengatur diminta memilih satu Production Line"
+    },
+    {
+      "scenario": "Jadwal Shift — Kalender adalah tampilan bawaan",
+      "given": "Pengatur sudah memilih mill dan Production Line yang punya shift hidup",
+      "when": "Pengatur membuka Jadwal Shift pertama kali",
+      "then": "Tampil kalender bulan berjalan dengan tujuh kolom Sen–Min dan satu kotak per tanggal, tiap kotak memuat satu baris per shift berisi nama shift dan petugasnya, serta pemilih 'Kalender | Tabel' menandai Kalender sebagai tampilan aktif dengan kata"
+    },
+    {
+      "scenario": "Jadwal Shift — Berganti ke tampilan Tabel",
+      "given": "Pengatur sedang melihat kalender bulan Oktober pada Line 1",
+      "when": "Pengatur memilih 'Tabel'",
+      "then": "Tampil tabel dengan baris tanggal dan kolom shift berurut menurut jam mulai, mill, line, dan bulan tidak berubah, ringkasan bulan sama persis dengan di kalender, dan tidak ada data yang disimpan atau dibuang"
+    },
+    {
+      "scenario": "Jadwal Shift — Mengeklik sel tabel membuka kartu tanggal di samping",
+      "given": "Pengatur sedang melihat tampilan Tabel dan tidak ada tombol 'Atur' pada sel",
+      "when": "Pengatur mengeklik sel shift Pagi pada tanggal 5",
+      "then": "Kartu tanggal untuk tanggal 5 terbuka di samping grid dengan semua shift tanggal itu dan shift Pagi terbuka lebih dulu, grid tetap terlihat, dan petugas dapat dicentang lalu disimpan dari kartu"
+    },
+    {
+      "scenario": "Jadwal Shift — Mengeklik kotak kalender membuka kartu tanggal di samping",
+      "given": "Pengatur sedang melihat tampilan Kalender",
+      "when": "Pengatur mengeklik kotak tanggal 5",
+      "then": "Kartu tanggal untuk tanggal 5 terbuka di samping kalender, kotak itu ditandai dengan kata 'Dibuka', dan semua shift pada tanggal itu dapat diatur dari kartu"
+    },
+    {
+      "scenario": "Jadwal Shift — Sel shift tertutup hanya menampilkan histori",
+      "given": "Sebuah shift sudah dihapus pada pertengahan bulan dan pengatur melihat tanggal sebelum penutupan",
+      "when": "Pengatur mengeklik sel atau kotak milik shift tertutup itu",
+      "then": "Kartu tanggal hanya menampilkan petugas lama dengan keterangan 'shift sudah dihapus' tanpa bagian pengisi dan tanpa tombol simpan"
+    },
+    {
+      "scenario": "Jadwal Shift — Kotak kalender di luar bulan tidak dapat diklik",
+      "given": "Bulan dimulai pada hari Kamis sehingga kalender punya kotak kosong sebelum tanggal 1",
+      "when": "Pengatur mengeklik kotak kosong itu",
+      "then": "Tidak terjadi apa pun dan kartu tanggal tidak terbuka"
+    },
+    {
+      "scenario": "Jadwal Shift — Kotak kalender padat memakai +N lagi",
+      "given": "Sebuah tanggal punya banyak shift dengan banyak petugas sehingga isinya melebihi kotak",
+      "when": "Pengatur membaca kotak itu di kalender",
+      "then": "Tampil sebagian beserta '+N lagi' yang dapat dibuka, tidak ada yang terpotong diam-diam, dan teks tidak di bawah 14px"
+    },
+    {
+      "scenario": "Jadwal Shift — Pindah bulan menutup kartu tanggal",
+      "given": "Kartu tanggal untuk tanggal 5 sedang terbuka",
+      "when": "Pengatur berpindah ke bulan berikutnya",
+      "then": "Kartu ditutup karena tanggalnya tidak lagi tampil dan tidak ada perubahan yang tersimpan diam-diam"
+    },
+    {
+      "scenario": "Jadwal Shift — Mengeklik tanggal lain dengan perubahan belum disimpan",
+      "given": "Kartu tanggal memuat perubahan petugas yang belum disimpan",
+      "when": "Pengatur mengeklik tanggal lain",
+      "then": "Sistem meminta konfirmasi inline sebelum membuang perubahan itu dan tidak membuangnya diam-diam"
+    },
+    {
+      "scenario": "Jadwal Shift — Kalender pada layar sempit menjadi daftar per minggu",
+      "given": "Pengatur membuka Jadwal Shift pada lebar jendela yang tidak cukup untuk tujuh kolom",
+      "when": "Sistem menampilkan kalender",
+      "then": "Kalender tampil sebagai daftar per minggu dengan isi dan perilaku klik yang sama, dan teks tidak di bawah 14px"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-171--jadwal-shift"
+  ]
+}

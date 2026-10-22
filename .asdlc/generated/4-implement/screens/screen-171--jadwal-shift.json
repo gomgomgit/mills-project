@@ -1,0 +1,118 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-22"
+  },
+  "id": "screen-171--jadwal-shift",
+  "name": "Jadwal Shift",
+  "module_id": "module-master-data",
+  "status": "partial",
+  "files_generated": [
+    "backend/database/migrations/2026_10_22_000002_create_shift_assignments_table.php",
+    "backend/app/Models/ShiftAssignment.php",
+    "backend/database/factories/ShiftAssignmentFactory.php",
+    "backend/app/Services/ShiftScheduleService.php",
+    "backend/app/Http/Controllers/Api/ShiftScheduleController.php",
+    "backend/app/Exceptions/ShiftClosedException.php",
+    "backend/app/Exceptions/NotACandidateException.php",
+    "backend/app/Exceptions/ConfirmationRequiredException.php",
+    "backend/app/Livewire/MasterData/JadwalShift.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ShiftScheduleServiceTest.php",
+    "backend/tests/Feature/ShiftScheduleApiTest.php",
+    "backend/tests/Feature/AdminEquivalentRolesTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/resources/views/livewire/master-data/jadwal-shift.blade.php",
+    "backend/resources/views/master-data/shift-schedules.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php",
+    "backend/resources/views/livewire/master-data/kelola-shift.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/JadwalShiftTest.php",
+    "e2e-web/tests/jadwal-shift.spec.ts",
+    "e2e-web/tests/support/shift-schedules.ts"
+  ],
+  "implementation_notes": [
+    "Akses: gate memakai role EFEKTIF ($user->role); operator 403; supervisor/mill_management dibatasi pada mill sendiri. Ditegakkan di middleware rute, JadwalShift::mount(), dan service (tiga lapis).",
+    "Calon peserta memakai role TERPILIH (getRawOriginal / assignedRole) operator atau supervisor + is_active + mill sama; Engineer dkk. sengaja bukan calon.",
+    "Shift tertutup dibaca lewat withTrashed; closed_from = tanggal deleted_at di zona waktu aplikasi; read-only sebelum closed_from; tulis ke shift tertutup -> 422 SHIFT_CLOSED.",
+    "PUT cell mengganti seluruh isi sel dalam satu transaksi, dedupe user_ids, validasi hanya user baru, NOT_A_CANDIDATE semua-atau-tidak-sama-sekali, daftar kosong ditangani di PHP (bukan whereIn kosong), last-write-wins dengan changed_by_others/previous_user_ids.",
+    "apply dan copy-previous mendukung dry_run; menimpa tanpa confirm_overwrite -> 409 CONFIRMATION_REQUIRED; copy-previous mempertahankan sel berisi dan melaporkan filled/kept/skipped/nothing_to_copy.",
+    "Grid: production_line_id wajib (absen atau 'all' -> 422); 4 kueri per bulan, tanpa N+1.",
+    "SQLite vs PostgreSQL: work_date dibandingkan sebagai string 'YYYY-MM-DD' lewat whereBetween; pencarian nama lower()+LIKE; insertOrIgnore.",
+    "Migrasi: shift_id tanpa cascade (tetap menunjuk shift tertutup); down() = dropIfExists, tanpa dropForeign(['kolom']).",
+    "UI: grid bulanan, panel sel, form terapkan-banyak-tanggal dengan pratinjau, salin bulan lalu, state kosong, navigasi bulan; picker mill disembunyikan untuk peran terkunci; picker line wajib; teks minimal 14px; 69 kelas CSS yang dipakai markup terbukti terdefinisi; input date native; tidak ada disabled/readonly selain wire:loading pada tombol seperti Kelola Shift.",
+    "Sidebar: 'Jadwal Shift' di grup Master Data lewat RouteAccess; Kelola Shift tetap admin-only; tombol 'Jadwal Shift' ditambahkan di Kelola Shift.",
+    "Deviasi dari spec: validasi dates-vs-range pada apply mengembalikan 422; rentang apply dibatasi 1830 hari; deleted_at dibaca sebagai nilai Eloquent zona waktu aplikasi, bukan UTC.",
+    "REVISI v2 (kalender): dua tampilan 'Kalender | Tabel' dengan Kalender sebagai bawaan (viewMode, tidak terikat URL, tidak disimpan di server; diingat via localStorage dengan try/catch). Tanpa perubahan API/entitas/migrasi.",
+    "Tombol 'Atur' dihapus. Sel tabel berisi satu <button> penuh (testid jd-cell-btn-{shift}-{date}, aria-label tanggal + shift); kotak kalender adalah div role=button tabindex=0 dengan handler klik/Enter/Spasi; kotak kosong tanpa handler.",
+    "Kartu tanggal (kolom kanan 380px): per-shift section, penanda 'belum disimpan', simpan memanggil saveCell sekali untuk shift itu saja; shift tertutup hanya histori tanpa checklist maupun tombol simpan.",
+    "Komponen: dihapus openCell/closePanel/savePanel/clearPanel; ditambah setViewMode, openDay, confirmDiscard, cancelDiscard, selectShift, closeDay, saveShift, clearShift, confirmClear, cancelClear, isDirty. Pindah bulan/line/mill menutup kartu tanpa menulis.",
+    "Kalender: kotak kosong depan = weekday tanggal 1 dikurangi 1, kotak belakang melengkapi minggu; layar sempit (<768px) menjadi daftar, <1100px kartu menumpuk di bawah grid.",
+    "Ditemukan tes konvensi proyek (LoadingStateTest): tombol jd-discard-yes dan jd-card-clear-yes butuh wire:loading + label sibuk; diperbaiki. jd-discard-yes menampilkan spinner tanpa teks sibuk karena satu asersi tes mengunci teks tombol persis.",
+    "Perbaikan kode dari putaran tes sebelumnya: ShiftScheduleService::isValidDate() kini tidak melempar pada format tanggal rusak (422, bukan 500); pratinjau 'Terapkan' tidak lagi menampilkan teks @if mentah."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Playwright (43 tes) hanya didaftarkan (--list) dan dicek tipenya; TIDAK PERNAH dijalankan. Geometri (tanpa gulir mendatar halaman, kotak tidak terpotong, font terukur >= 14px, breakpoint 768/1100, kolom tabel sticky, kartu di samping grid, restore localStorage) belum terbukti di browser. Spec butuh DB e2e termigrasi+terisi dan 'npm run serve'.",
+      "severity": "major"
+    },
+    {
+      "description": "Belum dijalankan di PostgreSQL pada tingkat layar/service: whereBetween string-date, lower() dengan LIKE ... ESCAPE, insertOrIgnore, select agregat. Migrasi shift_assignments hanya diverifikasi di SQLite (up -> rollback -> up).",
+      "severity": "major"
+    },
+    {
+      "description": "Spec Playwright membuat user uji (jdtest-engineer01, jdtest-nonaktif01, jdtest-operator01/02) lewat POST /api/users dan membiarkannya; dapat memengaruhi spec lain yang menghitung user atau kandidat di BU Browser Test. Skenario 14 dan 32 melewati tanggal 1 tiap bulan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Cakupan baris tidak terukur (tidak ada xdebug/pcov); tidak dipakai untuk menentukan status.",
+      "severity": "minor"
+    },
+    {
+      "description": "Implementasi menolak SEMUA penulisan ke shift tertutup termasuk untuk tanggal sebelum closed_from (lebih ketat dari bunyi spec lama); tes mengunci perilaku ketat itu.",
+      "severity": "minor"
+    },
+    {
+      "description": "Penolakan peran oleh middleware EnsureRole yang sudah ada mengembalikan {message} tanpa code; penolakan dari service membawa code FORBIDDEN. Perilaku lama, tidak diubah.",
+      "severity": "minor"
+    },
+    {
+      "description": "closed_from dibaca dari deleted_at sebagai nilai zona waktu aplikasi; pembacaan UTC murni tidak diuji.",
+      "severity": "minor"
+    },
+    {
+      "description": "Sel kalender shift tertutup tanpa petugas disembunyikan di kalender tetapi tabel tetap menulis 'belum ada petugas'; layar sempit tanpa judul per minggu; $visibleLimit/$liveShifts tak terpakai di header @php blade (kosmetik).",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-22T07:30:00Z",
+      "passed": 77,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-22T07:30:00Z",
+      "passed": 40,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-22T07:30:00Z",
+      "passed": 75,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

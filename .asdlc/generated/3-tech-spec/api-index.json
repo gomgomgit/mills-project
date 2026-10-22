@@ -1,8 +1,8 @@
 {
-  "ver": 83,
+  "ver": 84,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-18"
+    "updated_at": "2026-10-22"
   },
   "endpoints": [
     {
@@ -2652,6 +2652,146 @@
         "actor-mill-management",
         "actor-admin",
         "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/shift-schedules/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill Jadwal Shift (admin & setara: semua; Supervisor/Mill Management: hanya mill sendiri, fixed=true).",
+      "screen_id": "screen-171--jadwal-shift",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-engineer",
+        "actor-shift-supervisor",
+        "actor-maintenance",
+        "actor-mekanik",
+        "actor-logistics",
+        "actor-qa-qc",
+        "actor-mill-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/shift-schedules/production-lines/options",
+      "description": "Production Line milik mill terpilih beserta live_shift_count; business_unit_id wajib.",
+      "screen_id": "screen-171--jadwal-shift",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-engineer",
+        "actor-shift-supervisor",
+        "actor-maintenance",
+        "actor-mekanik",
+        "actor-logistics",
+        "actor-qa-qc",
+        "actor-mill-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/shift-schedules",
+      "description": "Grid satu bulan untuk SATU Production Line (production_line_id wajib, tanpa mode semua line): kolom shift hidup + shift tertutup (read-only sebelum closed_from), baris tanggal, isi sel, ringkasan, semuanya dihitung server.",
+      "screen_id": "screen-171--jadwal-shift",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-engineer",
+        "actor-shift-supervisor",
+        "actor-maintenance",
+        "actor-mekanik",
+        "actor-logistics",
+        "actor-qa-qc",
+        "actor-mill-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/shift-schedules/candidates",
+      "description": "Calon peserta: user AKTIF berperan Operator atau Supervisor (role yang DIPILIH, bukan role efektif) pada mill dari line itu; q dan date opsional.",
+      "screen_id": "screen-171--jadwal-shift",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-engineer",
+        "actor-shift-supervisor",
+        "actor-maintenance",
+        "actor-mekanik",
+        "actor-logistics",
+        "actor-qa-qc",
+        "actor-mill-admin"
+      ]
+    },
+    {
+      "method": "PUT",
+      "path": "/api/shift-schedules/cell",
+      "description": "Mengganti isi SATU sel (shift x tanggal) dengan daftar user; daftar kosong mengosongkan sel; last-write-wins dengan changed_by_others; shift tertutup ditolak SHIFT_CLOSED.",
+      "screen_id": "screen-171--jadwal-shift",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-engineer",
+        "actor-shift-supervisor",
+        "actor-maintenance",
+        "actor-mekanik",
+        "actor-logistics",
+        "actor-qa-qc",
+        "actor-mill-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/shift-schedules/apply",
+      "description": "Menerapkan satu daftar user ke banyak tanggal pada satu shift (dates atau range); dry_run menghitung tanpa menulis; menimpa sel berisi butuh confirm_overwrite (409 CONFIRMATION_REQUIRED).",
+      "screen_id": "screen-171--jadwal-shift",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-engineer",
+        "actor-shift-supervisor",
+        "actor-maintenance",
+        "actor-mekanik",
+        "actor-logistics",
+        "actor-qa-qc",
+        "actor-mill-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/shift-schedules/copy-previous",
+      "description": "Menyalin pola bulan sebelumnya (tanggal ke tanggal) ke bulan tujuan untuk satu line; sel yang sudah berisi dipertahankan; dry_run menghitung tanpa menulis.",
+      "screen_id": "screen-171--jadwal-shift",
+      "usecase_id": "usecase-177--jadwal-shift",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-engineer",
+        "actor-shift-supervisor",
+        "actor-maintenance",
+        "actor-mekanik",
+        "actor-logistics",
+        "actor-qa-qc",
+        "actor-mill-admin"
       ]
     }
   ]

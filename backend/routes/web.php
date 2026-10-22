@@ -82,6 +82,7 @@ use App\Livewire\MasterData\KelolaCorporate;
 use App\Livewire\MasterData\KelolaMachinery;
 use App\Livewire\MasterData\KelolaPeriodePelaporan;
 use App\Livewire\MasterData\KelolaProductionLine;
+use App\Livewire\MasterData\JadwalShift;
 use App\Livewire\MasterData\KelolaShift;
 use App\Livewire\MasterData\KelolaStation;
 use App\Livewire\MasterData\MasterDataTreeView;
@@ -813,6 +814,17 @@ Route::middleware(['auth', 'role:admin'])
 Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/shifts', KelolaShift::class)
     ->name('master-data.shifts');
+
+// screen-171--jadwal-shift (usecase-177 — Jadwal Shift). Session-guarded
+// ('auth') + role-guarded: admin (termasuk tujuh role setara Admin lewat role
+// efektif), supervisor, dan mill_management; operator → halaman 403 dari
+// EnsureRole sebelum komponen mount. Berbeda dari Kelola Shift di atas yang
+// admin-only. Komponennya TETAP memanggil abort_unless() sendiri di mount()
+// (lapis kedua) dan ShiftScheduleService menegakkan peran + lingkup mill
+// sebagai lapis ketiga. Sidebar membaca middleware ini lewat RouteAccess.
+Route::middleware(['auth', 'role:admin,supervisor,mill_management'])
+    ->get('/master-data/shift-schedules', JadwalShift::class)
+    ->name('master-data.shift-schedules');
 
 // screen-129--laporan-sterilizer-web (usecase-129 — Laporan Periode
 // Sterilizer). Session-guarded + role-guarded to supervisor /

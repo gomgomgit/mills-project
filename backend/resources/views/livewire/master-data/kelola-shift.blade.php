@@ -68,6 +68,19 @@
     <div class="page-header">
         <h1 class="page-title">Kelola Shift</h1>
         <div class="page-actions">
+            {{-- screen-171--jadwal-shift — entry point "Tab atau tombol 'Jadwal
+                 Shift' di halaman Kelola Shift". Jam shift diatur di sini;
+                 mengisinya dengan orang ada di Jadwal Shift. Tautan membawa
+                 mill dan line yang sedang dipilih supaya konteks terbawa
+                 (bulan dibiarkan default = bulan berjalan). --}}
+            @if (\App\Support\RouteAccess::allows('master-data.shift-schedules'))
+                <a
+                    class="btn btn-secondary"
+                    href="{{ route('master-data.shift-schedules', array_filter(['businessUnitId' => $businessUnitId, 'productionLineId' => $productionLineId])) }}"
+                    wire:navigate
+                    data-testid="open-jadwal-shift"
+                >Jadwal Shift</a>
+            @endif
             <button
                 type="button"
                 class="btn btn-primary"

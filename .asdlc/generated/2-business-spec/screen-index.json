@@ -1,8 +1,8 @@
 {
-  "ver": 17,
+  "ver": 18,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-15"
+    "updated_at": "2026-10-22"
   },
   "screens": [
     {
@@ -1024,6 +1024,12 @@
       "name": "Kelola Shift",
       "module_id": "module-master-data",
       "description": "Admin mendefinisikan Shift PER PRODUCTION LINE — nama shift, jam mulai, jam selesai. Shift melekat pada Production Line, bukan pada mill: satu mill dapat punya belasan line dan tiap line punya jadwal shift-nya sendiri. Jam selesai BOLEH lebih awal daripada jam mulai (shift melewati tengah malam), dan ditampilkan sebagai '23:00 — 07:00 +1'. Layar ini TIDAK memuat pengaturan jarak waktu sinkronisasi; jarak itu ditetapkan per mill sehingga tempatnya di pengaturan mill, dan mendarat bersama gerbang sinkronisasinya. Tata letaknya timeline 24 jam per Production Line yang dimulai 07:00 mengikuti awal hari produksi, dengan blok shift di atasnya dan tabel tambah/ubah/hapus di bawahnya — pola panel-di-atas-tabel yang sama dengan Kelola Periode Pelaporan (screen-128). Timeline mengikuti filter Production Line, dan komponen yang sama dipakai ulang sebagai pratinjau hidup di form sehingga tumpang tindih dan celah terlihat sebelum disimpan. Tumpang tindih antar shift pada satu line ditolak dengan batas inklusif; celah diizinkan tetapi ditandai beserta jumlah jam yang tidak tercakup, karena pabrik yang tidak beroperasi 24 jam itu sah sementara record yang jatuh di luar shift mana pun harus tetap terlihat sebagai persoalan. Union shift yang tidak dimulai 07:00 ditandai tetapi tidak ditolak. Urutan tampil shift diturunkan dari jam mulai relatif awal hari produksi, bukan dari kolom urutan manual."
+    },
+    {
+      "id": "screen-171--jadwal-shift",
+      "name": "Jadwal Shift",
+      "module_id": "module-master-data",
+      "description": "Roster assignment shift BULANAN per Production Line: grid hari × shift untuk satu bulan, tiap sel berisi daftar orang yang bertugas pada shift itu di hari itu. Satu shift dapat diisi beberapa orang dan orangnya boleh berbeda tiap hari. Production Line adalah konteks yang DIPILIH di layar (bukan ikatan akun); shift yang tampil adalah shift hidup milik line terpilih (Kelola Shift, screen-170). Bulan dinavigasi maju/mundur; data disimpan per tanggal (Production Line + shift + tanggal + user). Calon peserta hanya user aktif dengan role Operator atau Supervisor di mill line itu. Satu user BOLEH berada di beberapa shift pada hari yang sama (tanpa cek bentrok) dan shift BOLEH kosong. Diakses dari Kelola Shift lewat tab/tombol 'Jadwal Shift' dan satu grup menu Master Data. Pengatur: Supervisor dan Mill Management (hanya mill sendiri), Admin, dan tujuh role setara Admin. Hanya web. Shift yang di-soft-delete tidak boleh menghilangkan histori assignment: assignment lama tetap terbaca (shift ditampilkan sebagai terhapus) di bulan-bulan lampau."
     }
   ]
 }

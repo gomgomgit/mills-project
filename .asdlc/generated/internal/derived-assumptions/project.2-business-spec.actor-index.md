@@ -27,3 +27,10 @@ Sumber: audit-fix 2026-10-04, code is truth (routes/web.php '/beranda' + setting
 
 ## v7 — 2026-10-05
 - actors[actor-supervisor].description/permissions = + web 'Data Saya' (record buatannya sendiri, mill sendiri, read-only; tambahan) ← USER (Checkpoint 3b screen-145)
+
+## v8 — 2026-10-22
+
+- **actors (7 role baru)** — value: Engineer, Shift Supervisor, Maintenance, Mekanik, Logistics, QA/QC, Mill Admin diberi akses setara Admin (opsi B, pilihan user). Reason: user menjawab "dibuka semua dulu"; deskripsi tiap role (tugas/peran) diturunkan dari namanya, bukan disebut user.
+- **actors (Mill Admin)** — value: diperlakukan seperti Admin, tidak terikat satu business unit. Reason: user tidak menjawab pertanyaan lingkup Mill Admin; mengikuti default "setara Admin".
+- **actors (platform)** — value: login web + mobile tidak dibatasi (AuthService memang tidak membatasi per role). Reason: pertanyaan platform tidak dijawab.
+- **konflik keputusan** — keputusan 2026-09-22 "hanya Admin boleh tutup/buka Periode" kini tidak berlaku eksklusif; 7 role baru juga boleh (sengaja, atas pilihan user, sementara).

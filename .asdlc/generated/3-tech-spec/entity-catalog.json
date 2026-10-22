@@ -1,8 +1,8 @@
 {
-  "ver": 25,
+  "ver": 27,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-16"
+    "updated_at": "2026-10-22"
   },
   "entities": [
     {
@@ -1503,9 +1503,9 @@
         },
         {
           "name": "role",
-          "type": "enum(operator, supervisor, mill_management, admin)",
+          "type": "enum(operator, supervisor, mill_management, admin, engineer, shift_supervisor, maintenance, mekanik, logistics, qa_qc, mill_admin)",
           "required": true,
-          "description": "Role yang menentukan hak akses dan field mana yang bisa diisi."
+          "description": "Role yang menentukan hak akses dan field mana yang bisa diisi. Tujuh role terakhir (engineer, shift_supervisor, maintenance, mekanik, logistics, qa_qc, mill_admin; keputusan produk 2026-10-22) SEMENTARA setara admin: disimpan apa adanya di kolom, tetapi dibaca model sebagai admin (App\\Casts\\EffectiveUserRole); role yang dipilih terbaca lewat User::assignedRole()."
         },
         {
           "name": "business_unit_id",
@@ -6898,6 +6898,86 @@
         "end_time": "15:00:00",
         "created_by": "usr-001",
         "updated_by": null,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "shift-assignment",
+      "name": "Shift Assignment",
+      "description": "Penugasan SATU ORANG pada SATU SHIFT pada SATU TANGGAL (2026-10-22) — roster bulanan per Production Line. Inilah 'entitas penugasan regu tersendiri' yang dicatat pada entitas Shift: jam shift berlaku sama setiap hari dan tetap di Shift, sedangkan siapa yang bertugas berubah dari hari ke hari dan hidup di sini. Satu shift pada satu tanggal dapat punya BANYAK baris (banyak orang), dan orang yang sama boleh punya baris pada beberapa shift di tanggal yang sama (tanpa pemeriksaan bentrok). Production Line dan Mill TIDAK disimpan di baris ini — keduanya diturunkan lewat shift_id. Penugasan murni informasional: tidak memengaruhi hak input record siapa pun. Pengeluaran orang dari sel adalah hapus fisik; yang dijaga histori adalah penugasan pada shift/user yang kemudian ditutup atau dinonaktifkan, bukan jejak perubahan sel.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "shift_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Shift. Boleh menunjuk shift yang sudah ditutup (soft delete) — itulah yang membuat histori penugasan tetap terbaca setelah shift dihapus. Rujukan memakai withTrashed."
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang bertugas. Saat DITULIS harus user aktif berperan Operator atau Supervisor (menurut role yang dipilih, assignedRole) pada mill dari line shift ini; user yang kemudian dinonaktifkan atau berganti mill tidak menghapus baris lama."
+        },
+        {
+          "name": "work_date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal penugasan. Untuk shift yang melintasi tengah malam adalah TANGGAL MULAI shift, bukan tanggal selesainya. Data disimpan per tanggal; bulan hanyalah jendela pandang."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User pengatur yang menaruh penugasan."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "shift",
+          "type": "many-to-one",
+          "description": "Setiap penugasan dimiliki tepat satu Shift, yang menurunkan Production Line dan mill-nya. Shift yang ditutup tetap dirujuk."
+        },
+        {
+          "entity_id": "user",
+          "type": "many-to-one",
+          "description": "Setiap penugasan menunjuk tepat satu User yang bertugas."
+        }
+      ],
+      "constraints": [
+        "UNIQUE (shift_id, user_id, work_date) — orang yang sama tidak boleh dua kali pada sel yang sama; menaruhnya lagi idempoten",
+        "TIDAK ada unique atau pemeriksaan bentrok lintas shift: user_id yang sama boleh ada pada beberapa shift di work_date yang sama",
+        "TIDAK ada batas minimum maupun maksimum baris per (shift_id, work_date); sel kosong sah dan direpresentasikan oleh ketiadaan baris",
+        "Penulisan baru hanya diterima bila shift HIDUP (deleted_at IS NULL), user aktif berperan Operator atau Supervisor, dan user itu berada pada business unit yang sama dengan production line shift",
+        "Shift yang sudah ditutup tidak dapat ditulisi sama sekali; barisnya tetap ada dan dibaca read-only untuk work_date SEBELUM tanggal penutupan, dan tidak ditampilkan untuk work_date pada atau sesudahnya",
+        "Mengubah jam shift tidak menyentuh baris ini; penugasan melekat pada shift_id, bukan pada jam",
+        "Pengeluaran orang dari sel adalah DELETE fisik baris; tidak ada soft delete pada entitas ini",
+        "INDEX (shift_id, work_date) untuk memuat satu bulan sebuah line; INDEX (user_id, work_date) untuk kebutuhan 'siapa bertugas hari ini' kelak"
+      ],
+      "test_fixture": {
+        "id": "sha-001",
+        "shift_id": "shf-001",
+        "user_id": "usr-001",
+        "work_date": "2024-01-15",
+        "created_by": "usr-001",
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
       }

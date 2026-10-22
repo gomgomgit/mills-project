@@ -205,7 +205,7 @@
                                     @enderror
                                 </div>
 
-                                @if ($form['role'] !== 'admin')
+                                @if (! \App\Enums\UserRole::tryFrom($form['role'])?->isAdminLike())
                                     <div class="kc-form-field">
                                         <label for="business_unit_id" class="kc-form-field__label">
                                             Business Unit <span class="kc-form-field__required">*</span>

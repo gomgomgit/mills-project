@@ -316,18 +316,19 @@ it('case 1 — guardAccess menolak tamu sebelum satu kueri pun, dan keempat pera
     }
 
     // CABANG 403 guardAccess() TIDAK DAPAT DICAPAI LEWAT PERILAKU, dan itu
-    // fakta yang perlu dinyatakan alih-alih disimulasikan: App\Enums\UserRole
-    // hanya punya EMPAT nilai, dan keempatnya diizinkan di sini. Menyemai
-    // peran kelima ('weighbridge_operator', seperti disebut tech spec) berarti
-    // menulis nilai yang akan ditolak cast enum pada User::$role saat dibaca —
-    // yang diuji bukan lagi guard-nya melainkan cast-nya.
+    // fakta yang perlu dinyatakan alih-alih disimulasikan: yang dibaca
+    // guardAccess() adalah User::$role, yaitu role EFEKTIF (App\Casts\
+    // EffectiveUserRole) — tujuh role setara Admin (engineer, dst.) terbaca
+    // sebagai Admin, jadi hanya ada EMPAT nilai efektif dan keempatnya
+    // diizinkan di sini. Menyemai role di luar enum berarti menulis nilai
+    // yang akan ditolak cast saat dibaca — yang diuji bukan lagi guard-nya
+    // melainkan cast-nya.
     //
-    // Karena itu yang dikunci adalah PREMIS-nya: begitu peran kelima
-    // ditambahkan ke enum, uji ini gagal dan cabang 403 harus diuji atas
-    // perilaku.
-    expect(UserRole::cases())->toHaveCount(4);
-    expect(collect(UserRole::cases())->map(fn (UserRole $role) => $role->value)->sort()->values()->all())
-        ->toBe(['admin', 'mill_management', 'operator', 'supervisor']);
+    // Karena itu yang dikunci adalah PREMIS-nya: begitu ada role dengan
+    // perilaku efektif sendiri (bukan setara Admin), uji ini gagal dan
+    // cabang 403 harus diuji atas perilaku.
+    $effective = collect(UserRole::cases())->map(fn (UserRole $role) => $role->effective()->value)->unique()->sort()->values()->all();
+    expect($effective)->toBe(['admin', 'mill_management', 'operator', 'supervisor']);
 });
 
 it('case 2 — keempat peran lolos guardAccess, termasuk operator demi kembaran mobile screen-155', function () {

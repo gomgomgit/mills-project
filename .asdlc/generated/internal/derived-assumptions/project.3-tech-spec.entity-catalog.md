@@ -102,3 +102,8 @@ Satu field ditambahkan ke ke-18 entity `* Record`: `shift_id` (uuid, **tidak waj
 Seluruh alasannya, termasuk kenapa ia tidak pernah di-backfill dan kenapa perangkat yang menyetempelnya di jalur mobile, ada di log `shared-decisions` v15 dan tidak diulang di sini. Yang perlu diingat saat membaca katalog ini: **`shift_id` null bukan data yang belum lengkap, melainkan keadaan yang sah dan sering** — setiap pembaca yang mengelompokkan menurut shift wajib punya kelompok 'tanpa shift', dan hari ini kelompok itu memuat SELURUH baris yang sudah ada.
 
 Field-nya di-APPEND ke akhir daftar, bukan disisipkan setelah `production_line_id` tempat ia secara makna berada. Alasannya mekanis dan disengaja: menyisipkan berarti menulis ulang ke-18 daftar field secara utuh, dan penulisan ulang daftar panjang adalah cara isi hilang diam-diam (aturan `artifact__patch` di CLAUDE.md §4). Urutan field di katalog bersifat kosmetis; isinya tidak.
+
+## v26 — 2026-10-22
+
+- **User.role (enum)** — value: 7 nilai baru ditambahkan; dibaca sebagai admin lewat cast `EffectiveUserRole`, disimpan apa adanya. Reason: "setara Admin" diwujudkan di satu titik (cast) alih-alih mengubah ~100 pengecekan `=== Admin` dan ~260 guard `role:`; ini keputusan implementasi agen, bukan pernyataan user.
+- **Efek samping yang diterima** — `$user->role` dan `role` di respons login mobile bernilai `admin` untuk role baru; role asli hanya terbaca lewat `assignedRole()` dan layar Kelola User.

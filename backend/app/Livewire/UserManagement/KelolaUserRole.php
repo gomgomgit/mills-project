@@ -117,7 +117,7 @@ class KelolaUserRole extends Component
         $this->form = [
             'username' => $user->username,
             'name' => $user->name,
-            'role' => $user->role instanceof UserRole ? $user->role->value : $user->role,
+            'role' => $user->assignedRole()->value,
             'business_unit_id' => (string) ($user->business_unit_id ?? ''),
             'password' => '',
         ];

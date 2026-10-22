@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\ProductionLineController;
 use App\Http\Controllers\Api\RecordVerificationController;
 use App\Http\Controllers\Api\RecordVerificationStatusController;
 use App\Http\Controllers\Api\ShiftController;
+use App\Http\Controllers\Api\ShiftScheduleController;
 use App\Http\Controllers\Api\SolidWasteDisposalRecordController;
 use App\Http\Controllers\Api\SolidWasteDisposalReportController;
 use App\Http\Controllers\Api\StationController;
@@ -1038,6 +1039,35 @@ Route::middleware(['auth:web', 'role:admin'])->group(function () {
     // Rute ber-{id}: SESUDAH kedua rute literal di atas.
     Route::patch('/shifts/{id}', [ShiftController::class, 'update']);
     Route::delete('/shifts/{id}', [ShiftController::class, 'destroy']);
+});
+
+// screen-171--jadwal-shift (usecase-177 — Jadwal Shift: mengisi sel shift ×
+// tanggal dengan orang, per Production Line, per bulan). Dapat diakses
+// admin (dan tujuh role setara Admin, yang dibaca sebagai admin oleh model
+// User), supervisor, dan mill_management; operator → 403. Berbeda dari
+// screen-170 yang admin-only: layar INI dipakai pengatur regu di lapangan.
+//
+// Lingkup mill Supervisor / Mill Management (hanya mill sendiri) ditegakkan
+// di ShiftScheduleService — lapis ketiga, di atas middleware ini dan
+// abort_unless() di JadwalShift::mount() — bukan hanya di UI.
+//
+// URUTAN PENDAFTARAN ADALAH BAGIAN DARI KONTRAK, BUKAN GAYA. Tidak ada rute
+// ber-{id} di grup ini, tetapi keenam rute LITERAL (business-units/options,
+// production-lines/options, candidates, cell, apply, copy-previous) tetap
+// didaftarkan SEBELUM GET /shift-schedules supaya segmen literal tidak pernah
+// tertelan pola lain yang kelak ditambahkan di bawah /shift-schedules
+// (jebakan yang sudah pernah terjadi di /periods dan /shifts di berkas ini).
+// Jangan mengurutkan ulang grup ini "supaya rapi".
+Route::middleware(['auth:web', 'role:admin,supervisor,mill_management'])->group(function () {
+    // Enam rute LITERAL — wajib di atas GET /shift-schedules.
+    Route::get('/shift-schedules/business-units/options', [ShiftScheduleController::class, 'businessUnitOptions']);
+    Route::get('/shift-schedules/production-lines/options', [ShiftScheduleController::class, 'productionLineOptions']);
+    Route::get('/shift-schedules/candidates', [ShiftScheduleController::class, 'candidates']);
+    Route::put('/shift-schedules/cell', [ShiftScheduleController::class, 'saveCell']);
+    Route::post('/shift-schedules/apply', [ShiftScheduleController::class, 'apply']);
+    Route::post('/shift-schedules/copy-previous', [ShiftScheduleController::class, 'copyPrevious']);
+
+    Route::get('/shift-schedules', [ShiftScheduleController::class, 'grid']);
 });
 
 // screen-129--laporan-sterilizer-web (usecase-129 — Laporan Periode

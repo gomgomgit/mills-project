@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-22"
@@ -7,7 +7,7 @@
   "id": "screen-171--jadwal-shift",
   "name": "Jadwal Shift",
   "module_id": "module-master-data",
-  "status": "partial",
+  "status": "complete",
   "files_generated": [
     "backend/database/migrations/2026_10_22_000002_create_shift_assignments_table.php",
     "backend/app/Models/ShiftAssignment.php",
@@ -55,20 +55,19 @@
     "Komponen: dihapus openCell/closePanel/savePanel/clearPanel; ditambah setViewMode, openDay, confirmDiscard, cancelDiscard, selectShift, closeDay, saveShift, clearShift, confirmClear, cancelClear, isDirty. Pindah bulan/line/mill menutup kartu tanpa menulis.",
     "Kalender: kotak kosong depan = weekday tanggal 1 dikurangi 1, kotak belakang melengkapi minggu; layar sempit (<768px) menjadi daftar, <1100px kartu menumpuk di bawah grid.",
     "Ditemukan tes konvensi proyek (LoadingStateTest): tombol jd-discard-yes dan jd-card-clear-yes butuh wire:loading + label sibuk; diperbaiki. jd-discard-yes menampilkan spinner tanpa teks sibuk karena satu asersi tes mengunci teks tombol persis.",
-    "Perbaikan kode dari putaran tes sebelumnya: ShiftScheduleService::isValidDate() kini tidak melempar pada format tanggal rusak (422, bukan 500); pratinjau 'Terapkan' tidak lagi menampilkan teks @if mentah."
+    "Perbaikan kode dari putaran tes sebelumnya: ShiftScheduleService::isValidDate() kini tidak melempar pada format tanggal rusak (422, bukan 500); pratinjau 'Terapkan' tidak lagi menampilkan teks @if mentah.",
+    "Putaran browser (Playwright, 2026-10-22) menemukan 3 cacat yang lolos dari suite Pest dan memperbaikinya: (1) ekspresi Alpine yang diawali `try` memicu `Unexpected token 'try'` dan melumpuhkan seluruh interaktivitas — dibungkus IIFE; (2) checkbox calon peserta `wire:model` ditunda sehingga penanda 'belum disimpan' tidak muncul — diubah ke `wire:model.live`; (3) penanda 'juga di shift …' menghitung shift tertutup karena join mentah melewati scope soft-delete — `whereNull('shifts.deleted_at')` ditambahkan, tes regresi ditambah dan terbukti gagal tanpa perbaikan.",
+    "Pelajaran: tes Pest yang hanya memeriksa keberadaan teks `try/catch` pada sumber blade tidak membuktikan JavaScript-nya valid. Perilaku sisi-klien hanya terbukti oleh Playwright.",
+    "Spec Playwright (43 tes) lulus 43/43 pada DB e2e yang baru direset (`npm run db:prepare`). Spec TIDAK idempoten: tiap run menutup shift lama dan membuat shift baru pada `PL Mill A`, sehingga tabel melebar dan skenario 21 mulai gagal setelah beberapa run — reset DB e2e sebelum menjalankannya."
   ],
   "deferred_items": [],
   "known_issues": [
     {
-      "description": "Playwright (43 tes) hanya didaftarkan (--list) dan dicek tipenya; TIDAK PERNAH dijalankan. Geometri (tanpa gulir mendatar halaman, kotak tidak terpotong, font terukur >= 14px, breakpoint 768/1100, kolom tabel sticky, kartu di samping grid, restore localStorage) belum terbukti di browser. Spec butuh DB e2e termigrasi+terisi dan 'npm run serve'.",
+      "description": "Belum dijalankan di PostgreSQL pada tingkat layar/service: whereBetween string-date, lower() dengan LIKE ... ESCAPE, insertOrIgnore, select agregat. Migrasi shift_assignments hanya diverifikasi di SQLite (up -> rollback -> up); migrasi role users_role_check sudah diverifikasi di PostgreSQL e2e. Suite Pest dan Playwright berjalan di SQLite/DB e2e, bukan PostgreSQL produksi.",
       "severity": "major"
     },
     {
-      "description": "Belum dijalankan di PostgreSQL pada tingkat layar/service: whereBetween string-date, lower() dengan LIKE ... ESCAPE, insertOrIgnore, select agregat. Migrasi shift_assignments hanya diverifikasi di SQLite (up -> rollback -> up).",
-      "severity": "major"
-    },
-    {
-      "description": "Spec Playwright membuat user uji (jdtest-engineer01, jdtest-nonaktif01, jdtest-operator01/02) lewat POST /api/users dan membiarkannya; dapat memengaruhi spec lain yang menghitung user atau kandidat di BU Browser Test. Skenario 14 dan 32 melewati tanggal 1 tiap bulan.",
+      "description": "Spec Playwright tidak idempoten dan meninggalkan data: shift tertutup menumpuk di PL Mill A (skenario 21 gagal setelah beberapa run tanpa reset) dan user uji jdtest-engineer01, jdtest-nonaktif01, jdtest-operator01/02 tidak dihapus. Perlu `npm run db:prepare` sebelum run, atau spec diberi pembersihan sendiri. Skenario 14 dan 32 melewati tanggal 1 tiap bulan.",
       "severity": "minor"
     },
     {
@@ -88,30 +87,34 @@
       "severity": "minor"
     },
     {
-      "description": "Sel kalender shift tertutup tanpa petugas disembunyikan di kalender tetapi tabel tetap menulis 'belum ada petugas'; layar sempit tanpa judul per minggu; $visibleLimit/$liveShifts tak terpakai di header @php blade (kosmetik).",
+      "description": "jd-discard-yes menampilkan spinner tanpa teks sibuk karena satu asersi tes mengunci teks tombol persis ('Ya, buang perubahan').",
+      "severity": "minor"
+    },
+    {
+      "description": "Kalender menyembunyikan baris shift tertutup tanpa petugas sedangkan tabel menulis 'belum ada petugas'; layar sempit tanpa judul per minggu; $visibleLimit/$liveShifts tak terpakai di header @php blade (kosmetik).",
       "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-10-22T07:30:00Z",
-      "passed": 77,
+      "run_at": "2026-10-22T10:00:00Z",
+      "passed": 78,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-10-22T07:30:00Z",
+      "run_at": "2026-10-22T10:00:00Z",
       "passed": 40,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-10-22T07:30:00Z",
+      "run_at": "2026-10-22T10:00:00Z",
       "passed": 75,
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-22T09:50:00Z",
+      "passed": 43,
       "failed": 0
     }
   }

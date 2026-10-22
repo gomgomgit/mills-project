@@ -16,3 +16,9 @@
 - kalender menyembunyikan baris shift tertutup tanpa petugas; tabel tetap menulis 'belum ada petugas' ← keputusan agen
 - layar sempit: satu baris per tanggal tanpa judul per minggu ← penyederhanaan agen
 - status dibiarkan 'partial' meski 192 tes layar lulus ← Playwright tidak pernah dijalankan; geometri tak terbukti
+
+## v3 — 2026-10-22
+
+- status 'partial' -> 'complete' ← keputusan agen: semua lapisan tes lulus (unit 78, integration 40, component 75, browser 43), tanpa deferred item. Syarat 'terverifikasi' dipenuhi oleh Playwright 43/43 di DB e2e bersih. Catatan: PostgreSQL pada tingkat layar tetap tidak terbukti (known_issue major) — keputusan status ini dapat dibalik bila kamu menganggap itu syarat 'complete'.
+- Playwright tidak idempoten ← ditemukan saat menjalankan ulang tanpa reset; dicatat sebagai known_issue, tidak diperbaiki
+- angka tes browser 43 = jumlah tes terdaftar yang lulus pada run bersih ← dihitung dari log run 2026-10-22

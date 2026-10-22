@@ -211,14 +211,14 @@
         <div
             class="jd-view-bar"
             x-data
-            x-init="try { const v = window.localStorage.getItem('jd-view-mode'); if ((v === 'calendar' || v === 'table') && v !== $wire.viewMode) { $wire.setViewMode(v); } } catch (e) {}"
+            x-init="(() => { try { const v = window.localStorage.getItem('jd-view-mode'); if ((v === 'calendar' || v === 'table') && v !== $wire.viewMode) { $wire.setViewMode(v); } } catch (e) {} })()"
         >
             <div class="jd-switch" role="group" aria-label="Tampilan jadwal" data-testid="jd-view-switch">
                 <button
                     type="button"
                     class="btn btn-sm {{ $viewMode === 'calendar' ? 'btn-primary' : 'btn-outline' }}"
                     wire:click="setViewMode('calendar')"
-                    x-on:click="try { window.localStorage.setItem('jd-view-mode', 'calendar'); } catch (e) {}"
+                    x-on:click="(() => { try { window.localStorage.setItem('jd-view-mode', 'calendar'); } catch (e) {} })()"
                     aria-pressed="{{ $viewMode === 'calendar' ? 'true' : 'false' }}"
                     data-testid="jd-view-calendar"
                 >Kalender{{ $viewMode === 'calendar' ? ' (aktif)' : '' }}</button>
@@ -226,7 +226,7 @@
                     type="button"
                     class="btn btn-sm {{ $viewMode === 'table' ? 'btn-primary' : 'btn-outline' }}"
                     wire:click="setViewMode('table')"
-                    x-on:click="try { window.localStorage.setItem('jd-view-mode', 'table'); } catch (e) {}"
+                    x-on:click="(() => { try { window.localStorage.setItem('jd-view-mode', 'table'); } catch (e) {} })()"
                     aria-pressed="{{ $viewMode === 'table' ? 'true' : 'false' }}"
                     data-testid="jd-view-table"
                 >Tabel{{ $viewMode === 'table' ? ' (aktif)' : '' }}</button>
@@ -518,7 +518,7 @@
                                                     ));
                                                 @endphp
                                                 <label class="jd-check" wire:key="cand-{{ $sh['id'] }}-{{ $candidate['user_id'] }}">
-                                                    <input type="checkbox" value="{{ $candidate['user_id'] }}" wire:model="daySelected.{{ $sh['id'] }}" data-testid="candidate-{{ $candidate['user_id'] }}">
+                                                    <input type="checkbox" value="{{ $candidate['user_id'] }}" wire:model.live="daySelected.{{ $sh['id'] }}" data-testid="candidate-{{ $candidate['user_id'] }}">
                                                     <span>{{ $candidate['name'] }} <span class="jd-role">({{ $candidate['role_label'] }})</span></span>
                                                     @if (in_array($candidate['user_id'], $dayLoaded[$sh['id']] ?? [], true))
                                                         <span class="badge badge-success">sudah di sel ini</span>
@@ -541,7 +541,7 @@
 
                                             @foreach ($editor['extra'] as $member)
                                                 <label class="jd-check" wire:key="extra-{{ $sh['id'] }}-{{ $member['user_id'] }}">
-                                                    <input type="checkbox" value="{{ $member['user_id'] }}" wire:model="daySelected.{{ $sh['id'] }}" data-testid="candidate-{{ $member['user_id'] }}">
+                                                    <input type="checkbox" value="{{ $member['user_id'] }}" wire:model.live="daySelected.{{ $sh['id'] }}" data-testid="candidate-{{ $member['user_id'] }}">
                                                     <span>{{ $member['name'] }}</span>
                                                     <span class="badge badge-neutral">{{ $member['is_active'] ? 'bukan calon lagi' : 'nonaktif' }}</span>
                                                     <span class="badge badge-success">sudah di sel ini</span>

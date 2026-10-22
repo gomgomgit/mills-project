@@ -322,6 +322,9 @@ class ShiftScheduleService
             $assigned = ShiftAssignment::query()
                 ->join('shifts', 'shifts.id', '=', 'shift_assignments.shift_id')
                 ->where('shifts.production_line_id', $line->id)
+                // join() mentah melewati scope soft-delete: shift yang sudah ditutup bukan
+                // "shift lain" tempat orang itu bisa bertugas, jadi dikecualikan eksplisit.
+                ->whereNull('shifts.deleted_at')
                 ->whereIn('shift_assignments.user_id', $users->pluck('id')->all())
                 ->whereBetween('shift_assignments.work_date', [(string) $date, (string) $date])
                 ->orderBy('shifts.name')

@@ -436,6 +436,20 @@ it('#9 candidates dengan date menyertakan already_on_shifts untuk shift lain pad
     expect($withoutDate[$this->budi->id]['already_on_shifts'])->toBe([]);
 });
 
+it('#9 shift yang sudah ditutup TIDAK dihitung sebagai "shift lain" pada already_on_shifts', function () {
+    // Regresi dari run Playwright: join mentah ke `shifts` melewati scope soft-delete, sehingga
+    // shift lama yang sudah ditutup muncul berulang sebagai "juga di shift Pagi, Pagi, Pagi…".
+    jshPlace($this->siang, $this->budi, '2026-10-05');
+    jshPlace($this->pagi, $this->budi, '2026-10-05');
+    jshCloseShiftAt($this->pagi, '2026-10-06 10:00:00');       // Pagi ditutup; barisnya tetap ada
+
+    $row = collect($this->service->candidates($this->lineA1->id, null, '2026-10-05')['data'])
+        ->keyBy('user_id')[$this->budi->id];
+
+    expect(array_column($row['already_on_shifts'], 'shift_id'))->toBe([$this->siang->id])
+        ->and(jshCount())->toBe(2);                             // penugasan di shift tertutup tetap tersimpan
+});
+
 it('#9 date yang tidak ada di kalender pada candidates ditolak 422', function () {
     expect(jshCatch(fn () => $this->service->candidates($this->lineA1->id, null, '2026-02-30')))
         ->toBeInstanceOf(ValidationException::class);

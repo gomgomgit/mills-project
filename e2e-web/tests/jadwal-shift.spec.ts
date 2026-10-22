@@ -330,7 +330,8 @@ test.describe('Jadwal Shift', () => {
     const a = await arrange(page, [])
 
     await page.goto(`${PATH}?businessUnitId=${a.businessUnitId}&month=${MONTH}`)
-    await selectLive(page, 'line-select', { label: LINE_A })
+    // Opsi line tanpa shift berlabel "<nama> — belum punya shift", jadi pilih lewat nilai, bukan label.
+    await selectLive(page, 'line-select', { value: a.lineId })
 
     await expect(page.locator('[data-testid="no-live-shift-guide"]')).toBeVisible()
     await expect(page.locator('[data-testid="kelola-shift-link"]')).toHaveAttribute('href', /\/master-data\/shifts$/)
@@ -377,7 +378,7 @@ test.describe('Jadwal Shift', () => {
 
     const response = await page.goto(PATH)
     expect(response?.status()).toBe(403)
-    await expect(page.getByText('Akses Ditolak')).toBeVisible()
+    await expect(page.getByTestId('forbidden-page').getByRole('heading', { name: 'Akses Ditolak' })).toBeVisible()
     await expect(page.locator('[data-testid="schedule-grid"]')).toHaveCount(0)
     await expect(page.locator('aside.shell-sidebar a[href$="/master-data/shift-schedules"]')).toHaveCount(0)
 
@@ -391,6 +392,10 @@ test.describe('Jadwal Shift', () => {
 
       const link = page.locator('aside.shell-sidebar a[href$="/master-data/shift-schedules"]')
       await expect(link).toHaveCount(1)
+      // Tautan ada di grup "Shift" (details) yang tertutup di luar halamannya sendiri: buka dulu.
+      await expect(link).toBeHidden()
+      await page.locator('aside.shell-sidebar details.shell-nav-group:has(a[href$="/master-data/shift-schedules"]) > summary').click()
+      await expect(link).toBeVisible()
       await link.click()
       await page.waitForURL((url) => url.pathname === PATH)
       await expect(page.locator('.jd-page')).toBeVisible()
@@ -1010,7 +1015,7 @@ test.describe('Jadwal Shift', () => {
     await expect(page.locator('[data-testid="month-name"]')).toHaveText('Maret 2027')
 
     // Urutan kolom shift mengikuti jam (position): Pagi lalu Siang.
-    await expect(page.locator('thead th[data-testid^="shift-head-"]')).toHaveText([/^Pagi/, /^Siang/])
+    await expect(page.locator('thead th[data-testid^="shift-head-"]')).toHaveText([/^\s*Pagi/, /^\s*Siang/])
 
     await page.locator('[data-testid="jd-view-calendar"]').click()
     await expect(page.locator('[data-testid="jd-calendar"]')).toBeVisible()

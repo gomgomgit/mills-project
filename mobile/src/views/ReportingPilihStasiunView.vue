@@ -175,6 +175,22 @@ const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   // di-APPEND. Ikon 'kernel-dispatch' SUDAH ADA di STATION_ICONS di bawah dan
   // tidak ditambah ulang — menambahkannya akan menjadi entri ganda.
   'kernel-dispatch': 'report-kernel-dispatch',
+  // screen-169--laporan-process-quality-control-mobile. Satu baris yang sama
+  // menentukannya: tanpa entri ini layar laporan Process Quality Control ada,
+  // rutenya ada, seluruh test-nya lulus, dan tile-nya tetap kelabu — pola
+  // kegagalan yang sudah pernah terjadi. Kuncinya WAJIB DIKUTIP karena
+  // bertanda hubung — kunci bergaris-bawah ('process_quality_control') akan
+  // terkompilasi, terlihat benar, dan tidak pernah cocok dengan satu
+  // station.type pun. Peta ini TIDAK berurut sort_order dan TIDAK punya asersi
+  // urutan, jadi entrinya cukup di-APPEND. Ikon 'process-quality-control' SUDAH
+  // ADA di STATION_ICONS di bawah dan tidak ditambah ulang.
+  //
+  // DENGAN BARIS INI PETA INI LENGKAP: seluruh delapan belas jenis stasiun
+  // nyata punya laporan mobile, dan tidak ada lagi tile kelabu di grid ini.
+  // Sebuah uji yang butuh contoh 'laporan belum dibangun' karena itu WAJIB
+  // memakai kode stasiun FIKTIF yang disuntikkan ke daftar stasiunnya sendiri —
+  // tidak ada lagi kandidat nyata.
+  'process-quality-control': 'report-process-quality-control',
 }
 
 function isReportAvailable(station: StationSlot): boolean {

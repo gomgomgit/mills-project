@@ -205,6 +205,25 @@ class StationReportService
         // StationTypeEnum::CpoDispatch->value. Tanpa satu baris ini laporannya
         // ada dan tile-nya tetap kelabu.
         StationTypeEnum::CpoDispatch->value => 'reports.cpo-dispatch',
+        // screen-168--laporan-process-quality-control-web. DI-APPEND DI AKHIR,
+        // dan untuk sekali ini "di akhir" benar-benar adalah posisi menurut
+        // sort_order: station_types.sort_order process-quality-control = 180,
+        // TERTINGGI di antara seluruh jenis yang berlaporan (kernel-dispatch
+        // 160, cpo-dispatch 170). Hanya 'other' (190) yang lebih tinggi, dan ia
+        // tidak pernah mendapat tile (EXCLUDED_STATION_TYPE di bawah).
+        //
+        // DENGAN BARIS INI, PETA INI LENGKAP: seluruh DELAPAN BELAS jenis
+        // stasiun nyata kini berlaporan. Tidak ada lagi jenis stasiun nyata yang
+        // dapat dipakai sebuah uji sebagai contoh 'laporan belum dibangun' —
+        // contoh semacam itu wajib memakai jenis FIKTIF yang disuntikkan
+        // ('zz-stasiun-fiktif'), dan asersi penjaga yang dahulu berbunyi
+        // "peta ini belum punya kunci X" wajib menjadi "seluruh delapan belas
+        // jenis stasiun kini berlaporan".
+        //
+        // Kuncinya BERTANDA HUBUNG, dari StationTypeEnum::ProcessQualityControl
+        // ->value. Tanpa satu baris ini laporannya ada, seluruh uji miliknya
+        // sendiri lulus, dan tile-nya tetap kelabu.
+        StationTypeEnum::ProcessQualityControl->value => 'reports.process-quality-control',
     ];
 
     /**

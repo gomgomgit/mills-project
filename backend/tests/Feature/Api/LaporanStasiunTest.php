@@ -201,37 +201,41 @@ it('akun tanpa mill: 422 VALIDATION_ERROR dan respons tidak memuat daftar mill (
 // =====================================================================
 // Scenario: "menekan stasiun yang belum tersedia"
 // =====================================================================
-it('stasiun belum tersedia: process-quality-control dikembalikan dengan report_available false dan report_path null', function () {
-    // CONTOH "LAPORAN BELUM DIBANGUN" SUDAH DIPINDAHKAN TIGA KALI, selalu
-    // dengan sebab yang sama: THRESHING -> PROCESS WATER pada 2026-10-06
-    // (screen-148 membuat laporan Threshing), PROCESS WATER -> SOLID WASTE
-    // DISPOSAL pada 2026-10-16 (screen-160 membuat laporan Process Water),
-    // lalu SOLID WASTE DISPOSAL -> PROCESS QUALITY CONTROL pada 2026-10-18
-    // (screen-162 membuat laporan Solid Waste Disposal). DIPINDAHKAN, BUKAN
-    // DIHAPUS: bila pembawanya pun dibuatkan laporan, test ini gagal lagi —
-    // dan itu benar, karena ia memaksa contohnya diperbarui alih-alih
-    // diam-diam menjadi selalu hijau.
+it("stasiun belum tersedia: jenis stasiun FIKTIF dikembalikan dengan report_available false dan report_path null", function () {
+    // CONTOH "LAPORAN BELUM DIBANGUN" KINI MEMAKAI JENIS STASIUN FIKTIF, dan
+    // itu PERUBAHAN BENTUK — bukan pemindahan keempat.
     //
-    // KENAPA PROCESS QUALITY CONTROL, BUKAN KERNEL DISPATCH. Sisa jenis
-    // stasiun tanpa entri REPORT_ROUTES per 2026-10-18: kernel-dispatch
-    // (160), cpo-dispatch (170), process-quality-control (180) — dan
-    // ketiganya sedang dibangun BERURUTAN (screen-164, 166, 168). Yang
-    // dipakai di sini yang TERAKHIR, supaya contohnya tidak basi lagi sampai
-    // screen-168. Berbeda dari StationReportServiceTest, yang menyemai
-    // masternya sendiri lewat stationReportMaster() dan karena itu dapat
-    // memakai kode FIKTIF yang tidak akan pernah berlaporan: berkas ini
-    // membaca master station_types yang NYATA dari migrasi, jadi kode fiktif
-    // tidak tersedia di sini. Sesudah screen-168 contoh ini HABIS dan test
-    // harus ditulis ulang dengan jenis stasiun fiktif yang disuntikkan ke
-    // master — bukan dibiarkan menghijau tanpa pembawa.
+    // Contoh ini sudah dipindahkan TIGA KALI, selalu dengan sebab yang sama:
+    // THRESHING -> PROCESS WATER (2026-10-06, screen-148), PROCESS WATER ->
+    // SOLID WASTE DISPOSAL (2026-10-16, screen-160), lalu SOLID WASTE DISPOSAL
+    // -> PROCESS QUALITY CONTROL (2026-10-18, screen-162). Pada 2026-10-23
+    // screen-168 membangun laporan Process Quality Control, dan dengan itu
+    // SELURUH DELAPAN BELAS jenis stasiun NYATA berlaporan: TIDAK ADA KANDIDAT
+    // KEEMPAT. Pola 'pindahkan contohnya' karena itu HABIS dan tidak akan
+    // pernah berlaku lagi.
     //
+    // Gantinya: berkas ini MENYUNTIKKAN jenis stasiun fiktif ke master lewat
+    // laporanStasiunApiMaster() — pola yang sudah dipakai
+    // StationReportServiceTest dengan kode 'zz-stasiun-fiktif'. Komentar lama di
+    // sini menyatakan "kode fiktif tidak tersedia di berkas ini"; itu KELIRU
+    // sejak helper penyemai master ada di berkas ini sendiri, dan kekeliruan itu
+    // yang membuat contoh nyata dipakai tiga kali lebih lama dari seharusnya.
+    //
+    // Kode fiktif TIDAK AKAN PERNAH mendapat entri REPORT_ROUTES, jadi test ini
+    // tidak akan pernah basi lagi — dan itulah seluruh gunanya.
+    laporanStasiunApiMaster([
+        ['solid-waste-disposal', 'Solid Waste Disposal', 150],
+        ['process-quality-control', 'Process Quality Control', 180],
+        ['zz-stasiun-fiktif', 'Stasiun Fiktif', 999],
+    ]);
+
     // Alasan pemindahannya DIASERSI, bukan sekadar dikomentari: yang membuat
     // sebuah kode layak jadi contoh adalah ketiadaannya di REPORT_ROUTES, dan
-    // yang membuat pemindahannya sah adalah contoh yang baru ditinggalkan
-    // MEMANG sudah terbangun.
-    expect(StationReportService::REPORT_ROUTES)->toHaveKey('process-water');
+    // yang membuat perubahan bentuk ini sah adalah bahwa KEDUA contoh nyata
+    // terakhir MEMANG sudah terbangun.
     expect(StationReportService::REPORT_ROUTES)->toHaveKey('solid-waste-disposal');
-    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('process-quality-control');
+    expect(StationReportService::REPORT_ROUTES)->toHaveKey('process-quality-control');
+    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('zz-stasiun-fiktif');
 
     // Step 1 — GET /api/station-reports/stations
     $stations = $this->actingAs($this->supervisor, 'web')->getJson('/api/station-reports/stations');
@@ -239,7 +243,7 @@ it('stasiun belum tersedia: process-quality-control dikembalikan dengan report_a
     $stations->assertStatus(200);
 
     $rows = collect($stations->json('data.stations'));
-    $unbuilt = $rows->firstWhere('code', 'process-quality-control');
+    $unbuilt = $rows->firstWhere('code', 'zz-stasiun-fiktif');
 
     // Present, so the screen can render it — but with no destination at
     // all, which is why the tile has no href and nothing to click.
@@ -247,15 +251,17 @@ it('stasiun belum tersedia: process-quality-control dikembalikan dengan report_a
     expect($unbuilt['report_available'])->toBeFalse();
     expect($unbuilt['report_path'])->toBeNull();
 
-    // Dan contoh yang BARU SAJA DITINGGALKAN kini SEBALIKNYA — pasangan
-    // inilah yang membuktikan payload berubah ketika laporannya mendarat,
-    // bukan sekadar bahwa ada satu baris report_available=false di suatu
-    // tempat.
-    $built = $rows->firstWhere('code', 'solid-waste-disposal');
+    // DAN PASANGAN POSITIFNYA, dua kali: kedua jenis NYATA pada master ini
+    // justru SEBALIKNYA. Tanpa pasangan ini, test hanya membuktikan ada satu
+    // baris report_available=false di suatu tempat — bukan bahwa payload
+    // berubah ketika laporannya mendarat.
+    foreach (['solid-waste-disposal', 'process-quality-control'] as $code) {
+        $built = $rows->firstWhere('code', $code);
 
-    expect($built)->not->toBeNull();
-    expect($built['report_available'])->toBeTrue();
-    expect($built['report_path'])->not->toBeNull();
+        expect($built)->not->toBeNull();
+        expect($built['report_available'])->toBeTrue();
+        expect($built['report_path'])->not->toBeNull();
+    }
 });
 
 // =====================================================================

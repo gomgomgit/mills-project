@@ -1,0 +1,1857 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-23"
+  },
+  "id": "screen-169--laporan-process-quality-control-mobile",
+  "name": "Laporan Process Quality Control (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "report-process-quality-control (path '/reports/process-quality-control' pada router mobile Vue; meta.public false)",
+  "auth_requirement": "authenticated — token Sanctum. Aktor: actor-station-operator dan actor-supervisor, keduanya terikat mill akunnya. Mill Management dan Admin ditahan oleh otorisasi sisi server plus ketiadaan jalur mobile, BUKAN oleh penjaga peran di router.",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya. Ketiga rute data /api/process-quality-control-reports/* SUDAH menerimanya sejak commit pertama screen-168, dan penerimaan itu ada di cabang TERIKAT-MILL resolveBusinessUnit() — jadi tidak ada pelebaran akses yang perlu dilakukan di layar ini"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id kiriman klien diabaikan server"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Server menerimanya, tetapi tidak ada entri menu mobile menuju layar ini; jalur praktisnya web (screen-168)"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Server menerimanya dan pemilih Mill dirender bila peran akunnya Admin; jalur praktisnya tetap web"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "usecase_name": "Lihat Laporan Periode Process Quality Control (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "Daftar Production Line untuk pemilih. DIPAKAI ULANG VERBATIM dari screen-135; nol perubahan.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Diabaikan bagi peran terikat mill; wajib bagi Admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ],
+              "_note": "Dipakai ulang apa adanya — tidak ada varian Process Quality Control"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku atau kedaluwarsa"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Akun terikat mill tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "Mengikuti throttle global api"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/process-quality-control-reports/periods",
+          "description": "Periode yang punya baris period_stations berjenis 'process-quality-control' pada mill akun. DIPAKAI ULANG APA ADANYA dari screen-168 — tidak ada varian mobile.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Diabaikan bagi Operator/Supervisor; wajib bagi Admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "business_unit_name": "string"
+                }
+              ],
+              "_note": "Status periode tidak menyaring daftar; draft dan closed ikut"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran tidak diterima"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Akun terikat mill tanpa business_unit_id"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "Mengikuti throttle global api"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/process-quality-control-reports/summary",
+          "description": "SELURUH angka laporan untuk satu periode pada satu Production Line. Bentuk responsnya sama persis dengan yang dirender web — ponsel merendernya apa adanya, termasuk `group` dan `unit` pada setiap entri metrik dan urutan NUMERIC_METRICS yang menentukan urutan kelima blok.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Absen → 422"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB; layar tidak pernah mengirim permintaan tanpa nilai ini"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Diabaikan bagi peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_note": "IDENTIK dengan /api/process-quality-control-reports/summary milik screen-168 — lihat spec screen-168 untuk skema lengkapnya. Kunci yang dipakai layar ini: period, business_unit, production_line, has_data, coverage (filled_slots, expected_slots, coverage_percent, process_qc_unit_count, slots_per_unit_per_day, days_in_period, days_counted, period_running, period_not_started, max_metric_reading_count), metrics (12 kunci, masing-masing min/avg/max/reading_count/group/unit), text_entries (2 kunci), inspector_recap (entries/not_recorded/attributed_slots), draft_slot_count, daily, daily_total, total. TIDAK ADA status_distribution, downtime, target/ambang, by_unit, daily_trend, maupun shift."
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku atau sesi berakhir saat layar terbuka"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "production_line_id atau period_id milik mill lain"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id absen"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — luring menutup angka alih-alih menyajikan salinan basi",
+            "rate_limit": "Mengikuti throttle global api"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/process-quality-control-reports/export",
+          "description": "Unduhan CSV rincian per slot waktu. Format 'csv' SAJA dari layar ini — .xlsx tidak pernah diminta karena WebView ponsel tidak membukanya. Bukan respons JSON.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "Sama seperti /summary"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": true,
+                "default": null,
+                "description": "WAJIB"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Diabaikan bagi peran terikat mill"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "Layar ini MENGIRIM 'csv' secara eksplisit dan tidak pernah mengirim nilai lain"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_type": "StreamedResponse text/csv",
+              "_note": "24 kolom, sama persis dengan ekspor web termasuk kolom Shift dan QC Inspector ID. Ekspor Excel TIDAK ditawarkan di layar ini."
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Token tidak berlaku"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Line atau periode milik mill lain"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Parameter wajib absen; ATAU baris slot melampaui EXPORT_ROW_LIMIT"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "Mengikuti throttle global api"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. NOL ENDPOINT BARU dan NOL BARIS BACKEND. Keempat endpoint sudah ada: ketiga rute /api/process-quality-control-reports/* dibangun screen-168 dan SUDAH menerima Operator sejak commit pertamanya, dan /api/production-lines/options-for-report dipakai ulang verbatim dari screen-135. Tidak ada entri api-index baru untuk layar ini.",
+        "2. PONSEL TIDAK MENGHITUNG APA PUN. Repo mengurai respons dan view merendernya; tidak ada rata-rata, penyebut, porsi, persentase, maupun pengelompokan yang diturunkan di klien. Termasuk TIDAK mengubah satuan — nilai `unit` dicetak apa adanya, dan `unit` null berarti TIDAK ADA elemen satuan yang dirender (kartu Indeks DOBI).",
+        "3. URUTAN KELIMA BLOK MILIK SERVER. View menurunkan daftar blok dengan menelusuri `metrics` MENURUT URUTAN KUNCINYA dan mengambil `group` yang belum terlihat — bukan dari larik nama blok yang ditulis tangan di klien. Daftar yang ditulis tangan adalah tempat urutan proses berubah menjadi urutan abjad tanpa satu uji pun memerah.",
+        "4. PERAN DITAHAN DI SERVER, BUKAN DI ROUTER. `mobile/src/router/index.ts` hanya punya SATU guard global atas `meta.public`; tidak ada satu rute pun yang membawa daftar peran. Menambahkan penjaga peran di router adalah perubahan se-router yang menyentuh seluruh 15 layar laporan — di luar cakupan layar ini.",
+        "5. onMounted → periksa konektivitas lebih dulu: luring → setel state offline, NOL permintaan dikirim, dan kelima blok ditutup seluruhnya",
+        "6. Baca Production Line yang diingat dari penyimpanan perangkat di dalam try/catch → penyimpanan tidak terbaca (mode privat): lanjut dengan line null, layar tetap tampil dan meminta memilih line, TANPA elemen galat",
+        "7. GET /api/production-lines/options-for-report → line yang diingat TIDAK ADA di daftar: buang nilai yang diingat dan minta pengguna memilih; jangan mengirim permintaan dengan id yang sudah tidak sah",
+        "8. GET /api/process-quality-control-reports/periods → [] : tampilkan kalimat sebabnya dan arahan menghubungi Admin; nol permintaan /summary",
+        "9. GUARD PEMUATAN: production_line_id null atau periode null → return LEBIH AWAL tanpa mengirim permintaan. Penjaga ada di fungsi pemuatan, sehingga jalur muat-pertama, ganti-periode, dan coba-lagi terlindung oleh satu penjaga yang sama",
+        "10. GET /api/process-quality-control-reports/summary → simpan payload apa adanya ke state; jangan menormalkan, jangan mengurutkan ulang, jangan menurunkan angka",
+        "11. Render kartu KELENGKAPAN paling atas dan TIDAK dapat dilipat → di dalamnya filled_slots dan max_metric_reading_count dicetak BERDAMPINGAN beserta kalimat yang menyatakan hubungannya, tanpa syarat, plus kalimat bahwa shift dan kode inspektur dikecualikan dari keterisian",
+        "12. coverage: period_not_started → '—' plus 'periode belum dimulai'; period_running → penyebut berhenti di hari ini dan hal itu dinyatakan; selain itu → persentase",
+        "13. Render LIMA kartu blok yang dapat dilipat, urut sesuai langkah 3, judul masing-masing membawa PENANDA DATA = ada tidaknya metrik di blok itu yang reading_count > 0",
+        "14. Di dalam setiap kartu: satu baris per metrik dengan min/avg/max, penyebutnya, dan satuannya → reading_count === 0: ketiga angka '—' (bukan 0) dan satuan tetap dicetak bila unit tidak null",
+        "15. Blok yang seluruh metriknya reading_count 0 TETAP dirender sebagai kartu, dengan penanda 'belum ada data' di judulnya — tidak dihilangkan dari layar",
+        "16. Melipat dan membuka kartu HANYA menyembunyikan dan menampilkan: tidak satu permintaan dikirim, tidak satu angka diubah, dan keadaan lipat tidak disimpan ke penyimpanan perangkat",
+        "17. Render rekap per-inspektur (dapat dilipat) dari inspector_recap apa adanya: kode mentah, baris 'tidak tercatat' tersendiri, urutan DARI SERVER; tabelnya menggulir mendatar di dalam kartunya",
+        "18. Render rekap harian (dapat dilipat) dari daily + daily_total apa adanya; satu baris per hari yang ada pembacaannya",
+        "19. Render DUA daftar kejadian TERPISAH dan berjudul sendiri dari text_entries; kosong → keterangan tidak ada catatan per daftar, bukan satu daftar gabungan",
+        "20. Render draft_slot_count dan ketiga pernyataan ketiadaan: nol rekap berlabel, nol penandaan di luar batas beserta sebabnya, nol blok henti operasi",
+        "21. Ekspor: kirim format 'csv'; tombol dikunci selama permintaan berjalan sehingga dua tekan cepat menghasilkan SATU permintaan dan SATU unduhan",
+        "22. Galat jaringan → state galat dengan aksi coba-lagi yang memanggil fungsi pemuatan yang SAMA, sehingga penjaga langkah 9 ikut berlaku pada percobaan ulang",
+        "23. 401 → arahkan ke Login tanpa pesan galat jaringan",
+        "24. Menjadi luring SESUDAH angka termuat → angka DITUTUP: state offline menggantikan isi, kelima blok ditutup seluruhnya, bukan dibiarkan terlipat dengan isi basi"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "SELECT",
+          "description": "Tidak langsung — lewat /api/process-quality-control-reports/summary dan /export milik screen-168. Klien tidak pernah menyentuh basis data"
+        },
+        {
+          "entity_id": "process-quality-control-detail",
+          "operation": "SELECT",
+          "description": "Tidak langsung, sumber kedua belas metrik dan kedua daftar teks"
+        },
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Tidak langsung — lewat /periods"
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Tidak langsung — penyaring jenis stasiun pada /periods"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Tidak langsung — lewat /api/production-lines/options-for-report"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Perangkat luring sebelum angka termuat",
+          "handling": "State offline; NOL permintaan dikirim; kelima kartu blok ditutup seluruhnya; layar menyatakan memerlukan jaringan"
+        },
+        {
+          "condition": "Perangkat menjadi luring sesudah angka termuat",
+          "handling": "Angka DITUTUP — state offline menggantikan isi. Kartu blok tidak dibiarkan terlipat dengan isi basi, karena kartu terlipat yang masih memegang angka lama tidak dapat dibedakan dari kartu terlipat yang berisi angka baru"
+        },
+        {
+          "condition": "Penyimpanan perangkat tidak dapat dibaca (mode privat)",
+          "handling": "Pembacaan dibungkus try/catch; layar tetap tampil dan meminta memilih line; NOL elemen galat dirender"
+        },
+        {
+          "condition": "Line yang diingat sudah tidak sah (dihapus / milik mill lain)",
+          "handling": "Nilai yang diingat dibuang karena tidak ada di options-for-report; pengguna diminta memilih; tidak ada permintaan /summary yang dikirim dengan id itu"
+        },
+        {
+          "condition": "Line yang diingat masih sah",
+          "handling": "Dipakai tanpa meminta memilih lagi, dan tetap dapat diganti"
+        },
+        {
+          "condition": "Line belum dipilih",
+          "handling": "Guard di fungsi pemuatan return lebih awal; NOL permintaan /summary dan /export; layar menyatakan apa yang ditunggunya; line tidak pernah dipilihkan meski daftar hanya berisi satu"
+        },
+        {
+          "condition": "Akun belum terhubung ke mill",
+          "handling": "422 dari server → arahan menghubungi Admin, BUKAN state galat jaringan dan bukan aksi coba-lagi"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup stasiun ini",
+          "handling": "/periods memulangkan [] → kalimat sebabnya plus arahan menghubungi Admin; nol permintaan /summary"
+        },
+        {
+          "condition": "Line milik mill lain dipaksa lewat jalur apa pun",
+          "handling": "403 dari server → layar kembali meminta memilih line dan tidak pernah merender satu angka mill lain"
+        },
+        {
+          "condition": "Sesi berakhir saat layar terbuka",
+          "handling": "401 → arahkan ke Login; bukan pesan galat jaringan dan bukan state offline"
+        },
+        {
+          "condition": "Galat jaringan",
+          "handling": "State galat dengan aksi coba-lagi yang memanggil fungsi pemuatan yang sama; penjaga line/periode ikut berlaku pada percobaan ulang"
+        },
+        {
+          "condition": "Line tanpa satu pembacaan pun",
+          "handling": "has_data false → kerangka tetap tampil menyebut periode dan line; KELIMA kartu blok tetap ada, masing-masing menyatakan belum ada pembacaan; kartu kelengkapan tetap dirender"
+        },
+        {
+          "condition": "Satu metrik tanpa pembacaan sementara sebelas lainnya terisi",
+          "handling": "Baris metrik itu '—' dengan penyebut 0; kesebelas lainnya tetap berangka; bloknya tetap terbuka bila dibuka, karena penandanya menanyakan apakah ADA metrik berdata di blok itu — bukan apakah SEMUA metriknya berdata"
+        },
+        {
+          "condition": "Satu blok seluruh metriknya kosong",
+          "handling": "Kartu TETAP ADA dengan penanda 'belum ada data' di judulnya; tidak dihilangkan dari daftar blok, karena daftar blok diturunkan dari kunci `metrics` yang selalu berisi kedua belasnya"
+        },
+        {
+          "condition": "Kedua belas penyebut nol sementara ada slot bercatatan teks",
+          "handling": "Kartu kelengkapan menampilkan filled_slots > 0 berdampingan dengan max_metric_reading_count 0, kalimat penjelas tetap dirender, dan kelima kartu blok menampilkan '—'. Bukan state galat dan bukan state kosong"
+        },
+        {
+          "condition": "Slot yang hanya mengisi shift dan kode inspektur",
+          "handling": "Tidak terhitung di kelengkapan tetapi kodenya ada di rekap per-inspektur; kalimat yang menyatakan rekap menghitung atribusi sementara kelengkapan menghitung pembacaan dirender"
+        },
+        {
+          "condition": "Kode inspektur kosong pada sebagian slot",
+          "handling": "Baris 'tidak tercatat' tersendiri, diambil dari inspector_recap.not_recorded apa adanya"
+        },
+        {
+          "condition": "Dua kode inspektur berbeda hanya pada kapitalisasi",
+          "handling": "Dua baris terpisah; klien tidak menormalkan dan tidak menggabungkan"
+        },
+        {
+          "condition": "Rekap per-inspektur atau rekap harian sangat panjang",
+          "handling": "Tabel menggulir MENDATAR di dalam kartunya (overflow-x pada pembungkus tabel); halaman tidak pernah bergeser mendatar"
+        },
+        {
+          "condition": "Kelima blok dibuka SEKALIGUS pada lebar ponsel",
+          "handling": "Tiga puluh enam angka beserta dua belas penyebut dan satuannya tetap terbaca dan TIDAK terpotong kartu induknya. Tata letak per metrik bertumpuk (label di atas, tiga angka di bawah) alih-alih tiga kolom sejajar, sehingga tidak ada lebar tetap yang memaksa halaman bergeser"
+        },
+        {
+          "condition": "Periode belum mulai atau masih berjalan",
+          "handling": "period_not_started → '—' plus kalimatnya, bukan 0,0%; period_running → penyebut berhenti di hari ini dan hal itu dinyatakan"
+        },
+        {
+          "condition": "Periode memuat catatan draft",
+          "handling": "draft_slot_count dirender; angka draft ikut terhitung; status periode tidak menyaring apa pun"
+        },
+        {
+          "condition": "Ekspor ditekan dua kali cepat",
+          "handling": "Tombol dikunci selama permintaan berjalan → satu permintaan, satu unduhan"
+        },
+        {
+          "condition": "Ekspor Excel",
+          "handling": "TIDAK ditawarkan di layar ini — WebView ponsel tidak membuka .xlsx. Hanya 'csv' yang pernah dikirim"
+        },
+        {
+          "condition": "Angka berbeda dari pasangan web",
+          "handling": "Tidak mungkin terjadi bila aturan dipatuhi: klien nol perhitungan. Setiap angka yang berbeda berarti ada perhitungan yang menyelinap ke klien"
+        }
+      ],
+      "business_rules_applied": [
+        "Angka layar ini WAJIB sama persis dengan screen-168 — ia membaca sumber yang sama dan tidak menghitung ulang apa pun",
+        "Kelima blok adalah unit tampilan layar ini, bukan dua belas ukuran; urutannya urutan PROSES dan diturunkan dari urutan kunci `metrics` milik server",
+        "Kelima kartu blok tetap ADA meski seluruh ukurannya kosong",
+        "Kartu kelengkapan di ATAS kelima blok dan TIDAK dapat dilipat",
+        "Judul setiap kartu blok membawa penanda ada tidaknya data di blok itu",
+        "Setiap ukuran punya penyebutnya sendiri; kedua belas boleh berbeda, dan kenyataan itu dinyatakan",
+        "Penyebut nol → '—' bukan 0, dan tidak mengosongkan ukuran lain maupun bloknya",
+        "Satuan dicetak apa adanya dari server; unit null (Indeks DOBI) → tidak ada elemen satuan",
+        "Keterisian atas 14 kolom; shift dan kode inspektur dikecualikan; slot hanya-identitas dihitung KOSONG",
+        "filled_slots dapat melebihi setiap penyebut; kedua angka berdampingan beserta kalimat penjelasnya",
+        "Rekap per-inspektur: kode mentah, baris 'tidak tercatat' tersendiri, urut kode dari server",
+        "Dua kolom teks sebagai DUA daftar kejadian terpisah, nol sebaran kategoris",
+        "Urutan baris dan urutan blok MILIK SERVER; layar tidak mengurutkan ulang",
+        "Production Line WAJIB; tidak ada 'semua line'; tidak pernah dipilihkan",
+        "Mill diturunkan dari akun bagi Operator, Supervisor, dan Mill Management; hanya Admin memilih",
+        "Line yang diingat perangkat dipakai tanpa diminta memilih lagi, tetapi dapat diganti",
+        "Status periode tidak menyaring; catatan draft ikut terhitung dan jumlahnya dinyatakan",
+        "Rekap harian memuat satu baris per hari yang ada pembacaannya",
+        "Kelengkapan diukur atas hari yang sudah berjalan",
+        "Nol rekap berlabel, nol penandaan di luar batas, nol blok henti operasi — ketiganya dinyatakan beserta sebabnya",
+        "Giliran kerja tidak di layar tetapi ada di ekspor",
+        "Ekspor hanya CSV",
+        "Layar baca saja: nol kontrol tulis",
+        "Luring MENUTUP angkanya dan menutup kelima blok seluruhnya — tidak ada isi basi yang tertinggal di balik kartu terlipat"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "Repo tidak menghitung apa pun atas payload",
+          "given": "Kode processQualityControlReportRepo.ts",
+          "expect": "Nol operasi aritmetika, nol sort, nol groupBy, nol reduce atas angka; payload dikembalikan apa adanya"
+        },
+        {
+          "description": "Repo memakai keempat endpoint yang sudah ada",
+          "given": "Kode repo",
+          "expect": "Memanggil /api/production-lines/options-for-report, /api/process-quality-control-reports/periods, /summary, /export — dan tidak satu path baru pun"
+        },
+        {
+          "description": "Ekspor selalu mengirim format csv",
+          "given": "Fungsi ekspor repo",
+          "expect": "Parameter format bernilai 'csv'; string 'excel' dan 'xlsx' tidak muncul di berkas repo maupun view"
+        },
+        {
+          "description": "Daftar blok diturunkan dari urutan kunci metrics",
+          "given": "Payload dengan dua belas kunci metrics dalam urutan NUMERIC_METRICS",
+          "expect": "Lima blok dalam urutan fruit_press, purifier_clarification_balance, vacuum_drying_station, decanter_centrifuge, final_storage — dan view tidak memuat larik nama blok yang ditulis tangan"
+        },
+        {
+          "description": "Urutan blok tidak diurutkan ulang di klien",
+          "given": "Payload yang kunci metrics-nya sengaja ditukar urutannya",
+          "expect": "Urutan blok yang dirender mengikuti payload, bukan urutan tetap — membuktikan urutan milik server"
+        },
+        {
+          "description": "Kelima kartu blok dirender meski seluruh metriknya kosong",
+          "given": "Payload dengan kedua belas reading_count 0",
+          "expect": "Lima kartu blok ada; masing-masing berpenanda belum ada data"
+        },
+        {
+          "description": "Penanda data menanyakan ADA metrik berdata, bukan SEMUA",
+          "given": "Blok Final Storage dengan FFA terisi dan ketiga metrik lain kosong",
+          "expect": "Penanda judul blok itu menyatakan ADA data"
+        },
+        {
+          "description": "Satu blok kosong tidak menghilangkan kartunya",
+          "given": "Blok Vacuum Drying Station kedua metriknya kosong, empat blok lain terisi",
+          "expect": "Lima kartu tetap ada; kartu Vacuum Drying Station berpenanda belum ada data dengan '—' pada kedua barisnya"
+        },
+        {
+          "description": "Kartu kelengkapan tidak dapat dilipat",
+          "given": "Render penuh",
+          "expect": "Tidak ada kontrol lipat pada kartu kelengkapan; kartu itu berada di atas kartu blok pertama"
+        },
+        {
+          "description": "Melipat kartu blok tidak mengirim permintaan dan tidak mengubah angka",
+          "given": "Angka termuat, lalu lipat dan buka kelima kartu",
+          "expect": "Nol permintaan HTTP tambahan; nilai yang dirender identik sebelum dan sesudah"
+        },
+        {
+          "description": "Keadaan lipat tidak disimpan ke penyimpanan perangkat",
+          "given": "Lipat satu kartu lalu periksa penyimpanan",
+          "expect": "Tidak ada kunci baru yang ditulis — hanya Production Line yang diingat"
+        },
+        {
+          "description": "reading_count nol dirender '—' bukan 0",
+          "given": "Satu metrik {min:null, avg:null, max:null, reading_count:0}",
+          "expect": "Ketiga angkanya '—'; tidak ada '0' yang dirender sebagai nilainya"
+        },
+        {
+          "description": "Nilai nol yang sah dirender 0, bukan '—'",
+          "given": "Satu metrik {min:0, avg:0, max:0, reading_count:5}",
+          "expect": "Ketiga angkanya 0 — pembedaannya atas reading_count, bukan atas nilai falsy"
+        },
+        {
+          "description": "Setiap baris metrik mencetak penyebutnya sendiri",
+          "given": "Payload dengan reading_count berbeda-beda antar metrik",
+          "expect": "Nilai penyebut yang dirender per baris cocok dengan reading_count metriknya; tidak ada satu penyebut bersama"
+        },
+        {
+          "description": "Satuan dicetak apa adanya dari server",
+          "given": "Payload dengan unit '%', '°C', 'Bar', 'MT/h'",
+          "expect": "Teks satuan identik dengan nilai unit; view tidak memuat peta satuan tersendiri"
+        },
+        {
+          "description": "Indeks DOBI tidak merender elemen satuan",
+          "given": "metrics.final_storage_dobi_index.unit = null",
+          "expect": "Baris itu tidak memuat elemen satuan sama sekali, dan teksnya tidak memuat '%' — diasersi atas elemen barisnya, bukan dengan memindai teks kartu"
+        },
+        {
+          "description": "filled_slots dan max_metric_reading_count dirender berdampingan",
+          "given": "coverage {filled_slots: 12, max_metric_reading_count: 3}",
+          "expect": "Kedua angka ada di dalam kartu kelengkapan yang sama; kalimat yang menyatakan hubungannya dirender meski keduanya berbeda"
+        },
+        {
+          "description": "Kalimat penjelas selisih dirender tanpa syarat",
+          "given": "coverage dengan filled_slots SAMA DENGAN max_metric_reading_count",
+          "expect": "Kalimat itu tetap dirender — bukan hanya ketika keduanya berbeda"
+        },
+        {
+          "description": "Kalimat pengecualian kolom identitas dirender",
+          "given": "Render penuh",
+          "expect": "Kartu kelengkapan menyatakan shift dan kode inspektur tidak ikut menentukan keterisian"
+        },
+        {
+          "description": "period_not_started menghasilkan '—' bukan 0,0%",
+          "given": "coverage.period_not_started true, coverage_percent 0.0",
+          "expect": "'—' plus kalimat 'periode belum dimulai'; teks '0,0%' tidak ada di DOM"
+        },
+        {
+          "description": "period_running menyatakan penyebut berhenti di hari ini",
+          "given": "coverage.period_running true",
+          "expect": "Kalimat itu dirender"
+        },
+        {
+          "description": "Rekap per-inspektur dirender dari server apa adanya",
+          "given": "inspector_recap dengan entri 'qc-09' lebih dulu lalu 'qc-02'",
+          "expect": "Urutan yang dirender mengikuti payload — view tidak memanggil sort()"
+        },
+        {
+          "description": "Baris 'tidak tercatat' berdiri sendiri",
+          "given": "inspector_recap.not_recorded = 8",
+          "expect": "Satu baris tersendiri berjumlah 8; angkanya dibaca dari sel di DALAM baris itu, bukan dengan memindai teks kartu"
+        },
+        {
+          "description": "Dua kode berbeda kapitalisasi dirender sebagai dua baris",
+          "given": "entries berisi 'qc-01' dan 'QC-01'",
+          "expect": "Dua baris terpisah; klien tidak menggabungkan dan tidak menormalkan"
+        },
+        {
+          "description": "Dua daftar kejadian dirender terpisah dan berjudul sendiri",
+          "given": "text_entries dengan kedua kunci terisi",
+          "expect": "Dua bagian berjudul berbeda; nol elemen sebaran kategoris di seluruh DOM"
+        },
+        {
+          "description": "Isi teks berulang sama persis tetap dirender satu per satu",
+          "given": "Lima belas entri berisi teks identik",
+          "expect": "Lima belas baris dirender; klien tidak mengelompokkan"
+        },
+        {
+          "description": "Kedua daftar kosong menampilkan keterangan per daftar",
+          "given": "text_entries kedua kunci []",
+          "expect": "Dua keterangan terpisah; bukan satu daftar gabungan dan bukan tabel kosong tanpa penjelasan"
+        },
+        {
+          "description": "draft_slot_count dirender",
+          "given": "draft_slot_count = 6",
+          "expect": "Angka 6 dirender beserta keterangan bahwa catatan draft ikut terhitung"
+        },
+        {
+          "description": "Ketiga pernyataan ketiadaan dirender utuh",
+          "given": "Render penuh",
+          "expect": "Pernyataan nol rekap berlabel, nol penandaan di luar batas beserta sebabnya, dan nol blok henti operasi — ketiganya ada"
+        },
+        {
+          "description": "Rekap harian dirender dari daily + daily_total",
+          "given": "daily berisi 2 entri",
+          "expect": "Dua baris hari plus satu baris total; hari tanpa pembacaan tidak muncul"
+        },
+        {
+          "description": "Luring sebelum muat tidak mengirim permintaan",
+          "given": "navigator.onLine false pada onMounted",
+          "expect": "Nol permintaan HTTP; state offline; kelima kartu blok tidak dirender"
+        },
+        {
+          "description": "Luring sesudah muat menutup angka",
+          "given": "Angka termuat, lalu peristiwa offline",
+          "expect": "Kelima kartu blok hilang dari DOM; state offline menggantikan isi; tidak ada kartu terlipat yang masih memegang angka lama"
+        },
+        {
+          "description": "Penyimpanan tidak terbaca tidak memunculkan galat",
+          "given": "localStorage.getItem melempar",
+          "expect": "Layar tetap dirender dan meminta memilih line; nol elemen galat"
+        },
+        {
+          "description": "Line yang diingat masih sah dipakai tanpa diminta memilih",
+          "given": "Penyimpanan memuat line yang ada di options-for-report",
+          "expect": "Line itu terpilih dan /summary dipanggil tanpa interaksi"
+        },
+        {
+          "description": "Line yang diingat tidak sah dibuang",
+          "given": "Penyimpanan memuat id yang tidak ada di options-for-report",
+          "expect": "Nilai dibuang; pengguna diminta memilih; nol permintaan /summary dengan id itu"
+        },
+        {
+          "description": "Guard pemuatan menahan ketiga jalur",
+          "given": "Periode terpilih tanpa line; lalu ganti periode; lalu coba lagi",
+          "expect": "Nol permintaan /summary pada ketiganya; line tidak pernah dipilihkan"
+        },
+        {
+          "description": "Line tunggal tidak dipilihkan",
+          "given": "options-for-report memulangkan tepat satu line",
+          "expect": "Tidak ada nilai terpilih sampai pengguna memilih"
+        },
+        {
+          "description": "403 dari server membuat layar meminta memilih line",
+          "given": "/summary memulangkan 403",
+          "expect": "Nol angka dirender; layar meminta memilih line; bukan state offline"
+        },
+        {
+          "description": "401 mengarahkan ke Login",
+          "given": "/summary memulangkan 401",
+          "expect": "Navigasi ke Login; nol pesan galat jaringan"
+        },
+        {
+          "description": "422 akun tanpa mill memberi arahan menghubungi Admin",
+          "given": "/periods memulangkan 422",
+          "expect": "Arahan menghubungi Admin; bukan state galat jaringan dan tanpa aksi coba-lagi"
+        },
+        {
+          "description": "Periode kosong memberi kalimat sebabnya",
+          "given": "/periods memulangkan []",
+          "expect": "Kalimat sebabnya plus arahan menghubungi Admin; nol permintaan /summary"
+        },
+        {
+          "description": "Galat jaringan dapat dicoba lagi lewat fungsi pemuatan yang sama",
+          "given": "/summary gagal, lalu aksi coba-lagi ditekan",
+          "expect": "Fungsi pemuatan yang sama dipanggil, sehingga penjaga line/periode ikut berlaku"
+        },
+        {
+          "description": "Ekspor ditekan dua kali cepat menghasilkan satu permintaan",
+          "given": "Dua klik berurutan dalam satu tick",
+          "expect": "Satu permintaan /export; tombol dikunci selama permintaan berjalan"
+        },
+        {
+          "description": "Layar nol kontrol tulis",
+          "given": "Kode view",
+          "expect": "Nol permintaan POST/PUT/PATCH/DELETE"
+        },
+        {
+          "description": "Angka yang dirender identik dengan payload",
+          "given": "Payload /summary yang sama dengan yang dirender web",
+          "expect": "Setiap angka pada DOM mobile cocok dengan nilai payload — nol penurunan di klien"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "process-quality-control-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "process-quality-control-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-168--laporan-process-quality-control-web",
+      "reason": "Pemilik ketiga rute data. Layar ini memakai ulang /periods, /summary, dan /export apa adanya dan menambahkan NOL endpoint. Setiap perubahan bentuk payload di sana langsung mengubah layar ini"
+    },
+    {
+      "screen_id": "screen-141--reporting-mobile",
+      "reason": "Pintu masuk satu-satunya. Tile Process Quality Control menyala setelah daftar stasiun berlaporan di layar itu memuat 'process-quality-control' — dan ini tile TERAKHIR yang masih kelabu di sana"
+    },
+    {
+      "screen_id": "screen-161--laporan-process-water-mobile",
+      "reason": "Preseden terdekat: laporan bergrid mobile dengan metrik berblok, penyebut per metrik, dua daftar teks terpisah, dan rekap per-inspektur. Layar ini MENAMBAH kartu blok yang DAPAT DILIPAT beserta penanda data di judulnya — pola baru yang lahir dari dua belas metrik pada lebar ponsel"
+    },
+    {
+      "screen_id": "screen-135--pilih-production-line-mobile",
+      "reason": "Sumber /api/production-lines/options-for-report, dipakai ulang verbatim"
+    }
+  ],
+  "implementation_notes": [
+    "NOL baris backend. Bila implementasi layar ini membuat Anda menyentuh `backend/`, berarti ada yang salah dibaca: ketiga rute data sudah menerima Operator sejak commit screen-168.",
+    "Daftar blok diturunkan dengan menelusuri kunci `metrics` dan mengambil `group` yang belum terlihat. JANGAN menulis larik ['fruit_press', ...] di klien — larik itu adalah tempat urutan proses berubah menjadi urutan lain tanpa satu uji pun memerah, dan ia juga akan menjatuhkan blok baru dari migrasi berikutnya.",
+    "Penanda data pada judul blok = `some(metric => metric.reading_count > 0)`, bukan `every`. `every` akan menandai blok Final Storage sebagai kosong hanya karena Indeks DOBI tidak pernah diisi.",
+    "Satuan: render elemen satuan HANYA bila `unit != null`. Jangan memakai `unit || ''` yang tetap merender elemen hampa, dan jangan menyimpan peta satuan di klien — kosakata yang punya dua salinan selalu menyimpang (lihat pola Display::OPTION_LABELS ↔ mobile/src/utils/optionLabel.ts).",
+    "'—' dipilih atas `reading_count === 0`, bukan atas nilai falsy. Oil loss 0% adalah nilai sah dan tersamar menjadi '—' bila pemeriksaannya salah.",
+    "Luring SESUDAH muat harus MENUTUP angka, bukan membiarkan kartu terlipat memegang isi lama. Kartu terlipat berisi angka basi tidak dapat dibedakan dari kartu terlipat berisi angka baru — itulah justru mengapa layar berkartu-lipat lebih berbahaya di sini daripada layar datar.",
+    "Lebar ponsel: tata letak per metrik BERTUMPUK (label di atas, tiga angka + penyebut + satuan di bawah), bukan tiga kolom sejajar. Tiga puluh enam angka dalam kolom sejajar akan memaksa halaman bergeser mendatar.",
+    "GEOMETRI WAJIB DIUJI DENGAN PERTANYAAN YANG BENAR. overflow pada kartu memotong anak TANPA jejak di DOM: elemennya tetap ada, tetap toBeVisible(), dan tepinya justru persis menempel tepi induknya karena di situ ia dipotong. Satu-satunya pertanyaan yang membedakan halaman benar dari halaman cacat: adakah elemen yang digambar DI LUAR kotak induknya? Asersikan itu atas SETIAP elemen di SETIAP kartu, dengan kelima blok TERBUKA SEKALIGUS — bukan atas kasus yang kebetulan ditulis.",
+    "Tabel rekap menggulir MENDATAR di dalam kartunya (overflow-x pada pembungkus), bukan menggulir halaman. Asersikan keduanya: pembungkus punya scrollWidth > clientWidth DAN document.scrollWidth tidak melebihi clientWidth.",
+    "Asersi atas kode inspektur wajib menyasar elemen barisnya ([data-inspector-code]) dengan pencocokan EKSAK. Kode sependek 'qc-01' cocok sebagai substring di dalam 'qc-010'.",
+    "Layar mobile ini DAPAT diuji di browser lewat Vite dev server — jangan menunda spec browser sebagai 'hanya mobile'. Backend pada :8000/:8001 dengan seeder wajib; `offline` disetel SESUDAH bootstrap aplikasi, bukan sebelum; dan toHaveURL('**/x') tidak pernah cocok ketika baseURL dipakai.",
+    "RIAK: `mobile/tests/ReportingPilihStasiunView.spec.ts` memakai 'process-quality-control' sebagai contoh 'laporan belum dibangun' pada beberapa kemunculan. Begitu layar ini terbit, semuanya memerah — dan tidak ada jenis stasiun nyata berikutnya, karena ini yang terakhir. Perbaikannya: suntikkan kode fiktif 'zz-stasiun-fiktif', yang di berkas itu memang tersedia karena spec-nya MENYUNTIKKAN daftar stasiunnya sendiri alih-alih membaca master. Angkanya harus DIUKUR dengan grep, bukan ditaksir.",
+    "test_generation_level = 'none' saat layar ini dikerjakan: tidak ada berkas uji BARU untuk screen-169. Berkas uji mobile yang PECAH karena tile ini menyala tetap WAJIB diperbaiki — itu perbaikan regresi. Status screen = 'partial' dengan known_issue."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — berhasil sebagai Operator",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "production_line_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Mount sebagai Operator mill A, pilih line, pilih periode",
+        "assert": "Kartu kelengkapan dirender di atas kartu blok pertama; lima kartu blok ada; rekap per-inspektur, rekap harian, dan kedua daftar kejadian ada; nol permintaan tulis"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Masuk sebagai Operator di Vite dev server, pilih line, pilih periode",
+        "assert": "Lima elemen [data-metric-block] terlihat; kartu kelengkapan berada di atasnya (boundingBox().y lebih kecil)"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — berhasil sebagai Admin",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "production_line_id": "{{line_a.id}}",
+            "business_unit_id": "{{mill_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Mount sebagai Admin, pilih mill lalu line lalu periode",
+        "assert": "Pemilih Mill dirender; isi laporan identik dengan sesi Operator"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Masuk sebagai Admin, pilih mill, line, periode",
+        "assert": "Pemilih Mill terlihat; lima kartu blok terisi"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — line yang diingat perangkat dipakai tanpa diminta memilih",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_remembered.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Penyimpanan perangkat memuat line yang ada di options-for-report; mount lalu pilih periode",
+        "assert": "Line itu terpilih tanpa interaksi; /summary dipanggil; pemilih line tetap dapat diganti"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Setel line yang diingat di localStorage SESUDAH bootstrap aplikasi, muat ulang, pilih periode",
+        "assert": "Angka termuat tanpa memilih line lagi"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — line belum dipilih menahan seluruh permintaan",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "options-for-report memulangkan TEPAT SATU line; pilih periode tanpa memilih line, lalu ganti periode, lalu tekan coba lagi",
+        "assert": "Nol permintaan /summary pada ketiganya; line tidak dipilihkan; nol kartu blok dirender; tombol ekspor tidak dirender"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Pilih periode tanpa memilih line, ganti periode, tekan coba lagi",
+        "assert": "Pesan 'pilih Production Line' terlihat; nol elemen [data-metric-block] di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — line yang diingat sudah tidak sah dibuang",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Penyimpanan memuat id line yang TIDAK ada di options-for-report",
+        "assert": "Nilai yang diingat dibuang; pengguna diminta memilih; NOL permintaan /summary dengan id itu"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Setel id line asing di localStorage sesudah bootstrap, muat ulang",
+        "assert": "Pemilih line kosong dan pesan memilih line terlihat; nol angka dirender"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — penyimpanan perangkat tidak dapat dibaca",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "localStorage.getItem dibuat melempar",
+        "assert": "Layar tetap dirender dan meminta memilih line; NOL elemen galat di DOM"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka di konteks yang menolak akses penyimpanan",
+        "assert": "Layar tampil normal dengan permintaan memilih line; nol pesan galat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Server memulangkan 422 untuk akun terikat mill tanpa mill",
+        "assert": "Arahan menghubungi Admin dirender; BUKAN state galat jaringan; tidak ada aksi coba-lagi"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Masuk sebagai Operator tanpa mill",
+        "assert": "Teks arahan menghubungi Admin terlihat; nol tombol coba lagi"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — mill belum punya periode yang mencakup stasiun ini",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "/periods memulangkan []",
+        "assert": "Kalimat sebabnya plus arahan menghubungi Admin dirender; NOL permintaan /summary"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka pada mill tanpa periode berjenis ini",
+        "assert": "Pemilih periode kosong dengan kalimat sebabnya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — line milik mill lain dipaksa lewat jalur apa pun",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_mill_a.id}}",
+            "production_line_id": "{{line_mill_b.id}}"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Penyimpanan memuat line mill B, lalu server memulangkan 403",
+        "assert": "Nol angka dirender; layar meminta memilih line; bukan state offline dan bukan state galat jaringan"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Setel line mill B di localStorage sesudah bootstrap, muat ulang",
+        "assert": "Nol elemen [data-metric-block]; nol angka mill B terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — kartu kelengkapan berada di atas dan tidak dapat dilipat",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Render penuh lalu cari kontrol lipat pada kartu kelengkapan",
+        "assert": "Tidak ada kontrol lipat pada kartu itu; kartu itu berada sebelum kartu blok pertama di urutan DOM"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Muat laporan dan ukur posisi vertikal kartu kelengkapan vs kartu blok pertama",
+        "assert": "y kartu kelengkapan lebih kecil; tidak ada elemen yang dapat ditekan untuk melipatnya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — kelima blok dapat dilipat satu per satu tanpa mengubah angka",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Kumpulkan seluruh angka yang dirender, lipat dan buka kelima kartu satu per satu, kumpulkan lagi",
+        "assert": "Nol permintaan HTTP tambahan; himpunan angka identik; tidak ada kunci baru di penyimpanan perangkat"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Tekan judul kelima kartu berurutan, lalu buka kembali",
+        "assert": "Isi kartu muncul dan hilang; angka setelah dibuka kembali sama dengan sebelum dilipat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — penanda data pada judul setiap kartu blok",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_partial.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Blok Final Storage hanya FFA terisi; blok Vacuum Drying Station seluruhnya kosong",
+        "assert": "Penanda Final Storage menyatakan ADA data (some, bukan every); penanda Vacuum Drying Station menyatakan belum ada data"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Baca judul kelima kartu tanpa membukanya",
+        "assert": "Penanda pada setiap judul dapat dibaca tanpa membuka kartunya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — satu blok seluruh ukurannya kosong tetap ada",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_vds_empty.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Render dengan kedua metrik Vacuum Drying Station kosong",
+        "assert": "Lima kartu blok tetap ada; kartu itu berpenanda belum ada data dan kedua barisnya '—'"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka kartu blok yang kosong",
+        "assert": "Kartunya ada dan dapat dibuka; kedua barisnya menampilkan '—'"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — line tanpa satu pembacaan pun",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_empty.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "has_data false",
+        "assert": "Kerangka tetap tampil menyebut periode dan line; KELIMA kartu blok ada, masing-masing menyatakan belum ada pembacaan; kartu kelengkapan tetap dirender"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka periode tanpa pembacaan",
+        "assert": "Lima kartu blok ada; nama periode dan line terlihat; bukan halaman kosong"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — urutan blok urut proses dan milik server",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Render dengan payload normal, lalu render ulang dengan kunci metrics yang urutannya sengaja ditukar",
+        "assert": "Render pertama: fruit_press, purifier_clarification_balance, vacuum_drying_station, decanter_centrifuge, final_storage. Render kedua: urutan MENGIKUTI payload — membuktikan klien tidak memegang larik nama blok dan tidak memanggil sort()"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Telusuri kelima judul kartu dari atas ke bawah",
+        "assert": "Kelimanya dalam urutan proses, dibandingkan lewat posisi vertikal masing-masing"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — satu ukuran tidak pernah diisi sementara sebelas lainnya diisi",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_no_dobi.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "final_storage_dobi_index reading_count 0, sebelas lainnya > 0",
+        "assert": "Baris DOBI '—' dengan penyebut 0; kesebelas baris lain berangka; kartu Final Storage tetap berpenanda ADA data dan tetap dapat dibuka"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka kartu Final Storage",
+        "assert": "Baris Indeks DOBI '—'; ketiga baris lain di kartu yang sama berangka"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — setiap ukuran punya penyebutnya sendiri",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_mixed.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Payload dengan reading_count berbeda-beda antar kedua belas metrik",
+        "assert": "Penyebut yang dirender per baris cocok dengan reading_count metriknya; tidak ada satu penyebut bersama; pernyataan bahwa penyebut boleh berbeda dirender"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka kelima kartu dan baca penyebut setiap baris",
+        "assert": "Nilai [data-metric-denominator] tidak seragam"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — penyebut nol tidak mengosongkan ukuran lain maupun bloknya",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_no_dobi.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Satu metrik reading_count 0 dan satu metrik bernilai sah 0 dengan reading_count 5",
+        "assert": "Metrik pertama '—'; metrik kedua 0 — pembedaannya atas reading_count, bukan atas nilai falsy; blok keduanya tetap utuh"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Baca baris metrik yang tidak pernah diisi",
+        "assert": "Ketiga angkanya '—'; baris lain di kartu yang sama tidak ikut dikosongkan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — satuan tercetak, dan Indeks DOBI sengaja tanpa satuan",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Payload dengan sebelas unit terisi dan unit DOBI null",
+        "assert": "Teks satuan identik dengan nilai unit server; baris DOBI TIDAK memuat elemen satuan sama sekali (bukan elemen hampa); view tidak memuat peta satuan tersendiri"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka kartu Final Storage dan periksa baris Indeks DOBI",
+        "assert": "Baris [data-metric='final_storage_dobi_index'] tidak memuat [data-metric-unit] dan teksnya tidak memuat '%' — diasersi atas elemen barisnya, bukan dengan memindai teks kartu"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — slot terisi dihitung atas empat belas kolom pembacaan",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_14_singles.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "coverage.filled_slots 14 dari empat belas slot berkolom tunggal berbeda",
+        "assert": "Angka 14 dirender; kalimat bahwa keterisian dihitung atas empat belas kolom pembacaan dirender; kalimat pengecualian shift dan kode inspektur ikut dirender"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Baca kartu kelengkapan",
+        "assert": "Kedua kalimat itu terlihat tanpa membuka kartu lain"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — jumlah slot terisi melebihi penyebut setiap ukuran",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_9text_3num.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "coverage {filled_slots: 12, max_metric_reading_count: 3}",
+        "assert": "Kedua angka dirender BERDAMPINGAN di dalam kartu kelengkapan yang sama; kalimat penjelas hubungan keduanya dirender"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Baca kartu kelengkapan",
+        "assert": "Angka 12 dan 3 terlihat di dalam kartu yang sama beserta kalimat penjelasnya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — kedua belas penyebut nol sementara slot terisi lebih besar dari nol",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_text_only.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "filled_slots 7, kedua belas reading_count 0",
+        "assert": "Angka 7 dirender; kelima kartu blok ada dengan seluruh barisnya '—'; kalimat penjelas tetap dirender; BUKAN state galat dan bukan state kosong"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka kelima kartu",
+        "assert": "Seluruh baris '—' sementara kartu kelengkapan tetap menampilkan 7"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — slot yang hanya mengisi giliran kerja dan kode inspektur",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_identity_only.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "coverage.filled_slots 0 sementara inspector_recap memuat entri 'qc-07'",
+        "assert": "Kartu kelengkapan menampilkan 0; rekap per-inspektur memuat baris 'qc-07'; kalimat bahwa rekap menghitung atribusi sementara kelengkapan menghitung pembacaan dirender"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Baca kartu kelengkapan lalu buka rekap per-inspektur",
+        "assert": "Baris [data-inspector-code='qc-07'] ada meski kelengkapan nol"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — rekap per-inspektur memakai kode mentah dan urut kode",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_inspectors.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "inspector_recap memuat 'qc-01', 'QC-01', dan not_recorded 8; entri sengaja dikirim dalam urutan yang bukan urutan abjad",
+        "assert": "Urutan yang dirender MENGIKUTI payload (view tidak memanggil sort); 'qc-01' dan 'QC-01' dua baris terpisah; baris 'tidak tercatat' berdiri sendiri berjumlah 8, dibaca dari sel di DALAM baris itu"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka rekap per-inspektur",
+        "assert": "Dua baris [data-inspector-code] dengan nilai eksak 'qc-01' dan 'QC-01'; baris 'tidak tercatat' terpisah"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — dua daftar kejadian terpisah dan nol sebaran kategoris",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_texts.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "text_entries kedua kunci terisi, salah satunya memuat lima belas teks identik; lalu render ulang dengan kedua kunci []",
+        "assert": "Dua bagian berjudul TERPISAH; lima belas entri dirender satu per satu tanpa dikelompokkan; nol elemen sebaran kategoris di seluruh DOM; pada render kedua masing-masing menampilkan keterangan tidak ada catatan"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Gulir ke kedua daftar kejadian",
+        "assert": "Dua judul berbeda terlihat; entri bertanggal per slot; nol elemen sebaran"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — nol rekap berlabel, tanpa penandaan di luar batas, tanpa blok henti operasi",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_ffa_98.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Payload memuat FFA 9.8 dan suhu pengering 140; render penuh",
+        "assert": "Nol penanda peringatan pada baris mana pun; nol elemen sebaran berlabel; nol bagian henti operasi; KETIGA pernyataan ketiadaan dirender utuh beserta sebabnya"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Telusuri seluruh halaman dengan kelima kartu terbuka",
+        "assert": "Ketiga pernyataan ketiadaan terlihat; nol penanda di luar batas"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — rekap harian dan keanggotaan hari dari catatan induk",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_30d_2days.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "daily memuat dua entri (satu hari 24 slot, satu hari 1 slot) pada periode 30 hari",
+        "assert": "Dua baris hari plus satu baris total; 28 hari tanpa pembacaan tidak muncul; nol baris maupun golongan 'tanpa tanggal'"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka rekap harian",
+        "assert": "Tepat dua baris hari dan satu baris total; keduanya tampil apa adanya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — periode belum mulai atau masih berjalan",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_future.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_running.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Render dengan period_not_started true, lalu dengan period_running true",
+        "assert": "Render pertama: '—' plus kalimat 'periode belum dimulai', dan teks '0,0%' TIDAK ada di DOM. Render kedua: kalimat bahwa penyebut berhenti di hari ini dirender"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka periode yang belum mulai lalu periode yang masih berjalan",
+        "assert": "'—' pada yang pertama; kalimat penyebut-berhenti-hari-ini pada yang kedua"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — catatan draft ikut terhitung dan jumlahnya dinyatakan",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_closed_with_drafts.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "draft_slot_count 6, filled_slots 20, status periode closed",
+        "assert": "Angka 6 dirender beserta keterangan bahwa draft ikut terhitung; penanda status periode dirender; angka tetap tampil penuh"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Buka periode tertutup yang memuat catatan draft",
+        "assert": "Jumlah slot draft dan penanda status periode terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — ekspor hanya CSV",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_a.id}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "processQualityControlReportRepo.ts + view",
+        "action": "Tekan ekspor dan periksa parameter yang dikirim; lalu grep berkas repo dan view",
+        "assert": "format 'csv' dikirim; string 'excel' dan 'xlsx' tidak muncul di kedua berkas; tidak ada tombol ekspor Excel di DOM"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Periksa tombol ekspor yang tersedia",
+        "assert": "Hanya satu tombol ekspor dan ia CSV"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — ekspor ditekan dua kali cepat",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_a.id}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Dua klik ekspor berurutan dalam satu tick",
+        "assert": "SATU permintaan /export; tombol dikunci selama permintaan berjalan"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Tekan Ekspor dua kali cepat sambil mencatat permintaan jaringan",
+        "assert": "Satu permintaan dan satu unduhan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — angka sama persis dengan pasangan web dan layar tidak menghitung",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_full.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "processQualityControlReportRepo.ts",
+        "action": "Bandingkan setiap angka yang dirender dengan nilai payload; lalu periksa kode repo dan view",
+        "assert": "Setiap angka cocok dengan payload; nol operasi aritmetika, sort, groupBy, atau reduce atas angka di repo maupun view"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Muat periode dan line yang sama seperti pada layar web, lalu bandingkan kedua halaman",
+        "assert": "Kedua belas metrik, kelengkapan, rekap inspektur, rekap harian, dan draft_slot_count identik nilainya"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — galat jaringan dapat dicoba lagi",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "/summary gagal, lalu tekan coba lagi",
+        "assert": "State galat dengan aksi coba-lagi; percobaan ulang memanggil fungsi pemuatan yang SAMA sehingga penjaga line/periode ikut berlaku"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Gagalkan permintaan lalu tekan coba lagi",
+        "assert": "Angka termuat pada percobaan kedua"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — luring sebelum angka termuat",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "navigator.onLine false pada onMounted",
+        "assert": "NOL permintaan HTTP; state offline; kelima kartu blok TIDAK dirender"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Setel context.setOffline(true) SESUDAH bootstrap aplikasi, lalu buka layar",
+        "assert": "Pesan memerlukan jaringan terlihat; nol elemen [data-metric-block] di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — luring sesudah angka termuat",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Angka termuat, lalu peristiwa offline",
+        "assert": "Kelima kartu blok HILANG dari DOM; state offline menggantikan isi; tidak ada kartu terlipat yang masih memegang angka lama"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Muat angka, lipat dua kartu, lalu setel offline",
+        "assert": "Nol elemen [data-metric-block] di DOM — termasuk yang terlipat; pesan memerlukan jaringan terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — sesi berakhir saat layar terbuka",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "/summary memulangkan 401 saat layar terbuka",
+        "assert": "Navigasi ke Login; NOL pesan galat jaringan dan bukan state offline"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Batalkan token lalu picu pemuatan ulang",
+        "assert": "Mendarat di layar Login; nol pesan galat jaringan"
+      }
+    },
+    {
+      "scenario_ref": "Laporan Process Quality Control (Mobile) — kelima blok dibuka sekaligus pada lebar ponsel",
+      "usecase_id": "usecase-175--laporan-process-quality-control-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_full.id}}",
+            "production_line_id": "{{line_a.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanProcessQualityControlView.vue",
+        "action": "Render kedua belas metrik terisi dengan kelima kartu terbuka",
+        "assert": "Tiga puluh enam angka, dua belas penyebut, dan sebelas satuan seluruhnya ada di DOM"
+      },
+      "browser_test": {
+        "route": "/reports/process-quality-control",
+        "action": "Pada viewport lebar ponsel, buka KELIMA kartu sekaligus, lalu ukur geometri setiap elemen di dalam setiap kartu dan kedua pembungkus tabel rekap",
+        "assert": "Untuk SETIAP elemen di SETIAP kartu, getBoundingClientRect() anak tidak melampaui kotak induknya — tidak ada elemen yang digambar di luar induknya dan terpotong tanpa jejak di DOM; document.scrollWidth tidak melebihi clientWidth (halaman tidak bergeser mendatar); SEMENTARA kedua pembungkus tabel rekap punya scrollWidth melebihi clientWidth (menggulir mendatar DI DALAM kartunya); dan dua elemen yang rentang mendatarnya beririsan tidak berpotongan secara vertikal"
+      }
+    }
+  ]
+}

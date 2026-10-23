@@ -68,39 +68,36 @@ const BUSINESS_UNIT = 'BU Browser Test'
 /** Today the only station whose period report exists (REPORT_ROUTES). */
 const AVAILABLE_STATION = 'sterilizer'
 /**
- * A station whose report is not built yet — the disabled-tile fixture.
+ * TIDAK ADA LAGI STASIUN YANG BELUM BERLAPORAN, dan karena itu konstanta
+ * UNAVAILABLE_STATION DIHAPUS dari berkas ini alih-alih dipindahkan untuk
+ * keempat kalinya.
  *
- * DIPINDAHKAN THRESHING -> PROCESS WATER pada 2026-10-06 (screen-148), lalu
- * PROCESS WATER -> PROCESS QUALITY CONTROL pada 2026-10-18. Contohnya
- * dipindahkan, BUKAN dihapus: bila stasiun ini pun suatu saat dibuatkan
- * laporan, test yang memakai konstanta ini akan gagal lagi — dan itu benar,
- * karena ia memaksa contohnya diperbarui alih-alih diam-diam menjadi selalu
- * hijau.
+ * RIWAYATNYA: THRESHING -> PROCESS WATER pada 2026-10-06 (screen-148), lalu
+ * PROCESS WATER -> PROCESS QUALITY CONTROL pada 2026-10-18 (pemindahan yang
+ * tertunggak sejak screen-160). Pada 2026-10-23 screen-168 membangun laporan
+ * Process Quality Control, dan dengan itu SELURUH DELAPAN BELAS jenis stasiun
+ * nyata berlaporan — tidak ada kandidat kelima, dan pola "pindahkan contohnya"
+ * HABIS.
  *
- * PEMINDAHAN 2026-10-18 ADALAH PERBAIKAN YANG TERTUNGGAK, bukan bagian dari
- * pekerjaan hari ini. screen-160 membuat laporan Process Water pada
- * 2026-10-16 dan menambahkan entri REPORT_ROUTES-nya, tetapi konstanta DI
- * SINI tidak ikut dipindahkan — sehingga sejak saat itu berkas ini
- * mengasersikan tile yang justru sudah aktif sebagai nonaktif. Test unit
- * padanannya (StationReportServiceTest case 16 & 18) memang ikut dipindahkan
- * saat itu; yang terlewat hanya sisi browser. Pelajarannya: riak "contoh
- * stasiun belum berlaporan" ada di DUA tempat, dan grep atas kode stasiunnya
- * — bukan atas urutan daftarnya — yang menemukan keduanya.
+ * MENGAPA BERUBAH BENTUK, BUKAN MEMAKAI KODE FIKTIF DI SINI. Di sisi unit dan
+ * komponen, berkas ujinya MENYEMAI MASTER station_types-nya sendiri, jadi ia
+ * dapat menyuntikkan 'zz-stasiun-fiktif' dan tetap menguji markup tile
+ * nonaktif — dan sejak 2026-10-23 ketiga berkas itu memang melakukannya
+ * (backend/tests/Feature/Api/LaporanStasiunTest.php,
+ * backend/tests/Feature/Livewire/LaporanStasiunTest.php, dan
+ * backend/tests/Unit/Services/StationReportServiceTest.php). Suite browser
+ * berjalan di atas basis data e2e yang disemai BrowserTestFixtureSeeder, yang
+ * membangun stasiunnya dari StationType::cases() — menyuntikkan jenis fiktif di
+ * sana berarti menambah case enum untuk stasiun yang tidak ada, dan itu
+ * merembet ke setiap spec yang menghitung tile.
  *
- * MENGAPA LANGSUNG KE YANG TERAKHIR (sort_order 180) dan bukan ke
- * kernel-dispatch (160) yang berikutnya: keempat stasiun tanpa laporan
- * sedang dibangun berurutan (screen-162/164/166/168), jadi contoh mana pun
- * selain yang terakhir akan basi lagi dalam hitungan hari.
- *
- * DAN SESUDAH screen-168, TIDAK ADA LAGI STASIUN YANG BELUM BERLAPORAN.
- * Konstanta ini tidak akan punya kandidat nyata, dan asersi yang
- * memakainya harus BERUBAH BENTUK — bukan dipindahkan lagi: ia harus
- * menyuntikkan jenis stasiun fiktif ke master (seperti yang dilakukan
- * StationReportServiceTest dengan stationReportMaster()), karena di
- * browser masternya nyata. Itu pekerjaan screen-168, dan dicatat di sini
- * supaya tidak ditemukan sebagai kejutan.
+ * Jadi yang diasersikan suite browser kini adalah KEADAAN AKHIR: setiap tile
+ * pada master nyata AKTIF dan menunjuk ke sebuah rute /reports/. Perilaku DOM
+ * tile nonaktif (tanpa href, aria-disabled, tidak dapat diklik) tetap teruji di
+ * backend/tests/Feature/Livewire/LaporanStasiunTest.php, yang menyuntikkan
+ * jenis fiktif. Asersi di bawah tidak akan pernah basi lagi: ia tidak lagi
+ * bergantung pada adanya stasiun yang belum dibangun.
  */
-const UNAVAILABLE_STATION = 'process-quality-control'
 
 async function openReports(page: Page, username: string): Promise<void> {
   await login(page, username, PASSWORD)
@@ -158,7 +155,7 @@ async function millOptions(page: Page): Promise<Array<{ value: string; label: st
  * line sampai menemukan satu yang benar-benar memuat seluruh kode yang diminta,
  * dan melempar galat yang menyebutkan apa yang dicari bila tidak ada.
  */
-const REQUIRED_TILES = [AVAILABLE_STATION, UNAVAILABLE_STATION] as const
+const REQUIRED_TILES = [AVAILABLE_STATION] as const
 
 async function selectProductionLine(
   page: Page,
@@ -336,34 +333,39 @@ test.describe('Laporan Stasiun (web)', () => {
     await expect(page.locator('[data-testid="station-grid"]')).toBeVisible()
   })
 
-  // Scenario: "menekan stasiun yang belum tersedia"
-  test('tile belum tersedia: menekannya tidak memindahkan halaman dan tidak memunculkan error', async ({ page }) => {
+  // Scenario: "menekan stasiun yang belum tersedia" — BERUBAH BENTUK pada
+  // 2026-10-23 (screen-168): tidak ada lagi stasiun yang belum berlaporan di
+  // master nyata, jadi yang diuji di sini adalah KEADAAN AKHIR-nya. Perilaku
+  // DOM tile nonaktif tetap teruji di
+  // backend/tests/Feature/Livewire/LaporanStasiunTest.php, yang menyuntikkan
+  // jenis stasiun fiktif ke masternya sendiri.
+  test('tidak ada lagi tile nonaktif: setiap tile menunjuk ke sebuah rute laporan', async ({ page }) => {
     await openReports(page, SUPERVISOR)
 
     // Grid stasiun digated Production Line sejak 2026-09-28; tanpa ini tidak
     // ada satu pun tile yang dirender.
     await selectProductionLine(page)
 
-    const tile = page.locator(`[data-testid="station-tile-${UNAVAILABLE_STATION}"]`)
+    const codes = await tileCodes(page)
 
-    await expect(tile).toBeVisible()
-    await expect(tile).toHaveClass(/disabled/)
-    await expect(tile).toHaveAttribute('aria-disabled', 'true')
-    await expect(tile).toContainText('Belum tersedia')
+    // PASANGAN POSITIFNYA LEBIH DULU, supaya asersi ketiadaan di bawah tidak
+    // dapat hijau hanya karena gridnya kosong atau gagal dirender.
+    expect(codes.length).toBe(18)
+    expect(codes).toContain(AVAILABLE_STATION)
+    expect(codes).toContain('process-quality-control')
 
-    await tile.click()
+    // NOL tile nonaktif, diasersi atas KELASNYA — bukan atas teks halaman.
+    await expect(page.locator('[data-testid^="station-tile-"].disabled')).toHaveCount(0)
+    await expect(page.locator('[data-testid="station-grid"]')).not.toContainText('Belum tersedia')
 
-    // It is not a link and carries no wire:click, so there is nothing to
-    // follow and nothing to fail.
-    //
-    // `(\?|$)` dan bukan `$` saja: sejak pilihan mill dan Production Line
-    // terikat #[Url] (lihat docblock LaporanStasiun), layar ini MEMANG membawa
-    // query string — desain yang disengaja supaya pilihan Admin bertahan saat ia
-    // menekan sebuah tile lalu kembali. Yang diuji di sini adalah bahwa menekan
-    // tile NONAKTIF tidak memindahkan halaman, bukan bahwa URL-nya bersih.
-    await expect(page).toHaveURL(new RegExp(`${REPORT_PATH}(\\?|$)`))
-    await expect(tile).toContainText('Belum tersedia')
-    await expect(page.locator('body')).not.toContainText(/terjadi kesalahan|500|error/i)
+    // Dan SETIAP tile memang menunjuk ke sebuah rute laporan. Diperiksa atas
+    // seluruh tile, bukan atas satu kasus yang kebetulan ditulis.
+    for (const code of codes) {
+      const tile = page.locator(`[data-testid="station-tile-${code}"]`)
+
+      await expect(tile).toHaveClass(/active/)
+      await expect(tile).toHaveAttribute('href', /\/reports\//)
+    }
   })
 
   // Scenario: "master Jenis Stasiun kosong"
@@ -476,8 +478,12 @@ test.describe('Laporan Stasiun (web)', () => {
       expect(position('weighbridge')).toBeLessThan(position(AVAILABLE_STATION))
     }
 
-    if (position(AVAILABLE_STATION) >= 0 && position(UNAVAILABLE_STATION) >= 0) {
-      expect(position(AVAILABLE_STATION)).toBeLessThan(position(UNAVAILABLE_STATION))
+    // sterilizer (sort_order 40) mendahului process-quality-control (180), yang
+    // sejak screen-168 adalah jenis stasiun nyata dengan sort_order TERTINGGI
+    // dan karena itu tile TERAKHIR di grid.
+    if (position(AVAILABLE_STATION) >= 0 && position('process-quality-control') >= 0) {
+      expect(position(AVAILABLE_STATION)).toBeLessThan(position('process-quality-control'))
+      expect(position('process-quality-control')).toBe(codes.length - 1)
     }
   })
 
@@ -495,7 +501,7 @@ test.describe('Laporan Stasiun (web)', () => {
 
     expect(codes).not.toContain('other')
     expect(codes).toContain(AVAILABLE_STATION)
-    expect(codes).toContain(UNAVAILABLE_STATION)
+    expect(codes).toContain('process-quality-control')
 
     // No tile is captioned with the historical bucket's display name.
     await expect(page.locator('[data-testid="station-grid"]')).not.toContainText(/^Other$/)
@@ -535,10 +541,11 @@ test.describe('Laporan Stasiun (web)', () => {
 
     // Every tile is exactly one of the two — no tile is both, none neither.
     expect(activeCount + disabledCount).toBe(codes.length)
-    // The grid is not entirely dead: at least one report is reachable.
-    expect(activeCount).toBeGreaterThan(0)
-    // And not everything is active, or "disabled" would be untested here.
-    expect(disabledCount).toBeGreaterThan(0)
+    // SEJAK screen-168 (2026-10-23) SELURUHNYA aktif: delapan belas jenis
+    // stasiun nyata, delapan belas laporan. Asersi lama di sini menuntut
+    // disabledCount > 0, dan ia MEMANG memerah — sebagaimana dimaksud.
+    expect(activeCount).toBe(codes.length)
+    expect(disabledCount).toBe(0)
 
     // Active <=> links to a report under /reports/.
     for (const tile of await activeTiles.all()) {
@@ -552,15 +559,17 @@ test.describe('Laporan Stasiun (web)', () => {
       await expect(tile).toContainText('Belum tersedia')
     }
 
-    // The two fixtures this file pins by name, so the invariant above can
-    // never be satisfied vacuously by an empty or mislabelled grid.
+    // Dua tile yang berkas ini paku NAMANYA, supaya invarian di atas tidak
+    // dapat terpenuhi secara hampa oleh grid yang kosong atau salah label: yang
+    // pertama tile laporan tertua, yang kedua tile laporan TERAKHIR yang
+    // dibangun (screen-168) — dan keduanya kini AKTIF.
     const available = page.locator(`[data-testid="station-tile-${AVAILABLE_STATION}"]`)
-    const unavailable = page.locator(`[data-testid="station-tile-${UNAVAILABLE_STATION}"]`)
+    const lastBuilt = page.locator('[data-testid="station-tile-process-quality-control"]')
 
     await expect(available).toHaveAttribute('href', /reports\/sterilizer/)
-    await expect(unavailable).toHaveClass(/disabled/)
-    await expect(unavailable).toContainText('Belum tersedia')
-    await expect(unavailable).not.toHaveAttribute('href', /./)
+    await expect(lastBuilt).toHaveClass(/active/)
+    await expect(lastBuilt).toHaveAttribute('href', /reports\/process-quality-control/)
+    await expect(lastBuilt).not.toContainText('Belum tersedia')
   })
 
   // Scenario: "mill yang ditetapkan terbawa ke layar laporan"

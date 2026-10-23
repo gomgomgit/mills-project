@@ -2435,22 +2435,35 @@ it('skenario 35 — PINTU MASUK: tile Kernel Dispatch pada Laporan Stasiun AKTIF
     $keys = array_keys(StationReportService::REPORT_ROUTES);
 
     // kernel-dispatch TIDAK lagi terakhir sejak screen-166 menambahkan
-    // cpo-dispatch (170) SETELAHNYA — kini ia kedua dari belakang, dengan
+    // cpo-dispatch (170), dan sejak screen-168 menambahkan
+    // process-quality-control (180) ia menjadi KETIGA DARI BELAKANG — dengan
     // tetangga di kedua sisi.
-    expect(array_search('kernel-dispatch', $keys, true))->toBe(count($keys) - 2);
-    expect($keys[count($keys) - 3])->toBe('solid-waste-disposal');
-    expect($keys[count($keys) - 1])->toBe('cpo-dispatch');
+    expect(array_search('kernel-dispatch', $keys, true))->toBe(count($keys) - 3);
+    expect($keys[count($keys) - 4])->toBe('solid-waste-disposal');
+    expect($keys[count($keys) - 2])->toBe('cpo-dispatch');
+    expect($keys[count($keys) - 1])->toBe('process-quality-control');
     expect($berlaporan['solid-waste-disposal'])->toBe(150);
     expect($berlaporan['kernel-dispatch'])->toBe(160);
     expect($berlaporan['cpo-dispatch'])->toBe(170);
+    expect($berlaporan['process-quality-control'])->toBe(180);
 
-    // ASERSI PENGUNCI RIAK — ketiga berkas yang memakai stasiun NYATA sebagai
-    // contoh 'belum berlaporan' sudah memakai kode ini (sort_order 180),
-    // sehingga pekerjaan ini tidak memerahkannya. Begitu process-quality-control
-    // berlaporan di screen-168, baris ini memerah dan MEMAKSA pergeseran itu
-    // ditangani alih-alih lolos diam-diam.
-    $this->assertArrayNotHasKey('process-quality-control', StationReportService::REPORT_ROUTES);
+    // ASERSI PENGUNCI RIAK, DIBALIK PADA screen-168. Baris ini dulu berbunyi
+    // "REPORT_ROUTES belum punya process-quality-control" dan ia MEMANG memerah
+    // di screen-168 persis sebagaimana dimaksud. Sekarang ia menyatakan keadaan
+    // AKHIR, yang tidak akan pernah basi lagi: seluruh jenis stasiun nyata
+    // berlaporan, jadi sebuah contoh 'laporan belum dibangun' WAJIB memakai kode
+    // FIKTIF yang disuntikkan — dan kode fiktif itu tidak akan pernah mendapat
+    // entri.
+    $this->assertArrayHasKey('process-quality-control', StationReportService::REPORT_ROUTES);
     expect(StationType::query()->where('code', 'process-quality-control')->value('sort_order'))->toBe(180);
+
+    $tanpaLaporan = StationType::query()
+        ->where('code', '<>', StationReportService::EXCLUDED_STATION_TYPE)
+        ->orderBy('sort_order')
+        ->pluck('code')
+        ->reject(fn (string $code) => array_key_exists($code, StationReportService::REPORT_ROUTES));
+
+    expect($tanpaLaporan->all())->toBe([]);
     $this->assertArrayNotHasKey('zz-stasiun-fiktif', StationReportService::REPORT_ROUTES);
 });
 

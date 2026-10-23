@@ -9,6 +9,7 @@ use App\Livewire\Dashboard\LaporanGrading;
 use App\Livewire\Dashboard\LaporanDepricarping;
 use App\Livewire\Dashboard\LaporanEffluentPlant;
 use App\Livewire\Dashboard\LaporanEngineRoom;
+use App\Livewire\Dashboard\LaporanProcessQualityControl;
 use App\Livewire\Dashboard\LaporanProcessWater;
 use App\Livewire\Dashboard\LaporanSolidWasteDisposal;
 use App\Livewire\Dashboard\LaporanCpoDispatch;
@@ -1238,5 +1239,34 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/cpo-dispatch', LaporanCpoDispatch::class)
     ->name('reports.cpo-dispatch');
+
+// screen-168--laporan-process-quality-control-web (Laporan Periode Process
+// Quality Control). LAPORAN STASIUN YANG TERAKHIR: sesudah rute ini, seluruh
+// delapan belas jenis stasiun punya laporan periodenya sendiri, dan tidak ada
+// lagi tile kelabu di grid screen-140.
+//
+// OPERATOR TIDAK DILEBARKAN KE RUTE WEB INI. Ketiga rute DATA di
+// /api/process-quality-control-reports MEMANG menerima Operator sejak commit
+// pertama, karena screen-169--laporan-process-quality-control-mobile dibangun
+// dalam seri yang sama dan memakainya — tetapi menerima Operator di sisi data
+// bukan alasan melebarkan layar web. Rute web ini dan
+// LaporanProcessQualityControl::canAccess() sengaja tetap tertutup, dan itulah
+// sebab canAccess() mempertahankan daftar perannya sendiri alih-alih meminjam
+// ProcessQualityControlReportService::guardAccess().
+//
+// Rutenya /reports/process-quality-control (konvensi prefix Inggris
+// /reports/*), berbeda dari layar DATA stasiun yang sama di bawah
+// /data/process-quality-control — laporan ini MEMBACA apa yang ditulis
+// layar-layar itu dan tidak pernah menulis apa pun.
+//
+// Dapat dicapai dari UI HANYA melalui tile Process Quality Control pada
+// screen-140 (/reports), yang menyala karena
+// StationReportService::REPORT_ROUTES kini memetakan kode
+// 'process-quality-control' (BERTANDA HUBUNG) ke nama rute ini. Tanpa satu
+// baris itu laporannya ada, seluruh test-nya sendiri lolos, dan tile-nya tetap
+// kelabu — pola kegagalan yang pernah terjadi pada laporan Cages & Tracks.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/process-quality-control', LaporanProcessQualityControl::class)
+    ->name('reports.process-quality-control');
 
 // === ASDLC_ROUTES_END ===

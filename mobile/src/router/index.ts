@@ -1228,6 +1228,46 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanKernelDispatchView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-169--laporan-process-quality-control-mobile /
+    // usecase-175--laporan-process-quality-control-mobile "Lihat Laporan
+    // Periode Process Quality Control (Mobile)". meta.public deliberately
+    // false, matching screen_tech_spec.auth_requirement (authenticated; actors:
+    // operator, supervisor) — without a token the router guard sends the caller
+    // to Login.
+    //
+    // THE LAST REPORT SCREEN. After this route, all eighteen station types have
+    // their own period report, on web and on mobile alike.
+    //
+    // THERE IS NO ROLE LIST ON THIS ROUTE, AND THAT IS THE CONTRACT — not an
+    // omission. The mobile router carries ONE global guard, over `meta.public`,
+    // and not one of its routes carries a role list; what holds Mill Management
+    // and Admin out of this screen is server-side authorisation plus the
+    // absence of a mobile path for them. Adding a role guard here would be a
+    // router-wide change touching all 15 report screens.
+    //
+    // ZERO BACKEND CHANGE, and that was paid for in advance on purpose: all
+    // three /api/process-quality-control-reports/* data routes have admitted
+    // Operator since screen-168's FIRST commit, precisely so this mobile twin
+    // would not have to widen anything, and
+    // /api/production-lines/options-for-report is reused verbatim from
+    // screen-135. What stayed closed stays closed: /business-units/options is
+    // Admin only (403 raised inside the service, not by the middleware), and
+    // the WEB route /reports/process-quality-control is not touched.
+    //
+    // Pintu masuknya: rute 'report-stations' (screen-141) menampilkan grid
+    // stasiun, dan tile Process Quality Control-lah yang menavigasi ke sini —
+    // entri 'process-quality-control' pada REPORT_ROUTES di
+    // ReportingPilihStasiunView.vue adalah satu-satunya penentu tile itu hidup
+    // atau mati, dan ini tile TERAKHIR yang masih kelabu di sana. Kuncinya
+    // WAJIB berkutip di sana karena bertanda hubung — kunci bergaris-bawah
+    // ('process_quality_control') akan terkompilasi, terlihat benar, dan tidak
+    // pernah cocok dengan satu station.type pun.
+    path: '/reports/process-quality-control',
+    name: 'report-process-quality-control',
+    component: () => import('@/views/LaporanProcessQualityControlView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

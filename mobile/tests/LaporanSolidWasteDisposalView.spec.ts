@@ -3311,6 +3311,11 @@ describe('pintu masuk tile Reporting', () => {
     // sifat "bertambah tepat satu per layar" sengaja DIPERTAHANKAN sebagai
     // kesetaraan penuh atas himpunan lengkap; melonggarkannya menjadi
     // toContain atau toBeGreaterThan akan menghapus justru yang diuji.
+    //
+    // RIAK screen-169 (2026-10-23): entri 'process-quality-control' menyusul,
+    // jadi himpunannya kini berisi TUJUH BELAS kunci — dan dengan itu peta ini
+    // LENGKAP: tidak ada lagi jenis stasiun nyata tanpa laporan mobile, jadi
+    // daftar pembanding ini tidak akan pernah bertambah lagi.
     const keys = [...map.matchAll(/^\s*'?([a-z-]+)'?\s*:\s*'report-[a-z-]+'/gm)].map(
       (match) => match[1],
     )
@@ -3327,6 +3332,7 @@ describe('pintu masuk tile Reporting', () => {
         'kernel-dispatch',
         'kernel-plant',
         'pressing',
+        'process-quality-control',
         'process-water',
         'solid-waste-disposal',
         'sterilizer',
@@ -3335,7 +3341,7 @@ describe('pintu masuk tile Reporting', () => {
         'weighbridge',
       ].sort(),
     )
-    expect(keys).toHaveLength(16)
+    expect(keys).toHaveLength(17)
 
     // Dan nama rutenya SAMA PERSIS dengan yang terdaftar di router.
     const routerSource = readSource('src/router/index.ts')

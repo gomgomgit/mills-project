@@ -1,8 +1,8 @@
 {
-  "ver": 84,
+  "ver": 85,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-10-22"
+    "updated_at": "2026-10-23"
   },
   "endpoints": [
     {
@@ -2792,6 +2792,59 @@
         "actor-logistics",
         "actor-qa-qc",
         "actor-mill-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-quality-control-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Process Quality Control — ADMIN SAJA. 403 untuk Operator, Supervisor, dan Mill Management, ditegakkan DI DALAM service dan bukan oleh middleware — justru karena middleware prefix ini menerima keempat peran demi ketiga rute data di bawahnya, sehingga penjaga di middleware tidak akan menutup rute ini. Master kosong adalah jawaban sah: [] dengan 200, bukan 404.",
+      "screen_id": "screen-168--laporan-process-quality-control-web",
+      "usecase_id": "usecase-174--laporan-process-quality-control-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-quality-control-reports/periods",
+      "description": "Daftar Periode Pelaporan yang punya baris period_stations berjenis 'process-quality-control' pada satu mill; status per baris period_stations, dan periode tertutup maupun draft ikut tercantum — laporan ini tidak menyaring status. business_unit_id WAJIB bagi Admin (422 bila absen) dan DIABAIKAN bagi peran terikat mill termasuk Operator — diabaikan, bukan divalidasi. production_line_id sengaja bukan parameter: periode milik mill, bukan milik line. Operator diterima sejak commit pertama, dan pelebaran itu menempatkannya pada cabang TERIKAT-MILL resolveBusinessUnit() — bukan hanya di daftar peran, yang akan menjatuhkannya ke cabang Admin tempat business_unit_id kiriman klien dihormati, yang berarti kebocoran lintas mill.",
+      "screen_id": "screen-168--laporan-process-quality-control-web",
+      "usecase_id": "usecase-174--laporan-process-quality-control-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-quality-control-reports/summary",
+      "description": "Seluruh angka Laporan Process Quality Control untuk satu periode pada satu Production Line. DUA BELAS kolom ukur numerik, masing-masing min/avg/max dengan PENYEBUTNYA SENDIRI (reading_count), diterbitkan pada kunci `metrics` yang SELALU berisi tepat dua belas kunci — metrik tanpa satu pembacaan pun tetap hadir dengan null/0 supaya blade tidak pernah kehilangan kartu. Setiap entri metrik membawa `group` (salah satu dari LIMA blok tahap: fruit_press, purifier_clarification_balance, vacuum_drying_station, decanter_centrifuge, final_storage, urut JALUR FISIK MINYAK bukan abjad) dan `unit` yang NULL TEPAT SATU KALI, pada final_storage_dobi_index — Indeks DOBI bukan besaran bersatuan dan memberinya tanda persen adalah kesalahan yang akan terlihat benar. DUA kolom teks bebas (qc_engineering_corrective_actions, findings) diterbitkan sebagai dua daftar kejadian per slot pada `text_entries`, TIDAK PERNAH dikelompokkan menjadi sebaran: stasiun ini NOL kolom berpilihan tertutup, sehingga payload TIDAK memuat satu pun kunci bernama status_distribution, known_values, counts, distribution, value_counts, maupun by_status — ketiadaan itu diasersi atas NAMA KUNCI lewat penelusur rekursif, bukan atas teks payload, karena _note_absences sendiri menyebut kata-kata itu dalam prosa. REKAP PER-INSPEKTUR memakai KODE MENTAH tanpa join dan tanpa normalisasi kapitalisasi, baris `not_recorded` berdiri sendiri, dan urutannya menurut KODE bukan menurut jumlah slot supaya ia tidak menjadi peringkat orang. Rekap itu dihitung atas SELURUH baris (bukan hanya yang terisi), sehingga slot yang HANYA mengisi shift + qc_inspector_id tetap masuk rekap meski dihitung KOSONG oleh kelengkapan: rekap menghitung ATRIBUSI, kelengkapan menghitung PEMBACAAN, dan karena itu attributed_slots BUKAN alias filled_slots. Kelengkapan dihitung atas EMPAT BELAS READING_FIELDS (dua belas numerik + kedua teks bebas; `shift` dan `qc_inspector_id` adalah kolom identitas dan dikecualikan oleh isRowFilled() yang DIPINJAM dari ProcessQualityControlRecordService), sehingga filled_slots dapat MELEBIHI penyebut setiap metrik — coverage.max_metric_reading_count diterbitkan supaya kedua angka dapat dicetak BERDAMPINGAN beserta kalimat yang menyatakan hubungannya, tanpa syarat. Kolom `shift` TIDAK diterbitkan di payload sama sekali — ia hanya ada di ekspor. TANPA blok downtime, TANPA penandaan nilai di luar batas (tidak ada master ambang mutu, dan itu berlaku MESKI keempat kolom Final Storage adalah justru parameter mutu yang gunanya dibandingkan dengan ambang — angkanya diterbitkan tanpa menyatakan memenuhi spesifikasi pembeli atau tidak, aturan yang sama seperti Effluent Plant dan kedua laporan dispatch), TANPA rekap per-unit (process_qc_unit_count tetap ada di dalam coverage karena expected_slots memerlukannya), dan TANPA tren harian bergambar. draft_slot_count diterbitkan: catatan draft IKUT terhitung di seluruh angka. Seluruh agregasi di PHP; nol agregat SQL. period_id dan production_line_id KEDUANYA WAJIB; line maupun periode milik mill lain → 403.",
+      "screen_id": "screen-168--laporan-process-quality-control-web",
+      "usecase_id": "usecase-174--laporan-process-quality-control-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-quality-control-reports/export",
+      "description": "Unduhan CSV/Excel Laporan Process Quality Control — SATU BARIS PER SLOT WAKTU dengan kolom konteks (periode, mill, line, tanggal, unit, status, catatan) diulang verbatim di setiap baris, memuat KEENAM BELAS kolom DETAIL_FIELDS dalam urutan DETAIL_FIELDS: kedua kolom identitas `shift` dan `qc_inspector_id` LEBIH DULU, lalu dua belas kolom ukur, lalu kedua kolom teks bebas. KEDUA KOLOM IDENTITAS ADA DI EKSPOR meski `shift` tidak pernah muncul di layar — dikecualikan dari pemeriksaan keterisian TIDAK berarti dibuang dari berkas, dan berkas yang tidak dapat berdiri sebagai pengganti layar masukan tidak layak diekspor. 24 kolom seluruhnya: 7 konteks + Slot Waktu + 16 detail, berlabel SAMA PERSIS dengan layar Detail dan ekspor Data Browser stasiun ini — termasuk 'Final Storage DOBI Index' yang sengaja tanpa satuan. Pemetaan label: kolom 'Status' konteks lewat ExportValue::status() (status RECORD — Tersimpan/Tersinkron); ExportValue::option() TIDAK DIPAKAI di mana pun pada layar ini, karena stasiun ini tidak punya satu pun kolom enum pengukuran. Excel adalah .xlsx SUNGGUHAN lewat SheetWriter. Batas 50.000 dihitung atas BARIS SLOT bukan record. Gate peran, resolusi mill, resolusi line, pemeriksaan format, dan pemeriksaan batas berjalan EAGER sebelum aliran dimulai. Record tanpa satu baris detail pun tetap menghasilkan SATU baris dengan 17 kolom detail kosong. Format kosong/absen → CSV ditetapkan DI CONTROLLER (`?? 'csv'` atas nilai query yang sudah di-trim); service sendiri memakai parameter default, sehingga export($period, '') melempar ValidationException — pembedaan yang diasersi di lapisan masing-masing. Bukan respons JSON.",
+      "screen_id": "screen-168--laporan-process-quality-control-web",
+      "usecase_id": "usecase-174--laporan-process-quality-control-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
       ]
     }
   ]

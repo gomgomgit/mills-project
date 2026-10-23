@@ -1,0 +1,81 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-23"
+  },
+  "id": "screen-169--laporan-process-quality-control-mobile",
+  "name": "Laporan Process Quality Control (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "partial",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/LaporanProcessQualityControlView.vue",
+    "mobile/src/services/processQualityControlReportRepo.ts",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "NOL BERKAS BACKEND DISENTUH, sesuai tech spec. Keempat endpoint sudah ada: ketiga rute /api/process-quality-control-reports/* dibangun screen-168 dan sudah menerima Operator sejak commit pertamanya, dan /api/production-lines/options-for-report dipakai ulang verbatim dari screen-135. Nol entri api-index baru — sama seperti keempat laporan mobile sebelumnya, yang juga nol.",
+    "DITURUNKAN DARI LaporanProcessWaterView.vue + processWaterReportRepo.ts. Yang DIUBAH secara struktural, bukan sekadar nama: kelima blok metrik menjadi KARTU YANG DAPAT DILIPAT.",
+    "LIMA BLOK MEMAKAI CollapsibleSection YANG SUDAH ADA, bukan markup lipat baru. Dua alasan: (a) komponen itu sudah dipakai ketiga rekap di layar ini dan sudah teruji; (b) markup lipat sendiri menuntut kelas CSS baru, dan aturan proyek mewajibkan setiap kelas yang dipakai markup punya definisi. CollapsibleSection memakai `v-show`, jadi isinya tetap ada di DOM — yang persis sesuai spec: melipat MURNI penyingkapan.",
+    "PENYIMPANGAN SADAR DARI SERI: keempat laporan bergrid mobile sebelumnya merender blok kartunya TERBUKA tanpa kontrol lipat, dengan alasan bahwa melipat menyembunyikan penyebut tiap kartu. Alasan itu tetap benar dan di sini dikalahkan oleh JUMLAH — dua belas kartu terbuka sekaligus (36 angka + 12 penyebut + 11 satuan) membuat blok kelengkapan tergulir jauh di atas layar sebelum satu angka pun dibaca. Kompensasinya: judul tiap kartu blok membawa PENANDA ADA-TIDAKNYA DATA, sehingga penyebut nol tetap terbaca tanpa membuka kartunya. Penyimpangan ini DINYATAKAN di layar (pqc-collapsible-blocks-note), bukan hanya di komentar.",
+    "blockHasData() memakai `some`, BUKAN `every`. `every` akan menandai blok Final Storage sebagai kosong hanya karena Indeks DOBI tidak pernah diisi — kebalikan dari maksudnya.",
+    "Daftar kelima blok diturunkan dengan menelusuri kunci `metrics` dan mengambil `group` yang belum terlihat (columnsOfBlock). Tidak ada larik nama blok yang ditulis tangan di klien, sehingga urutan blok benar-benar MILIK SERVER.",
+    "FS_DOBI_META.unit = null, dan template memeriksa `v-if=\"card.unit\"`. Keduanya harus utuh; `card.unit ?? ''` akan tetap merender pil satuan hampa. Di ponsel kesalahan ini lebih sulit tertangkap daripada di web, karena keempat kartu Final Storage tidak pernah terlihat bersamaan.",
+    "DIHAPUS, bukan diwarisi: seluruh komputasi tren harian (trendColumn, trendPoints, trendSeries, trendLowest, trendHighest, trendBarHeight) beserta seksi template-nya, dan seluruh rekap per unit (unitRows, unitFilledSlots, tipe UnitRow/TrendPoint di repo, seksi template-nya). Business spec screen ini menerbitkan BLOK TAHAP sebagai penggantinya dan tidak menyebut keduanya. Ketiadaannya DINYATAKAN di layar (pqc-no-per-unit-note).",
+    "inspectorRecordedSlots() kini membaca attributed_slots lebih dulu, dengan recorded_slots sebagai cadangan nama lama. Memakai coverage.filled_slots sebagai penyebut porsi akan membuat jumlah porsinya melebihi 100% pada periode yang punya slot hanya-identitas.",
+    "entrySlots() membaca slot_count lebih dulu, dengan filled_slots dan slots sebagai cadangan nama lama.",
+    "maxMetricReadingCount dibaca dari coverage.max_metric_reading_count; cadangannya Math.max atas angka yang sudah ada, dan hanya bila payload lama belum membawa kuncinya. Itu bukan rata-rata baru dan bukan penyebut baru — tidak ada nilai laporan yang lahir di klien.",
+    "Tata letak per metrik tetap BERTUMPUK (label di atas, tiga angka di bawah), bukan tiga kolom sejajar: 36 angka dalam kolom sejajar akan memaksa halaman bergeser mendatar pada 390px.",
+    "Entri tile pada ReportingPilihStasiunView REPORT_ROUTES di-APPEND dengan kunci berkutip 'process-quality-control'. Dengan baris itu peta tile mobile LENGKAP: delapan belas jenis stasiun nyata, delapan belas laporan mobile — dan tidak ada lagi tile kelabu di grid Reporting.",
+    "vue-tsc --noEmit BERSIH sesudah seluruh suntingan.",
+    "Suite unit mobile penuh HIJAU: 3662 lulus di 142 berkas, 0 gagal.",
+    "RIAK MOBILE DIUKUR: suite menghasilkan TEPAT 9 kegagalan di 3 berkas. Dua asersi 'himpunan kunci bertambah tepat satu' diperbarui menjadi 17 (LaporanKernelDispatchView, LaporanSolidWasteDisposalView) beserta rujukan silangnya, dan TUJUH kegagalan di ReportingPilihStasiunView berasal dari satu sebab: 'process-quality-control' dipakai sebagai contoh tile nonaktif dan kini menjadi AKTIF. Contoh itu BERALIH ke kode fiktif KEDUA 'zz-stasiun-fiktif-dua' — bukan ke jenis nyata lain, karena hanya 'cpo-dispatch' yang tersisa dan laporan mobile-nya (screen-167) sedang menunggu dikerjakan."
+  ],
+  "deferred_items": [
+    {
+      "description": "Seluruh berkas uji untuk screen ini: mobile/tests/LaporanProcessQualityControlView.spec.ts, mobile/tests/processQualityControlReportRepo.spec.ts, dan mobile/tests/e2e/laporan-process-quality-control.spec.ts. 37 test_scenarios dan 45 unit_test_cases sudah tertulis lengkap di tech spec screen ini.",
+      "reason": "config.json test_generation_level = 'none' (keputusan user pada sesi ini, 2026-10-23). Dapat dilengkapi kemudian lewat impl-2-screen mode update dengan cakupan 'add/complete tests (keep existing code)'."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "SCREEN BELUM TERVERIFIKASI OLEH SUITE-NYA SENDIRI. Tidak ada satu berkas uji pun untuk layar ini. Yang SUDAH terbukti pada sesi ini hanya dua hal, dan keduanya tidak langsung menguji layarnya: vue-tsc --noEmit bersih (membuktikan tipe repo dan view konsisten, termasuk ketiadaan tipe tren/unit yang dihapus), dan suite unit mobile penuh hijau (3662 lulus — membuktikan layar ini tidak memecahkan layar lain, bukan bahwa ia sendiri benar). TIDAK terbukti: kelima kartu benar-benar dapat dilipat, penanda data di judulnya benar, kartu Indeks DOBI tidak merender pil satuan, luring sesudah muat benar-benar MENGHAPUS kartu blok dari DOM, dan tombol ekspor terkunci pada dua tekan cepat.",
+      "severity": "major"
+    },
+    {
+      "description": "GEOMETRI PADA 390px DENGAN KELIMA BLOK TERBUKA BELUM DIUKUR DI BROWSER. Inilah satu-satunya pertanyaan yang membedakan halaman benar dari halaman cacat pada layar ini — adakah elemen yang digambar DI LUAR kotak induknya — dan ia tidak dapat dijawab oleh uji komponen: overflow memotong anak TANPA jejak di DOM, sehingga elemennya tetap ada, tetap terlihat, dan tepinya justru persis menempel tepi induknya karena di situ ia dipotong. Spec browser untuk ini sudah tertulis lengkap di tech spec (skenario terakhir) tetapi belum dieksekusi. Layar mobile ini DAPAT diuji di browser lewat Vite dev server — ini bukan keterbatasan platform, hanya pekerjaan yang ditunda.",
+      "severity": "major"
+    },
+    {
+      "description": "Suite e2e Playwright mobile (mobile/tests/e2e/) tidak dijalankan pada sesi ini — ia menuntut backend hidup pada :8000/:8001 beserta seeder. Layar ini tidak menambah spec e2e mobile apa pun, dan tidak ada spec e2e mobile yang ada yang menyebut 'process-quality-control' sebagai contoh laporan belum dibangun, jadi tidak ada riak e2e mobile yang diketahui — tetapi itu dari grep, bukan dari eksekusi.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

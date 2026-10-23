@@ -2329,29 +2329,32 @@ it("case 47 — array_keys(REPORT_ROUTES) urut sort_order station_types, dengan 
     // solid-waste-disposal (150) TIDAK lagi di posisi terakhir sejak
     // screen-164 menambahkan kernel-dispatch (160) SETELAHNYA, dan screen-166
     // menambahkan cpo-dispatch (170) sesudah itu — kini ia ketiga dari
-    // belakang. Yang diasersikan tetap sebuah POSISI, bukan sekadar
-    // keanggotaan: menyisipkan stasiun berikutnya di tempat yang salah harus
-    // tetap memerahkan baris-baris ini.
-    expect($index)->toBe(count($keys) - 3);
+    // belakang. Sejak screen-168 menambahkan process-quality-control (180) ia
+    // menjadi KEEMPAT dari belakang. Yang diasersikan tetap sebuah POSISI,
+    // bukan sekadar keanggotaan: menyisipkan stasiun berikutnya di tempat yang
+    // salah harus tetap memerahkan baris-baris ini.
+    expect($index)->toBe(count($keys) - 4);
     expect($keys[$index - 1])->toBe('storage-tank');
     expect($keys[$index + 1])->toBe('kernel-dispatch');
     expect($keys[$index + 2])->toBe('cpo-dispatch');
+    expect($keys[$index + 3])->toBe('process-quality-control');
 
     // Dan sort_order-nya memang yang membuat urutan itu benar.
     expect($berlaporan['storage-tank'])->toBe(140);
     expect($berlaporan['solid-waste-disposal'])->toBe(150);
     expect($berlaporan['kernel-dispatch'])->toBe(160);
     expect($berlaporan['cpo-dispatch'])->toBe(170);
+    expect($berlaporan['process-quality-control'])->toBe(180);
 });
 
 // ---------------------------------------------------------------------
 // Case 48
 // ---------------------------------------------------------------------
-it("case 48 — contoh 'stasiun belum berlaporan' kini kode FIKTIF; solid-waste-disposal DAN kernel-dispatch berlaporan", function () {
+it("case 48 — contoh 'stasiun belum berlaporan' WAJIB kode FIKTIF: tidak ada lagi jenis stasiun nyata yang tersisa", function () {
     // Separuh pertama riaknya hidup di
     // backend/tests/Unit/Services/StationReportServiceTest.php case 16 dan 18,
     // yang sudah dipindahkan ke 'zz-stasiun-fiktif'. Yang diasersikan DI SINI
-    // adalah dua fakta yang membuat pemindahan itu benar dan TERAKHIR.
+    // adalah fakta yang membuat pemindahan itu benar dan FINAL.
 
     // (1) solid-waste-disposal kini BERLAPORAN.
     $this->assertArrayHasKey('solid-waste-disposal', StationReportService::REPORT_ROUTES);
@@ -2362,26 +2365,36 @@ it("case 48 — contoh 'stasiun belum berlaporan' kini kode FIKTIF; solid-waste-
     $this->assertArrayNotHasKey('zz-stasiun-fiktif', StationReportService::REPORT_ROUTES);
     expect(StationType::query()->where('code', 'zz-stasiun-fiktif')->exists())->toBeFalse();
 
-    // (3) screen-164 SUDAH terjadi: kernel-dispatch kini BERLAPORAN, jadi ia
-    //     keluar dari daftar kandidat di bawah. Transisinya dicatat di sini,
-    //     bukan sekadar dilupakan.
-    $this->assertArrayHasKey('kernel-dispatch', StationReportService::REPORT_ROUTES);
-    expect(StationReportService::REPORT_ROUTES['kernel-dispatch'])->toBe('reports.kernel-dispatch');
-
-    // (3b) screen-166 JUGA sudah terjadi: cpo-dispatch kini BERLAPORAN dan
-    //      keluar dari daftar kandidat di bawah — transisi kedua dicatat di
-    //     sini, bukan dilupakan.
-    $this->assertArrayHasKey('cpo-dispatch', StationReportService::REPORT_ROUTES);
-    expect(StationReportService::REPORT_ROUTES['cpo-dispatch'])->toBe('reports.cpo-dispatch');
-
-    // (4) Sisa SATU stasiun nyata yang belum berlaporan. KOPLINGNYA
-    //     DISENGAJA: baris ini HARUS memerah di screen-168
-    //     (process-quality-control), supaya pergeseran terakhir dipaksa
-    //     ditangani alih-alih lolos diam-diam.
-    foreach (['process-quality-control'] as $kandidat) {
-        expect(StationType::query()->where('code', $kandidat)->exists())->toBeTrue();
-        $this->assertArrayNotHasKey($kandidat, StationReportService::REPORT_ROUTES);
+    // (3) Ketiga transisi yang dulu dicatat di sini sebagai 'langkah
+    //     berikutnya' kini SUDAH terjadi seluruhnya: kernel-dispatch
+    //     (screen-164), cpo-dispatch (screen-166), dan process-quality-control
+    //     (screen-168). Dicatat, bukan dilupakan.
+    foreach ([
+        'kernel-dispatch' => 'reports.kernel-dispatch',
+        'cpo-dispatch' => 'reports.cpo-dispatch',
+        'process-quality-control' => 'reports.process-quality-control',
+    ] as $code => $routeName) {
+        $this->assertArrayHasKey($code, StationReportService::REPORT_ROUTES);
+        expect(StationReportService::REPORT_ROUTES[$code])->toBe($routeName);
     }
+
+    // (4) DAN TIDAK ADA SISA. Daftar kandidat yang dulu ada di sini kini KOSONG
+    //     secara terukur: setiap jenis stasiun nyata punya entri rute laporan.
+    //     Baris ini menggantikan kopling yang dulu sengaja memerah tiap kali
+    //     satu laporan terbit — ia tidak akan pernah basi lagi, karena tidak
+    //     ada lagi yang dapat bergeser.
+    $kandidat = StationType::query()
+        ->where('code', '!=', StationReportService::EXCLUDED_STATION_TYPE)
+        ->orderBy('sort_order')
+        ->pluck('code')
+        ->reject(fn (string $code) => array_key_exists($code, StationReportService::REPORT_ROUTES));
+
+    expect($kandidat->all())->toBe([]);
+
+    // (5) PASANGAN POSITIFNYA, supaya (4) tidak dapat hijau hanya karena
+    //     masternya kosong: delapan belas jenis nyata, delapan belas entri.
+    expect(StationType::query()->where('code', '!=', StationReportService::EXCLUDED_STATION_TYPE)->count())->toBe(18);
+    expect(StationReportService::REPORT_ROUTES)->toHaveCount(18);
 });
 
 // =====================================================================

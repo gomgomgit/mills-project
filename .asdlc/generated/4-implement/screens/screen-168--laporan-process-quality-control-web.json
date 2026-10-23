@@ -1,0 +1,85 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-23"
+  },
+  "id": "screen-168--laporan-process-quality-control-web",
+  "name": "Laporan Process Quality Control (Web)",
+  "module_id": "module-dashboard",
+  "status": "partial",
+  "files_generated": [
+    "backend/app/Services/ProcessQualityControlReportService.php",
+    "backend/app/Http/Controllers/Api/ProcessQualityControlReportController.php",
+    "backend/app/Livewire/Dashboard/LaporanProcessQualityControl.php",
+    "backend/resources/views/livewire/dashboard/laporan-process-quality-control.blade.php",
+    "backend/resources/views/dashboard/laporan-process-quality-control.blade.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/app/Services/ProcessQualityControlRecordService.php"
+  ],
+  "test_files_generated": [],
+  "fe_files_generated": [],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "DITURUNKAN DARI ProcessWaterReportService, bukan ditulis dari nol. Keduanya laporan bergrid 24 slot dengan metrik berblok, penyebut per metrik, dua kolom teks bebas sebagai daftar terpisah, dan rekap per-inspektur berkode mentah — struktur yang sama persis. Yang DIUBAH: dua belas metrik dalam lima blok (bukan sembilan dalam empat), METRIC_UNITS baru, rekap per-inspektur atas SELURUH baris, draft_slot_count, max_metric_reading_count, period_not_started. Yang DIHAPUS: by_unit, daily_trend, unitsOf(), dailyTrendOf(), byUnitOf(), TREND_METRICS.",
+    "ProcessQualityControlRecordService::READING_FIELDS, DETAIL_FIELDS, dan isRowFilled() DILEBARKAN dari protected menjadi public — sama seperti ProcessWaterRecordService, dan untuk alasan yang sama: aturan 14-kolom harus punya SATU sumber. Kelas laporan tidak menyimpan daftar kolom pembacaan kedua.",
+    "inspectorRecapOf() menerima $rows (SELURUH baris), bukan $filledRows — berbeda dari sibling Process Water. Itulah yang merukunkan dua aturan screen yang tampak bertentangan, dan karenanya attributed_slots BUKAN alias coverage.filled_slots.",
+    "Pengurutan rekap per-inspektur memakai usort + strcmp atas entri LIST, bukan ksort atas kunci larik: kunci larik PHP meng-cast string yang tampak numerik menjadi int, dan kode inspektur '1180734' adalah bentuk nyata di lapangan — ksort akan mengurutkannya sebagai angka.",
+    "metrics[*].unit null TEPAT pada final_storage_dobi_index. Blade merender elemen satuan hanya ketika unit tidak null; `unit ?? ''` akan tetap merender elemen hampa dan membuka jalan tanda persen mendarat di kartu DOBI.",
+    "'—' dipilih atas reading_count === 0, bukan atas nilai min/avg/max yang falsy — oil loss 0% adalah nilai sah dan tidak boleh tersamar.",
+    "EXPORT_HEADER 24 kolom: 7 konteks + Slot Waktu + 16 DETAIL_FIELDS. Urutannya DETAIL_FIELDS (shift, qc_inspector_id lebih dulu), BERBEDA dari ekspor Data Browser stasiun ini yang mengikuti urutan kolom tabel; LABELnya tetap verbatim dari Data Browser, termasuk 'Final Storage DOBI Index' tanpa satuan.",
+    "fileMetaFor() diperbaiki dari warisan rename: nama berkas unduhan 'laporan-process-quality-control_{slug}_{timestamp}' — bukan nama sibling. Ini satu-satunya tempat di berkas turunan yang salahnya FUNGSIONAL, bukan sekadar komentar basi.",
+    "Blade mengiterasi METRIC_GROUPS dari RESPONS (lihat $kolomGrup), bukan daftar kolom yang ditulis tangan. Kelima blok selalu dirender; blok yang hilang akan dibaca sebagai tahap yang tidak ada. Blok Final Storage memakai md-kpis--4, satu-satunya blok berisi empat kartu; kelas itu sudah terdefinisi di partial report-styles bersama lengkap dengan turunan responsifnya — diperiksa langsung, bukan diasumsikan.",
+    "`md-threshold` muncul DUA KALI di sumber blade tetapi hanya di dalam komentar Blade {{-- --}}, yang hilang saat compile. Invarian 'nol elemen berkelas penanda ambang' karena itu tetap berlaku pada HTML ter-render — dan memang di situlah ia harus diperiksa.",
+    "SATU BARIS REPORT_ROUTES adalah selisih antara laporan yang ada dan tile yang menyala. DI-APPEND di akhir, dan untuk sekali ini 'di akhir' benar-benar posisi sort_order: process-quality-control = 180, tertinggi di antara jenis berlaporan. Keselarasan urutannya diverifikasi dengan mencetak array_keys(REPORT_ROUTES) terhadap station_types.sort_order — 18 entri, urut.",
+    "RIAK DIUKUR, BUKAN DITAKSIR. Suite backend menghasilkan TEPAT 8 kegagalan di 6 berkas ketika entri REPORT_ROUTES ditambahkan, dan kedelapan-delapannya diperbaiki: tiga asersi penjaga DIBALIK menjadi 'seluruh 18 jenis kini berlaporan' (KernelDispatchReportServiceTest case 61, SolidWasteDisposalReportServiceTest case 48, LaporanKernelDispatchTest skenario 35), tiga asersi POSISI diperbarui relatif terhadap panjang peta, dan dua pembawa contoh 'laporan belum dibangun' BERALIH ke jenis stasiun fiktif yang disuntikkan (Feature/Api/LaporanStasiunTest, Feature/Livewire/LaporanStasiunTest).",
+    "Suite backend penuh HIJAU sesudah perbaikan riak: 6411 lulus, 42881 asersi, 0 gagal.",
+    "VERIFIKASI POSTGRESQL DIJALANKAN TERPISAH dan lulus: kolom time PostgreSQL memang mengembalikan '07:00:00', dan laporan tetap menerbitkan '07:00' karena textEntriesOf() menerbitkan time_slot_label (hasil ExportValue::time) alih-alih nilai mentah, slotOrderOf() menormalkan lewat ExportValue::time, dan ekspor memakai ExportValue::time. Penyaringan tanggal periode terbukti inklusif di kedua ujung, dan ekspor mengalirkan 24 kolom dengan slot HH:MM. Harness verifikasinya throwaway dan TIDAK di-commit (test_generation_level = none).",
+    "Seluruh agregasi di PHP atas koleksi yang sudah dimuat — nol agregat SQL, nol GROUP BY. Itu yang membuat aturan isRowFilled(), penyebut per metrik, dan pengurutan kode inspektur case-sensitive tidak dapat berubah karena perbedaan SQLite vs PostgreSQL."
+  ],
+  "deferred_items": [
+    {
+      "description": "Seluruh berkas uji untuk screen ini: Unit/Services/ProcessQualityControlReportServiceTest.php, Feature/Livewire/LaporanProcessQualityControlTest.php, Feature/Api/LaporanProcessQualityControlTest.php, dan e2e-web/tests/laporan-process-quality-control.spec.ts. 36 test_scenarios dan 58 unit_test_cases sudah tertulis lengkap di tech spec screen ini dan siap dieksekusi.",
+      "reason": "config.json test_generation_level = 'none' (keputusan user pada sesi ini, 2026-10-23). Dapat dilengkapi kemudian dengan menjalankan impl-2-screen dalam mode update dan memilih cakupan 'add/complete tests (keep existing code)' — ia menghasilkan dan menjalankan uji terhadap kode yang sudah ada tanpa membangunnya ulang dari spec."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "SCREEN BELUM TERVERIFIKASI OLEH SUITE-NYA SENDIRI. Tidak ada satu berkas uji pun untuk layar ini, sehingga ke-12 penyebut per metrik, aturan keterisian 14-kolom, rekap per-inspektur atas seluruh baris, ketiadaan kunci sebaran/downtime/ambang/by_unit/daily_trend, dan kartu DOBI tanpa satuan tidak dijaga oleh satu asersi pun yang akan memerah bila kelak rusak. Verifikasi yang DILAKUKAN pada sesi ini — harness smoke Livewire (4 uji, lulus: 5 blok, 12 kartu, 11 elemen satuan + DOBI tanpa satuan, slot hanya-identitas kosong tetapi teratribusi, filled_slots 12 vs penyebut 3, ekspor 24 kolom) dan harness PostgreSQL (3 uji, lulus) — keduanya throwaway dan tidak di-commit. Ia membuktikan kodenya benar HARI INI, bukan menjaganya besok.",
+      "severity": "major"
+    },
+    {
+      "description": "PERILAKU DOM TILE NONAKTIF KEHILANGAN CAKUPAN BROWSER. e2e-web/tests/laporan-stasiun.spec.ts dahulu memakai 'process-quality-control' sebagai contoh tile nonaktif; karena master nyata kini nol stasiun tanpa laporan, spec itu diubah menjadi asersi KEADAAN AKHIR (setiap tile aktif, nol tile berkelas disabled). Perilaku DOM tile nonaktif (tanpa href, aria-disabled true, tidak dapat diklik) masih teruji di Feature/Livewire/LaporanStasiunTest yang menyuntikkan jenis fiktif ke masternya sendiri — tetapi tidak lagi di browser sungguhan. Menyuntikkan jenis fiktif ke basis data e2e tidak dilakukan karena BrowserTestFixtureSeeder membangun stasiunnya dari StationType::cases(), sehingga menambah jenis fiktif di sana berarti menambah case enum untuk stasiun yang tidak ada dan merembet ke setiap spec yang menghitung tile.",
+      "severity": "minor"
+    },
+    {
+      "description": "SUITE e2e-web TIDAK DIJALANKAN pada sesi ini — ia menuntut server Laravel hidup pada port 8001 dengan basis data e2e yang sudah disiapkan (e2e-web/scripts/prepare-db.sh). Tujuh suntingan pada tiga berkas spec e2e-web (laporan-stasiun, laporan-kernel-dispatch, laporan-solid-waste-disposal) karena itu BELUM terbukti hijau. Dua di antaranya pasti berubah hasil: asersi disabledCount > 0 pada laporan-stasiun.spec.ts memang memerah sebelum disunting.",
+      "severity": "major"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

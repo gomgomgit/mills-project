@@ -367,12 +367,14 @@ it('stations: stasiun yang laporannya belum dibangun tetap ada, dengan report_av
     // lalu SOLID WASTE DISPOSAL -> KODE FIKTIF pada 2026-10-18 (screen-162
     // membuat laporan Solid Waste Disposal).
     //
-    // DAN YANG KETIGA INI YANG TERAKHIR. Memindahkannya ke stasiun NYATA
-    // berikutnya hanya menunda kegagalan yang sama beberapa hari:
-    // kernel-dispatch mendapat laporannya di screen-164, cpo-dispatch di
-    // screen-166, process-quality-control di screen-168 — ketiganya sedang
-    // dibangun berurutan, jadi tidak satu pun dari mereka dapat menjadi
-    // contoh yang bertahan. Yang dipakai sekarang adalah KODE FIKTIF yang
+    // DAN YANG KETIGA INI YANG TERAKHIR — kini terbukti, bukan sekadar
+    // diperkirakan. Memindahkannya ke stasiun NYATA berikutnya hanya menunda
+    // kegagalan yang sama beberapa hari: kernel-dispatch mendapat laporannya di
+    // screen-164, cpo-dispatch di screen-166, dan process-quality-control di
+    // screen-168 pada 2026-10-23 — dengan itu SELURUH delapan belas jenis
+    // stasiun nyata berlaporan dan kolam kandidat nyata HABIS. Tiga berkas lain
+    // yang masih memakai contoh nyata ikut beralih ke kode fiktif pada tanggal
+    // yang sama. Yang dipakai sekarang adalah KODE FIKTIF yang
     // DISUNTIKKAN ke master milik test ini sendiri: 'zz-stasiun-fiktif' tidak
     // ada di tabel station_types mana pun dan tidak akan pernah mendapat
     // entri REPORT_ROUTES, sehingga pembawa contohnya tidak perlu berpindah

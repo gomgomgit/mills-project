@@ -2888,45 +2888,71 @@ it("case 60 — REPORT_ROUTES memuat kunci 'kernel-dispatch' BERTANDA HUBUNG, da
     $index = array_search('kernel-dispatch', $keys, true);
 
     // kernel-dispatch TIDAK lagi terakhir sejak screen-166 menambahkan
-    // cpo-dispatch (170) SETELAHNYA — kini ia kedua dari belakang.
-    expect($index)->toBe(count($keys) - 2);
+    // cpo-dispatch (170) SETELAHNYA, dan sejak screen-168 menambahkan
+    // process-quality-control (180) ia menjadi KETIGA DARI BELAKANG. Posisinya
+    // diasersi RELATIF terhadap panjang peta, bukan sebagai indeks tetap,
+    // sehingga yang diperiksa adalah keselarasan dengan sort_order.
+    expect($index)->toBe(count($keys) - 3);
     expect($keys[$index - 1])->toBe('solid-waste-disposal');
     expect($keys[$index + 1])->toBe('cpo-dispatch');
+    expect($keys[$index + 2])->toBe('process-quality-control');
 
     // Dan sort_order-nya memang yang membuat urutan itu benar.
     expect($berlaporan['solid-waste-disposal'])->toBe(150);
     expect($berlaporan['kernel-dispatch'])->toBe(160);
     expect($berlaporan['cpo-dispatch'])->toBe(170);
+    expect($berlaporan['process-quality-control'])->toBe(180);
 });
 
-it("case 61 — PENJAGA RIAK: REPORT_ROUTES masih TIDAK punya 'process-quality-control', dan StationReportServiceTest memakai kode fiktif", function () {
-    // PENJAGA YANG SENGAJA AKAN MEMERAH DI screen-168. Ketiga berkas yang
-    // memakai stasiun NYATA sebagai contoh 'belum berlaporan'
-    // (tests/Feature/Api/LaporanStasiunTest.php,
-    // tests/Feature/Livewire/LaporanStasiunTest.php,
-    // e2e-web/tests/laporan-stasiun.spec.ts) sudah memakai kode ini
-    // (sort_order 180), sehingga pekerjaan screen-164 TIDAK memerahkannya.
-    // Begitu process-quality-control mulai berlaporan, baris di bawah memerah
-    // dan MEMAKSA pergeseran contoh itu ditangani alih-alih lolos diam-diam.
-    $this->assertArrayNotHasKey('process-quality-control', StationReportService::REPORT_ROUTES);
+it("case 61 — PENJAGA RIAK TERPENUHI: seluruh DELAPAN BELAS jenis stasiun nyata kini berlaporan, dan contoh 'belum dibangun' hanya boleh memakai kode FIKTIF", function () {
+    // PENJAGA INI DULU BERBUNYI "REPORT_ROUTES masih TIDAK punya
+    // 'process-quality-control'", dan ia MEMANG memerah di screen-168 persis
+    // sebagaimana dimaksud — itulah gunanya. Sekarang ia dibalik menjadi
+    // pernyataan yang SEJAK SAAT INI TIDAK AKAN PERNAH BASI LAGI: tidak ada
+    // lagi jenis stasiun NYATA yang belum berlaporan, jadi tidak ada lagi
+    // pergeseran contoh yang perlu dijaga.
+    $nyata = StationType::query()
+        ->where('code', '!=', StationReportService::EXCLUDED_STATION_TYPE)
+        ->orderBy('sort_order')
+        ->pluck('sort_order', 'code');
 
-    // Dan kode itu MEMANG ada di master — tanpa baris ini, asersi di atas akan
-    // hijau juga pada kode yang salah ketik.
-    expect(StationType::query()->where('code', 'process-quality-control')->exists())->toBeTrue();
-    expect(StationType::query()->where('code', 'process-quality-control')->value('sort_order'))->toBe(180);
+    expect($nyata)->toHaveCount(18);
 
-    // StationReportServiceTest memakai kode FIKTIF yang disuntikkan ke master
-    // miliknya sendiri, jadi ia juga tidak terpengaruh — dan kode itu tidak
-    // akan pernah mendapat entri.
+    // PASANGAN POSITIFNYA: setiap jenis nyata punya entri rute laporan. Tanpa
+    // asersi ini, "tidak ada yang tersisa" dapat hijau hanya karena masternya
+    // kosong.
+    $tanpaLaporan = $nyata->keys()->reject(
+        fn (string $code) => array_key_exists($code, StationReportService::REPORT_ROUTES),
+    );
+
+    expect($tanpaLaporan->all())->toBe([]);
+    expect(StationReportService::REPORT_ROUTES)->toHaveCount(18);
+
+    // Dan jenis stasiun TERAKHIR yang bergabung memang yang ini, pada
+    // sort_order tertinggi di antara jenis nyata.
+    $this->assertArrayHasKey('process-quality-control', StationReportService::REPORT_ROUTES);
+    expect(StationReportService::REPORT_ROUTES['process-quality-control'])->toBe('reports.process-quality-control');
+    expect($nyata['process-quality-control'])->toBe(180);
+    expect($nyata->keys()->last())->toBe('process-quality-control');
+    expect(StationTypeEnum::ProcessQualityControl->value)->toBe('process-quality-control');
+
+    // KONSEKUENSI YANG WAJIB DIJAGA: karena tidak ada jenis nyata yang tersisa,
+    // sebuah uji yang butuh contoh 'laporan belum dibangun' HARUS MENYUNTIKKAN
+    // jenis FIKTIF ke master miliknya sendiri — pola 'zz-stasiun-fiktif' yang
+    // dipakai StationReportServiceTest, tests/Feature/Api/LaporanStasiunTest.php
+    // dan tests/Feature/Livewire/LaporanStasiunTest.php sejak screen-168. Kode
+    // fiktif itu tidak akan pernah mendapat entri rute, dan tidak ada di master
+    // bawaan.
     $this->assertArrayNotHasKey('zz-stasiun-fiktif', StationReportService::REPORT_ROUTES);
     expect(StationType::query()->where('code', 'zz-stasiun-fiktif')->exists())->toBeFalse();
 
-    // cpo-dispatch (screen-166) SUDAH berlaporan — pergeseran yang dulu
-    // dicatat di sini sebagai 'langkah berikutnya' kini terjadi. Tinggal satu
-    // pergeseran (screen-168), jadi penjaga di atas tetap satu-satunya yang
-    // akan memerah.
-    $this->assertArrayHasKey('cpo-dispatch', StationReportService::REPORT_ROUTES);
-    expect(StationReportService::REPORT_ROUTES['cpo-dispatch'])->toBe('reports.cpo-dispatch');
+    // 'other' TETAP dikecualikan dan tidak pernah mendapat tile — ia bukan
+    // stasiun nyata, hanya penampung baris pra-migrasi.
+    $this->assertArrayNotHasKey(StationReportService::EXCLUDED_STATION_TYPE, StationReportService::REPORT_ROUTES);
+
+    // ASERSI NEGATIF yang tetap berlaku: kunci snake_case ter-compile, terlihat
+    // benar, dan tidak pernah cocok dengan satu baris master pun.
+    $this->assertArrayNotHasKey('process_quality_control', StationReportService::REPORT_ROUTES);
 });
 
 // =====================================================================

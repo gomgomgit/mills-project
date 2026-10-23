@@ -3459,6 +3459,15 @@ describe('pintu masuk tile Reporting dan riak spec tetangga', () => {
      * "Bertambah tepat satu" diasersi atas HIMPUNAN KUNCI LENGKAPNYA: kelima
      * belas entri sebelum pekerjaan ini, ditambah satu, menjadi ENAM BELAS.
      * Entri yang tertambah atau terhapus diam-diam akan memerah di sini.
+     *
+     * RIAK screen-169 (2026-10-23): laporan Process Quality Control mobile
+     * menambahkan entri 'process-quality-control' pada peta yang SAMA, jadi
+     * himpunannya kini berisi TUJUH BELAS kunci — dan dengan itu peta ini
+     * LENGKAP: tidak ada lagi jenis stasiun nyata tanpa laporan mobile, jadi
+     * daftar pembanding ini tidak akan pernah bertambah lagi. Yang diperbarui
+     * hanya DAFTAR PEMBANDINGNYA; sifat kesetaraan penuh atas himpunan lengkap
+     * sengaja DIPERTAHANKAN — melonggarkannya menjadi toContain atau
+     * toBeGreaterThan akan menghapus justru yang diuji.
      */
     const keys = [...map.matchAll(/^\s*'?([a-z-]+)'?\s*:\s*'report-[a-z-]+'/gm)].map(
       (match) => match[1],
@@ -3476,6 +3485,7 @@ describe('pintu masuk tile Reporting dan riak spec tetangga', () => {
         'kernel-dispatch',
         'kernel-plant',
         'pressing',
+        'process-quality-control',
         'process-water',
         'solid-waste-disposal',
         'sterilizer',
@@ -3484,7 +3494,7 @@ describe('pintu masuk tile Reporting dan riak spec tetangga', () => {
         'weighbridge',
       ].sort(),
     )
-    expect(keys).toHaveLength(16)
+    expect(keys).toHaveLength(17)
 
     // Nama rute dan path-nya SAMA PERSIS dengan yang terdaftar di router.
     const routerSource = readSource('src/router/index.ts')
@@ -3548,6 +3558,12 @@ describe('pintu masuk tile Reporting dan riak spec tetangga', () => {
      * FIKTIF, karena spec itu MENYUNTIKKAN daftar stasiunnya sendiri lewat
      * makeStation(...). Memindahkannya ke 'cpo-dispatch' atau
      * 'process-quality-control' hanya menunda riak yang sama ke screen-167/169.
+     *
+     * DAN PENUNDAAN ITU SUDAH JATUH TEMPO: screen-169 (2026-10-23) membuat
+     * laporan Process Quality Control mobile, jenis stasiun TERAKHIR. Sejak itu
+     * tidak ada satu pun jenis nyata yang dapat dipakai sebagai contoh, dan
+     * kode fiktif bukan lagi pilihan yang lebih baik — ia satu-satunya yang
+     * ada.
      */
     const neighbourSpec = readSource('tests/ReportingPilihStasiunView.spec.ts')
     const map = reportRoutesSource()
@@ -3561,11 +3577,14 @@ describe('pintu masuk tile Reporting dan riak spec tetangga', () => {
     expect(neighbourSpec).not.toContain('Laporan Kernel Dispatch belum tersedia')
 
     // Spec screen-163 pun memaku himpunan kunci yang SAMA, dan ia sudah
-    // diperbarui menjadi 16 — bukan dilonggarkan menjadi toContain.
+    // diperbarui menjadi 17 — bukan dilonggarkan menjadi toContain. Angka itu
+    // kini FINAL: seluruh delapan belas jenis stasiun nyata berlaporan di
+    // mobile, jadi himpunannya tidak akan pernah bertambah lagi.
     const siblingSpec = readSource('tests/LaporanSolidWasteDisposalView.spec.ts')
 
     expect(siblingSpec).toContain("'kernel-dispatch',")
-    expect(siblingSpec).toContain('expect(keys).toHaveLength(16)')
+    expect(siblingSpec).toContain("'process-quality-control',")
+    expect(siblingSpec).toContain('expect(keys).toHaveLength(17)')
   })
 })
 

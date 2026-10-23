@@ -1,0 +1,23 @@
+## v1 — 2026-10-23
+
+- route = `/reports/process-quality-control` (nama rute `reports.process-quality-control`) ← business spec hanya menyebut "tile pada Laporan Stasiun"; bentuk rutenya diturunkan dari konvensi tujuh belas laporan stasiun sebelumnya
+- prefix API = `/api/process-quality-control-reports/*` dengan EMPAT endpoint (options, periods, summary, export) ← business spec hanya menyebut aksi layar; pemecahan menjadi empat endpoint diturunkan dari pola sibling, dan screen-169 memakai ulang keempatnya apa adanya
+- Operator diterima pada ketiga rute DATA sejak commit pertama ← business spec menyatakan Operator ditolak di rute WEB. Pelebaran pada rute data adalah keputusan teknis supaya screen-169 tidak perlu mengubah akses nanti; WAJIB masuk cabang terikat-mill resolveBusinessUnit(), bukan hanya daftar peran
+- coverage.expected_slots = process_qc_unit_count x days_counted x 24 ← business spec hanya menyebut "slot terisi terhadap slot yang diharapkan"; keberadaan dimensi UNIT (process_qc_id) sebagai pengali diturunkan dari skema tabel dan dari rumus yang sama di Process Water + Engine Room
+- coverage.process_qc_unit_count DITERBITKAN meski layar tidak merender rekap per-unit ← kompromi: expected_slots tidak dapat ditelusuri dari payload tanpanya
+- TIDAK ADA kunci `by_unit` di payload ← keempat laporan bergrid sebelumnya punya rekap per-unit; business spec screen-168 tidak menyebutnya sama sekali dan menerbitkan blok TAHAP sebagai penggantinya. Dihilangkan, bukan diwarisi — kunci payload yang tidak dirender adalah tempat penyimpangan tumbuh
+- TIDAK ADA kunci `daily_trend` ← Process Water dan Engine Room punya TREND_METRICS; business spec screen-168 tidak meminta grafik, dan `daily.metrics_avg` sudah membawa rata-rata per metrik per tanggal
+- coverage.max_metric_reading_count DITERBITKAN sebagai kunci tersendiri ← business spec mewajibkan kedua angka "dicetak BERDAMPINGAN"; menghitung maksimum di blade berarti aturan hitung pindah ke lapisan tampilan
+- coverage.period_not_started DITERBITKAN sebagai boolean ← business spec mewajibkan '—' plus kalimat "periode belum dimulai" alih-alih 0,0%; tanpa penanda eksplisit blade harus menebaknya dari expected_slots==0, yang juga benar untuk sebab lain
+- inspector_recap dihitung atas SELURUH baris, bukan hanya baris terisi ← satu-satunya cara memenuhi dua aturan business spec yang tampak bertentangan: slot "hanya identitas" dihitung KOSONG tetapi kode inspekturnya TETAP masuk rekap
+- inspector_recap.attributed_slots dinamai terpisah dari filled_slots ← keduanya berbeda nilainya pada kasus di atas; nama yang sama akan dipakai silang sebagai penggantinya
+- Pengurutan kode inspektur = strcmp case-sensitive apa adanya ← business spec menyatakan "urut menurut KODE" dan "dua kode berbeda kapitalisasi tetap dua baris"; keduanya hanya konsisten bila pengurutannya juga case-sensitive
+- draft_slot_count menghitung status draft_ongoing DAN draft_paused ← business spec menyebut "catatan berstatus draft"; enum tabel punya dua nilai draft, keduanya diambil
+- METRIC_UNITS sebagai konstanta service, bukan literal di blade ← business spec mewajibkan satuan "diambil dari label resmi stasiun — bukan dituliskan ulang"
+- unit = null (bukan string kosong) untuk final_storage_dobi_index ← blade merender satuan hanya bila unit tidak null; string kosong akan merender elemen satuan yang hampa
+- '—' dipilih atas reading_count === 0, bukan atas nilai falsy ← konsekuensi teknis dari aturan business spec "'—', bukan 0": oil loss 0% adalah nilai sah dan tidak boleh tersamar
+- ProcessQualityControlRecordService::isRowFilled() dilebarkan protected → public ← aturan 14-kolom harus punya satu sumber; sibling ProcessWaterRecordService sudah public untuk alasan yang sama
+- Urutan ekspor = DETAIL_FIELDS (shift, qc_inspector_id, lalu 14 reading fields) ← BERBEDA dari urutan ekspor Data Browser stasiun ini sendiri (yang menaruh qc_inspector_id sesudah 12 kolom numerik, mengikuti urutan kolom tabel). Dipilih DETAIL_FIELDS supaya segaris dengan ekspor laporan Process Water; LABEL-nya tetap verbatim dari Data Browser
+- Kolom konteks ekspor ke-5 dinamai 'Unit Process QC' ← business spec hanya menyebut "kolom konteks"; nama diturunkan dari pola 'Unit Process Water'
+- test scenarios diturunkan: 36 skenario (satu per bdd_scenario Phase 2), 58 unit test case, api_test pada ke-36, component_test pada ke-36, browser_test pada ke-36
+- CATATAN PELAKSANAAN: test_generation_level = 'none' saat spec ini ditulis, jadi test_scenarios di atas TIDAK dieksekusi menjadi berkas uji pada Phase 4 — ia spesifikasi untuk dilengkapi kemudian

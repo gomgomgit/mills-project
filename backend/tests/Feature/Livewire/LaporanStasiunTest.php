@@ -240,52 +240,59 @@ it('akun tanpa mill: pesan hubungi Admin, tanpa pemilih mill dan tanpa grid (gag
 // Scenario: "menekan stasiun yang belum tersedia"
 // =====================================================================
 it('tile belum tersedia: berkelas disabled, aria-disabled, tanpa href dan tanpa wire:click', function () {
-    // CONTOH "LAPORAN BELUM DIBANGUN" SUDAH DIPINDAHKAN TIGA KALI, selalu
-    // dengan sebab yang sama: THRESHING -> PROCESS WATER pada 2026-10-06
-    // (screen-148 membuat laporan Threshing), PROCESS WATER -> SOLID WASTE
-    // DISPOSAL pada 2026-10-16 (screen-160 membuat laporan Process Water),
-    // lalu SOLID WASTE DISPOSAL -> PROCESS QUALITY CONTROL pada 2026-10-18
-    // (screen-162 membuat laporan Solid Waste Disposal). DIPINDAHKAN, BUKAN
-    // DIHAPUS: bila pembawanya pun dibuatkan laporan, test ini gagal lagi —
-    // dan itu benar, karena ia memaksa contohnya diperbarui alih-alih
-    // diam-diam menjadi selalu hijau.
+    // CONTOH "LAPORAN BELUM DIBANGUN" KINI MEMAKAI JENIS STASIUN FIKTIF, dan
+    // itu PERUBAHAN BENTUK — bukan pemindahan keempat.
     //
-    // KENAPA PROCESS QUALITY CONTROL, BUKAN KERNEL DISPATCH. Sisa jenis
-    // stasiun tanpa entri REPORT_ROUTES per 2026-10-18: kernel-dispatch
-    // (160), cpo-dispatch (170), process-quality-control (180) — dan
-    // ketiganya sedang dibangun BERURUTAN (screen-164, 166, 168). Yang
-    // dipakai di sini yang TERAKHIR, supaya contohnya tidak basi lagi sampai
-    // screen-168. Berbeda dari StationReportServiceTest, yang menyemai
-    // masternya sendiri lewat stationReportMaster() dan karena itu dapat
-    // memakai kode FIKTIF yang tidak akan pernah berlaporan: berkas ini
-    // membaca master station_types yang NYATA dari migrasi, jadi kode fiktif
-    // tidak tersedia di sini. Sesudah screen-168 contoh ini HABIS dan test
-    // harus ditulis ulang dengan jenis stasiun fiktif yang disuntikkan ke
-    // master — bukan dibiarkan menghijau tanpa pembawa.
+    // Contoh ini sudah dipindahkan TIGA KALI: THRESHING -> PROCESS WATER
+    // (2026-10-06, screen-148), PROCESS WATER -> SOLID WASTE DISPOSAL
+    // (2026-10-16, screen-160), lalu SOLID WASTE DISPOSAL -> PROCESS QUALITY
+    // CONTROL (2026-10-18, screen-162). Pada 2026-10-23 screen-168 membangun
+    // laporan Process Quality Control, dan dengan itu SELURUH DELAPAN BELAS
+    // jenis stasiun NYATA berlaporan: TIDAK ADA KANDIDAT KEEMPAT. Pola
+    // 'pindahkan contohnya' HABIS dan tidak akan pernah berlaku lagi.
     //
-    // Alasan pemindahannya DIASERSI, bukan sekadar dikomentari: yang membuat
-    // sebuah kode layak jadi contoh adalah ketiadaannya di REPORT_ROUTES, dan
-    // yang membuat pemindahannya sah adalah contoh yang baru ditinggalkan
-    // MEMANG sudah terbangun.
-    expect(StationReportService::REPORT_ROUTES)->toHaveKey('process-water');
+    // Gantinya: skenario ini MENYUNTIKKAN jenis stasiun fiktif ke master lewat
+    // laporanStasiunComponentMaster() — helper yang sudah ada DI BERKAS INI
+    // sendiri. Komentar lama menyatakan "kode fiktif tidak tersedia di berkas
+    // ini"; itu KELIRU sejak helper itu ada, dan kekeliruan itulah yang membuat
+    // contoh nyata dipakai tiga kali lebih lama dari seharusnya.
+    //
+    // Kode fiktif TIDAK AKAN PERNAH mendapat entri REPORT_ROUTES, jadi skenario
+    // ini tidak akan pernah basi lagi.
+    laporanStasiunComponentMaster([
+        ['sterilizer', 'Sterilizer', 40],
+        ['solid-waste-disposal', 'Solid Waste Disposal', 150],
+        ['process-quality-control', 'Process Quality Control', 180],
+        ['zz-stasiun-fiktif', 'Stasiun Fiktif', 999],
+    ]);
+
+    // Alasan perubahan bentuknya DIASERSI, bukan sekadar dikomentari: yang
+    // membuat sebuah kode layak jadi contoh adalah ketiadaannya di
+    // REPORT_ROUTES, dan yang membuat perubahan ini sah adalah bahwa KEDUA
+    // contoh nyata terakhir MEMANG sudah terbangun.
     expect(StationReportService::REPORT_ROUTES)->toHaveKey('solid-waste-disposal');
-    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('process-quality-control');
+    expect(StationReportService::REPORT_ROUTES)->toHaveKey('process-quality-control');
+    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('zz-stasiun-fiktif');
 
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanStasiun::class)
         ->set('productionLineId', (string) $this->lineA->id)
-        ->assertSeeHtml('data-testid="station-tile-process-quality-control"')
+        ->assertSeeHtml('data-testid="station-tile-zz-stasiun-fiktif"')
         ->html();
 
-    $unbuilt = laporanStasiunTileMarkup($html, 'process-quality-control');
+    $unbuilt = laporanStasiunTileMarkup($html, 'zz-stasiun-fiktif');
 
-    // Dan contoh yang BARU SAJA DITINGGALKAN kini AKTIF — pasangan inilah
-    // yang membuktikan tile berubah keadaan ketika laporannya mendarat, bukan
-    // sekadar bahwa ada satu tile nonaktif di suatu tempat.
-    $built = laporanStasiunTileMarkup($html, 'solid-waste-disposal');
+    // DAN PASANGAN POSITIFNYA, dua kali: kedua jenis NYATA pada master ini
+    // justru AKTIF. Tanpa pasangan ini, skenario hanya membuktikan ada satu
+    // tile nonaktif di suatu tempat — bukan bahwa tile berubah keadaan ketika
+    // laporannya mendarat.
+    foreach (['solid-waste-disposal', 'process-quality-control'] as $code) {
+        $built = laporanStasiunTileMarkup($html, $code);
 
-    expect($built)->toContain('href=');
-    expect($built)->not->toContain('station-tile disabled');
+        expect($built)->not->toBe('');
+        expect($built)->toContain('href=');
+        expect($built)->not->toContain('station-tile disabled');
+    }
 
     expect($unbuilt)->not->toBe('');
     expect($unbuilt)->toContain('station-tile disabled');
@@ -421,7 +428,7 @@ it('other dikecualikan: tile other tidak dirender, tile jenis lain tetap ada', f
 // =====================================================================
 // Scenario: "stasiun yang belum dibangun tampil nonaktif, bukan disembunyikan"
 // =====================================================================
-it('belum dibangun tetap tampil: jumlah tile mengikuti master, hanya sterilizer yang aktif', function () {
+it('belum dibangun tetap tampil: jumlah tile mengikuti master, dan sejak 18 jenis berlaporan setiap tile pada master nyata aktif', function () {
     $html = Livewire::actingAs($this->supervisor)->test(LaporanStasiun::class)->set('productionLineId', (string) $this->lineA->id)->html();
 
     $codes = laporanStasiunTileCodes($html);
@@ -429,22 +436,38 @@ it('belum dibangun tetap tampil: jumlah tile mengikuti master, hanya sterilizer 
     expect($codes)->toHaveCount(StationType::where('code', '<>', 'other')->count());
 
     $sterilizer = laporanStasiunTileMarkup($html, 'sterilizer');
-    // Contoh "belum dibangun" dipindahkan TIGA kali: threshing ->
-    // process-water (2026-10-06, screen-148), process-water ->
-    // solid-waste-disposal (2026-10-16, screen-160), lalu
-    // solid-waste-disposal -> process-quality-control (2026-10-18,
-    // screen-162). Lihat keterangan panjangnya pada skenario "menekan stasiun
-    // yang belum tersedia", termasuk mengapa pembawanya yang TERAKHIR dari
-    // tiga sisa dan mengapa kode fiktif tidak tersedia di berkas ini.
-    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('process-quality-control');
-    $unbuilt = laporanStasiunTileMarkup($html, 'process-quality-control');
 
     expect($sterilizer)->toContain('href=');
     expect($sterilizer)->not->toContain('disabled');
 
-    expect($unbuilt)->toContain('station-tile disabled');
-    expect($unbuilt)->toContain('Belum tersedia');
-    expect($unbuilt)->not->toContain('href=');
+    // SKENARIO INI BERJALAN DI ATAS MASTER MIGRASI YANG NYATA, dan sejak
+    // screen-168 (2026-10-23) SELURUH DELAPAN BELAS jenis stasiun nyata
+    // berlaporan — jadi pada master itu TIDAK ADA LAGI satu pun tile nonaktif.
+    // Yang diasersikan di sini karena itu berubah bentuk: bukan "ada satu tile
+    // nonaktif", melainkan "setiap tile pada master nyata AKTIF, dan jumlahnya
+    // mengikuti master". Keadaan nonaktifnya sendiri diuji pada skenario
+    // "menekan stasiun yang belum tersedia", yang menyuntikkan jenis FIKTIF.
+    $tanpaLaporan = StationType::query()
+        ->where('code', '<>', 'other')
+        ->orderBy('sort_order')
+        ->pluck('code')
+        ->reject(fn (string $code) => array_key_exists($code, StationReportService::REPORT_ROUTES));
+
+    expect($tanpaLaporan->all())->toBe([]);
+    expect(StationReportService::REPORT_ROUTES)->toHaveKey('process-quality-control');
+
+    // PASANGAN POSITIFNYA DIUKUR, bukan diasumsikan: setiap tile pada grid ini
+    // membawa href dan tidak satu pun berkelas disabled. Memeriksa SELURUH tile
+    // menutup kelas cacatnya sekaligus, bukan satu kasus yang kebetulan
+    // ditulis.
+    foreach ($codes as $code) {
+        $tile = laporanStasiunTileMarkup($html, $code);
+
+        expect($tile)->not->toBe('');
+        expect($tile)->toContain('href=');
+        expect($tile)->not->toContain('station-tile disabled');
+        expect($tile)->not->toContain('Belum tersedia');
+    }
 });
 
 // =====================================================================

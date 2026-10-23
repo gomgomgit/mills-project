@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\PeriodController;
 use App\Http\Controllers\Api\PressingRecordController;
 use App\Http\Controllers\Api\ProcessQualityControlRecordController;
 use App\Http\Controllers\Api\ProcessWaterRecordController;
+use App\Http\Controllers\Api\ProcessQualityControlReportController;
 use App\Http\Controllers\Api\ProcessWaterReportController;
 use App\Http\Controllers\Api\ProductionLineController;
 use App\Http\Controllers\Api\RecordVerificationController;
@@ -1867,6 +1868,65 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/cpo-dispatch-reports/periods', [CpoDispatchReportController::class, 'periods']);
     Route::get('/cpo-dispatch-reports/summary', [CpoDispatchReportController::class, 'summary']);
     Route::get('/cpo-dispatch-reports/export', [CpoDispatchReportController::class, 'export']);
+});
+
+// === LAPORAN PERIODE PROCESS QUALITY CONTROL (screen-168 web + screen-169 mobile) ===
+// STASIUN TERAKHIR. Sesudah prefix ini, seluruh DELAPAN BELAS jenis stasiun di
+// pabrik punya laporan periodenya sendiri — dan karena itu tidak ada lagi jenis
+// stasiun NYATA yang dapat dipakai sebuah uji sebagai contoh 'laporan belum
+// dibangun'. Uji yang memakainya sebagai contoh wajib beralih ke jenis FIKTIF
+// yang disuntikkan ('zz-stasiun-fiktif'), dan asersi penjaga yang berbunyi
+// "REPORT_ROUTES belum punya process-quality-control" wajib menjadi "seluruh
+// delapan belas jenis stasiun kini berlaporan" — pernyataan yang sejak itu tidak
+// akan pernah basi lagi.
+//
+// Bentuk empat endpoint dan daftar peran yang sama persis dengan prefix
+// process-water-reports — `operator` IKUT pada ketiga rute data sejak commit
+// pertama, karena pasangan mobile screen-169 dibangun dalam SERI YANG SAMA.
+//
+// ADMISINYA SATU PERUBAHAN DI TIGA TEMPAT: daftar peran ini,
+// ProcessQualityControlReportService::guardAccess(), DAN cabang TERIKAT-MILL
+// pada ProcessQualityControlReportService::resolveBusinessUnit(). Dua yang
+// pertama saja menjatuhkan Operator ke cabang Admin, tempat business_unit_id
+// kiriman klien JUSTRU dihormati — kebocoran lintas mill, bukan cacat tampilan.
+//
+// /business-units/options tetap Admin saja, ditegakkan DI DALAM service dan
+// bukan oleh middleware ini (yang menerima keempat peran demi ketiga rute
+// data). Rute WEB /reports/process-quality-control juga TIDAK dilebarkan.
+// business_unit_id DIABAIKAN untuk peran terikat mill; penjaga lintas mill yang
+// sungguhan ada pada production_line_id dan period_id, dan keduanya menjawab
+// 403.
+//
+// /summary membawa DUA BELAS metrik dalam LIMA blok tahap (`group` pada setiap
+// entri), masing-masing dengan penyebutnya sendiri DAN satuannya sendiri —
+// `unit` BERNILAI NULL tepat satu kali, pada final_storage_dobi_index, karena
+// Indeks DOBI adalah indeks tanpa dimensi dan bukan persentase. Kelengkapan
+// dihitung atas EMPAT BELAS kolom pembacaan (dua belas numerik + dua teks
+// bebas; `shift` dan `qc_inspector_id` adalah kolom identitas dan
+// DIKECUALIKAN), sehingga filled_slots dapat MELEBIHI setiap penyebut —
+// coverage.max_metric_reading_count diterbitkan supaya kedua angka dapat
+// dicetak berdampingan. Rekap per-inspektur dihitung atas SELURUH baris, bukan
+// hanya yang terisi, sehingga slot yang hanya mengisi kedua kolom identitas
+// tetap teratribusi meski dihitung KOSONG oleh kelengkapan: `attributed_slots`
+// BUKAN alias `coverage.filled_slots`.
+//
+// EMPAT KETIADAAN YANG DISENGAJA di /summary: NOL kunci sebaran kategoris
+// (stasiun ini tidak punya satu pun kolom berpilihan tertutup), NOL kunci
+// downtime, NOL kunci ambang/target (keempat angka mutu akhir diterbitkan tanpa
+// menyatakan memenuhi spesifikasi pembeli atau tidak — batasnya hidup di luar
+// aplikasi ini), dan NOL dimensi giliran kerja. Dua lagi dihilangkan alih-alih
+// diwarisi dari keempat laporan bergrid sebelumnya: NOL `by_unit` dan NOL
+// `daily_trend`. /export tetap membawa KEENAM BELAS kolom detail termasuk
+// `shift` dan `qc_inspector_id`, karena ekspor adalah rincian mentah.
+//
+// Daftar OPSI production line TIDAK diduplikasi di sini: GET
+// /api/production-lines/options-for-report (dibangun untuk screen-135) dipakai
+// ulang verbatim oleh screen-169.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/process-quality-control-reports/business-units/options', [ProcessQualityControlReportController::class, 'businessUnitOptions']);
+    Route::get('/process-quality-control-reports/periods', [ProcessQualityControlReportController::class, 'periods']);
+    Route::get('/process-quality-control-reports/summary', [ProcessQualityControlReportController::class, 'summary']);
+    Route::get('/process-quality-control-reports/export', [ProcessQualityControlReportController::class, 'export']);
 });
 
 // === ENDPOINT BACA MOBILE (audit 2026-10-04) ===

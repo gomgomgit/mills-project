@@ -65,7 +65,16 @@ class ProcessQualityControlRecordService
 
     protected const FORM_FIELDS = ['process_qc_id', 'date', 'note'];
 
-    protected const READING_FIELDS = [
+    /**
+     * THE FOURTEEN READING COLUMNS — twelve numeric measurements plus the two
+     * free-text note columns. `public` because
+     * ProcessQualityControlReportService BORROWS this list and isRowFilled()
+     * below rather than re-deriving the rule: one definition of "was this slot
+     * recorded?", so the report and the input form can never disagree about
+     * what was written down. Same reason ProcessWaterRecordService opened its
+     * own pair.
+     */
+    public const READING_FIELDS = [
         'fruit_press_oil_loss_in_sludge_percent', 'fruit_press_oil_loss_in_fibre_percent',
         'purifier_clarification_balance_inlet_temp_c', 'purifier_clarification_balance_backpressure_bar',
         'vacuum_drying_station_drier_temp_c', 'vacuum_drying_station_vacuum_pressure_bar',
@@ -75,7 +84,13 @@ class ProcessQualityControlRecordService
         'qc_engineering_corrective_actions', 'findings',
     ];
 
-    protected const DETAIL_FIELDS = ['shift', 'qc_inspector_id', ...self::READING_FIELDS];
+    /**
+     * The SIXTEEN detail columns in export order: the two IDENTITY columns
+     * first, then the fourteen READING_FIELDS. `public` for the same reason —
+     * the report's export emits this list verbatim instead of re-listing the
+     * columns in a second place.
+     */
+    public const DETAIL_FIELDS = ['shift', 'qc_inspector_id', ...self::READING_FIELDS];
 
     /**
      * The 24 canonical hourly time-slot labels, in order: 07:00, 08:00,
@@ -301,8 +316,14 @@ class ProcessQualityControlRecordService
      * A row counts as "filled" when at least one of its READING_FIELDS
      * (excludes `shift`/`qc_inspector_id`, which are context/identifying
      * columns, not readings) is non-null/non-empty.
+     *
+     * `public` so ProcessQualityControlReportService can reuse it — see
+     * READING_FIELDS above. Re-deriving this rule in the report is how the
+     * report and the form start disagreeing, and a re-derivation would almost
+     * certainly count all sixteen columns, because that is what the schema
+     * makes look natural.
      */
-    protected function isRowFilled(array $row): bool
+    public function isRowFilled(array $row): bool
     {
         foreach (self::READING_FIELDS as $field) {
             $value = $row[$field] ?? null;

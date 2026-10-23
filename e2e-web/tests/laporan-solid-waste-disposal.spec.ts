@@ -1074,6 +1074,11 @@ test.describe('Pintu masuk dari Laporan Stasiun (screen-140)', () => {
    * spec itu akan mengasersikan tile yang baru saja diaktifkan sebagai
    * nonaktif. Riak ini ditemukan dengan grep atas KODE STASIUNNYA di seluruh
    * tests/ dan e2e-web/, bukan dengan memeriksa urutan daftar.
+   *
+   * PEMBARUAN 2026-10-23 (screen-168): konstanta itu DIHAPUS. Laporan Process
+   * Quality Control dibangun — jenis stasiun terakhir — sehingga tidak ada lagi
+   * kandidat nonaktif di master nyata, dan spec itu mengasersikan KEADAAN AKHIR
+   * (setiap tile aktif) alih-alih memakai satu contoh nonaktif.
    */
   test('invarian (a) — tile Solid Waste Disposal aktif dan menavigasi ke layar laporannya', async ({ page }) => {
     await login(page, SUPERVISOR, PASSWORD)

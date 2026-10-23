@@ -1297,6 +1297,12 @@ test.describe('Pintu masuk dari Laporan Stasiun (screen-140)', () => {
    * 180) sejak screen-162, jadi pekerjaan screen-164 TIDAK memerahkannya.
    * Riak ini dicari dengan grep atas KODE STASIUNNYA di seluruh backend/tests/
    * dan e2e-web/tests/, bukan dengan memeriksa urutan daftarnya.
+   *
+   * PEMBARUAN 2026-10-23 (screen-168): konstanta itu kini DIHAPUS dari
+   * tests/laporan-stasiun.spec.ts. Laporan Process Quality Control dibangun,
+   * dan dengan itu seluruh delapan belas jenis stasiun nyata berlaporan —
+   * tidak ada lagi tile kelabu di grid, jadi spec itu mengasersikan KEADAAN
+   * AKHIR (setiap tile aktif) alih-alih memakai satu contoh nonaktif.
    */
   test('invarian (a) — tile Kernel Dispatch aktif dan menavigasi ke layar laporannya', async ({ page }) => {
     await login(page, SUPERVISOR, PASSWORD)

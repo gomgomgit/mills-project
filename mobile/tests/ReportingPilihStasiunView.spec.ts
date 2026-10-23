@@ -73,6 +73,20 @@
  * terbukti demikian: ia dipakai sebagai contoh di bawah sampai screen-165
  * mendarat pada 2026-10-19, lalu harus ikut dipindahkan ke kode fiktif ini.)
  *
+ * DAN 'process-quality-control' TERBUKTI DEMIKIAN JUGA, pada 2026-10-23:
+ * screen-169 membangun laporan Process Quality Control mobile — jenis stasiun
+ * TERAKHIR — sehingga tile-nya menjadi AKTIF dan contoh itu berhenti menguji
+ * apa pun. Ia diganti 'zz-stasiun-fiktif-dua', kode fiktif KEDUA, karena berkas
+ * ini butuh DUA contoh nonaktif yang berbeda sekaligus: satu pada fixture tiga
+ * stasiun dan satu lagi berdampingan dengan contoh pertama pada fixture lima
+ * stasiun. Dengan itu seluruh contoh nonaktif di berkas ini FIKTIF kecuali
+ * 'cpo-dispatch', satu-satunya jenis nyata yang laporan MOBILE-nya memang belum
+ * dibangun (screen-167 belum dikerjakan).
+ *
+ * SESUDAH screen-167 MENDARAT, 'cpo-dispatch' pun harus ikut diganti kode
+ * fiktif — dan sesudah itu tidak akan ada lagi jenis nyata yang dapat dipakai
+ * sama sekali. Dicatat di sini supaya tidak ditemukan sebagai kejutan.
+ *
  * Kode fiktifnya ditulis LOWERCASE DAN BERTANDA HUBUNG dengan sengaja:
  * LaporanProcessWaterView.spec.ts (unit_test_case 56) memungut kode stasiun
  * yang dipakai berkas ini lewat /type: '([a-z-]+)'/g untuk memastikan masih
@@ -95,12 +109,14 @@
  * dilemahkan, dihapus, atau dilonggarkan. Keempat asersi pesan tetap
  * kesetaraan penuh `toBe`.
  *
- * Dua contoh "belum dibangun" lain di berkas ini TIDAK ikut berubah, karena
- * keduanya masih benar-benar belum berlaporan:
- *   - 'process-quality-control' (sort_order 180) — hasil pemindahan KELIMA,
- *     dipakai pada st-3/st-5 dan pada asersi urutan tile;
+ * Contoh "belum dibangun" lain di berkas ini:
+ *   - 'zz-stasiun-fiktif-dua' — kode FIKTIF kedua, menggantikan
+ *     'process-quality-control' pada 2026-10-23 (screen-169); dipakai pada
+ *     st-3/st-5 dan pada asersi urutan tile. Seperti kode fiktif pertama, ia
+ *     tidak akan pernah mendapat entri REPORT_ROUTES;
  *   - 'cpo-dispatch' (sort_order 170) — hasil pemindahan KEENAM, dipakai pada
- *     st-4 di fixture lima-stasiun.
+ *     st-4 di fixture lima-stasiun, dan satu-satunya contoh NYATA yang
+ *     tersisa: laporan CPO Dispatch MOBILE (screen-167) belum dibangun.
  *
  * 'kernel-dispatch' (sort_order 160) DULU ada di daftar ini sebagai hasil
  * pemindahan KETUJUH, dipakai pada test "tile tanpa laporan tetap tidak
@@ -218,7 +234,7 @@ function makeStation(overrides: Partial<StationSlot> & { id: string }): StationS
 const THREE_STATIONS: StationSlot[] = [
   makeStation({ id: 'st-1', name: 'Sterilizer Lini A', type: 'sterilizer', isActive: true }),
   makeStation({ id: 'st-2', name: 'Stasiun Fiktif Lini A', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
-  makeStation({ id: 'st-3', name: 'Process Quality Control Lini A', type: 'process-quality-control', isActive: true }),
+  makeStation({ id: 'st-3', name: 'Stasiun Fiktif Dua Lini A', type: 'zz-stasiun-fiktif-dua' as StationType, isActive: true }),
 ]
 
 function mockAuthUser(role: 'operator' | 'supervisor' | 'mill_management' | 'admin' = 'operator') {
@@ -267,15 +283,27 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(tiles[0].text()).toContain('Sterilizer Lini A')
     expect(tiles[1].attributes('data-testid')).toBe('station-tile-zz-stasiun-fiktif')
     expect(tiles[1].text()).toContain('Stasiun Fiktif Lini A')
-    expect(tiles[2].attributes('data-testid')).toBe('station-tile-process-quality-control')
-    expect(tiles[2].text()).toContain('Process Quality Control Lini A')
+    expect(tiles[2].attributes('data-testid')).toBe('station-tile-zz-stasiun-fiktif-dua')
+    expect(tiles[2].text()).toContain('Stasiun Fiktif Dua Lini A')
   })
 
   // unit_test_case 1 (bagian ikon) — tiap tile membawa ikon SVG per jenis
   // stasiun, dan ikon per jenis itu berbeda satu sama lain (bukan satu
   // ikon cadangan yang sama untuk semuanya).
+  //
+  // MEMAKAI FIXTURE-NYA SENDIRI BERISI TIGA JENIS NYATA, bukan THREE_STATIONS.
+  // Sejak 2026-10-23 (screen-169) dua dari tiga entri THREE_STATIONS adalah
+  // kode FIKTIF, dan keduanya jatuh ke ikon cadangan yang SAMA — sehingga
+  // asersi "tiga ikon berbeda" di atas fixture itu akan memerah karena alasan
+  // yang tidak ada hubungannya dengan peta ikon. Yang diuji di sini adalah PETA
+  // IKON, bukan ketersediaan laporan, jadi jenis nyata justru fixture yang
+  // benar untuknya.
   it('merender ikon SVG per jenis stasiun, berbeda antar jenis', async () => {
-    const wrapper = await mountWithStations(THREE_STATIONS)
+    const wrapper = await mountWithStations([
+      makeStation({ id: 'st-1', name: 'Sterilizer Lini A', type: 'sterilizer', isActive: true }),
+      makeStation({ id: 'st-2', name: 'Grading Lini A', type: 'grading', isActive: true }),
+      makeStation({ id: 'st-3', name: 'Boiler Room Lini A', type: 'boiler-room', isActive: true }),
+    ])
 
     const icons = wrapper.findAll('.station-tile-icon').map((icon) => icon.html())
     expect(icons).toHaveLength(3)
@@ -284,6 +312,24 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       expect(icon.length).toBeGreaterThan(60)
     }
     expect(new Set(icons).size).toBe(3)
+  })
+
+  // PASANGAN NEGATIFNYA, dan ia yang membuktikan ikon di atas memang DIPETAKAN
+  // per jenis alih-alih dikarang per tile: dua jenis yang TIDAK ADA di peta
+  // ikon jatuh ke ikon cadangan yang SAMA, dan cadangan itu tetap sebuah SVG —
+  // bukan kotak kosong. Tanpa asersi ini, "tiga ikon berbeda" di atas juga akan
+  // hijau untuk implementasi yang mengarang ikon acak per tile.
+  it('jatuh ke satu ikon cadangan untuk jenis stasiun yang tidak ada di peta ikon', async () => {
+    const wrapper = await mountWithStations([
+      makeStation({ id: 'st-1', name: 'Stasiun Fiktif', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
+      makeStation({ id: 'st-2', name: 'Stasiun Fiktif Dua', type: 'zz-stasiun-fiktif-dua' as StationType, isActive: true }),
+    ])
+
+    const icons = wrapper.findAll('.station-tile-icon').map((icon) => icon.html())
+    expect(icons).toHaveLength(2)
+    expect(new Set(icons).size).toBe(1)
+    expect(icons[0]).toContain('<svg')
+    expect(icons[0].length).toBeGreaterThan(60)
   })
 
   // unit_test_case 1 (bagian override ikon) — `station.icon` (override
@@ -548,7 +594,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
   it('scenario: menekan berkali-kali — pesan tidak pernah menumpuk, hanya tertimpa', async () => {
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-2', name: 'Stasiun Fiktif', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
-      makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
+      makeStation({ id: 'st-3', name: 'Stasiun Fiktif Dua', type: 'zz-stasiun-fiktif-dua' as StationType, isActive: true }),
     ])
 
     const unbuilt = wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]')
@@ -563,12 +609,12 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(wrapper.findAll('[data-testid="info-message"]')).toHaveLength(1)
     expect(wrapper.get('[data-testid="info-message"]').text()).toBe('Laporan Stasiun Fiktif belum tersedia di aplikasi mobile.')
 
-    await wrapper.get('[data-testid="station-tile-process-quality-control"]').trigger('click')
+    await wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif-dua"]').trigger('click')
     await wrapper.vm.$nextTick()
 
     const infoMessages = wrapper.findAll('[data-testid="info-message"]')
     expect(infoMessages).toHaveLength(1)
-    expect(infoMessages[0].text()).toBe('Laporan Process Quality Control belum tersedia di aplikasi mobile.')
+    expect(infoMessages[0].text()).toBe('Laporan Stasiun Fiktif Dua belum tersedia di aplikasi mobile.')
     expect(pushMock).not.toHaveBeenCalled()
   })
 
@@ -615,7 +661,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(wrapper.findAll('[data-testid^="station-tile-"]')).toHaveLength(3)
     expect(wrapper.get('[data-testid="station-tile-sterilizer"]').attributes('aria-disabled')).toBe('false')
     expect(wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif"]').attributes('aria-disabled')).toBe('true')
-    expect(wrapper.get('[data-testid="station-tile-process-quality-control"]').attributes('aria-disabled')).toBe('true')
+    expect(wrapper.get('[data-testid="station-tile-zz-stasiun-fiktif-dua"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="no-stations"]').exists()).toBe(false)
     expect(apiClientGetMock).not.toHaveBeenCalled()
@@ -629,7 +675,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
       makeStation({ id: 'st-2', name: 'Stasiun Fiktif', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
-      makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
+      makeStation({ id: 'st-3', name: 'Stasiun Fiktif Dua', type: 'zz-stasiun-fiktif-dua' as StationType, isActive: true }),
       // PEMINDAHAN KEENAM — DIPINDAHKAN dari Effluent Plant pada screen-157
       // (2026-10-13), yang sendiri hasil pemindahan KEEMPAT dari Depricarping
       // pada screen-153. Laporan Effluent Plant mobile kini dibangun
@@ -660,7 +706,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       // mobile, jadi tile-nya tetap nonaktif dan hitungan 4 tile nonaktif di
       // bawah tetap berlaku.
       makeStation({ id: 'st-4', name: 'CPO Dispatch', type: 'cpo-dispatch', isActive: true }),
-      makeStation({ id: 'st-5', name: 'Process Quality Control', type: 'process-quality-control', isActive: true }),
+      makeStation({ id: 'st-5', name: 'Stasiun Fiktif Dua', type: 'zz-stasiun-fiktif-dua' as StationType, isActive: true }),
     ])
 
     const tiles = wrapper.findAll('[data-testid^="station-tile-"]')
@@ -681,7 +727,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     const wrapper = await mountWithStations([
       makeStation({ id: 'st-1', name: 'Sterilizer', type: 'sterilizer', isActive: true }),
       makeStation({ id: 'st-2', name: 'Stasiun Fiktif', type: 'zz-stasiun-fiktif' as StationType, isActive: true }),
-      makeStation({ id: 'st-3', name: 'Process Quality Control', type: 'process-quality-control', isActive: false }),
+      makeStation({ id: 'st-3', name: 'Stasiun Fiktif Dua', type: 'zz-stasiun-fiktif-dua' as StationType, isActive: false }),
     ])
 
     const tiles = wrapper.findAll('[data-testid^="station-tile-"]')
@@ -728,7 +774,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       expect(tiles.map((tile) => tile.attributes('data-testid'))).toEqual([
         'station-tile-sterilizer',
         'station-tile-zz-stasiun-fiktif',
-        'station-tile-process-quality-control',
+        'station-tile-zz-stasiun-fiktif-dua',
       ])
       expect(wrapper.text()).not.toMatch(/akses ditolak|tidak diizinkan|forbidden/i)
       expect(pushMock).not.toHaveBeenCalled()

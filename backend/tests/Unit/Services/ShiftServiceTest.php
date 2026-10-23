@@ -90,6 +90,7 @@ use App\Services\ShiftService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -1811,11 +1812,13 @@ it('tetap menolak dua baris HIDUP dengan (production_line_id, name) yang sama', 
     // ditolak index-nya. Tanpa asersi ini, sebuah index yang ikut
     // terlonggarkan menjadi non-unique akan lolos diam-diam di belakang
     // pemeriksaan aplikasi.
-    expect(fn () => Shift::factory()
+    // Dibungkus savepoint: di PostgreSQL satu pernyataan yang gagal membuat SELURUH transaksi
+    // pembungkus tes "aborted" (SQLSTATE 25P02) dan kueri berikutnya ditolak; SQLite memaafkannya.
+    expect(fn () => DB::transaction(fn () => Shift::factory()
         ->forProductionLine($this->lineA1)
         ->named('Pagi')
         ->range('15:00:00', '23:00:00')
-        ->create())
+        ->create()))
         ->toThrow(QueryException::class);
 
     expect(Shift::where('production_line_id', $this->lineA1->id)->count())->toBe(1);
@@ -2068,12 +2071,12 @@ it('resolveShiftIdForSave: menurunkan dari jam server ketika klien tidak mengiri
     // JAM SERVER DIBEKUKAN, bukan dibiarkan apa adanya: tanpa ini test lulus
     // atau gagal menurut jam dinding mesin yang menjalankannya, dan test yang
     // gagal pada pukul tertentu saja adalah test yang akan dihapus orang.
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-16 09:00:00'));
+    $this->travelTo(Carbon::parse('2026-10-16 09:00:00'));
     expect($this->service->resolveShiftIdForSave(null, $this->lineA1->id))->toBe($pagi->id);
     expect($this->service->resolveShiftIdForSave('', $this->lineA1->id))->toBe($pagi->id);
     expect($this->service->resolveShiftIdForSave('   ', $this->lineA1->id))->toBe($pagi->id);
 
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-16 02:00:00'));
+    $this->travelTo(Carbon::parse('2026-10-16 02:00:00'));
     expect($this->service->resolveShiftIdForSave(null, $this->lineA1->id))->toBe($malam->id);
 
     $this->travelBack();
@@ -2082,7 +2085,7 @@ it('resolveShiftIdForSave: menurunkan dari jam server ketika klien tidak mengiri
 it('resolveShiftIdForSave: null ketika jam server jatuh di celah, bukan galat', function () {
     Shift::factory()->forProductionLine($this->lineA1)->pagi()->create();
 
-    $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-16 20:00:00'));
+    $this->travelTo(Carbon::parse('2026-10-16 20:00:00'));
 
     // Menolak menyimpan di sini berarti menukar data lapangan dengan
     // kelengkapan master — menghukum orang yang tidak dapat memperbaikinya.

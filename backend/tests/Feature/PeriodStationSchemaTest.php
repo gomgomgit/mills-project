@@ -39,12 +39,14 @@ it('menolak dua baris untuk jenis stasiun yang sama di satu periode', function (
     // Tanpa UNIQUE(period_id, station_type), periode ini akan punya dua baris
     // sterilizer dengan status berbeda dan tidak ada jawaban benar atas
     // "sterilizer di periode ini tertutup atau tidak".
-    expect(fn () => PeriodStation::factory()
+    // Dibungkus savepoint: di PostgreSQL satu pernyataan yang gagal membuat SELURUH transaksi
+    // pembungkus tes "aborted" (SQLSTATE 25P02) dan kueri berikutnya ditolak; SQLite memaafkannya.
+    expect(fn () => DB::transaction(fn () => PeriodStation::factory()
         ->forPeriod($period)
         ->stationType('sterilizer')
         ->closed()
         ->create()
-    )->toThrow(QueryException::class);
+    ))->toThrow(QueryException::class);
 
     expect(PeriodStation::where('period_id', $period->id)->count())->toBe(1);
 });
@@ -104,7 +106,9 @@ it('menghapus seluruh baris stasiun saat periodenya dihapus', function () {
 it('menolak menghapus jenis stasiun yang masih dipakai sebuah periode', function () {
     $period = Period::factory()->stationTypes(['sterilizer'])->create();
 
-    expect(fn () => StationType::where('code', 'sterilizer')->delete())
+    // Dibungkus savepoint: di PostgreSQL satu pernyataan yang gagal membuat SELURUH transaksi
+    // pembungkus tes "aborted" (SQLSTATE 25P02) dan kueri berikutnya ditolak; SQLite memaafkannya.
+    expect(fn () => DB::transaction(fn () => StationType::where('code', 'sterilizer')->delete()))
         ->toThrow(QueryException::class);
 
     expect(PeriodStation::where('period_id', $period->id)->count())->toBe(1)
@@ -121,12 +125,14 @@ it('menolak nama periode yang sama di satu mill dan mengizinkannya di mill lain'
     // karena PostgreSQL menganggap tiap NULL nilai berbeda, duplikat pada
     // periode ber-station_type NULL lolos dari DB dan hanya tertahan di
     // PeriodService. Sekarang DB yang menegakkan.
-    expect(fn () => Period::factory()
+    // Dibungkus savepoint: di PostgreSQL satu pernyataan yang gagal membuat SELURUH transaksi
+    // pembungkus tes "aborted" (SQLSTATE 25P02) dan kueri berikutnya ditolak; SQLite memaafkannya.
+    expect(fn () => DB::transaction(fn () => Period::factory()
         ->forBusinessUnit($millA)
         ->named('Oktober 2026')
         ->noStations()
         ->create()
-    )->toThrow(QueryException::class);
+    ))->toThrow(QueryException::class);
 
     $diMillLain = Period::factory()
         ->forBusinessUnit($millB)

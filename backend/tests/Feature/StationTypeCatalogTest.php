@@ -64,7 +64,9 @@ it('rejects a station whose type is not in the master table', function () {
 it('refuses to delete a station type that is still in use', function () {
     $station = Station::factory()->create(['type' => 'weighbridge']);
 
-    expect(fn () => StationType::where('code', 'weighbridge')->delete())
+    // Dibungkus savepoint: di PostgreSQL satu pernyataan yang gagal membuat SELURUH transaksi
+    // pembungkus tes "aborted" (SQLSTATE 25P02) dan kueri berikutnya ditolak; SQLite memaafkannya.
+    expect(fn () => DB::transaction(fn () => StationType::where('code', 'weighbridge')->delete()))
         ->toThrow(QueryException::class);
 
     expect(Station::whereKey($station->id)->exists())->toBeTrue();

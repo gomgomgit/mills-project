@@ -1325,9 +1325,11 @@ it('#29 saveCell memvalidasi bentuk masukan: tanggal mustahil, user_ids hilang, 
 it('migrasi: unique (shift_id, user_id, work_date) menolak duplikat; user sama di tanggal/shift lain boleh', function () {
     jshPlace($this->pagi, $this->budi, '2026-10-05');
 
-    expect(fn () => ShiftAssignment::query()->create([
+    // Dibungkus savepoint: di PostgreSQL satu pernyataan yang gagal membuat SELURUH transaksi
+    // pembungkus tes "aborted" (SQLSTATE 25P02) dan kueri berikutnya ditolak; SQLite memaafkannya.
+    expect(fn () => Illuminate\Support\Facades\DB::transaction(fn () => ShiftAssignment::query()->create([
         'shift_id' => $this->pagi->id, 'user_id' => $this->budi->id, 'work_date' => '2026-10-05', 'created_by' => $this->admin->id,
-    ]))->toThrow(Illuminate\Database\QueryException::class);
+    ])))->toThrow(Illuminate\Database\QueryException::class);
 
     expect(jshCount())->toBe(1);
 

@@ -727,10 +727,14 @@ class StorageTankRecordService
         $canonicalOrder = array_flip(self::canonicalTimeSlots());
 
         $details = $record->storageTankDetails
-            ->sortBy(fn (StorageTankDetail $row) => $canonicalOrder[$row->time_slot] ?? 999)
+            // Dibaca lewat canonicalTimeSlot(): kolomnya bertipe `time`, jadi PostgreSQL
+            // mengembalikan '09:00:00' sementara kunci kanonis ditulis '09:00'. Tanpa ini
+            // kuncinya tidak pernah cocok, SELURUH baris jatuh ke 999 dan urutan kanonis
+            // diam-diam menjadi urutan apa adanya. Lihat NormalizesTimeSlot — jalur BACA.
+            ->sortBy(fn (StorageTankDetail $row) => $canonicalOrder[$this->canonicalTimeSlot($row->time_slot)] ?? 999)
             ->values()
             ->map(function (StorageTankDetail $row) {
-                $mapped = ['id' => $row->id, 'time_slot' => $row->time_slot];
+                $mapped = ['id' => $row->id, 'time_slot' => $this->canonicalTimeSlot($row->time_slot)];
 
                 foreach (self::DETAIL_FIELDS as $field) {
                     $mapped[$field] = $row->{$field};

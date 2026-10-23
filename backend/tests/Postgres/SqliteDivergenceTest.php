@@ -9,13 +9,26 @@
  * suite utama tidak akan menambah perlindungan apa pun; ia hanya akan
  * terlihat seperti perlindungan.
  *
- * Empat kelas divergensi yang sudah berbiaya di proyek ini:
+ * Enam kelas divergensi yang sudah berbiaya di proyek ini, bernomor sama
+ * dengan seksi di bawah:
  *
  *   1. '' pada kolom uuid    — SQLite menerima, PostgreSQL SQLSTATE[22P02]
  *   2. LIKE tanpa ESCAPE     — PostgreSQL berdefault backslash, SQLite tidak
  *                              punya default sama sekali
  *   3. ILIKE                 — hanya ada di PostgreSQL
- *   4. whereDate             — diterjemahkan berbeda per driver
+ *   4. '' -> null            — kolom teks nullable yang menerima '' membuat
+ *                              dua baris "kosong" bentrok di indeks unik
+ *   5. whereDate             — diterjemahkan berbeda per driver
+ *   6. kolom `time` dibaca kembali — PostgreSQL '09:00:00', SQLite '09:00'
+ *
+ * Nomor 6 ditambahkan 2026-10-23 setelah SELURUH suite dijalankan sekali
+ * di PostgreSQL: 46 test gagal, dan tidak satu pun tertangkap oleh irisan ini
+ * karena jalurnya memang belum ada di sini. Irisan hanya melindungi apa
+ * yang dimasukkan ke dalamnya — itu harga dari memilih irisan, dan harga itu
+ * dibayar dengan menambahkan setiap kelas baru begitu ketahuan.
+ *
+ * (Daftar ini sempat menyebut empat kelas sementara seksinya sudah lima —
+ * nomor 4 tidak pernah ikut tercatat. Disamakan pada tanggal yang sama.)
  *
  * Nomor 1 juga dijaga pemindai statis (tests/Feature/EmptyStringUuidComparisonTest).
  * Keduanya saling melengkapi, bukan duplikat: pemindai menangkap pola yang
@@ -23,16 +36,22 @@
  * statisnya terlihat benar.
  */
 
+use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\Company;
 use App\Models\Corporate;
+use App\Models\ProcessWaterDetail;
+use App\Models\ProcessWaterRecord;
 use App\Models\ProductionLine;
+use App\Models\Station;
 use App\Models\User;
 use App\Services\CompanyService;
 use App\Services\MasterDataTreeService;
+use App\Services\ProductionLineService;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -153,7 +172,7 @@ it('menyimpan kode Production Line kosong sebagai NULL, sehingga dua line tanpa 
     $company = Company::factory()->create(['corporate_id' => $corporate->id]);
     $mill = BusinessUnit::factory()->create(['company_id' => $company->id]);
 
-    $service = app(\App\Services\ProductionLineService::class);
+    $service = app(ProductionLineService::class);
     $service->create(['business_unit_id' => $mill->id, 'name' => 'Line Satu', 'code' => '']);
     $service->create(['business_unit_id' => $mill->id, 'name' => 'Line Dua', 'code' => '']);
 
@@ -179,7 +198,7 @@ it('whereDate membandingkan BAGIAN TANGGAL, termasuk baris di ujung hari', funct
     // percobaan pertama. SQLite menerima insert tanpa kolom itu di beberapa
     // konfigurasi; PostgreSQL menolaknya dengan 23502.
     DB::table('periods')->insert([
-        'id' => (string) \Illuminate\Support\Str::uuid(),
+        'id' => (string) Str::uuid(),
         'business_unit_id' => $mill->id,
         'name' => 'Periode Uji whereDate',
         'start_date' => '2026-03-01',
@@ -191,4 +210,55 @@ it('whereDate membandingkan BAGIAN TANGGAL, termasuk baris di ujung hari', funct
 
     expect(DB::table('periods')->whereDate('created_at', '2026-03-15')->count())->toBe(1);
     expect(DB::table('periods')->whereDate('created_at', '2026-03-16')->count())->toBe(0);
+});
+
+// ── 6. kolom `time` dibaca kembali dengan detik ──────────────────────────
+
+it('membuktikan PostgreSQL memang mengembalikan kolom time dengan detik', function () {
+    // Kontrol positif untuk kedua test di bawah: kalau suatu hari kolomnya
+    // berubah tipe, keduanya akan lulus tanpa menguji apa pun lagi dan test
+    // ini yang memberi tahu.
+    $station = Station::factory()->create();
+    $record = ProcessWaterRecord::factory()->forStation($station)->create();
+    ProcessWaterDetail::factory()->forRecord($record)->timeSlot('09:00')->create();
+
+    $raw = DB::table('process_water_details')
+        ->where('process_water_record_id', $record->id)
+        ->value('time_slot');
+
+    expect($raw)->toBe('09:00:00');
+});
+
+it('mengirim time_slot tanpa detik ke klien, bukan apa adanya dari kolom time', function () {
+    // Defek nyata yang hidup tiga minggu: NormalizesTimeSlot ditutup di jalur
+    // TULIS saja (2026-10-02), sehingga endpoint Detail mengirim '09:00:00'
+    // ke web dan mobile di produksi sementara seluruh suite hijau di SQLite.
+    $station = Station::factory()->create();
+    $admin = User::factory()->role(UserRole::Admin)->create();
+    $record = ProcessWaterRecord::factory()->forStation($station)->create();
+    ProcessWaterDetail::factory()->forRecord($record)->timeSlot('09:00')->filled()->create();
+
+    $response = $this->actingAs($admin, 'web')->getJson("/api/process-water-records/{$record->id}");
+
+    $response->assertOk();
+    expect(array_column($response->json('details'), 'time_slot'))->toBe(['09:00']);
+});
+
+it('mengurutkan detail secara kanonis meski kolom time mengembalikan detik', function () {
+    // Bagian kedua dari defek yang sama, dan yang paling sunyi: urutan dicari
+    // lewat $canonicalOrder[$row->time_slot] ?? 999. Di PostgreSQL kuncinya
+    // tidak pernah cocok, jadi SELURUH baris jatuh ke 999 dan sortBy yang
+    // stabil meninggalkan urutan apa adanya — tanpa galat, tanpa petunjuk.
+    // 00:00 adalah ujung hari kerja, jadi ia TERAKHIR, bukan pertama.
+    $station = Station::factory()->create();
+    $admin = User::factory()->role(UserRole::Admin)->create();
+    $record = ProcessWaterRecord::factory()->forStation($station)->create();
+    ProcessWaterDetail::factory()->forRecord($record)->timeSlot('14:00')->create();
+    ProcessWaterDetail::factory()->forRecord($record)->timeSlot('08:00')->create();
+    ProcessWaterDetail::factory()->forRecord($record)->timeSlot('00:00')->create();
+
+    $response = $this->actingAs($admin, 'web')->getJson("/api/process-water-records/{$record->id}");
+
+    $response->assertOk();
+    expect(array_column($response->json('details'), 'time_slot'))->toBe(['08:00', '14:00', '00:00']);
 });

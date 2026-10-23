@@ -763,11 +763,15 @@ class DepricarpingRecordService
         $canonicalOrder = array_flip(self::canonicalTimeSlots());
 
         $details = $record->depricarpingDetails
-            ->sortBy(fn (DepricarpingDetail $row) => $canonicalOrder[$row->time_slot] ?? 999)
+            // Dibaca lewat canonicalTimeSlot(): kolomnya bertipe `time`, jadi PostgreSQL
+            // mengembalikan '09:00:00' sementara kunci kanonis ditulis '09:00'. Tanpa ini
+            // kuncinya tidak pernah cocok, SELURUH baris jatuh ke 999 dan urutan kanonis
+            // diam-diam menjadi urutan apa adanya. Lihat NormalizesTimeSlot — jalur BACA.
+            ->sortBy(fn (DepricarpingDetail $row) => $canonicalOrder[$this->canonicalTimeSlot($row->time_slot)] ?? 999)
             ->values()
             ->map(fn (DepricarpingDetail $row) => [
                 'id' => $row->id,
-                'time_slot' => $row->time_slot,
+                'time_slot' => $this->canonicalTimeSlot($row->time_slot),
                 'fan_static_pressure_mmh2o' => $row->fan_static_pressure_mmh2o,
                 'polishing_drum_speed_rpm' => $row->polishing_drum_speed_rpm,
                 'air_velocity_ms' => $row->air_velocity_ms,

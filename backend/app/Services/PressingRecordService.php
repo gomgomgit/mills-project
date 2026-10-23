@@ -707,11 +707,15 @@ class PressingRecordService
         $canonicalOrder = array_flip(self::canonicalTimeSlots());
 
         $details = $record->pressingDetails
-            ->sortBy(fn (PressingDetail $row) => $canonicalOrder[$row->time_slot] ?? 999)
+            // Dibaca lewat canonicalTimeSlot(): kolomnya bertipe `time`, jadi PostgreSQL
+            // mengembalikan '09:00:00' sementara kunci kanonis ditulis '09:00'. Tanpa ini
+            // kuncinya tidak pernah cocok, SELURUH baris jatuh ke 999 dan urutan kanonis
+            // diam-diam menjadi urutan apa adanya. Lihat NormalizesTimeSlot — jalur BACA.
+            ->sortBy(fn (PressingDetail $row) => $canonicalOrder[$this->canonicalTimeSlot($row->time_slot)] ?? 999)
             ->values()
             ->map(fn (PressingDetail $row) => [
                 'id' => $row->id,
-                'time_slot' => $row->time_slot,
+                'time_slot' => $this->canonicalTimeSlot($row->time_slot),
                 'digester_temp_c' => $row->digester_temp_c,
                 'digester_level_percent' => $row->digester_level_percent,
                 'press_motor_current_amps' => $row->press_motor_current_amps,

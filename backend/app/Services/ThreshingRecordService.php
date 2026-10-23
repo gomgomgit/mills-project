@@ -708,11 +708,15 @@ class ThreshingRecordService
         $canonicalOrder = array_flip(self::canonicalTimeSlots());
 
         $details = $record->threshingDetails
-            ->sortBy(fn (ThreshingDetail $row) => $canonicalOrder[$row->time_slot] ?? 999)
+            // Dibaca lewat canonicalTimeSlot(): kolomnya bertipe `time`, jadi PostgreSQL
+            // mengembalikan '09:00:00' sementara kunci kanonis ditulis '09:00'. Tanpa ini
+            // kuncinya tidak pernah cocok, SELURUH baris jatuh ke 999 dan urutan kanonis
+            // diam-diam menjadi urutan apa adanya. Lihat NormalizesTimeSlot — jalur BACA.
+            ->sortBy(fn (ThreshingDetail $row) => $canonicalOrder[$this->canonicalTimeSlot($row->time_slot)] ?? 999)
             ->values()
             ->map(fn (ThreshingDetail $row) => [
                 'id' => $row->id,
-                'time_slot' => $row->time_slot,
+                'time_slot' => $this->canonicalTimeSlot($row->time_slot),
                 'ffb_throughput_mt_hour' => $row->ffb_throughput_mt_hour,
                 'thresher_drum_speed_rpm' => $row->thresher_drum_speed_rpm,
                 'motor_current_amps' => $row->motor_current_amps,

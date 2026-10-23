@@ -41,6 +41,23 @@ namespace App\Support\Concerns;
  * trait touches only what is about to be validated and persisted, so no screen
  * and no export changes shape. It also covers the mobile/API path, which goes
  * through the same services.
+ *
+ * ── JALUR BACA, ditutup menyusul (2026-10-23) ───────────────────────────
+ *
+ * Membatasi normalisasi pada jalur TULIS meninggalkan separuh cacatnya hidup,
+ * dan itu baru terlihat ketika suite dijalankan di PostgreSQL untuk pertama
+ * kalinya. Pada toDetailRow() kesebelas service, urutan kanonis dicari lewat
+ * `$canonicalOrder[$row->time_slot] ?? 999`. Di PostgreSQL kuncinya '09:00:00'
+ * dan peta kanonisnya '09:00', jadi SETIAP baris jatuh ke 999: urutan kanonis
+ * diam-diam berubah menjadi urutan apa adanya, dan payload endpoint Detail
+ * ikut mengirim '09:00:00' ke klien web maupun mobile. 44 tes membuktikannya
+ * begitu suite berjalan di PostgreSQL; di SQLite semuanya hijau.
+ *
+ * Yang ditambahkan hanya pemanggilan canonicalTimeSlot() pada kunci pengurutan
+ * dan pada nilai yang dikirim. Laporan periode dan ekspor CSV TETAP tidak
+ * lewat sini — keduanya memakai ExportValue::time(), yang memang sudah
+ * memangkas detik sendiri; 635 tes laporan/ekspor lulus di PostgreSQL sebelum
+ * maupun sesudah perubahan ini, dengan jumlah yang sama persis.
  */
 trait NormalizesTimeSlot
 {

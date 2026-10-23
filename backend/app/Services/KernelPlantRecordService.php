@@ -757,11 +757,15 @@ class KernelPlantRecordService
         $canonicalOrder = array_flip(self::canonicalTimeSlots());
 
         $details = $record->kernelPlantDetails
-            ->sortBy(fn (KernelPlantDetail $row) => $canonicalOrder[$row->time_slot] ?? 999)
+            // Dibaca lewat canonicalTimeSlot(): kolomnya bertipe `time`, jadi PostgreSQL
+            // mengembalikan '09:00:00' sementara kunci kanonis ditulis '09:00'. Tanpa ini
+            // kuncinya tidak pernah cocok, SELURUH baris jatuh ke 999 dan urutan kanonis
+            // diam-diam menjadi urutan apa adanya. Lihat NormalizesTimeSlot — jalur BACA.
+            ->sortBy(fn (KernelPlantDetail $row) => $canonicalOrder[$this->canonicalTimeSlot($row->time_slot)] ?? 999)
             ->values()
             ->map(fn (KernelPlantDetail $row) => [
                 'id' => $row->id,
-                'time_slot' => $row->time_slot,
+                'time_slot' => $this->canonicalTimeSlot($row->time_slot),
                 'ripple_mill_1_amps' => $row->ripple_mill_1_amps,
                 'ripple_mill_2_amps' => $row->ripple_mill_2_amps,
                 'claybath_hydro_sg' => $row->claybath_hydro_sg,

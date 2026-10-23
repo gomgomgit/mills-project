@@ -13,6 +13,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -140,7 +141,16 @@ class MachineryService
             ->orderBy('equipment_code');
 
         if ($hasGroupFilter) {
-            $query->where('machinery_group_id', $machineryGroupId);
+            // machinery_group_id bertipe uuid di PostgreSQL: menanyakannya dengan
+            // teks yang bukan UUID memicu SQLSTATE 22P02 dan menjatuhkan daftar
+            // dengan 500, sementara SQLite diam-diam mengembalikan nol baris.
+            // Nilai yang mustahil tersimpan di kolom itu memang tidak punya
+            // kecocokan, jadi jawabannya daftar kosong — bukan galat.
+            if (! Str::isUuid($machineryGroupId)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where('machinery_group_id', $machineryGroupId);
+            }
         } elseif ($ungrouped) {
             $query->whereNull('machinery_group_id');
         }

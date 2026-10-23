@@ -9,7 +9,7 @@
  * suite utama tidak akan menambah perlindungan apa pun; ia hanya akan
  * terlihat seperti perlindungan.
  *
- * Enam kelas divergensi yang sudah berbiaya di proyek ini, bernomor sama
+ * Tujuh kelas divergensi yang sudah berbiaya di proyek ini, bernomor sama
  * dengan seksi di bawah:
  *
  *   1. '' pada kolom uuid    — SQLite menerima, PostgreSQL SQLSTATE[22P02]
@@ -20,10 +20,12 @@
  *                              dua baris "kosong" bentrok di indeks unik
  *   5. whereDate             — diterjemahkan berbeda per driver
  *   6. kolom `time` dibaca kembali — PostgreSQL '09:00:00', SQLite '09:00'
+ *   7. teks bukan-UUID pada kolom uuid — sama seperti (1), tetapi datang dari
+ *      nilai filter dan aturan `exists`, bukan dari string kosong
  *
- * Nomor 6 ditambahkan 2026-10-23 setelah SELURUH suite dijalankan sekali
+ * Nomor 6 dan 7 ditambahkan 2026-10-23 setelah SELURUH suite dijalankan sekali
  * di PostgreSQL: 46 test gagal, dan tidak satu pun tertangkap oleh irisan ini
- * karena jalurnya memang belum ada di sini. Irisan hanya melindungi apa
+ * karena kedua jalurnya memang belum ada di sini. Irisan hanya melindungi apa
  * yang dimasukkan ke dalamnya — itu harga dari memilih irisan, dan harga itu
  * dibayar dengan menambahkan setiap kelas baru begitu ketahuan.
  *
@@ -46,6 +48,7 @@ use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\CompanyService;
+use App\Services\MachineryService;
 use App\Services\MasterDataTreeService;
 use App\Services\ProductionLineService;
 use Illuminate\Database\QueryException;
@@ -261,4 +264,34 @@ it('mengurutkan detail secara kanonis meski kolom time mengembalikan detik', fun
 
     $response->assertOk();
     expect(array_column($response->json('details'), 'time_slot'))->toBe(['08:00', '14:00', '00:00']);
+});
+
+// ── 7. teks bukan-UUID pada kolom uuid ───────────────────────────────────
+
+it('menjawab daftar kosong untuk filter grup yang bukan UUID, bukan 500', function () {
+    // Sama keluarga dengan '' pada kolom uuid, tetapi datang dari NILAI FILTER.
+    // Di produksi ini menjatuhkan daftar Kelola Mesin dengan 500; yang benar
+    // adalah "tidak ada hasil", karena teks yang mustahil tersimpan di kolom
+    // uuid memang tidak punya kecocokan.
+    $result = app(MachineryService::class)->listMachinery(
+        page: 1,
+        perPage: 10,
+        machineryGroupId: 'apa-saja',
+    );
+
+    expect($result['data'])->toBe([]);
+    expect($result['meta']['total'])->toBe(0);
+});
+
+it('membuktikan PostgreSQL memang menolak teks bukan-UUID pada kolom uuid', function () {
+    // Kontrol positif untuk test di atas. SEKALI SAJA dan sebagai pernyataan
+    // TERAKHIR: kueri yang gagal mengaborsi transaksi RefreshDatabase, jadi
+    // apa pun sesudahnya hanya akan menjawab 25P02, bukan 22P02 yang sedang
+    // dibuktikan.
+    try {
+        DB::table('machinery')->where('machinery_group_id', 'apa-saja')->count();
+        $this->fail('PostgreSQL seharusnya menolak teks bukan-UUID pada kolom uuid');
+    } catch (QueryException $e) {
+        expect($e->getMessage())->toContain('22P02');
+    }
 });

@@ -279,6 +279,14 @@ class MasterDataTreeView extends Component
      * the authority (see class docblock). Unique rules use
      * ignore($editingId) on edit so an entity never collides with itself.
      */
+    /*
+       Aturan id induk berbentuk ['bail', …, 'uuid', exists]. Kolomnya bertipe
+       uuid di PostgreSQL: memberi exists sebuah teks yang bukan UUID memicu
+       SQLSTATE 22P02 dan menjatuhkan halaman dengan 500, sementara SQLite diam-
+       diam mengembalikan nol baris. 'uuid' menolaknya lebih dulu sebagai galat
+       validasi biasa, dan 'bail' WAJIB ada — tanpa itu exists tetap dijalankan
+       meski 'uuid' sudah gagal, dan justru exists-lah yang melempar.
+    */
     protected function rules(): array
     {
         return match ($this->modalLevel) {
@@ -350,7 +358,7 @@ class MasterDataTreeView extends Component
         }
 
         $rules = [
-            'form.corporate_id' => ['required', 'string', Rule::exists('corporates', 'id')],
+            'form.corporate_id' => ['bail', 'required', 'string', 'uuid', Rule::exists('corporates', 'id')],
             'form.company_code' => ['required', 'string', 'max:255', $codeUnique],
             'form.name' => ['required', 'string', 'max:255', $nameUnique],
             'logo' => $this->logoRule(),
@@ -378,7 +386,7 @@ class MasterDataTreeView extends Component
         }
 
         $rules = [
-            'form.company_id' => ['required', 'string', Rule::exists('companies', 'id')],
+            'form.company_id' => ['bail', 'required', 'string', 'uuid', Rule::exists('companies', 'id')],
             'form.code' => ['required', 'string', 'max:255', $codeUnique],
             'form.name' => ['required', 'string', 'max:255'],
             'logo' => $this->logoRule(),
@@ -405,7 +413,7 @@ class MasterDataTreeView extends Component
         }
 
         return [
-            'form.business_unit_id' => ['required', 'string', Rule::exists('business_units', 'id')],
+            'form.business_unit_id' => ['bail', 'required', 'string', 'uuid', Rule::exists('business_units', 'id')],
             'form.name' => ['required', 'string', 'max:255'],
             'form.code' => ['nullable', 'string', 'max:255', $codeUnique],
             'form.description' => ['nullable', 'string', 'max:255'],

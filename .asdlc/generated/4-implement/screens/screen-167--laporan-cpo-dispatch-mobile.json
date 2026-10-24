@@ -1,0 +1,74 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-10-24"
+  },
+  "id": "screen-167--laporan-cpo-dispatch-mobile",
+  "name": "Laporan CPO Dispatch (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-24T08:05:00Z",
+      "passed": 48,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-24T08:05:00Z",
+      "passed": 48,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-24T08:30:00Z",
+      "passed": 10,
+      "failed": 0
+    }
+  },
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/LaporanCpoDispatchView.vue",
+    "mobile/src/services/cpoDispatchReportRepo.ts",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/ReportingPilihStasiunView.spec.ts",
+    "mobile/tests/LaporanCpoDispatchView.spec.ts",
+    "mobile/tests/e2e/laporan-cpo-dispatch.spec.ts"
+  ],
+  "implementation_notes": [
+    "Nol berkas backend disentuh: keempat endpoint dipakai ulang dari screen-166; payload diketik dari CpoDispatchReportService.php.",
+    "Kerangka disalin dari screen-165; ditambah kartu waktu putar, kartu sebaran 24 jam (daftar bertumpuk 24 baris + 'jam tidak tercatat', dapat dilipat) dan bagian Empat Penyebut; rekap berlabel dan helper optionLabel dihilangkan.",
+    "Klien tidak menghitung apa pun: tanpa pengurangan jam, tanpa Date/Intl untuk durasi, tanpa reduce/sort/Math.min/Math.max; bilah jam memakai elemen <progress>.",
+    "Riak spec picker: 'cpo-dispatch' pada st-4 diganti ke 'zz-stasiun-fiktif-tiga' as StationType (bukan 'zz-stasiun-fiktif' karena st-2 sudah memakainya dan testid bentrok); picker hijau, vue-tsc bersih, vite build berhasil.",
+    "Ikon cpo-dispatch sudah ada di STATION_ICONS, tidak ditambahkan ulang.",
+    "Tes: 48 unit vitest (termasuk audit sumber, jebakan falsiness jam 0 dan waktu putar 0, penjaga per ukuran mutu, DOBI tanpa satuan, baris nol sebaran, luring, storage melempar, galat 401/403/422/500, ketukan ganda ekspor) dan 10 skenario Playwright (geometri 390px, overflow mendatar, 25 baris dalam kartu, luring via navigator.onLine, ekspor dobel-ketuk, audit kelas CSS hasil compile). Uji mutasi pada jebakan falsiness memerahkan tes 5 dan 6."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Jebakan tengah malam dan waktu putar nol hanya dijaga unit test; fixture DB e2e punya time_in dan time_out NULL sehingga browser hanya menguji kasus 'tidak ada jam sama sekali'.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage tidak terukur (tanpa xdebug/pcov); angka 0 berarti tidak terukur, bukan tidak ada cakupan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Komentar lama di ReportingPilihStasiunView.vue yang menyebut peta REPORT_ROUTES lengkap sampai 'process-quality-control' tidak lagi akurat; koreksi ditambahkan di entri baru, kalimat lama tidak dihapus.",
+      "severity": "minor"
+    },
+    {
+      "description": "Noise 'Failed to resolve directive: stacked-table' di jsdom pada unit test, sama dengan preseden screen-165; tidak menggagalkan tes.",
+      "severity": "minor"
+    }
+  ]
+}

@@ -79,13 +79,12 @@
  * apa pun. Ia diganti 'zz-stasiun-fiktif-dua', kode fiktif KEDUA, karena berkas
  * ini butuh DUA contoh nonaktif yang berbeda sekaligus: satu pada fixture tiga
  * stasiun dan satu lagi berdampingan dengan contoh pertama pada fixture lima
- * stasiun. Dengan itu seluruh contoh nonaktif di berkas ini FIKTIF kecuali
- * 'cpo-dispatch', satu-satunya jenis nyata yang laporan MOBILE-nya memang belum
- * dibangun (screen-167 belum dikerjakan).
+ * stasiun.
  *
- * SESUDAH screen-167 MENDARAT, 'cpo-dispatch' pun harus ikut diganti kode
- * fiktif — dan sesudah itu tidak akan ada lagi jenis nyata yang dapat dipakai
- * sama sekali. Dicatat di sini supaya tidak ditemukan sebagai kejutan.
+ * 'cpo-dispatch' PUN SUDAH PENSIUN sebagai contoh, pada screen-167: laporan CPO
+ * Dispatch mobile dibangun, tile-nya menjadi AKTIF, dan ia diganti
+ * 'zz-stasiun-fiktif-tiga'. Dengan itu TIDAK ADA lagi jenis nyata yang dapat
+ * dipakai — seluruh contoh nonaktif di berkas ini FIKTIF.
  *
  * Kode fiktifnya ditulis LOWERCASE DAN BERTANDA HUBUNG dengan sengaja:
  * LaporanProcessWaterView.spec.ts (unit_test_case 56) memungut kode stasiun
@@ -114,9 +113,10 @@
  *     'process-quality-control' pada 2026-10-23 (screen-169); dipakai pada
  *     st-3/st-5 dan pada asersi urutan tile. Seperti kode fiktif pertama, ia
  *     tidak akan pernah mendapat entri REPORT_ROUTES;
- *   - 'cpo-dispatch' (sort_order 170) — hasil pemindahan KEENAM, dipakai pada
- *     st-4 di fixture lima-stasiun, dan satu-satunya contoh NYATA yang
- *     tersisa: laporan CPO Dispatch MOBILE (screen-167) belum dibangun.
+ *   - 'zz-stasiun-fiktif-tiga' — kode FIKTIF ketiga, menggantikan
+ *     'cpo-dispatch' pada screen-167 (hasil pemindahan KEENAM sebelumnya);
+ *     dipakai pada st-4 di fixture lima-stasiun. Tidak ada contoh NYATA yang
+ *     tersisa.
  *
  * 'kernel-dispatch' (sort_order 160) DULU ada di daftar ini sebagai hasil
  * pemindahan KETUJUH, dipakai pada test "tile tanpa laporan tetap tidak
@@ -705,7 +705,15 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
       // CPO Dispatch sendiri TIDAK berpindah: ia masih belum punya laporan
       // mobile, jadi tile-nya tetap nonaktif dan hitungan 4 tile nonaktif di
       // bawah tetap berlaku.
-      makeStation({ id: 'st-4', name: 'CPO Dispatch', type: 'cpo-dispatch', isActive: true }),
+      //
+      // DIPINDAHKAN pada screen-167: laporan CPO Dispatch mobile dibangun,
+      // 'cpo-dispatch' ada di REPORT_ROUTES, dan tile-nya menjadi AKTIF — satu-
+      // satunya contoh NYATA terakhir berhenti menguji apa pun. Penggantinya
+      // kode FIKTIF KETIGA 'zz-stasiun-fiktif-tiga': kode fiktif pertama dan
+      // kedua sudah dipakai st-2/st-3 pada fixture yang sama, dan dua tile
+      // berkode sama akan berbagi testid `station-tile-<kode>`. Hitungan tile
+      // nonaktif (4) tidak berubah.
+      makeStation({ id: 'st-4', name: 'Stasiun Fiktif Tiga', type: 'zz-stasiun-fiktif-tiga' as StationType, isActive: true }),
       makeStation({ id: 'st-5', name: 'Stasiun Fiktif Dua', type: 'zz-stasiun-fiktif-dua' as StationType, isActive: true }),
     ])
 

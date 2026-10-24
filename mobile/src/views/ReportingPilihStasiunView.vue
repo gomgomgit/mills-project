@@ -191,6 +191,19 @@ const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   // memakai kode stasiun FIKTIF yang disuntikkan ke daftar stasiunnya sendiri —
   // tidak ada lagi kandidat nyata.
   'process-quality-control': 'report-process-quality-control',
+  // screen-167--laporan-cpo-dispatch-mobile. Satu baris yang sama
+  // menentukannya: tanpa entri ini layar laporan CPO Dispatch ada, rutenya
+  // ada, seluruh test-nya lulus, dan tile-nya tetap kelabu. Kuncinya WAJIB
+  // DIKUTIP karena bertanda hubung — kunci bergaris-bawah ('cpo_dispatch')
+  // tidak pernah cocok dengan satu station.type pun. DI-APPEND: peta ini tidak
+  // berurut sort_order dan tidak punya asersi urutan. Ikon 'cpo-dispatch'
+  // SUDAH ADA di STATION_ICONS di bawah dan tidak ditambah ulang.
+  //
+  // KOREKSI atas catatan di atas: 'process-quality-control' BUKAN entri
+  // terakhir — 'cpo-dispatch' masih kelabu sampai baris ini. Dengan baris
+  // inilah peta ini benar-benar lengkap dan 'cpo-dispatch' tidak lagi menjadi
+  // contoh 'laporan belum dibangun' yang nyata.
+  'cpo-dispatch': 'report-cpo-dispatch',
 }
 
 function isReportAvailable(station: StationSlot): boolean {

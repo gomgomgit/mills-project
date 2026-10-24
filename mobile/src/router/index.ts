@@ -1268,6 +1268,23 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanProcessQualityControlView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-167--laporan-cpo-dispatch-mobile /
+    // usecase-173--laporan-cpo-dispatch-mobile "Lihat Laporan Periode CPO
+    // Dispatch (Mobile)". Aktor: Station Operator, Supervisor, Mill Management,
+    // Admin. Hanya ada satu penjaga global `meta.public`; pembatasan peran yang
+    // sebenarnya ada di server. Admin tidak terikat mill.
+    //
+    // Pintu masuknya: rute 'report-stations' (screen-141), dan tile CPO
+    // Dispatch-lah yang menavigasi ke sini — entri 'cpo-dispatch' pada
+    // REPORT_ROUTES di ReportingPilihStasiunView.vue adalah satu-satunya
+    // penentu tile itu hidup atau mati. Kuncinya WAJIB berkutip di sana karena
+    // bertanda hubung.
+    path: '/reports/cpo-dispatch',
+    name: 'report-cpo-dispatch',
+    component: () => import('@/views/LaporanCpoDispatchView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

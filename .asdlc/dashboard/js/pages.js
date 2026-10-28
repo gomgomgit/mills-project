@@ -218,7 +218,7 @@ function renderTestResults(value) {
     const failed  = notRun ? "—" : String(r.failed);
     const runAt   = notRun ? "—" : r.run_at.replace("T", " ").replace("Z", " UTC");
     const coverage = t.hasCoverage
-      ? (notRun ? "—" : (r.coverage != null ? r.coverage + "%" : "—"))
+      ? (notRun ? "—" : (r.coverage != null && r.coverage > 0 ? r.coverage + "%" : "tidak terukur"))
       : null;
     const failedCls = (!notRun && r.failed > 0) ? ' style="color:var(--error,#e55);font-weight:600"' : "";
     const passedCls = (!notRun && r.passed > 0 && r.failed === 0) ? ' style="color:var(--ok,#3a3);font-weight:600"' : "";
@@ -2569,14 +2569,19 @@ function _r2SummaryCards(resultsScreens) {
     { key: "browser",     label: "Browser" },
   ];
   const cards = types.map(t => {
-    let passed = 0, failed = 0, ran = 0, covSum = 0, covCount = 0;
+    let passed = 0, failed = 0, ran = 0, covSum = 0, covCount = 0, covUnmeasured = 0;
     resultsScreens.forEach(s => {
       const r = s.test_results && s.test_results[t.key];
       if (r && r.run_at) {
         ran++;
         passed += r.passed || 0;
         failed += r.failed || 0;
-        if (t.key === "unit" && r.coverage != null) { covSum += r.coverage; covCount++; }
+        // coverage <= 0 (0 atau -1) = "tidak terukur", bukan 0% sungguhan: tanpa driver
+        // coverage agen menulis 0, dan merata-ratakannya menyeret angka ke ~4%.
+        if (t.key === "unit") {
+          if (r.coverage != null && r.coverage > 0) { covSum += r.coverage; covCount++; }
+          else covUnmeasured++;
+        }
       }
     });
     const pct    = _r2PassRate(passed, failed);
@@ -2587,7 +2592,8 @@ function _r2SummaryCards(resultsScreens) {
       <div class="r2-summary-card-value">${pct == null ? "—" : pct + "%"}</div>
       ${_r2Bar(passed, failed)}
       <div class="r2-summary-card-sub">${ran} screen · ${passed}<span style="color:var(--green)">✓</span> ${failed}<span style="color:${failed ? "var(--red)" : "var(--text3)"}">✗</span></div>
-      ${avgCov != null ? `<div class="r2-summary-card-sub" style="color:${covCls}">Coverage rata-rata: ${avgCov}%</div>` : ""}
+      ${avgCov != null ? `<div class="r2-summary-card-sub" style="color:${covCls}">Coverage rata-rata: ${avgCov}% (${covCount} screen terukur${covUnmeasured ? ` · ${covUnmeasured} tidak terukur` : ""})</div>`
+        : (covUnmeasured ? `<div class="r2-summary-card-sub" style="color:var(--text3)">Coverage: tidak terukur (${covUnmeasured} screen)</div>` : "")}
     </div>`;
   }).join("");
   return `<div class="r2-summary-row">${cards}</div>`;
@@ -2751,7 +2757,7 @@ function _r3CellHtml(cellObj, hasCoverage) {
   const { r } = cellObj;
   if (!r || !r.run_at) return `<span style="color:var(--text3)">—</span>`;
   const cls    = r.failed > 0 ? "color:var(--red);font-weight:600" : "color:var(--green);font-weight:600";
-  const covTxt = hasCoverage && r.coverage != null
+  const covTxt = hasCoverage && r.coverage != null && r.coverage > 0
     ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${r.coverage}% cov</div>` : "";
   return `<div style="${cls}">${r.passed}/${r.passed + r.failed}</div>${covTxt}`;
 }
